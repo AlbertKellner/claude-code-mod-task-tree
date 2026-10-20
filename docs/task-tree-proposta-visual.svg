@@ -1,0 +1,41 @@
+<svg viewBox="0 0 680 500" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui, sans-serif"><title>Proposta visual do painel task-tree</title><desc>Referência visual do painel: cabeçalho com barra e chips (em andamento, aguardando, interrompida, sessão ativa com ícone de ramificação), guias vetoriais ligando as tarefas, setas de abrir e recolher, tarefa interrompida, cartão cinza da sessão filha, aviso de espera, seção Concluídas recolhida, subagente interrompido. Sem fundo pontilhado.</desc>
+<style>.bg{fill:#1a1a19}.t{fill:#e8e6dc;font-size:14px}.th{fill:#e8e6dc;font-size:16px;font-weight:500}.ts{fill:#b4b2a9;font-size:12px}.card{fill:#444441;stroke:#888780}@media (prefers-color-scheme: light){.bg{fill:#ffffff}.t,.th{fill:#2c2c2a}.ts{fill:#5f5e5a}.card{fill:#f1efe8;stroke:#b4b2a9}}</style>
+<defs><g id="br"><circle cx="0" cy="-5" r="2" fill="none" stroke-width="1.4"/><circle cx="0" cy="6" r="2" fill="none" stroke-width="1.4"/><circle cx="8" cy="-3" r="2" fill="none" stroke-width="1.4"/><path d="M0 -3 V4 M8 -1 C8 3 0 1 0 4" fill="none" stroke-width="1.4"/></g></defs>
+<rect class="bg" x="0" y="0" width="680" height="500"/>
+<text class="th" x="24" y="34">Implementar a funcionalidade</text>
+<text class="ts" x="656" y="34" text-anchor="end">4 de 7 · 57%</text>
+<rect x="24" y="46" width="632" height="6" rx="3" fill="#888780" opacity="0.25"/>
+<rect x="24" y="46" width="360" height="6" rx="3" fill="#639922"/>
+<circle cx="30" cy="74" r="4" fill="#BA7517"/><text class="ts" x="40" y="78">1 em andamento</text>
+<circle cx="158" cy="74" r="4.5" fill="none" stroke="#BA7517" stroke-width="1.5"/><path d="M158 71.5 V74 H160" stroke="#BA7517" stroke-width="1.2" fill="none"/><text class="ts" x="168" y="78">1 aguardando</text>
+<path d="M266 70 l7 7 M273 70 l-7 7" stroke="#888780" stroke-width="1.6"/><text class="ts" x="280" y="78">1 interrompida</text>
+<use href="#br" x="396" y="74" stroke="#888780"/><text class="ts" x="412" y="78">1 sessão ativa</text>
+<line x1="24" y1="94" x2="656" y2="94" stroke="#888780" stroke-width="0.5" opacity="0.5"/>
+<path d="M26 116 l4 4 l4 -4" stroke="#888780" stroke-width="1.5" fill="none"/>
+<circle cx="50" cy="118" r="6" fill="none" stroke="#BA7517" stroke-width="2"/><circle cx="50" cy="118" r="2.5" fill="#BA7517"/>
+<text class="th" x="64" y="123">Implementar a funcionalidade</text>
+<rect x="520" y="113" width="60" height="6" rx="3" fill="#888780" opacity="0.25"/><rect x="520" y="113" width="34" height="6" rx="3" fill="#639922"/>
+<text class="ts" x="620" y="123" text-anchor="end">4/7</text><text class="ts" x="656" y="123" text-anchor="end">2:31</text>
+<path d="M50 128 V396" stroke="#888780" stroke-width="1" opacity="0.6" fill="none"/>
+<path d="M50 150 H66 M50 178 H66 M50 206 H66 M50 234 H66 M50 396 H66" stroke="#888780" stroke-width="1" opacity="0.6" fill="none"/>
+<path d="M76 146 l3 4 l6 -7" stroke="#639922" stroke-width="2" fill="none"/><text class="ts" x="94" y="154">Criar branch</text><text class="ts" x="656" y="154" text-anchor="end">0:04</text>
+<path d="M76 174 l3 4 l6 -7" stroke="#639922" stroke-width="2" fill="none"/><text class="ts" x="94" y="182">Clonar o repositório</text><text class="ts" x="656" y="182" text-anchor="end">0:12</text>
+<path d="M76 202 l7 7 M83 202 l-7 7" stroke="#888780" stroke-width="1.6"/><text class="ts" x="94" y="210" opacity="0.7">Rodar o build</text><text class="ts" x="656" y="210" text-anchor="end" opacity="0.7">interrompida</text>
+<path d="M80 230 l4 4 l4 -4" stroke="#888780" stroke-width="1.5" fill="none"/>
+<circle cx="100" cy="234" r="5" fill="none" stroke="#BA7517" stroke-width="2"/><circle cx="100" cy="234" r="2" fill="#BA7517"/><text class="t" x="112" y="239">Ler a documentação</text><text class="ts" x="656" y="239" text-anchor="end">2:15</text>
+<path d="M100 244 V362" stroke="#888780" stroke-width="1" opacity="0.6" fill="none"/>
+<rect class="card" x="114" y="254" width="542" height="84" rx="8" stroke-width="0.5"/>
+<path d="M128 272 l4 4 l4 -4" stroke="#888780" stroke-width="1.5" fill="none"/>
+<use href="#br" x="150" y="276" stroke="#888780"/><text class="th" x="166" y="281">Revisão do código · sessao-filha</text><text class="ts" x="640" y="281" text-anchor="end">1/2</text>
+<path d="M152 290 V322 M152 302 H164 M152 322 H164" stroke="#888780" stroke-width="1" opacity="0.6" fill="none"/>
+<path d="M170 299 l3 4 l6 -7" stroke="#639922" stroke-width="2" fill="none"/><text class="ts" x="186" y="307">Criar branch</text>
+<circle cx="174" cy="322" r="4.5" fill="none" stroke="#BA7517" stroke-width="2"/><circle cx="174" cy="322" r="1.8" fill="#BA7517"/><text class="ts" x="186" y="327">Escrever notas</text>
+<path d="M100 362 H112" stroke="#888780" stroke-width="1" opacity="0.6" fill="none"/>
+<circle cx="122" cy="362" r="5" fill="none" stroke="#BA7517" stroke-width="1.5"/><path d="M122 359 V362 H124" stroke="#BA7517" stroke-width="1.2" fill="none"/><text class="ts" x="134" y="367">Aguardando sua resposta</text>
+<circle cx="80" cy="396" r="5" fill="none" stroke="#888780" stroke-width="1.5"/><text class="ts" x="94" y="401">Escrever notas</text>
+<line x1="24" y1="424" x2="656" y2="424" stroke="#888780" stroke-width="0.5" opacity="0.5"/>
+<path d="M27 442 l4 4 l-4 4" stroke="#888780" stroke-width="1.5" fill="none"/>
+<text class="ts" x="44" y="451">Concluídas · 3</text>
+<path d="M27 468 l4 4 l-4 4" stroke="#888780" stroke-width="1.5" fill="none"/>
+<path d="M44 467 l7 7 M51 467 l-7 7" stroke="#888780" stroke-width="1.6"/><text class="ts" x="58" y="477" opacity="0.7">Subagente Explore · pesquisar o código</text><text class="ts" x="656" y="477" text-anchor="end" opacity="0.7">1/3 · interrompido</text>
+</svg>
