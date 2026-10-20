@@ -748,7 +748,10 @@ async function selfId($: any): Promise<string | undefined> {
     const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' })
     const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
     if (!r.isError) ownId = JSON.parse(body).sessionId
-  } catch {}
+    else await debug($, `task-tree: get_session falhou: ${body.slice(0, 300)}`)
+  } catch (err) {
+    await debug($, `task-tree: get_session falhou: ${String(err)}`)
+  }
   return ownId
 }
 
@@ -759,7 +762,11 @@ async function publishWait($: any) {
   try {
     const id = await selfId($)
     const path = id ? await waitFile($, id) : undefined
-    if (!path) return
+    if (!path) {
+      // Outside the desktop app there is no id, and nothing to publish.
+      if (id) await debug($, 'task-tree: sem USERPROFILE/HOME, painel não publicado')
+      return
+    }
     const { value = [] } = await $.state.get(waitsState)
     const { value: groups = [] } = await $.state.get(groupsState)
     const { value: children = [] } = await $.state.get(childrenState)
@@ -777,6 +784,15 @@ async function publishWait($: any) {
       path,
       JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, work, received }),
     )
+  } catch (err) {
+    await debug($, `task-tree: painel não publicado: ${String(err)}`)
+  }
+}
+
+// A line in the debug log only; a failing log never breaks the session.
+async function debug($: any, text: string) {
+  try {
+    await $.ui.log(text, { to: 'debug' })
   } catch {}
 }
 
