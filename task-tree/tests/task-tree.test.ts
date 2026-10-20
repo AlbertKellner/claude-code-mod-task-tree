@@ -856,6 +856,20 @@ describe('sessões abertas', () => {
     expect(file.waits?.[0]?.kind).toBe('choice')
   })
 
+  test('sem id da sessão, a falha vai para o log de depuração', async ($, on) => {
+    const logs: string[] = []
+    on('mcp.call', (_$: any, e: any) =>
+      e.tool === 'get_session'
+        ? ({ value: { content: [{ type: 'text', text: 'not found' }], isError: true } } as any)
+        : ({ value: { content: [{ type: 'text', text: '[]' }], isError: false } } as any))
+    on('ui.log', (_$: any, e: any) => {
+      logs.push(`${e.to}:${e.text}`)
+      return { value: undefined } as any
+    })
+    await plan($, PLAN)
+    expect(logs.some(l => l.startsWith('debug:task-tree: get_session falhou'))).toBe(true)
+  })
+
   test('a sessão publica as próprias tarefas para quem a abriu', async ($, on) => {
     const written: Record<string, string> = {}
     on('mcp.call', (_$: any, e: any) =>
