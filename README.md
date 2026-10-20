@@ -6,19 +6,19 @@ O plugin `task-tree` expõe três ferramentas ao modelo: `plan` (publica o plano
 
 ## Instalação
 
-A instalação é pelo marketplace do repositório, na branch `feature/task-tree`.
+A instalação é pelo marketplace do repositório, a partir da branch `main`.
 
 ### Pelo terminal
 
 ```bash
-claude plugin marketplace add "AlbertKellner/claude-code-mod-task-tree@feature/task-tree"
+claude plugin marketplace add "AlbertKellner/claude-code-mod-task-tree"
 claude plugin install task-tree@claude-code-mod-task-tree
 ```
 
 ### De dentro do Claude Code
 
 ```
-/plugin marketplace add AlbertKellner/claude-code-mod-task-tree@feature/task-tree
+/plugin marketplace add AlbertKellner/claude-code-mod-task-tree
 /plugin install task-tree@claude-code-mod-task-tree
 ```
 
@@ -29,9 +29,9 @@ Abra uma sessão nova depois de instalar para o plugin carregar.
 Cole este prompt numa sessão e o Claude faz a instalação:
 
 ````text
-Instale o plugin task-tree do Claude Code a partir do GitHub, branch feature/task-tree:
+Instale o plugin task-tree do Claude Code a partir do GitHub:
 
-1. Rode `claude plugin marketplace add "AlbertKellner/claude-code-mod-task-tree@feature/task-tree"`.
+1. Rode `claude plugin marketplace add "AlbertKellner/claude-code-mod-task-tree"`.
 2. Rode `claude plugin install task-tree@claude-code-mod-task-tree`.
 3. Rode `claude plugin list` e confirme que `task-tree@claude-code-mod-task-tree` está `enabled`.
 4. Se eu carregava o mod por pasta local (`CLAUDE_CODE_PLUGIN_DIRS` em `~/.claude/settings.json` ou `--plugin-dir`), mostre o caminho antigo e peça minha confirmação antes de removê-lo, para o plugin não carregar em duplicidade.
