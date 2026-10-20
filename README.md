@@ -24,6 +24,20 @@ claude plugin install task-tree@claude-code-mod-task-tree
 
 Abra uma sessão nova depois de instalar para o plugin carregar.
 
+### Por uma sessão do Claude Code
+
+Cole este prompt numa sessão e o Claude faz a instalação:
+
+````text
+Instale o plugin task-tree do Claude Code a partir do GitHub, branch feature/task-tree:
+
+1. Rode `claude plugin marketplace add "AlbertKellner/claude-code-mod-task-tree@feature/task-tree"`.
+2. Rode `claude plugin install task-tree@claude-code-mod-task-tree`.
+3. Rode `claude plugin list` e confirme que `task-tree@claude-code-mod-task-tree` está `enabled`.
+4. Se eu carregava o mod por pasta local (`CLAUDE_CODE_PLUGIN_DIRS` em `~/.claude/settings.json` ou `--plugin-dir`), mostre o caminho antigo e peça minha confirmação antes de removê-lo, para o plugin não carregar em duplicidade.
+5. Avise que preciso abrir uma sessão nova para o plugin carregar.
+````
+
 ### Verificar
 
 ```bash
