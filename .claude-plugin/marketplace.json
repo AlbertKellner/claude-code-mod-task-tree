@@ -1,0 +1,12 @@
+{
+  "name": "claude-code-mod-task-tree",
+  "owner": { "name": "AlbertKellner" },
+  "metadata": { "description": "Mod task-tree do Claude Code: painel com a árvore de tarefas da sessão" },
+  "plugins": [
+    {
+      "name": "task-tree",
+      "source": "./task-tree",
+      "description": "Painel lateral com a árvore de tarefas planejadas (até 3 níveis), marcando e colapsando as concluídas"
+    }
+  ]
+}

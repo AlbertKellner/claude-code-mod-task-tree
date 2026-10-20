@@ -1,0 +1,8 @@
+{
+  "name": "task-tree",
+  "version": "0.7.3",
+  "description": "Painel lateral com a árvore de tarefas planejadas (até 3 níveis), marcando e colapsando as concluídas",
+  "author": { "name": "AlbertKellner" },
+  "repository": "https://github.com/AlbertKellner/claude-code-mod-task-tree",
+  "types": "./types/index.d.ts"
+}
