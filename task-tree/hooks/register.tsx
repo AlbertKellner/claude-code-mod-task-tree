@@ -1,0 +1,2293 @@
+import { atom, read, update } from 'claude-code'
+import type { AgentInfo, Register } from 'claude-code'
+
+import type { Child, Group, Launch, LegacyNode, Panel, Send, Status, TaskNode, Turn, Wait } from '../types'
+
+const PANE = 'task-tree'
+const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
+const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+const waitsState = { plugin: 'task-tree', key: 'waits' } as const
+const launchesState = { plugin: 'task-tree', key: 'launches' } as const
+const childrenState = { plugin: 'task-tree', key: 'children' } as const
+const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
+const endedState = { plugin: 'task-tree', key: 'ended' } as const
+const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const viewState = { plugin: 'task-tree', key: 'view' } as const
+const workState = { plugin: 'task-tree', key: 'work' } as const
+const receivedState = { plugin: 'task-tree', key: 'received' } as const
+// The pane's lines the person opened or closed (see setFold).
+const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
+
+// The main loop's group; a subagent's is keyed by its agentId.
+const MAIN = ''
+// Prompt origins (`prompt.submit`'s `e.origin.kind`) that continue the request in progress rather
+// than make a new one: background tasks' notifications (a subagent's hand-back), observers'
+// reports, follow-ups of a UI action and the engine's own notices.
+const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-continuation', 'unclassified']
+// How many sessions' panels the store keeps for a resume.
+const KEEP = 30
+
+// The panel's rules, added to the system prompt of every request that offers its tools,
+// so the mod behaves the same on any machine with nothing in CLAUDE.md.
+const RULES = [
+  '# Painel de tarefas (task-tree)',
+  '',
+  'O usuário acompanha o trabalho num painel lateral de tarefas. Regras:',
+  '',
+  '- Todo pedido abre pelo menos uma tarefa no painel, mesmo uma pergunta simples ou respondida só com ' +
+    'pesquisa ou leitura de arquivos. A primeira chamada de ferramenta é mcp__task-tree__plan com a árvore ' +
+    'de tarefas: até 3 níveis (nível 1 genérico, nível 3 mais granular), ids únicos dentro do plano ' +
+    '("1", "1.2", "1.2.3"). Uma tarefa basta para um pedido simples.',
+  '- Abaixo do nível 1 os ids ganham o id dele como prefixo ("D/1.2"). done e start aceitam o id curto ' +
+    'quando não é ambíguo (preferem a tarefa aberta) ou o completo, e avisam no resultado ids ' +
+    'inexistentes, ambíguos ou de outro agente.',
+  '- No primeiro plan de cada mensagem do usuário, passe em `request` um título curto do que foi pedido: ' +
+    'no painel, as tarefas de nível 1 ficam agrupadas pela mensagem em que foram planejadas, com esse título.',
+  '- Ao começar uma tarefa, marque com mcp__task-tree__start (várias podem estar em andamento). Marque ' +
+    'cada uma com mcp__task-tree__done assim que estiver de fato concluída, sem acumular; um pai fecha ' +
+    'sozinho quando todos os filhos fecham.',
+  '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
+    'substituído do zero e vai para o fim da lista: remarque com done o que já estava concluído. Um nível 1 ' +
+    'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
+    'concluído, replaneje o nível 1.',
+  '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
+  '- Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a tarefa a ' +
+    'que a pergunta pertence e feche-a só depois da resposta; se a resposta vier pelo chat, feche-a no ' +
+    'início do turno seguinte. AskUserQuestion sem tarefa aberta é recusado.',
+  '- Depois que o usuário responder uma pergunta ou aprovar um plano, atualize o painel (done, start ou ' +
+    'plan) antes de seguir. Se ele responder por mensagem no chat em vez de escolher uma opção, a mensagem ' +
+    'é a resposta.',
+  '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
+    'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
+  '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) só é concluída com o recebimento ' +
+    'confirmado. "delivered; its turn has started on it" confirma; "queued" não: a tarefa fica em ' +
+    'andamento até a sessão começar a tratar a mensagem (o painel avisa quando isso acontece; também ' +
+    'valem o aviso de fim de turno dela ou o relato).',
+  '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
+    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
+].join('\n')
+
+type InNode = { id: string; title: string; children?: InNode[] }
+
+const node = {
+  type: 'object',
+  required: ['id', 'title'],
+  properties: { id: { type: 'string' }, title: { type: 'string' } },
+}
+const level = (inner?: object) => ({
+  type: 'array',
+  items: inner ? { ...node, properties: { ...node.properties, children: inner } } : node,
+})
+
+// A level-1 task keeps its id; the ids below it are prefixed with it ("D/1.1"), so two
+// plans may both use "1.1".
+function build(list: InNode[], depth: number, root?: string, now?: number): TaskNode[] {
+  return list.map(t => ({
+    id: root === undefined ? t.id : `${root}/${t.id}`,
+    short: t.id,
+    title: t.title,
+    status: 'open' as Status,
+    ...(now === undefined ? {} : { plannedAt: now }),
+    children: depth < 3 ? build(t.children ?? [], depth + 1, root ?? t.id, now) : [],
+  }))
+}
+
+const flat = (list: TaskNode[]): TaskNode[] => list.flatMap(t => [t, ...flat(t.children)])
+const tasksOf = (groups: Group[]) => groups.flatMap(g => g.tasks)
+const hasOpen = (list: TaskNode[]) => flat(list).some(t => t.status === 'open')
+const withMain = (groups: Group[]): Group[] =>
+  groups.some(g => g.agent === MAIN) ? groups : [{ agent: MAIN, label: '', tasks: [] }, ...groups]
+
+function duplicates(list: TaskNode[]): string[] {
+  const ids = flat(list).map(t => t.id)
+  return ids.filter((id, i) => ids.indexOf(id) !== i)
+}
+
+// The task an id names in one group: the full id, or the short one when it is
+// unambiguous, an open task preferred over a closed one.
+function resolve(list: TaskNode[], id: string): { node?: TaskNode; error?: string } {
+  const all = flat(list)
+  const exact = all.find(t => t.id === id)
+  if (exact) return { node: exact }
+  const same = all.filter(t => t.short === id)
+  for (const status of ['open', 'done', 'interrupted'] as Status[]) {
+    const hits = same.filter(t => t.status === status)
+    if (hits.length === 1) return { node: hits[0] }
+    if (hits.length > 1) return { error: `"${id}" é ambíguo, use ${hits.map(t => `"${t.id}"`).join(' ou ')}` }
+  }
+  return {}
+}
+
+const edit = (list: TaskNode[], id: string, fn: (t: TaskNode) => TaskNode): TaskNode[] =>
+  list.map(t => (t.id === id ? fn(t) : { ...t, children: edit(t.children, id, fn) }))
+
+// A task's clock stops when it closes (`now` is undefined where the time cannot be read).
+const stop = (t: TaskNode, now?: number) => (t.startedAt !== undefined ? (t.endedAt ?? now) : t.endedAt)
+
+// Done closes the task with its whole subtree; a parent whose children are all done
+// closes too.
+const finish =
+  (now?: number) =>
+  (t: TaskNode): TaskNode => ({
+    ...t,
+    status: t.status === 'interrupted' ? 'interrupted' : 'done',
+    started: undefined,
+    endedAt: t.status === 'open' ? stop(t, now) : t.endedAt,
+    children: t.children.map(finish(now)),
+  })
+// A task closed with no start (done without start) gets one, so its time shows: the end of the
+// closed sibling before it, else its parent's start, else when it was planned (never after now).
+// What it closes below it with no start starts the same way, from it.
+function fillStarts(list: TaskNode[], id: string, now?: number, parentStart?: number): TaskNode[] {
+  return list.map((t, i) => {
+    if (t.id === id) return fill([t], list.slice(0, i), parentStart, now)[0] as TaskNode
+    if (!flat(t.children).some(c => c.id === id)) return t
+    return { ...t, children: fillStarts(t.children, id, now, t.startedAt ?? parentStart) }
+  })
+}
+function fill(items: TaskNode[], before: TaskNode[], parentStart: number | undefined, now?: number): TaskNode[] {
+  let prev = before.filter(s => s.status !== 'open' && s.endedAt !== undefined).pop()?.endedAt
+  return items.map(t => {
+    if (t.status !== 'open') {
+      prev = t.endedAt ?? prev
+      return t
+    }
+    const from = t.startedAt ?? prev ?? parentStart ?? t.plannedAt
+    const startedAt = from === undefined || now === undefined ? from : Math.min(from, now)
+    return { ...t, startedAt, children: fill(t.children, [], startedAt, now) }
+  })
+}
+
+function settle(list: TaskNode[], now?: number): TaskNode[] {
+  return list.map(t => {
+    const children = settle(t.children, now)
+    const closed = t.status === 'open' && children.length > 0 && children.every(c => c.status === 'done')
+    return closed
+      ? { ...t, status: 'done' as Status, started: undefined, endedAt: stop(t, now), children }
+      : { ...t, children }
+  })
+}
+
+// Start marks the task in progress, reopening it and its parents when it was closed. Its clock
+// starts (again, when it was closed); a parent's starts with its first child's and goes on.
+function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
+  return list.map(t => {
+    if (t.id === id) {
+      const startedAt = t.status === 'open' ? (t.startedAt ?? now) : now
+      return { ...t, status: 'open' as Status, started: seq, startedAt, endedAt: undefined }
+    }
+    if (!flat(t.children).some(c => c.id === id)) return t
+    return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now) }
+  })
+}
+
+// What a subagent left open when it ended.
+const interrupt =
+  (now?: number) =>
+  (t: TaskNode): TaskNode =>
+    t.status === 'open'
+      ? { ...t, status: 'interrupted', started: undefined, endedAt: stop(t, now), children: t.children.map(interrupt(now)) }
+      : t
+
+// The time now, or undefined where it cannot be read (the test kit without a clock).
+async function stamp($: any): Promise<number | undefined> {
+  try {
+    const t = await $.clock.now()
+    return typeof t === 'number' ? t : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// A task whose clock runs: started and not closed.
+const timing = (list: TaskNode[]) => flat(list).some(t => t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
+// From the first start to the last close, or to now while any task runs; undefined when no
+// task was started (or the time is unknown).
+function span(list: TaskNode[], now?: number): number | undefined {
+  const all = flat(list).filter(t => t.startedAt !== undefined)
+  if (all.length === 0) return undefined
+  const from = Math.min(...all.map(t => t.startedAt as number))
+  const to = timing(list) ? now : Math.max(...all.map(t => t.endedAt ?? 0))
+  return to === undefined || to < from ? undefined : to - from
+}
+const elapsed = (t: TaskNode, now?: number) => {
+  if (t.startedAt === undefined || t.status === 'interrupted') return undefined
+  const to = t.endedAt ?? (t.status === 'open' ? now : undefined)
+  return to === undefined || to < t.startedAt ? undefined : to - t.startedAt
+}
+// "0:04", "6:12", "1:02:09".
+function clockText(ms: number): string {
+  const s = Math.floor(ms / 1000)
+  const two = (k: number) => String(k).padStart(2, '0')
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`
+}
+
+const migrate = (t: LegacyNode): TaskNode => ({
+  id: t.id,
+  short: t.id.replace(/^[^:]*:/, ''),
+  title: t.title,
+  status: t.done ? 'done' : 'open',
+  children: t.children.map(migrate),
+})
+
+// Leaves done, leaves counted, leaves interrupted (kept out of the count).
+function count(list: TaskNode[]): [number, number, number] {
+  let d = 0
+  let n = 0
+  let x = 0
+  for (const t of flat(list)) {
+    if (t.children.length > 0) continue
+    if (t.status === 'interrupted') x++
+    else {
+      n++
+      if (t.status === 'done') d++
+    }
+  }
+  return [d, n, x]
+}
+
+// How deep the sessions opened by opened sessions are followed (in the count and the drawing).
+const DEEP = 3
+// A session still at work: running, or waiting on the person.
+const live = (c: Child) => !c.archived && (c.running || c.waiting === true)
+// A session's panel; earlier versions published only its main group's tasks. An archived session
+// stays in the tree as history (its last published panel): what it left open will not be done,
+// so it reads as interrupted (out of the count's total, drawn gray).
+const panelOf = (c: Child): Panel => {
+  const p = c.panel ?? { groups: [{ agent: MAIN, label: '', tasks: c.tasks ?? [] }], waits: [], children: [] }
+  if (!c.archived) return p
+  return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
+}
+// The count of a panel with its sessions' tasks: they are part of the tree, under the task
+// they were opened on (an archived one too, as history).
+function total(p: Panel, level = 0): [number, number, number] {
+  let [d, n, x] = count(tasksOf(p.groups ?? []))
+  if (level >= DEEP) return [d, n, x]
+  for (const c of p.children ?? []) {
+    const [cd, cn, cx] = total(panelOf(c), level + 1)
+    d += cd
+    n += cn
+    x += cx
+  }
+  return [d, n, x]
+}
+
+// The sessions opened on a task or below it (archived ones as history): their tasks add to its count and
+// its time, and while one is still at work the task is drawn in progress, its clock running,
+// whatever its own status says.
+// `ring`: the session below with the largest share of its context used (see contextRing).
+// `faded`: an archived session's last share, drawn dim.
+type Ring = { percent: number; name: string; faded?: boolean }
+const ringOf = (c: Child): Ring | undefined =>
+  typeof c.context === 'number' ? { percent: c.context, name: c.name || c.title, ...(c.archived ? { faded: true } : {}) } : undefined
+type Work = { busy: boolean; any: boolean; d: number; n: number; tasks: TaskNode[]; ring?: Ring }
+const idle: Work = { busy: false, any: false, d: 0, n: 0, tasks: [] }
+const topRing = (rings: (Ring | undefined)[]) =>
+  rings.reduce<Ring | undefined>((top, r) => (r && (!top || r.percent > top.percent) ? r : top), undefined)
+// A panel's tasks with its sessions' (archived ones too), as deep as the count follows them.
+function allTasks(p: Panel, level: number): TaskNode[] {
+  const own = tasksOf(p.groups ?? [])
+  if (level >= DEEP) return own
+  return own.concat(...(p.children ?? []).map(c => allTasks(panelOf(c), level + 1)))
+}
+function atWork(t: TaskNode, sessions: Child[], level: number): Work {
+  const ids = flat([t]).map(k => k.id)
+  const mine = sessions.filter(c => c.anchor !== undefined && ids.includes(c.anchor))
+  let d = 0
+  let n = 0
+  for (const c of mine) {
+    const [cd, cn] = total(panelOf(c), level + 1)
+    d += cd
+    n += cn
+  }
+  const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
+  const ring = topRing(mine.map(c => ringOf(c)))
+  return { busy: mine.some(live), any: mine.length > 0, d, n, tasks, ring }
+}
+// An open parent with something done below it and nothing in progress: drawn waiting (◷), its
+// time stopped at the last close below it.
+const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done')
+function stillSpan(list: TaskNode[]): number | undefined {
+  const all = flat(list)
+  const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
+  const ends = all.flatMap(t => t.endedAt ?? [])
+  if (starts.length === 0 || ends.length === 0) return undefined
+  const span = Math.max(...ends) - Math.min(...starts)
+  return span < 0 ? undefined : span
+}
+
+// A task's time: from the first start to the last close of it, its subtasks and its sessions'
+// tasks, or to now while any of them runs or a session below it is at work.
+function timeOf(t: TaskNode, w: Work, now?: number): number | undefined {
+  return timeSpan([t, ...w.tasks], w.busy, now)
+}
+function timeSpan(list: TaskNode[], busy: boolean, now?: number): number | undefined {
+  if (!busy) return span(list, now)
+  const starts = flat(list).flatMap(k => (k.startedAt === undefined ? [] : [k.startedAt]))
+  return starts.length === 0 || now === undefined ? undefined : now - Math.min(...starts)
+}
+
+// The header's "em andamento": every open task with no subtasks (◉ or ○ leaves), in every group of
+// the panel and in its sessions not archived (as deep as the count goes), so it is M − N of the
+// "N de M" (interrupted ones are out of both). The ones waiting on a session (`sent`, main group
+// here) have their own chip and are left out of this one.
+function activeLeaves(p: Panel, level: number, sent: string[] = []): number {
+  let k = 0
+  for (const g of withMain(p.groups ?? [])) {
+    k += flat(g.tasks).filter(
+      t => t.status === 'open' && t.children.length === 0 && !(g.agent === MAIN && sent.includes(t.id)),
+    ).length
+  }
+  if (level >= DEEP) return k
+  for (const c of p.children ?? []) if (!c.archived) k += activeLeaves(panelOf(c), level + 1)
+  return k
+}
+
+// A whole session's time: starts are a task's start, else its plan.
+function sessionTime(list: TaskNode[], running: boolean, now?: number): number | undefined {
+  const all = flat(list)
+  const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
+  if (starts.length === 0) return undefined
+  const from = Math.min(...starts)
+  const ends = all.flatMap(t => t.endedAt ?? [])
+  const to = running ? now : ends.length > 0 ? Math.max(...ends) : undefined
+  return to === undefined || to < from ? undefined : to - from
+}
+
+// What a prompt is, with the app's status blocks (`<system-reminder>…</system-reminder>`, put in
+// front of a session's first message and of queued deliveries) taken out: another session's message,
+// a subagent handing back, the app's own notice, or a request.
+type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string }
+function said(text: string): Said {
+  const body = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
+  const peer = /<cross-session-message\b/.test(body)
+  const handback = !peer && (/^<agent-message from="(?!local_)/.test(body) || /\[Subagent hand-back\]/.test(body))
+  const notice = !peer && !handback && (body === '' || body.startsWith('<side-sessions-event>'))
+  const inner = /<cross-session-message[^>]*>([\s\S]*?)(<\/cross-session-message>|$)/.exec(body)?.[1]
+  return { body, peer, handback, notice, title: peer && inner !== undefined ? inner : body }
+}
+
+// A message of the person opens a turn of the main group, titled with its start; turns no plan
+// used are dropped then, so only turns with tasks are kept.
+async function openTurn($: any, text: string) {
+  // A message from another session comes wrapped in tags: its words are the title.
+  const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
+  const title = line.length > 60 ? `${line.slice(0, 59)}…` : line
+  const at = await stamp($)
+  await change($, all =>
+    all.map(g => {
+      if (g.agent !== MAIN) return g
+      const turns = g.turns ?? []
+      const used = turns.filter(u => g.tasks.some(t => t.turn === u.id))
+      const id = turns.reduce((top, u) => Math.max(top, u.id), 0) + 1
+      return { ...g, turns: [...used, { id, title, at }] }
+    }),
+  )
+}
+
+function firstOpen(items: TaskNode[]): string[] {
+  for (const t of items) {
+    if (t.status !== 'open') continue
+    if (t.children.length === 0) return [t.id]
+    const rest = firstOpen(t.children)
+    if (rest.length > 0) return [t.id, ...rest]
+  }
+  return []
+}
+function pathTo(items: TaskNode[], id: string): string[] {
+  for (const t of items) {
+    if (t.id === id) return [t.id]
+    const rest = pathTo(t.children, id)
+    if (rest.length > 0) return [t.id, ...rest]
+  }
+  return []
+}
+
+// The tasks drawn in yellow, with their parents, and the one a waiting notice goes
+// under: the tasks in progress (the last one started for the notice; a parent's first
+// open task); with none, the first open task.
+function current(list: TaskNode[]): { lit: string[]; anchor?: string } {
+  const started = flat(list)
+    .filter(t => t.status === 'open' && t.started !== undefined)
+    .sort((a, b) => (a.started ?? 0) - (b.started ?? 0))
+  if (started.length === 0) {
+    const path = firstOpen(list)
+    return { lit: path, anchor: path[path.length - 1] }
+  }
+  let lit: string[] = []
+  let anchor: string | undefined
+  for (const s of started) {
+    const inner = firstOpen(s.children)
+    lit = lit.concat(pathTo(list, s.id), inner)
+    anchor = inner.length > 0 ? inner[inner.length - 1] : s.id
+  }
+  return { lit, anchor }
+}
+
+// The open tasks with nothing open below them, for a reminder: '"1/1.2" Title; …'.
+function openList(list: TaskNode[]): string {
+  const open = flat(list).filter(t => t.status === 'open' && !t.children.some(c => c.status === 'open'))
+  const shown = open.slice(0, 10).map(t => `"${t.id}" ${t.title}`)
+  return shown.join('; ') + (open.length > 10 ? `; e mais ${open.length - 10}` : '')
+}
+
+const waitText = (w: Wait) =>
+  w.kind === 'question'
+    ? 'Aguardando sua resposta'
+    : w.kind === 'choice'
+      ? 'Aguardando sua escolha'
+      : w.kind === 'plan'
+      ? 'Aguardando aprovação do plano'
+      : `Aguardando permissão: ${w.tool}`
+
+// A subagent's header, the loop that launched it, and the task that loop was on at
+// launch: the Agent call recorded it (see tool.call), claimed here by its description.
+async function identify($: any, agent: string): Promise<Omit<Group, 'agent' | 'tasks'>> {
+  const info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
+  if (!info) return { label: 'Subagente' }
+  const parent = info.parentId ?? MAIN
+  let anchor: string | undefined
+  await update($, launchesState, cur => {
+    const list = cur ?? []
+    const i = list.findIndex(l => l.parent === parent && l.description === info.description)
+    anchor = i >= 0 ? list[i].anchor : undefined
+    return i >= 0 ? list.filter((_, j) => j !== i) : list
+  })
+  return { label: `${info.type}: ${info.description}`, parent, anchor }
+}
+
+// A subagent's group exists from its first plan or wait on the person.
+async function ensureGroup($: any, agent: string) {
+  if (agent === MAIN) return
+  if ((await $.state.get(groupsState)).value?.some(g => g.agent === agent)) return
+  const meta = await identify($, agent)
+  await change($, all => (all.some(g => g.agent === agent) ? all : [...all, { agent, tasks: [], ...meta }]))
+}
+
+// Keeps the status line and the store (for a resume) in step with the panel.
+async function showStatus($: any, groups: Group[]) {
+  const { value: children = [] } = await $.state.get(childrenState)
+  const [d, n] = total({ groups, waits: [], children })
+  $.ui.status(d === n ? undefined : `Tarefas ${d}/${n}`)
+}
+
+async function persist($: any, groups: Group[]) {
+  await showStatus($, groups)
+  try {
+    const id: string = await $.session.id()
+    await $.store.set(`session:${id}`, groups)
+    const known = ((await $.store.get('sessions')) as string[] | undefined) ?? []
+    const order = [id, ...known.filter(k => k !== id)]
+    for (const old of order.slice(KEEP)) await $.store.delete(`session:${old}`)
+    await $.store.set('sessions', order.slice(0, KEEP))
+  } catch {}
+  await publishWait($)
+}
+
+// Before groups the panel was one list (`tasks`): it moves into the main group, once,
+// whichever comes first after a reload (session.start or a tool call).
+async function adopt($: any) {
+  const { value: old = [] } = await $.state.get(legacyTasks)
+  if (old.length === 0) return
+  await update($, groupsState, cur =>
+    withMain(cur ?? []).map(g => (g.agent === MAIN ? { ...g, tasks: [...old.map(migrate), ...g.tasks] } : g)),
+  )
+  await $.state.set(legacyTasks, [])
+}
+
+async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
+  await adopt($)
+  const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
+  await persist($, groups)
+  return groups
+}
+
+async function replace($: any, groups: Group[]) {
+  await $.state.set(groupsState, groups)
+  await persist($, groups)
+}
+
+// A resumed session's panel comes back; its subagents do not, so what they left open
+// is interrupted.
+async function restore($: any, id: string) {
+  const saved = (await $.store.get(`session:${id}`)) as Group[] | undefined
+  if (saved) await replace($, saved.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })))
+}
+
+// The desktop app's own tools (`mcp__ccd_…`) exist only there. If the list fails, assume
+// the app, so a real failure still shows.
+async function inDesktopApp($: any) {
+  try {
+    return (await $.tool.list()).some((t: any) => String(t.name).startsWith('mcp__ccd_'))
+  } catch {
+    return true
+  }
+}
+
+// The sessions this one opened, from the desktop app's list of linked sessions. That list
+// leaves this session out, so its own id is the `startedBy` no listed session carries.
+// When the list was last read (clock ms), by the 10 s poll or otherwise.
+let refreshedAt: number | undefined
+async function refreshChildren($: any) {
+  refreshedAt = (await stamp($)) ?? refreshedAt
+  let rows: any[] = []
+  try {
+    const r = await $.mcp.call('ccd_session_mgmt', 'list_sessions', { linked: true, include_archived: true, limit: 100 })
+    const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
+    if (r.isError) throw new Error(body)
+    // With no linked session the host answers in plain text ("No other sessions found."), not
+    // an empty JSON list.
+    rows = /^\s*No .*sessions? found/i.test(body) ? [] : JSON.parse(body)
+    await $.state.set(childrenErrorState, '')
+  } catch (err) {
+    // Shown in the panel: a failure here would otherwise leave the sessions silently out.
+    // Outside the desktop app there are no sessions to show, so no line either.
+    await $.state.set(childrenErrorState, (await inDesktopApp($)) ? String(err).slice(0, 200) : '')
+    return
+  }
+  if (!Array.isArray(rows)) return
+  // Messages queued to any session (its children, its mother, its sisters): before the returns below.
+  await watchSends($, rows)
+  // No linked session at all: this one opened none.
+  if (rows.length === 0) {
+    await update($, childrenState, () => [])
+    return
+  }
+  const listed = rows.map(r => r.sessionId)
+  const own = rows.map(r => r.startedBy).find(s => typeof s === 'string' && !listed.includes(s))
+  if (own === undefined) return
+  // The host tells running from idle only; whether a session waits on the person, its
+  // own task-tree publishes (see publishWait).
+  const mine = rows.filter(r => r.startedBy === own)
+  const waiting: string[] = []
+  const panels: Record<string, Panel> = {}
+  const contexts: Record<string, number> = {}
+  for (const r of mine) {
+    try {
+      const path = await waitFile($, r.sessionId)
+      const file = path ? JSON.parse(await $.fs.read(path)) : {}
+      if (file.waiting === true) waiting.push(r.sessionId)
+      if (typeof file.context?.percent === 'number') contexts[r.sessionId] = file.context.percent
+      const list = (v: unknown) => (Array.isArray(v) ? v : [])
+      if (Array.isArray(file.groups)) {
+        panels[r.sessionId] = {
+          groups: file.groups,
+          waits: list(file.waits),
+          children: list(file.children),
+          ...(Array.isArray(file.work) ? { work: file.work.map(String) } : {}),
+        }
+      } else if (Array.isArray(file.tasks)) {
+        panels[r.sessionId] = { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }
+      }
+    } catch {}
+  }
+  // Sessions whose turn just ended (running or waiting before, stopped now): the main loop is
+  // reminded of the task it opened them on (see endedNote). A session just opened counts only
+  // once the host has seen it run: right after start_session the host may still list it idle.
+  let ended: string[] = []
+  await update($, childrenState, cur => {
+    const known = cur ?? []
+    ended = mine
+      .filter(r => {
+        const before = known.find(k => k.id === r.sessionId)
+        const stopped = r.isRunning !== true && r.isArchived !== true && !waiting.includes(r.sessionId)
+        return before !== undefined && before.starting !== true && (before.running || before.waiting === true) && stopped
+      })
+      .map(r => r.sessionId)
+    return mine
+      .map(r => {
+        const before = known.find(k => k.id === r.sessionId)
+        const seen = r.isRunning === true || r.isArchived === true || waiting.includes(r.sessionId)
+        return {
+          starting: before?.starting === true && !seen ? true : undefined,
+          id: r.sessionId,
+          name: String(r.name ?? ''),
+          title: String(r.title ?? r.name ?? r.sessionId),
+          running: r.isRunning === true,
+          archived: r.isArchived === true,
+          waiting: r.isArchived !== true && waiting.includes(r.sessionId),
+          context: contexts[r.sessionId] ?? before?.context,
+          lastAnchor: before?.lastAnchor,
+          anchor: before?.anchor,
+          panel: panels[r.sessionId] ?? before?.panel,
+          tasks: panels[r.sessionId] ? undefined : before?.tasks,
+        }
+      })
+  })
+  if (ended.length > 0) await update($, endedState, cur => [...(cur ?? []).filter(id => !ended.includes(id)), ...ended])
+  // The sessions' tasks are in this session's count, and in what it publishes to the one
+  // that opened it.
+  const { value: groups = [] } = await $.state.get(groupsState)
+  await showStatus($, groups)
+  if (mine.length > 0) await publishWait($)
+  await keepTime($)
+}
+
+// The messages of other sessions in a prompt (`<cross-session-message from="local_…">`), kept with
+// when they came (the last 20) and published, for the senders to confirm their queued SendMessage.
+async function noteReceived($: any, text: string) {
+  const froms = [...text.matchAll(/<cross-session-message[^>]*\bfrom="(local_[^"]+)"/g)].map(m => m[1] as string)
+  if (froms.length === 0) return
+  const at = await stamp($)
+  if (at === undefined) return
+  await update($, receivedState, cur => [...(cur ?? []), ...froms.map(from => ({ from, at }))].slice(-20))
+  await publishWait($)
+}
+
+// A queued message is taken up once its session says so: its published file lists a message from
+// this one received at or after the send (`received`); else a turn of it opened after the send;
+// else, from sessions without that (earlier versions), seen stopped after the send and running again.
+async function watchSends($: any, rows: any[]) {
+  const { value: sends = [] } = await $.state.get(sendsState)
+  if ((sends as Send[]).every(s => s.taken)) return
+  const me = await selfId($)
+  const files: Record<string, any> = {}
+  const fileOf = async (id: string) => {
+    if (!(id in files)) {
+      try {
+        const path = await waitFile($, id)
+        files[id] = path ? JSON.parse(await $.fs.read(path)) : {}
+      } catch {
+        files[id] = {}
+      }
+    }
+    return files[id]
+  }
+  const marks: Record<number, Partial<Send>> = {}
+  for (const [i, s] of (sends as Send[]).entries()) {
+    if (s.taken) continue
+    const r = rows.find(r => r.sessionId === s.to || (r.name && r.name === s.to))
+    const id = r?.sessionId ?? (String(s.to).startsWith('local_') ? s.to : undefined)
+    if (id === undefined) continue
+    const file = await fileOf(id)
+    const since = s.at ?? 0
+    const got = Array.isArray(file.received) && file.received.some((x: any) => x?.from === me && Number(x?.at) >= since)
+    const main = Array.isArray(file.groups) ? file.groups.find((g: any) => g?.agent === MAIN) : undefined
+    const turned = Array.isArray(main?.turns) && main.turns.some((u: any) => typeof u?.at === 'number' && u.at >= since)
+    if (got || turned) marks[i] = { taken: true }
+    else if (r && r.isRunning !== true && !s.idle) marks[i] = { idle: true }
+    else if (r && r.isRunning === true && s.idle) marks[i] = { taken: true }
+  }
+  if (Object.keys(marks).length === 0) return
+  await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
+}
+// Once: the sessions that took up a queued message, with the task it was sent from.
+async function takenNote($: any): Promise<string | undefined> {
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const taken = (sends as Send[]).filter(s => s.taken)
+  if (taken.length === 0) return undefined
+  await $.state.set(sendsState, (sends as Send[]).filter(s => !s.taken))
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const all = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+  const what = taken.map(s => {
+    const t = all.find(t => t.id === s.anchor)
+    return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
+  })
+  return (
+    `Painel de tarefas (task-tree): recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
+    'Conclua com mcp__task-tree__done a tarefa do envio, se ela só esperava isso.'
+  )
+}
+
+// The list read again when it is older than the poll's period: a session drawn at work after
+// it stopped keeps the tasks it was opened on in progress. Only after a first read (session.start).
+async function refreshStale($: any) {
+  const now = await stamp($)
+  if (refreshedAt === undefined || now === undefined || now - refreshedAt < 10000) return
+  await refreshChildren($)
+}
+
+// A start_session call records the task the main loop is on, under the id its result names.
+async function recordStart($: any, resultText: string) {
+  const id = /local_[0-9a-f-]{36}/.exec(resultText)?.[0]
+  if (!id) return
+  const { value = [] } = await $.state.get(groupsState)
+  const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+  await update($, childrenState, cur => {
+    const list = cur ?? []
+    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor }]
+  })
+  await refreshChildren($)
+}
+
+// Once per session whose turn ended: a reminder for the main loop, while the task it opened
+// that session on is still open, to read its report and close what the delegated work finished.
+async function endedNote($: any): Promise<string | undefined> {
+  const { value: ids = [] } = await $.state.get(endedState)
+  if (ids.length === 0) return undefined
+  await $.state.set(endedState, [])
+  const { value: kids = [] } = await $.state.get(childrenState)
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+  const open = flat(tasks).filter(t => t.status === 'open')
+  const lines = (kids as Child[])
+    .filter(c => ids.includes(c.id))
+    .map(c => ({ c, t: open.find(t => t.id === c.anchor) }))
+    .filter(x => x.t !== undefined)
+    .map(x => `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title})`)
+  if (lines.length === 0) return undefined
+  return (
+    `Painel de tarefas (task-tree): terminou o turno a sessão ${lines.join(', a sessão ')}, e a tarefa de ` +
+    'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
+    `concluiu. Tarefas abertas no painel: ${openList(tasks)}.`
+  )
+}
+
+// Where a session says whether it waits on the person, read by the session that opened it.
+async function waitFile($: any, id: string): Promise<string | undefined> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  return home ? `${home}/.claude/task-tree-waits/${id}.json` : undefined
+}
+
+// This session's id as the desktop app names it (local_…); none outside the app.
+let ownId: string | undefined
+async function selfId($: any): Promise<string | undefined> {
+  if (ownId) return ownId
+  try {
+    const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' })
+    const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
+    if (!r.isError) ownId = JSON.parse(body).sessionId
+  } catch {}
+  return ownId
+}
+
+// Publishes whether anything in this session waits on the person, and its whole panel
+// (groups, waits, the sessions it opened), for the session that opened it to draw under the
+// task it was opened on, as this session draws it. `tasks` is for earlier versions.
+async function publishWait($: any) {
+  try {
+    const id = await selfId($)
+    const path = id ? await waitFile($, id) : undefined
+    if (!path) return
+    const { value = [] } = await $.state.get(waitsState)
+    const { value: groups = [] } = await $.state.get(groupsState)
+    const { value: children = [] } = await $.state.get(childrenState)
+    const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+    // The share of the context window used, for the ring the session that opened this one draws
+    // (the default usage call is free; no breakdown).
+    let context: { percent: number; at: number } | undefined
+    try {
+      const percent = (await $.session.usage())?.context?.percent
+      if (typeof percent === 'number') context = { percent, at: await $.clock.now() }
+    } catch {}
+    const { value: work } = await $.state.get(workState)
+    const { value: received = [] } = await $.state.get(receivedState)
+    await $.fs.write(
+      path,
+      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, work, received }),
+    )
+  } catch {}
+}
+
+async function addWait($: any, w: Wait) {
+  await ensureGroup($, w.agent)
+  await update($, waitsState, cur => [...(cur ?? []), w])
+  await publishWait($)
+}
+async function dropWaits($: any, keep: (w: Wait) => boolean) {
+  const before = (await $.state.get(waitsState)).value ?? []
+  const after = await update($, waitsState, cur => (cur ?? []).filter(keep))
+  if (after.length !== before.length) await publishWait($)
+}
+// The agent's open question or plan dialog, once the agent has gone on without it.
+async function dropAsked($: any, agent: string) {
+  const asked = (w: Wait) => w.agent === agent && (w.kind === 'question' || w.kind === 'plan')
+  const { value = [] } = await $.state.get(waitsState)
+  if ((value as Wait[]).some(asked)) await dropWaits($, w => !asked(w))
+}
+
+// A press on a line's ▾/▸: the line stays as the person left it (closed or open) until they
+// press it again. Written from onPress, since a render may not write.
+// The pane's view, chosen with the toggle at its top: kept in the state (a reload) and in the
+// store under the session (a resume). Written from onPress, like setFold.
+async function setView($: any, view: 'full' | 'summary') {
+  await $.state.set(viewState, view)
+  try {
+    await $.store.set(`view:${await $.session.id()}`, view)
+  } catch {}
+}
+// At the session's start: the view chosen before (a reload, a resume), else the summary, the
+// default of a new session.
+async function restoreView($: any) {
+  if ((await $.state.get(viewState)).value !== undefined) return
+  let saved: unknown
+  try {
+    saved = await $.store.get(`view:${await $.session.id()}`)
+  } catch {}
+  await $.state.set(viewState, saved === 'full' || saved === 'summary' ? saved : 'summary')
+}
+
+// The current work (the summary view's list): the main group's level-1 tasks opened since all was
+// last closed. A plan or start that opens tasks with no open leaf left anywhere (here or in a
+// session) starts new work; otherwise its level-1 tasks join the current one. Kept in the state
+// and in the store under the session, like the view.
+async function nothingOpen($: any): Promise<boolean> {
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const { value: children = [] } = await $.state.get(childrenState)
+  return activeLeaves({ groups: withMain(groups), waits: [], children }, 0) === 0
+}
+// New work starts with nothing open and another message of the person: within the turn of the
+// current work, a plan after all was closed joins it.
+async function startsWork($: any): Promise<boolean> {
+  if (!(await nothingOpen($))) return false
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const main = withMain(groups as Group[]).find(g => g.agent === MAIN)
+  const now = main?.turns?.[main.turns.length - 1]?.id
+  if (now === undefined) return true
+  const { value: work = [] } = await $.state.get(workState)
+  return !(main?.tasks ?? []).some(t => (work as string[]).includes(t.id) && t.turn === now)
+}
+async function setWork($: any, ids: string[]) {
+  await $.state.set(workState, ids)
+  try {
+    await $.store.set(`work:${await $.session.id()}`, ids)
+  } catch {}
+}
+async function joinWork($: any, ids: string[], fresh: boolean) {
+  if (ids.length === 0) return
+  const { value: cur = [] } = await $.state.get(workState)
+  await setWork($, fresh ? [...new Set(ids)] : [...new Set([...(cur as string[]), ...ids])])
+}
+async function restoreWork($: any) {
+  if ((await $.state.get(workState)).value !== undefined) return
+  try {
+    const saved = await $.store.get(`work:${await $.session.id()}`)
+    if (Array.isArray(saved)) await $.state.set(workState, saved.map(String))
+  } catch {}
+}
+// A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
+// work (all those of the turns they are in), the subagents and sessions under them or still at
+// work, and the same cut on those sessions. With no work published (earlier versions), the last
+// turn that has tasks; with no turns either, the last open level-1 task, else the last one.
+function trimToWork(p: Panel, level: number): Panel {
+  const groups = withMain(p.groups ?? [])
+  const main = groups.find(g => g.agent === MAIN) as Group
+  let work = p.work ?? []
+  if (work.length === 0) {
+    const last = [...(main.turns ?? [])].reverse().find(u => main.tasks.some(t => t.turn === u.id))
+    const lone = [...main.tasks].reverse().find(t => t.status === 'open') ?? main.tasks[main.tasks.length - 1]
+    work = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : lone ? [lone.id] : []
+  }
+  const turnsIn = main.tasks.filter(t => work.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+  const keep = main.tasks.filter(t => work.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
+  const ids = flat(keep).map(t => t.id)
+  const under = (anchor?: string) => anchor !== undefined && ids.includes(anchor)
+  return {
+    ...p,
+    groups: groups
+      .map(g => (g.agent === MAIN ? { ...g, tasks: keep, turns: (g.turns ?? []).filter(u => keep.some(t => t.turn === u.id)) } : g))
+      .filter(g => g.agent === MAIN || under(g.anchor) || hasOpen(g.tasks)),
+    children:
+      level >= DEEP
+        ? (p.children ?? [])
+        : (p.children ?? [])
+            .filter(c => under(c.anchor) || live(c))
+            .map(c => ({ ...c, panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
+  }
+}
+
+async function setFold($: any, key: string, closed: boolean) {
+  await update($, folds, cur => ({ ...cur, [key]: closed }))
+}
+
+// The pane's 1 s clock: it redraws the times while a task runs, here or in a session this one
+// opened, and stops when none does. Started again by the next start, refresh or tool call.
+let ticker: { cancel: () => void } | undefined
+function running(p: Panel, level = 0): boolean {
+  if (timing(tasksOf(p.groups ?? []))) return true
+  // A session at work keeps the task it was opened on running (see atWork).
+  return level < DEEP && (p.children ?? []).some(live)
+}
+async function anyRunning($: any): Promise<boolean> {
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const { value: children = [] } = await $.state.get(childrenState)
+  return running({ groups, waits: [], children })
+}
+async function tick($: any) {
+  if (await anyRunning($)) {
+    try {
+      $.ui.invalidate('ui.render')
+    } catch {}
+    return
+  }
+  ticker?.cancel()
+  ticker = undefined
+}
+async function keepTime($: any) {
+  if (ticker || !(await anyRunning($)) || (await stamp($)) === undefined) return
+  try {
+    ticker = $.clock.every(1000, () => void tick($))
+  } catch {}
+}
+
+// The panel as drawn: one line per task, notice, session or subagent, with its depth in
+// the tree. The desktop draws each line as an Svg, the terminal as a Text.
+type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused'
+type Row = {
+  depth: number
+  tone: Tone
+  title: string
+  // What the alt text says first ("Em andamento"); empty for a notice.
+  label: string
+  strong?: boolean
+  // Right-aligned: done/total (with a mini bar on a task: `bar`), a word after it, and the time
+  // the task (or the session's, the subagent's tasks) took or is taking, in ms.
+  sub?: [number, number]
+  bar?: boolean
+  meta?: string
+  // null: a closed task whose time is unknown (panels of earlier versions), drawn as "—".
+  time?: number | null
+  // A session's or subagent's header: it and the lines below it are drawn in a card.
+  card?: boolean
+  // For the header's chips: a task in progress with nothing open below it; a session at work;
+  // a session waiting with no notice of its own drawn.
+  active?: boolean
+  live?: boolean
+  pending?: boolean
+  // A line with something below it opens and closes (▾/▸): `key` names it in `folds`, `open`
+  // says whether what is below is drawn.
+  fold?: { key: string; open: boolean }
+  // A session's card: its icon is the branch in every state (the tone colors it).
+  session?: boolean
+  // A task (or turn) with a session opened on it or below it: a small branch beside it,
+  // drawn even while the task is closed.
+  kids?: boolean
+  // The context ring of a session: on its card, and on the highest line above it (its turn, else
+  // its level-1 task) with the largest share among the sessions there.
+  ring?: Ring
+}
+
+// The tree lines of a row: `bars[k]` continues the line of the ancestor at depth k past it,
+// `last` ends its own branch here, `down` starts a line to the rows below it.
+type Guide = { bars: boolean[]; last: boolean; down: boolean }
+function guides(rows: Row[]): Guide[] {
+  // Whether a row at `level` comes later, before the tree climbs above it.
+  const later = (i: number, level: number) => {
+    for (let j = i + 1; j < rows.length; j++) {
+      if (rows[j].depth < level) return false
+      if (rows[j].depth === level) return true
+    }
+    return false
+  }
+  return rows.map((r, i) => ({
+    bars: Array.from({ length: Math.max(0, r.depth - 1) }, (_, k) => later(i, k + 1)),
+    last: !later(i, r.depth),
+    down: (rows[i + 1]?.depth ?? -1) > r.depth,
+  }))
+}
+
+// Terminal: glyph and theme color of each tone; the guides as box-drawing text.
+const GLYPH: Record<Tone, [string, string]> = {
+  open: ['○', 'inactive'],
+  current: ['◉', 'warning'],
+  done: ['✓', 'success'],
+  interrupted: ['✕', 'inactive'],
+  wait: ['◷', 'warning'],
+  running: ['⑂', 'inactive'],
+  archived: ['✕', 'inactive'],
+  agent: ['▸', 'text'],
+  section: ['', 'inactive'],
+  // A task waiting for another session to take up a message sent from it (see watchSends).
+  sent: ['✉', 'permission'],
+  // A parent open with part of it done and nothing below in progress: waiting to go on.
+  paused: ['◷', 'warning'],
+}
+// Two columns at the left for the ▾/▸ of the level-1 lines; deeper, the ▾/▸ goes after the
+// branch, so the guides below a line that has one move two columns right (`up` holds the
+// line's ancestors by depth).
+const prefix = (r: Row, g: Guide, up: Row[]) =>
+  r.depth === 0
+    ? r.fold
+      ? ''
+      : '  '
+    : '  ' + g.bars.map((on, k) => (on ? '│  ' : '   ') + (up[k + 1]?.fold ? '  ' : '')).join('') + (g.last ? '└─ ' : '├─ ')
+const ratioBar = (d: number, n: number, cells: number) => {
+  const k = n > 0 ? Math.round((d / n) * cells) : 0
+  return ['█'.repeat(k), '░'.repeat(cells - k)]
+}
+
+const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0)
+
+// Desktop: each SVG is an image that does not follow the app's theme, so it carries its
+// own colors for light and dark.
+const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
+const STYLE =
+  '<style>.p{fill:#2c2c2a}.s{fill:#5f5e5a}.am{stroke:#ba7517}.amf{fill:#ba7517}.gr{stroke:#639922}' +
+  '.grf{fill:#639922}.gy{stroke:#888780}.gyf{fill:#888780}.g{stroke:#888780;stroke-opacity:.55}' +
+  '.tr{fill:#888780;fill-opacity:.25}.ln{stroke:#888780;stroke-opacity:.45}.cd{fill:#f1efe8}.cs{stroke:#b4b2a9}.bl{stroke:#378add}.rd{stroke:#e24b4a}.tk{stroke:#888780;stroke-opacity:.3}' +
+  '@media (prefers-color-scheme: dark){.p{fill:#e8e6dc}.s{fill:#b4b2a9}.am{stroke:#ef9f27}' +
+  '.amf{fill:#ef9f27}.gr{stroke:#97c459}.grf{fill:#97c459}.gy{stroke:#9c9a92}.gyf{fill:#9c9a92}' +
+  '.cd{fill:#444441}.cs{stroke:#888780}.bl{stroke:#85b7eb}.rd{stroke:#f09595}}</style>'
+
+const xml = (s: string) =>
+  s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
+
+// SVG text neither wraps nor clips: a rough width of system UI text, in px, to cut titles
+// with "…" before they run into what is on the right. Wide scripts and emoji take ~1em.
+const WIDE = /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿가-힣豈-﫿！-｠\u{1f300}-\u{1faff}]/u
+const em = (ch: string) =>
+  WIDE.test(ch) ? 1 : /[\s.,:;'!|il1()[\]ftrj]/.test(ch) ? 0.32 : /[A-ZMWmw@%]/.test(ch) ? 0.7 : 0.56
+const textW = (s: string, size: number) => Array.from(s).reduce((w, ch) => w + em(ch) * size, 0)
+function fit(s: string, size: number, max: number): string {
+  if (textW(s, size) <= max) return s
+  let out = ''
+  for (const ch of Array.from(s)) {
+    if (textW(out + ch + '…', size) > max) break
+    out += ch
+  }
+  return out.trimEnd() + '…'
+}
+
+// A session's context ring, 14 px across, centered on (x, y): a gray track, an arc from the top,
+// clockwise, as long as the share used (blue, amber from 70%, red from 85%); nothing inside.
+const ringClass = (p: number) => (p >= 85 ? 'rd' : p >= 70 ? 'am' : 'bl')
+function contextRing(percent: number, x: number, y: number): string {
+  const r = 5.5
+  const len = 2 * Math.PI * r
+  const p = Math.max(0, Math.min(100, percent))
+  const arc = (len * p) / 100
+  return (
+    `<circle class="tk" cx="${x}" cy="${y}" r="${r}" fill="none" stroke-width="2"/>` +
+    (arc > 0
+      ? `<circle class="${ringClass(p)}" cx="${x}" cy="${y}" r="${r}" fill="none" stroke-width="2" stroke-linecap="round" ` +
+        `stroke-dasharray="${arc.toFixed(2)} ${len.toFixed(2)}" transform="rotate(-90 ${x} ${y})"/>`
+      : '')
+  )
+}
+const ringTerm = (p: number) => (p >= 85 ? 'error' : p >= 70 ? 'warning' : 'permission')
+
+// The branch of a session, 14 px across, centered on (x, y), in the stroke class `cls`.
+function branch(x: number, y: number, cls: string): string {
+  return (
+    `<g class="${cls}" fill="none" stroke-width="1.3"><circle cx="${x - 3}" cy="${y - 5}" r="1.8"/>` +
+    `<circle cx="${x - 3}" cy="${y + 5}" r="1.8"/><circle cx="${x + 4}" cy="${y - 3}" r="1.8"/>` +
+    `<path d="M${x - 3} ${y - 3.2}V${y + 3.2}M${x + 4} ${y - 1.2}C${x + 4} ${y + 2} ${x - 3} ${y + 1} ${x - 3} ${y + 3.2}"/></g>`
+  )
+}
+// Every line keeps its progress icon; a session's card, and a task or turn with a session
+// below it, add the branch beside it. A card's progress: in progress while it runs or waits.
+const PROGRESS: Partial<Record<Tone, Tone>> = { running: 'current', wait: 'current' }
+const progress = (r: Row): Tone => (r.session ? (PROGRESS[r.tone] ?? r.tone) : r.tone)
+
+// One icon, 14 px across, centered on (x, y).
+function icon(tone: Tone, x: number, y: number): string {
+  switch (tone) {
+    case 'current':
+      return `<circle class="am" cx="${x}" cy="${y}" r="5.5" fill="none" stroke-width="2"/><circle class="amf" cx="${x}" cy="${y}" r="2.2"/>`
+    case 'done':
+      return `<path class="gr" d="M${x - 4.5} ${y}l3 3.5l6 -7" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
+    case 'interrupted':
+    case 'archived':
+      return `<path class="gy" d="M${x - 3.5} ${y - 3.5}l7 7M${x + 3.5} ${y - 3.5}l-7 7" stroke-width="1.6" stroke-linecap="round"/>`
+    case 'wait':
+    case 'paused':
+      return `<circle class="am" cx="${x}" cy="${y}" r="5.5" fill="none" stroke-width="1.5"/><path class="am" d="M${x} ${y - 3}V${y}H${x + 2.5}" fill="none" stroke-width="1.2" stroke-linecap="round"/>`
+    case 'running':
+      return branch(x, y, 'gy')
+    case 'agent':
+      return `<path class="gyf" d="M${x - 2.5} ${y - 4}L${x + 3} ${y}L${x - 2.5} ${y + 4}Z"/>`
+    case 'sent':
+      return (
+        `<g class="bl" fill="none" stroke-width="1.4" stroke-linejoin="round"><rect x="${x - 6}" y="${y - 4.5}" width="12" height="9" rx="1.5"/>` +
+        `<path d="M${x - 6} ${y - 3.5}L${x} ${y + 1}L${x + 6} ${y - 3.5}"/></g>`
+      )
+    case 'section':
+      return ''
+    default:
+      return `<circle class="gy" cx="${x}" cy="${y}" r="5" fill="none" stroke-width="1.5"/>`
+  }
+}
+
+// The desktop's time column: room for "0:00:00".
+const TIME_W = textW('0:00:00', 12)
+const COUNT_W = textW('00/00', 12)
+
+// The column of the desktop's ▾/▸, in cells (about 8 px each).
+const GUTTER = 3
+
+// Where the icon of depth k sits; the guides run through it (+.5 keeps 1 px lines crisp).
+const col = (k: number) => 12 + k * 20 + 0.5
+// The cards a line is drawn in, outermost first: the card of the header at `depth`, whether it
+// starts (`first`) or ends (`last`) on this line. A card takes its header and every line below
+// it deeper than it; its edges add `PAD` px above its first line and below its last.
+type Card = { depth: number; first: boolean; last: boolean }
+type Frame = { cards: Card[]; top: number; bottom: number }
+const PAD = 6
+function frames(rows: Row[]): Frame[] {
+  const open: number[] = []
+  return rows.map((r, i) => {
+    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    if (r.card) open.push(r.depth)
+    const next = rows[i + 1]
+    const cards = open.map(depth => ({
+      depth,
+      first: r.card === true && depth === r.depth,
+      last: next === undefined || next.depth <= depth,
+    }))
+    return { cards, top: r.card ? PAD : 0, bottom: cards.filter(c => c.last).length * PAD }
+  })
+}
+const NO_FRAME: Frame = { cards: [], top: 0, bottom: 0 }
+const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? 30 : 28) + f.top + f.bottom
+
+// One card's slice on a line, from y0 to y1: its fill, then its border (the top edge on its
+// first line, the bottom one on its last, the sides on all).
+function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, bottom: boolean): string {
+  const r = 6
+  const a = (x: number, y: number) => `A${r} ${r} 0 0 1 ${x} ${y}`
+  const yt = top ? y0 + r : y0
+  const yb = bottom ? y1 - r : y1
+  const fill =
+    `M${L} ${yt}` +
+    (top ? `${a(L + r, y0)}H${R - r}${a(R, yt)}` : `H${R}`) +
+    `V${yb}` +
+    (bottom ? `${a(R - r, y1)}H${L + r}${a(L, yb)}` : `H${L}`) +
+    'Z'
+  const edge =
+    `M${L} ${yb}V${yt}` +
+    (top ? `${a(L + r, y0)}H${R - r}${a(R, yt)}` : `M${R} ${y0}`) +
+    `V${yb}` +
+    (bottom ? `${a(R - r, y1)}H${L + r}${a(L, yb)}` : '')
+  return `<path class="cd" d="${fill}"/><path class="cs" d="${edge}" fill="none" stroke-width="1"/>`
+}
+
+function rowSvg(r: Row, g: Guide, f: Frame, W: number): string {
+  const H = rowHeight(r, f)
+  const cy = f.top + rowHeight(r) / 2
+  const x = col(r.depth)
+  // The cards: each nested one 6 px inside the one around it on the right; the text on the
+  // right keeps inside the innermost.
+  const ends = f.cards.filter(c => c.last)
+  const cards = f.cards.map((c, m) => {
+    const L = col(c.depth) - 12
+    const Rc = W - 2.5 - 6 * m
+    const y0 = c.first ? f.top - 3.5 : 0
+    const y1 = c.last ? H - f.bottom + 3.5 + PAD * (ends.length - 1 - ends.indexOf(c)) : H
+    return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
+  })
+  const paths: string[] = g.bars.flatMap((on, k) => (on ? [`M${col(k)} 0V${H}`] : []))
+  if (r.depth > 0) paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - 12 : x - 9}`)
+  if (g.down) paths.push(`M${x} ${cy + 8}V${H}`)
+  const right: string[] = []
+  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
+  const section = r.tone === 'section'
+  const size = section ? 13 : r.depth === 0 && r.tone !== 'wait' ? 14 : 13
+  const forked = r.session === true || r.kids === true
+  // Task, turn and card lines are drawn in columns from the right, the same on every one of them,
+  // open or closed: the time, the count, the bar and, left of the bar, the branch of a line with a
+  // session (a card, or a task or turn with one below it), its column kept empty on the others. A
+  // word of state ("concluída", "interrompida") goes left of it. The progress icon stays at the
+  // left, after the guides, then the title.
+  const tabular = r.bar === true || r.card === true
+  let edge = R
+  let mark = ''
+  if (tabular) {
+    const t = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
+    if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
+    const countX = R - TIME_W - 12
+    if (r.sub) {
+      const quiet = r.tone === 'interrupted' || r.tone === 'archived'
+      right.push(
+        `<text class="s" x="${countX}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"${quiet ? ' opacity=".75"' : ''}>${r.sub[0]}/${r.sub[1]}</text>`,
+      )
+    }
+    const bx = countX - COUNT_W - 8 - 36
+    if (r.sub) {
+      const [d, n] = r.sub
+      right.push(
+        `<rect class="tr" x="${bx}" y="${cy - 2}" width="36" height="4" rx="2"/>`,
+        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (36 * d) / n)}" height="4" rx="2"/>` : '',
+      )
+    }
+    const ix = bx - 12
+    if (forked) mark = branch(ix, cy, 'gy')
+    edge = ix - 12
+    if (r.ring) {
+      const ring = contextRing(r.ring.percent, ix - 18, cy)
+      mark += r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring
+      edge -= 18
+    }
+    if (r.meta) {
+      right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)
+      edge -= textW(r.meta, 12) + 8
+    }
+  } else {
+    const t = typeof r.time === 'number' ? clockText(r.time) : ''
+    if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
+    if (t) edge = R - textW(t, 12) - 12
+    const words = rightText(r)
+    if (words) {
+      right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(words)}</text>`)
+      edge -= textW(words, 12)
+    }
+  }
+  const lead = section ? '' : icon(progress(r), x, cy)
+  const tx = section ? x - 6 : x + 13
+  const title = fit(r.title, size, Math.max(24, edge - 10 - tx))
+  const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || section
+  const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
+    cards.map(c => c.svg).join('') +
+    (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
+    (section ? `<path class="ln" d="M0 0.5H${R}" stroke-width="1"/>` : '') +
+    lead +
+    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${xml(title)}</text>` +
+    mark +
+    right.join('') +
+    '</svg>'
+  )
+}
+
+// The header's chips: only those above zero, in this order.
+type Chip = { tone: Tone; text: string }
+function chips(active: number, waiting: number, cut: number, live: number, sent = 0): Chip[] {
+  const list: Chip[] = []
+  if (active > 0) list.push({ tone: 'current', text: `${active} em andamento` })
+  if (waiting > 0) list.push({ tone: 'wait', text: `${waiting} aguardando` })
+  if (sent > 0) list.push({ tone: 'sent', text: `${sent} aguardando sessão` })
+  if (cut > 0) list.push({ tone: 'interrupted', text: plural(cut, 'interrompida', 'interrompidas') })
+  if (live > 0) list.push({ tone: 'running', text: plural(live, 'sessão ativa', 'sessões ativas') })
+  return list
+}
+
+// The header: the title alone on the first line (its right end is left to the view icons, drawn
+// over it), the count and time below it, the bar, then the chips.
+const ICONS_W = 72
+function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number): { source: string; height: number } {
+  const L = 8
+  const R = W - 8
+  const empty = n === 0 && list.length === 0
+  const H = empty ? 44 : list.length > 0 ? 88 : 66
+  const parts: string[] = []
+  if (empty) {
+    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
+    parts.push(`<text class="s" x="${L}" y="34" font-size="12">Nenhuma tarefa planejada.</text>`)
+  } else {
+    const score = `${d} de ${n} · ${percent(d, n)}%` + (time !== undefined ? ` · ${clockText(time)}` : '')
+    const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
+    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${xml(name)}</text>`)
+    parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
+    parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
+    // Too narrow for the words: the numbers alone, after their icons.
+    const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
+    let cx = L
+    for (const chip of list) {
+      const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0] }
+      const w = 16 + textW(c.text, 12)
+      if (cx + w > R) break
+      parts.push(
+        c.tone === 'current'
+          ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>`
+          : icon(c.tone, cx + 5, 68),
+      )
+      parts.push(`<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text>`)
+      cx += w + 16
+    }
+  }
+  parts.push(`<path class="ln" d="M${L} ${H - 0.5}H${R}" stroke-width="1"/>`)
+  return {
+    source: `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}${parts.join('')}</svg>`,
+    height: H,
+  }
+}
+
+const rowAlt = (r: Row) =>
+  (r.label ? `${r.label}: ` : '') +
+  r.title +
+  (r.sub ? `, ${r.sub[0]} de ${r.sub[1]}` : '') +
+  (r.meta ? `, ${r.meta}` : '') +
+  (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
+  (r.kids ? ', com sessão filha' : '') +
+  (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
+  (r.fold && !r.fold.open ? ', recolhida' : '')
+// The right-hand words: "3/5", "1/2 · concluída", "interrompida".
+const rightText = (r: Row) => [r.sub ? `${r.sub[0]}/${r.sub[1]}` : '', r.meta ?? ''].filter(Boolean).join(' · ')
+
+export const register: Register = on => {
+  // Tool calls of the main loop since a plan was last open (see the tool.call reminder).
+  let unplanned = 0
+  // The current request already used the panel (plan, start or done): with everything closed,
+  // its last calls (wrap_up, the final message's) need no reminder to plan.
+  let planned = false
+  // The last question was answered by a chat message instead of an option: that message,
+  // at the next prompt, is the answer.
+  let answeredInChat = false
+
+  on('session.start', async ($, e, next) => {
+    await $.command.register({ name: 'task-tree', description: 'Abre o painel da árvore de tarefas' })
+    await $.tool.register({
+      name: 'plan',
+      isDeferred: false,
+      description:
+        'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +
+        'uma aberta com o mesmo id é substituída (replanejamento, que recomeça tudo dentro dela). ' +
+        'Até 3 níveis: nível 1 genérico, nível 3 mais granular. Ids únicos dentro do plano (ex.: "1", "1.2", "1.2.3"); ' +
+        'abaixo do nível 1 eles ganham o id dele como prefixo ("D/1.2"), então planos diferentes podem repetir ids. ' +
+        'Use no início de todo pedido (uma tarefa basta para um pedido simples) e ao replanejar. ' +
+        'No primeiro plan de cada mensagem do usuário, passe em request um título curto do que foi pedido: ' +
+        'o painel agrupa as tarefas de nível 1 por mensagem, com esse título.',
+      inputSchema: {
+        type: 'object',
+        required: ['tasks'],
+        properties: { tasks: level(level(level())), request: { type: 'string' } },
+      },
+    })
+    await $.tool.register({
+      name: 'done',
+      isDeferred: false,
+      description:
+        'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
+        'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
+        'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore.',
+      inputSchema: {
+        type: 'object',
+        required: ['ids'],
+        properties: { ids: { type: 'array', items: { type: 'string' } } },
+      },
+    })
+    await $.tool.register({
+      name: 'start',
+      isDeferred: false,
+      description:
+        'Marca tarefas do painel como em andamento (destacadas em amarelo) ao começar cada uma. ' +
+        'Várias podem estar em andamento; sem nenhuma marcada, o painel destaca a primeira aberta. ' +
+        'Em uma tarefa concluída sem subtarefas, reabre a tarefa e os pais dela; ' +
+        'para refazer um pai concluído, replaneje o nível 1 com plan. Ids como no done.',
+      inputSchema: {
+        type: 'object',
+        required: ['ids'],
+        properties: { ids: { type: 'array', items: { type: 'string' } } },
+      },
+    })
+    // With nothing held (a new process), a resumed session's panel comes back from the store.
+    await adopt($)
+    if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
+    await restoreView($)
+    await restoreWork($)
+    const r = await next(e)
+    // Opens the panel with the session, so nobody has to type /task-tree.
+    void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
+    // The linked sessions' states change outside this session: polled while the session runs.
+    void refreshChildren($).catch(() => {})
+    // A failure must not end the interval: the sessions would stay drawn as they were.
+    $.clock.every(10000, () => refreshChildren($).catch(() => {}))
+    return r
+  })
+
+  on('classic.SessionStart', async ($, e, next) => {
+    if (e.source === 'clear') {
+      await replace($, [{ agent: MAIN, label: '', tasks: [] }])
+      await $.state.set(waitsState, [])
+      await $.state.set(sendsState, [])
+      await setWork($, [])
+    }
+    if (e.source === 'resume') await restore($, e.session_id)
+    return next(e)
+  })
+
+  // Reminds the model, with every prompt, that every request opens a task in the panel.
+  on('prompt.submit', async ($, e, next) => {
+    // Where it came from (`e.origin.kind`, set by the engine). A background task's notification (a
+    // subagent handing back, a command that ended) or an engine notice (`unclassified`: idle notices,
+    // delivery receipts, the desktop app's events) continues the request in progress: no turn, no
+    // reminder of a new request; only a short one to bring the panel up to date.
+    const kind = String((e as any).origin?.kind ?? '')
+    const text = typeof e.text === 'string' ? e.text : ''
+    const it = said(text)
+    // Another session's messages are kept (from, when) and published, whatever this prompt turns out
+    // to be: the sender confirms its queued SendMessage by them (watchSends).
+    await noteReceived($, text)
+    // The desktop app's own notices (a session that ended its turn, <side-sessions-event>) and a
+    // subagent's hand-back (`<agent-message from="<agentId>">` "[Subagent hand-back] …") are known by
+    // their text: they do not come as `unclassified` or `task-notification`.
+    if (!it.peer && (NO_TURN.includes(kind) || it.notice || it.handback)) {
+      // The app's notice says a session ended its turn: read the list now, for its reminders.
+      if (it.notice) await refreshChildren($).catch(() => {})
+      const note = await endedNote($)
+      const taken = await takenNote($)
+      return next({
+        ...e,
+        context: [
+          ...(e.context ?? []),
+          ...(note ? [note] : []),
+          ...(taken ? [taken] : []),
+          it.handback
+            ? 'Painel de tarefas (task-tree): o subagente terminou; atualize o painel (mcp__task-tree__done no que ele concluiu).'
+            : kind === 'task-notification'
+            ? 'Painel de tarefas (task-tree): uma tarefa em segundo plano (um subagente, um comando) terminou; ' +
+              'atualize o painel: mcp__task-tree__done no que ela concluiu.'
+            : 'Painel de tarefas (task-tree): mantenha o painel em dia (done no que terminou, start no que começa).',
+        ],
+      })
+    }
+    // Safety net: a new message means the main loop has no question open.
+    await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission')
+    // A new request gets its own reminder at its first tool call without a plan.
+    unplanned = 0
+    planned = false
+    // Every other message opens a turn, those another session sends too (they arrive as meta): each
+    // is a request of its own, and the current work follows turns (startsWork).
+    await openTurn($, it.title)
+    // A stale list first: a session that ended its turn is reminded of now, not later.
+    await refreshStale($).catch(() => {})
+    const note = await endedNote($)
+    const taken = await takenNote($)
+    // What the last request left open (a question answered here, work this message replaces)
+    // is listed, so it is closed rather than left running under the new plan.
+    const { value: groups = [] } = await $.state.get(groupsState)
+    const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
+    const left = hasOpen(tasks)
+      ? (answeredInChat ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
+        `Painel de tarefas (task-tree): tarefas abertas antes desta mensagem: ${openList(tasks)}. Feche com ` +
+        'mcp__task-tree__done as que esta mensagem conclui ou substitui (por exemplo, a de perguntar ou de ' +
+        'esperar a resposta) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.'
+      : undefined
+    answeredInChat = false
+    return next({
+      ...e,
+      context: [
+        ...(e.context ?? []),
+        ...(note ? [note] : []),
+        ...(taken ? [taken] : []),
+        ...(left ? [left] : []),
+        'Painel de tarefas (task-tree): todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
+          'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. A PRIMEIRA chamada de ' +
+          'ferramenta é mcp__task-tree__plan com a árvore de tarefas (até 3 níveis; uma tarefa basta ' +
+          'para um pedido simples). Ao começar uma tarefa, marque com mcp__task-tree__start; marque com ' +
+          'mcp__task-tree__done só quando ela estiver de fato concluída. Ao replanejar, chame plan de novo. ' +
+          'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
+          'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
+          'request um título curto do que foi pedido.',
+      ],
+    })
+  })
+
+  on('prompt.compose', async ($, e, next) => {
+    const r = await next(e)
+    if (!e.tools.includes('mcp__task-tree__plan')) return r
+    return { ...r, sections: [...r.sections, { id: 'task-tree:regras', text: RULES, scope: 'session' as const }] }
+  })
+
+  on('command.run', { command: 'task-tree' }, async $ => {
+    await $.ui.open({ id: PANE, title: 'Tarefas' })
+    return { text: 'Painel de tarefas aberto.' }
+  })
+
+  on('tool.call', { tool: 'mcp__task-tree__plan' }, async ($, e, next) => {
+    try {
+      const agent = e.agentId ?? MAIN
+      if (agent === MAIN) planned = true
+      const input = ((e as any).input ?? e) as { tasks?: InNode[]; request?: string }
+      const fresh = build(input.tasks ?? [], 1, undefined, await stamp($))
+      const request = typeof input.request === 'string' ? input.request.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
+      const dup = duplicates(fresh)
+      if (dup.length > 0) {
+        return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true }
+      }
+      await ensureGroup($, agent)
+      // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is
+      // replanned (replaced); a closed one stays as history, renamed if its id collides.
+      const ids = fresh.map(t => t.id)
+      const tag = Math.random().toString(36).slice(2, 6)
+      const rename = (t: TaskNode): TaskNode => ({ ...t, id: `${tag}:${t.id}`, children: t.children.map(rename) })
+      const fresh0 = agent === MAIN && (await startsWork($))
+      // A replanned task starts over: the sends from it (or below it) go with it.
+      if (agent === MAIN) await update($, sendsState, cur => (cur ?? []).filter(s => !ids.includes(String(s.anchor ?? '').split('/')[0] as string)))
+      const { value: before = [] } = await $.state.get(groupsState)
+      const renamed = ((before as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+        .filter(t => t.status !== 'open' && ids.includes(t.id))
+        .map(t => t.id)
+      const groups = await change($, all => {
+        return all.map(g => {
+          if (g.agent !== agent) return g
+          const kept = g.tasks
+            .filter(t => t.status !== 'open' || !ids.includes(t.id))
+            .map(t => (ids.includes(t.id) ? rename(t) : t))
+          if (agent !== MAIN) return { ...g, tasks: [...kept, ...fresh] }
+          // The main group's level-1 tasks go to the turn open now (the person's last message),
+          // which `request` names; a replanned one stays in the turn it was in.
+          let turns: Turn[] = g.turns ?? []
+          let cur = turns[turns.length - 1]
+          if (request !== '') {
+            if (cur === undefined) {
+              cur = { id: 1, title: request }
+              turns = [cur]
+            } else {
+              cur = { ...cur, title: request }
+              turns = [...turns.slice(0, -1), cur]
+            }
+          }
+          const was = (id: string) => g.tasks.find(t => t.status === 'open' && t.id === id)?.turn
+          const placed = fresh.map(t => {
+            const turn = was(t.id) ?? cur?.id
+            return turn === undefined ? t : { ...t, turn }
+          })
+          return { ...g, turns, tasks: [...kept, ...placed] }
+        })
+      })
+      if (agent === MAIN) {
+        // A closed level-1 task of the current work renamed by this plan stays in it.
+        const { value: cur = [] } = await $.state.get(workState)
+        const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)
+        await joinWork($, [...ids, ...kept], fresh0)
+      }
+      void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
+      // What this plan sent (every level) and what is open in the caller's own group: not the
+      // whole panel, which holds the other loops' tasks too.
+      const [gd, gn] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
+      const sent = plural(flat(fresh).length, 'tarefa', 'tarefas')
+      return { result: `Plano exibido no painel: ${sent} neste plano (${plural(gn - gd, 'aberta', 'abertas')} no seu grupo).` }
+    } catch (err) {
+      return { result: 'erro: ' + String(err), isError: true }
+    }
+  })
+
+  on('tool.call', { tool: 'mcp__task-tree__done' }, async ($, e, next) => {
+    try {
+      const agent = e.agentId ?? MAIN
+      if (agent === MAIN) planned = true
+      const input = ((e as any).input ?? e) as { ids?: string[] }
+      let notes: string[] = []
+      let closed: string[] = []
+      const now = await stamp($)
+      const groups = await change($, all => {
+        notes = []
+        closed = []
+        const others = tasksOf(all.filter(g => g.agent !== agent))
+        return all.map(g => {
+          if (g.agent !== agent) return g
+          let tasks = g.tasks
+          for (const id of input.ids ?? []) {
+            const { node: hit, error } = resolve(tasks, id)
+            if (error) notes.push(error)
+            else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
+            else if (hit.status === 'interrupted') notes.push(`"${id}" foi interrompida`)
+            else {
+              tasks = settle(edit(fillStarts(tasks, hit.id, now), hit.id, finish(now)), now)
+              closed.push(...flat([hit]).filter(t => t.status === 'open').map(t => t.id))
+            }
+          }
+          return { ...g, tasks }
+        })
+      })
+      // Closing the task a message was sent from while it is still queued: allowed, with a warning.
+      if (agent === MAIN) {
+        const { value: sends = [] } = await $.state.get(sendsState)
+        const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
+        for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
+          const t = main.find(t => t.id === s.anchor)
+          if (t && t.status === 'done') notes.push(`a mensagem para ${s.to} ("${t.id}") ainda está na fila, sem confirmação de recebimento`)
+        }
+        // Closed, its send waits no more: no ✉ left behind on an id used again.
+        if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
+      }
+      const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
+      return { result: `Concluídas: ${d}/${n} no seu grupo.` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
+    } catch (err) {
+      return { result: 'erro: ' + String(err), isError: true }
+    }
+  })
+
+  on('tool.call', { tool: 'mcp__task-tree__start' }, async ($, e, next) => {
+    try {
+      const agent = e.agentId ?? MAIN
+      if (agent === MAIN) planned = true
+      const input = ((e as any).input ?? e) as { ids?: string[] }
+      let notes: string[] = []
+      let begun: string[] = []
+      let roots: string[] = []
+      const now = await stamp($)
+      const fresh0 = agent === MAIN && (await startsWork($))
+      await change($, all => {
+        notes = []
+        begun = []
+        roots = []
+        let seq = flat(tasksOf(all)).reduce((top, t) => Math.max(top, t.started ?? 0), 0) + 1
+        const others = tasksOf(all.filter(g => g.agent !== agent))
+        return all.map(g => {
+          if (g.agent !== agent) return g
+          let tasks = g.tasks
+          for (const id of input.ids ?? []) {
+            const { node: hit, error } = resolve(tasks, id)
+            if (error) notes.push(error)
+            else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
+            else if (hit.status !== 'open' && hit.children.length > 0) {
+              notes.push(`"${id}" já foi concluída e tem subtarefas: replaneje o nível 1 com plan`)
+            } else {
+              tasks = begin(tasks, hit.id, seq++, now)
+              begun.push(hit.title)
+              roots.push(hit.id.split('/')[0] as string)
+            }
+          }
+          return { ...g, tasks }
+        })
+      })
+      if (agent === MAIN) await joinWork($, roots, fresh0)
+      await keepTime($)
+      return {
+        result:
+          (begun.length > 0 ? `Em andamento: ${begun.join('; ')}.` : 'Nada marcado.') +
+          (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : ''),
+      }
+    } catch (err) {
+      return { result: 'erro: ' + String(err), isError: true }
+    }
+  })
+
+  // A permission the person is asked for: the panel shows it until the call ends (no
+  // event marks the answer). Questions and plans are shown from tool.call below.
+  on('classic.PermissionRequest', async ($, e, next) => {
+    if (e.tool_name !== 'AskUserQuestion' && e.tool_name !== 'ExitPlanMode') {
+      const agent = e.agent_id ?? MAIN
+      await addWait($, {
+        agent,
+        kind: 'permission',
+        tool: e.tool_name,
+        key: `${agent}:${e.tool_name}`,
+      })
+    }
+    return next(e)
+  })
+
+  // A subagent's turn ending is the subagent ending: what it left open is interrupted.
+  // A teammate ends a turn per message and is left alone.
+  on('turn.complete', async ($, e, next) => {
+    const r = await next(e)
+    const agent = e.agentId
+    // A question or plan dialog never outlives the turn that opened it (one answered by a chat
+    // message may end without the call returning here).
+    await dropAsked($, agent ?? MAIN)
+    // The turn's answer grew the context: publish its share for the session that opened this one.
+    if (!agent) await publishWait($)
+    if (agent) {
+      const info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
+      if (info?.type !== 'teammate' && info?.teammateId === undefined) {
+        await dropWaits($, w => w.agent !== agent)
+        const { value } = await $.state.get(groupsState)
+        if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {
+          const now = await stamp($)
+          await change($, all => all.map(g => (g.agent === agent ? { ...g, tasks: g.tasks.map(interrupt(now)) } : g)))
+        }
+      }
+    }
+    return r
+  })
+
+  // Covers what prompt.submit misses (answers to questions, work Claude continues on its own):
+  // the first tool call of the main loop with no open plan, and every 10th after it,
+  // carries a reminder in its result.
+  on('tool.call', async ($, e, next) => {
+    const agent = e.agentId ?? MAIN
+    // A launch records the task the launching loop is on, where the subagent's group goes.
+    if (e.tool === 'Agent' || e.tool === 'Task') {
+      const { value = [] } = await $.state.get(groupsState)
+      const { anchor } = current(value.find(g => g.agent === agent)?.tasks ?? [])
+      const description = String((e as any).description ?? '')
+      await update($, launchesState, cur => [...(cur ?? []), { parent: agent, anchor, description }].slice(-20))
+    }
+    // A question or a plan to approve: the panel says so while it is open (the dialog
+    // opens inside next(e)), and the answer comes back with a reminder to bring the
+    // panel up to date while the asking loop has open tasks.
+    const kind = e.tool === 'AskUserQuestion' ? 'question' : e.tool === 'ExitPlanMode' ? 'plan' : undefined
+    if (kind) {
+      // A question belongs to the task in progress it asks about: the main loop asking with
+      // none open is refused (ExitPlanMode is let through: plan mode may hold the panel's tools).
+      if (kind === 'question' && agent === MAIN) {
+        const { value = [] } = await $.state.get(groupsState)
+        if (!hasOpen(value.find(g => g.agent === MAIN)?.tasks ?? [])) {
+          return {
+            deny:
+              'Painel de tarefas (task-tree): não há tarefa aberta no painel, e uma pergunta sempre fica sob ' +
+              'uma tarefa em andamento. Abra (mcp__task-tree__plan) ou reabra (mcp__task-tree__start) a tarefa ' +
+              'a que esta pergunta pertence e pergunte de novo; feche-a só depois da resposta.',
+          }
+        }
+      }
+      const key = e.tool_use_id
+      await addWait($, { agent, kind, tool: e.tool, key })
+      try {
+        const r = await next(e)
+        // Answered by a chat message instead of an option: that message is still to come.
+        const inChat = /did not answer|sent a message instead/i.test(JSON.stringify((r as any).result ?? r))
+        if (inChat && agent === MAIN) answeredInChat = true
+        const { value = [] } = await $.state.get(groupsState)
+        if (!hasOpen(value.find(g => g.agent === agent)?.tasks ?? [])) return r
+        return {
+          ...r,
+          context: [
+            ...(r.context ?? []),
+            inChat
+              ? 'Painel de tarefas (task-tree): o usuário vai responder por mensagem no chat, e a mensagem ' +
+                'dele é a resposta. Ao recebê-la, antes de seguir, feche com mcp__task-tree__done a tarefa ' +
+                'desta pergunta e atualize o painel (start no que começa, plan se o plano mudou).'
+              : 'Painel de tarefas (task-tree): o usuário respondeu. Antes de seguir, atualize o painel: ' +
+                'mcp__task-tree__done no que a resposta concluiu, mcp__task-tree__start no que começa agora, ' +
+                'ou mcp__task-tree__plan se ela mudou o plano.',
+          ],
+        }
+      } finally {
+        await dropWaits($, w => w.key !== key)
+      }
+    }
+    // The desktop app's end-of-turn box with a question and buttons (wrap_up with `ask`):
+    // the call returns at once and the turn ends, but the person is still asked. The notice
+    // stays until the next prompt (prompt.submit drops it) or a wrap_up with no question.
+    if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
+      const input = ((e as any).input ?? e) as { ask?: unknown }
+      const key = `${agent}:wrap_up:ask`
+      await dropWaits($, w => w.key !== key)
+      if (typeof input.ask === 'string' && input.ask.trim() !== '') {
+        await addWait($, { agent, kind: 'choice', tool: 'wrap_up', key })
+      }
+    }
+    let r
+    try {
+      r = await next(e)
+    } finally {
+      await dropWaits($, w => w.key !== `${agent}:${e.tool}`)
+    }
+    if (agent !== MAIN) return r
+    // After a reload the clock is gone with the old module: the next call starts it again.
+    await keepTime($)
+    await refreshStale($).catch(() => {})
+    if (String(e.tool) === 'mcp__ccd_session__start_session') {
+      const out = JSON.stringify((r as any).result ?? r)
+      await recordStart($, out)
+    }
+    if (r.deny !== undefined) return r
+    const notes: string[] = []
+    // A message to another session that was only queued: its task stays in progress until the
+    // session takes it up (watchSends), and the panel says so.
+    if (String(e.tool) === 'SendMessage') {
+      const out = JSON.stringify((r as any).result ?? r)
+      const to = String((e as any).to ?? (e as any).input?.to ?? '')
+      // The session is used for the task in progress: the summary view draws it there.
+      {
+        const { value = [] } = await $.state.get(groupsState)
+        const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+        if (anchor !== undefined && to !== '') {
+          await update($, childrenState, cur => (cur ?? []).map(c => (c.id === to || (c.name !== '' && c.name === to) ? { ...c, lastAnchor: anchor } : c)))
+        }
+      }
+      if (/queued/i.test(out) && !/delivered/i.test(out) && to !== '') {
+        const { value = [] } = await $.state.get(groupsState)
+        const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+        const at = await stamp($)
+        await update($, sendsState, cur => [...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)), { to, anchor, at }])
+        const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+        const t = all.find(t => t.id === anchor)
+        notes.push(
+          `Painel de tarefas (task-tree): a mensagem para ${to} ficou na fila, sem confirmação de recebimento. ` +
+            `Mantenha em andamento a tarefa do envio${t ? ` ("${t.id}" ${t.title})` : ''}: o painel avisa quando a ` +
+            'sessão começar a tratá-la; só então conclua.',
+        )
+      }
+    }
+    const ended = await endedNote($)
+    if (ended) notes.push(ended)
+    const taken = await takenNote($)
+    if (taken) notes.push(taken)
+    // The end of a turn in the desktop app: what is still open is listed, so nothing finished is
+    // left open (a task done through a session, one overtaken by the next).
+    if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
+      const { value = [] } = await $.state.get(groupsState)
+      const tasks = value.find(g => g.agent === MAIN)?.tasks ?? []
+      if (hasOpen(tasks)) {
+        notes.push(
+          'Painel de tarefas (task-tree): o turno termina com tarefas abertas no painel: ' +
+            `${openList(tasks)}. Antes da mensagem final, marque com mcp__task-tree__done as que já foram ` +
+            'concluídas (inclusive as feitas por outra sessão ou por outro caminho). Deixe abertas só as que ' +
+            'de fato continuam pendentes; com ask, a tarefa da pergunta fica em andamento até a resposta.',
+        )
+      }
+    }
+    if (notes.length > 0) r = { ...r, context: [...(r.context ?? []), ...notes] }
+    if (String(e.tool).startsWith('mcp__task-tree__')) {
+      unplanned = 0
+      return r
+    }
+    const { value = [] } = await $.state.get(groupsState)
+    if (planned || hasOpen(value.find(g => g.agent === MAIN)?.tasks ?? [])) {
+      unplanned = 0
+      return r
+    }
+    unplanned++
+    if (unplanned % 10 !== 1) return r
+    return {
+      ...r,
+      context: [
+        ...(r.context ?? []),
+        'Painel de tarefas (task-tree): há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
+          'abre pelo menos uma tarefa: chame mcp__task-tree__plan agora, mcp__task-tree__start ao começar ' +
+          'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.',
+      ],
+    }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    const ui = $.ui.resolve(e) as any
+    const { Box, Text } = ui
+    const { value: held } = await $.state.get(groupsState)
+    const { value: waits = [] } = await $.state.get(waitsState)
+    const { value: sessions = [] } = await $.state.get(childrenState)
+    const { value: sessionsError = '' } = await $.state.get(childrenErrorState)
+    // The main tasks a queued message was sent from (see watchSends): "mensagem na fila".
+    const { value: sends = [] } = await $.state.get(sendsState)
+    const queued = (sends as Send[]).filter(s => !s.taken)
+    const sentTo = (id: string) => queued.filter(s => s.anchor === id).map(s => s.to)
+    const [d, n, x] = total({ groups: withMain(held ?? []), waits, children: sessions })
+    // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
+    const now = await stamp($)
+    const notice = (w: Wait, depth: number): Row => ({ depth, tone: 'wait', title: waitText(w), label: '' })
+
+    // What the person opened or closed; `fl` is read by the builders below, which run twice:
+    // with no choices (the chips count what is drawn by default, however the lines are folded)
+    // and with the person's.
+    const chosen = await read($, folds)
+    let fl: Record<string, boolean> = {}
+    // Drawn below a line: the person's choice, else the default.
+    const opened = (key: string, byDefault: boolean) => (fl[key] === undefined ? byDefault : !fl[key])
+
+    // A task line and, while it is open, what hangs below it (`below`) and its subtasks.
+    // Closed tasks are shown collapsed, except for the way down to a task a session still
+    // at work was opened on (`pinned`): that task and the session stay in sight. A task with
+    // anything below it opens and closes (`fold`, keyed under `scope`).
+    const rows = (
+      items: TaskNode[],
+      depth: number,
+      top: number,
+      lit: string[],
+      below: (t: TaskNode, depth: number) => Row[],
+      pinned: string[],
+      scope: string,
+      work: (t: TaskNode) => Work = () => idle,
+    ): Row[] =>
+      items.flatMap(t => {
+        // Sessions opened on it or below add to its count and keep it in progress (atWork).
+        const w = work(t)
+        // A message sent from it is still queued: it waits on that session (its own icon).
+        const waitsOn = t.status === 'open' && scope === `${MAIN}|` ? sentTo(t.id) : []
+        const tone: Tone =
+          t.status === 'interrupted'
+            ? 'interrupted'
+            : waitsOn.length > 0
+              ? 'sent'
+              : w.busy
+                ? 'current'
+                : t.status === 'done'
+                  ? 'done'
+                  : lit.includes(t.id)
+                    ? 'current'
+                    : t.children.length > 0 && resting(t.children)
+                      ? 'paused'
+                      : 'open'
+        const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
+        const [sd, sn] = [ld + w.d, ln + w.n]
+        const row: Row = {
+          depth,
+          tone,
+          title: t.title,
+          label:
+            tone === 'sent'
+              ? `Aguardando confirmação de ${waitsOn.join(', ')}`
+              : ({ open: 'Aberta', current: 'Em andamento', done: 'Concluída', interrupted: 'Interrompida', paused: 'Aguardando' }[tone as string] ?? ''),
+          strong: tone === 'current' || tone === 'sent' || (depth === top && t.status === 'open'),
+          sub: (t.children.length > 0 || w.any) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
+          bar: true,
+          meta: tone === 'interrupted' ? 'interrompida' : undefined,
+          time:
+            (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
+            (tone === 'done' || tone === 'interrupted'
+              ? null
+              : tone === 'current' && t.plannedAt !== undefined && now !== undefined
+                ? now - t.plannedAt
+                : undefined),
+          kids: w.any || undefined,
+          ring: scope === `${MAIN}|` && !t.id.includes('/') ? w.ring : undefined,
+          // In progress of its own (the chip); a session at work below it counts as a session.
+          active: tone !== 'sent' && t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
+        }
+        const under = below(t, depth)
+        if (t.children.length === 0 && under.length === 0) return [row]
+        const key = `${scope}t:${t.id}`
+        // Opened by the person, a closed task shows all its subtasks.
+        const kids =
+          fl[key] === false
+            ? t.children
+            : t.status === 'open'
+              ? t.children
+              : t.children.filter(c => flat([c]).some(k => pinned.includes(k.id)))
+        const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, pinned, scope, work)] : []
+        row.fold = { key, open: rest.length > 0 }
+        return [row, ...rest]
+      })
+
+    // A turn of the main group: what the person asked, with the level-1 tasks planned for it
+    // below. Its count, bar and time add up its tasks and the sessions opened under them; it is
+    // in progress while one of them is (or a session below is at work), and closes into one line
+    // once all of them are closed.
+    const turnRows = (
+      u: Turn,
+      list: TaskNode[],
+      top: number,
+      lit: string[],
+      below: (t: TaskNode, depth: number) => Row[],
+      pinned: string[],
+      scope: string,
+      work: (t: TaskNode) => Work,
+    ): Row[] => {
+      const ws = list.map(work)
+      const busy = ws.some(w => w.busy)
+      const [ld, ln] = count(list)
+      const [d, n] = [ws.reduce((a, w) => a + w.d, ld), ws.reduce((a, w) => a + w.n, ln)]
+      const tone: Tone =
+        busy || list.some(t => t.status === 'open' && lit.includes(t.id))
+          ? 'current'
+          : list.some(t => t.status === 'open')
+            ? resting(list)
+              ? 'paused'
+              : 'open'
+            : list.every(t => t.status === 'interrupted')
+              ? 'interrupted'
+              : 'done'
+      const key = `${scope}T:${u.id}`
+      const open = opened(key, tone === 'current' || tone === 'open' || tone === 'paused')
+      const row: Row = {
+        depth: top,
+        tone,
+        title: u.title,
+        label:
+          { open: 'Pedido aberto', current: 'Pedido em andamento', done: 'Pedido concluído', interrupted: 'Pedido interrompido', paused: 'Aguardando' }[
+            tone as string
+          ] ?? 'Pedido',
+        strong: tone === 'current' || tone === 'open' || tone === 'paused',
+        sub: n > 0 ? [d, n] : undefined,
+        bar: true,
+        time:
+          (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], busy, now)) ??
+          (tone === 'done' || tone === 'interrupted'
+            ? null
+            : tone === 'current' && now !== undefined && list.some(t => t.plannedAt !== undefined)
+              ? now - Math.min(...list.flatMap(t => (t.plannedAt === undefined ? [] : [t.plannedAt])))
+              : undefined),
+        fold: { key, open },
+        kids: ws.some(w => w.any) || undefined,
+      }
+      // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
+      const ring = topRing(ws.map(w => w.ring))
+      if (ring) row.ring = ring
+      const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work).map(r => (r.ring && !r.session ? { ...r, ring: undefined } : r)) : []
+      return [row, ...inner]
+    }
+
+    // A session this one opened, in a card: "title · name", the count and time of its tasks, and
+    // its state in a word once it is not just running. While it runs or waits its own panel is
+    // drawn below it as it draws it (its waits under its task in progress, its subagents and
+    // sessions); once it stops it closes into one line, which the person may open. The icon is
+    // the gray branch while it is at work; the clock when it waits with no notice of its own to
+    // show (earlier versions); the check once it stopped.
+    const session = (c: Child, depth: number, level: number, scope: string): Row[] => {
+      const p = panelOf(c)
+      const pending = c.waiting === true && (p.waits ?? []).length === 0
+      const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : 'done'
+      const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : 'concluída'
+      const [cd, cn] = total(p, level + 1)
+      const header: Row = {
+        depth,
+        tone,
+        title: c.name && c.name !== c.title ? `${c.title} · ${c.name}` : c.title,
+        label: 'Sessão',
+        strong: live(c),
+        sub: cn > 0 ? [cd, cn] : undefined,
+        meta: state,
+        time: span(tasksOf(p.groups ?? []), now) ?? (live(c) ? undefined : null),
+        card: true,
+        session: true,
+        ring: ringOf(c),
+        live: live(c),
+        pending,
+      }
+      if (level >= DEEP) return [header]
+      const key = `${scope}s:${c.id}`
+      const inside = `${scope}${c.id}>`
+      const inner = opened(key, live(c)) ? panel(p, depth + 1, level + 1, inside) : []
+      // Whether a closed one has anything to open: its panel, drawn as it would be.
+      if (inner.length > 0 || panel(p, depth + 1, level + 1, inside).length > 0) header.fold = { key, open: inner.length > 0 }
+      return [header, ...inner]
+    }
+
+    // One session's panel from `base`: its main group, its subagents' groups and the sessions
+    // it opened. A session goes under the main task it was opened on, open or closed (a closed
+    // one shows only it); at the end of the list when it has no such task. Archived ones are
+    // left out. Done tasks stay in their place in the plan, closed.
+    const panel = (p: Panel, base: number, level: number, scope: string): Row[] => {
+      const groups = withMain(p.groups ?? [])
+      const waits = p.waits ?? []
+      // Archived sessions stay, as history, drawn gray with "arquivada".
+      const sessions = p.children ?? []
+
+      // A subagent's group hangs from the loop that launched it; one whose launcher has no
+      // group (it never planned) hangs from the main one.
+      const agents = groups.map(g => g.agent)
+      const launcher = (g: Group) => (agents.includes(g.parent ?? MAIN) ? (g.parent ?? MAIN) : MAIN)
+      const kidsOf = (agent: string) => groups.filter(g => g.agent !== MAIN && launcher(g) === agent)
+
+      const main = groups.find(g => g.agent === MAIN) as Group
+      const allIds = flat(main.tasks).map(t => t.id)
+      const pinned = sessions.filter(live).map(c => c.anchor ?? '')
+      const loose = sessions.filter(c => c.anchor === undefined || !allIds.includes(c.anchor))
+      // A group's tasks from `top` (`list`), with what hangs below them. Its subagents' groups
+      // go under the task they were launched on, hidden with it once it closes; one launched
+      // on no task (or a task replanned away) ends the group. `extras` adds those groups and
+      // the notices with no task to go under.
+      const body = (g: Group, top: number, list: TaskNode[], extras: boolean): Row[] => {
+        const mine = waits.filter(w => w.agent === g.agent)
+        const kids = kidsOf(g.agent)
+        const lines: Row[] = []
+        const { lit, anchor } = current(g.tasks)
+        const ids = flat(g.tasks).map(t => t.id)
+        const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor))
+        const below = (t: TaskNode, depth: number) => [
+          ...(t.id === anchor ? mine.map(w => notice(w, depth + 1)) : []),
+          ...(g.agent === MAIN
+            ? sessions.filter(c => c.anchor === t.id).flatMap(c => session(c, depth + 1, level, scope))
+            : []),
+          ...(t.status === 'open' ? kids.filter(k => k.anchor === t.id).flatMap(k => draw(k, depth + 1)) : []),
+        ]
+        // With no task to go under, a notice goes under the header, or ends the main list.
+        if (extras && anchor === undefined && g.agent !== MAIN) lines.push(...mine.map(w => notice(w, top)))
+        const work = g.agent === MAIN ? (t: TaskNode) => atWork(t, sessions, level) : undefined
+        const inScope = `${scope}${g.agent}|`
+        // The top panel's main tasks go under the turn (the person's message) they were planned
+        // in, oldest first; tasks from before turns existed stay loose, ahead of them.
+        const turns = g.agent === MAIN && level === 0 ? (g.turns ?? []).filter(u => list.some(t => t.turn === u.id)) : []
+        const loose = turns.length === 0 ? list : list.filter(t => !turns.some(u => u.id === t.turn))
+        lines.push(...rows(loose, top, top, lit, below, g.agent === MAIN ? pinned : [], inScope, work))
+        for (const u of turns) lines.push(...turnRows(u, list.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle)))
+        if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
+        return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
+      }
+
+      // One group's lines from `b`: a subagent's header there and its tasks below, opened and
+      // closed with the header.
+      const draw = (g: Group, b: number): Row[] => {
+        if (g.agent === MAIN) return body(g, b, g.tasks, true)
+        const mine = waits.filter(w => w.agent === g.agent)
+        if (g.tasks.length === 0 && mine.length === 0 && kidsOf(g.agent).length === 0) return []
+        // A subagent's group closes into one line once nothing in it is open; its notices
+        // stay in sight.
+        const closed = g.tasks.length > 0 && !hasOpen(g.tasks)
+        const cut = flat(g.tasks).some(t => t.status === 'interrupted')
+        const [gd, gn] = count(g.tasks)
+        const header: Row = {
+          ...(closed
+            ? { tone: cut ? 'interrupted' : 'done', meta: cut ? 'interrompido' : undefined }
+            : { tone: 'agent', strong: true }),
+          depth: b,
+          title: g.label,
+          label: 'Subagente',
+          sub: gn > 0 ? [gd, gn] : undefined,
+          time: span(g.tasks, now),
+          card: true,
+        } as Row
+        const inner = body(g, b + 1, g.tasks, true)
+        if (inner.length === 0) return [header]
+        const key = `${scope}g:${g.agent}`
+        const open = opened(key, !closed)
+        header.fold = { key, open }
+        return [header, ...(open ? inner : closed ? mine.map(w => notice(w, b + 1)) : [])]
+      }
+
+      return draw(main, base).concat(loose.flatMap(c => session(c, base, level, scope)))
+    }
+    const all = { groups: held ?? [], waits, children: sessions }
+    const plain = panel(all, 0, 0, '')
+    fl = chosen
+    // The summary view is the full view of a cut of the panel: the current work (trimToWork), with
+    // its sessions under the task they were last sent a message from (else where they were opened;
+    // one still at work with neither in the work goes at the end), each cut to its own round. Same
+    // lines, the same ▾/▸ and the same choices as the full view.
+    const { value: view = 'full' } = await $.state.get(viewState)
+    const summary = view === 'summary'
+    const { value: work = [] } = await $.state.get(workState)
+    const cut = (): Panel => {
+      const base = { groups: withMain(held ?? []), waits, work: work as string[] }
+      const kept = withMain(trimToWork({ ...base, children: [] }, 0).groups).find(g => g.agent === MAIN)?.tasks ?? []
+      const ids = flat(kept).map(t => t.id)
+      const has = (id?: string) => id !== undefined && ids.includes(id)
+      const moved = sessions.map(c =>
+        has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
+      )
+      return trimToWork({ ...base, children: moved }, 0)
+    }
+    const lines = panel(summary ? cut() : all, 0, 0, '')
+    const lanes = guides(lines)
+
+    // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
+    // is in progress, waiting, interrupted and the sessions at work.
+    const mainTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
+    // With none open, the level-1 task a session is still at work under.
+    const headTask =
+      mainTasks.find(t => t.id === current(mainTasks).lit[0]) ?? mainTasks.find(t => atWork(t, sessions, 0).busy)
+    const head = headTask?.title ?? 'Tarefas'
+    // The header's time is the whole session's, in both views: from the first start (or plan) of
+    // any task here, its subagents' and its sessions' (archived ones too), to the last close, or to now
+    // while anything is open or a session is at work.
+    const everything = allTasks({ groups: withMain(held ?? []), waits, children: sessions }, 0)
+    const headTime = sessionTime(everything, sessions.some(live) || hasOpen(everything), now)
+    const tally = (pick: (r: Row) => boolean | undefined) => plain.filter(pick).length
+    // A notice is a wait; a session waiting counts only when it published no notice of its own.
+    const active = activeLeaves({ groups: withMain(held ?? []), waits, children: sessions }, 0, queued.map(q => q.anchor ?? ''))
+    const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'))
+    const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
+
+    // The ▾/▸ of a line with something below it: a press closes what is open, opens what is
+    // closed. A Button, since a press does not go through an Svg.
+    const { Button } = ui
+    const toggle = (r: Row) =>
+      r.fold ? (
+        <Button
+          key={`fold:${r.fold.key}`}
+          label={r.fold.open ? '▾' : '▸'}
+          plain
+          dimColor
+          onPress={() => void setFold($, (r.fold as any).key, (r.fold as any).open)}
+        />
+      ) : null
+
+    // The view toggle: two icon buttons at the right end of the header's title line, ≡ the
+    // summary (what is in progress), ▤ the whole tree. The chosen one is the surface's primary
+    // (highlighted) button, the other dim; on the terminal the chosen one is in brackets. A desktop
+    // draws a Button's `label` as its text, so the label is the glyph alone; which view is chosen
+    // is said in the header's alt.
+    const VIEWS = [
+      ['summary', '≡'],
+      ['full', '▤'],
+    ] as const
+    const views =
+      e.surface === 'desktop'
+        ? VIEWS.map(([v, glyph]) =>
+            view === v ? (
+              <Button key={`view:${v}`} label={glyph} variant="primary" onPress={() => void setView($, v)} />
+            ) : (
+              <Button key={`view:${v}`} label={glyph} plain dimColor onPress={() => void setView($, v)} />
+            ),
+          )
+        : VIEWS.flatMap(([v, glyph], i) => [
+            ...(i > 0 ? [<Text key="gap"> </Text>] : []),
+            <Button key={`view:${v}`} label={view === v ? `[${glyph}]` : glyph} plain dimColor={view !== v} onPress={() => void setView($, v)} />,
+          ])
+
+    if (e.surface === 'desktop' && 'Svg' in ui) {
+      const { Svg } = ui
+      const W = Math.max(240, Math.min(900, ((e.props as any).bodyColumns || 40) * 8 - 8))
+      const top = headerSvg(head, d, n, list, W, headTime)
+      const alt =
+        (n + x === 0
+          ? 'Nenhuma tarefa planejada'
+          : [
+              `${head}: ${d} de ${n} (${percent(d, n)}%)`,
+              ...(headTime !== undefined ? [clockText(headTime)] : []),
+              ...list.map(c => c.text),
+            ].join(', ')) + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
+      // Each line: a narrow column for its ▾/▸ (empty when it has none, so the guides stay
+      // in line from one line to the next), then its Svg.
+      const RW = W - GUTTER * 8
+      const cards = frames(lines)
+      return (
+        <Box flexDirection="column">
+          {errorLine}
+          <Box key="head" position="relative">
+            <Svg source={top.source} alt={alt} width={W} height={top.height} />
+            <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
+              {views}
+            </Box>
+          </Box>
+          {lines.map((r, i) => (
+            <Box key={`r${i}`} flexDirection="row" alignItems="center">
+              <Box width={GUTTER} flexShrink={0} justifyContent="center">
+                {toggle(r)}
+              </Box>
+              <Svg source={rowSvg(r, lanes[i], cards[i], RW)} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
+            </Box>
+          ))}
+        </Box>
+      )
+    }
+
+    // Terminal: the same lines as text, the guides in box-drawing characters, color only on
+    // the icon; the ▾/▸ in the guides, before the icon.
+    const header =
+      n + x === 0
+        ? [
+            <Box key="head" flexDirection="row">
+              <Text dimColor>Nenhuma tarefa planejada.</Text>
+              <Text>{'  '}</Text>
+              {views}
+            </Box>,
+          ]
+        : [
+            <Box key="head" flexDirection="row">
+              <Text>
+                <Text bold>{head}</Text>
+                {`  ${d} de ${n} · ${percent(d, n)}%`}
+                {headTime !== undefined ? <Text dimColor>{`  ${clockText(headTime)}`}</Text> : null}
+              </Text>
+              <Text>{'  '}</Text>
+              {views}
+            </Box>,
+            <Text key="bar">
+              <Text color="success">{ratioBar(d, n, 20)[0]}</Text>
+              <Text color="inactive">{ratioBar(d, n, 20)[1]}</Text>
+              {list.map(c => (
+                <Text key={c.tone} color={GLYPH[c.tone][1]}>{`  ${c.tone === 'current' ? '●' : GLYPH[c.tone][0]} ${c.text.split(' ')[0]}`}</Text>
+              ))}
+            </Text>,
+          ]
+    // The line's ancestors by depth, for the guides of the lines below a ▾/▸.
+    const up: Row[] = []
+    return (
+      <Box flexDirection="column">
+        {errorLine}
+        {header}
+        {lines.map((r, i) => {
+          up[r.depth] = r
+          const [glyph, color] = GLYPH[progress(r)]
+          const forked = r.session === true || r.kids === true
+          const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section'
+          const words = rightText(r)
+          const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
+          const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
+          const lead = prefix(r, lanes[i], up)
+          const parts = [
+            glyph ? <Text key="icon" color={color}>{glyph}</Text> : null,
+
+            <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
+            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
+            tail ? <Text key="tail" dimColor>{tail}</Text> : null,
+          ]
+          if (!r.fold) {
+            return (
+              <Text key={`r${i}`}>
+                {lead ? <Text color="inactive">{lead}</Text> : null}
+                {parts}
+              </Text>
+            )
+          }
+          return (
+            <Box key={`r${i}`} flexDirection="row">
+              {lead ? <Text color="inactive">{lead}</Text> : null}
+              {toggle(r)}
+              <Text key="gap"> </Text>
+              {parts}
+            </Box>
+          )
+        })}
+      </Box>
+    )
+  })
+}
