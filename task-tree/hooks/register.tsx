@@ -1111,7 +1111,7 @@ async function keepTime($: any) {
 
 // The panel as drawn: one line per task, notice, session or subagent, with its depth in
 // the tree. The desktop draws each line as an Svg, the terminal as a Text.
-type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused'
+type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused' | 'reply'
 type Row = {
   depth: number
   tone: Tone
@@ -1180,6 +1180,8 @@ const GLYPH: Record<Tone, [string, string]> = {
   section: ['', 'inactive'],
   // A task waiting for another session to take up a message sent from it (see watchSends).
   sent: ['✉', 'permission'],
+  // What a session answered when a turn ended (its card's last line for that turn): not a task.
+  reply: ['↩', 'inactive'],
   // A parent open with part of it done and nothing below in progress: waiting to go on.
   paused: ['◷', 'warning'],
 }
@@ -1305,6 +1307,8 @@ function icon(tone: Tone, x: number, y: number): string {
         `<g class="bl" fill="none" stroke-width="1.4" stroke-linejoin="round"><rect x="${x - 6}" y="${y - 4.5}" width="12" height="9" rx="1.5"/>` +
         `<path d="M${x - 6} ${y - 3.5}L${x} ${y + 1}L${x + 6} ${y - 3.5}"/></g>`
       )
+    case 'reply':
+      return `<path class="gy" d="M${x + 4.5} ${y - 4}V${y - 1}Q${x + 4.5} ${y + 2.5} ${x + 1} ${y + 2.5}H${x - 4.5}M${x - 1.5} ${y - 0.5}L${x - 4.5} ${y + 2.5}L${x - 1.5} ${y + 5.5}" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`
     case 'section':
       return ''
     default:
@@ -1494,7 +1498,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
-  const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || section
+  const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || r.tone === 'reply' || section
   const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
@@ -1940,7 +1944,10 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // A subagent's turn ending is the subagent ending: what it left open is interrupted.
+  // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
+let lastRecap: string | undefined
+
+// A subagent's turn ending is the subagent ending: what it left open is interrupted.
   // A teammate ends a turn per message and is left alone.
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
@@ -1948,6 +1955,24 @@ export const register: Register = on => {
     // A question or plan dialog never outlives the turn that opened it (one answered by a chat
     // message may end without the call returning here).
     await dropAsked($, agent ?? MAIN)
+    // What the turn answered, kept on its turn (the last one of the main group) and published: the
+    // card of this session in the one that opened it shows it under the turn's tasks (the person's
+    // words: "adicione nos paineis de sessao, o que foi gerado como resposta"). The end-of-turn
+    // recap (wrap_up), which is what the opener's notice carries; else the final message.
+    if (!agent && !e.isAborted) {
+      const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
+      lastRecap = undefined
+      if (said !== '') {
+        await change($, all =>
+          all.map(g => {
+            if (g.agent !== MAIN) return g
+            const turns = g.turns ?? []
+            const last = [...turns].reverse().find(u => g.tasks.some(t => t.turn === u.id))
+            return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, reply: said } : u)) } : g
+          }),
+        )
+      }
+    }
     // The turn's answer grew the context: publish its share for the session that opened this one.
     if (!agent) await publishWait($)
     if (agent) {
@@ -2024,7 +2049,8 @@ export const register: Register = on => {
     // the call returns at once and the turn ends, but the person is still asked. The notice
     // stays until the next prompt (prompt.submit drops it) or a wrap_up with no question.
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
-      const input = ((e as any).input ?? e) as { ask?: unknown }
+      const input = ((e as any).input ?? e) as { ask?: unknown; recap?: unknown }
+      if (agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') lastRecap = input.recap
       const key = `${agent}:wrap_up:ask`
       await dropWaits($, w => w.key !== key)
       if (typeof input.ask === 'string' && input.ask.trim() !== '') {
@@ -2338,7 +2364,12 @@ export const register: Register = on => {
       const part = c.part ? `#${c.part}` : ''
       const key = `${scope}s:${c.id}${part}`
       const inside = `${scope}${c.id}${part}>`
-      const inner = opened(key, true) ? panel(p, depth + 1, level + 1, inside, c.id) : []
+      // Under the card's tasks, what the session answered at the end of each of its turns there, in
+      // turn order: a ↩ line, dim, with no count or time (not a task).
+      const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
+        .filter(u => typeof u.reply === 'string' && u.reply !== '')
+        .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.reply as string, label: 'Resposta' }))
+      const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
       if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
       return [header, ...inner]
@@ -2627,7 +2658,7 @@ export const register: Register = on => {
           up[r.depth] = r
           const [glyph, color] = GLYPH[progress(r)]
           const forked = r.session === true || r.kids === true
-          const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section'
+          const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
           const words = rightText(r)
           const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
           const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')

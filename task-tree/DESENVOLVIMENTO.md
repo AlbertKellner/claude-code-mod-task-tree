@@ -142,6 +142,14 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   usuário: "a linha de conexao ... esta interrompida, conecte ela no painel"). Recolhido, " ⋯" depois do nome. Subagente:
   `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
   ("⑂ filha  aguardando", com as tarefas embaixo), como no esboço 7.3 da análise.
+- Resposta da sessão (↩; pedido do usuário: "adicione nos paineis de sessao, o que foi gerado como
+  resposta, com um icone de resposta"): no fim de cada turno do loop principal da filha
+  (`turn.complete`, não abortado), ela grava em `Turn.reply` o `recap` do `wrap_up` desse turno (o
+  mesmo texto que abre o aviso de fim de turno da principal) ou, sem ele, a mensagem final visível
+  (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
+  rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
+  cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. Cortada com
+  "…" e tooltip do texto inteiro. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a

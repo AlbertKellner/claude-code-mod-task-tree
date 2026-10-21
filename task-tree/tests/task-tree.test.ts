@@ -53,7 +53,7 @@ const PANE_PROPS = {
 // line holds the guides, the icon (its color is the line's; a Button when the line folds) and the
 // title (bold while in progress), " ⋯" when folded, then the count or "interrompida". `fold` reads
 // that state as before: "▾" open, "▸" folded.
-const GLYPHS = /^[○◉✓✕◷⑂▸✉]$/
+const GLYPHS = /^[○◉✓✕◷⑂▸✉↩]$/
 type Line = { text: string; glyph?: string; color?: string; title?: string; bold?: boolean; fold?: string; label?: boolean }
 const shown = (el: any): string =>
   typeof el === 'string'
@@ -3172,5 +3172,80 @@ describe('etapas fechadas em lote', () => {
     expect(text(await done($, ['1']))).not.toContain('fecharam juntas')
     await start($, ['2'])
     expect(text(await done($, ['2']))).not.toContain('fecharam juntas')
+  })
+})
+
+describe('resposta da sessão no cartão', () => {
+  const publish = (on: any, written: Record<string, string>) => {
+    on('mcp.call', (_$: any, e: any) =>
+      e.tool === 'get_session'
+        ? ({ value: { content: [{ type: 'text', text: JSON.stringify({ sessionId: 'local_eu' }) }], isError: false } } as any)
+        : ({ value: { content: [{ type: 'text', text: '[]' }], isError: false } } as any))
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('clock.now', () => ({ value: 1 }) as any)
+    on('fs.write', (_$: any, e: any) => {
+      written[e.path.split(String.fromCharCode(92)).join('/')] = e.text
+      return { value: undefined } as any
+    })
+    on('prompt.submit', (_$: any, e: any) => e)
+    on('turn.complete', () => ({ text: '' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' } as any, async () => ({ result: 'ok' }))
+  }
+  const turnsOf = (written: Record<string, string>) =>
+    JSON.parse(written['C:/home/.claude/task-tree-waits/local_eu.json'] ?? '{}').groups?.find((g: any) => g.agent === '')?.turns ?? []
+
+  test('ao fim do turno, a sessão guarda no turno o recap do wrap_up (senão a mensagem final) e publica', async ($, on) => {
+    const written: Record<string, string> = {}
+    publish(on, written)
+    await $.prompt.submit({ text: 'primeiro pedido' } as any)
+    await plan($, [{ id: 'A', title: 'Fazer A' }])
+    await done($, ['A'])
+    // Still in the turn: no reply yet.
+    expect(turnsOf(written)[0]?.reply).toBeUndefined()
+    await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Commit abc123 enviado; PR #5 atualizado.' } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'mensagem final longa', durationMs: 1, isAborted: false, turnId: 't1' } as any)
+    expect(turnsOf(written)[0]?.reply).toBe('Commit abc123 enviado; PR #5 atualizado.')
+    // A turn with no wrap_up: its final message.
+    await $.prompt.submit({ text: 'segundo pedido' } as any)
+    await plan($, [{ id: 'B', title: 'Fazer B' }])
+    await done($, ['B'])
+    await $.turn.complete({ reason: 'answer', answer: 'SVG sem\nmudança.', durationMs: 1, isAborted: false, turnId: 't2' } as any)
+    const turns = turnsOf(written)
+    expect(turns[0]?.reply).toBe('Commit abc123 enviado; PR #5 atualizado.')
+    expect(turns[1]?.reply).toBe('SVG sem\nmudança.'.replace(/\s+/g, ' '))
+  })
+
+  test('o cartão mostra a resposta de cada turno sob as tarefas dele, com ↩, sem contar no X/Y', async ($, on) => {
+    const KID = 'local_dddddddd-dddd-dddd-dddd-dddddddddddd'
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: KID, name: 'svg', title: 'SVG', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    const panel = {
+      waiting: false, waits: [], children: [],
+      groups: [{ agent: '', label: '', turns: [{ id: 1, title: 't', at: 1, reply: 'O SVG não precisou mudar; avisei a governança.' }],
+        tasks: [{ id: 'S', short: 'S', title: 'Conferir o SVG', status: 'done', turn: 1, children: [] }] }],
+    }
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('dddddddd') ? JSON.stringify(panel) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
+    await plan($, [{ id: 'X', title: 'Delegar' }])
+    await start($, ['X'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    const lines = await view($)
+    const texts = rowsOf(lines).map(l => l.text)
+    const at = (s: string) => texts.findIndex(t => t.includes(s))
+    expect(line(lines, 'O SVG não precisou mudar; avisei a governança.')).toMatchObject({ glyph: '↩', color: 'inactive' })
+    expect(at('O SVG não precisou')).toBeGreaterThan(at('Conferir o SVG'))
+    // Not a task: the count stays 1/2 (X and S).
+    expect(lines[0].text).toContain('1 de 2')
+    // Desktop: its own line, with the full text in the alt and no count or time.
+    const reply = (await desktop($)).find(s => s.alt.startsWith('Resposta: O SVG'))
+    expect(reply?.source).not.toMatch(/>\d+\/\d+</)
   })
 })
