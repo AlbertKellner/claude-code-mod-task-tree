@@ -3157,3 +3157,20 @@ describe('cartão de mensagem de irmã já no lugar certo', () => {
     expect(rowsOf(await view($)).some(l => l.text.includes('Commit sem origem'))).toBe(true)
   })
 })
+
+describe('etapas fechadas em lote', () => {
+  test('done de várias etapas nunca iniciadas avisa para marcar uma de cada vez', async $ => {
+    await plan($, [{ id: 'A', title: 'Grupo', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }])
+    const r = text(await done($, ['1', '2', '3']))
+    expect(r).toContain('3 etapas fecharam juntas sem start')
+    expect(r).toContain('uma de cada vez')
+  })
+
+  test('etapas marcadas com start, ou uma só, não geram o aviso', async $ => {
+    await plan($, [{ id: 'A', title: 'Grupo', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+    await start($, ['1'])
+    expect(text(await done($, ['1']))).not.toContain('fecharam juntas')
+    await start($, ['2'])
+    expect(text(await done($, ['2']))).not.toContain('fecharam juntas')
+  })
+})

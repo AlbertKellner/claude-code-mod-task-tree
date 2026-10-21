@@ -43,9 +43,10 @@ const RULES = [
     'inexistentes, ambíguos ou de outro agente.',
   '- No primeiro plan de cada mensagem do usuário, passe em `request` um título curto do que foi pedido: ' +
     'no painel, as tarefas de nível 1 ficam agrupadas pela mensagem em que foram planejadas, com esse título.',
-  '- Ao começar uma tarefa, marque com mcp__task-tree__start (várias podem estar em andamento). Marque ' +
-    'cada uma com mcp__task-tree__done assim que estiver de fato concluída, sem acumular; um pai fecha ' +
-    'sozinho quando todos os filhos fecham.',
+  '- Etapa por etapa, no momento em que acontece: mcp__task-tree__start ao começar cada tarefa (várias ' +
+    'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
+    'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
+    'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
   '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
     'substituído do zero no mesmo lugar da lista: remarque com done o que já estava concluído. Um nível 1 ' +
     'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
@@ -1725,8 +1726,9 @@ export const register: Register = on => {
         'Painel de tarefas (task-tree): todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
           'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. A PRIMEIRA chamada de ' +
           'ferramenta é mcp__task-tree__plan com a árvore de tarefas (até 3 níveis; uma tarefa basta ' +
-          'para um pedido simples). Ao começar uma tarefa, marque com mcp__task-tree__start; marque com ' +
-          'mcp__task-tree__done só quando ela estiver de fato concluída. Ao replanejar, chame plan de novo. ' +
+          'para um pedido simples). Etapa por etapa: mcp__task-tree__start ao começar cada tarefa e ' +
+          'mcp__task-tree__done assim que ela estiver de fato concluída, antes da próxima (nunca várias de ' +
+          'uma vez no fim). Ao replanejar, chame plan de novo. ' +
           'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
           'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
           'request um título curto do que foi pedido.',
@@ -1825,10 +1827,12 @@ export const register: Register = on => {
       const input = ((e as any).input ?? e) as { ids?: string[] }
       let notes: string[] = []
       let closed: string[] = []
+      let unstarted: string[] = []
       const now = await stamp($)
       const groups = await change($, all => {
         notes = []
         closed = []
+        unstarted = []
         const others = tasksOf(all.filter(g => g.agent !== agent))
         return all.map(g => {
           if (g.agent !== agent) return g
@@ -1839,6 +1843,7 @@ export const register: Register = on => {
             else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
             else if (hit.status === 'interrupted') notes.push(`"${id}" foi interrompida`)
             else {
+              unstarted.push(...flat([hit]).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined).map(t => t.id))
               tasks = settle(edit(fillStarts(tasks, hit.id, now), hit.id, finish(now)), now)
               closed.push(...flat([hit]).filter(t => t.status === 'open').map(t => t.id))
             }
@@ -1858,6 +1863,16 @@ export const register: Register = on => {
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
+      // Several steps never started and closed together: the panel showed the first one in progress
+      // all along, then jumped to the last, the steps between at 0:00 (the person's words: "ficou
+      // parada muito tempo na primeira tarefa, e derepente pulo para a ultima").
+      if (unstarted.length >= 2) {
+        notes.push(
+          `${unstarted.length} etapas fecharam juntas sem start (${unstarted.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
+            'parado na primeira e elas aparecem com 0:00. Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
+            'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
+        )
+      }
       return { result: `Concluídas: ${d}/${n} no seu grupo.` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
     } catch (err) {
       return { result: 'erro: ' + String(err), isError: true }
