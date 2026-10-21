@@ -46,13 +46,17 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   imagem: não herda o tema do app, por isso cada um traz as classes claro/escuro (`STYLE`, com
   `prefers-color-scheme`). Texto em SVG não quebra nem corta: `fit` corta com `…` por uma medição
   aproximada (`textW`). Nome cortado ganha tooltip com o nome inteiro (pedido do usuário: "mostrar
-  tooltip com o nome completo da tarefa", para não ter de alargar o painel): o SVG da linha e o
-  título do cabeçalho ganham `<title>` com o nome completo, e só nesse caso o `Svg` ganha
-  `isInteractive` (moldura isolada, sem scripts, onde o `<title>` vira tooltip; no modo imagem não
-  há tooltip). Sobre ele o ponteiro é a seta padrão, não o cursor de texto (`STYLE` tem
-  `svg,text{cursor:default;user-select:none}`, que só pesa no `Svg` interativo; pedido do usuário:
-  "quero que o mouse seja o mouse padrão, seta"). Linha sem corte continua imagem; recolher (▾/▸) não corta nome; terminal sem
-  tooltip. Quando os chips não cabem com as palavras, ficam só os números.
+  tooltip com o nome completo da tarefa", para não ter de alargar o painel). A linha continua
+  imagem; o tooltip vai numa camada própria por cima (`hoverLayer`): um `Svg` interativo
+  (`isInteractive`, moldura isolada, sem scripts; no modo imagem não há tooltip) transparente, só
+  com o `<title>` do nome completo. No cabeçalho, a camada cobre só a área do título, abaixo dos
+  botões de visão. Motivo da camada (pedido do usuário: "a cada segundo que é atualizado o tempo,
+  a linha pisca"): a moldura recarrega, e fica em branco por um instante, a cada mudança da fonte;
+  com a linha inteira interativa, o relógio a fazia piscar a cada segundo. A fonte da camada não
+  muda com o relógio. Sobre ela o ponteiro é a seta padrão, não o cursor de texto
+  (`cursor:default;user-select:none`; pedido do usuário: "quero que o mouse seja o mouse padrão,
+  seta"). Linha sem corte não tem camada; recolher (▾/▸) não corta nome; terminal sem tooltip.
+  Nos testes, o helper `desktop()` ignora as camadas por padrão. Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂ ▸`. A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.

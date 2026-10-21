@@ -89,12 +89,15 @@ async function fold($: any, key: string, surface: 'terminal' | 'desktop' = 'term
 const line = (lines: Line[], title: string) => lines.find(l => l.title === title)
 
 // Desktop: the header and each line are an Svg; what they say is in `alt`.
-async function desktop($: any, columns = 60): Promise<{ alt: string; source: string; width: number; hover: boolean }[]> {
+// The lines' Svgs; with `layers`, the tooltip layers (interactive, alt "") over cut names too.
+async function desktop($: any, columns = 60, layers = false): Promise<{ alt: string; source: string; width: number; hover: boolean }[]> {
   const props = { ...PANE_PROPS, bodyColumns: columns }
   const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
   const found = await ui.findAll({ type: 'Svg' })
   await ui.unmount()
-  return found.map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
+  return found
+    .map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
+    .filter((s: { hover: boolean }) => layers || !s.hover)
 }
 
 describe('plan', () => {
@@ -1625,7 +1628,7 @@ describe('visão resumida', () => {
   test('nome cortado com …: tooltip com o nome inteiro numa camada interativa; a linha segue imagem', async $ => {
     const long = 'Uma tarefa com um nome comprido demais para caber na largura estreita do painel lateral'
     await plan($, [{ id: 'A', title: 'Curta', children: [{ id: '1', title: long }] }])
-    const svgs = await desktop($, 30)
+    const svgs = await desktop($, 30, true)
     // The line: an image (never a frame), cut with …
     const row = svgs.find(s => s.alt.includes(long))
     expect(row?.hover).toBe(false)
@@ -1637,7 +1640,7 @@ describe('visão resumida', () => {
     expect(layer?.source).toContain('cursor:default')
     const short = svgs.find(s => s.alt.includes('Curta') && !s.alt.includes(long))
     expect(short?.source).not.toContain('<title>')
-    expect(svgs.filter(s => s.hover).length).toBe(1)
+    expect(svgs.filter(s => s.hover).every(s => s.alt === '')).toBe(true)
   })
 
   test('linha cortada com relógio: a camada do tooltip não muda a cada segundo (não pisca)', async ($, on) => {
@@ -1648,9 +1651,9 @@ describe('visão resumida', () => {
     await plan($, [{ id: 'A', title: 'Raiz', children: [{ id: '1', title: long }] }])
     await start($, ['1'])
     t = 5_000
-    const a = await desktop($, 30)
+    const a = await desktop($, 30, true)
     t = 6_000
-    const b = await desktop($, 30)
+    const b = await desktop($, 30, true)
     const rowA = a.find(s => s.alt.includes(long))?.source
     const rowB = b.find(s => s.alt.includes(long))?.source
     // The line's image changes with the time; the interactive layer (a frame) stays the same.
