@@ -61,8 +61,8 @@ const RULES = [
     'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
   '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) só é concluída com o recebimento ' +
     'confirmado. "delivered; its turn has started on it" confirma; "queued" não: a tarefa fica em ' +
-    'andamento até a sessão começar a tratar a mensagem (o painel avisa quando isso acontece; também ' +
-    'valem o aviso de fim de turno dela ou o relato).',
+    'andamento até a sessão começar a tratar a mensagem. Quando isso acontece, o painel conclui a tarefa ' +
+    'sozinho (mesmo com esta sessão parada) e avisa; não é preciso esperar nem chamar done para isso.',
   '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
     'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
 ].join('\n')
@@ -769,6 +769,22 @@ async function watchSends($: any, rows: any[]) {
   }
   if (Object.keys(marks).length === 0) return
   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
+  // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
+  // have stopped waiting for it), so its card in the mother's pane is not left parked.
+  const anchors = (sends as Send[]).flatMap((s, i) => (marks[i]?.taken && s.anchor ? [s.anchor] : []))
+  if (anchors.length === 0) return
+  const now = await stamp($)
+  await change($, all =>
+    all.map(g => {
+      if (g.agent !== MAIN) return g
+      let tasks = g.tasks
+      for (const id of anchors) {
+        const t = flat(tasks).find(t => t.id === id)
+        if (t && t.status === 'open' && !t.children.some(c => c.status === 'open')) tasks = settle(edit(fillStarts(tasks, id, now), id, finish(now)), now)
+      }
+      return { ...g, tasks }
+    }),
+  )
 }
 // Once: the sessions that took up a queued message, with the task it was sent from.
 async function takenNote($: any): Promise<string | undefined> {
@@ -784,7 +800,7 @@ async function takenNote($: any): Promise<string | undefined> {
   })
   return (
     `Painel de tarefas (task-tree): recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
-    'Conclua com mcp__task-tree__done a tarefa do envio, se ela só esperava isso.'
+    'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.'
   )
 }
 
@@ -1163,6 +1179,18 @@ const textW = (s: string, size: number) => Array.from(s).reduce((w, ch) => w + e
 // only by an interactive Svg (`hovers`), so the pane need not be widened to read it.
 const tip = (whole: string, shown: string) => (shown === whole ? '' : `<title>${xml(whole)}</title>`)
 const hovers = (source: string) => source.includes('<title>')
+// The tooltip goes in a layer of its own over the line: a transparent interactive Svg holding only
+// the whole name, whose source does not change with the clock. The line itself stays an image: an
+// interactive Svg is a frame, reloaded (drawn blank for an instant) every time its source changes,
+// and a line with a running time changes every second.
+function hoverLayer(source: string, w: number, h: number): string {
+  const whole = /<title>([^<]*)<\/title>/.exec(source)?.[1] ?? ''
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+    '<style>svg,rect{cursor:default}</style>' +
+    `<rect width="${w}" height="${h}" fill="transparent" pointer-events="all"><title>${whole}</title></rect></svg>`
+  )
+}
 function fit(s: string, size: number, max: number): string {
   if (textW(s, size) <= max) return s
   let out = ''
@@ -1935,7 +1963,7 @@ export const register: Register = on => {
         notes.push(
           `Painel de tarefas (task-tree): a mensagem para ${to} ficou na fila, sem confirmação de recebimento. ` +
             `Mantenha em andamento a tarefa do envio${t ? ` ("${t.id}" ${t.title})` : ''}: o painel avisa quando a ` +
-            'sessão começar a tratá-la; só então conclua.',
+            'sessão começar a tratá-la, e então a conclui sozinho (pode encerrar o turno).',
         )
       }
     }
@@ -2358,7 +2386,12 @@ export const register: Register = on => {
         <Box flexDirection="column">
           {errorLine}
           <Box key="head" position="relative">
-            <Svg source={top.source} alt={alt} width={W} height={top.height} isInteractive={hovers(top.source) || undefined} />
+            <Svg source={top.source} alt={alt} width={W} height={top.height} />
+            {hovers(top.source) ? (
+              <Box position="absolute" top={0} left={0}>
+                <Svg source={hoverLayer(top.source, W - 64, 24)} alt="" width={W - 64} height={24} isInteractive />
+              </Box>
+            ) : null}
             <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
               {views}
             </Box>
@@ -2369,7 +2402,14 @@ export const register: Register = on => {
                 {toggle(r)}
               </Box>
               {(source => (
-                <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} isInteractive={hovers(source) || undefined} />
+                <Box position="relative">
+                  <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
+                  {hovers(source) ? (
+                    <Box position="absolute" top={0} left={0}>
+                      <Svg source={hoverLayer(source, RW, rowHeight(r, cards[i]))} alt="" width={RW} height={rowHeight(r, cards[i])} isInteractive />
+                    </Box>
+                  ) : null}
+                </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW))}
             </Box>
           ))}
