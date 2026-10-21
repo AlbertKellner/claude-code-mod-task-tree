@@ -2439,9 +2439,11 @@ export const register: Register = on => {
     // native button, which inverts under the pointer; a Box is placed in whole cells, so a Button
     // could never sit exactly on the icon). On a session's card, the label's line. A line with
     // nothing below has no Button.
-    const foldOver = (r: Row) => (
+    // A native Button is as wide as its label (a Box's stretch does not widen it): the label is a
+    // run of em spaces (about 13 px each) as wide as the line, so the click lands wherever on it.
+    const foldOver = (r: Row, RWidth: number) => (
       <Box position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column" alignItems="stretch" justifyContent="center">
-        <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={press(r)} />
+        <Button key={`fold:${(r.fold as any).key}`} label={' '.repeat(Math.max(2, Math.floor(RWidth / 13)))} plain onPress={press(r)} />
       </Box>
     )
     // A cut name keeps its tooltip: the layer covers the name only (from where it is drawn to the
@@ -2516,7 +2518,7 @@ export const register: Register = on => {
               {(source => (
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
-                  {r.fold ? foldOver(r) : null}
+                  {r.fold ? foldOver(r, RW) : null}
                   {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}

@@ -73,7 +73,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   desktop, a linha inteira é o alvo (escolha do usuário: "Clicar na linha inteira"): a linha
   continua uma imagem só (ícone na cor dele, rótulo dentro do cartão, guia) e, em cada linha que
   recolhe (tarefa com subtarefas, pedido, grupo de subagente, rótulo do cartão da filha), um `Box`
-  absoluto cobre a linha toda com um `Button` simples de rótulo vazio esticado nele. Não há
+  absoluto cobre a linha toda com um `Button` simples (`foldOver`) cujo rótulo é uma fila de
+  espaços em (em space) da largura da linha: o desktop desenha o botão nativo da largura do
+  rótulo, e o esticar do `Box` não o alarga (com rótulo de um espaço ele ficava minúsculo na borda
+  esquerda e o clique errava; pedido do usuário: "nao esta funcionando"). Se ainda não funcionar ao
+  vivo, a outra hipótese é o kit não passar o ponteiro a `Button` em `Box` absoluto. Não há
   controle visível; ao passar o mouse, o realce nativo aparece na linha toda. Linha sem nada embaixo
   não tem botão. Em nome cortado, a camada do tooltip cobre só o nome e fica acima do `Button`:
   sobre o nome aparece o nome completo e o clique ali não recolhe; o resto da linha recolhe (o
