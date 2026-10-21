@@ -200,7 +200,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
   tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia
   (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
-  abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Cartão de rodada já
+  abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Sob uma mesma
+  tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
+  (`begins(c)` + `inOrder()`; ex.: implementação → documentação → SVG → governança), não na ordem da
+  lista do host (pedido do usuário: "e rodou, ficando tudo junto"). Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem

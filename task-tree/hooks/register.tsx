@@ -291,6 +291,24 @@ function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): 
   return [...own, ...peer].sort((a, b) => a.at - b.at)
 }
 
+// When a card's work began: its first turn (the message it was opened or sent with), else its
+// first planned or started task. Cards under one task are drawn in this order, the order the work
+// ran in (implementation, then the sessions it passed it on to), not grouped by session.
+function begins(c: Child): number {
+  const p = panelOf(c)
+  const main = withMain(p.groups ?? []).find(g => g.agent === MAIN)
+  const ats = [
+    ...(main?.turns ?? []).flatMap(u => (typeof u.at === 'number' ? [u.at] : [])),
+    ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.plannedAt, t.startedAt].filter((x): x is number => typeof x === 'number')),
+  ]
+  return ats.length > 0 ? Math.min(...ats) : Infinity
+}
+const inOrder = (list: Child[]) =>
+  list
+    .map((c, i) => ({ c, i, at: begins(c) }))
+    .sort((a, b) => (a.at === b.at ? a.i - b.i : a.at - b.at))
+    .map(x => x.c)
+
 function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
   const rounds = breaks(c, sisters, me)
   const p = c.panel
@@ -2244,7 +2262,7 @@ export const register: Register = on => {
         const below = (t: TaskNode, depth: number) => [
           ...(t.id === anchor ? mine.map(w => notice(w, depth + 1)) : []),
           ...(g.agent === MAIN
-            ? sessions.filter(c => c.anchor === t.id).flatMap(c => session(c, depth + 1, level, scope))
+            ? inOrder(sessions.filter(c => c.anchor === t.id)).flatMap(c => session(c, depth + 1, level, scope))
             : []),
           ...(t.status === 'open' ? kids.filter(k => k.anchor === t.id).flatMap(k => draw(k, depth + 1)) : []),
         ]
@@ -2292,7 +2310,7 @@ export const register: Register = on => {
         return [header, ...(open ? inner : closed ? mine.map(w => notice(w, b + 1)) : [])]
       }
 
-      return draw(main, base).concat(loose.flatMap(c => session(c, base, level, scope)))
+      return draw(main, base).concat(inOrder(loose).flatMap(c => session(c, base, level, scope)))
     }
     const all = { groups: held ?? [], waits, children: sessions }
     const plain = panel(all, 0, 0, '', ownId)
