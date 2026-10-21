@@ -1531,7 +1531,8 @@ describe('mensagens a outras sessões', () => {
     const confirmed = JSON.stringify(await refresh($))
     expect(confirmed).toContain('recebimento confirmado')
     expect(confirmed).toContain('A/2')
-    expect(line(await view($), 'Avisar a filha')).toMatchObject({ glyph: '◉', color: 'warning' })
+    // Taken up: the sending task closed by itself.
+    expect(line(await view($), 'Avisar a filha')).toMatchObject({ glyph: '✓', color: 'success' })
     expect(JSON.stringify(await $.tool.call({ tool: 'Read', file_path: 'a' } as any))).not.toContain('recebimento confirmado')
   })
 
@@ -1621,18 +1622,41 @@ describe('visão resumida', () => {
     expect(head).toContain('>0 de 1 · 0%</text>')
   })
 
-  test('nome cortado com …: tooltip com o nome inteiro (title num Svg interativo); inteiro, sem tooltip', async $ => {
+  test('nome cortado com …: tooltip com o nome inteiro numa camada interativa; a linha segue imagem', async $ => {
     const long = 'Uma tarefa com um nome comprido demais para caber na largura estreita do painel lateral'
     await plan($, [{ id: 'A', title: 'Curta', children: [{ id: '1', title: long }] }])
     const svgs = await desktop($, 30)
-    const cut = svgs.find(s => s.source.includes(`<title>${long}</title>`))
-    expect(cut?.hover).toBe(true)
-    expect(cut?.source).toContain('…')
-    // Over the cut name, the pointer is the arrow, not the text cursor.
-    expect(cut?.source).toContain('svg,text{cursor:default')
+    // The line: an image (never a frame), cut with …
+    const row = svgs.find(s => s.alt.includes(long))
+    expect(row?.hover).toBe(false)
+    expect(row?.source).toContain('…')
+    // Over it, a transparent interactive layer with the whole name; the pointer is the arrow.
+    const layer = svgs.find(s => s.hover && s.source.includes(`<title>${long}</title>`))
+    expect(layer?.alt).toBe('')
+    expect(layer?.source).toContain('fill="transparent"')
+    expect(layer?.source).toContain('cursor:default')
     const short = svgs.find(s => s.alt.includes('Curta') && !s.alt.includes(long))
     expect(short?.source).not.toContain('<title>')
-    expect(short?.hover).toBe(false)
+    expect(svgs.filter(s => s.hover).length).toBe(1)
+  })
+
+  test('linha cortada com relógio: a camada do tooltip não muda a cada segundo (não pisca)', async ($, on) => {
+    let t = 0
+    on('clock.now', () => ({ value: t }) as any)
+    on('clock.every', () => ({ deny: 'sem relógio no teste' }) as any)
+    const long = 'Uma tarefa em andamento com um nome comprido demais para caber na largura do painel'
+    await plan($, [{ id: 'A', title: 'Raiz', children: [{ id: '1', title: long }] }])
+    await start($, ['1'])
+    t = 5_000
+    const a = await desktop($, 30)
+    t = 6_000
+    const b = await desktop($, 30)
+    const rowA = a.find(s => s.alt.includes(long))?.source
+    const rowB = b.find(s => s.alt.includes(long))?.source
+    // The line's image changes with the time; the interactive layer (a frame) stays the same.
+    expect(rowA).not.toBe(rowB)
+    expect(a.filter(s => s.hover).map(s => s.source)).toEqual(b.filter(s => s.hover).map(s => s.source))
+    expect(a.filter(s => s.hover).length).toBeGreaterThan(0)
   })
 
   test('o toggle no topo alterna as visões e a escolha fica', async $ => {
@@ -2454,6 +2478,48 @@ describe('textos reais do host (0.7.3)', () => {
     const r = JSON.stringify(await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any))
     expect(r).toContain('recebimento confirmado')
     expect(r).toContain('A/2')
+    // The sending task closed by itself on the confirmation, with no done of this session.
+    expect(line(await view($), 'Avisar')?.glyph).toBe('✓')
+  })
+
+  test('remetente parado: a releitura periódica confirma e fecha a tarefa do envio, sem turno dele', async ($, on) => {
+    on('clock.now', () => ({ value: 1000 }) as any)
+    // Each period waits for the gate; once open, one period passes (the poll runs) and the next ends it.
+    let open: () => void = () => {}
+    const gate = new Promise<void>(r => (open = r))
+    let passed = false
+    on('clock.every', async () => {
+      if (passed) return { deny: 'fim' } as any
+      await gate
+      passed = true
+      return { value: undefined } as any
+    })
+    on('mcp.call', (_$: any, e: any) =>
+      JSON.stringify(e).includes('get_session')
+        ? ({ value: { content: [{ type: 'text', text: JSON.stringify({ sessionId: ME }) }], isError: false } } as any)
+        : ({
+            value: {
+              content: [{ type: 'text', text: JSON.stringify([
+                { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+                { sessionId: KID, name: 'filha', title: 'Filha A', isRunning: true, isArchived: false, startedBy: ME },
+              ]) }],
+              isError: false,
+            },
+          } as any),
+    )
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    let received: { from: string; at: number }[] = []
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('11111111') ? JSON.stringify({ waiting: false, tasks: [], received }) : '{}' }) as any)
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: `Message queued for ${KID}; that session is holding it.` }))
+    await plan($, [{ id: 'S', title: 'Mandar à governança' }])
+    await start($, ['S'])
+    await $.tool.call({ tool: 'SendMessage', to: KID, message: 'commit' } as any)
+    expect(line(await view($), 'Mandar à governança')?.glyph).toBe('✉')
+    // The session ends its turn; the other one takes the message up later.
+    received = [{ from: ME, at: 2000 }]
+    open()
+    for (let i = 0; i < 20 && line(await view($), 'Mandar à governança')?.glyph !== '✓'; i++) await new Promise(r => setTimeout(r, 10))
+    expect(line(await view($), 'Mandar à governança')?.glyph).toBe('✓')
   })
 
   test('filha sem filhas mandando à mãe: confirma pelo received da mãe', async ($, on) => {

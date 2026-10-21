@@ -312,8 +312,14 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   escolha seguinte, "Folhas abertas". Confirmado, volta
   a ◉ (ou ✓, se o modelo concluir). `watchSends` (no `refreshChildren`) marca `idle` quando vê a sessão parada
   depois do envio e `taken` quando ela volta a rodar (começou a tratar a mensagem); o próximo
-  `prompt.submit` ou chamada do loop principal lembra, uma vez, que o recebimento foi confirmado e
-  qual tarefa concluir. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
+  `prompt.submit` ou chamada do loop principal lembra, uma vez, que o recebimento foi confirmado.
+  A tarefa do envio fecha sozinha ao receber (escolha do usuário: "Fechar sozinha ao receber"):
+  quando o envio é marcado como recebido, o `watchSends` (na releitura de 3 s, sem precisar de turno
+  da sessão que enviou, que pode estar parada) conclui a tarefa, se ela estiver aberta e sem
+  subtarefa aberta, e publica o painel, para o cartão na sessão mãe não ficar "parada". O aviso de
+  recebimento diz que o painel já fechou a tarefa (reabrir com `start` se faltou algo); o `RULES` e
+  o aviso de "ficou na fila" dizem que a tarefa fica em andamento até o recebimento e que a sessão
+  pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
   A regra está no `RULES`.
 - Visões (pedido do usuário: "quero que exista essa visao atual, e uma visão resumida, onde mostre
   somente as tarefas em andamento"; depois: "deixe mais bonito esse toggle, esta solto no layout. e
