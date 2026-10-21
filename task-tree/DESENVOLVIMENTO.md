@@ -374,6 +374,13 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   o aviso de "ficou na fila" dizem que a tarefa fica em andamento até o recebimento e que a sessão
   pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
   A regra está no `RULES`.
+- Etapa por etapa (pedido do usuário: "ela ficou parada muito tempo na primeira tarefa, e derepente
+  pulo para a ultima"): a causa era o agente, que não chamava `start` e fechava várias etapas num
+  `done` só no fim (as do meio saíam com 0:00); o espelho publica a cada mudança e a principal relê
+  a cada 3 s. O `RULES` e o contexto do `prompt.submit` pedem `start` no começo de cada etapa e
+  `done` assim que ela termina, antes da próxima, nunca várias de uma vez no fim. O `done` avisa
+  quando 2 ou mais etapas nunca iniciadas fecham juntas ("N etapas fecharam juntas sem start ...");
+  com `start` antes, ou com uma só, não há aviso.
 - Visões (pedido do usuário: "quero que exista essa visao atual, e uma visão resumida, onde mostre
   somente as tarefas em andamento"; depois: "deixe mais bonito esse toggle, esta solto no layout. e
   a visao resumida deve ser a visao padrao ao iniciar uma nova sessao"; depois "o toggle ainda esta
