@@ -225,7 +225,13 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
   de uma irmã pertence à rodada do turno em que a irmã a mandou (não à última rodada dela antes de
   a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
-  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia
+  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia.
+  A origem vem primeiro do ✉ da irmã: o envio pendente dela para esta sessão (`sends` publicado)
+  aponta a tarefa que enviou, e o turno dessa tarefa dá a âncora na principal; sem ✉, o último turno
+  da irmã antes da chegada. Sem origem conhecida, o cartão da mensagem não é desenhado por até 10 s
+  (`WAIT_ORIGIN`) e depois vai para onde der (raiz, se nada). Motivo (pedido do usuário: "ela
+  deveria abrir direto no lugar correto"): as leituras de 3 s e os arquivos gravados em momentos
+  diferentes faziam o cartão nascer na raiz e pular depois. Na mesma cadeia
   (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
   abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Sob uma mesma
   tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
