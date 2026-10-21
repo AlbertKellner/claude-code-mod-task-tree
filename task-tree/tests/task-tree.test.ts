@@ -2124,7 +2124,7 @@ describe('sessão filha na resumida', () => {
     await summary($)
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '◉ terceiro  ⑂  0/1',
-      '└─ ◉ Pedir à filha  ⑂  0/1',
+      '└─ ✉ Pedir à filha  ⑂  0/1',
       '      filha  ⑂  concluída',
     ])
     await full($)
@@ -2728,8 +2728,14 @@ describe('carta azul enquanto espera a entrega', () => {
     expect(line(await view($), 'Avisar a filha')).toMatchObject({ glyph: '✉', color: 'permission' })
   })
 
-  test('com o turno da filha já começado, o ícone segue em andamento', async ($, on) => {
+  test('entregue na hora: ✉ também, até a sessão destino ser vista tratando; sem lembrete na volta', async ($, on) => {
     setup(on, 'Message delivered to session; its turn has started on it. (delivery: delivered)')
+    await send($)
+    expect(line(await view($), 'Avisar a filha')?.glyph).toBe('✉')
+  })
+
+  test('envio que falhou não fica com ✉', async ($, on) => {
+    setup(on, '{"success":false,"message":"no such session"}')
     await send($)
     expect(line(await view($), 'Avisar a filha')?.glyph).toBe('◉')
   })
@@ -3026,5 +3032,38 @@ describe('tooltip e ícone que recolhe, juntos', () => {
       // The icon is still drawn, in its color.
       expect(String(svg.props.source)).toMatch(/class="(am|gr|gy)"/)
     }
+  })
+})
+
+describe('✉ no cartão espelhado da filha', () => {
+  const KID = 'local_bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+  test('a tarefa de envio da filha, com mensagem ainda não tratada pela irmã, mostra ✉ no cartão', async ($, on) => {
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: KID, name: 'impl', title: 'Impl', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    const panel = {
+      waiting: false,
+      groups: [{ agent: '', label: '', tasks: [
+        { id: 'A', short: 'A', title: 'Implementar', status: 'done', children: [] },
+        { id: 'B', short: 'B', title: 'Avisar a documentação', status: 'open', started: 1, children: [] },
+      ] }],
+      waits: [], children: [],
+      sends: [{ to: 'local_docs', anchor: 'B', at: 1, delivered: true }],
+    }
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('bbbbbbbb') ? JSON.stringify(panel) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
+    await plan($, [{ id: 'X', title: 'Delegar' }])
+    await start($, ['X'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    const lines = await view($)
+    expect(line(lines, 'Avisar a documentação')?.glyph).toBe('✉')
+    expect(line(lines, 'Implementar')?.glyph).toBe('✓')
   })
 })

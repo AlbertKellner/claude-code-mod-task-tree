@@ -332,11 +332,15 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `session.start`). Sem isso, uma sessão parada podia ficar desenhada como viva e manter os pais em
   andamento.
 - Mensagens a outras sessões (pedido do usuário: "somente encerre tarefas de mensagens enviadas
-  para as filhas, quando houver confirmacao de recebimento"): o `SendMessage` do loop principal cujo
-  resultado diz "queued", "held" ou "pending" e não diz "its turn has started" (um "will be
-  delivered" ainda conta como pendente; pedido do usuário: "quando enviar uma mensagem, e a tarefa
-  estiver esperando a entrega, o icone de progresso da tarefa deve ser a carta azul") grava em `sends` `{ to, anchor, at }`, com a tarefa em
-  andamento, e o resultado ganha o aviso de manter a tarefa aberta. Enquanto o envio está pendente,
+  para as filhas, quando houver confirmacao de recebimento"): todo `SendMessage` do loop principal que não falha (pedido do usuário: "uma
+  sessao esta chamando a outra, mas nao esta aparecendo as tarefas com o icone de mensagem"; antes
+  só o resultado "queued" contava, e entre filhas a entrega costuma ser imediata) grava em `sends` `{ to, anchor, at }`, com a tarefa em
+  andamento, e o resultado ganha o aviso de manter a tarefa aberta. Entrega imediata ("delivered; its turn has started") grava com `delivered: true`
+  e não ganha lembrete de recebimento; envio que falha não grava nem deixa ✉. Os `sends` vão no
+  painel publicado, e a principal desenha o ✉ na tarefa que enviou dentro do cartão espelhado da
+  filha. A tarefa fica com ✉ até o destino ser visto tratando a mensagem (o `received` publicado
+  por ele, na releitura de 3 s); aí o painel a fecha sozinho, e o `RULES` diz para não chamar
+  `done` nela. Enquanto o envio está pendente,
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
   do ícone no desktop, "✉" (cor `permission`) no terminal, `alt` "Aguardando confirmação de
