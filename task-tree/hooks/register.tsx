@@ -277,7 +277,14 @@ function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): 
       : (c.panel?.received ?? []).flatMap(x => {
           const from = sisters.find(k => k.id === x.from && k.id !== c.id)
           if (from === undefined || x.from === me || typeof x.at !== 'number') return []
-          const before = breaks(from, sisters, me, depth + 1).filter(b => b.at <= x.at)
+          // The sister sent it in one of its turns: the message belongs to that turn's round (the one
+          // the turn opened after), not to the last round before it arrived, which may be a later
+          // message the sister had not taken up yet.
+          const fb = breaks(from, sisters, me, depth + 1)
+          const fturns = withMain(from.panel?.groups ?? []).find(g => g.agent === MAIN)?.turns ?? []
+          const sent = fturns.filter(u => typeof u.at === 'number' && (u.at as number) <= x.at).pop()
+          const when = sent?.at ?? x.at
+          const before = fb.filter(b => b.at <= when)
           const last = before[before.length - 1]
           return [{ at: x.at, anchor: last ? last.anchor : from.anchor }]
         })

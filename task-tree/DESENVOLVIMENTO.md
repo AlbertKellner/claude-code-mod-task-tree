@@ -195,8 +195,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`.
   Rodadas também vêm de mensagens de sessões irmãs (pedido do usuário: "as tarefas que estao
   aparecendo na sessao filha, nao aparecem na sessao orquestradora"): cada filha publica o que
-  recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A rodada
-  aberta por uma irmã vai sob a tarefa onde estava o cartão da irmã que mandou, seguindo a cadeia
+  recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
+  de uma irmã pertence à rodada do turno em que a irmã a mandou (não à última rodada dela antes de
+  a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
+  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia
   (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
   abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
