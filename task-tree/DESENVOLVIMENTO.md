@@ -163,8 +163,23 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   tarefa concluída continua recolhida; só o caminho até a origem de uma filha rodando ou à espera
   fica à vista (`pinned` em `rows`). Uma filha parada fica numa linha embaixo da origem, como
   histórico, e some junto quando a origem é recolhida por um pai concluído. Sem âncora (cartão
-  `own_initiative`, que só começa com o clique, ou tarefa replanejada) vai para o fim da lista.
+  `own_initiative`, que só começa com o clique) vai para o fim da lista.
   Arquivada fica, como histórico (ver "Sessão arquivada").
+- Ordem de execução (pedido do usuário: tarefas na ordem do plano; grupo novo sempre embaixo dos
+  que já existem): replanejar um nível 1 aberto com o mesmo id o substitui do zero no mesmo lugar
+  da lista, sem mandá-lo para o fim (texto das `RULES`: "substituído do zero no mesmo lugar da
+  lista").
+- Um cartão por mensagem (pedido do usuário: filha ocupada que recebe mensagem nova tem o painel
+  duplicado; o cartão antigo fica onde estava e o novo vai sob a tarefa da principal que mandou a
+  mensagem): cada `SendMessage` grava em `Child.rounds` `{ at, anchor }`, com a hora tomada antes
+  da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
+  dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
+  (`Child.part` = k). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
+  deles. Só o cartão da frente mostra a espera e o anel de contexto. Com a filha rodando, todo
+  cartão com tarefas abertas é desenhado em andamento. Mensagem ainda não lida não tem turno, logo
+  não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
+  novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
+  `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`.
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo

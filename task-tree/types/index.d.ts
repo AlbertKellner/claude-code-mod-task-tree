@@ -68,6 +68,12 @@ export type Child = {
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
+  // The messages the main loop sent this session (SendMessage): when (ms, before the send) and the
+  // task it was sent from. The turns the session opened after each one are drawn in a card of their
+  // own under that task (see split in the hooks); absent from earlier versions.
+  rounds?: { at: number; anchor?: string }[]
+  // Drawn only: which of those cards this is (0 the opening message's).
+  part?: number
   anchor?: string
   panel?: Panel
   tasks?: TaskNode[]
