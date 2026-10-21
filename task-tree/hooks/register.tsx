@@ -47,7 +47,7 @@ const RULES = [
     'cada uma com mcp__task-tree__done assim que estiver de fato concluída, sem acumular; um pai fecha ' +
     'sozinho quando todos os filhos fecham.',
   '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
-    'substituído do zero e vai para o fim da lista: remarque com done o que já estava concluído. Um nível 1 ' +
+    'substituído do zero no mesmo lugar da lista: remarque com done o que já estava concluído. Um nível 1 ' +
     'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
     'concluído, replaneje o nível 1.',
   '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
@@ -258,6 +258,65 @@ const panelOf = (c: Child): Panel => {
   if (!c.archived) return p
   return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
 }
+// A session in one card per message the main loop sent it (`rounds`): the card of a message holds
+// the turns the session opened after it (its tasks in plan order, the subagents, notices and
+// sessions under them) and goes under the task the message was sent from; the first card, the
+// turns from before any message, stays where the session was opened. A message not taken up yet
+// opened no turn, so it has no card (its task shows the queued envelope meanwhile). The card with
+// the session's work in progress (else the last) waits and shows its context; while the session
+// runs, every card with open tasks is drawn at work.
+function split(c: Child): Child[] {
+  const rounds = c.rounds ?? []
+  const p = c.panel
+  if (c.part !== undefined || rounds.length === 0 || p === undefined) return [c]
+  const groups = withMain(p.groups ?? [])
+  const main = groups.find(g => g.agent === MAIN) as Group
+  const turns = main.turns ?? []
+  const roundOf = (u: Turn) => rounds.reduce((k, r, i) => (u.at !== undefined && u.at >= r.at ? i + 1 : k), 0)
+  const turnPart = (id?: number) => {
+    const u = turns.find(u => u.id === id)
+    return u === undefined ? 0 : roundOf(u)
+  }
+  const parts: number[] = []
+  for (const t of main.tasks) {
+    const k = turnPart(t.turn)
+    if (!parts.includes(k)) parts.push(k)
+  }
+  parts.sort((a, b) => a - b)
+  if (parts.length < 2 && (parts[0] ?? 0) === 0) return [c]
+  const tasksIn = (k: number) => main.tasks.filter(t => turnPart(t.turn) === k)
+  const busy = parts.find(k => flat(tasksIn(k)).some(t => t.status === 'open' && t.started !== undefined))
+  const lead = busy ?? parts[parts.length - 1]
+  // What hangs from a task goes to that task's card; with no such task, to the leading card.
+  const owner = (anchor?: string) => parts.find(k => anchor !== undefined && flat(tasksIn(k)).some(t => t.id === anchor)) ?? lead
+  const ownerOf = (agent: string) => (agent === MAIN ? owner(current(main.tasks).anchor) : owner(groups.find(g => g.agent === agent)?.anchor))
+  return parts.map(k => {
+    const tasks = tasksIn(k)
+    const ids = tasks.map(t => t.id)
+    const at = k === lead
+    return {
+      ...c,
+      part: k,
+      anchor: k === 0 ? c.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
+      lastAnchor: at ? c.lastAnchor : undefined,
+      // A card with open tasks of a session at work is at work too (the new group waits its turn).
+      running: c.running && (at || hasOpen(tasks)),
+      waiting: at ? c.waiting : false,
+      context: at ? c.context : undefined,
+      tasks: undefined,
+      panel: {
+        ...p,
+        groups: groups
+          .map(g => (g.agent === MAIN ? { ...g, tasks, turns: turns.filter(u => tasks.some(t => t.turn === u.id)) } : g))
+          .filter(g => g.agent === MAIN || ownerOf(g.agent) === k),
+        waits: (p.waits ?? []).filter(w => ownerOf(w.agent) === k),
+        children: (p.children ?? []).filter(s => owner(s.anchor) === k),
+        ...(p.work ? { work: p.work.filter(id => ids.includes(id)) } : {}),
+      },
+    }
+  })
+}
+
 // The count of a panel with its sessions' tasks: they are part of the tree, under the task
 // they were opened on (an archived one too, as history).
 function total(p: Panel, level = 0): [number, number, number] {
@@ -608,6 +667,7 @@ async function refreshChildren($: any) {
           waiting: r.isArchived !== true && waiting.includes(r.sessionId),
           context: contexts[r.sessionId] ?? before?.context,
           lastAnchor: before?.lastAnchor,
+          rounds: before?.rounds,
           anchor: before?.anchor,
           panel: panels[r.sessionId] ?? before?.panel,
           tasks: panels[r.sessionId] ? undefined : before?.tasks,
@@ -1520,10 +1580,14 @@ export const register: Register = on => {
       const groups = await change($, all => {
         return all.map(g => {
           if (g.agent !== agent) return g
-          const kept = g.tasks
-            .filter(t => t.status !== 'open' || !ids.includes(t.id))
-            .map(t => (ids.includes(t.id) ? rename(t) : t))
-          if (agent !== MAIN) return { ...g, tasks: [...kept, ...fresh] }
+          // In plan order: a replanned task takes the place of the one it replaces; the new ones
+          // go below the ones already there.
+          const reused = (t: TaskNode) => t.status === 'open' && ids.includes(t.id)
+          const inPlace = (list: TaskNode[]) => {
+            const out = g.tasks.map(t => (reused(t) ? (list.find(f => f.id === t.id) as TaskNode) : ids.includes(t.id) ? rename(t) : t))
+            return [...out, ...list.filter(f => !g.tasks.some(t => reused(t) && t.id === f.id))]
+          }
+          if (agent !== MAIN) return { ...g, tasks: inPlace(fresh) }
           // The main group's level-1 tasks go to the turn open now (the person's last message),
           // which `request` names; a replanned one stays in the turn it was in.
           let turns: Turn[] = g.turns ?? []
@@ -1542,7 +1606,7 @@ export const register: Register = on => {
             const turn = was(t.id) ?? cur?.id
             return turn === undefined ? t : { ...t, turn }
           })
-          return { ...g, turns, tasks: [...kept, ...placed] }
+          return { ...g, turns, tasks: inPlace(placed) }
         })
       })
       if (agent === MAIN) {
@@ -1760,6 +1824,8 @@ export const register: Register = on => {
         await addWait($, { agent, kind: 'choice', tool: 'wrap_up', key })
       }
     }
+    // Before the call: a message delivered at once opens the session's turn before the call returns.
+    const sentAt = String(e.tool) === 'SendMessage' ? await stamp($) : undefined
     let r
     try {
       r = await next(e)
@@ -1785,14 +1851,23 @@ export const register: Register = on => {
       {
         const { value = [] } = await $.state.get(groupsState)
         const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
-        if (anchor !== undefined && to !== '') {
-          await update($, childrenState, cur => (cur ?? []).map(c => (c.id === to || (c.name !== '' && c.name === to) ? { ...c, lastAnchor: anchor } : c)))
+        // Each message opens a round of the session, drawn in a card of its own under the task it
+        // was sent from once the session takes it up (see split).
+        const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
+        if (to !== '') {
+          await update($, childrenState, cur =>
+            (cur ?? []).map(c =>
+              c.id === to || (c.name !== '' && c.name === to)
+                ? { ...c, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(c.rounds ?? []), ...round].slice(-20) }
+                : c,
+            ),
+          )
         }
       }
       if (/queued/i.test(out) && !/delivered/i.test(out) && to !== '') {
         const { value = [] } = await $.state.get(groupsState)
         const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
-        const at = await stamp($)
+        const at = sentAt ?? (await stamp($))
         await update($, sendsState, cur => [...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)), { to, anchor, at }])
         const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const t = all.find(t => t.id === anchor)
@@ -2009,8 +2084,11 @@ export const register: Register = on => {
     const session = (c: Child, depth: number, level: number, scope: string): Row[] => {
       const p = panelOf(c)
       const pending = c.waiting === true && (p.waits ?? []).length === 0
-      const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : 'done'
-      const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : 'concluída'
+      // Stopped with tasks still open (it waits for a signal, or the next message): not done; its
+      // tasks stay in sight, as it planned them.
+      const parked = !live(c) && !c.archived && hasOpen(tasksOf(p.groups ?? []))
+      const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
+      const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : parked ? 'parada' : 'concluída'
       const [cd, cn] = total(p, level + 1)
       const header: Row = {
         depth,
@@ -2028,9 +2106,11 @@ export const register: Register = on => {
         pending,
       }
       if (level >= DEEP) return [header]
-      const key = `${scope}s:${c.id}`
-      const inside = `${scope}${c.id}>`
-      const inner = opened(key, live(c)) ? panel(p, depth + 1, level + 1, inside) : []
+      // A card past the first (split) has keys of its own.
+      const part = c.part ? `#${c.part}` : ''
+      const key = `${scope}s:${c.id}${part}`
+      const inside = `${scope}${c.id}${part}>`
+      const inner = opened(key, live(c) || parked) ? panel(p, depth + 1, level + 1, inside) : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
       if (inner.length > 0 || panel(p, depth + 1, level + 1, inside).length > 0) header.fold = { key, open: inner.length > 0 }
       return [header, ...inner]
@@ -2044,7 +2124,8 @@ export const register: Register = on => {
       const groups = withMain(p.groups ?? [])
       const waits = p.waits ?? []
       // Archived sessions stay, as history, drawn gray with "arquivada".
-      const sessions = p.children ?? []
+      // One card per message the session was sent (split).
+      const sessions = (p.children ?? []).flatMap(split)
 
       // A subagent's group hangs from the loop that launched it; one whose launcher has no
       // group (it never planned) hangs from the main one.
@@ -2135,8 +2216,9 @@ export const register: Register = on => {
       const kept = withMain(trimToWork({ ...base, children: [] }, 0).groups).find(g => g.agent === MAIN)?.tasks ?? []
       const ids = flat(kept).map(t => t.id)
       const has = (id?: string) => id !== undefined && ids.includes(id)
-      const moved = sessions.map(c =>
-        has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
+      // A session split in cards keeps each card under the task its message was sent from.
+      const moved = sessions.flatMap(split).map(c =>
+        c.part !== undefined ? c : has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
       )
       return trimToWork({ ...base, children: moved }, 0)
     }

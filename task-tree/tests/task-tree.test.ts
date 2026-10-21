@@ -110,14 +110,15 @@ describe('plan', () => {
     expect(text(r)).toContain('ids repetidos')
   })
 
-  test('replanejar um nível 1 aberto zera tudo e vai para o fim', async $ => {
+  test('replanejar um nível 1 aberto zera tudo e fica no mesmo lugar (ordem do plano)', async $ => {
     await plan($, PLAN)
     await plan($, [{ id: 'B', title: 'Sessão B' }])
     await done($, ['1.1'])
     await plan($, [{ id: 'A', title: 'Sessão A nova', children: [{ id: '1', title: 'Novo 1' }] }])
     const titles = (await view($)).map(l => l.title)
     expect(titles.indexOf('Sessão B')).toBeGreaterThanOrEqual(0)
-    expect(titles.indexOf('Sessão B')).toBeLessThan(titles.indexOf('Sessão A nova'))
+    expect(titles.indexOf('Sessão A nova')).toBeGreaterThanOrEqual(0)
+    expect(titles.indexOf('Sessão A nova')).toBeLessThan(titles.indexOf('Sessão B'))
     expect(titles).not.toContain('Sessão A')
     expect(titles).toContain('Novo 1')
   })
@@ -831,9 +832,9 @@ describe('sessões abertas', () => {
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     lines = await view($)
     const row = lines.find(l => l.text.includes('Filha A'))
-    expect(row?.text).toBe('  │    └─ ▸ ✓ Filha A · filha  ⑂  1/2 · concluída  —')
-    expect(row?.color).toBe('success')
-    expect(line(lines, 'Passo atual')).toBeUndefined()
+    // Stopped with a task still open: "parada", open, with its tasks as it planned them.
+    expect(row?.text).toBe('  │    └─ ▾ ◷ Filha A · filha  ⑂  1/2 · parada  —')
+    expect(line(lines, 'Passo atual')).toBeDefined()
   })
 
   test('a pergunta do wrap_up entra no que a sessão publica', async ($, on) => {
@@ -1137,7 +1138,7 @@ describe('sessões abertas', () => {
     expect(line(await view($), 'Trabalho da filha')?.glyph).toBe('◉')
   })
 
-  test('parada, a sessão vem recolhida e abre com as tarefas dela', async ($, on) => {
+  test('parada com tarefa aberta, a sessão vem aberta com as tarefas dela e recolhe', async ($, on) => {
     on('mcp.call', answer(() => ROWS(false)))
     on('env.get', () => ({ value: 'C:/home' }) as any)
     on('fs.read', (_$: any, e: any) =>
@@ -1148,9 +1149,10 @@ describe('sessões abertas', () => {
     await plan($, [{ id: 'A', title: 'Orquestrar', children: [{ id: '1', title: 'Delegar' }, { id: '2', title: 'Conferir' }] }])
     await start($, ['1'])
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    expect((await view($)).find(l => l.text.includes('Filha A'))?.text).toBe('  │    └─ ▸ ✓ Filha A · filha  ⑂  1/2 · concluída  —')
-    await fold($, 's:local_11111111-1111-1111-1111-111111111111')
+    expect((await view($)).find(l => l.text.includes('Filha A'))?.text).toBe('  │    └─ ▾ ◷ Filha A · filha  ⑂  1/2 · parada  —')
     expect(line(await view($), 'Passo atual')?.glyph).toBe('◉')
+    await fold($, 's:local_11111111-1111-1111-1111-111111111111')
+    expect(line(await view($), 'Passo atual')).toBeUndefined()
   })
 
   const failing = () => ({ value: { content: [{ type: 'text', text: 'sem servidor' }], isError: true } }) as any
@@ -1243,14 +1245,14 @@ describe('turnos', () => {
     await planAs($, [{ id: 'B', title: 'Testar' }])
     const rows = rowsOf(await view($)).map(l => l.text)
     expect(rows).toEqual(['▾ ◉ Agrupar por turno  0/2', '  ├─ ◉ Agrupar', '  └─ ○ Testar'])
-    // Replanned in a later message, a level-1 task stays in its turn.
+    // Replanned in a later message, a level-1 task stays in its turn, in its place.
     await ask($, 'outra coisa')
     await planAs($, [{ id: 'A', title: 'Agrupar de novo' }], 'Outra coisa')
     await planAs($, [{ id: 'Z', title: 'Nova' }])
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '▾ ◉ Agrupar por turno  0/2',
-      '  ├─ ◉ Testar',
-      '  └─ ○ Agrupar de novo',
+      '  ├─ ◉ Agrupar de novo',
+      '  └─ ○ Testar',
       '▾ ○ Outra coisa  0/1',
       '  └─ ○ Nova',
     ])
@@ -2479,5 +2481,82 @@ describe('textos reais do host (0.7.3)', () => {
     expect(lines[0]).toContain('42%')
     expect(lines.find(l => l.includes('Delegar'))).not.toContain('42%')
     expect(lines.find(l => l.includes('Filha A'))).toContain('42%')
+  })
+})
+
+describe('cartão por mensagem na filha', () => {
+  const KID = 'local_22222222-2222-2222-2222-222222222222'
+  const task = (id: string, title: string, status: string, turn: number, started?: number) => ({ id, short: id, title, status, turn, ...(started ? { started } : {}), children: [] })
+  // The session's panel: the opening message's turn (O, still in progress) and, once it took up
+  // the message sent at 100, a turn of that message with N1 then N2 in plan order.
+  const PANEL = (taken: boolean) => ({
+    waiting: false,
+    ...(taken ? { received: [{ from: 'local_eu', at: 150 }] } : {}),
+    groups: [{
+      agent: '',
+      label: '',
+      turns: [{ id: 1, title: 'abertura', at: 50 }, ...(taken ? [{ id: 2, title: 'mensagem', at: 150 }] : [])],
+      tasks: [
+        task('O', 'Velha em andamento', 'open', 1, 1),
+        ...(taken ? [task('N1', 'Nova primeira', 'open', 2), task('N2', 'Nova segunda', 'open', 2)] : []),
+      ],
+    }],
+    waits: [],
+    children: [],
+  })
+  const setup = (on: any, taken: () => boolean) => {
+    on('clock.now', () => ({ value: 100 }) as any)
+    on('prompt.submit', (_$: any, e: any) => e)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: KID, name: 'filha', title: 'Filha B', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('22222222') ? JSON.stringify(PANEL(taken())) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID} (filha)` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'queued' }))
+  }
+  const story = async ($: any) => {
+    await plan($, [{ id: 'A', title: 'Abrir a filha' }, { id: 'B', title: 'Mandar mais' }])
+    await start($, ['A'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['A'])
+    await start($, ['B'])
+    await $.tool.call({ tool: 'SendMessage', to: KID, message: 'mais isto' } as any)
+  }
+
+  test('não lida: carta azul na tarefa do envio e nenhum cartão novo', async ($, on) => {
+    setup(on, () => false)
+    await story($)
+    const lines = await view($)
+    expect(line(lines, 'Mandar mais')?.glyph).toBe('✉')
+    const texts = rowsOf(lines).map(l => l.text)
+    expect(texts.filter(t => t.includes('Filha B')).length).toBe(1)
+    expect(texts.some(t => t.includes('Nova primeira'))).toBe(false)
+  })
+
+  test('lida: o grupo novo ganha cartão próprio sob a tarefa do envio, na ordem do plano; o antigo fica', async ($, on) => {
+    let taken = false
+    setup(on, () => taken)
+    await story($)
+    taken = true
+    // The app's notice reads the sessions again.
+    await $.prompt.submit({ text: '<side-sessions-event>filha</side-sessions-event>' } as any)
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const cards = texts.map((t, i) => [t, i] as const).filter(([t]) => t.includes('Filha B'))
+    expect(cards.length).toBe(2)
+    const at = (s: string) => texts.findIndex(t => t.includes(s))
+    // The old card under A with its task in progress; the new one under B, N1 before N2.
+    expect(at('Abrir a filha')).toBeLessThan(cards[0][1])
+    expect(texts[cards[0][1] + 1]).toContain('Velha em andamento')
+    expect(at('Mandar mais')).toBeLessThan(cards[1][1])
+    expect(cards[1][1]).toBeLessThan(at('Nova primeira'))
+    expect(at('Nova primeira')).toBeLessThan(at('Nova segunda'))
+    expect(at('Velha em andamento')).toBeLessThan(at('Mandar mais'))
   })
 })
