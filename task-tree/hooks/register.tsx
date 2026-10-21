@@ -268,7 +268,8 @@ const panelOf = (c: Child): Panel => {
 // The messages that opened a round of `c`: those `me` (the session drawing it) sent, with the task
 // they were sent from, and those a sister session sent (its published `received`), drawn under
 // the task the sister's own card was under when it sent (followed down a chain of sisters).
-type Break = { at: number; anchor?: string }
+// `peer`: a sister's message; `known`: its origin was found (else drawn only after a while, see split).
+type Break = { at: number; anchor?: string; peer?: boolean; known?: boolean }
 function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): Break[] {
   const own: Break[] = (c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor }))
   const peer: Break[] =
@@ -281,12 +282,18 @@ function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): 
           // the turn opened after), not to the last round before it arrived, which may be a later
           // message the sister had not taken up yet.
           const fb = breaks(from, sisters, me, depth + 1)
-          const fturns = withMain(from.panel?.groups ?? []).find(g => g.agent === MAIN)?.turns ?? []
+          const fmain = withMain(from.panel?.groups ?? []).find(g => g.agent === MAIN)
+          const fturns = fmain?.turns ?? []
+          // First, the sister's own sending task, while its ✉ is up (its published `sends`): the turn
+          // that task was planned in. Else the sister's last turn before the message came.
+          const out = (from.panel?.sends ?? []).filter(s => (s.to === c.id || (c.name !== '' && s.to === c.name)) && (s.at ?? 0) <= x.at).pop()
+          const task = out?.anchor ? fmain?.tasks.find(t => flat([t]).some(k => k.id === out.anchor)) : undefined
+          const viaSend = task?.turn !== undefined ? fturns.find(u => u.id === task.turn)?.at : undefined
           const sent = fturns.filter(u => typeof u.at === 'number' && (u.at as number) <= x.at).pop()
-          const when = sent?.at ?? x.at
-          const before = fb.filter(b => b.at <= when)
+          const when = viaSend ?? sent?.at
+          const before = when === undefined ? [] : fb.filter(b => b.at <= when)
           const last = before[before.length - 1]
-          return [{ at: x.at, anchor: last ? last.anchor : from.anchor }]
+          return [{ at: x.at, anchor: last ? last.anchor : from.anchor, peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined) }]
         })
   return [...own, ...peer].sort((a, b) => a.at - b.at)
 }
@@ -309,6 +316,10 @@ const inOrder = (list: Child[]) =>
     .sort((a, b) => (a.at === b.at ? a.i - b.i : a.at - b.at))
     .map(x => x.c)
 
+// While a sister's message has no known origin yet (the sister's state not read yet), its card is
+// not drawn, for up to WAIT_ORIGIN ms: it would show at the root and jump into place on the next read.
+const WAIT_ORIGIN = 10000
+let drawNow: number | undefined
 function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
   const rounds = breaks(c, sisters, me)
   const p = c.panel
@@ -334,7 +345,11 @@ function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
   // What hangs from a task goes to that task's card; with no such task, to the leading card.
   const owner = (anchor?: string) => parts.find(k => anchor !== undefined && flat(tasksIn(k)).some(t => t.id === anchor)) ?? lead
   const ownerOf = (agent: string) => (agent === MAIN ? owner(current(main.tasks).anchor) : owner(groups.find(g => g.agent === agent)?.anchor))
-  return parts.map(k => {
+  const waiting = (k: number) => {
+    const b = k > 0 ? rounds[k - 1] : undefined
+    return b?.peer === true && !b.known && drawNow !== undefined && drawNow - b.at < WAIT_ORIGIN
+  }
+  return parts.filter(k => !waiting(k)).map(k => {
     const tasks = tasksIn(k)
     const ids = tasks.map(t => t.id)
     const at = k === lead
@@ -2128,6 +2143,7 @@ export const register: Register = on => {
     const [d, n, x] = total({ groups: withMain(held ?? []), waits, children: sessions })
     // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
     const now = await stamp($)
+    drawNow = now
     const notice = (w: Wait, depth: number): Row => ({ depth, tone: 'wait', title: waitText(w), label: '' })
 
     // What the person opened or closed; `fl` is read by the builders below, which run twice:

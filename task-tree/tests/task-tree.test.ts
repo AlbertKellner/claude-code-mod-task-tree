@@ -3067,3 +3067,78 @@ describe('✉ no cartão espelhado da filha', () => {
     expect(line(lines, 'Implementar')?.glyph).toBe('✓')
   })
 })
+
+describe('cartão de mensagem de irmã já no lugar certo', () => {
+  const I = 'local_c1111111-1111-1111-1111-111111111111'
+  const S = 'local_c2222222-2222-2222-2222-222222222222'
+  const G = 'local_c3333333-3333-3333-3333-333333333333'
+  const task = (id: string, title: string, status: string, turn: number) => ({ id, short: id, title, status, turn, children: [] })
+  const panel = (received: any[], turns: [number, number][], tasks: any[], sends: any[] = []) => ({
+    waiting: false, received, sends, waits: [], children: [],
+    groups: [{ agent: '', label: '', turns: turns.map(([id, at]) => ({ id, title: 't', at })), tasks }],
+  })
+  const setup = (on: any, panels: () => Record<string, any>, t: () => number) => {
+    let n = 0
+    on('clock.now', () => ({ value: t() }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          ...[[I, 'impl'], [S, 'svg'], [G, 'gov']].map(([id, name]) => ({ sessionId: id, name, title: name, isRunning: true, isArchived: false, startedBy: 'local_eu' })),
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(panels()).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify(panels()[id]) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${[I, S, G][n++]}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+  }
+  const story = async ($: any, setT: (v: number) => void) => {
+    await plan($, [{ id: 'X', title: 'Abrir' }, { id: 'Y', title: 'Repassar o ajuste' }, { id: 'Z', title: 'Outra coisa' }])
+    await start($, ['X'])
+    for (let i = 0; i < 3; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['X'])
+    await start($, ['Y'])
+    setT(100)
+    await $.tool.call({ tool: 'SendMessage', to: I, message: 'ajuste' } as any)
+  }
+
+  test('primeiro desenho: a irmã ainda com ✉ para a governança; o cartão novo já nasce sob a origem', async ($, on) => {
+    let t = 10
+    // Impl got Y's message (120) and passed it to SVG; SVG, in its turn of it (200), sent to
+    // governance, its ✉ still up (S1); governance took it (300) and planned. SVG's turn list ends
+    // there: nothing else to go by but the ✉.
+    const panels = {
+      [I]: panel([], [[1, 50], [2, 120]], [task('I0', 'Impl abertura', 'done', 1), task('I1', 'Impl do ajuste', 'done', 2)]),
+      [S]: panel([{ from: I, at: 200 }], [[1, 50], [2, 200]], [task('S0', 'SVG abertura', 'done', 1), task('S1', 'Avisar a governança', 'open', 2)], [{ to: G, anchor: 'S1', at: 250, delivered: true }]),
+      [G]: panel([{ from: S, at: 300 }], [[1, 50], [2, 300]], [task('G0', 'Gov abertura', 'done', 1), task('G1', 'Commit do ajuste', 'open', 2)]),
+    }
+    setup(on, () => panels, () => t)
+    await story($, v => (t = v))
+    t = 320
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (s: string) => texts.findIndex(x => x.includes(s))
+    expect(at('Commit do ajuste')).toBeGreaterThan(at('Repassar o ajuste'))
+    expect(at('Commit do ajuste')).toBeLessThan(at('Outra coisa'))
+  })
+
+  test('origem ainda desconhecida: o cartão espera (não vai à raiz) e aparece depois do prazo', async ($, on) => {
+    let t = 10
+    // Governance got a message from SVG, but SVG's state has no turn or ✉ before it yet.
+    const panels = {
+      [I]: panel([], [[1, 50]], [task('I0', 'Impl abertura', 'done', 1)]),
+      [S]: panel([], [], []),
+      [G]: panel([{ from: S, at: 300 }], [[1, 50], [2, 300]], [task('G0', 'Gov abertura', 'done', 1), task('G1', 'Commit sem origem', 'open', 2)]),
+    }
+    setup(on, () => panels, () => t)
+    await story($, v => (t = v))
+    t = 320
+    expect(rowsOf(await view($)).some(l => l.text.includes('Commit sem origem'))).toBe(false)
+    t = 300 + 10_001
+    expect(rowsOf(await view($)).some(l => l.text.includes('Commit sem origem'))).toBe(true)
+  })
+})
