@@ -23,7 +23,9 @@ export type TaskNode = {
 
 // One message of the person in the main loop: its level-1 tasks are drawn under it, titled with
 // what was asked (the start of the message, until a plan names it with `request`).
-export type Turn = { id: number; title: string; at?: number }
+// `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
+// message), shown under the turn's tasks in its card; absent while the turn runs.
+export type Turn = { id: number; title: string; at?: number; reply?: string }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
