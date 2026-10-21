@@ -2433,30 +2433,30 @@ export const register: Register = on => {
         <Text color={color}>{glyph}</Text>
       </Button>
     )
-    // A session's label has no icon: the label itself folds and opens its card.
-    // Desktop: the line stays one drawing (the icon in its color, the label inside its card). A
-    // Button is drawn by the desktop as an opaque native button, so it cannot be the icon: the one
-    // that folds the line has an empty label and lies over the icon (over the name on a session's
-    // label), in a Box that spans the line's height and centers it. A Box is placed in whole cells
-    // (about 8 px), so the Button is centered on the icon as near as cells allow. The tooltip layer
-    // starts after it: the two never overlap.
-    const iconCells = (r: Row) => {
-      if (r.session) {
-        const tx = col(r.depth) - 6
-        return { left: Math.max(0, Math.floor(tx / 8)), width: Math.max(2, Math.ceil(textW(r.title, 12) / 8)) }
-      }
-      // The icon's center col(depth) px: a box of 2 cells (16 px) centered on it.
-      return { left: Math.max(0, Math.round(col(r.depth) / 8) - 1), width: 2 }
-    }
-    const foldOver = (r: Row) => {
-      const { left, width } = iconCells(r)
+    // Desktop: the line stays one drawing (the icon in its color, the label inside its card). The
+    // whole line folds and opens it (the person's choice: "Clicar na linha inteira"): an empty-label
+    // Button over all of it, its native highlight on the whole line (a desktop draws a Button as a
+    // native button, which inverts under the pointer; a Box is placed in whole cells, so a Button
+    // could never sit exactly on the icon). On a session's card, the label's line. A line with
+    // nothing below has no Button.
+    const foldOver = (r: Row) => (
+      <Box position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column" alignItems="stretch" justifyContent="center">
+        <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={press(r)} />
+      </Box>
+    )
+    // A cut name keeps its tooltip: the layer covers the name only (from where it is drawn to the
+    // end of the cut text), on top of the line's Button; the rest of the line still folds it.
+    const nameLayer = (r: Row, source: string, H: number, RWidth: number) => {
+      const { Svg } = ui
+      const shown = /<\/title>([^<]*)<\/text>/.exec(source)?.[1] ?? ''
+      const left = Math.max(0, Math.floor((r.session ? col(r.depth) - 6 : col(r.depth) + 13) / 8))
+      const w = Math.max(16, Math.min(RWidth - left * 8, Math.ceil(textW(shown, 14)) + 8))
       return (
-        <Box position="absolute" top={0} bottom={0} left={left} width={width} alignItems="center" justifyContent="center">
-          <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={press(r)} />
+        <Box position="absolute" top={0} left={left}>
+          <Svg source={hoverLayer(source, w, H)} alt="" width={w} height={H} isInteractive />
         </Box>
       )
     }
-    const layerFrom = (r: Row) => (r.fold ? iconCells(r).left + iconCells(r).width : 0)
 
     // The view toggle: two icon buttons at the right end of the header's title line, ≡ the
     // summary (what is in progress), ▤ the whole tree. The chosen one is the surface's primary
@@ -2516,18 +2516,8 @@ export const register: Register = on => {
               {(source => (
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
-                  {hovers(source) ? (
-                    <Box position="absolute" top={0} left={layerFrom(r)}>
-                      <Svg
-                        source={hoverLayer(source, RW - layerFrom(r) * 8, rowHeight(r, cards[i]))}
-                        alt=""
-                        width={RW - layerFrom(r) * 8}
-                        height={rowHeight(r, cards[i])}
-                        isInteractive
-                      />
-                    </Box>
-                  ) : null}
                   {r.fold ? foldOver(r) : null}
+                  {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
             </Box>
