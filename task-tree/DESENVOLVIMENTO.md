@@ -49,7 +49,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   tooltip com o nome completo da tarefa", para não ter de alargar o painel): o SVG da linha e o
   título do cabeçalho ganham `<title>` com o nome completo, e só nesse caso o `Svg` ganha
   `isInteractive` (moldura isolada, sem scripts, onde o `<title>` vira tooltip; no modo imagem não
-  há tooltip). Linha sem corte continua imagem; recolher (▾/▸) não corta nome; terminal sem
+  há tooltip). Sobre ele o ponteiro é a seta padrão, não o cursor de texto (`STYLE` tem
+  `svg,text{cursor:default;user-select:none}`, que só pesa no `Svg` interativo; pedido do usuário:
+  "quero que o mouse seja o mouse padrão, seta"). Linha sem corte continua imagem; recolher (▾/▸) não corta nome; terminal sem
   tooltip. Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂ ▸`. A cor fica só no ícone; o título vai em negrito na tarefa em
