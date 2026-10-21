@@ -59,10 +59,10 @@ const RULES = [
     'é a resposta.',
   '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
     'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
-  '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) só é concluída com o recebimento ' +
-    'confirmado. "delivered; its turn has started on it" confirma; "queued" não: a tarefa fica em ' +
-    'andamento até a sessão começar a tratar a mensagem. Quando isso acontece, o painel conclui a tarefa ' +
-    'sozinho (mesmo com esta sessão parada) e avisa; não é preciso esperar nem chamar done para isso.',
+  '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) fica com o ícone de mensagem (✉) do ' +
+    'envio até a sessão destino começar a tratar a mensagem, mesmo quando a entrega é imediata ' +
+    '("delivered; its turn has started on it"). Não chame done nela: quando o recebimento é confirmado, ' +
+    'o painel a conclui sozinho (mesmo com esta sessão parada). Com "queued", o painel também avisa.',
   '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
     'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
 ].join('\n')
@@ -698,6 +698,7 @@ async function refreshChildren($: any) {
           children: list(file.children),
           ...(Array.isArray(file.work) ? { work: file.work.map(String) } : {}),
           ...(Array.isArray(file.received) ? { received: file.received } : {}),
+          ...(Array.isArray(file.sends) ? { sends: file.sends } : {}),
         }
       } else if (Array.isArray(file.tasks)) {
         panels[r.sessionId] = { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }
@@ -814,9 +815,12 @@ async function watchSends($: any, rows: any[]) {
 // Once: the sessions that took up a queued message, with the task it was sent from.
 async function takenNote($: any): Promise<string | undefined> {
   const { value: sends = [] } = await $.state.get(sendsState)
-  const taken = (sends as Send[]).filter(s => s.taken)
-  if (taken.length === 0) return undefined
+  const done = (sends as Send[]).filter(s => s.taken)
+  if (done.length === 0) return undefined
   await $.state.set(sendsState, (sends as Send[]).filter(s => !s.taken))
+  // A delivery at once needs no reminder: the model saw it delivered.
+  const taken = done.filter(s => !s.delivered)
+  if (taken.length === 0) return undefined
   const { value: groups = [] } = await $.state.get(groupsState)
   const all = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
   const what = taken.map(s => {
@@ -922,7 +926,7 @@ async function publishWait($: any) {
     const { value: received = [] } = await $.state.get(receivedState)
     await $.fs.write(
       path,
-      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, work, received }),
+      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
     )
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
@@ -2039,11 +2043,24 @@ export const register: Register = on => {
       // Waiting for delivery: queued (or held) and not taken up yet. Only "its turn has started"
       // confirms; a queued result may still say when it "will be delivered".
       const waitsDelivery = /queued|held|pending/i.test(out) && !/turn has started/i.test(out)
-      if (waitsDelivery && to !== '') {
+      // Every send is kept until the other session is seen taking it up (its published `received`
+      // or a turn of it after the send, see watchSends): its task shows ✉ meanwhile, also when the
+      // delivery was at once (the person's words: "nao esta aparecendo as tarefas com o icone de
+      // mensagem, para sinalizar que essa etapa esta em andamento"). A failed send keeps none.
+      const failed = (r as any).isError === true || /success[\\"]*:\s*false/.test(out)
+      if (to !== '' && !failed) {
         const { value = [] } = await $.state.get(groupsState)
         const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const at = sentAt ?? (await stamp($))
-        await update($, sendsState, cur => [...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)), { to, anchor, at }])
+        await update($, sendsState, cur => [
+          ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
+          { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true }) },
+        ])
+        await publishWait($)
+      }
+      if (waitsDelivery && to !== '') {
+        const { value = [] } = await $.state.get(groupsState)
+        const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const t = all.find(t => t.id === anchor)
         notes.push(
@@ -2105,6 +2122,9 @@ export const register: Register = on => {
     const { value: sends = [] } = await $.state.get(sendsState)
     const queued = (sends as Send[]).filter(s => !s.taken)
     const sentTo = (id: string) => queued.filter(s => s.anchor === id).map(s => s.to)
+    // The sends still waiting to be taken up, by the scope of the main group they were sent from:
+    // this session's, and those each session publishes (its card shows ✉ on its task too).
+    const sendsAt: Record<string, Send[]> = { [`${MAIN}|`]: queued }
     const [d, n, x] = total({ groups: withMain(held ?? []), waits, children: sessions })
     // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
     const now = await stamp($)
@@ -2136,7 +2156,7 @@ export const register: Register = on => {
         // Sessions opened on it or below add to its count and keep it in progress (atWork).
         const w = work(t)
         // A message sent from it is still queued: it waits on that session (its own icon).
-        const waitsOn = t.status === 'open' && scope === `${MAIN}|` ? sentTo(t.id) : []
+        const waitsOn = t.status === 'open' ? (sendsAt[scope] ?? []).filter(s => s.anchor === t.id).map(s => s.to) : []
         const tone: Tone =
           t.status === 'interrupted'
             ? 'interrupted'
@@ -2296,6 +2316,7 @@ export const register: Register = on => {
     // one shows only it); at the end of the list when it has no such task. Archived ones are
     // left out. Done tasks stay in their place in the plan, closed.
     const panel = (p: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
+      if (level > 0) sendsAt[`${scope}${MAIN}|`] = (p.sends ?? []).filter(x => !x.taken)
       const groups = withMain(p.groups ?? [])
       const waits = p.waits ?? []
       // Archived sessions stay, as history, drawn gray with "arquivada".

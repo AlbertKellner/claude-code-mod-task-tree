@@ -48,7 +48,8 @@ export type Wait = {
 // `work`: its current work (the summary view's level-1 tasks), absent from earlier versions.
 // `received`: the messages of other sessions it got (see the state's `received`): a sister's
 // message opens a card of its own, as one from the session drawing it does.
-export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[] }
+// `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
+export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
 // `running` while it works; `waiting` while it waits on the person (a question, a plan,
@@ -84,7 +85,9 @@ export type Child = {
 // A message the main loop sent another session (SendMessage) that was queued, not yet taken up:
 // `anchor` is the task it was sent from; `idle` once the session was seen stopped after the send,
 // `taken` once it was seen running again (it started on the message).
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean }
+// `delivered`: the session took it at once ("its turn has started"); kept until seen taken up, so
+// its task shows ✉ meanwhile, with no reminder when taken.
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }
