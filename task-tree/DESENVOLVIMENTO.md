@@ -188,7 +188,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   de 10 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada: o cartão recolhido, `✓ título · nome  d/n · concluída`. Não se usa `$.store` para isso: a chave
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: o cartão recolhido, `✓ título · nome  d/n · concluída`.
+  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada` e
+  cartão aberto por padrão, com as tarefas da filha como ela as planejou, cada uma no seu estado
+  (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
+  dela"); o ▾/▸ continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
   que as duas sabem.
 - Contador: `total` soma as tarefas da principal (todos os grupos) com as das filhas (as arquivadas
