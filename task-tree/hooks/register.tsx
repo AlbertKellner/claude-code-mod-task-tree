@@ -1168,8 +1168,14 @@ const GLYPH: Record<Tone, [string, string]> = {
 // line's ancestors by depth).
 // No ▾/▸ column: a level-1 line starts at its icon; deeper, the guides of the ancestors and the
 // branch, three columns each.
-const prefix = (r: Row, g: Guide, _up: Row[]) =>
-  r.depth === 0 ? '' : g.bars.map(on => (on ? '│  ' : '   ')).join('') + (g.last ? '└─ ' : '├─ ')
+// Inside a session's card (`hide`, its label's depth) the label's column is left out: the card's
+// roots start under the label, with no branch to it, and the label has none to its task (the
+// siblings' line passes by).
+const prefix = (r: Row, g: Guide, _up: Row[], hide: number[] = []) =>
+  r.depth === 0
+    ? ''
+    : g.bars.map((on, k) => (hide.includes(k) ? '' : on ? '│  ' : '   ')).join('') +
+      (hide.includes(r.depth - 1) ? '' : r.session ? (g.last ? '   ' : '│  ') : g.last ? '└─ ' : '├─ ')
 const ratioBar = (d: number, n: number, cells: number) => {
   const k = n > 0 ? Math.round((d / n) * cells) : 0
   return ['█'.repeat(k), '░'.repeat(cells - k)]
@@ -1286,6 +1292,38 @@ function icon(tone: Tone, x: number, y: number): string {
   }
 }
 
+// A session's label: its name alone, small and dim, naming the card (no progress icon, bar, count
+// or time); beside it the branch, the context ring and its state in a word, as a label's tags.
+// Folded by the person: " ⋯" after the name.
+function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number, cards: { L: number; Rc: number; svg: string }[], paths: string[]): string {
+  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
+  const tx = x - 6
+  const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
+  const tags = (r.ring ? 18 : 0) + 20 + (r.meta ? textW(r.meta, 11) + 8 : 0)
+  const name = fit(whole, 12, Math.max(24, R - tx - tags))
+  let at = tx + textW(name, 12) + 10
+  const parts: string[] = [branch(at + 4, cy, 'gy')]
+  at += 16
+  if (r.ring) {
+    const ring = contextRing(r.ring.percent, at + 6, cy)
+    parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
+    at += 18
+  }
+  // Waiting on the person: the word in amber (the label has no icon to color).
+  if (r.meta) {
+    const waiting = r.meta === 'aguardando'
+    parts.push(`<text class="${waiting ? 'amf' : 's'}" x="${at}" y="${cy + 4}" font-size="11"${waiting ? '' : ' opacity=".75"'}>${xml(r.meta)}</text>`)
+  }
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
+    cards.map(c => c.svg).join('') +
+    (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
+    `<text class="s" x="${tx}" y="${cy + 4}" font-size="12" font-weight="600">${tip(whole, name)}${xml(name)}</text>` +
+    parts.join('') +
+    '</svg>'
+  )
+}
+
 // The desktop's time column: room for "0:00:00".
 const TIME_W = textW('0:00:00', 12)
 const COUNT_W = textW('00/00', 12)
@@ -1299,6 +1337,18 @@ const col = (k: number) => 12 + k * 20 + 0.5
 type Card = { depth: number; first: boolean; last: boolean }
 type Frame = { cards: Card[]; top: number; bottom: number }
 const PAD = 6
+// A session's card is headed by a label (its name), not a task line: the tasks inside are its
+// roots, with no tree line to the label. Per row, the depths of the session labels it is inside:
+// their column (col(depth)) is drawn empty.
+function labelCols(rows: Row[]): number[][] {
+  const open: number[] = []
+  return rows.map(r => {
+    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    const mine = open.slice()
+    if (r.session) open.push(r.depth)
+    return mine
+  })
+}
 function frames(rows: Row[]): Frame[] {
   const open: number[] = []
   return rows.map((r, i) => {
@@ -1337,7 +1387,7 @@ function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, b
   return `<path class="cd" d="${fill}"/><path class="cs" d="${edge}" fill="none" stroke-width="1"/>`
 }
 
-function rowSvg(r: Row, g: Guide, f: Frame, W: number): string {
+function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): string {
   const H = rowHeight(r, f)
   const cy = f.top + rowHeight(r) / 2
   const x = col(r.depth)
@@ -1351,9 +1401,16 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number): string {
     const y1 = c.last ? H - f.bottom + 3.5 + PAD * (ends.length - 1 - ends.indexOf(c)) : H
     return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
   })
-  const paths: string[] = g.bars.flatMap((on, k) => (on ? [`M${col(k)} 0V${H}`] : []))
-  if (r.depth > 0) paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - 12 : x - 9}`)
-  if (g.down) paths.push(`M${x} ${cy + 8}V${H}`)
+  const paths: string[] = g.bars.flatMap((on, k) => (on && !hide.includes(k) ? [`M${col(k)} 0V${H}`] : []))
+  // A session's label has no branch to it (the line of its siblings passes by); the roots of its
+  // card have none to the label.
+  if (r.depth > 0 && r.session) {
+    if (!g.last && !hide.includes(r.depth - 1)) paths.push(`M${col(r.depth - 1)} 0V${H}`)
+  } else if (r.depth > 0 && !hide.includes(r.depth - 1)) {
+    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - 12 : x - 9}`)
+  }
+  if (g.down && !r.session) paths.push(`M${x} ${cy + 8}V${H}`)
+  if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
   const right: string[] = []
   const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
   const section = r.tone === 'section'
@@ -2339,6 +2396,7 @@ export const register: Register = on => {
     }
     const lines = panel(summary ? cut() : all, 0, 0, '', ownId)
     const lanes = guides(lines)
+    const hides = labelCols(lines)
 
     // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
     // is in progress, waiting, interrupted and the sessions at work.
@@ -2372,9 +2430,15 @@ export const register: Register = on => {
         <Text color={color}>{glyph}</Text>
       </Button>
     )
+    // A session's label has no icon: the label itself folds and opens its card.
     const overIcon = (r: Row) =>
       r.fold ? (
-        <Box position="absolute" top={0} left={Math.max(0, Math.floor((col(r.depth) - 8) / 8))} width={2}>
+        <Box
+          position="absolute"
+          top={0}
+          left={Math.max(0, Math.floor((col(r.depth) - (r.session ? 6 : 8)) / 8))}
+          width={r.session ? Math.ceil(textW(r.title, 12) / 8) + 1 : 2}
+        >
           <Button key={`fold:${r.fold.key}`} label={' '} plain onPress={press(r)} />
         </Box>
       ) : null
@@ -2444,7 +2508,7 @@ export const register: Register = on => {
                   ) : null}
                   {overIcon(r)}
                 </Box>
-              ))(rowSvg(r, lanes[i], cards[i], RW))}
+              ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
             </Box>
           ))}
         </Box>
@@ -2494,8 +2558,24 @@ export const register: Register = on => {
           const words = rightText(r)
           const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
           const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
-          const lead = prefix(r, lanes[i], up)
-          const parts = [
+          const lead = prefix(r, lanes[i], up, hides[i])
+          // A session's label: its name (the Button that folds its card), its tags, no count or time.
+          const parts = r.session ? [
+            r.fold ? (
+              <Button key={`fold:${r.fold.key}`} plain onPress={press(r)}>
+                <Text bold dimColor>{r.title}</Text>
+              </Button>
+            ) : (
+              <Text key="title" bold dimColor>{r.title}</Text>
+            ),
+            r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
+            <Text key="tail" dimColor>{'  ⑂'}</Text>,
+            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
+            // Waiting on the person: the word in amber (the label has no icon to color).
+            r.meta ? (
+              <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
+            ) : null,
+          ] : [
             glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
             <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
             r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
