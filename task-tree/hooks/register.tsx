@@ -1317,20 +1317,22 @@ function icon(tone: Tone, x: number, y: number): string {
 // The label's name as drawn: fitted between its start and its tags.
 function labelName(r: Row, W: number, depth: number, inner: number): { name: string; whole: string; tx: number } {
   const R = W - 2.5 - 6 * inner - 8
-  const tx = col(depth) - 6
+  const tx = col(depth) + 13
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
-  const tags = (r.ring ? 18 : 0) + 20 + (r.meta ? textW(r.meta, 11) + 8 : 0)
+  const tags = (r.ring ? 26 : 0) + (r.meta ? textW(r.meta, 11) + 8 : 0)
   return { name: fit(whole, 12, Math.max(24, R - tx - tags)), whole, tx }
 }
 function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number, cards: { L: number; Rc: number; svg: string }[], paths: string[]): string {
   const { name, whole, tx } = labelName(r, W, r.depth, Math.max(0, cards.length - 1))
-  let at = tx + textW(name, 12) + 10
-  const parts: string[] = [branch(at + 4, cy, 'gy')]
-  at += 16
+  // The ⑂ left of the name, where a task's icon is (it folds the card, see foldOver); the state
+  // word after the name; the context ring on its own at the card's right end, in the column the
+  // lines below end their time in (the person's words: "deve estar solto e na direita da mesma linha").
+  const parts: string[] = [branch(x, cy, 'gy')]
+  const at = tx + textW(name, 12) + 10
   if (r.ring) {
-    const ring = contextRing(r.ring.percent, at + 6, cy)
+    const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
+    const ring = contextRing(r.ring.percent, R - 7, cy)
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
-    at += 18
   }
   // Waiting on the person: the word in amber (the label has no icon to color).
   if (r.meta) {
@@ -2209,7 +2211,9 @@ export const register: Register = on => {
                 ? now - t.plannedAt
                 : undefined),
           kids: w.any || undefined,
-          ring: scope === `${MAIN}|` && !t.id.includes('/') ? w.ring : undefined,
+          // The context ring is each session's own, on its card only (the person's words: "nao precisa
+          // colocar esse icone na tarefa pai que originou essas sessoes"); the ⑂ still marks a task
+          // with sessions below.
           // In progress of its own (the chip); a session at work below it counts as a session.
           active: tone !== 'sent' && t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
         }
@@ -2275,9 +2279,7 @@ export const register: Register = on => {
         kids: ws.some(w => w.any) || undefined,
       }
       // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-      const ring = topRing(ws.map(w => w.ring))
-      if (ring) row.ring = ring
-      const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work).map(r => (r.ring && !r.session ? { ...r, ring: undefined } : r)) : []
+      const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work) : []
       return [row, ...inner]
     }
 
@@ -2470,26 +2472,32 @@ export const register: Register = on => {
         <Text color={color}>{glyph}</Text>
       </Button>
     )
-    // Desktop: the line stays one drawing (the icon in its color, the label inside its card). The
-    // whole line folds and opens it (the person's choice: "Clicar na linha inteira"): an empty-label
-    // Button over all of it, its native highlight on the whole line (a desktop draws a Button as a
-    // native button, which inverts under the pointer; a Box is placed in whole cells, so a Button
-    // could never sit exactly on the icon). On a session's card, the label's line. A line with
-    // nothing below has no Button.
-    // A native Button is as wide as its label (a Box's stretch does not widen it): the label is a
-    // run of em spaces (about 13 px each) as wide as the line, so the click lands wherever on it.
-    const foldOver = (r: Row, RWidth: number) => (
-      <Box position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column" alignItems="stretch" justifyContent="center">
-        <Button key={`fold:${(r.fold as any).key}`} label={' '.repeat(Math.max(2, Math.floor(RWidth / 13)))} plain onPress={press(r)} />
-      </Box>
-    )
-    // A cut name keeps its tooltip: the layer covers the name only (from where it is drawn to the
-    // end of the cut text), on top of the line's Button; the rest of the line still folds it.
+    // Desktop: the line stays one drawing (the icon in its color, the label inside its card). Only
+    // the progress icon folds it (on a session's card, the ⑂ left of its name): an empty-label
+    // Button over the icon, its native highlight the icon's size with some room around it. A Box is
+    // placed in whole cells (about 8 px), but what it holds is laid out in pixels: the Box spans an
+    // odd or even number of cells around the icon (3 cells at an even depth, 2 at an odd one, so its
+    // middle falls on col(depth) to half a pixel), the line's whole height, and centers the Button
+    // both ways. A line with nothing below has no Button.
+    const iconBox = (r: Row) => {
+      const even = r.depth % 2 === 0
+      return even ? { left: (5 * r.depth) / 2, width: 3 } : { left: (1 + 5 * r.depth) / 2, width: 2 }
+    }
+    const foldOver = (r: Row) => {
+      const { left, width } = iconBox(r)
+      return (
+        <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
+          <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={press(r)} />
+        </Box>
+      )
+    }
+    // A cut name keeps its tooltip, over the whole name (from where it is drawn), clear of the
+    // icon's Button.
     const nameLayer = (r: Row, source: string, H: number, RWidth: number) => {
       const { Svg } = ui
-      const shown = /<\/title>([^<]*)<\/text>/.exec(source)?.[1] ?? ''
-      const left = Math.max(0, Math.floor((r.session ? col(r.depth) - 6 : col(r.depth) + 13) / 8))
-      const w = Math.max(16, Math.min(RWidth - left * 8, Math.ceil(textW(shown, 14)) + 8))
+      const box = iconBox(r)
+      const left = Math.max(box.left + box.width, Math.floor((col(r.depth) + 13) / 8))
+      const w = Math.max(16, RWidth - left * 8)
       return (
         <Box position="absolute" top={0} left={left}>
           <Svg source={hoverLayer(source, w, H)} alt="" width={w} height={H} isInteractive />
@@ -2555,7 +2563,7 @@ export const register: Register = on => {
               {(source => (
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
-                  {r.fold ? foldOver(r, RW) : null}
+                  {r.fold ? foldOver(r) : null}
                   {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
@@ -2610,21 +2618,17 @@ export const register: Register = on => {
           const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
           const lead = prefix(r, lanes[i], up, hides[i])
           // A session's label: its name (the Button that folds its card), its tags, no count or time.
+          // A session's label: the ⑂ (the Button that folds the card) left of its name, then its tags.
           const parts = r.session ? [
-            r.fold ? (
-              <Button key={`fold:${r.fold.key}`} plain onPress={press(r)}>
-                <Text bold dimColor>{r.title}</Text>
-              </Button>
-            ) : (
-              <Text key="title" bold dimColor>{r.title}</Text>
-            ),
+            r.fold ? iconButton(r, '⑂', 'inactive') : <Text key="icon" color="inactive">{'⑂'}</Text>,
+            <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
             r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
-            <Text key="tail" dimColor>{'  ⑂'}</Text>,
-            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
             // Waiting on the person: the word in amber (the label has no icon to color).
             r.meta ? (
               <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
             ) : null,
+            // The context ring last, on its own.
+            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
           ] : [
             glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
             <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,

@@ -67,17 +67,21 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   acima de zero: em andamento (tarefas em andamento sem nada aberto embaixo), aguardando (avisos
   desenhados, mais as sessões que esperam sem aviso publicado), interrompidas (fora da
   porcentagem) e sessões ativas.
-- Abrir e recolher pelo clique (no terminal, no ícone de progresso; no desktop, na linha inteira; pedido do usuário: "quero que o botao de colapse nao
+- Abrir e recolher pelo clique no ícone de progresso (pedido do usuário: "quero que o botao de colapse nao
   apareca, e que a funcao de colapsar e expandir esteja no icone de progresso da tarefa"): não há
   coluna ▾/▸. No terminal, o glifo do ícone é o próprio `Button` (só em linha que recolhe); no
-  desktop, a linha inteira é o alvo (escolha do usuário: "Clicar na linha inteira"): a linha
-  continua uma imagem só (ícone na cor dele, rótulo dentro do cartão, guia) e, em cada linha que
-  recolhe (tarefa com subtarefas, pedido, grupo de subagente, rótulo do cartão da filha), um `Box`
-  absoluto cobre a linha toda com um `Button` simples (`foldOver`) cujo rótulo é uma fila de
-  espaços em (em space) da largura da linha: o desktop desenha o botão nativo da largura do
-  rótulo, e o esticar do `Box` não o alarga (com rótulo de um espaço ele ficava minúsculo na borda
-  esquerda e o clique errava; pedido do usuário: "nao esta funcionando"). Se ainda não funcionar ao
-  vivo, a outra hipótese é o kit não passar o ponteiro a `Button` em `Box` absoluto. Não há
+  desktop, só o ícone é o alvo (pedido do usuário: "volte para a solucao anterior de somente o
+  icone de progresso ser clicavel, e ajuste o tamanho do box atras para ocupar o tamanho do icone
+  com adicional de padding nos 4 lados"; a linha inteira, tentada antes, saiu): a linha continua uma
+  imagem só e um `Button` de rótulo vazio (um espaço em) fica sobre o ícone, num `Box` absoluto da
+  altura da linha que o centra nos dois eixos. O `Box` fica em células inteiras (~8 px), mas o
+  conteúdo é centrado em pixels: 3 células em profundidade par, 2 em ímpar; o meio cai a menos de
+  0,5 px do centro do ícone. O tamanho do realce é o do botão nativo (um espaço em mais o padding
+  dele), que o plugin não controla; centrado, a margem é igual nos quatro lados enquanto o botão
+  nativo for simétrico. Linha sem nada embaixo não tem botão. A camada do tooltip cobre o nome
+  cortado inteiro e começa depois do `Box` do ícone. Não usar a linha em três peças (Svg | Button
+  | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou, corrija"): o desktop desenha o
+  `Button` como botão nativo opaco e os SVGs cortados deslocavam o cartão. Não há
   controle visível; ao passar o mouse, o realce nativo aparece na linha toda. Linha sem nada embaixo
   não tem botão. Em nome cortado, a camada do tooltip cobre só o nome e fica acima do `Button`:
   sobre o nome aparece o nome completo e o clique ali não recolhe; o resto da linha recolhe (o
@@ -124,17 +128,19 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   para na borda esquerda do cartão. Cabeçalho da sessão: um rótulo solto, não uma tarefa (pedido do usuário: "deve
   ser um texto solto nomeando esse painel, e na linha de baixo a tarefa em si"): só o nome
   (`c.name`, ou o título sem nome), em 12 px, cinza e negrito, sem ícone de progresso, barra,
-  contador, tempo nem guia até a tarefa da principal. Ao lado, como etiquetas: ⑂, o anel de
-  contexto e o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
+  contador, tempo nem guia até a tarefa da principal. À esquerda do nome, no lugar do ícone de
+  uma tarefa, o ⑂, que é o botão de recolher o cartão (pedido do usuário: "coloque o icone se sessao
+  filha do lado esquerdo do nome da sessao, e ele tera a funcao de colapsar o painel"; mesmo `Box`
+  e centragem do ícone de progresso). À direita do nome, como etiquetas: o anel de contexto e o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
   "parada", "concluída" e "arquivada" apagadas). Contador e tempo da sessão vão só no `alt`
   ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
   da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas
-  dentro do cartão). O cartão inteiro recolhe pelo clique no próprio rótulo: no terminal o nome é
-  o `Button`; no desktop, a linha do rótulo inteira é o alvo, como nas outras. A guia desce da tarefa da
+  dentro do cartão). O cartão inteiro recolhe pelo clique no ⑂ (no terminal, o glifo ⑂ é o
+  `Button`). A guia desce da tarefa da
   principal e entra no cartão, terminando na borda esquerda dele à altura do rótulo (pedido do
   usuário: "a linha de conexao ... esta interrompida, conecte ela no painel"). Recolhido, " ⋯" depois do nome. Subagente:
   `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
-  ("filha ⑂ aguardando", com as tarefas embaixo), como no esboço 7.3 da análise.
+  ("⑂ filha  aguardando", com as tarefas embaixo), como no esboço 7.3 da análise.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
@@ -252,7 +258,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   de 3 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `nome ⑂ concluída`, com o cartão aberto como os demais.
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `⑂ nome  concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o clique continua recolhendo. Não se usa `$.store` para isso: a chave

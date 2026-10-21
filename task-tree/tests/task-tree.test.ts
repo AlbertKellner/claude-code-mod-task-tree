@@ -69,11 +69,11 @@ async function view($: any): Promise<Line[]> {
     .filter(c => typeof c === 'object')
     .map(t => {
       const parts = (t.children as any[]).filter(c => typeof c === 'object')
-      // A session's label: no icon; its name first (a Button when it folds), then its tags (⑂).
-      const label = parts.some(p => shown(p) === '  ⑂') && !parts.some(p => GLYPHS.test(shown(p)))
-      const button = parts.find(p => p.type === 'Button' && (label || GLYPHS.test(shown(p))))
-      const icon = label ? undefined : parts.find(p => GLYPHS.test(shown(p)))
-      const title = icon ? parts[parts.indexOf(icon) + 1] : label ? (button ?? parts.find(p => p.props?.bold)) : undefined
+      // A session's label: the ⑂ first (a Button when it folds the card), then its name and tags.
+      const button = parts.find(p => p.type === 'Button' && GLYPHS.test(shown(p)))
+      const icon = parts.find(p => GLYPHS.test(shown(p)))
+      const label = icon !== undefined && shown(icon) === '⑂'
+      const title = icon ? parts[parts.indexOf(icon) + 1] : undefined
       const iconText = icon?.type === 'Button' ? (icon.children ?? []).find((c: any) => typeof c === 'object') : icon
       const folded = parts.some(p => shown(p) === ' ⋯')
       return {
@@ -82,7 +82,7 @@ async function view($: any): Promise<Line[]> {
         glyph: icon ? shown(icon) : undefined,
         color: iconText?.props?.color,
         title: title ? shown(title).trim() : undefined,
-        bold: (title?.type === 'Button' ? (title.children ?? []).find((c: any) => typeof c === 'object') : title)?.props?.bold === true,
+        bold: title?.props?.bold === true,
         label: label || undefined,
         fold: button ? (folded ? '▸' : '▾') : undefined,
       }
@@ -372,7 +372,7 @@ describe('abrir e recolher', () => {
     expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Primeira ⋯  1/1  —', '◉ Segunda'])
   })
 
-  test('no desktop, sem ▾/▸: a linha inteira que recolhe é um Button sem texto', async $ => {
+  test('no desktop, sem ▾/▸: só o ícone recolhe: um Button sem texto centrado nele', async $ => {
     await plan($, PLAN)
     await done($, ['1.1'])
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
@@ -381,13 +381,17 @@ describe('abrir e recolher', () => {
     // One per line with something below (Sessão A, Item 1); none on the leaves.
     // An empty-label Button over the whole of each line that folds (the icon stays drawn, in its
     // color): a Box spanning the line, the Button stretched across it.
+    // An empty-label Button over the icon of each line that folds, in a Box the line's height that
+    // centers it: 3 cells at an even depth (its middle 12 px from the line's start, the icon at
+    // 12.5), 2 at an odd one (32 px, the icon at 32.5).
     const icons = buttons.filter((b: any) => String(b.props.key ?? '').startsWith('fold:'))
     expect(icons.length).toBe(2)
-    // Its label (em spaces) as wide as the line (472 px here): a native Button is as wide as its label.
-    expect(icons.every((b: any) => b.props.plain === true && /^ +$/.test(b.props.label) && b.props.label.length * 13 >= 472 - 13)).toBe(true)
+    expect(icons.every((b: any) => b.props.plain === true && b.props.label === ' ')).toBe(true)
     const boxes = (await ui.findAll({ type: 'Box' })).filter((b: any) => (b.children ?? []).some((c: any) => c.type === 'Button' && String(c.props?.key ?? '').startsWith('fold:')))
-    expect(boxes.length).toBe(2)
-    expect(boxes.every((b: any) => b.props.position === 'absolute' && b.props.top === 0 && b.props.bottom === 0 && b.props.left === 0 && b.props.right === 0 && b.props.alignItems === 'stretch')).toBe(true)
+    expect(boxes.map((b: any) => [b.props.left, b.props.width])).toEqual([[0, 3], [3, 2]])
+    expect(boxes.every((b: any) => b.props.position === 'absolute' && b.props.top === 0 && b.props.bottom === 0 && b.props.alignItems === 'center' && b.props.justifyContent === 'center')).toBe(true)
+    // Each Box's middle within a pixel of its icon (col(depth) = 12.5 + 20 * depth, cells of 8 px).
+    expect(boxes.every((b: any, k: number) => Math.abs((b.props.left + b.props.width / 2) * 8 - (12.5 + 20 * k)) <= 1)).toBe(true)
     await ui.press({ key: 'fold:|t:A/1' })
     const svgs = (await ui.findAll({ type: 'Svg' })).map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source) }))
     await ui.unmount()
@@ -560,6 +564,10 @@ describe('cartões', () => {
     // The label sits inside the card's frame: the card's left edge (40.5), then the name after it.
     expect(svgs[2].source).toMatch(/<path class="cd" d="M40\.5 /)
     expect(Number(/<text class="s" x="([\d.]+)"[^>]*font-weight="600">filha</.exec(svgs[2].source)?.[1])).toBeGreaterThan(40.5)
+    // The ⑂ left of the name (where a task's icon is), the name after it.
+    const nameX = Number(/<text class="s" x="([\d.]+)"[^>]*font-weight="600">filha</.exec(svgs[2].source)?.[1])
+    const branchX = Number(/<g class="gy" fill="none" stroke-width="1.3"><circle cx="([\d.]+)"/.exec(svgs[2].source)?.[1])
+    expect(branchX).toBeLessThan(nameX)
   })
 
   test('cartão dentro de cartão: a neta fecha os dois na última linha', async ($, on) => {
@@ -597,7 +605,7 @@ describe('cartões', () => {
     const texts = (await view($)).map(l => l.text)
     const at = texts.indexOf('├─ ◉ Delegar  ⑂  1/3')
     expect(texts.slice(at + 1, at + 6)).toEqual([
-      '│     filha  ⑂  aguardando',
+      '│     ⑂ filha  aguardando',
       '│     ◉ Trabalho  1/2  0:04',
       '│     ├─ ✓ Feito  0:04',
       '│     └─ ◉ Atual',
@@ -869,7 +877,7 @@ describe('sessões abertas', () => {
     const at = texts.indexOf('├─ ◉ Delegar  ⑂  1/3')
     expect(texts.slice(at, at + 6)).toEqual([
       '├─ ◉ Delegar  ⑂  1/3',
-      '│     filha  ⑂',
+      '│     ⑂ filha',
       '│     ◉ Trabalho da filha  1/2',
       '│     ├─ ✓ Passo feito  —',
       '│     └─ ◉ Passo atual',
@@ -877,7 +885,7 @@ describe('sessões abertas', () => {
     ])
     expect(line(lines, 'Passo atual')?.color).toBe('warning')
     // Running: the card's progress icon is the amber ring, with the branch beside it.
-    expect(line(lines, 'filha')).toMatchObject({ label: true, glyph: undefined })
+    expect(line(lines, 'filha')).toMatchObject({ label: true, glyph: '⑂' })
     expect(lines[1].text).toBe('█████░░░░░░░░░░░░░░░  ● 3  ⑂ 1')
     expect(texts.some(t => t.includes('Irmã'))).toBe(false)
     running = false
@@ -885,7 +893,7 @@ describe('sessões abertas', () => {
     lines = await view($)
     const row = lines.find(l => l.title === 'filha')
     // Stopped with a task still open: "parada", open, with its tasks as it planned them.
-    expect(row?.text).toBe('│     filha  ⑂  parada')
+    expect(row?.text).toBe('│     ⑂ filha  parada')
     expect(line(lines, 'Passo atual')).toBeDefined()
   })
 
@@ -961,7 +969,7 @@ describe('sessões abertas', () => {
       'Depois  1 de 2 · 50%',
       '██████████░░░░░░░░░░  ● 1  ⑂ 1',
       '◉ Orquestrar  ⑂  1/1',
-      '   filha  ⑂',
+      '   ⑂ filha',
       '◉ Depois',
     ])
     running = false
@@ -970,7 +978,7 @@ describe('sessões abertas', () => {
       'Depois  1 de 2 · 50%',
       '██████████░░░░░░░░░░  ● 1',
       '✓ Orquestrar  ⑂  1/1  —',
-      '   filha  ⑂  concluída',
+      '   ⑂ filha  concluída',
       '◉ Depois',
     ])
   })
@@ -1074,7 +1082,7 @@ describe('sessões abertas', () => {
       '██████████░░░░░░░░░░  ● 2  ◷ 1  ⑂ 1',
       '◉ Orquestrar  ⑂  2/4',
       '├─ ◉ Abrir filha  ⑂  2/3',
-      '│     filha  ⑂  aguardando',
+      '│     ⑂ filha  aguardando',
       '│     ◉ Trabalho da filha  1/2',
       '│     ├─ ✓ Passo feito  —',
       '│     └─ ◉ Passo atual',
@@ -1098,7 +1106,7 @@ describe('sessões abertas', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '◉ Orquestrar  ⑂  2/2',
       '├─ ◉ Abrir filha  ⑂  1/1',
-      '│     filha  ⑂',
+      '│     ⑂ filha',
       '└─ ✓ Outra  —',
     ])
   })
@@ -1112,7 +1120,7 @@ describe('sessões abertas', () => {
     await plan($, [{ id: 'A', title: 'Orquestrar' }])
     await start($, ['A'])
     const texts = (await view($)).map(l => l.text)
-    expect(texts[texts.length - 1]).toBe('filha  ⑂')
+    expect(texts[texts.length - 1]).toBe('⑂ filha')
   })
 
   test('quando a filha termina o turno, a principal é lembrada da tarefa de origem uma vez', async ($, on) => {
@@ -1163,7 +1171,7 @@ describe('sessões abertas', () => {
     }))
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     const row = (await view($)).find(l => l.title === 'filha')
-    expect(row?.text).toBe('filha  ⑂  aguardando')
+    expect(row?.text).toBe('⑂ filha  aguardando')
     // The label has no icon: the word is amber.
     const root: any = await (async () => {
       const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
@@ -1212,7 +1220,7 @@ describe('sessões abertas', () => {
     await plan($, [{ id: 'A', title: 'Orquestrar', children: [{ id: '1', title: 'Delegar' }, { id: '2', title: 'Conferir' }] }])
     await start($, ['1'])
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    expect((await view($)).find(l => l.title === 'filha')?.text).toBe('│     filha  ⑂  parada')
+    expect((await view($)).find(l => l.title === 'filha')?.text).toBe('│     ⑂ filha  parada')
     expect(line(await view($), 'Passo atual')?.glyph).toBe('◉')
     await fold($, 's:local_11111111-1111-1111-1111-111111111111')
     expect(line(await view($), 'Passo atual')).toBeUndefined()
@@ -1404,8 +1412,8 @@ describe('ícone de sessão filha', () => {
     setup(on, () => state)
     await opened($)
     const card = (await view($)).find(l => l.title === 'filha')
-    expect(card).toMatchObject({ label: true, glyph: undefined })
-    expect(card?.text).toContain('filha  ⑂')
+    expect(card).toMatchObject({ label: true, glyph: '⑂' })
+    expect(card?.text).toContain('⑂ filha')
     expect(card?.text).toContain('concluída')
     // Desktop: a label, no progress icon (no check), the name, then the branch and the word.
     const svg = (await desktop($)).find(s => s.alt.startsWith('Sessão: filha (Filha A)'))?.source ?? ''
@@ -1416,8 +1424,8 @@ describe('ícone de sessão filha', () => {
     state = 'running'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     const running = (await view($)).find(l => l.title === 'filha')
-    expect(running).toMatchObject({ label: true, glyph: undefined })
-    expect(running?.text).toContain('filha  ⑂')
+    expect(running).toMatchObject({ label: true, glyph: '⑂' })
+    expect(running?.text).toContain('⑂ filha')
   })
 
   test('a tarefa de origem e os pais mostram que há sessão filha, mesmo recolhidos', async ($, on) => {
@@ -1893,7 +1901,7 @@ describe('visão resumida', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '◉ Orquestrar  ⑂  1/5',
       '├─ ◉ Delegar  ⑂  1/4',
-      '│     filha  ⑂',
+      '│     ⑂ filha',
       '│     ◉ Trabalho  1/3',
       '│     ├─ ✓ Feito  —',
       '│     ├─ ◉ Atual',
@@ -2125,7 +2133,7 @@ describe('sessão filha na resumida', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '◉ terceiro  ⑂  0/1',
       '└─ ✉ Pedir à filha  ⑂  0/1',
-      '      filha  ⑂  concluída',
+      '      ⑂ filha  concluída',
     ])
     await full($)
     // Full view (the old turn stays open): still under the task it was opened on.
@@ -2141,7 +2149,7 @@ describe('sessão filha na resumida', () => {
     await summary($)
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(texts[0]).toBe('◉ terceiro  0/1')
-    expect(texts[texts.length - 1]).toContain('filha  ⑂')
+    expect(texts[texts.length - 1]).toContain('⑂ filha')
   })
 })
 
@@ -2196,7 +2204,7 @@ describe('cartão da filha com a rodada atual', () => {
     await pickView($, 'summary')
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '◉ Delegar  ⑂  1/3',
-      '   filha  ⑂',
+      '   ⑂ filha',
       '   ◉ Nova  1/2',
       '   ├─ ✓ n1  —',
       '   └─ ◉ n2',
@@ -2205,7 +2213,7 @@ describe('cartão da filha com a rodada atual', () => {
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(texts.some(t => t.includes('Antiga'))).toBe(true)
     expect(texts.some(t => t.includes('Nova'))).toBe(true)
-    expect(texts.find(t => /^[│ ]*filha  ⑂/.test(t))).not.toMatch(/\d+\/\d+/)
+    expect(texts.find(t => /^[│ ]*⑂ filha/.test(t))).not.toMatch(/\d+\/\d+/)
   })
 
   test('sem marco publicado (versão antiga): o turno mais recente com tarefas', async ($, on) => {
@@ -2266,7 +2274,7 @@ describe('rodadas de mensagens de outra sessão', () => {
     const turns = [1, 2, 3, 4, 5, 6].map(id => ({ id, title: `pedido ${id}` }))
     const rows = await cardOf($, on, { groups: [{ agent: '', label: '', turns, tasks }], waits: [], children: [], work: ['N'] })
     expect(rows.some(t => t.includes('Antiga'))).toBe(false)
-    expect(rows.find(t => /^[│ ]*filha  ⑂/.test(t))).not.toMatch(/\d+\/\d+/)
+    expect(rows.find(t => /^[│ ]*⑂ filha/.test(t))).not.toMatch(/\d+\/\d+/)
     expect(rows.some(t => t.includes('Atual'))).toBe(true)
   })
 
@@ -2369,7 +2377,7 @@ describe('sessão arquivada', () => {
     expect(lines[1].text).toContain('● 1')
     expect(lines[1].text).not.toContain('⑂ 1')
     const card = lines.find(l => l.title === 'arq')
-    expect(card).toMatchObject({ label: true, glyph: undefined })
+    expect(card).toMatchObject({ label: true, glyph: '⑂' })
     expect(card?.text).toContain('arquivada')
     // The branch stays on the task it was opened on; the ring with the last share, dim.
     expect(lines.find(l => l.title === 'Delegar')?.text).toContain('⑂')
@@ -2627,7 +2635,7 @@ describe('textos reais do host (0.7.3)', () => {
     const lines = rowsOf(await view($)).map(l => l.text)
     expect(lines[0]).toContain('42%')
     expect(lines.find(l => l.includes('Delegar'))).not.toContain('42%')
-    expect(lines.find(l => /^[│ ]*filha  ⑂/.test(l))).toContain('42%')
+    expect(lines.find(l => /^[│ ]*⑂ filha/.test(l))).toContain('42%')
   })
 })
 
@@ -2683,7 +2691,7 @@ describe('cartão por mensagem na filha', () => {
     const lines = await view($)
     expect(line(lines, 'Mandar mais')?.glyph).toBe('✉')
     const texts = rowsOf(lines).map(l => l.text)
-    expect(texts.filter(t => /^[│ ]*filha  ⑂/.test(t)).length).toBe(1)
+    expect(texts.filter(t => /^[│ ]*⑂ filha/.test(t)).length).toBe(1)
     expect(texts.some(t => t.includes('Nova primeira'))).toBe(false)
   })
 
@@ -2695,7 +2703,7 @@ describe('cartão por mensagem na filha', () => {
     // The app's notice reads the sessions again.
     await $.prompt.submit({ text: '<side-sessions-event>filha</side-sessions-event>' } as any)
     const texts = rowsOf(await view($)).map(l => l.text)
-    const cards = texts.map((t, i) => [t, i] as const).filter(([t]) => /^[│ ]*filha  ⑂/.test(t))
+    const cards = texts.map((t, i) => [t, i] as const).filter(([t]) => /^[│ ]*⑂ filha/.test(t))
     expect(cards.length).toBe(2)
     const at = (s: string) => texts.findIndex(t => t.includes(s))
     // The old card under A with its task in progress; the new one under B, N1 before N2.
@@ -2834,7 +2842,7 @@ describe('cartão da filha igual ao painel dela', () => {
     await story($)
     const texts = rowsOf(await view($)).map(l => l.text)
     const at = (s: string) => texts.findIndex(t => t.includes(s))
-    const docs = texts.map((t, i) => [t, i] as const).filter(([t]) => /^[│ ]*docs  ⑂/.test(t))
+    const docs = texts.map((t, i) => [t, i] as const).filter(([t]) => /^[│ ]*⑂ docs/.test(t))
     expect(docs.length).toBe(2)
     // The new group (B1, B2) under Y, after A's new card, in plan order; the old one under X.
     expect(at('Abrir as filhas')).toBeLessThan(at('Docs antiga'))
@@ -2849,7 +2857,7 @@ describe('cartão da filha igual ao painel dela', () => {
     await story($)
     const lines = await view($)
     const texts = rowsOf(lines).map(l => l.text)
-    const card = texts.filter(t => /^[│ ]*docs  ⑂/.test(t))[1] ?? ''
+    const card = texts.filter(t => /^[│ ]*⑂ docs/.test(t))[1] ?? ''
     // The session's own pane has B1 in progress and B2 open in that group: 0/2.
     expect(card).not.toMatch(/\d+\/\d+/)
     expect(line(lines, 'Docs nova')?.glyph).toBe('◉')
