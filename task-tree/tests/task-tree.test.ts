@@ -496,7 +496,7 @@ describe('cartões', () => {
     expect(svgs.map(s => s.alt)).toEqual([
       'Em andamento: Orquestrar, 1 de 4, com sessão filha',
       'Em andamento: Delegar, 1 de 3, com sessão filha',
-      'Sessão: Filha A · filha, 1 de 2, aguardando, 0:04',
+      'Sessão: filha (Filha A), 1 de 2, aguardando, 0:04',
       'Em andamento: Trabalho, 1 de 2, 0:04',
       'Concluída: Feito, 0:04',
       'Em andamento: Atual',
@@ -540,7 +540,7 @@ describe('cartões', () => {
     // Two cards end here: two fills, and 6 px more for each edge.
     expect(last.source.split('class="cd"').length - 1).toBe(2)
     expect(last.source).toMatch(/height="40"/)
-    const neta = svgs.find(s => s.alt.startsWith('Sessão: Neta'))
+    const neta = svgs.find(s => s.alt.startsWith('Sessão: neta (Neta)'))
     expect(neta?.source.split('class="cd"').length - 1).toBe(2)
   })
 
@@ -549,7 +549,7 @@ describe('cartões', () => {
     const texts = (await view($)).map(l => l.text)
     const at = texts.indexOf('  ├─ ▾ ◉ Delegar  ⑂  1/3')
     expect(texts.slice(at + 1, at + 6)).toEqual([
-      '  │    └─ ▾ ◉ Filha A · filha  ⑂  1/2 · aguardando  0:04',
+      '  │    └─ ▾ ◉ filha  ⑂  1/2 · aguardando  0:04',
       '  │         └─ ▾ ◉ Trabalho  1/2  0:04',
       '  │              ├─ ✓ Feito  0:04',
       '  │              └─ ▾ ◉ Atual',
@@ -821,7 +821,7 @@ describe('sessões abertas', () => {
     const at = texts.indexOf('  ├─ ▾ ◉ Delegar  ⑂  1/3')
     expect(texts.slice(at, at + 6)).toEqual([
       '  ├─ ▾ ◉ Delegar  ⑂  1/3',
-      '  │    └─ ▾ ◉ Filha A · filha  ⑂  1/2',
+      '  │    └─ ▾ ◉ filha  ⑂  1/2',
       '  │         └─ ▾ ◉ Trabalho da filha  1/2',
       '  │              ├─ ✓ Passo feito  —',
       '  │              └─ ◉ Passo atual',
@@ -829,15 +829,15 @@ describe('sessões abertas', () => {
     ])
     expect(line(lines, 'Passo atual')?.color).toBe('warning')
     // Running: the card's progress icon is the amber ring, with the branch beside it.
-    expect(line(lines, 'Filha A · filha')).toMatchObject({ glyph: '◉', color: 'warning' })
+    expect(line(lines, 'filha')).toMatchObject({ glyph: '◉', color: 'warning' })
     expect(lines[1].text).toBe('█████░░░░░░░░░░░░░░░  ● 3  ⑂ 1')
     expect(texts.some(t => t.includes('Irmã'))).toBe(false)
     running = false
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     lines = await view($)
-    const row = lines.find(l => l.text.includes('Filha A'))
+    const row = lines.find(l => l.title === 'filha')
     // Stopped with a task still open: "parada", open, with its tasks as it planned them.
-    expect(row?.text).toBe('  │    └─ ▾ ◷ Filha A · filha  ⑂  1/2 · parada  —')
+    expect(row?.text).toBe('  │    └─ ▾ ◷ filha  ⑂  1/2 · parada  —')
     expect(line(lines, 'Passo atual')).toBeDefined()
   })
 
@@ -913,7 +913,7 @@ describe('sessões abertas', () => {
       'Depois  1 de 2 · 50%',
       '██████████░░░░░░░░░░  ● 1  ⑂ 1',
       '▾ ◉ Orquestrar  ⑂  1/1',
-      '  └─ ◉ Filha A · filha  ⑂',
+      '  └─ ◉ filha  ⑂',
       '  ◉ Depois',
     ])
     running = false
@@ -922,7 +922,7 @@ describe('sessões abertas', () => {
       'Depois  1 de 2 · 50%',
       '██████████░░░░░░░░░░  ● 1',
       '▾ ✓ Orquestrar  ⑂  1/1  —',
-      '  └─ ✓ Filha A · filha  ⑂  concluída  —',
+      '  └─ ✓ filha  ⑂  concluída  —',
       '  ◉ Depois',
     ])
   })
@@ -1026,7 +1026,7 @@ describe('sessões abertas', () => {
       '██████████░░░░░░░░░░  ● 2  ◷ 1  ⑂ 1',
       '▾ ◉ Orquestrar  ⑂  2/4',
       '  ├─ ▾ ◉ Abrir filha  ⑂  2/3',
-      '  │    └─ ▾ ◉ Filha A · filha  ⑂  1/2 · aguardando',
+      '  │    └─ ▾ ◉ filha  ⑂  1/2 · aguardando',
       '  │         └─ ▾ ◉ Trabalho da filha  1/2',
       '  │              ├─ ✓ Passo feito  —',
       '  │              └─ ▾ ◉ Passo atual',
@@ -1050,7 +1050,7 @@ describe('sessões abertas', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '▾ ◉ Orquestrar  ⑂  2/2',
       '  ├─ ▾ ◉ Abrir filha  ⑂  1/1',
-      '  │    └─ ◉ Filha A · filha  ⑂',
+      '  │    └─ ◉ filha  ⑂',
       '  └─ ✓ Outra  —',
     ])
   })
@@ -1064,7 +1064,7 @@ describe('sessões abertas', () => {
     await plan($, [{ id: 'A', title: 'Orquestrar' }])
     await start($, ['A'])
     const texts = (await view($)).map(l => l.text)
-    expect(texts[texts.length - 1]).toBe('  ◉ Filha A · filha  ⑂')
+    expect(texts[texts.length - 1]).toBe('  ◉ filha  ⑂')
   })
 
   test('quando a filha termina o turno, a principal é lembrada da tarefa de origem uma vez', async ($, on) => {
@@ -1114,8 +1114,8 @@ describe('sessões abertas', () => {
       result: 'Started session local_11111111-1111-1111-1111-111111111111 (filha)',
     }))
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    const row = (await view($)).find(l => l.text.includes('Filha A'))
-    expect(row?.text).toBe('  ◉ Filha A · filha  ⑂  aguardando')
+    const row = (await view($)).find(l => l.title === 'filha')
+    expect(row?.text).toBe('  ◉ filha  ⑂  aguardando')
     expect(row?.color).toBe('warning')
   })
 
@@ -1134,7 +1134,7 @@ describe('sessões abertas', () => {
     const key = 's:local_11111111-1111-1111-1111-111111111111'
     await fold($, key)
     let lines = await view($)
-    expect(lines.find(l => l.text.includes('Filha A'))?.fold).toBe('▸')
+    expect(lines.find(l => l.title === 'filha')?.fold).toBe('▸')
     expect(line(lines, 'Trabalho da filha')).toBeUndefined()
     // The chips still count the session at work.
     expect(lines[1].text).toContain('⑂ 1')
@@ -1153,7 +1153,7 @@ describe('sessões abertas', () => {
     await plan($, [{ id: 'A', title: 'Orquestrar', children: [{ id: '1', title: 'Delegar' }, { id: '2', title: 'Conferir' }] }])
     await start($, ['1'])
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    expect((await view($)).find(l => l.text.includes('Filha A'))?.text).toBe('  │    └─ ▾ ◷ Filha A · filha  ⑂  1/2 · parada  —')
+    expect((await view($)).find(l => l.title === 'filha')?.text).toBe('  │    └─ ▾ ◷ filha  ⑂  1/2 · parada  —')
     expect(line(await view($), 'Passo atual')?.glyph).toBe('◉')
     await fold($, 's:local_11111111-1111-1111-1111-111111111111')
     expect(line(await view($), 'Passo atual')).toBeUndefined()
@@ -1344,20 +1344,20 @@ describe('ícone de sessão filha', () => {
     let state: 'running' | 'stopped' | 'archived' = 'stopped'
     setup(on, () => state)
     await opened($)
-    const card = (await view($)).find(l => l.title?.startsWith('Filha A'))
+    const card = (await view($)).find(l => l.title === 'filha')
     expect(card).toMatchObject({ glyph: '✓', color: 'success' })
-    expect(card?.text).toContain('✓ Filha A · filha  ⑂')
+    expect(card?.text).toContain('✓ filha  ⑂')
     expect(card?.text).toContain('concluída')
     // Desktop: the check at the left, the title, then the branch in the column left of the bar.
-    const svg = (await desktop($)).find(s => s.alt.startsWith('Sessão: Filha A'))?.source ?? ''
+    const svg = (await desktop($)).find(s => s.alt.startsWith('Sessão: filha (Filha A)'))?.source ?? ''
     expect(svg.indexOf('class="gr" d="M')).toBeGreaterThan(-1)
-    expect(svg.indexOf('class="gr" d="M')).toBeLessThan(svg.indexOf('Filha A'))
-    expect(svg.indexOf('Filha A')).toBeLessThan(svg.indexOf('<g class="gy" fill="none" stroke-width="1.3">'))
+    expect(svg.indexOf('class="gr" d="M')).toBeLessThan(svg.indexOf('>filha<'))
+    expect(svg.indexOf('>filha<')).toBeLessThan(svg.indexOf('<g class="gy" fill="none" stroke-width="1.3">'))
     state = 'running'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    const running = (await view($)).find(l => l.title?.startsWith('Filha A'))
+    const running = (await view($)).find(l => l.title === 'filha')
     expect(running).toMatchObject({ glyph: '◉', color: 'warning' })
-    expect(running?.text).toContain('◉ Filha A · filha  ⑂')
+    expect(running?.text).toContain('◉ filha  ⑂')
   })
 
   test('a tarefa de origem e os pais mostram que há sessão filha, mesmo recolhidos', async ($, on) => {
@@ -1833,7 +1833,7 @@ describe('visão resumida', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '▾ ◉ Orquestrar  ⑂  1/5',
       '  ├─ ▾ ◉ Delegar  ⑂  1/4',
-      '  │    └─ ▾ ◉ Filha A · filha  ⑂  1/3',
+      '  │    └─ ▾ ◉ filha  ⑂  1/3',
       '  │         └─ ▾ ◉ Trabalho  1/3',
       '  │              ├─ ✓ Feito  —',
       '  │              ├─ ◉ Atual',
@@ -1932,7 +1932,7 @@ describe('anel de contexto da sessão filha', () => {
     // Only on the highest line: not on the task it was opened on.
     expect((await svgOf($, 'Em andamento: Encaminhar'))?.source).not.toContain('class="tk"')
     // The card carries it too.
-    expect((await svgOf($, 'Sessão: Filha 1'))?.source).toContain('class="tk"')
+    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.source).toContain('class="tk"')
     // Terminal: "42%" before the branch, in the band's color.
     const lines = await view($)
     expect(lines.find(l => l.title === 'Investigar')?.text).toContain('Investigar  42%  ⑂')
@@ -2065,13 +2065,13 @@ describe('sessão filha na resumida', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '▾ ◉ terceiro  ⑂  0/1',
       '  └─ ▾ ◉ Pedir à filha  ⑂  0/1',
-      '       └─ ✓ Filha A · filha  ⑂  concluída  —',
+      '       └─ ✓ filha  ⑂  concluída  —',
     ])
     await full($)
     // Full view (the old turn stays open): still under the task it was opened on.
     const texts = rowsOf(await view($)).map(l => l.text)
     const at = texts.findIndex(t => t.includes('Abrir a filha'))
-    expect(texts[at + 1]).toContain('Filha A · filha')
+    expect(texts[at + 1]).toContain('filha')
     expect(texts.find(t => t.includes('Pedir à filha'))).not.toContain('⑂')
   })
 
@@ -2081,7 +2081,7 @@ describe('sessão filha na resumida', () => {
     await summary($)
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(texts[0]).toBe('▾ ◉ terceiro  0/1')
-    expect(texts[texts.length - 1]).toContain('◉ Filha A · filha  ⑂')
+    expect(texts[texts.length - 1]).toContain('◉ filha  ⑂')
   })
 })
 
@@ -2136,7 +2136,7 @@ describe('cartão da filha com a rodada atual', () => {
     await pickView($, 'summary')
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
       '▾ ◉ Delegar  ⑂  1/3',
-      '  └─ ▾ ◉ Filha A · filha  ⑂  1/2',
+      '  └─ ▾ ◉ filha  ⑂  1/2',
       '       └─ ▾ ◉ Nova  1/2',
       '            ├─ ✓ n1  —',
       '            └─ ◉ n2',
@@ -2145,7 +2145,7 @@ describe('cartão da filha com a rodada atual', () => {
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(texts.some(t => t.includes('Antiga'))).toBe(true)
     expect(texts.some(t => t.includes('Nova'))).toBe(true)
-    expect(texts.find(t => t.includes('Filha A'))).toContain('2/3')
+    expect(texts.find(t => /[○◉✓✕◷✉] filha  ⑂/.test(t))).toContain('2/3')
   })
 
   test('sem marco publicado (versão antiga): o turno mais recente com tarefas', async ($, on) => {
@@ -2206,7 +2206,7 @@ describe('rodadas de mensagens de outra sessão', () => {
     const turns = [1, 2, 3, 4, 5, 6].map(id => ({ id, title: `pedido ${id}` }))
     const rows = await cardOf($, on, { groups: [{ agent: '', label: '', turns, tasks }], waits: [], children: [], work: ['N'] })
     expect(rows.some(t => t.includes('Antiga'))).toBe(false)
-    expect(rows.find(t => t.includes('Filha A'))).toContain('0/2')
+    expect(rows.find(t => /[○◉✓✕◷✉] filha  ⑂/.test(t))).toContain('0/2')
     expect(rows.some(t => t.includes('Atual'))).toBe(true)
   })
 
@@ -2308,7 +2308,7 @@ describe('sessão arquivada', () => {
     // "em andamento" counts B only, not the archived one's leaf; no "sessão ativa".
     expect(lines[1].text).toContain('● 1')
     expect(lines[1].text).not.toContain('⑂ 1')
-    const card = lines.find(l => l.title?.startsWith('Teste arquivada'))
+    const card = lines.find(l => l.title === 'arq')
     expect(card).toMatchObject({ glyph: '✕', color: 'inactive' })
     expect(card?.text).toContain('arquivada')
     // The branch stays on the task it was opened on; the ring with the last share, dim.
@@ -2318,7 +2318,7 @@ describe('sessão arquivada', () => {
     expect(parent?.alt).toContain('com sessão filha')
     expect(parent?.alt).toContain('contexto da sessão arq: 61%')
     expect(parent?.source).toContain('<g opacity=".45"><circle class="tk"')
-    expect(svgs.find(s => s.alt.startsWith('Sessão: Teste arquivada'))?.alt).toContain('arquivada')
+    expect(svgs.find(s => s.alt.startsWith('Sessão: arq (Teste arquivada)'))?.alt).toContain('arquivada')
   })
 })
 
@@ -2567,7 +2567,7 @@ describe('textos reais do host (0.7.3)', () => {
     const lines = rowsOf(await view($)).map(l => l.text)
     expect(lines[0]).toContain('42%')
     expect(lines.find(l => l.includes('Delegar'))).not.toContain('42%')
-    expect(lines.find(l => l.includes('Filha A'))).toContain('42%')
+    expect(lines.find(l => /[○◉✓✕◷✉] filha /.test(l))).toContain('42%')
   })
 })
 
@@ -2623,7 +2623,7 @@ describe('cartão por mensagem na filha', () => {
     const lines = await view($)
     expect(line(lines, 'Mandar mais')?.glyph).toBe('✉')
     const texts = rowsOf(lines).map(l => l.text)
-    expect(texts.filter(t => t.includes('Filha B')).length).toBe(1)
+    expect(texts.filter(t => /[○◉✓✕◷✉] filha  ⑂/.test(t)).length).toBe(1)
     expect(texts.some(t => t.includes('Nova primeira'))).toBe(false)
   })
 
@@ -2635,7 +2635,7 @@ describe('cartão por mensagem na filha', () => {
     // The app's notice reads the sessions again.
     await $.prompt.submit({ text: '<side-sessions-event>filha</side-sessions-event>' } as any)
     const texts = rowsOf(await view($)).map(l => l.text)
-    const cards = texts.map((t, i) => [t, i] as const).filter(([t]) => t.includes('Filha B'))
+    const cards = texts.map((t, i) => [t, i] as const).filter(([t]) => /[○◉✓✕◷✉] filha  ⑂/.test(t))
     expect(cards.length).toBe(2)
     const at = (s: string) => texts.findIndex(t => t.includes(s))
     // The old card under A with its task in progress; the new one under B, N1 before N2.
@@ -2768,7 +2768,7 @@ describe('cartão da filha igual ao painel dela', () => {
     await story($)
     const texts = rowsOf(await view($)).map(l => l.text)
     const at = (s: string) => texts.findIndex(t => t.includes(s))
-    const docs = texts.map((t, i) => [t, i] as const).filter(([t]) => t.includes('Docs · docs'))
+    const docs = texts.map((t, i) => [t, i] as const).filter(([t]) => /[○◉✓✕◷✉] docs  ⑂/.test(t))
     expect(docs.length).toBe(2)
     // The new group (B1, B2) under Y, after A's new card, in plan order; the old one under X.
     expect(at('Abrir as filhas')).toBeLessThan(at('Docs antiga'))
@@ -2783,7 +2783,7 @@ describe('cartão da filha igual ao painel dela', () => {
     await story($)
     const lines = await view($)
     const texts = rowsOf(lines).map(l => l.text)
-    const card = texts.filter(t => t.includes('Docs · docs'))[1] ?? ''
+    const card = texts.filter(t => /[○◉✓✕◷✉] docs  ⑂/.test(t))[1] ?? ''
     // The session's own pane has B1 in progress and B2 open in that group: 0/2.
     expect(card).toContain('0/2')
     expect(line(lines, 'Docs nova')?.glyph).toBe('◉')
