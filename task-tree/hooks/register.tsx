@@ -1096,6 +1096,8 @@ type Row = {
   depth: number
   tone: Tone
   title: string
+  // Said only in the alt, after the title: a session's title, its card showing just its name.
+  hint?: string
   // What the alt text says first ("Em andamento"); empty for a notice.
   label: string
   strong?: boolean
@@ -1484,6 +1486,7 @@ function headerSvg(title: string, d: number, n: number, list: Chip[], W: number,
 const rowAlt = (r: Row) =>
   (r.label ? `${r.label}: ` : '') +
   r.title +
+  (r.hint ? ` (${r.hint})` : '') +
   (r.sub ? `, ${r.sub[0]} de ${r.sub[1]}` : '') +
   (r.meta ? `, ${r.meta}` : '') +
   (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
@@ -2204,8 +2207,11 @@ export const register: Register = on => {
       const header: Row = {
         depth,
         tone,
-        title: c.name && c.name !== c.title ? `${c.title} · ${c.name}` : c.title,
+        // The card's first line is the session alone (its name); its tasks start on the line below.
+        // The session's title (often worded like a task) goes only to the alt, not the line.
+        title: c.name || c.title,
         label: 'Sessão',
+        hint: c.name && c.name !== c.title ? c.title : undefined,
         strong: live(c),
         sub: cn > 0 ? [cd, cn] : undefined,
         meta: state,

@@ -103,7 +103,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   abre, e 6 px embaixo por cartão que fecha nela; um cartão de dentro fica 6 px mais estreito à
   direita, e o texto da direita fica dentro do cartão mais interno. A guia que entra no cabeçalho
   para na borda esquerda do cartão. Cabeçalho da sessão: ícone de ramificação cinza (relógio âmbar
-  só se ela espera sem aviso publicado; check quando parou), "título · nome", contador `d/n`, o
+  só se ela espera sem aviso publicado; check quando parou), só o nome da sessão (`c.name`, ou o título sem nome; o título vai só no `alt`,
+  "Sessão: <nome> (<título>)"; pedido do usuário: "quero somente separar o nome da sessao do nome da
+  tarefa"), contador `d/n`, o
   estado em palavra quando não está só rodando ("aguardando", "concluída") e o tempo. Subagente:
   `tipo: descrição`, contador e tempo. O ▾/▸ continua na coluna à esquerda, fora do cartão (no SVG
   de referência ele fica dentro). No terminal não há caixa: o cartão vira a linha de cabeçalho
@@ -219,7 +221,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   de 3 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ título · nome  d/n · concluída`, com o cartão aberto como os demais.
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ nome  d/n · concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o ▾/▸ continua recolhendo. Não se usa `$.store` para isso: a chave
