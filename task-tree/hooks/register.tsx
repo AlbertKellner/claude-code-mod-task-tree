@@ -1303,7 +1303,7 @@ function labelName(r: Row, W: number, depth: number, inner: number): { name: str
   const tags = (r.ring ? 18 : 0) + 20 + (r.meta ? textW(r.meta, 11) + 8 : 0)
   return { name: fit(whole, 12, Math.max(24, R - tx - tags)), whole, tx }
 }
-function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number, cards: { L: number; Rc: number; svg: string }[], paths: string[], bare = false): string {
+function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number, cards: { L: number; Rc: number; svg: string }[], paths: string[]): string {
   const { name, whole, tx } = labelName(r, W, r.depth, Math.max(0, cards.length - 1))
   let at = tx + textW(name, 12) + 10
   const parts: string[] = [branch(at + 4, cy, 'gy')]
@@ -1322,15 +1322,10 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
-    (bare ? '' : `<text class="s" x="${tx}" y="${cy + 4}" font-size="12" font-weight="600">${tip(whole, name)}${xml(name)}</text>`) +
+    `<text class="s" x="${tx}" y="${cy + 4}" font-size="12" font-weight="600">${tip(whole, name)}${xml(name)}</text>` +
     parts.join('') +
     '</svg>'
   )
-}
-
-// One stretch of a line's drawing, [from, to) px: the same source, its width and viewBox cut.
-function cutSvg(source: string, from: number, to: number, H: number): string {
-  return source.replace(/^<svg ([^>]*?)width="[^"]*" height="[^"]*" viewBox="[^"]*"/, `<svg $1width="${to - from}" height="${H}" viewBox="${from} 0 ${to - from} ${H}"`)
 }
 
 // The desktop's time column: room for "0:00:00".
@@ -1396,7 +1391,7 @@ function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, b
   return `<path class="cd" d="${fill}"/><path class="cs" d="${edge}" fill="none" stroke-width="1"/>`
 }
 
-function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [], bare = false): string {
+function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): string {
   const H = rowHeight(r, f)
   const cy = f.top + rowHeight(r) / 2
   const x = col(r.depth)
@@ -1418,7 +1413,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [], bare
     paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - 12 : x - 9}`)
   }
   if (g.down && !r.session) paths.push(`M${x} ${cy + 8}V${H}`)
-  if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths, bare)
+  if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
   const right: string[] = []
   const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
   const section = r.tone === 'section'
@@ -1472,8 +1467,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [], bare
       edge -= textW(words, 12)
     }
   }
-  // `bare`: the icon is left out, drawn by the Button that folds the line (see foldRow).
-  const lead = section || bare ? '' : icon(progress(r), x, cy)
+  const lead = section ? '' : icon(progress(r), x, cy)
   const tx = section ? x - 6 : x + 13
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
@@ -2440,32 +2434,29 @@ export const register: Register = on => {
       </Button>
     )
     // A session's label has no icon: the label itself folds and opens its card.
-    // Desktop, a line that folds: no Button laid over the drawing (a Box is placed in whole cells,
-    // never on the icon, and a Button over an image that redraws each second blinks). The line is
-    // cut in three, in the flow: the drawing left of the icon, the Button that is the icon (the
-    // label's name on a session's card), the drawing after it, with the tooltip layer over the name.
-    const foldRow = (r: Row, source: string, sourceBare: string, H: number, W: number, inner: number) => {
-      const { Svg } = ui
-      const x = col(r.depth)
-      const [glyph, color] = GLYPH[progress(r)]
-      const label = r.session ? labelName(r, W, r.depth, inner) : undefined
-      const a = label ? Math.floor(label.tx - 2) : Math.floor(x - 7)
-      const b = Math.min(W - 40, Math.ceil(label ? label.tx + textW(label.name, 12) + 4 : x + 7))
-      return [
-        <Svg key="a" source={cutSvg(sourceBare, 0, a, H)} alt="" width={a} height={H} />,
-        <Button key={`fold:${(r.fold as any).key}`} plain onPress={press(r)}>
-          {label ? <Text bold dimColor>{label.name}</Text> : <Text color={color}>{glyph}</Text>}
-        </Button>,
-        <Box key="b" position="relative">
-          <Svg source={cutSvg(sourceBare, b, W, H)} alt={rowAlt(r)} width={W - b} height={H} />
-          {hovers(source) ? (
-            <Box position="absolute" top={0} left={0}>
-              <Svg source={hoverLayer(source, W - b, H)} alt="" width={W - b} height={H} isInteractive />
-            </Box>
-          ) : null}
-        </Box>,
-      ]
+    // Desktop: the line stays one drawing (the icon in its color, the label inside its card). A
+    // Button is drawn by the desktop as an opaque native button, so it cannot be the icon: the one
+    // that folds the line has an empty label and lies over the icon (over the name on a session's
+    // label), in a Box that spans the line's height and centers it. A Box is placed in whole cells
+    // (about 8 px), so the Button is centered on the icon as near as cells allow. The tooltip layer
+    // starts after it: the two never overlap.
+    const iconCells = (r: Row) => {
+      if (r.session) {
+        const tx = col(r.depth) - 6
+        return { left: Math.max(0, Math.floor(tx / 8)), width: Math.max(2, Math.ceil(textW(r.title, 12) / 8)) }
+      }
+      // The icon's center col(depth) px: a box of 2 cells (16 px) centered on it.
+      return { left: Math.max(0, Math.round(col(r.depth) / 8) - 1), width: 2 }
     }
+    const foldOver = (r: Row) => {
+      const { left, width } = iconCells(r)
+      return (
+        <Box position="absolute" top={0} bottom={0} left={left} width={width} alignItems="center" justifyContent="center">
+          <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={press(r)} />
+        </Box>
+      )
+    }
+    const layerFrom = (r: Row) => (r.fold ? iconCells(r).left + iconCells(r).width : 0)
 
     // The view toggle: two icon buttons at the right end of the header's title line, ≡ the
     // summary (what is in progress), ▤ the whole tree. The chosen one is the surface's primary
@@ -2522,19 +2513,23 @@ export const register: Register = on => {
           </Box>
           {lines.map((r, i) => (
             <Box key={`r${i}`} flexDirection="row" alignItems="center">
-              {(source =>
-                r.fold ? (
-                  foldRow(r, source, rowSvg(r, lanes[i], cards[i], RW, hides[i], true), rowHeight(r, cards[i]), RW, Math.max(0, cards[i].cards.length - 1))
-                ) : (
-                  <Box position="relative">
-                    <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
-                    {hovers(source) ? (
-                      <Box position="absolute" top={0} left={0}>
-                        <Svg source={hoverLayer(source, RW, rowHeight(r, cards[i]))} alt="" width={RW} height={rowHeight(r, cards[i])} isInteractive />
-                      </Box>
-                    ) : null}
-                  </Box>
-                ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
+              {(source => (
+                <Box position="relative">
+                  <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
+                  {hovers(source) ? (
+                    <Box position="absolute" top={0} left={layerFrom(r)}>
+                      <Svg
+                        source={hoverLayer(source, RW - layerFrom(r) * 8, rowHeight(r, cards[i]))}
+                        alt=""
+                        width={RW - layerFrom(r) * 8}
+                        height={rowHeight(r, cards[i])}
+                        isInteractive
+                      />
+                    </Box>
+                  ) : null}
+                  {r.fold ? foldOver(r) : null}
+                </Box>
+              ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
             </Box>
           ))}
         </Box>

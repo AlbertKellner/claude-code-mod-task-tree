@@ -379,12 +379,13 @@ describe('abrir e recolher', () => {
     const buttons = await ui.findAll({ type: 'Button' })
     expect(buttons.some((b: any) => b.props.label === '▾' || b.props.label === '▸')).toBe(false)
     // One per line with something below (Sessão A, Item 1); none on the leaves.
-    // The Button is the icon: its glyph, in the flow between the two stretches of the drawing.
-    const glyphOf = (b: any) => (b.children ?? []).map((c: any) => (typeof c === 'string' ? c : (c.children ?? []).join(''))).join('')
-    const icons = buttons.filter((b: any) => String(b.props.key ?? '').startsWith('fold:') && b.props.plain === true && /^[○◉✓✕◷✉▸]$/.test(glyphOf(b)))
+    // An empty-label Button over the icon of each line that folds (the icon stays drawn, in its
+    // color), in a Box spanning the line's height that centers it, 2 cells wide.
+    const icons = buttons.filter((b: any) => String(b.props.key ?? '').startsWith('fold:'))
     expect(icons.length).toBe(2)
-    // None of them laid over the drawing (an absolute Box sits in whole cells, never on the icon).
-    expect((await ui.findAll({ type: 'Box' })).some((b: any) => b.props.position === 'absolute' && (b.children ?? []).some((c: any) => c.type === 'Button' && String(c.props?.key ?? '').startsWith('fold:')))).toBe(false)
+    expect(icons.every((b: any) => b.props.plain === true && b.props.label === ' ')).toBe(true)
+    const boxes = (await ui.findAll({ type: 'Box' })).filter((b: any) => (b.children ?? []).some((c: any) => c.type === 'Button' && String(c.props?.key ?? '').startsWith('fold:')))
+    expect(boxes.every((b: any) => b.props.position === 'absolute' && b.props.top === 0 && b.props.bottom === 0 && b.props.width === 2 && b.props.alignItems === 'center')).toBe(true)
     await ui.press({ key: 'fold:|t:A/1' })
     const svgs = (await ui.findAll({ type: 'Svg' })).map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source) }))
     await ui.unmount()
@@ -554,6 +555,9 @@ describe('cartões', () => {
     // The label has no branch from its task (only the line of the siblings passes by).
     // The branch from its task comes into the card: down and across to the card's left edge.
     expect(svgs[2].source).toMatch(/M32\.5 0V\d+M32\.5 \d+H40\.5/)
+    // The label sits inside the card's frame: the card's left edge (40.5), then the name after it.
+    expect(svgs[2].source).toMatch(/<path class="cd" d="M40\.5 /)
+    expect(Number(/<text class="s" x="([\d.]+)"[^>]*font-weight="600">filha</.exec(svgs[2].source)?.[1])).toBeGreaterThan(40.5)
   })
 
   test('cartão dentro de cartão: a neta fecha os dois na última linha', async ($, on) => {
@@ -582,9 +586,8 @@ describe('cartões', () => {
     // Two cards end here: two fills, and 6 px more for each edge.
     expect(last.source.split('class="cd"').length - 1).toBe(2)
     expect(last.source).toMatch(/height="40"/)
-    // The label folds: drawn in two stretches, each with the two cards' slices.
     const neta = svgs.find(s => s.alt.startsWith('Sessão: neta (Neta)'))
-    expect(neta?.source.split('class="cd"').length - 1).toBe(4)
+    expect(neta?.source.split('class="cd"').length - 1).toBe(2)
   })
 
   test('no terminal, o cartão vira o cabeçalho "título · nome" com o contador', async ($, on) => {
@@ -1512,8 +1515,7 @@ describe('concluídas com o mesmo layout', () => {
     const titleX = (src: string, name: string) => new RegExp(`x="([\\d.]+)" y="[\\d.]+" font-size="\\d+">${name}<`).exec(src)?.[1]
     const leaf = svgs.find(s => s.alt.startsWith('Em andamento: y'))?.source ?? ''
     expect(leaf).not.toContain('<rect class="tr"')
-    // A line that folds has its icon in the Button (not in the drawing); a leaf draws it.
-    expect(xOf(openRow, ring)).toBeUndefined()
+    expect(Number(xOf(openRow, ring))).toBeLessThan(Number(titleX(openRow, 'Andando')))
     expect(Number(xOf(leaf, ring))).toBeLessThan(Number(titleX(leaf, 'y')))
   })
 
@@ -3011,7 +3013,13 @@ describe('tooltip e ícone que recolhe, juntos', () => {
       const top = layer?.children?.find((c: any) => c?.type === 'Svg')
       expect(top?.props.isInteractive).toBe(true)
       expect(String(top?.props.source)).toContain(`<title>${whole}</title>`)
-      expect(JSON.stringify(h)).not.toContain('"type":"Button"')
+      // The layer is invisible (a transparent rect) and starts after the Button: no overlap.
+      expect(String(top?.props.source)).toContain('fill="transparent"')
+      expect(String(top?.props.source)).not.toMatch(/fill="(?!transparent|none)[^"]*"/)
+      const over = h.children.find((c: any) => c?.type === 'Box' && (c.children ?? []).some((b: any) => b?.type === 'Button'))
+      if (over) expect(layer.props.left).toBeGreaterThanOrEqual(over.props.left + over.props.width)
+      // The icon is still drawn, in its color.
+      expect(String(svg.props.source)).toMatch(/class="(am|gr|gy)"/)
     }
   })
 })

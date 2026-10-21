@@ -70,15 +70,15 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
 - Abrir e recolher pelo ícone de progresso (pedido do usuário: "quero que o botao de colapse nao
   apareca, e que a funcao de colapsar e expandir esteja no icone de progresso da tarefa"): não há
   coluna ▾/▸. No terminal, o glifo do ícone é o próprio `Button` (só em linha que recolhe); no
-  desktop, a linha que recolhe é desenhada em três peças no fluxo, sem sobreposição (`foldRow`):
-  SVG à esquerda do ícone (`cutSvg`), o `Button` que é o próprio ícone (glifo e cor do estado; no
-  cartão, o nome do rótulo) e o SVG depois dele, com a camada do tooltip só sobre essa peça; o
-  desenho da linha omite o ícone (`bare`). Motivo (pedido do usuário: "o botao ... esta
-  desalinhado, e ele fica piscando"): o `Box` absoluto de antes ficava em células inteiras, fora do
-  pixel do ícone, e por cima da imagem que redesenha a cada segundo piscava e escondia o tooltip.
-  Limites: a célula do botão não tem o fundo cinza do cartão (pode aparecer um entalhe em linha
-  que recolhe dentro do cartão de uma filha) e o nome cortado do rótulo não tem tooltip (é o
-  próprio botão). O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
+  desktop, a linha continua uma imagem só (ícone na cor dele) e o alvo do clique fica por cima: um
+  `Box` absoluto na altura da linha (top 0, bottom 0, centrado), com 2 células de largura,
+  centrado no ícone (no rótulo, sobre o nome), com um `Button` simples de rótulo vazio. A camada do
+  tooltip começa depois do alvo, sem sobrepor (o retângulo dela é transparente). Não usar a linha
+  em três peças (Svg | Button | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou,
+  corrija"): o desktop desenha o `Button` como botão nativo opaco (glifo branco sem cor, outra
+  fonte, fundo preto) e os SVGs cortados deslocavam o cartão e tiravam o rótulo da moldura. Limite:
+  o kit posiciona o alvo em células inteiras (~8 px), então o realce do botão pode ficar alguns px
+  fora do centro do ícone; o desktop não tem alvo de clique invisível além do botão nativo. O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
   Recolhida, a linha ganha " ⋯" depois do nome; o `alt` continua dizendo "recolhida". Toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
   subagente pendurado; sessão com painel; grupo de subagente) ganha
   `Row.fold = { key, open }`. A escolha do usuário fica no atom `folds` (estado `collapsed`:
@@ -123,7 +123,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
   da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas
   dentro do cartão). O cartão inteiro recolhe pelo clique no próprio rótulo: no terminal o nome é
-  o `Button`; no desktop, o nome é o `Button` no fluxo (`foldRow`). A guia desce da tarefa da
+  o `Button`; no desktop, o alvo vazio fica por cima do nome, como nas linhas. A guia desce da tarefa da
   principal e entra no cartão, terminando na borda esquerda dele à altura do rótulo (pedido do
   usuário: "a linha de conexao ... esta interrompida, conecte ela no painel"). Recolhido, " ⋯" depois do nome. Subagente:
   `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
