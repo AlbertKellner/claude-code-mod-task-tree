@@ -67,18 +67,21 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   acima de zero: em andamento (tarefas em andamento sem nada aberto embaixo), aguardando (avisos
   desenhados, mais as sessões que esperam sem aviso publicado), interrompidas (fora da
   porcentagem) e sessões ativas.
-- Abrir e recolher pelo ícone de progresso (pedido do usuário: "quero que o botao de colapse nao
+- Abrir e recolher pelo clique (no terminal, no ícone de progresso; no desktop, na linha inteira; pedido do usuário: "quero que o botao de colapse nao
   apareca, e que a funcao de colapsar e expandir esteja no icone de progresso da tarefa"): não há
   coluna ▾/▸. No terminal, o glifo do ícone é o próprio `Button` (só em linha que recolhe); no
-  desktop, a linha continua uma imagem só (ícone na cor dele) e o alvo do clique fica por cima: um
-  `Box` absoluto na altura da linha (top 0, bottom 0, centrado), com 2 células de largura,
-  centrado no ícone (no rótulo, sobre o nome), com um `Button` simples de rótulo vazio. A camada do
-  tooltip começa depois do alvo, sem sobrepor (o retângulo dela é transparente). Não usar a linha
+  desktop, a linha inteira é o alvo (escolha do usuário: "Clicar na linha inteira"): a linha
+  continua uma imagem só (ícone na cor dele, rótulo dentro do cartão, guia) e, em cada linha que
+  recolhe (tarefa com subtarefas, pedido, grupo de subagente, rótulo do cartão da filha), um `Box`
+  absoluto cobre a linha toda com um `Button` simples de rótulo vazio esticado nele. Não há
+  controle visível; ao passar o mouse, o realce nativo aparece na linha toda. Linha sem nada embaixo
+  não tem botão. Em nome cortado, a camada do tooltip cobre só o nome e fica acima do `Button`:
+  sobre o nome aparece o nome completo e o clique ali não recolhe; o resto da linha recolhe (o
+  mesmo ponto não faz os dois, porque a camada é uma moldura que toma o ponteiro). Não usar a linha
   em três peças (Svg | Button | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou,
-  corrija"): o desktop desenha o `Button` como botão nativo opaco (glifo branco sem cor, outra
-  fonte, fundo preto) e os SVGs cortados deslocavam o cartão e tiravam o rótulo da moldura. Limite:
-  o kit posiciona o alvo em células inteiras (~8 px), então o realce do botão pode ficar alguns px
-  fora do centro do ícone; o desktop não tem alvo de clique invisível além do botão nativo. O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
+  corrija"): o desktop desenha o `Button` como botão nativo opaco e os SVGs cortados deslocavam o
+  cartão e tiravam o rótulo da moldura. Não visto ao vivo: se o botão sobre a imagem que muda a
+  cada segundo pisca. O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
   Recolhida, a linha ganha " ⋯" depois do nome; o `alt` continua dizendo "recolhida". Toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
   subagente pendurado; sessão com painel; grupo de subagente) ganha
   `Row.fold = { key, open }`. A escolha do usuário fica no atom `folds` (estado `collapsed`:
@@ -87,7 +90,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   sozinho ao concluir (pedido do usuário: "quando você finalizar as tarefas, não colapse os itens,
   se eu quiser, eu mesmo colapso"): tarefa concluída mostra todas as subtarefas, pedido (turno)
   concluído, cartão de sessão filha em qualquer estado e grupo de subagente fechado vêm abertos.
-  Só o clique do usuário no ícone recolhe. Chaves: `<escopo><agente>|t:<id>`
+  Só o clique do usuário recolhe. Chaves: `<escopo><agente>|t:<id>`
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
@@ -95,7 +98,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recolher) e com as escolhas (`lines`, o desenho).
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
-  concluída vem aberta, como as outras, e recolhe pelo clique no ícone. O tom
+  concluída vem aberta, como as outras, e recolhe pelo clique. O tom
   `section` do desenho ficou sem uso.
 - Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
   (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
@@ -123,7 +126,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
   da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas
   dentro do cartão). O cartão inteiro recolhe pelo clique no próprio rótulo: no terminal o nome é
-  o `Button`; no desktop, o alvo vazio fica por cima do nome, como nas linhas. A guia desce da tarefa da
+  o `Button`; no desktop, a linha do rótulo inteira é o alvo, como nas outras. A guia desce da tarefa da
   principal e entra no cartão, terminando na borda esquerda dele à altura do rótulo (pedido do
   usuário: "a linha de conexao ... esta interrompida, conecte ela no painel"). Recolhido, " ⋯" depois do nome. Subagente:
   `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
@@ -242,7 +245,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `nome ⑂ concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
-  dela"); o clique no ícone continua recolhendo. Não se usa `$.store` para isso: a chave
+  dela"); o clique continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
   que as duas sabem.
 - Contador: `total` soma as tarefas da principal (todos os grupos) com as das filhas (as arquivadas

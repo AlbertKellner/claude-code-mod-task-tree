@@ -372,20 +372,21 @@ describe('abrir e recolher', () => {
     expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Primeira ⋯  1/1  —', '◉ Segunda'])
   })
 
-  test('no desktop, sem ▾/▸: um Button sem texto sobre o ícone de cada linha que recolhe', async $ => {
+  test('no desktop, sem ▾/▸: a linha inteira que recolhe é um Button sem texto', async $ => {
     await plan($, PLAN)
     await done($, ['1.1'])
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
     const buttons = await ui.findAll({ type: 'Button' })
     expect(buttons.some((b: any) => b.props.label === '▾' || b.props.label === '▸')).toBe(false)
     // One per line with something below (Sessão A, Item 1); none on the leaves.
-    // An empty-label Button over the icon of each line that folds (the icon stays drawn, in its
-    // color), in a Box spanning the line's height that centers it, 2 cells wide.
+    // An empty-label Button over the whole of each line that folds (the icon stays drawn, in its
+    // color): a Box spanning the line, the Button stretched across it.
     const icons = buttons.filter((b: any) => String(b.props.key ?? '').startsWith('fold:'))
     expect(icons.length).toBe(2)
     expect(icons.every((b: any) => b.props.plain === true && b.props.label === ' ')).toBe(true)
     const boxes = (await ui.findAll({ type: 'Box' })).filter((b: any) => (b.children ?? []).some((c: any) => c.type === 'Button' && String(c.props?.key ?? '').startsWith('fold:')))
-    expect(boxes.every((b: any) => b.props.position === 'absolute' && b.props.top === 0 && b.props.bottom === 0 && b.props.width === 2 && b.props.alignItems === 'center')).toBe(true)
+    expect(boxes.length).toBe(2)
+    expect(boxes.every((b: any) => b.props.position === 'absolute' && b.props.top === 0 && b.props.bottom === 0 && b.props.left === 0 && b.props.right === 0 && b.props.alignItems === 'stretch')).toBe(true)
     await ui.press({ key: 'fold:|t:A/1' })
     const svgs = (await ui.findAll({ type: 'Svg' })).map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source) }))
     await ui.unmount()
@@ -2985,7 +2986,7 @@ describe('cadeias separadas e na ordem de execução (caso do print)', () => {
 })
 
 describe('tooltip e ícone que recolhe, juntos', () => {
-  test('toda linha cortada tem, por cima do texto, a camada com o nome inteiro, sem botão cobrindo', async $ => {
+  test('toda linha cortada tem, por cima do nome, a camada com o nome inteiro, acima do botão da linha', async $ => {
     const long = (w: string) => `${w} com um nome comprido demais para caber na largura estreita do painel lateral`
     await plan($, [{ id: 'A', title: long('Pai'), children: [{ id: '1', title: long('Filho'), children: [{ id: 'x', title: long('Neto') }] }, { id: '2', title: long('Folha') }] }])
     await start($, ['A/1/x'])
@@ -3009,15 +3010,18 @@ describe('tooltip e ícone que recolhe, juntos', () => {
     for (const h of cut) {
       const svg = h.children.find((c: any) => c?.type === 'Svg' && !c.props.isInteractive)
       const whole = /: (.*? painel lateral)/.exec(String(svg.props.alt))?.[1]
-      const layer = h.children.find((c: any) => c?.type === 'Box' && c.props.position === 'absolute')
+      const layer = h.children.find((c: any) => c?.type === 'Box' && c.props.position === 'absolute' && (c.children ?? []).some((k: any) => k?.type === 'Svg'))
       const top = layer?.children?.find((c: any) => c?.type === 'Svg')
       expect(top?.props.isInteractive).toBe(true)
       expect(String(top?.props.source)).toContain(`<title>${whole}</title>`)
       // The layer is invisible (a transparent rect) and starts after the Button: no overlap.
       expect(String(top?.props.source)).toContain('fill="transparent"')
       expect(String(top?.props.source)).not.toMatch(/fill="(?!transparent|none)[^"]*"/)
-      const over = h.children.find((c: any) => c?.type === 'Box' && (c.children ?? []).some((b: any) => b?.type === 'Button'))
-      if (over) expect(layer.props.left).toBeGreaterThanOrEqual(over.props.left + over.props.width)
+      // Over the line's Button (drawn after it), from where the name starts: the name shows the
+      // tooltip, the rest of the line folds it.
+      const over = h.children.findIndex((c: any) => c?.type === 'Box' && (c.children ?? []).some((b: any) => b?.type === 'Button'))
+      if (over >= 0) expect(h.children.indexOf(layer)).toBeGreaterThan(over)
+      expect(layer.props.left).toBeGreaterThan(0)
       // The icon is still drawn, in its color.
       expect(String(svg.props.source)).toMatch(/class="(am|gr|gy)"/)
     }
