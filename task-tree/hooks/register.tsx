@@ -1166,12 +1166,10 @@ const GLYPH: Record<Tone, [string, string]> = {
 // Two columns at the left for the ▾/▸ of the level-1 lines; deeper, the ▾/▸ goes after the
 // branch, so the guides below a line that has one move two columns right (`up` holds the
 // line's ancestors by depth).
-const prefix = (r: Row, g: Guide, up: Row[]) =>
-  r.depth === 0
-    ? r.fold
-      ? ''
-      : '  '
-    : '  ' + g.bars.map((on, k) => (on ? '│  ' : '   ') + (up[k + 1]?.fold ? '  ' : '')).join('') + (g.last ? '└─ ' : '├─ ')
+// No ▾/▸ column: a level-1 line starts at its icon; deeper, the guides of the ancestors and the
+// branch, three columns each.
+const prefix = (r: Row, g: Guide, _up: Row[]) =>
+  r.depth === 0 ? '' : g.bars.map(on => (on ? '│  ' : '   ')).join('') + (g.last ? '└─ ' : '├─ ')
 const ratioBar = (d: number, n: number, cells: number) => {
   const k = n > 0 ? Math.round((d / n) * cells) : 0
   return ['█'.repeat(k), '░'.repeat(cells - k)]
@@ -1292,8 +1290,6 @@ function icon(tone: Tone, x: number, y: number): string {
 const TIME_W = textW('0:00:00', 12)
 const COUNT_W = textW('00/00', 12)
 
-// The column of the desktop's ▾/▸, in cells (about 8 px each).
-const GUTTER = 3
 
 // Where the icon of depth k sits; the guides run through it (+.5 keeps 1 px lines crisp).
 const col = (k: number) => 12 + k * 20 + 0.5
@@ -1413,7 +1409,9 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number): string {
   }
   const lead = section ? '' : icon(progress(r), x, cy)
   const tx = section ? x - 6 : x + 13
-  const title = fit(r.title, size, Math.max(24, edge - 10 - tx))
+  // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
+  const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
+  const title = fit(whole, size, Math.max(24, edge - 10 - tx))
   const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || section
   const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
   return (
@@ -1422,7 +1420,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number): string {
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
     (section ? `<path class="ln" d="M0 0.5H${R}" stroke-width="1"/>` : '') +
     lead +
-    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(r.title, title)}${xml(title)}</text>` +
+    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(whole, title)}${xml(title)}</text>` +
     mark +
     right.join('') +
     '</svg>'
@@ -2363,15 +2361,22 @@ export const register: Register = on => {
     // The ▾/▸ of a line with something below it: a press closes what is open, opens what is
     // closed. A Button, since a press does not go through an Svg.
     const { Button } = ui
-    const toggle = (r: Row) =>
+    // No ▾/▸ (the person's words: "quero que o botao de colapse nao apareca, e que a funcao de
+    // colapsar e expandir esteja no icone de progresso da tarefa"): a line with something below it
+    // folds and opens by its progress icon, a plain Button (the pointer inverts it); a line with
+    // nothing below has no Button. Terminal: the icon glyph is the Button. Desktop: the Svg draws
+    // the icon and a Button with an empty label lies over it.
+    const press = (r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
+    const iconButton = (r: Row, glyph: string, color: string) => (
+      <Button key={`fold:${(r.fold as any).key}`} plain onPress={press(r)}>
+        <Text color={color}>{glyph}</Text>
+      </Button>
+    )
+    const overIcon = (r: Row) =>
       r.fold ? (
-        <Button
-          key={`fold:${r.fold.key}`}
-          label={r.fold.open ? '▾' : '▸'}
-          plain
-          dimColor
-          onPress={() => void setFold($, (r.fold as any).key, (r.fold as any).open)}
-        />
+        <Box position="absolute" top={0} left={Math.max(0, Math.floor((col(r.depth) - 8) / 8))} width={2}>
+          <Button key={`fold:${r.fold.key}`} label={' '} plain onPress={press(r)} />
+        </Box>
       ) : null
 
     // The view toggle: two icon buttons at the right end of the header's title line, ≡ the
@@ -2409,9 +2414,9 @@ export const register: Register = on => {
               ...(headTime !== undefined ? [clockText(headTime)] : []),
               ...list.map(c => c.text),
             ].join(', ')) + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
-      // Each line: a narrow column for its ▾/▸ (empty when it has none, so the guides stay
-      // in line from one line to the next), then its Svg.
-      const RW = W - GUTTER * 8
+      // Each line: its Svg, the tooltip layer over a cut name and, over the icon, the Button that
+      // folds and opens it (drawn last, on top).
+      const RW = W
       const cards = frames(lines)
       return (
         <Box flexDirection="column">
@@ -2429,9 +2434,6 @@ export const register: Register = on => {
           </Box>
           {lines.map((r, i) => (
             <Box key={`r${i}`} flexDirection="row" alignItems="center">
-              <Box width={GUTTER} flexShrink={0} justifyContent="center">
-                {toggle(r)}
-              </Box>
               {(source => (
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
@@ -2440,6 +2442,7 @@ export const register: Register = on => {
                       <Svg source={hoverLayer(source, RW, rowHeight(r, cards[i]))} alt="" width={RW} height={rowHeight(r, cards[i])} isInteractive />
                     </Box>
                   ) : null}
+                  {overIcon(r)}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW))}
             </Box>
@@ -2493,9 +2496,9 @@ export const register: Register = on => {
           const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
           const lead = prefix(r, lanes[i], up)
           const parts = [
-            glyph ? <Text key="icon" color={color}>{glyph}</Text> : null,
-
+            glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
             <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
+            r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
             r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
             tail ? <Text key="tail" dimColor>{tail}</Text> : null,
           ]
@@ -2510,8 +2513,6 @@ export const register: Register = on => {
           return (
             <Box key={`r${i}`} flexDirection="row">
               {lead ? <Text color="inactive">{lead}</Text> : null}
-              {toggle(r)}
-              <Text key="gap"> </Text>
               {parts}
             </Box>
           )
