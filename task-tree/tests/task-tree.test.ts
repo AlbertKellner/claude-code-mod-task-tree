@@ -89,12 +89,12 @@ async function fold($: any, key: string, surface: 'terminal' | 'desktop' = 'term
 const line = (lines: Line[], title: string) => lines.find(l => l.title === title)
 
 // Desktop: the header and each line are an Svg; what they say is in `alt`.
-async function desktop($: any, columns = 60): Promise<{ alt: string; source: string; width: number }[]> {
+async function desktop($: any, columns = 60): Promise<{ alt: string; source: string; width: number; hover: boolean }[]> {
   const props = { ...PANE_PROPS, bodyColumns: columns }
   const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
   const found = await ui.findAll({ type: 'Svg' })
   await ui.unmount()
-  return found.map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width) }))
+  return found.map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
 }
 
 describe('plan', () => {
@@ -1611,9 +1611,21 @@ describe('visão resumida', () => {
   test('painel estreito: o título encurta antes dos ícones e o N de M fica na linha de baixo', async $ => {
     await plan($, [{ id: 'A', title: 'Um título bem comprido para não caber ao lado dos dois ícones do canto' }])
     const head = (await desktop($, 20))[0]?.source ?? ''
-    const title = /<text class="p" x="8" y="18"[^>]*>([^<]*)</.exec(head)?.[1] ?? ''
+    const title = /<text class="p" x="8" y="18"[^>]*>(?:<title>[^<]*<\/title>)?([^<]*)</.exec(head)?.[1] ?? ''
     expect(title.endsWith('…')).toBe(true)
     expect(head).toContain('>0 de 1 · 0%</text>')
+  })
+
+  test('nome cortado com …: tooltip com o nome inteiro (title num Svg interativo); inteiro, sem tooltip', async $ => {
+    const long = 'Uma tarefa com um nome comprido demais para caber na largura estreita do painel lateral'
+    await plan($, [{ id: 'A', title: 'Curta', children: [{ id: '1', title: long }] }])
+    const svgs = await desktop($, 30)
+    const cut = svgs.find(s => s.source.includes(`<title>${long}</title>`))
+    expect(cut?.hover).toBe(true)
+    expect(cut?.source).toContain('…')
+    const short = svgs.find(s => s.alt.includes('Curta') && !s.alt.includes(long))
+    expect(short?.source).not.toContain('<title>')
+    expect(short?.hover).toBe(false)
   })
 
   test('o toggle no topo alterna as visões e a escolha fica', async $ => {

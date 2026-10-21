@@ -45,7 +45,12 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   contínuas. Largura `clamp(240, bodyColumns * 8 - 8, 900)` (heurística, não contrato). O SVG é
   imagem: não herda o tema do app, por isso cada um traz as classes claro/escuro (`STYLE`, com
   `prefers-color-scheme`). Texto em SVG não quebra nem corta: `fit` corta com `…` por uma medição
-  aproximada (`textW`). Quando os chips não cabem com as palavras, ficam só os números.
+  aproximada (`textW`). Nome cortado ganha tooltip com o nome inteiro (pedido do usuário: "mostrar
+  tooltip com o nome completo da tarefa", para não ter de alargar o painel): o SVG da linha e o
+  título do cabeçalho ganham `<title>` com o nome completo, e só nesse caso o `Svg` ganha
+  `isInteractive` (moldura isolada, sem scripts, onde o `<title>` vira tooltip; no modo imagem não
+  há tooltip). Linha sem corte continua imagem; recolher (▾/▸) não corta nome; terminal sem
+  tooltip. Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂ ▸`. A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.

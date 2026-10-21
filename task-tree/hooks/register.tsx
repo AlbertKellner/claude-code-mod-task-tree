@@ -1106,6 +1106,10 @@ const WIDE = /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿가-힣豈-﫿！-｠\u{1f300}
 const em = (ch: string) =>
   WIDE.test(ch) ? 1 : /[\s.,:;'!|il1()[\]ftrj]/.test(ch) ? 0.32 : /[A-ZMWmw@%]/.test(ch) ? 0.7 : 0.56
 const textW = (s: string, size: number) => Array.from(s).reduce((w, ch) => w + em(ch) * size, 0)
+// A name cut with … carries the whole one in a `<title>`: the tooltip under the mouse, drawn
+// only by an interactive Svg (`hovers`), so the pane need not be widened to read it.
+const tip = (whole: string, shown: string) => (shown === whole ? '' : `<title>${xml(whole)}</title>`)
+const hovers = (source: string) => source.includes('<title>')
 function fit(s: string, size: number, max: number): string {
   if (textW(s, size) <= max) return s
   let out = ''
@@ -1310,7 +1314,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number): string {
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
     (section ? `<path class="ln" d="M0 0.5H${R}" stroke-width="1"/>` : '') +
     lead +
-    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${xml(title)}</text>` +
+    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(r.title, title)}${xml(title)}</text>` +
     mark +
     right.join('') +
     '</svg>'
@@ -1344,7 +1348,7 @@ function headerSvg(title: string, d: number, n: number, list: Chip[], W: number,
   } else {
     const score = `${d} de ${n} · ${percent(d, n)}%` + (time !== undefined ? ` · ${clockText(time)}` : '')
     const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
-    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${xml(name)}</text>`)
+    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
     parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
     parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
     if (n > 0 && d > 0) parts.push(`<rect class="grf" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
@@ -2303,7 +2307,7 @@ export const register: Register = on => {
         <Box flexDirection="column">
           {errorLine}
           <Box key="head" position="relative">
-            <Svg source={top.source} alt={alt} width={W} height={top.height} />
+            <Svg source={top.source} alt={alt} width={W} height={top.height} isInteractive={hovers(top.source) || undefined} />
             <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
               {views}
             </Box>
@@ -2313,7 +2317,9 @@ export const register: Register = on => {
               <Box width={GUTTER} flexShrink={0} justifyContent="center">
                 {toggle(r)}
               </Box>
-              <Svg source={rowSvg(r, lanes[i], cards[i], RW)} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
+              {(source => (
+                <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} isInteractive={hovers(source) || undefined} />
+              ))(rowSvg(r, lanes[i], cards[i], RW))}
             </Box>
           ))}
         </Box>
