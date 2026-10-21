@@ -383,7 +383,8 @@ describe('abrir e recolher', () => {
     // color): a Box spanning the line, the Button stretched across it.
     const icons = buttons.filter((b: any) => String(b.props.key ?? '').startsWith('fold:'))
     expect(icons.length).toBe(2)
-    expect(icons.every((b: any) => b.props.plain === true && b.props.label === ' ')).toBe(true)
+    // Its label (em spaces) as wide as the line (472 px here): a native Button is as wide as its label.
+    expect(icons.every((b: any) => b.props.plain === true && /^ +$/.test(b.props.label) && b.props.label.length * 13 >= 472 - 13)).toBe(true)
     const boxes = (await ui.findAll({ type: 'Box' })).filter((b: any) => (b.children ?? []).some((c: any) => c.type === 'Button' && String(c.props?.key ?? '').startsWith('fold:')))
     expect(boxes.length).toBe(2)
     expect(boxes.every((b: any) => b.props.position === 'absolute' && b.props.top === 0 && b.props.bottom === 0 && b.props.left === 0 && b.props.right === 0 && b.props.alignItems === 'stretch')).toBe(true)
