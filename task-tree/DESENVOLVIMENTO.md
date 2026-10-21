@@ -185,6 +185,12 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
   novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
   `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`.
+- Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
+  implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
+  de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
+  tarefa folha aberta sem `start`; aí é a mais nova dessas. Tarefas planejadas junto, antes do
+  início, não mudam nada. Vale para o lugar do cartão (`rounds`), para a visão resumida
+  (`lastAnchor`) e para o ✉ (`sends`).
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo

@@ -483,6 +483,25 @@ function current(list: TaskNode[]): { lit: string[]; anchor?: string } {
   return { lit, anchor }
 }
 
+// The task a message is sent from: the task in progress, unless an open task was planned after
+// it was started (planned to send, sent with no start): that newest one.
+function sendAnchor(list: TaskNode[]): string | undefined {
+  const { anchor } = current(list)
+  const leaves = flat(list).filter(t => t.status === 'open' && t.children.length === 0)
+  const since = (t?: TaskNode) => (t === undefined ? undefined : t.started !== undefined ? t.startedAt : t.plannedAt)
+  const base = since(flat(list).find(t => t.id === anchor))
+  let pick = anchor
+  let top = base ?? -Infinity
+  for (const t of leaves) {
+    const at = t.plannedAt
+    if (t.started === undefined && at !== undefined && at > top) {
+      pick = t.id
+      top = at
+    }
+  }
+  return pick
+}
+
 // The open tasks with nothing open below them, for a reminder: '"1/1.2" Title; …'.
 function openList(list: TaskNode[]): string {
   const open = flat(list).filter(t => t.status === 'open' && !t.children.some(c => c.status === 'open'))
@@ -1854,7 +1873,7 @@ export const register: Register = on => {
       // The session is used for the task in progress: the summary view draws it there.
       {
         const { value = [] } = await $.state.get(groupsState)
-        const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+        const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         // Each message opens a round of the session, drawn in a card of its own under the task it
         // was sent from once the session takes it up (see split).
         const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
@@ -1873,7 +1892,7 @@ export const register: Register = on => {
       const waitsDelivery = /queued|held|pending/i.test(out) && !/turn has started/i.test(out)
       if (waitsDelivery && to !== '') {
         const { value = [] } = await $.state.get(groupsState)
-        const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+        const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const at = sentAt ?? (await stamp($))
         await update($, sendsState, cur => [...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)), { to, anchor, at }])
         const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
@@ -2012,13 +2031,8 @@ export const register: Register = on => {
         const under = below(t, depth)
         if (t.children.length === 0 && under.length === 0) return [row]
         const key = `${scope}t:${t.id}`
-        // Opened by the person, a closed task shows all its subtasks.
-        const kids =
-          fl[key] === false
-            ? t.children
-            : t.status === 'open'
-              ? t.children
-              : t.children.filter(c => flat([c]).some(k => pinned.includes(k.id)))
+        // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
+        const kids = t.children
         const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, pinned, scope, work)] : []
         row.fold = { key, open: rest.length > 0 }
         return [row, ...rest]
@@ -2053,7 +2067,7 @@ export const register: Register = on => {
               ? 'interrupted'
               : 'done'
       const key = `${scope}T:${u.id}`
-      const open = opened(key, tone === 'current' || tone === 'open' || tone === 'paused')
+      const open = opened(key, true)
       const row: Row = {
         depth: top,
         tone,
@@ -2117,7 +2131,7 @@ export const register: Register = on => {
       const part = c.part ? `#${c.part}` : ''
       const key = `${scope}s:${c.id}${part}`
       const inside = `${scope}${c.id}${part}>`
-      const inner = opened(key, live(c) || parked) ? panel(p, depth + 1, level + 1, inside) : []
+      const inner = opened(key, true) ? panel(p, depth + 1, level + 1, inside) : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
       if (inner.length > 0 || panel(p, depth + 1, level + 1, inside).length > 0) header.fold = { key, open: inner.length > 0 }
       return [header, ...inner]
@@ -2201,7 +2215,7 @@ export const register: Register = on => {
         const inner = body(g, b + 1, g.tasks, true)
         if (inner.length === 0) return [header]
         const key = `${scope}g:${g.agent}`
-        const open = opened(key, !closed)
+        const open = opened(key, true)
         header.fold = { key, open }
         return [header, ...(open ? inner : closed ? mine.map(w => notice(w, b + 1)) : [])]
       }

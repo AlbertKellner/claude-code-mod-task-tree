@@ -2599,3 +2599,38 @@ describe('carta azul enquanto espera a entrega', () => {
     expect(line(await view($), 'Avisar a filha')?.glyph).toBe('◉')
   })
 })
+
+describe('tarefa de origem do envio', () => {
+  const KID = 'local_44444444-4444-4444-4444-444444444444'
+  test('planejada depois da em andamento e sem start: a mensagem sai dela (carta e cartão)', async ($, on) => {
+    let t = 100
+    on('clock.now', () => ({ value: t }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('fs.read', () => ({ value: '{}' }) as any)
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message queued; it will be delivered later' }))
+    await plan($, [{ id: 'A', title: 'Repassar à implementação' }])
+    await start($, ['A'])
+    t = 200
+    await plan($, [{ id: 'B', title: 'Repassar o tooltip' }])
+    t = 300
+    await $.tool.call({ tool: 'SendMessage', to: KID, message: 'tooltip' } as any)
+    const lines = await view($)
+    expect(line(lines, 'Repassar o tooltip')?.glyph).toBe('✉')
+    expect(line(lines, 'Repassar à implementação')?.glyph).toBe('◉')
+  })
+
+  test('planejadas juntas, a em andamento continua sendo a de origem', async ($, on) => {
+    let t = 100
+    on('clock.now', () => ({ value: t }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('fs.read', () => ({ value: '{}' }) as any)
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'queued' }))
+    await plan($, [{ id: 'A', title: 'Primeira' }, { id: 'B', title: 'Segunda' }])
+    t = 200
+    await start($, ['A'])
+    await $.tool.call({ tool: 'SendMessage', to: KID, message: 'x' } as any)
+    const lines = await view($)
+    expect(line(lines, 'Primeira')?.glyph).toBe('✉')
+    expect(line(lines, 'Segunda')?.glyph).toBe('○')
+  })
+})
