@@ -2863,3 +2863,65 @@ describe('cadeia de filhas sob a origem', () => {
     expect(at('Impl de Z')).toBeGreaterThan(at('Pedir Z'))
   })
 })
+
+describe('cadeias separadas e na ordem de execução (caso do print)', () => {
+  const I = 'local_a1111111-1111-1111-1111-111111111111'
+  const D = 'local_a2222222-2222-2222-2222-222222222222'
+  const S = 'local_a3333333-3333-3333-3333-333333333333'
+  const G = 'local_a4444444-4444-4444-4444-444444444444'
+  const task = (id: string, title: string, turn: number) => ({ id, short: id, title, status: 'done', turn, children: [] })
+  const panel = (received: any[], turns: [number, number][], tasks: any[]) => ({
+    waiting: false, received, waits: [], children: [],
+    groups: [{ agent: '', label: '', turns: turns.map(([id, at]) => ({ id, title: 't', at })), tasks }],
+  })
+  // Chain of 15 (sent at 100) and of 16 (sent at 300): implementation → docs → SVG → governance.
+  // Docs got 15's message at 350, after 16's send to the implementation.
+  const PANELS: Record<string, any> = {
+    [I]: panel([], [[1, 50], [2, 120], [3, 400]], [task('I0', 'Impl abertura', 1), task('I1', 'Impl 15', 2), task('I2', 'Impl 16', 3)]),
+    [D]: panel([{ from: I, at: 350 }, { from: I, at: 450 }], [[1, 50], [2, 350], [3, 450]], [task('D0', 'Docs abertura', 1), task('D1', 'Docs 15', 2), task('D2', 'Docs 16', 3)]),
+    [S]: panel([{ from: D, at: 360 }, { from: D, at: 460 }], [[1, 50], [2, 360], [3, 460]], [task('S0', 'SVG abertura', 1), task('S1', 'SVG 15', 2), task('S2', 'SVG 16', 3)]),
+    [G]: panel([{ from: S, at: 370 }, { from: S, at: 470 }], [[1, 50], [2, 370], [3, 470]], [task('G0', 'Gov abertura', 1), task('G1', 'Gov 15', 2), task('G2', 'Gov 16', 3)]),
+  }
+  test('a cadeia da 15 fica sob a 15, a da 16 sob a 16, cada uma na ordem impl → docs → SVG → governança', async ($, on) => {
+    let t = 10
+    let n = 0
+    on('clock.now', () => ({ value: t }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    // The host lists them in another order (governance before SVG and docs).
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          ...[[I, 'impl'], [G, 'gov'], [S, 'svg'], [D, 'docs']].map(([id, name]) => ({ sessionId: id, name, title: name, isRunning: false, isArchived: false, startedBy: 'local_eu' })),
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(PANELS).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify(PANELS[id]) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${[I, D, S, G][n++]}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+    await plan($, [{ id: 'X', title: 'Abrir' }, { id: 'Y', title: 'Repassar 15' }, { id: 'Z', title: 'Repassar 16' }])
+    await start($, ['X'])
+    for (let i = 0; i < 4; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['X'])
+    await start($, ['Y'])
+    t = 100
+    await $.tool.call({ tool: 'SendMessage', to: I, message: '15' } as any)
+    await done($, ['Y'])
+    await start($, ['Z'])
+    t = 300
+    await $.tool.call({ tool: 'SendMessage', to: I, message: '16' } as any)
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (s: string) => texts.findIndex(x => x.includes(s))
+    const chain = (k: string) => ['Impl', 'Docs', 'SVG', 'Gov'].map(w => at(`${w} ${k}`))
+    const c15 = chain('15')
+    const c16 = chain('16')
+    expect(c15.every(i => i > at('Repassar 15') && i < at('Repassar 16'))).toBe(true)
+    expect(c16.every(i => i > at('Repassar 16'))).toBe(true)
+    expect([...c15].sort((a, b) => a - b)).toEqual(c15)
+    expect([...c16].sort((a, b) => a - b)).toEqual(c16)
+  })
+})
