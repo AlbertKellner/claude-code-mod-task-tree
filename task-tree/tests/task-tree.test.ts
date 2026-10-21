@@ -1398,12 +1398,12 @@ describe('ícone de sessão filha', () => {
     await opened($)
     expect(rowsOf(await view($)).map(l => l.text)[0]).toBe('▾ ◉ Investigar  ⑂  3/3  0:00')
     // The session stops; with no poll, the next call of the main loop reads the list again
-    // once it is older than 10 s.
+    // once it is older than 3 s (the card follows the session's own pane closely).
     state = 'stopped'
-    t = 5_000
+    t = 2_000
     await $.tool.call({ tool: 'Read', file_path: 'a' } as any)
     expect(rowsOf(await view($)).map(l => l.text)[0]).toMatch(/^▾ ◉ Investigar  ⑂  3\/3/)
-    t = 11_000
+    t = 5_000
     await $.tool.call({ tool: 'Read', file_path: 'a' } as any)
     expect(rowsOf(await view($)).map(l => l.text)[0]).toMatch(/^▾ ✓ Investigar  ⑂  3\/3/)
   })
@@ -1628,6 +1628,8 @@ describe('visão resumida', () => {
     const cut = svgs.find(s => s.source.includes(`<title>${long}</title>`))
     expect(cut?.hover).toBe(true)
     expect(cut?.source).toContain('…')
+    // Over the cut name, the pointer is the arrow, not the text cursor.
+    expect(cut?.source).toContain('svg,text{cursor:default')
     const short = svgs.find(s => s.alt.includes('Curta') && !s.alt.includes(long))
     expect(short?.source).not.toContain('<title>')
     expect(short?.hover).toBe(false)
@@ -2636,5 +2638,99 @@ describe('tarefa de origem do envio', () => {
     const lines = await view($)
     expect(line(lines, 'Primeira')?.glyph).toBe('✉')
     expect(line(lines, 'Segunda')?.glyph).toBe('○')
+  })
+})
+
+describe('cartão da filha igual ao painel dela', () => {
+  const A = 'local_55555555-5555-5555-5555-555555555555'
+  const B = 'local_66666666-6666-6666-6666-666666666666'
+  const task = (id: string, title: string, status: string, turn: number, started?: number) => ({ id, short: id, title, status, turn, ...(started ? { started } : {}), children: [] })
+  // A (implementation) got a message from the main loop at 100 (sent from Y); B (docs) then got
+  // one from A at 200, its new group planned in that turn.
+  const PANELS: Record<string, any> = {
+    [A]: {
+      waiting: false,
+      received: [{ from: 'local_eu', at: 120 }],
+      groups: [{ agent: '', label: '', turns: [{ id: 1, title: 'abertura', at: 50 }, { id: 2, title: 'mensagem', at: 120 }],
+        tasks: [task('A0', 'Impl antiga', 'done', 1), task('A1', 'Impl nova', 'done', 2)] }],
+      waits: [], children: [],
+    },
+    [B]: {
+      waiting: false,
+      received: [{ from: A, at: 200 }],
+      groups: [{ agent: '', label: '', turns: [{ id: 1, title: 'abertura', at: 50 }, { id: 2, title: 'da irmã', at: 200 }],
+        tasks: [task('B0', 'Docs antiga', 'done', 1), task('B1', 'Docs nova', 'open', 2, 1), task('B2', 'Docs depois', 'open', 2)] }],
+      waits: [], children: [],
+    },
+  }
+  const setup = (on: any) => {
+    let n = 0
+    on('clock.now', () => ({ value: 100 }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: A, name: 'impl', title: 'Impl', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+          { sessionId: B, name: 'docs', title: 'Docs', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(PANELS).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify(PANELS[id]) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${n++ === 0 ? A : B}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+  }
+  const story = async ($: any) => {
+    await plan($, [{ id: 'X', title: 'Abrir as filhas' }, { id: 'Y', title: 'Pedir o ajuste' }])
+    await start($, ['X'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'a' } as any)
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'b' } as any)
+    await done($, ['X'])
+    await start($, ['Y'])
+    await $.tool.call({ tool: 'SendMessage', to: A, message: 'ajuste' } as any)
+  }
+
+  test('a mensagem de uma irmã abre cartão próprio, sob a tarefa do cartão da irmã que enviou', async ($, on) => {
+    setup(on)
+    await story($)
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (s: string) => texts.findIndex(t => t.includes(s))
+    const docs = texts.map((t, i) => [t, i] as const).filter(([t]) => t.includes('Docs · docs'))
+    expect(docs.length).toBe(2)
+    // The new group (B1, B2) under Y, after A's new card, in plan order; the old one under X.
+    expect(at('Abrir as filhas')).toBeLessThan(at('Docs antiga'))
+    expect(at('Docs antiga')).toBeLessThan(at('Pedir o ajuste'))
+    expect(at('Pedir o ajuste')).toBeLessThan(docs[1][1])
+    expect(docs[1][1]).toBeLessThan(at('Docs nova'))
+    expect(at('Docs nova')).toBeLessThan(at('Docs depois'))
+  })
+
+  test('o cartão em andamento tem as mesmas tarefas, estados e contagem do painel da filha', async ($, on) => {
+    setup(on)
+    await story($)
+    const lines = await view($)
+    const texts = rowsOf(lines).map(l => l.text)
+    const card = texts.filter(t => t.includes('Docs · docs'))[1] ?? ''
+    // The session's own pane has B1 in progress and B2 open in that group: 0/2.
+    expect(card).toContain('0/2')
+    expect(line(lines, 'Docs nova')?.glyph).toBe('◉')
+    expect(line(lines, 'Docs depois')?.glyph).toBe('○')
+  })
+
+  test('as sessões voltam a ser lidas a cada 3 s, mesmo sem session.start (recarga do mod)', async ($, on) => {
+    const periods: unknown[] = []
+    on('clock.now', () => ({ value: 1 }) as any)
+    on('clock.every', (_$: any, e: any) => {
+      periods.push(e?.ms ?? e?.interval ?? e?.period ?? JSON.stringify(e))
+      return { deny: 'sem relógio no teste' } as any
+    })
+    on('tool.call', { tool: 'Read' } as any, async () => ({ result: 'ok' }))
+    await plan($, [{ id: 'A', title: 'Uma' }])
+    await $.tool.call({ tool: 'Read', file_path: 'x' } as any)
+    expect(periods.some(p => String(p).includes('3000'))).toBe(true)
   })
 })
