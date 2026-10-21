@@ -2803,3 +2803,63 @@ describe('cartão da filha igual ao painel dela', () => {
     expect(periods.some(p => String(p).includes('3000'))).toBe(true)
   })
 })
+
+describe('cadeia de filhas sob a origem', () => {
+  const A = 'local_77777777-7777-7777-7777-777777777777'
+  const B = 'local_88888888-8888-8888-8888-888888888888'
+  const C = 'local_99999999-9999-9999-9999-999999999999'
+  const task = (id: string, title: string, status: string, turn: number) => ({ id, short: id, title, status, turn, children: [] })
+  const main = (turns: [number, number][], tasks: any[]) => [{ agent: '', label: '', turns: turns.map(([id, at]) => ({ id, title: 't', at })), tasks }]
+  // The main loop sends A a message from Y (100) and another from Z (300). A, still in the turn of
+  // Y's message, passes it on to B (350, after Z's send); B passes it to C (500).
+  const PANELS: Record<string, any> = {
+    [A]: { waiting: false, received: [{ from: 'local_eu', at: 120 }, { from: 'local_eu', at: 400 }], waits: [], children: [],
+      groups: main([[1, 50], [2, 120], [3, 400]], [task('A0', 'Impl abertura', 'done', 1), task('A1', 'Impl de Y', 'done', 2), task('A2', 'Impl de Z', 'open', 3)]) },
+    [B]: { waiting: false, received: [{ from: A, at: 350 }], waits: [], children: [],
+      groups: main([[1, 50], [2, 350]], [task('B0', 'Docs abertura', 'done', 1), task('B1', 'Docs da cadeia de Y', 'done', 2)]) },
+    [C]: { waiting: false, received: [{ from: B, at: 500 }], waits: [], children: [],
+      groups: main([[1, 50], [2, 500]], [task('C0', 'Gov abertura', 'done', 1), task('C1', 'Gov da cadeia de Y', 'done', 2)]) },
+  }
+  test('a mensagem repassada de irmã em irmã fica sob a tarefa de onde a cadeia partiu, não sob o envio mais recente', async ($, on) => {
+    let t = 10
+    let n = 0
+    on('clock.now', () => ({ value: t }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: A, name: 'impl', title: 'Impl', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+          { sessionId: B, name: 'docs', title: 'Docs', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+          { sessionId: C, name: 'gov', title: 'Gov', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(PANELS).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify(PANELS[id]) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${[A, B, C][n++]}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+    await plan($, [{ id: 'X', title: 'Abrir as filhas' }, { id: 'Y', title: 'Pedir Y' }, { id: 'Z', title: 'Pedir Z' }])
+    await start($, ['X'])
+    for (let i = 0; i < 3; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['X'])
+    await start($, ['Y'])
+    t = 100
+    await $.tool.call({ tool: 'SendMessage', to: A, message: 'y' } as any)
+    await done($, ['Y'])
+    await start($, ['Z'])
+    t = 300
+    await $.tool.call({ tool: 'SendMessage', to: A, message: 'z' } as any)
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (s: string) => texts.findIndex(x => x.includes(s))
+    // Docs and Gov of Y's chain: under Y, before Z.
+    for (const s of ['Docs da cadeia de Y', 'Gov da cadeia de Y']) {
+      expect(at(s)).toBeGreaterThan(at('Pedir Y'))
+      expect(at(s)).toBeLessThan(at('Pedir Z'))
+    }
+    expect(at('Impl de Z')).toBeGreaterThan(at('Pedir Z'))
+  })
+})
