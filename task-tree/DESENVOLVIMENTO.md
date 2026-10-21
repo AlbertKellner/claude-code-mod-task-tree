@@ -45,7 +45,18 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   contínuas. Largura `clamp(240, bodyColumns * 8 - 8, 900)` (heurística, não contrato). O SVG é
   imagem: não herda o tema do app, por isso cada um traz as classes claro/escuro (`STYLE`, com
   `prefers-color-scheme`). Texto em SVG não quebra nem corta: `fit` corta com `…` por uma medição
-  aproximada (`textW`). Quando os chips não cabem com as palavras, ficam só os números.
+  aproximada (`textW`). Nome cortado ganha tooltip com o nome inteiro (pedido do usuário: "mostrar
+  tooltip com o nome completo da tarefa", para não ter de alargar o painel). A linha continua
+  imagem; o tooltip vai numa camada própria por cima (`hoverLayer`): um `Svg` interativo
+  (`isInteractive`, moldura isolada, sem scripts; no modo imagem não há tooltip) transparente, só
+  com o `<title>` do nome completo. No cabeçalho, a camada cobre só a área do título, abaixo dos
+  botões de visão. Motivo da camada (pedido do usuário: "a cada segundo que é atualizado o tempo,
+  a linha pisca"): a moldura recarrega, e fica em branco por um instante, a cada mudança da fonte;
+  com a linha inteira interativa, o relógio a fazia piscar a cada segundo. A fonte da camada não
+  muda com o relógio. Sobre ela o ponteiro é a seta padrão, não o cursor de texto
+  (`cursor:default;user-select:none`; pedido do usuário: "quero que o mouse seja o mouse padrão,
+  seta"). Linha sem corte não tem camada; recolher (▾/▸) não corta nome; terminal sem tooltip.
+  Nos testes, o helper `desktop()` ignora as camadas por padrão. Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂ ▸`. A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.
@@ -60,10 +71,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   subagente pendurado; sessão com painel; grupo de subagente) ganha
   `Row.fold = { key, open }`. A escolha do usuário fica no atom `folds` (estado `collapsed`:
   `true` recolhida, `false` aberta; sem entrada, o padrão) e é gravada pelo `setFold`, helper de topo
-  chamado do `onPress` (o render não pode gravar estado). Padrões: tarefa aberta, sessão rodando ou
-  esperando e grupo de subagente com algo aberto vêm abertos; tarefa concluída mostra só o caminho
-  até uma filha viva (`pinned`) e, aberta pelo usuário, todas as subtarefas; sessão parada e grupo
-  fechado vêm recolhidos (o grupo fechado ainda mostra os avisos). Chaves: `<escopo><agente>|t:<id>`
+  chamado do `onPress` (o render não pode gravar estado). Padrão: tudo vem aberto, nada recolhe
+  sozinho ao concluir (pedido do usuário: "quando você finalizar as tarefas, não colapse os itens,
+  se eu quiser, eu mesmo colapso"): tarefa concluída mostra todas as subtarefas, pedido (turno)
+  concluído, cartão de sessão filha em qualquer estado e grupo de subagente fechado vêm abertos.
+  Só a escolha do usuário pelo ▾/▸ recolhe. Chaves: `<escopo><agente>|t:<id>`
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
@@ -71,7 +83,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recolher) e com as escolhas (`lines`, o desenho).
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
-  concluída vem recolhida (só o caminho até uma filha viva fica à vista) e abre pelo ▾/▸. O tom
+  concluída vem aberta, como as outras, e recolhe pelo ▾/▸. O tom
   `section` do desenho ficou sem uso.
 - Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
   (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
@@ -154,26 +166,63 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   existir (`$.tool.list`), o painel não mostra a linha "Sessões indisponíveis". No app, a falha
   aparece nela.
 - Sessões filhas (app desktop): vêm de `$.mcp.call('ccd_session_mgmt', 'list_sessions', { linked: true })`,
-  consultado no `session.start`, a cada 10 s (`$.clock.every`) e após cada `start_session`. A lista
+  consultado a cada 3 s (`watchSessions`, com `$.clock.every`; o intervalo é recriado no
+  `session.start` e a cada chamada de ferramenta e prompt do loop principal, porque recarregar o
+  módulo cancela o anterior) e após cada `start_session`. A lista
   exclui a própria sessão: o id dela é o `startedBy` que nenhuma linha listada tem. Em andamento =
   `isRunning` (ícone de ramificação). No teste, o hook `mcp.call` responde `{ value }`.
 - Onde a sessão filha aparece: o `tool.call` de `mcp__ccd_session__start_session` grava em `children`
   o `anchor` (a tarefa em andamento da principal, como o `launches` dos subagentes) com o id `local_…`
-  do resultado. A filha faz parte da árvore: fica embaixo dessa tarefa, aberta ou concluída. Uma
-  tarefa concluída continua recolhida; só o caminho até a origem de uma filha rodando ou à espera
-  fica à vista (`pinned` em `rows`). Uma filha parada fica numa linha embaixo da origem, como
-  histórico, e some junto quando a origem é recolhida por um pai concluído. Sem âncora (cartão
-  `own_initiative`, que só começa com o clique, ou tarefa replanejada) vai para o fim da lista.
+  do resultado. A filha faz parte da árvore: fica embaixo dessa tarefa, aberta ou concluída (a
+  tarefa concluída vem aberta). Uma filha parada fica embaixo da origem, como histórico, e some
+  junto só quando o usuário recolhe a origem ou um pai dela. Sem âncora (cartão
+  `own_initiative`, que só começa com o clique) vai para o fim da lista.
   Arquivada fica, como histórico (ver "Sessão arquivada").
+- Ordem de execução (pedido do usuário: tarefas na ordem do plano; grupo novo sempre embaixo dos
+  que já existem): replanejar um nível 1 aberto com o mesmo id o substitui do zero no mesmo lugar
+  da lista, sem mandá-lo para o fim (texto das `RULES`: "substituído do zero no mesmo lugar da
+  lista").
+- Um cartão por mensagem (pedido do usuário: filha ocupada que recebe mensagem nova tem o painel
+  duplicado; o cartão antigo fica onde estava e o novo vai sob a tarefa da principal que mandou a
+  mensagem): cada `SendMessage` grava em `Child.rounds` `{ at, anchor }`, com a hora tomada antes
+  da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
+  dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
+  (`Child.part` = k). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
+  deles. Só o cartão da frente mostra a espera e o anel de contexto. Com a filha rodando, todo
+  cartão com tarefas abertas é desenhado em andamento. Mensagem ainda não lida não tem turno, logo
+  não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
+  novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
+  `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`.
+  Rodadas também vêm de mensagens de sessões irmãs (pedido do usuário: "as tarefas que estao
+  aparecendo na sessao filha, nao aparecem na sessao orquestradora"): cada filha publica o que
+  recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
+  de uma irmã pertence à rodada do turno em que a irmã a mandou (não à última rodada dela antes de
+  a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
+  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia
+  (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
+  abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Sob uma mesma
+  tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
+  (`begins(c)` + `inOrder()`; ex.: implementação → documentação → SVG → governança), não na ordem da
+  lista do host (pedido do usuário: "e rodou, ficando tudo junto"). Cartão de rodada já
+  fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
+- Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
+  implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
+  de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
+  tarefa folha aberta sem `start`; aí é a mais nova dessas. Tarefas planejadas junto, antes do
+  início, não mudam nada. Vale para o lugar do cartão (`rounds`), para a visão resumida
+  (`lastAnchor`) e para o ✉ (`sends`).
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo
   principal, para versões antigas) a cada mudança do painel (`persist`), dos avisos de espera e das
   próprias filhas (id via `get_session` com `self`), e a sessão que a abriu lê o arquivo no refresh
-  de 10 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
+  de 3 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada: o cartão recolhido, `✓ título · nome  d/n · concluída`. Não se usa `$.store` para isso: a chave
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ título · nome  d/n · concluída`, com o cartão aberto como os demais.
+  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
+  (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
+  dela"); o ▾/▸ continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
   que as duas sabem.
 - Contador: `total` soma as tarefas da principal (todos os grupos) com as das filhas (as arquivadas
@@ -230,7 +279,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `turns`) desenham os níveis 1 soltos, como antes, e esses ficam à frente dos turnos. Desenho só no
   painel de cima (`level === 0`; dentro do cartão de uma filha, os níveis 1 continuam soltos):
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
-  nelas, como no `atWork`), em andamento enquanto algo dele está, recolhida quando tudo fechou
+  nelas, como no `atWork`), em andamento enquanto algo dele está, aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
 - Ícone de sessão filha: toda linha mantém o ícone de progresso (○/◉/✓/✕/✉; no cartão da sessão,
   ◉ rodando ou aguardando, ✓ concluída, ✕ arquivada). O cartão de uma sessão (`Row.session`) e a
@@ -250,14 +299,16 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   interrupção. Sem tempo conhecido (painéis antigos, ou o kit de testes sem relógio), a linha fechada
   mostra "—" (`Row.time === null`). No desktop as colunas são fixas (ver a posição do ícone); no
   terminal o resto vem depois do título, sem colunas.
-- Lista das sessões velha: além do refresh de 10 s (cujo callback não rejeita mais, para não
+- Lista das sessões velha: além do refresh de 3 s (cujo callback não rejeita mais, para não
   encerrar o intervalo), o `prompt.submit` e cada chamada do loop principal leem a lista de novo
-  quando a última leitura tem 10 s ou mais (`refreshStale`; só depois da primeira, no
+  quando a última leitura tem 3 s ou mais (`refreshStale`; só depois da primeira, no
   `session.start`). Sem isso, uma sessão parada podia ficar desenhada como viva e manter os pais em
   andamento.
 - Mensagens a outras sessões (pedido do usuário: "somente encerre tarefas de mensagens enviadas
   para as filhas, quando houver confirmacao de recebimento"): o `SendMessage` do loop principal cujo
-  resultado diz "queued" (e não "delivered") grava em `sends` `{ to, anchor, at }`, com a tarefa em
+  resultado diz "queued", "held" ou "pending" e não diz "its turn has started" (um "will be
+  delivered" ainda conta como pendente; pedido do usuário: "quando enviar uma mensagem, e a tarefa
+  estiver esperando a entrega, o icone de progresso da tarefa deve ser a carta azul") grava em `sends` `{ to, anchor, at }`, com a tarefa em
   andamento, e o resultado ganha o aviso de manter a tarefa aberta. Enquanto o envio está pendente,
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
@@ -270,8 +321,14 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   escolha seguinte, "Folhas abertas". Confirmado, volta
   a ◉ (ou ✓, se o modelo concluir). `watchSends` (no `refreshChildren`) marca `idle` quando vê a sessão parada
   depois do envio e `taken` quando ela volta a rodar (começou a tratar a mensagem); o próximo
-  `prompt.submit` ou chamada do loop principal lembra, uma vez, que o recebimento foi confirmado e
-  qual tarefa concluir. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
+  `prompt.submit` ou chamada do loop principal lembra, uma vez, que o recebimento foi confirmado.
+  A tarefa do envio fecha sozinha ao receber (escolha do usuário: "Fechar sozinha ao receber"):
+  quando o envio é marcado como recebido, o `watchSends` (na releitura de 3 s, sem precisar de turno
+  da sessão que enviou, que pode estar parada) conclui a tarefa, se ela estiver aberta e sem
+  subtarefa aberta, e publica o painel, para o cartão na sessão mãe não ficar "parada". O aviso de
+  recebimento diz que o painel já fechou a tarefa (reabrir com `start` se faltou algo); o `RULES` e
+  o aviso de "ficou na fila" dizem que a tarefa fica em andamento até o recebimento e que a sessão
+  pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
   A regra está no `RULES`.
 - Visões (pedido do usuário: "quero que exista essa visao atual, e uma visão resumida, onde mostre
   somente as tarefas em andamento"; depois: "deixe mais bonito esse toggle, esta solto no layout. e
