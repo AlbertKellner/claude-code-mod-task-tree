@@ -46,7 +46,9 @@ export type Wait = {
 // A session's whole panel, as it publishes it for the session that opened it (see waitFile):
 // its groups, what waits on the person and the sessions it opened in turn.
 // `work`: its current work (the summary view's level-1 tasks), absent from earlier versions.
-export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[] }
+// `received`: the messages of other sessions it got (see the state's `received`): a sister's
+// message opens a card of its own, as one from the session drawing it does.
+export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[] }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
 // `running` while it works; `waiting` while it waits on the person (a question, a plan,
@@ -68,6 +70,12 @@ export type Child = {
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
+  // The messages the main loop sent this session (SendMessage): when (ms, before the send) and the
+  // task it was sent from. The turns the session opened after each one are drawn in a card of their
+  // own under that task (see split in the hooks); absent from earlier versions.
+  rounds?: { at: number; anchor?: string }[]
+  // Drawn only: which of those cards this is (0 the opening message's).
+  part?: number
   anchor?: string
   panel?: Panel
   tasks?: TaskNode[]
