@@ -265,8 +265,27 @@ const panelOf = (c: Child): Panel => {
 // opened no turn, so it has no card (its task shows the queued envelope meanwhile). The card with
 // the session's work in progress (else the last) waits and shows its context; while the session
 // runs, every card with open tasks is drawn at work.
-function split(c: Child): Child[] {
-  const rounds = c.rounds ?? []
+// The messages that opened a round of `c`: those `me` (the session drawing it) sent, with the task
+// they were sent from, and those a sister session sent (its published `received`), drawn under
+// the task the sister's own card was under when it sent (followed down a chain of sisters).
+type Break = { at: number; anchor?: string }
+function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): Break[] {
+  const own: Break[] = (c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor }))
+  const peer: Break[] =
+    depth > 4
+      ? []
+      : (c.panel?.received ?? []).flatMap(x => {
+          const from = sisters.find(k => k.id === x.from && k.id !== c.id)
+          if (from === undefined || x.from === me || typeof x.at !== 'number') return []
+          const before = breaks(from, sisters, me, depth + 1).filter(b => b.at <= x.at)
+          const last = before[before.length - 1]
+          return [{ at: x.at, anchor: last ? last.anchor : from.anchor }]
+        })
+  return [...own, ...peer].sort((a, b) => a.at - b.at)
+}
+
+function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
+  const rounds = breaks(c, sisters, me)
   const p = c.panel
   if (c.part !== undefined || rounds.length === 0 || p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
@@ -653,6 +672,7 @@ async function refreshChildren($: any) {
           waits: list(file.waits),
           children: list(file.children),
           ...(Array.isArray(file.work) ? { work: file.work.map(String) } : {}),
+          ...(Array.isArray(file.received) ? { received: file.received } : {}),
         }
       } else if (Array.isArray(file.tasks)) {
         panels[r.sessionId] = { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }
@@ -772,7 +792,7 @@ async function takenNote($: any): Promise<string | undefined> {
 // it stopped keeps the tasks it was opened on in progress. Only after a first read (session.start).
 async function refreshStale($: any) {
   const now = await stamp($)
-  if (refreshedAt === undefined || now === undefined || now - refreshedAt < 10000) return
+  if (refreshedAt === undefined || now === undefined || now - refreshedAt < POLL) return
   await refreshChildren($)
 }
 
@@ -989,6 +1009,18 @@ async function setFold($: any, key: string, closed: boolean) {
 // The pane's 1 s clock: it redraws the times while a task runs, here or in a session this one
 // opened, and stops when none does. Started again by the next start, refresh or tool call.
 let ticker: { cancel: () => void } | undefined
+// The linked sessions read again every few seconds, so a session's card shows what its own pane
+// shows. Started at session.start and again from the main loop's calls and prompts: a reload of
+// the mod cancels the old module's timers, and the cards would stay as they were.
+const POLL = 3000
+let poller: { cancel: () => void } | undefined
+function watchSessions($: any) {
+  if (poller) return
+  try {
+    // A failure must not end the interval: the sessions would stay drawn as they were.
+    poller = $.clock.every(POLL, () => refreshChildren($).catch(() => {}))
+  } catch {}
+}
 function running(p: Panel, level = 0): boolean {
   if (timing(tasksOf(p.groups ?? []))) return true
   // A session at work keeps the task it was opened on running (see atWork).
@@ -1108,8 +1140,10 @@ const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0
 // Desktop: each SVG is an image that does not follow the app's theme, so it carries its
 // own colors for light and dark.
 const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
+// `svg,text{cursor:default}`: in an interactive Svg (a cut name with its tooltip) the pointer stays
+// the arrow over the text, not the text cursor.
 const STYLE =
-  '<style>.p{fill:#2c2c2a}.s{fill:#5f5e5a}.am{stroke:#ba7517}.amf{fill:#ba7517}.gr{stroke:#639922}' +
+  '<style>svg,text{cursor:default;user-select:none}.p{fill:#2c2c2a}.s{fill:#5f5e5a}.am{stroke:#ba7517}.amf{fill:#ba7517}.gr{stroke:#639922}' +
   '.grf{fill:#639922}.gy{stroke:#888780}.gyf{fill:#888780}.g{stroke:#888780;stroke-opacity:.55}' +
   '.tr{fill:#888780;fill-opacity:.25}.ln{stroke:#888780;stroke-opacity:.45}.cd{fill:#f1efe8}.cs{stroke:#b4b2a9}.bl{stroke:#378add}.rd{stroke:#e24b4a}.tk{stroke:#888780;stroke-opacity:.3}' +
   '@media (prefers-color-scheme: dark){.p{fill:#e8e6dc}.s{fill:#b4b2a9}.am{stroke:#ef9f27}' +
@@ -1472,8 +1506,7 @@ export const register: Register = on => {
     void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
     // The linked sessions' states change outside this session: polled while the session runs.
     void refreshChildren($).catch(() => {})
-    // A failure must not end the interval: the sessions would stay drawn as they were.
-    $.clock.every(10000, () => refreshChildren($).catch(() => {}))
+    watchSessions($)
     return r
   })
 
@@ -1500,6 +1533,7 @@ export const register: Register = on => {
     // Another session's messages are kept (from, when) and published, whatever this prompt turns out
     // to be: the sender confirms its queued SendMessage by them (watchSends).
     await noteReceived($, text)
+    watchSessions($)
     // The desktop app's own notices (a session that ended its turn, <side-sessions-event>) and a
     // subagent's hand-back (`<agent-message from="<agentId>">` "[Subagent hand-back] …") are known by
     // their text: they do not come as `unclassified` or `task-notification`.
@@ -1858,6 +1892,7 @@ export const register: Register = on => {
     if (agent !== MAIN) return r
     // After a reload the clock is gone with the old module: the next call starts it again.
     await keepTime($)
+    watchSessions($)
     await refreshStale($).catch(() => {})
     if (String(e.tool) === 'mcp__ccd_session__start_session') {
       const out = JSON.stringify((r as any).result ?? r)
@@ -2109,7 +2144,9 @@ export const register: Register = on => {
       // tasks stay in sight, as it planned them.
       const parked = !live(c) && !c.archived && hasOpen(tasksOf(p.groups ?? []))
       const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
-      const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : parked ? 'parada' : 'concluída'
+      // A card of one round (split) speaks for its group only: done, it shows the check, with no
+      // word that would say the whole session ended.
+      const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : parked ? 'parada' : c.part !== undefined ? undefined : 'concluída'
       const [cd, cn] = total(p, level + 1)
       const header: Row = {
         depth,
@@ -2131,9 +2168,9 @@ export const register: Register = on => {
       const part = c.part ? `#${c.part}` : ''
       const key = `${scope}s:${c.id}${part}`
       const inside = `${scope}${c.id}${part}>`
-      const inner = opened(key, true) ? panel(p, depth + 1, level + 1, inside) : []
+      const inner = opened(key, true) ? panel(p, depth + 1, level + 1, inside, c.id) : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
-      if (inner.length > 0 || panel(p, depth + 1, level + 1, inside).length > 0) header.fold = { key, open: inner.length > 0 }
+      if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
       return [header, ...inner]
     }
 
@@ -2141,12 +2178,12 @@ export const register: Register = on => {
     // it opened. A session goes under the main task it was opened on, open or closed (a closed
     // one shows only it); at the end of the list when it has no such task. Archived ones are
     // left out. Done tasks stay in their place in the plan, closed.
-    const panel = (p: Panel, base: number, level: number, scope: string): Row[] => {
+    const panel = (p: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
       const groups = withMain(p.groups ?? [])
       const waits = p.waits ?? []
       // Archived sessions stay, as history, drawn gray with "arquivada".
       // One card per message the session was sent (split).
-      const sessions = (p.children ?? []).flatMap(split)
+      const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me))
 
       // A subagent's group hangs from the loop that launched it; one whose launcher has no
       // group (it never planned) hangs from the main one.
@@ -2223,7 +2260,7 @@ export const register: Register = on => {
       return draw(main, base).concat(loose.flatMap(c => session(c, base, level, scope)))
     }
     const all = { groups: held ?? [], waits, children: sessions }
-    const plain = panel(all, 0, 0, '')
+    const plain = panel(all, 0, 0, '', ownId)
     fl = chosen
     // The summary view is the full view of a cut of the panel: the current work (trimToWork), with
     // its sessions under the task they were last sent a message from (else where they were opened;
@@ -2238,12 +2275,12 @@ export const register: Register = on => {
       const ids = flat(kept).map(t => t.id)
       const has = (id?: string) => id !== undefined && ids.includes(id)
       // A session split in cards keeps each card under the task its message was sent from.
-      const moved = sessions.flatMap(split).map(c =>
+      const moved = sessions.flatMap(c => split(c, sessions, ownId)).map(c =>
         c.part !== undefined ? c : has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
       )
       return trimToWork({ ...base, children: moved }, 0)
     }
-    const lines = panel(summary ? cut() : all, 0, 0, '')
+    const lines = panel(summary ? cut() : all, 0, 0, '', ownId)
     const lanes = guides(lines)
 
     // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what

@@ -160,7 +160,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   existir (`$.tool.list`), o painel não mostra a linha "Sessões indisponíveis". No app, a falha
   aparece nela.
 - Sessões filhas (app desktop): vêm de `$.mcp.call('ccd_session_mgmt', 'list_sessions', { linked: true })`,
-  consultado no `session.start`, a cada 10 s (`$.clock.every`) e após cada `start_session`. A lista
+  consultado a cada 3 s (`watchSessions`, com `$.clock.every`; o intervalo é recriado no
+  `session.start` e a cada chamada de ferramenta e prompt do loop principal, porque recarregar o
+  módulo cancela o anterior) e após cada `start_session`. A lista
   exclui a própria sessão: o id dela é o `startedBy` que nenhuma linha listada tem. Em andamento =
   `isRunning` (ícone de ramificação). No teste, o hook `mcp.call` responde `{ value }`.
 - Onde a sessão filha aparece: o `tool.call` de `mcp__ccd_session__start_session` grava em `children`
@@ -185,6 +187,13 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
   novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
   `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`.
+  Rodadas também vêm de mensagens de sessões irmãs (pedido do usuário: "as tarefas que estao
+  aparecendo na sessao filha, nao aparecem na sessao orquestradora"): cada filha publica o que
+  recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A rodada
+  aberta por uma irmã vai sob a tarefa onde estava o cartão da irmã que mandou, seguindo a cadeia
+  (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
+  abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Cartão de rodada já
+  fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
   de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
@@ -196,7 +205,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo
   principal, para versões antigas) a cada mudança do painel (`persist`), dos avisos de espera e das
   próprias filhas (id via `get_session` com `self`), e a sessão que a abriu lê o arquivo no refresh
-  de 10 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
+  de 3 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
   as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ título · nome  d/n · concluída`, com o cartão aberto como os demais.
@@ -279,9 +288,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   interrupção. Sem tempo conhecido (painéis antigos, ou o kit de testes sem relógio), a linha fechada
   mostra "—" (`Row.time === null`). No desktop as colunas são fixas (ver a posição do ícone); no
   terminal o resto vem depois do título, sem colunas.
-- Lista das sessões velha: além do refresh de 10 s (cujo callback não rejeita mais, para não
+- Lista das sessões velha: além do refresh de 3 s (cujo callback não rejeita mais, para não
   encerrar o intervalo), o `prompt.submit` e cada chamada do loop principal leem a lista de novo
-  quando a última leitura tem 10 s ou mais (`refreshStale`; só depois da primeira, no
+  quando a última leitura tem 3 s ou mais (`refreshStale`; só depois da primeira, no
   `session.start`). Sem isso, uma sessão parada podia ficar desenhada como viva e manter os pais em
   andamento.
 - Mensagens a outras sessões (pedido do usuário: "somente encerre tarefas de mensagens enviadas
