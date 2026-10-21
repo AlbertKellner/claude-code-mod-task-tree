@@ -38,6 +38,21 @@ Instale o plugin task-tree do Claude Code a partir do GitHub:
 5. Avise que preciso abrir uma sessão nova para o plugin carregar.
 ````
 
+### Atualizar por uma sessão do Claude Code
+
+Cole este prompt numa sessão (no Claude Code desktop ou no terminal) e o Claude atualiza o plugin para a versão mais recente da `main`:
+
+````text
+Atualize o plugin task-tree do Claude Code para a versão mais recente:
+
+1. Rode `claude plugin list` e anote a versão atual de `task-tree@claude-code-mod-task-tree`.
+2. Rode `claude plugin marketplace update claude-code-mod-task-tree`.
+3. Rode `claude plugin update task-tree@claude-code-mod-task-tree`.
+4. Rode `claude plugin list` de novo, confirme que o plugin está `enabled` e me diga a versão antes e depois.
+5. Se eu carregava o mod por pasta local (`CLAUDE_CODE_PLUGIN_DIRS` em `~/.claude/settings.json` ou `--plugin-dir`), avise que é essa pasta que carrega, e não o plugin atualizado.
+6. Avise que preciso abrir uma sessão nova para a versão nova carregar.
+````
+
 ### Verificar
 
 ```bash
