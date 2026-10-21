@@ -1986,52 +1986,55 @@ describe('anel de contexto da sessão filha', () => {
   }
   const svgOf = async ($: any, start: string) => (await desktop($)).find(s => s.alt.startsWith(start))
 
-  test('42%: anel azul com arco de 42% no pai mais alto, e no cartão', async ($, on) => {
+  test('42%: anel azul com arco de 42% só no cartão da filha, solto na ponta direita; o pai não tem anel', async ($, on) => {
     setup(on, { [K1]: 42 })
     await open($)
-    const top = await svgOf($, 'Em andamento: Investigar')
-    expect(top?.alt).toContain('contexto da sessão um: 42%')
-    expect(top?.source).toContain('<circle class="tk"')
+    // The parent lines keep the ⑂, not the ring.
+    for (const name of ['Em andamento: Investigar', 'Em andamento: Encaminhar']) {
+      const row = await svgOf($, name)
+      expect(row?.source).not.toContain('class="tk"')
+      expect(row?.alt).not.toContain('contexto')
+      expect(row?.source).toContain('<g class="gy" fill="none" stroke-width="1.3">')
+    }
+    // The card: the ring with a 42% arc, at the right end of its label line, apart from the name.
+    const card = await svgOf($, 'Sessão: um (Filha 1)')
+    expect(card?.alt).toContain('contexto da sessão um: 42%')
     const len = 2 * Math.PI * 5.5
-    expect(top?.source).toContain(`class="bl" cx="`)
-    expect(top?.source).toContain(`stroke-dasharray="${((len * 42) / 100).toFixed(2)} ${len.toFixed(2)}"`)
-    // Only the circle: nothing drawn inside it.
-    expect(top?.source).not.toContain('stroke-width="0.9"')
-    // Only on the highest line: not on the task it was opened on.
-    expect((await svgOf($, 'Em andamento: Encaminhar'))?.source).not.toContain('class="tk"')
-    // The card carries it too.
-    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.source).toContain('class="tk"')
-    // Terminal: "42%" before the branch, in the band's color.
+    expect(card?.source).toContain(`stroke-dasharray="${((len * 42) / 100).toFixed(2)} ${len.toFixed(2)}"`)
+    const ringX = Number(/<circle class="tk" cx="([\d.]+)"/.exec(card?.source ?? '')?.[1])
+    const nameX = Number(/font-weight="600">um</.test(card?.source ?? '') ? /<text class="s" x="([\d.]+)"[^>]*font-weight="600">um</.exec(card?.source ?? '')?.[1] : NaN)
+    expect(ringX).toBeGreaterThan(nameX + 100)
+    expect(ringX).toBeGreaterThan((card?.width ?? 0) - 40)
+    // Terminal: on the card's line only, last.
     const lines = await view($)
-    expect(lines.find(l => l.title === 'Investigar')?.text).toContain('Investigar  42%  ⑂')
+    expect(lines.find(l => l.title === 'Investigar')?.text).not.toContain('%')
+    expect(lines.find(l => l.title === 'um')?.text).toMatch(/42%$/)
   })
 
-  test('75% âmbar, 90% vermelho', async ($, on) => {
+  test('75% âmbar, 90% vermelho, no cartão', async ($, on) => {
     const ctx: Record<string, number | undefined> = { [K1]: 75 }
     setup(on, ctx)
     await open($)
-    expect((await svgOf($, 'Em andamento: Investigar'))?.source).toMatch(/class="am" cx="[\d.]+" cy="[\d.]+" r="5.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray/)
+    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.source).toMatch(/class="am" cx="[\d.]+" cy="[\d.]+" r="5.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray/)
     ctx[K1] = 90
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    expect((await svgOf($, 'Em andamento: Investigar'))?.source).toMatch(/class="rd" cx="[\d.]+" cy="[\d.]+" r="5.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray/)
-    expect((await svgOf($, 'Em andamento: Investigar'))?.alt).toContain('contexto da sessão um: 90%')
+    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.source).toMatch(/class="rd" cx="[\d.]+" cy="[\d.]+" r="5.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray/)
+    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.alt).toContain('contexto da sessão um: 90%')
   })
 
   test('sem percentual publicado, sem anel', async ($, on) => {
     setup(on, {})
     await open($)
-    const top = await svgOf($, 'Em andamento: Investigar')
-    expect(top?.source).not.toContain('class="tk"')
-    expect(top?.alt).not.toContain('contexto')
-    expect((await view($)).find(l => l.title === 'Investigar')?.text).not.toContain('%')
+    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.source).not.toContain('class="tk"')
+    expect((await view($)).find(l => l.title === 'um')?.text).not.toContain('%')
   })
 
-  test('duas filhas sob o mesmo pai: mostra a de maior percentual', async ($, on) => {
+  test('duas filhas sob o mesmo pai: cada cartão com o seu anel, o pai sem nenhum', async ($, on) => {
     setup(on, { [K1]: 30, [K2]: 80 })
     await open($, true)
-    const top = await svgOf($, 'Em andamento: Investigar')
-    expect(top?.alt).toContain('contexto da sessão dois: 80%')
-    expect(top?.source).toContain('class="am" cx="')
+    expect((await svgOf($, 'Em andamento: Investigar'))?.source).not.toContain('class="tk"')
+    expect((await svgOf($, 'Sessão: um (Filha 1)'))?.alt).toContain('contexto da sessão um: 30%')
+    expect((await svgOf($, 'Sessão: dois (Filha 2)'))?.alt).toContain('contexto da sessão dois: 80%')
   })
 })
 
@@ -2384,9 +2387,12 @@ describe('sessão arquivada', () => {
     const svgs = await desktop($)
     const parent = svgs.find(s => s.alt.startsWith('Concluída: Delegar'))
     expect(parent?.alt).toContain('com sessão filha')
-    expect(parent?.alt).toContain('contexto da sessão arq: 61%')
-    expect(parent?.source).toContain('<g opacity=".45"><circle class="tk"')
-    expect(svgs.find(s => s.alt.startsWith('Sessão: arq (Teste arquivada)'))?.alt).toContain('arquivada')
+    // The ring only on the card (dim, archived), not on the task it was opened on.
+    expect(parent?.alt).not.toContain('contexto')
+    const arq = svgs.find(s => s.alt.startsWith('Sessão: arq (Teste arquivada)'))
+    expect(arq?.alt).toContain('arquivada')
+    expect(arq?.alt).toContain('contexto da sessão arq: 61%')
+    expect(arq?.source).toContain('<g opacity=".45"><circle class="tk"')
   })
 })
 
@@ -2614,7 +2620,7 @@ describe('textos reais do host (0.7.3)', () => {
     expect(r).toContain('recebimento confirmado')
   })
 
-  test('com turnos, o anel fica no cartão da sessão filha (e sai do nível 1)', async ($, on) => {
+  test('com turnos, o anel fica só no cartão da sessão filha (nem no turno nem no nível 1)', async ($, on) => {
     on('prompt.submit', (_$: any, e: any) => e)
     on('mcp.call', () => ({
       value: {
@@ -2633,7 +2639,8 @@ describe('textos reais do host (0.7.3)', () => {
     await start($, ['A'])
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     const lines = rowsOf(await view($)).map(l => l.text)
-    expect(lines[0]).toContain('42%')
+    // Only on the card: not on the turn nor on the task it was opened on.
+    expect(lines[0]).not.toContain('42%')
     expect(lines.find(l => l.includes('Delegar'))).not.toContain('42%')
     expect(lines.find(l => /^[│ ]*⑂ filha/.test(l))).toContain('42%')
   })

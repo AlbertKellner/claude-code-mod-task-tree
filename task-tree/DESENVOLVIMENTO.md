@@ -131,8 +131,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   contador, tempo nem guia até a tarefa da principal. À esquerda do nome, no lugar do ícone de
   uma tarefa, o ⑂, que é o botão de recolher o cartão (pedido do usuário: "coloque o icone se sessao
   filha do lado esquerdo do nome da sessao, e ele tera a funcao de colapsar o painel"; mesmo `Box`
-  e centragem do ícone de progresso). À direita do nome, como etiquetas: o anel de contexto e o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
-  "parada", "concluída" e "arquivada" apagadas). Contador e tempo da sessão vão só no `alt`
+  e centragem do ícone de progresso). À direita do nome, o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
+  "parada", "concluída" e "arquivada" apagadas); o anel de contexto fica solto na ponta direita da
+  linha. Contador e tempo da sessão vão só no `alt`
   ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
   da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas
   dentro do cartão). O cartão inteiro recolhe pelo clique no ⑂ (no terminal, o glifo ⑂ é o
@@ -420,17 +421,21 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `context: { percent, at }` de `$.session.usage()` (sem `breakdown`, que é caro); a que a abriu
   guarda em `Child.context`. O anel (`contextRing`: trilha cinza, arco do topo em sentido horário,
   azul até 69%, âmbar de 70%, vermelho de 85%; só o círculo, sem nada no centro: "pode ser somente o
-  circular, nao precisa do icone dentro") fica à esquerda do ⑂ na linha
-  mais alta acima da sessão (o turno, se houver; senão o nível 1), com a maior parte entre as
-  sessões dali (`Work.ring`), e no cartão da própria sessão. Sem percentual, sem anel. `alt`:
-  ", contexto da sessão <nome>: 42%"; terminal: "42%" antes do ⑂, na cor da faixa.
+  circular, nao precisa do icone dentro") fica só no cartão da
+  própria sessão, solto na ponta direita da linha do rótulo, na coluna onde termina o tempo das
+  linhas de baixo, longe do nome; a palavra de estado continua logo depois do nome (pedido do
+  usuário: "deve estar solto e na direita da mesma linha"). Linhas de tarefa e de pedido não mostram
+  mais o anel das filhas nem o citam no `alt` (pedido do usuário: "nao precisa colocar esse icone
+  na tarefa pai que originou essas sessoes, porque gera inconsistencia"); o ⑂ continua nelas,
+  marcando que há sessões embaixo. Sem percentual, sem anel. Terminal: "42%" no fim da linha do
+  rótulo, na cor da faixa.
 - Sessão arquivada (pedido do usuário: "Manter visível, marcada"): continua na árvore como histórico,
   sob a âncora, nas duas visões (na resumida, se a âncora estiver no recorte), com o cartão cinza,
   ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros. O
   `panelOf` de uma arquivada marca como interrompido o que ela deixou aberto (fora do M do "N de
   M", no chip de interrompidas). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
-  do cabeçalho; o chip "em andamento" e "sessão ativa" não a contam. Nos ancestrais, a ⑂ continua e o
-  anel mostra o último percentual, esmaecido (`Ring.faded`).
+  do cabeçalho; o chip "em andamento" e "sessão ativa" não a contam. Nos ancestrais, a ⑂ continua; no cartão,
+  o anel mostra o último percentual, esmaecido (`Ring.faded`).
 - Pai aguardando (pedido do usuário: "nas tarefas que estao aguardando e ja tem alguma tarefa
   concluida, marque os pais como aguardando"): uma tarefa ou turno aberto, com algo concluído abaixo e
   nada em andamento (não acesa pelo `current`, sem ✉ nem sessão viva), tem o tom `paused`: ◷ âmbar
