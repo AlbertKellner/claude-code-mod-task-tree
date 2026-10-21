@@ -65,10 +65,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   subagente pendurado; sessão com painel; grupo de subagente) ganha
   `Row.fold = { key, open }`. A escolha do usuário fica no atom `folds` (estado `collapsed`:
   `true` recolhida, `false` aberta; sem entrada, o padrão) e é gravada pelo `setFold`, helper de topo
-  chamado do `onPress` (o render não pode gravar estado). Padrões: tarefa aberta, sessão rodando ou
-  esperando e grupo de subagente com algo aberto vêm abertos; tarefa concluída mostra só o caminho
-  até uma filha viva (`pinned`) e, aberta pelo usuário, todas as subtarefas; sessão parada e grupo
-  fechado vêm recolhidos (o grupo fechado ainda mostra os avisos). Chaves: `<escopo><agente>|t:<id>`
+  chamado do `onPress` (o render não pode gravar estado). Padrão: tudo vem aberto, nada recolhe
+  sozinho ao concluir (pedido do usuário: "quando você finalizar as tarefas, não colapse os itens,
+  se eu quiser, eu mesmo colapso"): tarefa concluída mostra todas as subtarefas, pedido (turno)
+  concluído, cartão de sessão filha em qualquer estado e grupo de subagente fechado vêm abertos.
+  Só a escolha do usuário pelo ▾/▸ recolhe. Chaves: `<escopo><agente>|t:<id>`
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
@@ -76,7 +77,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recolher) e com as escolhas (`lines`, o desenho).
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
-  concluída vem recolhida (só o caminho até uma filha viva fica à vista) e abre pelo ▾/▸. O tom
+  concluída vem aberta, como as outras, e recolhe pelo ▾/▸. O tom
   `section` do desenho ficou sem uso.
 - Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
   (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
@@ -164,10 +165,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `isRunning` (ícone de ramificação). No teste, o hook `mcp.call` responde `{ value }`.
 - Onde a sessão filha aparece: o `tool.call` de `mcp__ccd_session__start_session` grava em `children`
   o `anchor` (a tarefa em andamento da principal, como o `launches` dos subagentes) com o id `local_…`
-  do resultado. A filha faz parte da árvore: fica embaixo dessa tarefa, aberta ou concluída. Uma
-  tarefa concluída continua recolhida; só o caminho até a origem de uma filha rodando ou à espera
-  fica à vista (`pinned` em `rows`). Uma filha parada fica numa linha embaixo da origem, como
-  histórico, e some junto quando a origem é recolhida por um pai concluído. Sem âncora (cartão
+  do resultado. A filha faz parte da árvore: fica embaixo dessa tarefa, aberta ou concluída (a
+  tarefa concluída vem aberta). Uma filha parada fica embaixo da origem, como histórico, e some
+  junto só quando o usuário recolhe a origem ou um pai dela. Sem âncora (cartão
   `own_initiative`, que só começa com o clique) vai para o fim da lista.
   Arquivada fica, como histórico (ver "Sessão arquivada").
 - Ordem de execução (pedido do usuário: tarefas na ordem do plano; grupo novo sempre embaixo dos
@@ -199,9 +199,8 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   de 10 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada sem tarefa aberta: o cartão recolhido, `✓ título · nome  d/n · concluída`.
-  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada` e
-  cartão aberto por padrão, com as tarefas da filha como ela as planejou, cada uma no seu estado
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ título · nome  d/n · concluída`, com o cartão aberto como os demais.
+  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o ▾/▸ continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
@@ -260,7 +259,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `turns`) desenham os níveis 1 soltos, como antes, e esses ficam à frente dos turnos. Desenho só no
   painel de cima (`level === 0`; dentro do cartão de uma filha, os níveis 1 continuam soltos):
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
-  nelas, como no `atWork`), em andamento enquanto algo dele está, recolhida quando tudo fechou
+  nelas, como no `atWork`), em andamento enquanto algo dele está, aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
 - Ícone de sessão filha: toda linha mantém o ícone de progresso (○/◉/✓/✕/✉; no cartão da sessão,
   ◉ rodando ou aguardando, ✓ concluída, ✕ arquivada). O cartão de uma sessão (`Row.session`) e a

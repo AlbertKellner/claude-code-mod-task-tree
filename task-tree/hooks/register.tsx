@@ -1970,9 +1970,9 @@ export const register: Register = on => {
     const opened = (key: string, byDefault: boolean) => (fl[key] === undefined ? byDefault : !fl[key])
 
     // A task line and, while it is open, what hangs below it (`below`) and its subtasks.
-    // Closed tasks are shown collapsed, except for the way down to a task a session still
-    // at work was opened on (`pinned`): that task and the session stay in sight. A task with
-    // anything below it opens and closes (`fold`, keyed under `scope`).
+    // Nothing folds by itself when it is done (the person's words: "se eu quiser, eu mesmo
+    // colapso"): every line comes open and only the ▾/▸ closes it. A task with anything below it
+    // opens and closes (`fold`, keyed under `scope`).
     const rows = (
       items: TaskNode[],
       depth: number,
