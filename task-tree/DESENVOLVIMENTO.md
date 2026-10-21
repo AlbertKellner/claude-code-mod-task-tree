@@ -108,13 +108,19 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `.cs`, cantos de 6 px só na primeira e na última linha) e ganha `PAD` (6 px) em cima, onde o cartão
   abre, e 6 px embaixo por cartão que fecha nela; um cartão de dentro fica 6 px mais estreito à
   direita, e o texto da direita fica dentro do cartão mais interno. A guia que entra no cabeçalho
-  para na borda esquerda do cartão. Cabeçalho da sessão: ícone de ramificação cinza (relógio âmbar
-  só se ela espera sem aviso publicado; check quando parou), só o nome da sessão (`c.name`, ou o título sem nome; o título vai só no `alt`,
-  "Sessão: <nome> (<título>)"; pedido do usuário: "quero somente separar o nome da sessao do nome da
-  tarefa"), contador `d/n`, o
-  estado em palavra quando não está só rodando ("aguardando", "concluída") e o tempo. Subagente:
+  para na borda esquerda do cartão. Cabeçalho da sessão: um rótulo solto, não uma tarefa (pedido do usuário: "deve
+  ser um texto solto nomeando esse painel, e na linha de baixo a tarefa em si"): só o nome
+  (`c.name`, ou o título sem nome), em 12 px, cinza e negrito, sem ícone de progresso, barra,
+  contador, tempo nem guia até a tarefa da principal. Ao lado, como etiquetas: ⑂, o anel de
+  contexto e o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
+  "parada", "concluída" e "arquivada" apagadas). Contador e tempo da sessão vão só no `alt`
+  ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
+  da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas
+  dentro do cartão). O cartão inteiro recolhe pelo clique no próprio rótulo: no terminal o nome é
+  o `Button`; no desktop, um `Button` sem rótulo fica por cima do nome (alinhamento não visto ao
+  vivo). Recolhido, " ⋯" depois do nome. Subagente:
   `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
-  ("⑂ filha  1/2 · aguardando  0:04"), como no esboço 7.3 da análise.
+  ("filha ⑂ aguardando", com as tarefas embaixo), como no esboço 7.3 da análise.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
@@ -226,7 +232,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   de 3 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ nome  d/n · concluída`, com o cartão aberto como os demais.
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `nome ⑂ concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o clique no ícone continua recolhendo. Não se usa `$.store` para isso: a chave
