@@ -2560,3 +2560,30 @@ describe('cartão por mensagem na filha', () => {
     expect(at('Velha em andamento')).toBeLessThan(at('Mandar mais'))
   })
 })
+
+describe('carta azul enquanto espera a entrega', () => {
+  const KID = 'local_33333333-3333-3333-3333-333333333333'
+  const setup = (on: any, result: string) => {
+    on('clock.now', () => ({ value: 100 }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('fs.read', () => ({ value: '{}' }) as any)
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result }))
+  }
+  const send = async ($: any) => {
+    await plan($, [{ id: 'A', title: 'Avisar a filha' }, { id: 'B', title: 'Depois' }])
+    await start($, ['A'])
+    await $.tool.call({ tool: 'SendMessage', to: KID, message: 'faça' } as any)
+  }
+
+  test('na fila, mesmo dizendo quando "will be delivered": o ícone da tarefa do envio é a carta azul', async ($, on) => {
+    setup(on, 'Message queued; it will be delivered when the session finishes its turn')
+    await send($)
+    expect(line(await view($), 'Avisar a filha')).toMatchObject({ glyph: '✉', color: 'permission' })
+  })
+
+  test('com o turno da filha já começado, o ícone segue em andamento', async ($, on) => {
+    setup(on, 'Message delivered to session; its turn has started on it. (delivery: delivered)')
+    await send($)
+    expect(line(await view($), 'Avisar a filha')?.glyph).toBe('◉')
+  })
+})

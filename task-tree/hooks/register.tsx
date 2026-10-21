@@ -1864,7 +1864,10 @@ export const register: Register = on => {
           )
         }
       }
-      if (/queued/i.test(out) && !/delivered/i.test(out) && to !== '') {
+      // Waiting for delivery: queued (or held) and not taken up yet. Only "its turn has started"
+      // confirms; a queued result may still say when it "will be delivered".
+      const waitsDelivery = /queued|held|pending/i.test(out) && !/turn has started/i.test(out)
+      if (waitsDelivery && to !== '') {
         const { value = [] } = await $.state.get(groupsState)
         const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const at = sentAt ?? (await stamp($))

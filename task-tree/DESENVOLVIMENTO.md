@@ -276,7 +276,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   andamento.
 - Mensagens a outras sessões (pedido do usuário: "somente encerre tarefas de mensagens enviadas
   para as filhas, quando houver confirmacao de recebimento"): o `SendMessage` do loop principal cujo
-  resultado diz "queued" (e não "delivered") grava em `sends` `{ to, anchor, at }`, com a tarefa em
+  resultado diz "queued", "held" ou "pending" e não diz "its turn has started" (um "will be
+  delivered" ainda conta como pendente; pedido do usuário: "quando enviar uma mensagem, e a tarefa
+  estiver esperando a entrega, o icone de progresso da tarefa deve ser a carta azul") grava em `sends` `{ to, anchor, at }`, com a tarefa em
   andamento, e o resultado ganha o aviso de manter a tarefa aberta. Enquanto o envio está pendente,
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
