@@ -55,10 +55,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   com a linha inteira interativa, o relógio a fazia piscar a cada segundo. A fonte da camada não
   muda com o relógio. Sobre ela o ponteiro é a seta padrão, não o cursor de texto
   (`cursor:default;user-select:none`; pedido do usuário: "quero que o mouse seja o mouse padrão,
-  seta"). Linha sem corte não tem camada; recolher (▾/▸) não corta nome; terminal sem tooltip.
+  seta"). Linha sem corte não tem camada; recolher não corta nome; terminal sem tooltip.
   Nos testes, o helper `desktop()` ignora as camadas por padrão. Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
-  e os glifos `○ ◉ ✓ ✕ ◷ ⑂ ▸`. A cor fica só no ícone; o título vai em negrito na tarefa em
+  e os glifos `○ ◉ ✓ ✕ ◷ ⑂`; linha recolhida ganha " ⋯" depois do nome (nas duas superfícies). A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.
 - Ícones: anel âmbar com ponto (em andamento), check verde (concluída), círculo cinza (aberta),
   ✕ cinza com "interrompida" à direita (interrompida), relógio âmbar (espera), ramificação cinza
@@ -67,7 +67,13 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   acima de zero: em andamento (tarefas em andamento sem nada aberto embaixo), aguardando (avisos
   desenhados, mais as sessões que esperam sem aviso publicado), interrompidas (fora da
   porcentagem) e sessões ativas.
-- Abrir e recolher (▾/▸): toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
+- Abrir e recolher pelo ícone de progresso (pedido do usuário: "quero que o botao de colapse nao
+  apareca, e que a funcao de colapsar e expandir esteja no icone de progresso da tarefa"): não há
+  coluna ▾/▸. No terminal, o glifo do ícone é o próprio `Button` (só em linha que recolhe); no
+  desktop, o SVG desenha o ícone e um `Button` simples sem rótulo fica por cima dele (`Box`
+  absoluto, acima da camada do tooltip; alinhamento estimado em 8 px por célula, não visto ao
+  vivo). O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
+  Recolhida, a linha ganha " ⋯" depois do nome; o `alt` continua dizendo "recolhida". Toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
   subagente pendurado; sessão com painel; grupo de subagente) ganha
   `Row.fold = { key, open }`. A escolha do usuário fica no atom `folds` (estado `collapsed`:
   `true` recolhida, `false` aberta; sem entrada, o padrão) e é gravada pelo `setFold`, helper de topo
@@ -75,7 +81,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   sozinho ao concluir (pedido do usuário: "quando você finalizar as tarefas, não colapse os itens,
   se eu quiser, eu mesmo colapso"): tarefa concluída mostra todas as subtarefas, pedido (turno)
   concluído, cartão de sessão filha em qualquer estado e grupo de subagente fechado vêm abertos.
-  Só a escolha do usuário pelo ▾/▸ recolhe. Chaves: `<escopo><agente>|t:<id>`
+  Só o clique do usuário no ícone recolhe. Chaves: `<escopo><agente>|t:<id>`
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
@@ -83,7 +89,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recolher) e com as escolhas (`lines`, o desenho).
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
-  concluída vem aberta, como as outras, e recolhe pelo ▾/▸. O tom
+  concluída vem aberta, como as outras, e recolhe pelo clique no ícone. O tom
   `section` do desenho ficou sem uso.
 - Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
   (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
@@ -92,9 +98,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   largura do botão nativo não é conhecida e as guias são desenhadas em posições fixas.
   **Não visto ao vivo** (o acesso ao app para o print foi negado): conferir se o `Box` respeita a
   largura em células e se o `Button` e o `Svg` ficam na mesma linha.
-- Terminal: duas colunas à esquerda para o ▾/▸ do nível 1 ("  " quando não há); mais fundo, a seta
-  vem depois do `├─`, e as guias abaixo de uma linha com seta andam duas colunas (`prefix` recebe
-  os ancestrais da linha). Linha com seta é um `Box` em linha (`Text` das guias, `Button`, `Text`).
+- Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
+  em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
+  tem botão.
 - Cartões (sessão filha e grupo de subagente): a linha de cabeçalho tem `Row.card`; o cartão
   pega ela e as linhas seguintes mais fundas. `frames` calcula, pela sequência de profundidades,
   em que cartões cada linha está (do de fora para o de dentro) e se ela abre ou fecha cada um. Cada
@@ -107,9 +113,8 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   "Sessão: <nome> (<título>)"; pedido do usuário: "quero somente separar o nome da sessao do nome da
   tarefa"), contador `d/n`, o
   estado em palavra quando não está só rodando ("aguardando", "concluída") e o tempo. Subagente:
-  `tipo: descrição`, contador e tempo. O ▾/▸ continua na coluna à esquerda, fora do cartão (no SVG
-  de referência ele fica dentro). No terminal não há caixa: o cartão vira a linha de cabeçalho
-  ("⑂ Filha A · filha  1/2 · aguardando  0:04"), como no esboço 7.3 da análise.
+  `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
+  ("⑂ filha  1/2 · aguardando  0:04"), como no esboço 7.3 da análise.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
@@ -224,7 +229,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ nome  d/n · concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
-  dela"); o ▾/▸ continua recolhendo. Não se usa `$.store` para isso: a chave
+  dela"); o clique no ícone continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
   que as duas sabem.
 - Contador: `total` soma as tarefas da principal (todos os grupos) com as das filhas (as arquivadas
@@ -359,7 +364,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   A resumida é a visão completa de um recorte do painel (pedido do usuário: "a visao resumida deve
   usar a mesma base de logica da visao completa, com o diferencial que ela somente mostra as tarefas
   em andamento e elas somente sao ocultas dessa visao quando todas estao completas"): mesmas linhas,
-  mesmos ▾/▸ e o mesmo estado de abrir e recolher (`collapsed`, compartilhado pelas duas visões, já
+  mesmos botões no ícone e o mesmo estado de abrir e recolher (`collapsed`, compartilhado pelas duas visões, já
   que as chaves são as mesmas). O recorte (`cut` no render, com `trimToWork`) é o trabalho atual:
   seus níveis 1 com os demais dos mesmos turnos (o d/n do turno bate com as linhas), os subagentes
   e as sessões debaixo deles ou ainda vivos; sem `work` (painéis antigos), o turno mais recente com
