@@ -105,9 +105,19 @@ async function desktop($: any, columns = 60, layers = false): Promise<{ alt: str
   const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
   const found = await ui.findAll({ type: 'Svg' })
   await ui.unmount()
-  return found
-    .map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
-    .filter((s: { hover: boolean }) => layers || !s.hover)
+  const all = found.map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
+  // A line that folds is drawn in two Svgs around its Button (the stretch left of the icon has no
+  // alt): read here as one line, the two sources together and the widths added.
+  const out: typeof all = []
+  for (let i = 0; i < all.length; i++) {
+    const s = all[i]
+    if (!s.hover && s.alt === '' && all[i + 1] && !all[i + 1].hover) {
+      const n = all[i + 1]
+      out.push({ ...n, source: s.source + n.source, width: s.width + n.width })
+      i++
+    } else out.push(s)
+  }
+  return out.filter((s: { hover: boolean }) => layers || !s.hover)
 }
 
 describe('plan', () => {
@@ -258,9 +268,10 @@ describe('desktop', () => {
       'Concluída: Sub 1.1',
       'Em andamento: Item 2',
     ])
-    // The header and the lines take the whole width (no ▾/▸ column).
+    // The header and the lines take the whole width (no ▾/▸ column); a line that folds gives the
+    // width of its icon (about 14 px) to the Button that is the icon.
     expect(svgs[0].width).toBe(60 * 8 - 8)
-    expect(svgs.slice(1).every(s => s.width === 60 * 8 - 8)).toBe(true)
+    expect(svgs.slice(1).every(s => s.width <= 60 * 8 - 8 && s.width >= 60 * 8 - 8 - 16)).toBe(true)
     expect(svgs.every(s => s.source.includes('prefers-color-scheme: dark'))).toBe(true)
   })
 
@@ -368,13 +379,16 @@ describe('abrir e recolher', () => {
     const buttons = await ui.findAll({ type: 'Button' })
     expect(buttons.some((b: any) => b.props.label === '▾' || b.props.label === '▸')).toBe(false)
     // One per line with something below (Sessão A, Item 1); none on the leaves.
-    const icons = buttons.filter((b: any) => b.props.label === ' ')
+    // The Button is the icon: its glyph, in the flow between the two stretches of the drawing.
+    const glyphOf = (b: any) => (b.children ?? []).map((c: any) => (typeof c === 'string' ? c : (c.children ?? []).join(''))).join('')
+    const icons = buttons.filter((b: any) => String(b.props.key ?? '').startsWith('fold:') && b.props.plain === true && /^[○◉✓✕◷✉▸]$/.test(glyphOf(b)))
     expect(icons.length).toBe(2)
-    expect(icons.every((b: any) => b.props.plain === true)).toBe(true)
+    // None of them laid over the drawing (an absolute Box sits in whole cells, never on the icon).
+    expect((await ui.findAll({ type: 'Box' })).some((b: any) => b.props.position === 'absolute' && (b.children ?? []).some((c: any) => c.type === 'Button' && String(c.props?.key ?? '').startsWith('fold:')))).toBe(false)
     await ui.press({ key: 'fold:|t:A/1' })
     const svgs = (await ui.findAll({ type: 'Svg' })).map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source) }))
     await ui.unmount()
-    expect(svgs.slice(1).map(s => s.alt)).toEqual(['Em andamento: Sessão A, 1 de 2', 'Concluída: Item 1, 1 de 1, recolhida', 'Em andamento: Item 2'])
+    expect(svgs.slice(1).map(s => s.alt).filter(Boolean)).toEqual(['Em andamento: Sessão A, 1 de 2', 'Concluída: Item 1, 1 de 1, recolhida', 'Em andamento: Item 2'])
     // Folded: " ⋯" after the name.
     expect(svgs.find(s => s.alt.startsWith('Concluída: Item 1'))?.source).toContain('Item 1 ⋯')
   })
@@ -538,7 +552,8 @@ describe('cartões', () => {
     expect(svgs[4].source).toMatch(/height="28"/)
     // The line into the header stops at the card's left edge (icon at 52.5, edge at 40.5).
     // The label has no branch from its task (only the line of the siblings passes by).
-    expect(svgs[2].source).not.toMatch(/class="g" d="[^"]*H/)
+    // The branch from its task comes into the card: down and across to the card's left edge.
+    expect(svgs[2].source).toMatch(/M32\.5 0V\d+M32\.5 \d+H40\.5/)
   })
 
   test('cartão dentro de cartão: a neta fecha os dois na última linha', async ($, on) => {
@@ -567,8 +582,9 @@ describe('cartões', () => {
     // Two cards end here: two fills, and 6 px more for each edge.
     expect(last.source.split('class="cd"').length - 1).toBe(2)
     expect(last.source).toMatch(/height="40"/)
+    // The label folds: drawn in two stretches, each with the two cards' slices.
     const neta = svgs.find(s => s.alt.startsWith('Sessão: neta (Neta)'))
-    expect(neta?.source.split('class="cd"').length - 1).toBe(2)
+    expect(neta?.source.split('class="cd"').length - 1).toBe(4)
   })
 
   test('no terminal, o cartão vira o cabeçalho "título · nome" com o contador', async ($, on) => {
@@ -1389,8 +1405,8 @@ describe('ícone de sessão filha', () => {
     // Desktop: a label, no progress icon (no check), the name, then the branch and the word.
     const svg = (await desktop($)).find(s => s.alt.startsWith('Sessão: filha (Filha A)'))?.source ?? ''
     expect(svg.indexOf('class="gr" d="M')).toBe(-1)
-    expect(svg.indexOf('>filha<')).toBeGreaterThan(-1)
-    expect(svg.indexOf('>filha<')).toBeLessThan(svg.indexOf('<g class="gy" fill="none" stroke-width="1.3">'))
+    // The name is the Button that folds the card; the drawing has the branch and the word.
+    expect(svg).toContain('<g class="gy" fill="none" stroke-width="1.3">')
     expect(svg).toContain('>concluída<')
     state = 'running'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
@@ -1496,7 +1512,8 @@ describe('concluídas com o mesmo layout', () => {
     const titleX = (src: string, name: string) => new RegExp(`x="([\\d.]+)" y="[\\d.]+" font-size="\\d+">${name}<`).exec(src)?.[1]
     const leaf = svgs.find(s => s.alt.startsWith('Em andamento: y'))?.source ?? ''
     expect(leaf).not.toContain('<rect class="tr"')
-    expect(Number(xOf(openRow, ring))).toBeLessThan(Number(titleX(openRow, 'Andando')))
+    // A line that folds has its icon in the Button (not in the drawing); a leaf draws it.
+    expect(xOf(openRow, ring)).toBeUndefined()
     expect(Number(xOf(leaf, ring))).toBeLessThan(Number(titleX(leaf, 'y')))
   })
 
@@ -2962,5 +2979,39 @@ describe('cadeias separadas e na ordem de execução (caso do print)', () => {
     expect(c16.every(i => i > at('Repassar 16'))).toBe(true)
     expect([...c15].sort((a, b) => a - b)).toEqual(c15)
     expect([...c16].sort((a, b) => a - b)).toEqual(c16)
+  })
+})
+
+describe('tooltip e ícone que recolhe, juntos', () => {
+  test('toda linha cortada tem, por cima do texto, a camada com o nome inteiro, sem botão cobrindo', async $ => {
+    const long = (w: string) => `${w} com um nome comprido demais para caber na largura estreita do painel lateral`
+    await plan($, [{ id: 'A', title: long('Pai'), children: [{ id: '1', title: long('Filho'), children: [{ id: 'x', title: long('Neto') }] }, { id: '2', title: long('Folha') }] }])
+    await start($, ['A/1/x'])
+    const props = { ...PANE_PROPS, bodyColumns: 30 }
+    const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
+    const root: any = await ui.drawn()
+    await ui.unmount()
+    // Each Box that holds a line's drawing (the Svg with the alt): when the name is cut, an absolute
+    // Box in it holds an interactive Svg whose title is the whole name; no Button in that Box.
+    const holders: any[] = []
+    const walk = (el: any) => {
+      if (!el || typeof el !== 'object') return
+      const kids = (el.children ?? []).filter((c: any) => c && typeof c === 'object')
+      if (el.type === 'Box' && kids.some((c: any) => c.type === 'Svg' && String(c.props.alt) !== '' && !c.props.isInteractive)) holders.push(el)
+      kids.forEach(walk)
+    }
+    walk(root)
+    const cut = holders.filter(h => (h.children ?? []).some((c: any) => c?.type === 'Svg' && String(c.props.source).includes('…') && String(c.props.alt).includes('nome comprido') && !String(c.props.alt).includes('Visão:')))
+    // The four lines (the header, with its view buttons, aside).
+    expect(cut.length).toBe(4)
+    for (const h of cut) {
+      const svg = h.children.find((c: any) => c?.type === 'Svg' && !c.props.isInteractive)
+      const whole = /: (.*? painel lateral)/.exec(String(svg.props.alt))?.[1]
+      const layer = h.children.find((c: any) => c?.type === 'Box' && c.props.position === 'absolute')
+      const top = layer?.children?.find((c: any) => c?.type === 'Svg')
+      expect(top?.props.isInteractive).toBe(true)
+      expect(String(top?.props.source)).toContain(`<title>${whole}</title>`)
+      expect(JSON.stringify(h)).not.toContain('"type":"Button"')
+    }
   })
 })
