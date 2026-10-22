@@ -2,8 +2,18 @@ import { atom, read, update } from 'claude-code'
 import type { AgentInfo, Register } from 'claude-code'
 
 import type { Child, Group, Launch, LegacyNode, Panel, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
+import {
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
+  ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlay, ringFromRight, textRight,
+} from '../draw/geometry'
+import { ASK, BRIEF, COMMAND, DONE, PROMPT, RULES, SEND, SESSION, TOOLS, UNPLANNED, WRAP_UP } from '../text/rules'
+import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
+import type { Link } from '../state/durability'
 
 const PANE = 'task-tree'
+// The state's keys, as literals (the kit's validator wants them written in this file). Where each
+// lives and how it comes back is the durability table's (../state/durability), which has a row
+// for every one of them (tests/durabilidade.test.ts).
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
@@ -17,12 +27,21 @@ const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
+const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
 // In the state, not a variable of the module: a reload of the mod between the done and the end of
 // the turn (saving a file of the mod mid-turn) kept the variable's value nowhere, and the ↩ line
 // lost the summary. Empty: none given.
 async function lastBrief($: any): Promise<string | undefined> {
   const { value } = await $.state.get(briefState)
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
+// The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete),
+// until the turn ends. In the state for the same reason as the brief: a reload between the wrap_up
+// and the end of the turn kept a module variable's value nowhere, and the card showed the final
+// message instead of the recap. Empty: none given.
+async function lastRecap($: any): Promise<string | undefined> {
+  const { value } = await $.state.get(recapState)
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 // The pane's lines the person opened or closed (see setFold).
@@ -34,52 +53,9 @@ const MAIN = ''
 // than make a new one: background tasks' notifications (a subagent's hand-back), observers'
 // reports, follow-ups of a UI action and the engine's own notices.
 const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-continuation', 'unclassified']
-// How many sessions' panels the store keeps for a resume.
-const KEEP = 30
 
-// The panel's rules, added to the system prompt of every request that offers its tools,
-// so the mod behaves the same on any machine with nothing in CLAUDE.md.
-const RULES = [
-  '# Painel de tarefas (task-tree)',
-  '',
-  'O usuário acompanha o trabalho num painel lateral de tarefas. Regras:',
-  '',
-  '- Todo pedido abre pelo menos uma tarefa no painel, mesmo uma pergunta simples ou respondida só com ' +
-    'pesquisa ou leitura de arquivos. A primeira chamada de ferramenta é mcp__task-tree__plan com a árvore ' +
-    'de tarefas: até 3 níveis (nível 1 genérico, nível 3 mais granular), ids únicos dentro do plano ' +
-    '("1", "1.2", "1.2.3"). Uma tarefa basta para um pedido simples.',
-  '- Abaixo do nível 1 os ids ganham o id dele como prefixo ("D/1.2"). done e start aceitam o id curto ' +
-    'quando não é ambíguo (preferem a tarefa aberta) ou o completo, e avisam no resultado ids ' +
-    'inexistentes, ambíguos ou de outro agente.',
-  '- No primeiro plan de cada mensagem do usuário, passe em `request` um título curto do que foi pedido: ' +
-    'no painel, as tarefas de nível 1 ficam agrupadas pela mensagem em que foram planejadas, com esse título.',
-  '- Etapa por etapa, no momento em que acontece: mcp__task-tree__start ao começar cada tarefa (várias ' +
-    'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
-    'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
-    'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
-  '- No done do último passo do pedido, passe em `summary` um resumo da resposta em até 120 caracteres ' +
-    '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
-    'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
-  '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
-    'substituído do zero no mesmo lugar da lista: remarque com done o que já estava concluído. Um nível 1 ' +
-    'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
-    'concluído, replaneje o nível 1.',
-  '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
-  '- Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a tarefa a ' +
-    'que a pergunta pertence e feche-a só depois da resposta; se a resposta vier pelo chat, feche-a no ' +
-    'início do turno seguinte. AskUserQuestion sem tarefa aberta é recusado.',
-  '- Depois que o usuário responder uma pergunta ou aprovar um plano, atualize o painel (done, start ou ' +
-    'plan) antes de seguir. Se ele responder por mensagem no chat em vez de escolher uma opção, a mensagem ' +
-    'é a resposta.',
-  '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
-    'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
-  '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) fica com o ícone de mensagem (✉) do ' +
-    'envio até a sessão destino começar a tratar a mensagem, mesmo quando a entrega é imediata ' +
-    '("delivered; its turn has started on it"). Não chame done nela: quando o recebimento é confirmado, ' +
-    'o painel a conclui sozinho (mesmo com esta sessão parada). Com "queued", o painel também avisa.',
-  '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
-    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
-].join('\n')
+// The texts the model reads (the rules in the system prompt, the tools' descriptions, the reminders
+// and warnings) are the text module's: ../text/rules.
 
 type InNode = { id: string; title: string; children?: InNode[] }
 
@@ -672,12 +648,7 @@ async function showStatus($: any, groups: Group[]) {
 async function persist($: any, groups: Group[]) {
   await showStatus($, groups)
   try {
-    const id: string = await $.session.id()
-    await $.store.set(`session:${id}`, groups)
-    const known = ((await $.store.get('sessions')) as string[] | undefined) ?? []
-    const order = [id, ...known.filter(k => k !== id)]
-    for (const old of order.slice(KEEP)) await $.store.delete(`session:${old}`)
-    await $.store.set('sessions', order.slice(0, KEEP))
+    await saveGroups($, groups)
   } catch {}
   await publishWait($)
 }
@@ -695,6 +666,8 @@ async function adopt($: any) {
 
 async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
   await ensureGroups($)
+  await ensureView($)
+  await ensureWork($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
   await persist($, groups)
@@ -709,7 +682,7 @@ async function replace($: any, groups: Group[]) {
 // The session's panel as the store keeps it; its subagents do not come back, so what they left
 // open is interrupted.
 async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
-  const kept = (await $.store.get(`session:${id}`)) as Group[] | undefined
+  const kept = (await loadStore($, 'groups', id)) as Group[] | undefined
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
 }
 
@@ -719,33 +692,80 @@ async function restore($: any, id: string) {
   if (groups) await replace($, groups)
 }
 
-// Whether this module has seen the groups since it loaded. session.start brings them back from the
-// store when the state holds none (a new process); a process that restarted without it (the hooks
-// worker respawned after a crash) would otherwise start from nothing: the first write would then
-// overwrite the store with the reduced panel, and the panel and the published file would show it
-// empty. So the first write, drawing or publication of the module brings them back first, as
-// `linksLoaded` does for the links.
+// The groups' "first use" of the table (restoredAt): session.start brings them back from the store
+// when the state holds none (a new process); a process that restarted without it (the hooks worker
+// respawned after a crash) would otherwise start from nothing: the first write would then overwrite
+// the store with the reduced panel, and the panel and the published file would show it empty. So
+// the first write, drawing or publication of the module brings them back first (`loaded`), as the
+// first save does for the links.
 // Answers the groups it brought back, for a caller that cannot write the state (a drawing): the
 // module counts them as loaded only once they are in the state, so the next write brings them back
 // again if this one could not.
-let groupsLoaded = false
 async function ensureGroups($: any): Promise<Group[] | undefined> {
-  if (groupsLoaded) return undefined
+  if (loaded.has('groups') || !restoredAt('groups', 'first-use')) return undefined
   try {
     if ((await $.state.get(groupsState)).value !== undefined) {
-      groupsLoaded = true
+      loaded.add('groups')
       return undefined
     }
     const groups = await keptGroups($, await $.session.id())
     if (groups === undefined) {
-      groupsLoaded = true
+      loaded.add('groups')
       return undefined
     }
     try {
       await $.state.set(groupsState, groups)
-      groupsLoaded = true
+      loaded.add('groups')
     } catch {}
     return groups
+  } catch {
+    return undefined
+  }
+}
+// The view's and the work's "first use" (the table's restoredAt), as ensureGroups: a restart
+// without session.start would otherwise draw the default view and let the next plan write its own
+// work over the store's (the summary view would lose the work in progress). Each answers what it
+// brought, for a drawing that cannot write the state, and counts the key as loaded only once the
+// state holds it. With nothing in the store, nothing is brought: the pane keeps its defaults.
+async function ensureView($: any): Promise<'full' | 'summary' | undefined> {
+  if (loaded.has('view') || !restoredAt('view', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(viewState)).value !== undefined) {
+      loaded.add('view')
+      return undefined
+    }
+    const saved = await loadStore($, 'view')
+    if (saved !== 'full' && saved !== 'summary') {
+      loaded.add('view')
+      return undefined
+    }
+    try {
+      await $.state.set(viewState, saved)
+      loaded.add('view')
+    } catch {}
+    return saved
+  } catch {
+    return undefined
+  }
+}
+async function ensureWork($: any): Promise<string[] | undefined> {
+  if (loaded.has('work') || !restoredAt('work', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(workState)).value !== undefined) {
+      loaded.add('work')
+      return undefined
+    }
+    const saved = await loadStore($, 'work')
+    if (!Array.isArray(saved)) {
+      loaded.add('work')
+      return undefined
+    }
+    const work = saved.map(String)
+    try {
+      await $.state.set(workState, work)
+      loaded.add('work')
+    } catch {}
+    return work
   } catch {
     return undefined
   }
@@ -942,10 +962,7 @@ async function takenNote($: any): Promise<string | undefined> {
     const t = all.find(t => t.id === s.anchor)
     return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
   })
-  return (
-    `Painel de tarefas (task-tree): recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
-    'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.'
-  )
+  return SESSION.taken(what)
 }
 
 // The list read again when it is older than the poll's period: a session drawn at work after
@@ -986,11 +1003,7 @@ async function endedNote($: any): Promise<string | undefined> {
     .filter(x => x.t !== undefined)
     .map(x => `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title})`)
   if (lines.length === 0) return undefined
-  return (
-    `Painel de tarefas (task-tree): terminou o turno a sessão ${lines.join(', a sessão ')}, e a tarefa de ` +
-    'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
-    `concluiu. Tarefas abertas no painel: ${openList(tasks)}.`
-  )
+  return SESSION.ended(lines, openList(tasks))
 }
 
 // The shape of the published file this version writes (`Published.version`). Files from before it
@@ -1080,6 +1093,7 @@ async function selfId($: any): Promise<string | undefined> {
 // task it was opened on, as this session draws it. `tasks` is for earlier versions.
 async function publishWait($: any) {
   await ensureGroups($)
+  await ensureWork($)
   await saveLinks($)
   try {
     const id = await selfId($)
@@ -1214,18 +1228,20 @@ async function dropAsked($: any, agent: string) {
 async function setView($: any, view: 'full' | 'summary') {
   await $.state.set(viewState, view)
   try {
-    await $.store.set(`view:${await $.session.id()}`, view)
+    await saveStore($, 'view', view)
   } catch {}
 }
 // At the session's start: the view chosen before (a reload, a resume), else the summary, the
-// default of a new session.
+// default of a new session (the table's `current`: the state's wins).
 async function restoreView($: any) {
-  if ((await $.state.get(viewState)).value !== undefined) return
+  loaded.add('view')
+  const { value: cur } = await $.state.get(viewState)
+  if (cur !== undefined) return
   let saved: unknown
   try {
-    saved = await $.store.get(`view:${await $.session.id()}`)
+    saved = await loadStore($, 'view')
   } catch {}
-  await $.state.set(viewState, saved === 'full' || saved === 'summary' ? saved : 'summary')
+  await $.state.set(viewState, keepCurrent(cur, saved === 'full' || saved === 'summary' ? saved : 'summary'))
 }
 
 // The current work (the summary view's list): the main group's level-1 tasks opened since all was
@@ -1234,6 +1250,7 @@ async function restoreView($: any) {
 // and in the store under the session, like the view.
 async function nothingOpen($: any): Promise<boolean> {
   await ensureGroups($)
+  await ensureWork($)
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   return activeLeaves({ groups: withMain(groups), waits: [], children }, 0) === 0
@@ -1252,7 +1269,7 @@ async function startsWork($: any): Promise<boolean> {
 async function setWork($: any, ids: string[]) {
   await $.state.set(workState, ids)
   try {
-    await $.store.set(`work:${await $.session.id()}`, ids)
+    await saveStore($, 'work', ids)
   } catch {}
 }
 async function joinWork($: any, ids: string[], fresh: boolean) {
@@ -1264,12 +1281,9 @@ async function joinWork($: any, ids: string[], fresh: boolean) {
 // rounds of their messages; the sends still waiting; the messages received; the subagents'
 // launches) lives in the state, which a reload of the mod empties: kept in the store too, and
 // brought back at the start, else the cards fall to the root and the chains lose their origin.
-// Whether this module brought them back yet: a reload does not run session.start, so the first
-// save brings them back before it writes, and nothing new is lost to the old copy.
-let linksLoaded = false
-// What the store keeps of a session this one linked to: its ties to the tasks, not its state.
-type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds'>
-const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })
+// Whether this module brought them back yet (`loaded`, the table's "first save"): a reload does not
+// run session.start, so the first save brings them back before it writes, and nothing new is lost
+// to the old copy.
 // The links as the store holds them, by session id, this module's copy. The state's `children` are
 // the sessions the host lists (refreshChildren rebuilds them from the list, archived ones included);
 // a session the list leaves out for a while is not in the state, so a save from the state alone
@@ -1279,7 +1293,7 @@ const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, an
 let keptLinks = new Map<string, Link>()
 const keptLink = (id: string): Link | undefined => keptLinks.get(id)
 async function saveLinks($: any) {
-  if (!linksLoaded) await restoreLinks($)
+  if (!loaded.has('links') && restoredAt('children', 'first-save')) await restoreLinks($)
   try {
     const { value: children } = await $.state.get(childrenState)
     const { value: sends } = await $.state.get(sendsState)
@@ -1287,44 +1301,33 @@ async function saveLinks($: any) {
     const { value: launches } = await $.state.get(launchesState)
     const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
     const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
-    await $.store.set(`links:${await $.session.id()}`, { children: links, sends, received, launches })
+    await saveStore($, 'children', { children: links, sends, received, launches })
     keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
-// Merged into what the state may already hold (the host's list read before): a session keeps its
-// fields and gets back the anchors and rounds; the lists get back the entries they lack.
+// Each key of the record merged as the table says (`fill` for the sessions: a session keeps its
+// fields and gets back the anchors and rounds; `union` for the lists: they get back the entries
+// they lack).
 async function restoreLinks($: any) {
-  linksLoaded = true
+  loaded.add('links')
   try {
-    const saved = (await $.store.get(`links:${await $.session.id()}`)) as Record<string, unknown> | undefined
+    const saved = (await loadStore($, 'children')) as Record<string, unknown> | undefined
     if (saved === undefined || saved === null || typeof saved !== 'object') return
     const list = (k: string) => (Array.isArray(saved[k]) ? (saved[k] as any[]) : [])
-    const join = (cur: any[] | undefined, old: any[]) => {
-      const now = cur ?? []
-      const seen = new Set(now.map(x => JSON.stringify(x)))
-      return [...old.filter(x => !seen.has(JSON.stringify(x))), ...now]
-    }
-    const old = list('children') as Child[]
-    keptLinks = new Map(old.filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
-    if (old.length > 0)
-      await update($, childrenState, cur =>
-        cur === undefined || cur.length === 0
-          ? old
-          : cur.map(c => {
-              const o = old.find(k => k.id === c.id)
-              return o ? { ...c, anchor: c.anchor ?? o.anchor, lastAnchor: c.lastAnchor ?? o.lastAnchor, rounds: c.rounds ?? o.rounds } : c
-            }),
-      )
-    if (list('sends').length > 0) await update($, sendsState, cur => join(cur, list('sends')))
-    if (list('received').length > 0) await update($, receivedState, cur => join(cur, list('received')).slice(-20))
-    if (list('launches').length > 0) await update($, launchesState, cur => join(cur, list('launches')).slice(-20))
+    keptLinks = new Map((list('children') as Child[]).filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
+    if (list('children').length > 0) await update($, childrenState, cur => merge('children', cur, list('children')))
+    if (list('sends').length > 0) await update($, sendsState, cur => merge('sends', cur, list('sends')))
+    if (list('received').length > 0) await update($, receivedState, cur => merge('received', cur, list('received')))
+    if (list('launches').length > 0) await update($, launchesState, cur => merge('launches', cur, list('launches')))
   } catch {}
 }
 async function restoreWork($: any) {
-  if ((await $.state.get(workState)).value !== undefined) return
+  loaded.add('work')
+  const { value: cur } = await $.state.get(workState)
+  if (cur !== undefined) return
   try {
-    const saved = await $.store.get(`work:${await $.session.id()}`)
-    if (Array.isArray(saved)) await $.state.set(workState, saved.map(String))
+    const saved = await loadStore($, 'work')
+    if (Array.isArray(saved)) await $.state.set(workState, keepCurrent(cur, saved.map(String)))
   } catch {}
 }
 // A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
@@ -1642,8 +1645,8 @@ function icon(tone: Tone, x: number, y: number): string {
 // Folded by the person: " ⋯" after the name.
 // The label's name as drawn: fitted between its start and its tags.
 function labelName(r: Row, W: number, depth: number, inner: number): { name: string; whole: string; tx: number } {
-  const R = W - 2.5 - 6 * inner - 8
-  const tx = col(depth) + 13
+  const R = textRight(W, inner)
+  const tx = col(depth) + TEXT_IN
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const tags = (r.ring ? 26 : 0) + (r.meta ? textW(r.meta, 11) + 8 : 0)
   return { name: fit(whole, 12, Math.max(24, R - tx - tags)), whole, tx }
@@ -1656,8 +1659,8 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   const parts: string[] = [branch(x, cy, 'gy')]
   const at = tx + textW(name, 12) + 10
   if (r.ring) {
-    const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
-    // Drawn at the middle of its Button's Box (ringOver: the same overBox, whole cells, the line's
+    const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
+    // Drawn at the middle of its Button's Box (ringOver: overlay 'ring', whole cells, the line's
     // whole height), so the highlight has the same room on all four sides (the person's words:
     // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
     // last line up to half the card's edge off the name's middle.
@@ -1667,7 +1670,7 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   // The model and effort, dim, ending just left of the ring (else at the card's right edge); left
   // out when it would run into the name.
   if (r.engine) {
-    const end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - 7.5 - 8 : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
+    const end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
     if (end - textW(r.engine, 11) > at + (r.meta ? textW(r.meta, 11) + 8 : 0))
       parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
   }
@@ -1686,35 +1689,10 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   )
 }
 
-// The Box a Button is centered in over a glyph whose middle is `cx` px from the line's left: whole
-// cells (8 px), 3 or 2 of them, whichever puts the Box's middle nearest the glyph. Both the icon's
-// and the ring's Buttons use it, so their highlights keep the same room around the glyph.
-// `half`: half the glyph's width plus the room wanted on each side; a width that leaves less is
-// passed over while another leaves enough.
-function overBox(cx: number, widths: number[] = [3, 2], half = 0): { left: number; width: number } {
-  const fit = (width: number) => {
-    const left = Math.max(0, Math.round((cx - 4 * width) / 8))
-    const roomy = 8 * left <= cx - half && 8 * (left + width) >= cx + half
-    return { left, width, off: Math.abs(8 * left + 4 * width - cx) + (roomy ? 0 : 1000) }
-  }
-  const best = widths.map(fit).reduce((a, b) => (b.off < a.off ? b : a))
-  return { left: best.left, width: best.width }
-}
-// The context ring is 15 px across (radius 5.5, stroke 2) and its Button's label is an em space, so
-// the native highlight (the label's width plus the button's padding) covers the whole ring, not the
-// corner a one-space label made (the person's words: "o mouse over do anel de contexto continua
-// pequeno, nao envolvendo o icone todo"). That highlight is 32 px wide, 4 cells, and the desktop
-// keeps it at the left of a wider Box (measured on the person's screen: in a 5-cell Box, the ring
-// 7.5 px right of the highlight's middle): the Box is exactly 4 cells, the highlight's own width,
-// and the ring is drawn at its middle.
-// Placed from the line's right end, not its left: the desktop's cell is a little under 8 px
-// (measured on the person's screen, the Box counted from the left landed 7 px left of the ring
-// after some 57 cells), so cells counted from the left drift; from the right, a few cells off the
-// edge, the drift is a fraction of a pixel. The ring is drawn at the Box's middle: the card's
-// right edge less 15 px (on the innermost card, 6 px in per card), moved to a whole cell.
-const RING_CELLS = 4
-const ringRight = (m: number) => Math.max(0, Math.round((17.5 + 6 * m) / 8 - RING_CELLS / 2))
-const ringFromRight = (m: number) => 8 * (ringRight(m) + RING_CELLS / 2)
+// The ring's Button's label is an em space, so the native highlight (the label's width plus the
+// button's padding) covers the whole ring, not the corner a one-space label made (the person's
+// words: "o mouse over do anel de contexto continua pequeno, nao envolvendo o icone todo"). Where
+// the Box goes, in cells, is the geometry module's (overlay 'ring').
 const RING_LABEL = ' '
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
@@ -1761,15 +1739,12 @@ async function engineOf($: any, id: string): Promise<string | undefined> {
 const TIME_W = textW('0:00:00', 12)
 const COUNT_W = textW('00/00', 12)
 
-
-// Where the icon of depth k sits; the guides run through it (+.5 keeps 1 px lines crisp).
-const col = (k: number) => 12 + k * 20 + 0.5
 // The cards a line is drawn in, outermost first: the card of the header at `depth`, whether it
 // starts (`first`) or ends (`last`) on this line. A card takes its header and every line below
-// it deeper than it; its edges add `PAD` px above its first line and below its last.
+// it deeper than it; its edges add `PAD` px above its first line and below its last (the px, and
+// where the columns, cards and overlays sit, are the geometry module's: ../draw/geometry).
 type Card = { depth: number; first: boolean; last: boolean }
 type Frame = { cards: Card[]; top: number; bottom: number }
-const PAD = 6
 // A session's card is headed by a label (its name), not a task line: the tasks inside are its
 // roots, with no tree line to the label. Per row, the depths of the session labels it is inside:
 // their column (col(depth)) is drawn empty.
@@ -1797,12 +1772,12 @@ function frames(rows: Row[]): Frame[] {
   })
 }
 const NO_FRAME: Frame = { cards: [], top: 0, bottom: 0 }
-const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? 30 : 28) + f.top + f.bottom
+const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? ROW_H_TOP : ROW_H) + f.top + f.bottom
 
 // One card's slice on a line, from y0 to y1: its fill, then its border (the top edge on its
 // first line, the bottom one on its last, the sides on all).
 function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, bottom: boolean): string {
-  const r = 6
+  const r = CARD_RADIUS
   const a = (x: number, y: number) => `A${r} ${r} 0 0 1 ${x} ${y}`
   const yt = top ? y0 + r : y0
   const yb = bottom ? y1 - r : y1
@@ -1828,10 +1803,10 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   // right keeps inside the innermost.
   const ends = f.cards.filter(c => c.last)
   const cards = f.cards.map((c, m) => {
-    const L = col(c.depth) - 12
-    const Rc = W - 2.5 - 6 * m
-    const y0 = c.first ? f.top - 3.5 : 0
-    const y1 = c.last ? H - f.bottom + 3.5 + PAD * (ends.length - 1 - ends.indexOf(c)) : H
+    const L = col(c.depth) - CARD_IN
+    const Rc = cardRight(W, m)
+    const y0 = c.first ? f.top - CARD_EDGE : 0
+    const y1 = c.last ? H - f.bottom + CARD_EDGE + PAD * (ends.length - 1 - ends.indexOf(c)) : H
     return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
   })
   const paths: string[] = g.bars.flatMap((on, k) => (on && !hide.includes(k) ? [`M${col(k)} 0V${H}`] : []))
@@ -1839,12 +1814,12 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   // label's height (the person's words: "conecte ela no painel"); the roots of the card have no
   // branch to the label.
   if (r.depth > 0 && !hide.includes(r.depth - 1)) {
-    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - 12 : x - 9}`)
+    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - CARD_IN : x - BRANCH_GAP}`)
   }
-  if (g.down && !r.session) paths.push(`M${x} ${cy + 8}V${H}`)
+  if (g.down && !r.session) paths.push(`M${x} ${cy + GUIDE_FROM}V${H}`)
   if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
   const right: string[] = []
-  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
+  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
   const section = r.tone === 'section'
   const size = section ? 13 : r.depth === 0 && r.tone !== 'wait' ? 14 : 13
   const forked = r.session === true || r.kids === true
@@ -1859,24 +1834,24 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   if (tabular) {
     const t = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
     if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
-    const countX = R - TIME_W - 12
+    const countX = R - TIME_W - RIGHT_GAP
     if (r.sub) {
       const quiet = r.tone === 'interrupted' || r.tone === 'archived'
       right.push(
         `<text class="s" x="${countX}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"${quiet ? ' opacity=".75"' : ''}>${r.sub[0]}/${r.sub[1]}</text>`,
       )
     }
-    const bx = countX - COUNT_W - 8 - 36
+    const bx = countX - COUNT_W - BAR_GAP - BAR_W
     if (r.sub) {
       const [d, n] = r.sub
       right.push(
-        `<rect class="tr" x="${bx}" y="${cy - 2}" width="36" height="4" rx="2"/>`,
-        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (36 * d) / n)}" height="4" rx="2"/>` : '',
+        `<rect class="tr" x="${bx}" y="${cy - 2}" width="${BAR_W}" height="4" rx="2"/>`,
+        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (BAR_W * d) / n)}" height="4" rx="2"/>` : '',
       )
     }
-    const ix = bx - 12
+    const ix = bx - BRANCH_IN
     if (forked) mark = branch(ix, cy, 'gy')
-    edge = ix - 12
+    edge = ix - RIGHT_GAP
     if (r.meta) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)
       edge -= textW(r.meta, 12) + 8
@@ -1884,7 +1859,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   } else {
     const t = typeof r.time === 'number' ? clockText(r.time) : ''
     if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
-    if (t) edge = R - textW(t, 12) - 12
+    if (t) edge = R - textW(t, 12) - RIGHT_GAP
     const words = rightText(r)
     if (words) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(words)}</text>`)
@@ -1892,7 +1867,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
     }
   }
   const lead = section ? '' : icon(progress(r), x, cy)
-  const tx = section ? x - 6 : x + 13
+  const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
@@ -1925,12 +1900,11 @@ function chips(active: number, waiting: number, cut: number, live: number, sent 
 
 // The header: the title alone on the first line (its right end is left to the view icons, drawn
 // over it), the count and time below it, the bar, then the chips.
-const ICONS_W = 72
 function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number): { source: string; height: number } {
-  const L = 8
-  const R = W - 8
+  const L = HEADER_PAD
+  const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
-  const H = empty ? 44 : list.length > 0 ? 88 : 66
+  const H = empty ? HEADER_H_EMPTY : list.length > 0 ? HEADER_H_CHIPS : HEADER_H
   const parts: string[] = []
   if (empty) {
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
@@ -1990,18 +1964,11 @@ export const register: Register = on => {
   let answeredInChat = false
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'task-tree', description: 'Abre o painel da árvore de tarefas e diz o estado dele; com resumida ou completa, troca a visão' })
+    await $.command.register({ name: 'task-tree', description: COMMAND })
     await $.tool.register({
       name: 'plan',
       isDeferred: false,
-      description:
-        'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +
-        'uma aberta com o mesmo id é substituída (replanejamento, que recomeça tudo dentro dela). ' +
-        'Até 3 níveis: nível 1 genérico, nível 3 mais granular. Ids únicos dentro do plano (ex.: "1", "1.2", "1.2.3"); ' +
-        'abaixo do nível 1 eles ganham o id dele como prefixo ("D/1.2"), então planos diferentes podem repetir ids. ' +
-        'Use no início de todo pedido (uma tarefa basta para um pedido simples) e ao replanejar. ' +
-        'No primeiro plan de cada mensagem do usuário, passe em request um título curto do que foi pedido: ' +
-        'o painel agrupa as tarefas de nível 1 por mensagem, com esse título.',
+      description: TOOLS.plan,
       inputSchema: {
         type: 'object',
         required: ['tasks'],
@@ -2011,34 +1978,20 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'done',
       isDeferred: false,
-      description:
-        'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
-        'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
-        'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore. ' +
-        'No done da última etapa do turno, passe summary: a resposta do turno em manchete de até 120 ' +
-        'caracteres (ex.: "Commit 946f653 no PR #5; 151 testes ok"). Sem etapa a fechar, chame done só com summary.',
+      description: TOOLS.done,
       inputSchema: {
         type: 'object',
         required: [],
         properties: {
           ids: { type: 'array', items: { type: 'string' } },
-          summary: {
-            type: 'string',
-            description:
-              'Resumo curto da resposta deste turno, em até 120 caracteres (o que mudou e o resultado), tipo manchete ' +
-              '(ex.: "Commit 946f653 no PR #5; 151 testes ok"). Vira a linha ↩ do painel; a resposta inteira fica no tooltip.',
-          },
+          summary: { type: 'string', description: TOOLS.summary },
         },
       },
     })
     await $.tool.register({
       name: 'start',
       isDeferred: false,
-      description:
-        'Marca tarefas do painel como em andamento (destacadas em amarelo) ao começar cada uma. ' +
-        'Várias podem estar em andamento; sem nenhuma marcada, o painel destaca a primeira aberta. ' +
-        'Em uma tarefa concluída sem subtarefas, reabre a tarefa e os pais dela; ' +
-        'para refazer um pai concluído, replaneje o nível 1 com plan. Ids como no done.',
+      description: TOOLS.start,
       inputSchema: {
         type: 'object',
         required: ['ids'],
@@ -2048,7 +2001,7 @@ export const register: Register = on => {
     // With nothing held (a new process), a resumed session's panel comes back from the store.
     await adopt($)
     if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
-    groupsLoaded = true
+    loaded.add('groups')
     await restoreView($)
     await restoreWork($)
     await restoreLinks($)
@@ -2101,12 +2054,7 @@ export const register: Register = on => {
           ...(e.context ?? []),
           ...(note ? [note] : []),
           ...(taken ? [taken] : []),
-          it.handback
-            ? 'Painel de tarefas (task-tree): o subagente terminou; atualize o painel (mcp__task-tree__done no que ele concluiu).'
-            : kind === 'task-notification'
-            ? 'Painel de tarefas (task-tree): uma tarefa em segundo plano (um subagente, um comando) terminou; ' +
-              'atualize o painel: mcp__task-tree__done no que ela concluiu.'
-            : 'Painel de tarefas (task-tree): mantenha o painel em dia (done no que terminou, start no que começa).',
+          it.handback ? PROMPT.handback : kind === 'task-notification' ? PROMPT.background : PROMPT.notice,
         ],
       })
     }
@@ -2126,31 +2074,11 @@ export const register: Register = on => {
     // is listed, so it is closed rather than left running under the new plan.
     const { value: groups = [] } = await $.state.get(groupsState)
     const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
-    const left = hasOpen(tasks)
-      ? (answeredInChat ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
-        `Painel de tarefas (task-tree): tarefas abertas antes desta mensagem: ${openList(tasks)}. Feche com ` +
-        'mcp__task-tree__done as que esta mensagem conclui ou substitui (por exemplo, a de perguntar ou de ' +
-        'esperar a resposta) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.'
-      : undefined
+    const left = hasOpen(tasks) ? PROMPT.open(openList(tasks), answeredInChat) : undefined
     answeredInChat = false
     return next({
       ...e,
-      context: [
-        ...(e.context ?? []),
-        ...(note ? [note] : []),
-        ...(taken ? [taken] : []),
-        ...(left ? [left] : []),
-        'Painel de tarefas (task-tree): todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
-          'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. A PRIMEIRA chamada de ' +
-          'ferramenta é mcp__task-tree__plan com a árvore de tarefas (até 3 níveis; uma tarefa basta ' +
-          'para um pedido simples). Etapa por etapa: mcp__task-tree__start ao começar cada tarefa e ' +
-          'mcp__task-tree__done assim que ela estiver de fato concluída, antes da próxima (nunca várias de ' +
-          'uma vez no fim). Ao replanejar, chame plan de novo. ' +
-          'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
-          'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
-          'request um título curto do que foi pedido. No done da última etapa do turno, passe summary: ' +
-          'resumo da resposta em até 120 caracteres, tipo manchete.',
-      ],
+      context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(left ? [left] : []), PROMPT.request],
     })
   })
 
@@ -2300,25 +2228,19 @@ export const register: Register = on => {
         const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
         for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
           const t = main.find(t => t.id === s.anchor)
-          if (t && t.status === 'done') notes.push(`a mensagem para ${s.to} ("${t.id}") ainda está na fila, sem confirmação de recebimento`)
+          if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
         }
         // Closed, its send waits no more: no ✉ left behind on an id used again.
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
         // The last step closed with no summary: the ↩ line would say only "resposta".
         if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
-          notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 120 caracteres (vira a linha ↩)')
+          notes.push(DONE.noSummary)
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
       // Several steps never started and closed together: the panel showed the first one in progress
       // all along, then jumped to the last, the steps between at 0:00 (the person's words: "ficou
       // parada muito tempo na primeira tarefa, e derepente pulo para a ultima").
-      if (unstarted.length >= 2) {
-        notes.push(
-          `${unstarted.length} etapas fecharam juntas sem start (${unstarted.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
-            'parado na primeira e elas aparecem com 0:00. Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
-            'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
-        )
-      }
+      if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
       return { result: `Concluídas: ${d}/${n} no seu grupo.` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
     } catch (err) {
       return { result: 'erro: ' + String(err), isError: true }
@@ -2386,11 +2308,9 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
-let lastRecap: string | undefined
-// The ↩ line says the answer in at most BRIEF characters: the summary the session gave, else the
-// first sentence of the answer; longer, cut at a word with "…". The whole answer stays in the tooltip.
-const BRIEF = 120
+// The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
+// that names the limit): the summary the session gave, else the first sentence of the answer;
+// longer, cut at a word with "…". The whole answer stays in the tooltip.
 function brief(text: string): string {
   const one = text.replace(/\s+/g, ' ').trim()
   if (one.length <= BRIEF) return one
@@ -2429,10 +2349,11 @@ const REPLY = 'resposta'
     // words: "adicione nos paineis de sessao, o que foi gerado como resposta"). The end-of-turn
     // recap (wrap_up), which is what the opener's notice carries; else the final message.
     if (!agent && !e.isAborted) {
-      const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
+      const recap = await lastRecap($)
+      const said = (recap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
       const given = await lastBrief($)
       const short = given !== undefined ? brief(given) : undefined
-      lastRecap = undefined
+      if (recap !== undefined) await $.state.set(recapState, '')
       if (given !== undefined) await $.state.set(briefState, '')
       if (said !== '') {
         await change($, all =>
@@ -2483,12 +2404,7 @@ const REPLY = 'resposta'
       if (kind === 'question' && agent === MAIN) {
         const { value = [] } = await $.state.get(groupsState)
         if (!hasOpen(value.find(g => g.agent === MAIN)?.tasks ?? [])) {
-          return {
-            deny:
-              'Painel de tarefas (task-tree): não há tarefa aberta no painel, e uma pergunta sempre fica sob ' +
-              'uma tarefa em andamento. Abra (mcp__task-tree__plan) ou reabra (mcp__task-tree__start) a tarefa ' +
-              'a que esta pergunta pertence e pergunte de novo; feche-a só depois da resposta.',
-          }
+          return { deny: ASK.refused }
         }
       }
       const key = e.tool_use_id
@@ -2500,19 +2416,7 @@ const REPLY = 'resposta'
         if (inChat && agent === MAIN) answeredInChat = true
         const { value = [] } = await $.state.get(groupsState)
         if (!hasOpen(value.find(g => g.agent === agent)?.tasks ?? [])) return r
-        return {
-          ...r,
-          context: [
-            ...(r.context ?? []),
-            inChat
-              ? 'Painel de tarefas (task-tree): o usuário vai responder por mensagem no chat, e a mensagem ' +
-                'dele é a resposta. Ao recebê-la, antes de seguir, feche com mcp__task-tree__done a tarefa ' +
-                'desta pergunta e atualize o painel (start no que começa, plan se o plano mudou).'
-              : 'Painel de tarefas (task-tree): o usuário respondeu. Antes de seguir, atualize o painel: ' +
-                'mcp__task-tree__done no que a resposta concluiu, mcp__task-tree__start no que começa agora, ' +
-                'ou mcp__task-tree__plan se ela mudou o plano.',
-          ],
-        }
+        return { ...r, context: [...(r.context ?? []), inChat ? ASK.inChat : ASK.answered] }
       } finally {
         await dropWaits($, w => w.key !== key)
       }
@@ -2522,7 +2426,7 @@ const REPLY = 'resposta'
     // stays until the next prompt (prompt.submit drops it) or a wrap_up with no question.
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const input = ((e as any).input ?? e) as { ask?: unknown; recap?: unknown }
-      if (agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') lastRecap = input.recap
+      if (agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
       const key = `${agent}:wrap_up:ask`
       await dropWaits($, w => w.key !== key)
       if (typeof input.ask === 'string' && input.ask.trim() !== '') {
@@ -2593,11 +2497,7 @@ const REPLY = 'resposta'
         const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const t = all.find(t => t.id === anchor)
-        notes.push(
-          `Painel de tarefas (task-tree): a mensagem para ${to} ficou na fila, sem confirmação de recebimento. ` +
-            `Mantenha em andamento a tarefa do envio${t ? ` ("${t.id}" ${t.title})` : ''}: o painel avisa quando a ` +
-            'sessão começar a tratá-la, e então a conclui sozinho (pode encerrar o turno).',
-        )
+        notes.push(SEND.queued(to, t ? `"${t.id}" ${t.title}` : undefined))
       }
     }
     const ended = await endedNote($)
@@ -2609,19 +2509,8 @@ const REPLY = 'resposta'
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const { value = [] } = await $.state.get(groupsState)
       const tasks = value.find(g => g.agent === MAIN)?.tasks ?? []
-      if ((await lastBrief($)) === undefined)
-        notes.push(
-          'Painel de tarefas (task-tree): falta o resumo do turno. Antes da mensagem final, chame ' +
-            'mcp__task-tree__done com summary: a resposta em até 120 caracteres, tipo manchete (ids pode ficar vazio).',
-        )
-      if (hasOpen(tasks)) {
-        notes.push(
-          'Painel de tarefas (task-tree): o turno termina com tarefas abertas no painel: ' +
-            `${openList(tasks)}. Antes da mensagem final, marque com mcp__task-tree__done as que já foram ` +
-            'concluídas (inclusive as feitas por outra sessão ou por outro caminho). Deixe abertas só as que ' +
-            'de fato continuam pendentes; com ask, a tarefa da pergunta fica em andamento até a resposta.',
-        )
-      }
+      if ((await lastBrief($)) === undefined) notes.push(WRAP_UP.noBrief)
+      if (hasOpen(tasks)) notes.push(WRAP_UP.open(openList(tasks)))
     }
     if (notes.length > 0) r = { ...r, context: [...(r.context ?? []), ...notes] }
     if (String(e.tool).startsWith('mcp__task-tree__')) {
@@ -2635,15 +2524,7 @@ const REPLY = 'resposta'
     }
     unplanned++
     if (unplanned % 10 !== 1) return r
-    return {
-      ...r,
-      context: [
-        ...(r.context ?? []),
-        'Painel de tarefas (task-tree): há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
-          'abre pelo menos uma tarefa: chame mcp__task-tree__plan agora, mcp__task-tree__start ao começar ' +
-          'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.',
-      ],
-    }
+    return { ...r, context: [...(r.context ?? []), UNPLANNED] }
   })
 
   // The pane's presses, answered by key (see actions), each one logged to the debug log.
@@ -2664,8 +2545,12 @@ const REPLY = 'resposta'
     const drawn = await (async () => {
     const ui = $.ui.resolve(e) as any
     const { Box, Text } = ui
-    // After a restart without session.start, the groups come from the store (see ensureGroups).
+    // After a restart without session.start, the groups, the view and the work come from the store
+    // (see ensureGroups, ensureView, ensureWork): a drawing cannot write the state, so what they
+    // brought is used here.
     const brought = await ensureGroups($)
+    const viewBrought = await ensureView($)
+    const workBrought = await ensureWork($)
     const { value: heldState } = await $.state.get(groupsState)
     const held = heldState ?? brought
     const { value: waits = [] } = await $.state.get(waitsState)
@@ -3007,9 +2892,11 @@ const REPLY = 'resposta'
     // its sessions under the task they were last sent a message from (else where they were opened;
     // one still at work with neither in the work goes at the end), each cut to its own round. Same
     // lines, the same ▾/▸ and the same choices as the full view.
-    const { value: view = 'full' } = await $.state.get(viewState)
+    const { value: heldView } = await $.state.get(viewState)
+    const view = heldView ?? viewBrought ?? 'full'
     const summary = view === 'summary'
-    const { value: work = [] } = await $.state.get(workState)
+    const { value: heldWork } = await $.state.get(workState)
+    const work = heldWork ?? workBrought ?? []
     const cut = (): Panel => {
       const base = { groups: withMain(held ?? []), waits, work: work as string[] }
       const kept = withMain(trimToWork({ ...base, children: [] }, 0).groups).find(g => g.agent === MAIN)?.tasks ?? []
@@ -3064,27 +2951,23 @@ const REPLY = 'resposta'
     // Desktop: the line stays one drawing (the icon in its color, the label inside its card). Only
     // the progress icon folds it (on a session's card, the ⑂ left of its name): an empty-label
     // Button over the icon, its native highlight the icon's size with some room around it. A Box is
-    // placed in whole cells (about 8 px), but what it holds is laid out in pixels: the Box spans an
-    // odd or even number of cells around the icon (3 cells at an even depth, 2 at an odd one, so its
-    // middle falls on col(depth) to half a pixel), the line's whole height, and centers the Button
-    // both ways. A line with nothing below has no Button.
-    const iconBox = (r: Row) => overBox(col(r.depth))
+    // placed in whole cells, the line's whole height, and centers the Button both ways; where each
+    // Box goes (the icon's, the ring's, the name layer's), in cells anchored by the nearest edge, is
+    // the geometry module's `overlay`. A line with nothing below has no Button.
     // The context ring at a session card's right end opens that session (the person's words:
     // "quando clicar nele, abra a sessao que ele representa"): an empty-label Button over the ring,
-    // as over the icon. The ring sits 15 px inside the innermost card's right edge, each card 6 px
-    // inside the one around it; the Box spans 3 cells around it. The app shows it in this window's
-    // main pane (open_session_in, focus); what it refuses is said in a toast.
-    const ringOver = (r: Row, f: Frame, W: number) => {
-      const m = Math.max(0, f.cards.length - 1)
-      const right = ringRight(m)
+    // as over the icon. The app shows it in this window's main pane (open_session_in, focus); what
+    // it refuses is said in a toast.
+    const ringOver = (r: Row, f: Frame) => {
+      const { right, width } = overlay('ring', Math.max(0, f.cards.length - 1))
       return (
-        <Box position="absolute" top={0} bottom={0} right={right} width={RING_CELLS} flexDirection="row" alignItems="center" justifyContent="center">
+        <Box position="absolute" top={0} bottom={0} right={right} width={width} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
         </Box>
       )
     }
     const foldOver = (r: Row) => {
-      const { left, width } = iconBox(r)
+      const { left, width } = overlay('icon', r.depth)
       return (
         <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, press(r))} />
@@ -3095,9 +2978,7 @@ const REPLY = 'resposta'
     // icon's Button.
     const nameLayer = (r: Row, source: string, H: number, RWidth: number) => {
       const { Svg } = ui
-      const box = iconBox(r)
-      const left = Math.max(box.left + box.width, Math.floor((col(r.depth) + 13) / 8))
-      const w = Math.max(16, RWidth - left * 8)
+      const { left, width: w } = overlay('name', r.depth, RWidth)
       return (
         <Box position="absolute" top={0} left={left}>
           <Svg source={hoverLayer(source, w, H)} alt="" width={w} height={H} isInteractive />
@@ -3130,7 +3011,7 @@ const REPLY = 'resposta'
 
     if (e.surface === 'desktop' && 'Svg' in ui) {
       const { Svg } = ui
-      const W = Math.max(240, Math.min(900, ((e.props as any).bodyColumns || 40) * 8 - 8))
+      const W = lineWidth((e.props as any).bodyColumns || 40)
       const top = headerSvg(head, d, n, list, W, headTime)
       const alt =
         (n + x === 0
@@ -3164,7 +3045,7 @@ const REPLY = 'resposta'
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
                   {r.fold ? foldOver(r) : null}
-                  {r.session && r.sid && r.ring ? ringOver(r, cards[i], RW) : null}
+                  {r.session && r.sid && r.ring ? ringOver(r, cards[i]) : null}
                   {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
