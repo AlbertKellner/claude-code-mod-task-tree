@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { AgentInfo, Register } from 'claude-code'
 
-import type { Child, Group, Launch, LegacyNode, Panel, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
+import type { Child, Group, Launch, LegacyNode, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
 import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlays, ringFromRight, textRight,
@@ -14,6 +14,7 @@ import { MAIN, flat, tasksOf, hasOpen, withMain, stop, interrupt, count, live, t
 import type { Tone, Row, Frame, Guide } from '../draw/layout'
 import { debug } from '../io/log'
 import { publishWait, readPublished } from '../io/publish'
+import { deriveChildren, engineText, listSessions, mineOf, readFiles } from '../io/host'
 
 const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in this file). Where each
@@ -424,27 +425,22 @@ async function inDesktopApp($: any) {
   }
 }
 
-// The sessions this one opened, from the desktop app's list of linked sessions. That list
-// leaves this session out, so its own id is the `startedBy` no listed session carries.
+// The sessions this one opened, read in the four steps of io/host.ts: the host's list, their
+// published files, the children derived from both, and this session's own publication. The state
+// calls stay here (the kit wants the state keys literal in the hooks module).
 // When the list was last read (clock ms), by the 10 s poll or otherwise.
 let refreshedAt: number | undefined
 async function refreshChildren($: any) {
   refreshedAt = (await stamp($)) ?? refreshedAt
-  let rows: any[] = []
-  try {
-    const r = await $.mcp.call('ccd_session_mgmt', 'list_sessions', { linked: true, include_archived: true, limit: 100 })
-    const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
-    if (r.isError) throw new Error(body)
-    // With no linked session the host answers in plain text ("No other sessions found."), not
-    // an empty JSON list.
-    rows = /^\s*No .*sessions? found/i.test(body) ? [] : JSON.parse(body)
-    await $.state.set(childrenErrorState, '')
-  } catch (err) {
-    // Shown in the panel: a failure here would otherwise leave the sessions silently out.
-    // Outside the desktop app there are no sessions to show, so no line either.
-    await $.state.set(childrenErrorState, (await inDesktopApp($)) ? String(err).slice(0, 200) : '')
+  // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
+  // outside the desktop app there are no sessions to show, so no line either.
+  const listed = await listSessions($)
+  if ('error' in listed) {
+    await $.state.set(childrenErrorState, (await inDesktopApp($)) ? listed.error : '')
     return
   }
+  await $.state.set(childrenErrorState, '')
+  const rows = listed.rows
   if (!Array.isArray(rows)) return
   // Messages queued to any session (its children, its mother, its sisters): before the returns below.
   await watchSends($, rows)
@@ -453,80 +449,21 @@ async function refreshChildren($: any) {
     await update($, childrenState, () => [])
     return
   }
-  const listed = rows.map(r => r.sessionId)
-  const own = rows.map(r => r.startedBy).find(s => typeof s === 'string' && !listed.includes(s))
-  if (own === undefined) return
-  // The host tells running from idle only; whether a session waits on the person, its
-  // own task-tree publishes (see publishWait).
-  const mine = rows.filter(r => r.startedBy === own)
-  const waiting: string[] = []
-  const panels: Record<string, Panel> = {}
-  const contexts: Record<string, number> = {}
-  const engines: Record<string, string> = {}
-  for (const r of mine) {
-    try {
-      // No file, or one this version cannot read: the session shows by the host's row alone.
-      const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
-      if (file.waiting) waiting.push(r.sessionId)
-      if (file.context) contexts[r.sessionId] = file.context.percent
-      if (file.engine) engines[r.sessionId] = file.engine
-      else {
-        const known = await engineOf($, r.sessionId)
-        if (known) engines[r.sessionId] = known
-      }
-      if (file.groups) {
-        panels[r.sessionId] = {
-          groups: file.groups,
-          waits: file.waits,
-          children: file.children,
-          ...(file.work ? { work: file.work } : {}),
-          ...(file.received ? { received: file.received } : {}),
-          ...(file.sends ? { sends: file.sends } : {}),
-        }
-      } else if (file.tasks) {
-        panels[r.sessionId] = { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }
-      }
-    } catch {}
-  }
-  // Sessions whose turn just ended (running or waiting before, stopped now): the main loop is
-  // reminded of the task it opened them on (see endedNote). A session just opened counts only
-  // once the host has seen it run: right after start_session the host may still list it idle.
+  const mine = mineOf(rows)
+  if (mine === undefined) return
+  // 2. Their files.
+  const read = await readFiles($, mine)
+  // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
+  // it opened them on (see endedNote).
   let ended: string[] = []
   await update($, childrenState, cur => {
-    const known = cur ?? []
-    ended = mine
-      .filter(r => {
-        const before = known.find(k => k.id === r.sessionId)
-        const stopped = r.isRunning !== true && r.isArchived !== true && !waiting.includes(r.sessionId)
-        return before !== undefined && before.starting !== true && (before.running || before.waiting === true) && stopped
-      })
-      .map(r => r.sessionId)
-    return mine
-      .map(r => {
-        const before = known.find(k => k.id === r.sessionId)
-        const seen = r.isRunning === true || r.isArchived === true || waiting.includes(r.sessionId)
-        return {
-          starting: before?.starting === true && !seen ? true : undefined,
-          id: r.sessionId,
-          name: String(r.name ?? ''),
-          title: String(r.title ?? r.name ?? r.sessionId),
-          running: r.isRunning === true,
-          archived: r.isArchived === true,
-          waiting: r.isArchived !== true && waiting.includes(r.sessionId),
-          context: contexts[r.sessionId] ?? before?.context,
-          engine: engines[r.sessionId] ?? before?.engine,
-          // A session the host lists again after leaving it out: its ties come back from the store's copy.
-          lastAnchor: before?.lastAnchor ?? keptLink(r.sessionId)?.lastAnchor,
-          rounds: before?.rounds ?? keptLink(r.sessionId)?.rounds,
-          anchor: before?.anchor ?? keptLink(r.sessionId)?.anchor,
-          panel: panels[r.sessionId] ?? before?.panel,
-          tasks: panels[r.sessionId] ? undefined : before?.tasks,
-        }
-      })
+    const derived = deriveChildren(mine, cur ?? [], read, keptLink)
+    ended = derived.ended
+    return derived.children
   })
   if (ended.length > 0) await update($, endedState, cur => [...(cur ?? []).filter(id => !ended.includes(id)), ...ended])
-  // The sessions' tasks are in this session's count, and in what it publishes to the one
-  // that opened it.
+  // 4. The sessions' tasks are in this session's count, and in what it publishes to the one that
+  // opened it.
   const { value: groups = [] } = await $.state.get(groupsState)
   await showStatus($, groups)
   if (mine.length > 0) await publishPanel($)
@@ -1121,34 +1058,6 @@ async function openSession($: any, id: string, name: string) {
   } catch (err) {
     await $.ui.toast(`Não abriu ${name}: ${String(err).slice(0, 120)}`)
   }
-}
-
-// A session's model and effort in a few words, as its card shows them left of the ring: the model's
-// readable name ("claude-opus-5-5" → "Opus 5.5", "claude-sonnet-5-5[1m]" → "Sonnet 5.5") and the
-// effort level ("Opus 5.5 · high"); a name it cannot read stays as given, cut short.
-function engineText(model: string, effort?: string | number): string {
-  const id = model.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
-  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(id)
-  const name = m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] !== undefined ? `.${m[3]}` : ''}` : id.slice(0, 24)
-  return effort === undefined || effort === '' ? name : `${name} · ${effort}`
-}
-
-// A session that has not published its model yet (no model request since it got this version):
-// the app's own record of it (get_session's model and effort), kept a minute per session, so the
-// 3 s reread does not ask the app each time.
-const engineSeen = new Map<string, { at: number; text?: string }>()
-async function engineOf($: any, id: string): Promise<string | undefined> {
-  const now = Date.now()
-  const hit = engineSeen.get(id)
-  if (hit && now - hit.at < 60000) return hit.text
-  let text: string | undefined
-  try {
-    const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: id })
-    const body = JSON.parse((r?.content ?? []).map((c: any) => c?.text ?? '').join(''))
-    if (!r?.isError && typeof body?.model === 'string' && body.model !== '') text = engineText(body.model, typeof body.effort === 'string' ? body.effort : undefined)
-  } catch {}
-  engineSeen.set(id, { at: now, text })
-  return text
 }
 
 // The desktop's time column: room for "0:00:00".
