@@ -115,3 +115,35 @@ export function overlay(kind: 'icon' | 'ring' | 'name', n: number, W = 0): Overl
   const left = Math.max(box.left + box.width, Math.floor((col(n) + TEXT_IN) / CELL))
   return { left, width: Math.max(16, W - left * CELL) }
 }
+
+// Every Box laid over one line, in drawing order (the last on top): the icon's Button when the line
+// folds, the ring's Button when the line is a session card with a ring (`nested` cards inside the
+// outermost), the name layer when the name is cut (`hover`). `left`/`right` and the width of the
+// Buttons are in cells; the name layer's width is in px (it is an Svg). One rule for all of them:
+// no two Boxes on one line cross (see crossings), so a press lands on the Button it aims at.
+export type Placed = { kind: 'icon' | 'ring' | 'name'; left?: number; right?: number; width: number }
+export function overlays(line: { depth: number; folds: boolean; ring: boolean; hover: boolean }, nested: number, W: number): Placed[] {
+  const out: Placed[] = []
+  if (line.folds) out.push({ kind: 'icon', ...overlay('icon', line.depth) })
+  if (line.ring) out.push({ kind: 'ring', ...overlay('ring', nested) })
+  if (line.hover) out.push({ kind: 'name', ...overlay('name', line.depth, W) })
+  return out
+}
+// The px a Box spans on a line of `W` px, from its left edge: cells become px at CELL each.
+export function spanOf(p: Placed, W: number): [number, number] {
+  if (p.kind === 'name') return [(p.left ?? 0) * CELL, (p.left ?? 0) * CELL + p.width]
+  if (p.right !== undefined) return [W - (p.right + p.width) * CELL, W - p.right * CELL]
+  return [(p.left ?? 0) * CELL, ((p.left ?? 0) + p.width) * CELL]
+}
+// The pairs of Boxes on one line that cross (overlap by more than touching edges).
+export function crossings(list: Placed[], W: number): [Placed, Placed][] {
+  const out: [Placed, Placed][] = []
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const [a0, a1] = spanOf(list[i], W)
+      const [b0, b1] = spanOf(list[j], W)
+      if (a0 < b1 && b0 < a1) out.push([list[i], list[j]])
+    }
+  }
+  return out
+}
