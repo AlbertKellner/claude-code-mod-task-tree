@@ -457,15 +457,13 @@ function total(p: Panel, level = 0): [number, number, number] {
 // The sessions opened on a task or below it (archived ones as history): their tasks add to its count and
 // its time, and while one is still at work the task is drawn in progress, its clock running,
 // whatever its own status says.
-// `ring`: the session below with the largest share of its context used (see contextRing).
+// `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
 type Ring = { percent: number; name: string; faded?: boolean }
 const ringOf = (c: Child): Ring | undefined =>
   typeof c.context === 'number' ? { percent: c.context, name: c.name || c.title, ...(c.archived ? { faded: true } : {}) } : undefined
-type Work = { busy: boolean; any: boolean; d: number; n: number; tasks: TaskNode[]; ring?: Ring }
+type Work = { busy: boolean; any: boolean; d: number; n: number; tasks: TaskNode[] }
 const idle: Work = { busy: false, any: false, d: 0, n: 0, tasks: [] }
-const topRing = (rings: (Ring | undefined)[]) =>
-  rings.reduce<Ring | undefined>((top, r) => (r && (!top || r.percent > top.percent) ? r : top), undefined)
 // A panel's tasks with its sessions' (archived ones too), as deep as the count follows them.
 function allTasks(p: Panel, level: number): TaskNode[] {
   const own = tasksOf(p.groups ?? [])
@@ -483,8 +481,7 @@ function atWork(t: TaskNode, sessions: Child[], level: number): Work {
     n += cn
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
-  const ring = topRing(mine.map(c => ringOf(c)))
-  return { busy: mine.some(live), any: mine.length > 0, d, n, tasks, ring }
+  return { busy: mine.some(live), any: mine.length > 0, d, n, tasks }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
@@ -1496,14 +1493,13 @@ const GLYPH: Record<Tone, [string, string]> = {
   paused: ['◷', 'warning'],
 }
 // Two columns at the left for the ▾/▸ of the level-1 lines; deeper, the ▾/▸ goes after the
-// branch, so the guides below a line that has one move two columns right (`up` holds the
-// line's ancestors by depth).
+// branch, so the guides below a line that has one move two columns right.
 // No ▾/▸ column: a level-1 line starts at its icon; deeper, the guides of the ancestors and the
 // branch, three columns each.
 // Inside a session's card (`hide`, its label's depth) the label's column is left out: the card's
 // roots start under the label, with no branch to it, and the label has none to its task (the
 // siblings' line passes by).
-const prefix = (r: Row, g: Guide, _up: Row[], hide: number[] = []) =>
+const prefix = (r: Row, g: Guide, hide: number[] = []) =>
   r.depth === 0
     ? ''
     : g.bars.map((on, k) => (hide.includes(k) ? '' : on ? '│  ' : '   ')).join('') +
@@ -1881,11 +1877,6 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
     const ix = bx - 12
     if (forked) mark = branch(ix, cy, 'gy')
     edge = ix - 12
-    if (r.ring) {
-      const ring = contextRing(r.ring.percent, ix - 18, cy)
-      mark += r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring
-      edge -= 18
-    }
     if (r.meta) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)
       edge -= textW(r.meta, 12) + 8
@@ -2713,7 +2704,6 @@ const REPLY = 'resposta'
       top: number,
       lit: string[],
       below: (t: TaskNode, depth: number) => Row[],
-      pinned: string[],
       scope: string,
       work: (t: TaskNode) => Work = () => idle,
     ): Row[] =>
@@ -2769,7 +2759,7 @@ const REPLY = 'resposta'
         const key = `${scope}t:${t.id}`
         // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
         const kids = t.children
-        const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, pinned, scope, work)] : []
+        const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work)] : []
         row.fold = { key, open: rest.length > 0 }
         row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.tasks]
         return [row, ...rest]
@@ -2785,7 +2775,6 @@ const REPLY = 'resposta'
       top: number,
       lit: string[],
       below: (t: TaskNode, depth: number) => Row[],
-      pinned: string[],
       scope: string,
       work: (t: TaskNode) => Work,
       // The turn's own ↩ (the top panel's): a card draws its session's answers below its tasks.
@@ -2829,7 +2818,7 @@ const REPLY = 'resposta'
         kids: ws.some(w => w.any) || undefined,
       }
       // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-      const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work) : []
+      const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work) : []
       row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.tasks)]
       // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
       // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -2915,7 +2904,6 @@ const REPLY = 'resposta'
 
       const main = groups.find(g => g.agent === MAIN) as Group
       const allIds = flat(main.tasks).map(t => t.id)
-      const pinned = sessions.filter(live).map(c => c.anchor ?? '')
       const loose = sessions.filter(c => c.anchor === undefined || !allIds.includes(c.anchor))
       // A group's tasks from `top` (`list`), with what hangs below them. Its subagents' groups
       // go under the task they were launched on, hidden with it once it closes; one launched
@@ -2961,8 +2949,8 @@ const REPLY = 'resposta'
             ? []
             : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || drawn.filter(t => t.turn === u.id).length > 1))
         const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
-        lines.push(...rows(loose, top, top, lit, below, g.agent === MAIN ? pinned : [], inScope, work))
-        for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle), level === 0))
+        lines.push(...rows(loose, top, top, lit, below, inScope, work))
+        for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), level === 0))
         if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
         return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
       }
@@ -3216,21 +3204,18 @@ const REPLY = 'resposta'
               ))}
             </Text>,
           ]
-    // The line's ancestors by depth, for the guides of the lines below a ▾/▸.
-    const up: Row[] = []
     return (
       <Box flexDirection="column">
         {errorLine}
         {header}
         {lines.map((r, i) => {
-          up[r.depth] = r
           const [glyph, color] = GLYPH[progress(r)]
           const forked = r.session === true || r.kids === true
           const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
           const words = rightText(r)
           const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
           const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
-          const lead = prefix(r, lanes[i], up, hides[i])
+          const lead = prefix(r, lanes[i], hides[i])
           // A session's label: its name (the Button that folds its card), its tags, no count or time.
           // A session's label: the ⑂ (the Button that folds the card) left of its name, then its tags.
           const parts = r.session ? [
@@ -3247,7 +3232,6 @@ const REPLY = 'resposta'
             glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
             <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
             r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
-            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
             tail ? <Text key="tail" dimColor>{tail}</Text> : null,
           ]
           if (!r.fold) {

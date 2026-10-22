@@ -20,6 +20,11 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
+Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
+(R8, com os 3 bugs corrigidos), contrato `Published` (R9), limite de linhas (R15) e limpeza de resíduos
+(R20: removidos `Work.ring`/`topRing`, o anel na linha de tarefa, o parâmetro `pinned` e `_up`/`up`).
+Critério atendido: um teste falha se o desenho crescer 50% ou se qualquer SVG mudar sem golden novo.
+
 ## Validar e testar
 
 Use o binário da mesma versão do Claude Code que roda a sessão. Versões antigas acusam erros
@@ -224,14 +229,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   nativo for simétrico. Linha sem nada embaixo não tem botão. A camada do tooltip cobre o nome
   cortado inteiro e começa depois do `Box` do ícone. Não usar a linha em três peças (Svg | Button
   | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou, corrija"): o desktop desenha o
-  `Button` como botão nativo opaco e os SVGs cortados deslocavam o cartão. Não há
-  controle visível; ao passar o mouse, o realce nativo aparece na linha toda. Linha sem nada embaixo
-  não tem botão. Em nome cortado, a camada do tooltip cobre só o nome e fica acima do `Button`:
-  sobre o nome aparece o nome completo e o clique ali não recolhe; o resto da linha recolhe (o
-  mesmo ponto não faz os dois, porque a camada é uma moldura que toma o ponteiro). Não usar a linha
-  em três peças (Svg | Button | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou,
-  corrija"): o desktop desenha o `Button` como botão nativo opaco e os SVGs cortados deslocavam o
-  cartão e tiravam o rótulo da moldura. Não visto ao vivo: se o botão sobre a imagem que muda a
+  `Button` como botão nativo opaco e os SVGs cortados deslocavam o cartão. Não há controle visível. Não visto ao vivo: se o botão sobre a imagem que muda a
   cada segundo pisca. O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
   Recolhida, a linha ganha " ⋯" depois do nome; o `alt` continua dizendo "recolhida". Toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
   subagente pendurado; sessão com painel; grupo de subagente) ganha
@@ -251,13 +249,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
   concluída vem aberta, como as outras, e recolhe pelo clique. O tom
   `section` do desenho ficou sem uso.
-- Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
-  (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
-  com `W - 24` px. O cabeçalho continua com a largura toda. A seta fica nessa coluna à esquerda,
-  não ao lado do ícone como no SVG de referência (alternativa da seção 7.5 da análise), porque a
-  largura do botão nativo não é conhecida e as guias são desenhadas em posições fixas.
-  **Não visto ao vivo** (o acesso ao app para o print foi negado): conferir se o `Box` respeita a
-  largura em células e se o `Button` e o `Svg` ficam na mesma linha.
+- Desktop: a linha é um `Svg` com o ícone de progresso clicável por um `Button` vazio num `Box` absoluto
+  (ver o item do clique no ícone acima). Não há coluna de botão nem seta à esquerda: o `GUTTER` foi removido.
 - Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
   em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
   tem botão.
