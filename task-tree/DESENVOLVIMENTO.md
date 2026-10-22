@@ -15,6 +15,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
 - `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
+- `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 ## Validar e testar
@@ -65,6 +66,35 @@ lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho 
   cenários que batem. Segunda rodada: "Nada a atualizar". A aprovação é o diff do `svg.ts`.
 - Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
   (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
+
+### Reinício e recarga
+
+`tests/reinicio.test.ts` (8 testes, com o fixture `REAL`) cobre dois casos:
+
+- **Reinício do processo** (`$.state` vazio, store cheio): cada teste do kit é um módulo novo com
+  `$.state` vazio; o store passa entre testes por um objeto compartilhado. Testado com e sem `session.start`.
+- **Recarga a quente** (state mantido, módulo novo, sem `session.start`): `seedState` põe hooks
+  `state.get`/`state.set` abaixo do kit, espelha as escritas e devolve o state semeado nas leituras vazias
+  (as versões continuam do kit). O teste de recarga recebe o state exato que o módulo montou no reinício anterior.
+
+O que sobrevive a quê, como medido: `$.state` sobrevive à recarga e não ao reinício; o store sobrevive a
+tudo; variáveis do módulo não sobrevivem a nada.
+
+**Falhas conhecidas (`KNOWN`):** o kit não tem skip/todo. `known(nome, ok, detalhe)` e a lista `KNOWN`:
+o cenário com bug imprime `TODO …` e passa; quando o bug for corrigido, o teste falha pedindo para tirar o
+nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
+
+1. `reinicio-sem-session-start`: sem `session.start`, `change()` parte de `[]` e `persist()` sobrescreve
+   `session:<id>`; `start(['98'])` responde "não existe" e o store vai de 97 para 0 tarefas. Correção prevista:
+   guarda em `change()`, como o `linksLoaded`.
+2. `links-lista-parcial`: com a lista do host parcial, `restoreLinks` só mapeia as filhas listadas e
+   `saveLinks` grava o store sem as outras (uma filha com 20 rodadas some). Correção prevista: unir as
+   antigas em `restoreLinks`.
+3. `recarga-perde-summary`: `lastBrief` é variável do módulo; `done` com `summary` → recarga →
+   `turn.complete` deixa o turno sem ↩ com o resumo (fica a mensagem final). Correção prevista: `lastBrief`
+   no `$.state`.
+
+Limite: o kit não simula o respawn real do worker.
 
 ## Desenho do painel
 
