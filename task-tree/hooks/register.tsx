@@ -368,7 +368,9 @@ function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),
       waiting: at ? c.waiting : false,
-      context: at ? c.context : undefined,
+      // Every card shows the session's ring, at work or not: its last reported share (the person's words:
+      // "mesmo depois que a sessao termina, o icone se contexto precisa continuar aparecendo").
+      context: c.context,
       tasks: undefined,
       panel: {
         ...p,

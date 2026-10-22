@@ -149,9 +149,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
   cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. A linha mostra um
-  resumo de até 60 caracteres, e o tooltip a resposta inteira (pedido do usuário: "devem ser um
-  resumo, no maximo 60 caracteres"). Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
-  sessão, tipo manchete (ex.: "Cartões na raiz: causa na recarga; correção enviada"); acima de 60
+  resumo de até 120 caracteres (`BRIEF`), e o tooltip a resposta inteira (pedido do usuário: "devem
+  ser um resumo", depois "aumente a resposta para 120 caracteres, esta muito sucinto"; antes eram
+  60). Se a linha não couber na largura, o corte visual com "…" e o tooltip continuam. Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
+  sessão, tipo manchete, com o que mudou e o resultado (ex.: "Cartões na raiz: causa na recarga; correção
+  enviada"); acima de 120
   caracteres, corta no limite de uma palavra com "…". Sem `summary`, a linha mostra só "resposta",
   com a resposta inteira no tooltip; nunca o texto da resposta cortado (pedido do usuário: "nao
   ficou bom, voce esta imprimindo o texto integral cortado. quero que seja um resumo da resposta,
