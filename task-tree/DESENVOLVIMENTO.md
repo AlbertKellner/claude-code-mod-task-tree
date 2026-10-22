@@ -139,7 +139,7 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 `tests/sobreposicao.test.ts` (6 testes) confere que `overlays()` dá os mesmos `Box` que `overlay()` dava
 (7 profundidades × 4 aninhamentos), os trechos em px, e a regra "nenhum par de `Box` na mesma linha se
 cruza": estado real nas duas visões em 6 larguras (30–112 colunas), ícone × anel (8 × 4 × 5) e ícone ×
-camada do nome. Uma falha conhecida está marcada `KNOWN` (ver Pendências).
+camada do nome (a camada vai da coluna do nome até a borda ou, com anel, até o `Box` do anel; `overlay('name', depth, W, ringNested?)`, nunca abaixo de `NAME_MIN` = 16 px). Nenhuma falha conhecida: a que o teste revelou (a camada cobria o anel, e o clique nele não abria a sessão) foi corrigida no bug 2 da fase 3. Só a área do tooltip do nome cortado num cartão com anel mudou (32 px a menos, mais com cartões aninhados); nenhum pixel do SVG.
 
 - O rótulo do botão do ícone é um espaço em (U+2003), não um espaço comum: é de propósito (dá ao realce
   nativo a largura certa). Com espaço comum, o teste "só o ícone recolhe" cai. Ferramentas de edição
@@ -846,11 +846,6 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ## Pendências
 
-- Bug conhecido (`KNOWN` em `sobreposicao.test.ts`; decisão do usuário): numa sessão com nome cortado e
-  anel, a camada de tooltip do nome vai da coluna do nome até a borda direita e cobre o `Box` do anel
-  (4 células), desenhada por cima: o clique no anel cai na camada e não abre a sessão. Em 472 px: anel
-  [432,464], nome [64,472]. Não aparece no fixture real (nomes curtos). Correção provável: a camada
-  parar antes do `Box` do anel quando há anel.
 - Sobras da etapa 1 do layout: `panel(all, …)` roda uma vez sem escolhas com resultado descartado
   (mantido para o comportamento idêntico, inclusive o aquecimento do cache) e `elapsed` não é usado.
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
