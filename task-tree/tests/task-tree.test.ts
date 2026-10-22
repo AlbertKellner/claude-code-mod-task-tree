@@ -3158,6 +3158,17 @@ describe('cartão de mensagem de irmã já no lugar certo', () => {
   })
 })
 
+describe('id curto contra nível 1 antigo', () => {
+  test('"1" vai à etapa aberta "31/1", não ao nível 1 "1" já concluído de um plano anterior', async $ => {
+    await plan($, [{ id: '1', title: 'Antigo' }])
+    await done($, ['1'])
+    await plan($, [{ id: '31', title: 'Novo', children: [{ id: '1', title: 'Ler' }, { id: '2', title: 'Fazer' }] }])
+    expect(text(await start($, ['1']))).toContain('Em andamento: Ler')
+    expect(text(await done($, ['1']))).toContain('Concluídas')
+    expect(text(await start($, ['2']))).toContain('Em andamento: Fazer')
+  })
+})
+
 describe('etapas fechadas em lote', () => {
   test('done de várias etapas nunca iniciadas avisa para marcar uma de cada vez', async $ => {
     await plan($, [{ id: 'A', title: 'Grupo', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }])

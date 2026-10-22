@@ -395,6 +395,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `done` assim que ela termina, antes da próxima, nunca várias de uma vez no fim. O `done` avisa
   quando 2 ou mais etapas nunca iniciadas fecham juntas ("N etapas fecharam juntas sem start ...");
   com `start` antes, ou com uma só, não há aviso.
+- Id curto em `start`/`done` (`resolve()`; pedido do usuário: "as terafas foram executadas fora de
+  ordem, verifique se existe um erro"): o id completo e o curto entram juntos e vence o aberto; no
+  mesmo estado, o id completo desempata. Antes o id completo tinha prioridade, e "1" ou "3" pegavam
+  níveis 1 antigos e já concluídos com esse id em vez de "31/1" e "31/3", abertos no plano atual,
+  que ficavam pendentes no cartão.
 - Visões (pedido do usuário: "quero que exista essa visao atual, e uma visão resumida, onde mostre
   somente as tarefas em andamento"; depois: "deixe mais bonito esse toggle, esta solto no layout. e
   a visao resumida deve ser a visao padrao ao iniciar uma nova sessao"; depois "o toggle ainda esta
