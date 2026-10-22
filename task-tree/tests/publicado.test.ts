@@ -187,3 +187,96 @@ describe('arquivo publicado: contrato e validação', () => {
     expect(lines.some(l => l.includes('✉'))).toBe(false)
   })
 })
+
+// A poll with nothing changed (the host's list and the sessions' files as before) writes nothing:
+// not the published file (its clocks and panes are left out of the comparison), not the links
+// record in the store, not the status line; and the home folder is asked of the host once. A change
+// in a session's file publishes again.
+describe('publicar só quando muda', () => {
+  type Counts = { t: number; file: string; written: string[]; stores: number; statuses: number; envs: number }
+  function counting(on: any, file: string): Counts {
+    const h: Counts = { t: 1_000, file, written: [], stores: 0, statuses: 0, envs: 0 }
+    on('clock.now', () => ({ value: h.t }) as any)
+    on('clock.every', () => ({ deny: 'sem relógio' }) as any)
+    on('env.get', () => {
+      h.envs++
+      return { value: 'C:/home' } as any
+    })
+    on('ui.status', () => {
+      h.statuses++
+      return { value: undefined } as any
+    })
+    on('ui.log', () => ({ value: undefined }) as any)
+    on('fs.write', (_$: any, e: any) => {
+      h.written.push(String(e.text))
+      return { value: undefined } as any
+    })
+    on('store.set', () => {
+      h.stores++
+      return { value: undefined } as any
+    })
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('11111111') ? h.file : '{}' }) as any)
+    on('mcp.call', (_$: any, e: any) => {
+      if (e.tool === 'get_session') return { value: { content: [{ type: 'text', text: JSON.stringify({ sessionId: 'local_eu' }) }], isError: false } } as any
+      return { value: { content: [{ type: 'text', text: JSON.stringify([
+        { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+        { sessionId: KID, name: 'filha', title: 'Filha A', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+      ]) }], isError: false } } as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID} (filha)` }))
+    on('tool.call', { tool: 'Read' } as any, async () => ({ result: 'ok' }))
+    return h
+  }
+  // A main-loop tool call with the list older than the poll's period reads the sessions again.
+  async function poll($: any, h: Counts) {
+    h.t += 4_000
+    await $.tool.call({ tool: 'Read', file_path: 'x' } as any)
+  }
+
+  test('dois polls sem mudança não gravam o arquivo, o store nem o status; uma mudança na filha grava de novo', async ($, on) => {
+    const h = counting(on, JSON.stringify({ groups: GROUPS }))
+    await open($)
+    expect(h.written.length).toBeGreaterThanOrEqual(1)
+    const before = { written: h.written.length, stores: h.stores, statuses: h.statuses, envs: h.envs }
+    await poll($, h)
+    await poll($, h)
+    expect(h.written.length).toBe(before.written)
+    expect(h.stores).toBe(before.stores)
+    expect(h.statuses).toBe(before.statuses)
+    // The home folder is asked once per module: no env.get in the polls.
+    expect(h.envs).toBe(before.envs)
+    // The child's file changed (a step done there): published again, with the change inside.
+    h.file = JSON.stringify(VALID)
+    await poll($, h)
+    expect(h.written.length).toBe(before.written + 1)
+    const last = JSON.parse(h.written[h.written.length - 1])
+    expect(JSON.stringify(last.children)).toContain('Passo atual')
+    // And nothing again while it stays the same.
+    await poll($, h)
+    expect(h.written.length).toBe(before.written + 1)
+  })
+
+  test('o relógio e os painéis não contam como mudança, mas uma espera nova conta', async ($, on) => {
+    const h = counting(on, '{}')
+    let shown = false
+    on('ui.panes', () => ({ value: [{ id: 'task-tree', isPlaced: true, isShown: shown }] }) as any)
+    on('ui.open', () => ({ value: { isPlaced: true } }) as any)
+    // A question's dialog: the kit wants the hook registered before the first call on $.
+    on('tool.call', { tool: 'AskUserQuestion' } as any, async () => ({ result: 'ok' }))
+    await call($, 'plan', { tasks: [{ id: 'A', title: 'Uma', children: [{ id: '1', title: 'Passo' }] }] })
+    const n = h.written.length
+    // The same panel published again (/task-tree publishes it; the clock later, the pane now in
+    // front): nothing written.
+    h.t += 10_000
+    shown = true
+    await ($ as any).command.run({ command: 'task-tree', args: '' })
+    await ($ as any).command.run({ command: 'task-tree', args: '' })
+    expect(h.written.length).toBe(n)
+    // A question opens a wait: `waiting` flips, so the file is written.
+    await call($, 'start', { ids: ['1'] })
+    const m = h.written.length
+    expect(m).toBeGreaterThan(n)
+    await $.tool.call({ tool: 'AskUserQuestion', questions: [] } as any)
+    expect(h.written.length).toBeGreaterThan(m)
+  })
+})
