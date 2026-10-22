@@ -2646,6 +2646,67 @@ describe('textos reais do host (0.7.3)', () => {
   })
 })
 
+describe('modelo e esforço no cartão', () => {
+  const KID = 'local_88888888-8888-8888-8888-888888888888'
+  const setup = (on: any, file: any) => {
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: KID, name: 'filha', title: 'Filha', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('88888888') ? JSON.stringify(file) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
+  }
+  const open = async ($: any) => {
+    await plan($, [{ id: 'A', title: 'Delegar' }])
+    await start($, ['A'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+  }
+  test('o cabeçalho do cartão mostra o modelo e o esforço publicados, à esquerda do anel', async ($, on) => {
+    setup(on, { waiting: false, tasks: [], context: { percent: 42, at: 1 }, engine: 'Opus 5.5 · high' })
+    await open($)
+    const card = (await desktop($)).find(s => s.alt.startsWith('Sessão: filha'))
+    expect(card?.alt).toContain('Opus 5.5 · high')
+    const text = /<text class="s" x="([\d.]+)"[^>]*text-anchor="end"[^>]*>Opus 5\.5 · high<\/text>/.exec(card?.source ?? '')
+    const ring = /class="tk" cx="([\d.]+)"/.exec(card?.source ?? '')
+    expect(text).not.toBeNull()
+    // It ends left of the ring (radius 5.5, stroke 2), with room before it.
+    expect(Number(text?.[1])).toBeLessThan(Number(ring?.[1]) - 7.5)
+  })
+  test('sessão que ainda não publicou: o modelo e o esforço vêm do registro do app (get_session)', async ($, on) => {
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', (_$: any, e: any) =>
+      e.tool === 'get_session' && e.args?.session_id === KID
+        ? ({ value: { content: [{ type: 'text', text: JSON.stringify({ sessionId: KID, model: 'claude-sonnet-5-5', effort: 'medium' }) }], isError: false } } as any)
+        : ({
+            value: {
+              content: [{ type: 'text', text: JSON.stringify([
+                { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+                { sessionId: KID, name: 'filha', title: 'Filha', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+              ]) }],
+              isError: false,
+            },
+          } as any))
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('88888888') ? JSON.stringify({ waiting: false, tasks: [], context: { percent: 30, at: 1 } }) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
+    await open($)
+    const card = (await desktop($)).find(s => s.alt.startsWith('Sessão: filha'))
+    expect(card?.source).toContain('>Sonnet 5.5 · medium</text>')
+  })
+  test('sem anel publicado, o modelo e o esforço ficam na ponta direita do cartão', async ($, on) => {
+    setup(on, { waiting: false, tasks: [], engine: 'Sonnet 5.5 · low' })
+    await open($)
+    const card = (await desktop($)).find(s => s.alt.startsWith('Sessão: filha'))
+    expect(card?.source).toContain('>Sonnet 5.5 · low</text>')
+    expect(card?.source).not.toContain('class="tk"')
+  })
+})
+
 describe('anel de contexto abre a sessão', () => {
   test('no desktop, o anel do cartão é um botão que abre a sessão (open_session_in, focus)', async ($, on) => {
     const KID = 'local_99999999-9999-9999-9999-999999999999'
