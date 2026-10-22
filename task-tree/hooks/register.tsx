@@ -1448,7 +1448,7 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
     // whole height), so the highlight has the same room on all four sides (the person's words:
     // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
     // last line up to half the card's edge off the name's middle.
-    const box = overBox(R - 7, RING_BOX, 7.5 + 8)
+    const box = overBox(R - 7, RING_BOX, RING_ROOM)
     const ring = contextRing(r.ring.percent, 8 * box.left + 4 * box.width, H / 2)
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
@@ -1481,12 +1481,15 @@ function overBox(cx: number, widths: number[] = [3, 2], half = 0): { left: numbe
   const best = widths.map(fit).reduce((a, b) => (b.off < a.off ? b : a))
   return { left: best.left, width: best.width }
 }
-// The context ring is 15 px across (radius 5.5, stroke 2): its Box spans 4 or 5 cells (32-40 px),
-// a cell or more of room on each side, and its Button's label is an em space, so the native
-// highlight (the label's width plus the button's padding) covers the whole ring, not the corner
-// a one-space label made (the person's words: "o mouse over do anel de contexto continua pequeno,
-// nao envolvendo o icone todo").
-const RING_BOX = [4, 5]
+// The context ring is 15 px across (radius 5.5, stroke 2) and its Button's label is an em space, so
+// the native highlight (the label's width plus the button's padding) covers the whole ring, not the
+// corner a one-space label made (the person's words: "o mouse over do anel de contexto continua
+// pequeno, nao envolvendo o icone todo"). That highlight is 32 px wide, 4 cells, and the desktop
+// keeps it at the left of a wider Box (measured on the person's screen: in a 5-cell Box, the ring
+// 7.5 px right of the highlight's middle): the Box is exactly 4 cells, the highlight's own width,
+// and the ring is drawn at its middle.
+const RING_BOX = [4]
+const RING_ROOM = 7.5 + 4
 const RING_LABEL = ' '
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
@@ -2735,7 +2738,7 @@ const REPLY = 'resposta'
     // main pane (open_session_in, focus); what it refuses is said in a toast.
     const ringOver = (r: Row, f: Frame, W: number) => {
       const m = Math.max(0, f.cards.length - 1)
-      const { left, width } = overBox(W - 17.5 - 6 * m, RING_BOX, 7.5 + 8)
+      const { left, width } = overBox(W - 17.5 - 6 * m, RING_BOX, RING_ROOM)
       return (
         <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={() => void openSession($, r.sid as string, r.title)} />
