@@ -400,6 +400,13 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   mesmo estado, o id completo desempata. Antes o id completo tinha prioridade, e "1" ou "3" pegavam
   níveis 1 antigos e já concluídos com esse id em vez de "31/1" e "31/3", abertos no plano atual,
   que ficavam pendentes no cartão.
+- Ligações persistidas (pedido do usuário: "voltou o comportamento de sessoes abrirem no lugar
+  errado"): âncoras e rodadas das sessões abertas, `sends`, `received` e `launches` ficavam só em
+  memória; depois de recarregar o plugin ou reiniciar o app, os grupos voltavam do store mas as
+  filhas ficavam sem âncora e as cadeias sem origem, e os cartões caíam na raiz. `saveLinks` grava
+  `links:<sessão>` no store a cada publicação; `restoreLinks` restaura no `session.start` e, numa
+  recarga (que não passa por ele), antes da primeira gravação, juntando ao estado atual em vez de
+  sobrescrever.
 - Visões (pedido do usuário: "quero que exista essa visao atual, e uma visão resumida, onde mostre
   somente as tarefas em andamento"; depois: "deixe mais bonito esse toggle, esta solto no layout. e
   a visao resumida deve ser a visao padrao ao iniciar uma nova sessao"; depois "o toggle ainda esta
