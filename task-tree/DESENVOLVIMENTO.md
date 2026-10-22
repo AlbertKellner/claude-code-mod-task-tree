@@ -16,6 +16,8 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
 - `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
+- `text/rules.ts`: todos os textos que o plugin escreve para o modelo (R16, fase 2): `BRIEF` = 120 e `LIMIT` ("até 120 caracteres", interpolado nos 6 textos que citam o limite), `RULES` (seção `task-tree:regras`), `COMMAND`, `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `EXAMPLE`. Ficam fora dele os resultados das tools ("Plano exibido…", "Concluídas: d/n…") e os `alt`/títulos do desenho.
+- `tests/textos.test.ts` e `tests/golden/textos.ts`: golden dos 23 textos (ver "Golden dos textos").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
@@ -74,6 +76,19 @@ lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho 
   cenários que batem. Segunda rodada: "Nada a atualizar". A aprovação é o diff do `svg.ts`.
 - Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
   (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
+
+### Golden dos textos
+
+`tests/textos.test.ts` (7 testes) coleta os textos que chegam ao modelo (descrições registradas no
+`session.start`, regras do `prompt.compose`, contextos do `prompt.submit`, as três saídas do
+`AskUserQuestion`, avisos do `done`, do `SendMessage` na fila, do `wrap_up`, da chamada sem plano e as
+notas de sessão) e compara com `tests/golden/textos.ts`. Confere também que toda ocorrência de "até N
+caracteres" diz 120 (pelo menos 6). Quando difere, imprime `TEXTOS-NEW <json>` para colar no golden.
+
+- Regra: mudança de texto = golden novo, aprovado de propósito (como no golden do SVG).
+- O limite do resumo mora em um lugar só, `BRIEF` em `text/rules.ts`; antes eram 6 strings (o 60 → 120
+  tocou todas).
+- O golden foi gerado com o código anterior à extração, e o teste passou sem diferença depois dela.
 
 ### Reinício e recarga
 
@@ -286,7 +301,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
   cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. A linha mostra um
-  resumo de até 120 caracteres (`BRIEF`), e o tooltip a resposta inteira (pedido do usuário: "devem
+  resumo de até 120 caracteres (`BRIEF`, em `text/rules.ts`), e o tooltip a resposta inteira (pedido do usuário: "devem
   ser um resumo", depois "aumente a resposta para 120 caracteres, esta muito sucinto"; antes eram
   60). Se a linha não couber na largura, o corte visual com "…" e o tooltip continuam. Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
   sessão, tipo manchete, com o que mudou e o resultado (ex.: "Cartões na raiz: causa na recarga; correção

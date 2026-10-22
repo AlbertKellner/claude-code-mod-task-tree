@@ -6,6 +6,7 @@ import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlay, ringFromRight, textRight,
 } from '../draw/geometry'
+import { ASK, BRIEF, COMMAND, DONE, PROMPT, RULES, SEND, SESSION, TOOLS, UNPLANNED, WRAP_UP } from '../text/rules'
 
 const PANE = 'task-tree'
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
@@ -41,49 +42,8 @@ const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-con
 // How many sessions' panels the store keeps for a resume.
 const KEEP = 30
 
-// The panel's rules, added to the system prompt of every request that offers its tools,
-// so the mod behaves the same on any machine with nothing in CLAUDE.md.
-const RULES = [
-  '# Painel de tarefas (task-tree)',
-  '',
-  'O usuário acompanha o trabalho num painel lateral de tarefas. Regras:',
-  '',
-  '- Todo pedido abre pelo menos uma tarefa no painel, mesmo uma pergunta simples ou respondida só com ' +
-    'pesquisa ou leitura de arquivos. A primeira chamada de ferramenta é mcp__task-tree__plan com a árvore ' +
-    'de tarefas: até 3 níveis (nível 1 genérico, nível 3 mais granular), ids únicos dentro do plano ' +
-    '("1", "1.2", "1.2.3"). Uma tarefa basta para um pedido simples.',
-  '- Abaixo do nível 1 os ids ganham o id dele como prefixo ("D/1.2"). done e start aceitam o id curto ' +
-    'quando não é ambíguo (preferem a tarefa aberta) ou o completo, e avisam no resultado ids ' +
-    'inexistentes, ambíguos ou de outro agente.',
-  '- No primeiro plan de cada mensagem do usuário, passe em `request` um título curto do que foi pedido: ' +
-    'no painel, as tarefas de nível 1 ficam agrupadas pela mensagem em que foram planejadas, com esse título.',
-  '- Etapa por etapa, no momento em que acontece: mcp__task-tree__start ao começar cada tarefa (várias ' +
-    'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
-    'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
-    'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
-  '- No done do último passo do pedido, passe em `summary` um resumo da resposta em até 120 caracteres ' +
-    '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
-    'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
-  '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
-    'substituído do zero no mesmo lugar da lista: remarque com done o que já estava concluído. Um nível 1 ' +
-    'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
-    'concluído, replaneje o nível 1.',
-  '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
-  '- Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a tarefa a ' +
-    'que a pergunta pertence e feche-a só depois da resposta; se a resposta vier pelo chat, feche-a no ' +
-    'início do turno seguinte. AskUserQuestion sem tarefa aberta é recusado.',
-  '- Depois que o usuário responder uma pergunta ou aprovar um plano, atualize o painel (done, start ou ' +
-    'plan) antes de seguir. Se ele responder por mensagem no chat em vez de escolher uma opção, a mensagem ' +
-    'é a resposta.',
-  '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
-    'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
-  '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) fica com o ícone de mensagem (✉) do ' +
-    'envio até a sessão destino começar a tratar a mensagem, mesmo quando a entrega é imediata ' +
-    '("delivered; its turn has started on it"). Não chame done nela: quando o recebimento é confirmado, ' +
-    'o painel a conclui sozinho (mesmo com esta sessão parada). Com "queued", o painel também avisa.',
-  '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
-    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
-].join('\n')
+// The texts the model reads (the rules in the system prompt, the tools' descriptions, the reminders
+// and warnings) are the text module's: ../text/rules.
 
 type InNode = { id: string; title: string; children?: InNode[] }
 
@@ -946,10 +906,7 @@ async function takenNote($: any): Promise<string | undefined> {
     const t = all.find(t => t.id === s.anchor)
     return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
   })
-  return (
-    `Painel de tarefas (task-tree): recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
-    'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.'
-  )
+  return SESSION.taken(what)
 }
 
 // The list read again when it is older than the poll's period: a session drawn at work after
@@ -990,11 +947,7 @@ async function endedNote($: any): Promise<string | undefined> {
     .filter(x => x.t !== undefined)
     .map(x => `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title})`)
   if (lines.length === 0) return undefined
-  return (
-    `Painel de tarefas (task-tree): terminou o turno a sessão ${lines.join(', a sessão ')}, e a tarefa de ` +
-    'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
-    `concluiu. Tarefas abertas no painel: ${openList(tasks)}.`
-  )
+  return SESSION.ended(lines, openList(tasks))
 }
 
 // The shape of the published file this version writes (`Published.version`). Files from before it
@@ -1965,18 +1918,11 @@ export const register: Register = on => {
   let answeredInChat = false
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'task-tree', description: 'Abre o painel da árvore de tarefas e diz o estado dele; com resumida ou completa, troca a visão' })
+    await $.command.register({ name: 'task-tree', description: COMMAND })
     await $.tool.register({
       name: 'plan',
       isDeferred: false,
-      description:
-        'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +
-        'uma aberta com o mesmo id é substituída (replanejamento, que recomeça tudo dentro dela). ' +
-        'Até 3 níveis: nível 1 genérico, nível 3 mais granular. Ids únicos dentro do plano (ex.: "1", "1.2", "1.2.3"); ' +
-        'abaixo do nível 1 eles ganham o id dele como prefixo ("D/1.2"), então planos diferentes podem repetir ids. ' +
-        'Use no início de todo pedido (uma tarefa basta para um pedido simples) e ao replanejar. ' +
-        'No primeiro plan de cada mensagem do usuário, passe em request um título curto do que foi pedido: ' +
-        'o painel agrupa as tarefas de nível 1 por mensagem, com esse título.',
+      description: TOOLS.plan,
       inputSchema: {
         type: 'object',
         required: ['tasks'],
@@ -1986,34 +1932,20 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'done',
       isDeferred: false,
-      description:
-        'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
-        'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
-        'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore. ' +
-        'No done da última etapa do turno, passe summary: a resposta do turno em manchete de até 120 ' +
-        'caracteres (ex.: "Commit 946f653 no PR #5; 151 testes ok"). Sem etapa a fechar, chame done só com summary.',
+      description: TOOLS.done,
       inputSchema: {
         type: 'object',
         required: [],
         properties: {
           ids: { type: 'array', items: { type: 'string' } },
-          summary: {
-            type: 'string',
-            description:
-              'Resumo curto da resposta deste turno, em até 120 caracteres (o que mudou e o resultado), tipo manchete ' +
-              '(ex.: "Commit 946f653 no PR #5; 151 testes ok"). Vira a linha ↩ do painel; a resposta inteira fica no tooltip.',
-          },
+          summary: { type: 'string', description: TOOLS.summary },
         },
       },
     })
     await $.tool.register({
       name: 'start',
       isDeferred: false,
-      description:
-        'Marca tarefas do painel como em andamento (destacadas em amarelo) ao começar cada uma. ' +
-        'Várias podem estar em andamento; sem nenhuma marcada, o painel destaca a primeira aberta. ' +
-        'Em uma tarefa concluída sem subtarefas, reabre a tarefa e os pais dela; ' +
-        'para refazer um pai concluído, replaneje o nível 1 com plan. Ids como no done.',
+      description: TOOLS.start,
       inputSchema: {
         type: 'object',
         required: ['ids'],
@@ -2076,12 +2008,7 @@ export const register: Register = on => {
           ...(e.context ?? []),
           ...(note ? [note] : []),
           ...(taken ? [taken] : []),
-          it.handback
-            ? 'Painel de tarefas (task-tree): o subagente terminou; atualize o painel (mcp__task-tree__done no que ele concluiu).'
-            : kind === 'task-notification'
-            ? 'Painel de tarefas (task-tree): uma tarefa em segundo plano (um subagente, um comando) terminou; ' +
-              'atualize o painel: mcp__task-tree__done no que ela concluiu.'
-            : 'Painel de tarefas (task-tree): mantenha o painel em dia (done no que terminou, start no que começa).',
+          it.handback ? PROMPT.handback : kind === 'task-notification' ? PROMPT.background : PROMPT.notice,
         ],
       })
     }
@@ -2101,31 +2028,11 @@ export const register: Register = on => {
     // is listed, so it is closed rather than left running under the new plan.
     const { value: groups = [] } = await $.state.get(groupsState)
     const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
-    const left = hasOpen(tasks)
-      ? (answeredInChat ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
-        `Painel de tarefas (task-tree): tarefas abertas antes desta mensagem: ${openList(tasks)}. Feche com ` +
-        'mcp__task-tree__done as que esta mensagem conclui ou substitui (por exemplo, a de perguntar ou de ' +
-        'esperar a resposta) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.'
-      : undefined
+    const left = hasOpen(tasks) ? PROMPT.open(openList(tasks), answeredInChat) : undefined
     answeredInChat = false
     return next({
       ...e,
-      context: [
-        ...(e.context ?? []),
-        ...(note ? [note] : []),
-        ...(taken ? [taken] : []),
-        ...(left ? [left] : []),
-        'Painel de tarefas (task-tree): todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
-          'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. A PRIMEIRA chamada de ' +
-          'ferramenta é mcp__task-tree__plan com a árvore de tarefas (até 3 níveis; uma tarefa basta ' +
-          'para um pedido simples). Etapa por etapa: mcp__task-tree__start ao começar cada tarefa e ' +
-          'mcp__task-tree__done assim que ela estiver de fato concluída, antes da próxima (nunca várias de ' +
-          'uma vez no fim). Ao replanejar, chame plan de novo. ' +
-          'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
-          'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
-          'request um título curto do que foi pedido. No done da última etapa do turno, passe summary: ' +
-          'resumo da resposta em até 120 caracteres, tipo manchete.',
-      ],
+      context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(left ? [left] : []), PROMPT.request],
     })
   })
 
@@ -2275,25 +2182,19 @@ export const register: Register = on => {
         const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
         for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
           const t = main.find(t => t.id === s.anchor)
-          if (t && t.status === 'done') notes.push(`a mensagem para ${s.to} ("${t.id}") ainda está na fila, sem confirmação de recebimento`)
+          if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
         }
         // Closed, its send waits no more: no ✉ left behind on an id used again.
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
         // The last step closed with no summary: the ↩ line would say only "resposta".
         if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
-          notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 120 caracteres (vira a linha ↩)')
+          notes.push(DONE.noSummary)
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
       // Several steps never started and closed together: the panel showed the first one in progress
       // all along, then jumped to the last, the steps between at 0:00 (the person's words: "ficou
       // parada muito tempo na primeira tarefa, e derepente pulo para a ultima").
-      if (unstarted.length >= 2) {
-        notes.push(
-          `${unstarted.length} etapas fecharam juntas sem start (${unstarted.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
-            'parado na primeira e elas aparecem com 0:00. Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
-            'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
-        )
-      }
+      if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
       return { result: `Concluídas: ${d}/${n} no seu grupo.` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
     } catch (err) {
       return { result: 'erro: ' + String(err), isError: true }
@@ -2363,9 +2264,9 @@ export const register: Register = on => {
 
   // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
 let lastRecap: string | undefined
-// The ↩ line says the answer in at most BRIEF characters: the summary the session gave, else the
-// first sentence of the answer; longer, cut at a word with "…". The whole answer stays in the tooltip.
-const BRIEF = 120
+// The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
+// that names the limit): the summary the session gave, else the first sentence of the answer;
+// longer, cut at a word with "…". The whole answer stays in the tooltip.
 function brief(text: string): string {
   const one = text.replace(/\s+/g, ' ').trim()
   if (one.length <= BRIEF) return one
@@ -2458,12 +2359,7 @@ const REPLY = 'resposta'
       if (kind === 'question' && agent === MAIN) {
         const { value = [] } = await $.state.get(groupsState)
         if (!hasOpen(value.find(g => g.agent === MAIN)?.tasks ?? [])) {
-          return {
-            deny:
-              'Painel de tarefas (task-tree): não há tarefa aberta no painel, e uma pergunta sempre fica sob ' +
-              'uma tarefa em andamento. Abra (mcp__task-tree__plan) ou reabra (mcp__task-tree__start) a tarefa ' +
-              'a que esta pergunta pertence e pergunte de novo; feche-a só depois da resposta.',
-          }
+          return { deny: ASK.refused }
         }
       }
       const key = e.tool_use_id
@@ -2475,19 +2371,7 @@ const REPLY = 'resposta'
         if (inChat && agent === MAIN) answeredInChat = true
         const { value = [] } = await $.state.get(groupsState)
         if (!hasOpen(value.find(g => g.agent === agent)?.tasks ?? [])) return r
-        return {
-          ...r,
-          context: [
-            ...(r.context ?? []),
-            inChat
-              ? 'Painel de tarefas (task-tree): o usuário vai responder por mensagem no chat, e a mensagem ' +
-                'dele é a resposta. Ao recebê-la, antes de seguir, feche com mcp__task-tree__done a tarefa ' +
-                'desta pergunta e atualize o painel (start no que começa, plan se o plano mudou).'
-              : 'Painel de tarefas (task-tree): o usuário respondeu. Antes de seguir, atualize o painel: ' +
-                'mcp__task-tree__done no que a resposta concluiu, mcp__task-tree__start no que começa agora, ' +
-                'ou mcp__task-tree__plan se ela mudou o plano.',
-          ],
-        }
+        return { ...r, context: [...(r.context ?? []), inChat ? ASK.inChat : ASK.answered] }
       } finally {
         await dropWaits($, w => w.key !== key)
       }
@@ -2568,11 +2452,7 @@ const REPLY = 'resposta'
         const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
         const t = all.find(t => t.id === anchor)
-        notes.push(
-          `Painel de tarefas (task-tree): a mensagem para ${to} ficou na fila, sem confirmação de recebimento. ` +
-            `Mantenha em andamento a tarefa do envio${t ? ` ("${t.id}" ${t.title})` : ''}: o painel avisa quando a ` +
-            'sessão começar a tratá-la, e então a conclui sozinho (pode encerrar o turno).',
-        )
+        notes.push(SEND.queued(to, t ? `"${t.id}" ${t.title}` : undefined))
       }
     }
     const ended = await endedNote($)
@@ -2584,19 +2464,8 @@ const REPLY = 'resposta'
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const { value = [] } = await $.state.get(groupsState)
       const tasks = value.find(g => g.agent === MAIN)?.tasks ?? []
-      if ((await lastBrief($)) === undefined)
-        notes.push(
-          'Painel de tarefas (task-tree): falta o resumo do turno. Antes da mensagem final, chame ' +
-            'mcp__task-tree__done com summary: a resposta em até 120 caracteres, tipo manchete (ids pode ficar vazio).',
-        )
-      if (hasOpen(tasks)) {
-        notes.push(
-          'Painel de tarefas (task-tree): o turno termina com tarefas abertas no painel: ' +
-            `${openList(tasks)}. Antes da mensagem final, marque com mcp__task-tree__done as que já foram ` +
-            'concluídas (inclusive as feitas por outra sessão ou por outro caminho). Deixe abertas só as que ' +
-            'de fato continuam pendentes; com ask, a tarefa da pergunta fica em andamento até a resposta.',
-        )
-      }
+      if ((await lastBrief($)) === undefined) notes.push(WRAP_UP.noBrief)
+      if (hasOpen(tasks)) notes.push(WRAP_UP.open(openList(tasks)))
     }
     if (notes.length > 0) r = { ...r, context: [...(r.context ?? []), ...notes] }
     if (String(e.tool).startsWith('mcp__task-tree__')) {
@@ -2610,15 +2479,7 @@ const REPLY = 'resposta'
     }
     unplanned++
     if (unplanned % 10 !== 1) return r
-    return {
-      ...r,
-      context: [
-        ...(r.context ?? []),
-        'Painel de tarefas (task-tree): há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
-          'abre pelo menos uma tarefa: chame mcp__task-tree__plan agora, mcp__task-tree__start ao começar ' +
-          'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.',
-      ],
-    }
+    return { ...r, context: [...(r.context ?? []), UNPLANNED] }
   })
 
   // The pane's presses, answered by key (see actions), each one logged to the debug log.
