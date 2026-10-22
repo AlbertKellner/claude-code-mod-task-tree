@@ -150,11 +150,17 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
   cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. A linha mostra um
   resumo de até 60 caracteres, e o tooltip a resposta inteira (pedido do usuário: "devem ser um
-  resumo, no maximo 60 caracteres"). Fonte do resumo: o campo `summary` do `done` (o `RULES` e a
-  descrição da ferramenta pedem que venha no `done` do último passo do pedido; ex.: "Cartões na
-  raiz: causa na recarga; correção enviada"); sem ele, a primeira frase da resposta. Acima de 60
-  caracteres, corta no limite de uma palavra com "…". O resumo fica em `Turn.brief` e a resposta
-  inteira em `Turn.reply`; turnos antigos, sem `brief`, derivam o resumo da resposta. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
+  resumo, no maximo 60 caracteres"). Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
+  sessão, tipo manchete (ex.: "Cartões na raiz: causa na recarga; correção enviada"); acima de 60
+  caracteres, corta no limite de uma palavra com "…". Sem `summary`, a linha mostra só "resposta",
+  com a resposta inteira no tooltip; nunca o texto da resposta cortado (pedido do usuário: "nao
+  ficou bom, voce esta imprimindo o texto integral cortado. quero que seja um resumo da resposta,
+  super curto"). Como o pedido chega a quem responde: o contexto do `prompt.submit` pede `summary`
+  no `done` da última etapa do turno; no schema do `done`, `summary` tem descrição própria e `ids`
+  deixou de ser obrigatório (dá para chamar `done` só com `summary`); um `done` que fecha a última
+  tarefa aberta sem `summary` responde "falta o summary…", e um `wrap_up` sem `summary` no turno
+  avisa "falta o resumo do turno…". O resumo fica em `Turn.brief` e a resposta inteira em
+  `Turn.reply`. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
   No próprio painel da sessão (inclusive na orquestradora; pedido do usuário: "igual a sessao
   filha, as tarefas que tenham filhas precisam ter tambem a resposta com o icone de resposta"), o
   grupo da mensagem (linha do pedido, `turnRows`) ganha no fim, depois de todos os níveis 1 dele,
