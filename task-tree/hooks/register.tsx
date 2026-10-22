@@ -1417,6 +1417,19 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   )
 }
 
+// The Box a Button is centered in over a glyph whose middle is `cx` px from the line's left: whole
+// cells (8 px), 3 or 2 of them, whichever puts the Box's middle nearest the glyph. Both the icon's
+// and the ring's Buttons use it, so their highlights keep the same room around the glyph.
+function overBox(cx: number): { left: number; width: number } {
+  const fit = (width: number) => {
+    const left = Math.max(0, Math.round((cx - 4 * width) / 8))
+    return { left, width, off: Math.abs(8 * left + 4 * width - cx) }
+  }
+  const [a, b] = [fit(3), fit(2)]
+  const best = a.off <= b.off ? a : b
+  return { left: best.left, width: best.width }
+}
+
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
 // open_session_in, which takes this session or one it started); a refusal goes to a toast.
 async function openSession($: any, id: string, name: string) {
@@ -2647,20 +2660,17 @@ const REPLY = 'resposta'
     // odd or even number of cells around the icon (3 cells at an even depth, 2 at an odd one, so its
     // middle falls on col(depth) to half a pixel), the line's whole height, and centers the Button
     // both ways. A line with nothing below has no Button.
-    const iconBox = (r: Row) => {
-      const even = r.depth % 2 === 0
-      return even ? { left: (5 * r.depth) / 2, width: 3 } : { left: (1 + 5 * r.depth) / 2, width: 2 }
-    }
+    const iconBox = (r: Row) => overBox(col(r.depth))
     // The context ring at a session card's right end opens that session (the person's words:
     // "quando clicar nele, abra a sessao que ele representa"): an empty-label Button over the ring,
     // as over the icon. The ring sits 15 px inside the innermost card's right edge, each card 6 px
     // inside the one around it; the Box spans 3 cells around it. The app shows it in this window's
     // main pane (open_session_in, focus); what it refuses is said in a toast.
-    const ringOver = (r: Row, f: Frame) => {
+    const ringOver = (r: Row, f: Frame, W: number) => {
       const m = Math.max(0, f.cards.length - 1)
-      const right = Math.max(0, Math.round((17.5 + 6 * m - 12) / 8))
+      const { left, width } = overBox(W - 17.5 - 6 * m)
       return (
-        <Box position="absolute" top={0} bottom={0} right={right} width={3} flexDirection="row" alignItems="center" justifyContent="center">
+        <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`open:${r.sid}`} label={' '} plain onPress={() => void openSession($, r.sid as string, r.title)} />
         </Box>
       )
@@ -2746,7 +2756,7 @@ const REPLY = 'resposta'
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
                   {r.fold ? foldOver(r) : null}
-                  {r.session && r.sid && r.ring ? ringOver(r, cards[i]) : null}
+                  {r.session && r.sid && r.ring ? ringOver(r, cards[i], RW) : null}
                   {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}

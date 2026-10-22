@@ -252,7 +252,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
   dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
   (`Child.part` = k). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
-  deles. Só o cartão da frente mostra a espera e o anel de contexto. Com a filha rodando, todo
+  deles. Só o cartão da frente mostra a espera; o anel de contexto aparece em todo
+  cartão da sessão, em qualquer estado (trabalhando, ocioso, parado, concluído ou de rodada antiga),
+  com o último % publicado (pedido do usuário: "mesmo depois que a sessao termina, o icone se
+  contexto precisa continuar aparecendo"). Sem % publicado, sem anel nem botão de abrir (um anel
+  vazio diria 0%, o que é falso). Com a filha rodando, todo
   cartão com tarefas abertas é desenhado em andamento. Mensagem ainda não lida não tem turno, logo
   não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
   novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
@@ -479,7 +483,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   marcando que há sessões embaixo. Sem percentual, sem anel. No desktop o anel é clicável e abre a sessão
   no painel principal da janela (pedido do usuário: "quero que o icone de contexto seja um icone
   clicavel tambem, e quando clicar nele, abra a sessao que ele representa"): um `Button` sem
-  rótulo centrado no anel (`ringOver`, como o do ícone de progresso) chama `open_session_in`
+  rótulo centrado no anel (`ringOver`; o mesmo helper `overBox(cx)` do ícone de progresso escolhe
+  3 ou 2 células inteiras com o meio mais perto do centro do glifo; antes o box do anel ficava
+  2,5 px fora do centro; pedido do usuário: "mesmo problema do icone de progresso, o botao atras nao
+  tem padding") chama `open_session_in`
   (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
   clicar na sessão na barra lateral; o kit não tem API própria para isso e o `Link` do desktop só
   abre https:. Limites do app: só abre esta sessão ou uma aberta por ela (o cartão de uma neta é
