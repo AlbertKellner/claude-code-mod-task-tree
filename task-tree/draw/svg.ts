@@ -87,8 +87,19 @@ export const xml = (s: string) =>
 // SVG text neither wraps nor clips: a rough width of system UI text, in px, to cut titles
 // with "…" before they run into what is on the right. Wide scripts and emoji take ~1em.
 export const WIDE = /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿가-힣豈-﫿！-｠\u{1f300}-\u{1faff}]/u
-export const em = (ch: string) =>
+const emOf = (ch: string) =>
   WIDE.test(ch) ? 1 : /[\s.,:;'!|il1()[\]ftrj]/.test(ch) ? 0.32 : /[A-ZMWmw@%]/.test(ch) ? 0.7 : 0.56
+// The width of each character is fixed: remembered once measured (three regex tests), as the same
+// characters come up in every title of every drawing.
+const ems = new Map<string, number>()
+export const em = (ch: string) => {
+  let w = ems.get(ch)
+  if (w === undefined) {
+    w = emOf(ch)
+    ems.set(ch, w)
+  }
+  return w
+}
 export const textW = (s: string, size: number) => Array.from(s).reduce((w, ch) => w + em(ch) * size, 0)
 // A name cut with … carries the whole one in a `<title>`: the tooltip under the mouse, drawn
 // only by an interactive Svg (`hovers`), so the pane need not be widened to read it.
@@ -108,10 +119,17 @@ export function hoverLayer(source: string, w: number, h: number): string {
 }
 export function fit(s: string, size: number, max: number): string {
   if (textW(s, size) <= max) return s
+  // Linear in the title: the width of what is kept is accumulated as textW would add it (the same
+  // terms in the same order, so the same floating-point sums and the same cut), instead of measuring
+  // the whole prefix again for every character.
+  const dots = em('…') * size
   let out = ''
+  let w = 0
   for (const ch of Array.from(s)) {
-    if (textW(out + ch + '…', size) > max) break
+    const next = w + em(ch) * size
+    if (next + dots > max) break
     out += ch
+    w = next
   }
   return out.trimEnd() + '…'
 }
