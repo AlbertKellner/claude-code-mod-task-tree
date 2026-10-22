@@ -172,6 +172,30 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   sessão filha embaixo (aberta por `start_session` ou acionada por `SendMessage`) não tem ↩; ali a
   resposta que conta é a das filhas, já nos cartões delas (pedido do usuário: "quando as tarefas da
   sessao orquestradora abrirem sessao, a resposta nao deve aparecer, senao, fica quebrado").
+- Cliques por chave (pedido do usuário: "as vezes clico nas acoes e nao faz nada, preciso clicar
+  algumas vezes para funcionar"): o host só guarda o `onPress` enquanto o desenho existe, e o painel
+  redesenha a cada segundo, então o clique na troca do desenho se perdia. O hook `ui.press` responde
+  pela chave do botão (`fold:`, `open:`, `view:`) com a ação mais recente (mapa `actions`/`act`), e
+  cada press vai para o log de depuração ("task-tree: press <chave> (<superfície>)").
+- Painel na tela (`showPane`; pedidos do usuário: "o tasktree nao esta aparecendo na orquestradora",
+  "eu troquei o modelo de opus para sonnet na orquestradora, e o task tree nao rendenizou a partir
+  dai"): aberto sem pedido (`session.start`, `plan`), o painel só é posto com 144 colunas ou mais;
+  num prompt da própria pessoa, se não estiver na tela (ex.: depois do reinício de uma troca de
+  modelo), é reaberto como pedido, em qualquer largura. `/task-tree` abre com pedido e responde o
+  diagnóstico: o que o app disse (posto ou o motivo), os painéis (na frente, aba atrás de outro, não
+  desenhado) e "Desenho: N KB de 600 KB."; `/task-tree resumida | completa` troca a visão sem clicar.
+  O arquivo de `task-tree-waits` publica também `panes` (id, `isPlaced`, `isShown`) e
+  `renderError`; se o desenho lança exceção, o painel mostra "Painel de tarefas: erro ao desenhar:
+  …" e publica o erro.
+- Tamanho do desenho (causa do sumiço: o da orquestradora tinha 1,6 MB e o app não o mostrava;
+  "resumir os 57 pedidos anteriores resolveu"): o painel do topo desenha só os 3 últimos pedidos,
+  mais qualquer um com algo aberto, e os anteriores viram a linha "+N pedidos anteriores"; cada
+  cartão, até 3 pedidos, com a mesma linha; cartões sem tarefa de origem, concluídos e começados
+  antes do pedido mais antigo desenhado viram "+N cartões antigos de sessões". O cabeçalho continua
+  contando tudo. Cada `Svg` leva só as regras CSS das classes que usa (`slim`). Medido com o estado
+  da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Acima de 600 KB
+  (`DRAW_LIMIT`), desenho de emergência: só "Painel grande demais (N KB): mostrando só o essencial.
+  Use ≡ (/task-tree resumida) para a visão resumida.". Aprovado pelo usuário: "Sim, está bom".
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a

@@ -1003,9 +1003,15 @@ async function publishWait($: any) {
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
+    // The panes as the app holds them for this session (placed, shown or a tab behind another), for a
+    // panel that does not show up (read in this file from outside, or with /task-tree).
+    let panes: unknown
+    try {
+      panes = (await $.ui.panes()).map((p: any) => ({ id: p.id, isPlaced: p.isPlaced, isShown: p.isShown }))
+    } catch {}
     await $.fs.write(
       path,
-      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
+      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
     )
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
@@ -1013,6 +1019,44 @@ async function publishWait($: any) {
 }
 
 // A line in the debug log only; a failing log never breaks the session.
+// What each of the pane's Buttons does, by its key, as the last drawing made it. The host keeps a
+// Button's onPress only for the life of the drawing it is in, and the pane is drawn again every
+// second while a task runs (its clock): a press landing as the drawing is replaced reached a
+// handler already gone, and nothing happened (the person's words: "as vezes clico nas acoes e nao
+// faz nada, preciso clicar algumas vezes para funcionar"). The ui.press hook below answers by key
+// with the latest action instead.
+// How many requests (message groups) the top panel draws, the latest ones.
+const SHOWN_TURNS = 3
+// And in a session's card, the last request of that card (its round).
+const SHOWN_CARD_TURNS = 3
+// The last drawing's size (serialized), and the most a drawing may be before the pane shows only a
+// warning line: a 1.3 MB one was not shown by the app (the person's words: "resumir os 57 pedidos
+// anteriores resolveu").
+let drawSize = 0
+const DRAW_LIMIT = 600 * 1024
+// The last drawing's error, if it threw (see the Pane hook), published with the panel.
+let renderError: string | undefined
+const actions = new Map<string, () => void>()
+const act = (key: string, fn: () => void) => {
+  actions.set(key, fn)
+  return fn
+}
+
+// The panel opened with the session (session.start, plan) is opened unasked, and the app places an
+// unasked pane only in a window of 144 columns or more (110 once asked): after a restart of the
+// session's process (a /model change does one), in a narrower window, it stayed undrawn while the
+// tools went on answering (the person's words: "eu troquei o modelo de opus para sonnet na
+// orquestradora, e o task tree nao rendenizou a partir dai"). Opened again from the person's own
+// prompt, it is asked, and placed at any width; only when it is not on screen already.
+async function showPane($: any) {
+  try {
+    const panes = (await $.ui.panes()) as readonly { id: string; isPlaced?: boolean }[]
+    if (panes.some(p => p.id === PANE && p.isPlaced)) return
+    const r = await $.ui.open({ id: PANE, title: 'Tarefas' })
+    if (!r?.isPlaced) await debug($, `task-tree: painel não aberto: ${String(r?.reason ?? '')}`)
+  } catch {}
+}
+
 async function debug($: any, text: string) {
   try {
     await $.ui.log(text, { to: 'debug' })
@@ -1330,13 +1374,28 @@ const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0
 const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 // `svg,text{cursor:default}`: in an interactive Svg (a cut name with its tooltip) the pointer stays
 // the arrow over the text, not the text cursor.
-const STYLE =
-  '<style>svg,text{cursor:default;user-select:none}.p{fill:#2c2c2a}.s{fill:#5f5e5a}.am{stroke:#ba7517}.amf{fill:#ba7517}.gr{stroke:#639922}' +
-  '.grf{fill:#639922}.gy{stroke:#888780}.gyf{fill:#888780}.g{stroke:#888780;stroke-opacity:.55}' +
-  '.tr{fill:#888780;fill-opacity:.25}.ln{stroke:#888780;stroke-opacity:.45}.cd{fill:#f1efe8}.cs{stroke:#b4b2a9}.bl{stroke:#378add}.rd{stroke:#e24b4a}.tk{stroke:#888780;stroke-opacity:.3}' +
-  '@media (prefers-color-scheme: dark){.p{fill:#e8e6dc}.s{fill:#b4b2a9}.am{stroke:#ef9f27}' +
-  '.amf{fill:#ef9f27}.gr{stroke:#97c459}.grf{fill:#97c459}.gy{stroke:#9c9a92}.gyf{fill:#9c9a92}' +
-  '.cd{fill:#444441}.cs{stroke:#888780}.bl{stroke:#85b7eb}.rd{stroke:#f09595}}</style>'
+// Each line is its own Svg, so each carries the rules it uses and no others: the whole sheet in
+// every one came to 1 KB a line, 1.6 MB a drawing on a panel of some 700 lines (the orchestrator's),
+// sent again every second, and the app stopped drawing the pane (the person's words: "o tasktree nao
+// esta aparecendo na orquestradora").
+const LIGHT: [string, string][] = [
+  ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
+  ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f1efe8'], ['cs', 'stroke:#b4b2a9'],
+  ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
+]
+const DARK: [string, string][] = [
+  ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#444441'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+]
+const STYLE = '<style data-slim></style>'
+// The sheet of one Svg: its classes' rules, light and dark.
+function slim(svg: string): string {
+  const used = new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(' ')))
+  const rules = (list: [string, string][]) => list.filter(([c]) => used.has(c)).map(([c, d]) => `.${c}{${d}}`).join('')
+  const dark = rules(DARK)
+  return svg.replace(STYLE, `<style>svg,text{cursor:default;user-select:none}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`)
+}
 
 const xml = (s: string) =>
   s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
@@ -1474,7 +1533,7 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
     const waiting = r.meta === 'aguardando'
     parts.push(`<text class="${waiting ? 'amf' : 's'}" x="${at}" y="${cy + 4}" font-size="11"${waiting ? '' : ' opacity=".75"'}>${xml(r.meta)}</text>`)
   }
-  return (
+  return slim(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
@@ -1701,7 +1760,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
   const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || r.tone === 'reply' || section
   const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
-  return (
+  return slim(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
@@ -1763,7 +1822,7 @@ function headerSvg(title: string, d: number, n: number, list: Chip[], W: number,
   }
   parts.push(`<path class="ln" d="M${L} ${H - 0.5}H${R}" stroke-width="1"/>`)
   return {
-    source: `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}${parts.join('')}</svg>`,
+    source: slim(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}${parts.join('')}</svg>`),
     height: H,
   }
 }
@@ -1793,7 +1852,7 @@ export const register: Register = on => {
   let answeredInChat = false
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'task-tree', description: 'Abre o painel da árvore de tarefas' })
+    await $.command.register({ name: 'task-tree', description: 'Abre o painel da árvore de tarefas e diz o estado dele; com resumida ou completa, troca a visão' })
     await $.tool.register({
       name: 'plan',
       isDeferred: false,
@@ -1887,6 +1946,8 @@ export const register: Register = on => {
     // to be: the sender confirms its queued SendMessage by them (watchSends).
     await noteReceived($, text)
     watchSessions($)
+    // The person's own prompt: the panel comes back if it is not on screen (see showPane).
+    if (!it.peer && !it.notice && !it.handback && !NO_TURN.includes(kind)) await showPane($)
     // The desktop app's own notices (a session that ended its turn, <side-sessions-event>) and a
     // subagent's hand-back (`<agent-message from="<agentId>">` "[Subagent hand-back] …") are known by
     // their text: they do not come as `unclassified` or `task-notification`.
@@ -1960,9 +2021,33 @@ export const register: Register = on => {
     return { ...r, sections: [...r.sections, { id: 'task-tree:regras', text: RULES, scope: 'session' as const }] }
   })
 
-  on('command.run', { command: 'task-tree' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Tarefas' })
-    return { text: 'Painel de tarefas aberto.' }
+  // Opens the panel, asked by the person (placed at any width), and says what the app answered and
+  // which panes it holds, so a panel that does not show up can be told apart: undrawn (the width),
+  // open behind another plugin's pane (a tab), or not there at all.
+  // `/task-tree resumida` or `/task-tree completa` also picks the view, for a panel that cannot be
+  // clicked (it does not show).
+  on('command.run', { command: 'task-tree' }, async ($, e) => {
+    const arg = String((e as any).args ?? '').trim().toLowerCase()
+    if (arg === 'resumida' || arg === 'summary') await setView($, 'summary')
+    if (arg === 'completa' || arg === 'full') await setView($, 'full')
+    let opened: any
+    try {
+      opened = await $.ui.open({ id: PANE, title: 'Tarefas', focus: true })
+    } catch (err) {
+      opened = { isPlaced: false, reason: String(err) }
+    }
+    let panes = ''
+    try {
+      panes = (await $.ui.panes())
+        .map((p: any) => `${p.id}${p.isShown ? ' (na frente)' : p.isPlaced ? ' (aba atrás de outra)' : ' (não desenhado)'}`)
+        .join(', ')
+    } catch {}
+    void publishWait($).catch(() => {})
+    return {
+      text: opened?.isPlaced
+        ? `Painel de tarefas aberto. Painéis: ${panes || 'nenhum'}. Desenho: ${Math.round(drawSize / 1024)} KB de ${Math.round(DRAW_LIMIT / 1024)} KB.`
+        : `O app não pôs o painel na tela: ${String(opened?.reason ?? 'sem motivo')}. Painéis: ${panes || 'nenhum'}.`,
+    }
   })
 
   on('tool.call', { tool: 'mcp__task-tree__plan' }, async ($, e, next) => {
@@ -2423,7 +2508,22 @@ const REPLY = 'resposta'
     }
   })
 
+  // The pane's presses, answered by key (see actions), each one logged to the debug log.
+  on('ui.press', async ($, e, next) => {
+    if (e.plugin !== 'task-tree' || e.requestId !== PANE) return next(e)
+    const fn = actions.get(e.element)
+    await debug($, `task-tree: press ${e.element} (${e.surface})${fn ? '' : ': sem ação conhecida'}`)
+    if (!fn) return next(e)
+    fn()
+    return { element: e.element }
+  })
+
+  // A drawing that throws is not dropped in silence: the pane shows the error in one line, and the
+  // session publishes it (renderError) for whoever looks into a panel that does not show up.
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+   try {
+    renderError = undefined
+    const drawn = await (async () => {
     const ui = $.ui.resolve(e) as any
     const { Box, Text } = ui
     const { value: held } = await $.state.get(groupsState)
@@ -2684,6 +2784,18 @@ const REPLY = 'resposta'
         if (extras && anchor === undefined && g.agent !== MAIN) lines.push(...mine.map(w => notice(w, top)))
         const work = g.agent === MAIN ? (t: TaskNode) => atWork(t, sessions, level) : undefined
         const inScope = `${scope}${g.agent}|`
+        // Only the last SHOWN_TURNS requests (turns) of a main list are drawn, on the top panel and in
+        // a session's card alike, and any request with something still open; the rest are counted
+        // in one line: a long session's whole history, its cards' too, came to 700 lines and 1.6 MB
+        // a drawing, sent again every second, and the app stopped showing the pane. The header and
+        // the counts still take them all.
+        const asked = g.agent === MAIN ? [...new Set(list.flatMap(t => (t.turn === undefined ? [] : [t.turn])))].sort((a, b) => a - b) : []
+        const keep = level === 0 ? SHOWN_TURNS : SHOWN_CARD_TURNS
+        const recent = asked.slice(-keep)
+        const cut = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
+        const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t])) : list
+        const left = cut ? new Set(list.filter(t => !drawn.includes(t)).map(t => t.turn ?? -1)).size : 0
+        if (cut && left > 0) lines.push({ depth: top, tone: 'section', title: `+${left} pedidos anteriores`, label: 'Pedidos anteriores, não desenhados' })
         // The top panel's main tasks go under the turn (the person's message) they were planned
         // in, oldest first; tasks from before turns existed stay loose, ahead of them.
         // In a session's card, only a turn that planned more than one level-1 task gets its header:
@@ -2692,10 +2804,10 @@ const REPLY = 'resposta'
         const turns =
           g.agent !== MAIN
             ? []
-            : (g.turns ?? []).filter(u => list.some(t => t.turn === u.id) && (level === 0 || list.filter(t => t.turn === u.id).length > 1))
-        const loose = turns.length === 0 ? list : list.filter(t => !turns.some(u => u.id === t.turn))
+            : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || drawn.filter(t => t.turn === u.id).length > 1))
+        const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
         lines.push(...rows(loose, top, top, lit, below, g.agent === MAIN ? pinned : [], inScope, work))
-        for (const u of turns) lines.push(...turnRows(u, list.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle), level === 0))
+        for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle), level === 0))
         if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
         return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
       }
@@ -2730,7 +2842,19 @@ const REPLY = 'resposta'
         return [header, ...(open ? inner : closed ? mine.map(w => notice(w, b + 1)) : [])]
       }
 
-      return draw(main, base).concat(inOrder(loose).flatMap(c => session(c, base, level, scope)))
+      // A card with no task to go under (opened before this session kept origins, or its origin
+      // long gone) ends the list only while it has work: one all done is old history, counted in one
+      // line, not drawn (they were most of the 1.6 MB drawing).
+      // One begun since the oldest request still drawn above (a message with no recorded origin)
+      // stays: it is recent.
+      const ats = (main.turns ?? []).filter(u => main.tasks.some(t => t.turn === u.id)).flatMap(u => (typeof u.at === 'number' ? [u.at] : []))
+      const since = ats.length > SHOWN_TURNS ? [...ats].sort((a, b) => a - b)[ats.length - SHOWN_TURNS] : -Infinity
+      const busy = (c: Child) => begins(c) >= since || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
+      const old = level === 0 ? loose.filter(c => !busy(c)) : []
+      const ends = level === 0 ? loose.filter(busy) : loose
+      return draw(main, base)
+        .concat(old.length > 0 ? [{ depth: base, tone: 'section' as Tone, title: `+${old.length} cartões antigos de sessões`, label: 'Cartões antigos, não desenhados' }] : [])
+        .concat(inOrder(ends).flatMap(c => session(c, base, level, scope)))
     }
     const all = { groups: held ?? [], waits, children: sessions }
     const plain = panel(all, 0, 0, '', ownId)
@@ -2785,7 +2909,7 @@ const REPLY = 'resposta'
     // the icon and a Button with an empty label lies over it.
     const press = (r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
     const iconButton = (r: Row, glyph: string, color: string) => (
-      <Button key={`fold:${(r.fold as any).key}`} plain onPress={press(r)}>
+      <Button key={`fold:${(r.fold as any).key}`} plain onPress={act(`fold:${(r.fold as any).key}`, press(r))}>
         <Text color={color}>{glyph}</Text>
       </Button>
     )
@@ -2807,7 +2931,7 @@ const REPLY = 'resposta'
       const right = ringRight(m)
       return (
         <Box position="absolute" top={0} bottom={0} right={right} width={RING_CELLS} flexDirection="row" alignItems="center" justifyContent="center">
-          <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={() => void openSession($, r.sid as string, r.title)} />
+          <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
         </Box>
       )
     }
@@ -2815,7 +2939,7 @@ const REPLY = 'resposta'
       const { left, width } = iconBox(r)
       return (
         <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
-          <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={press(r)} />
+          <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, press(r))} />
         </Box>
       )
     }
@@ -2846,14 +2970,14 @@ const REPLY = 'resposta'
       e.surface === 'desktop'
         ? VIEWS.map(([v, glyph]) =>
             view === v ? (
-              <Button key={`view:${v}`} label={glyph} variant="primary" onPress={() => void setView($, v)} />
+              <Button key={`view:${v}`} label={glyph} variant="primary" onPress={act(`view:${v}`, () => void setView($, v))} />
             ) : (
-              <Button key={`view:${v}`} label={glyph} plain dimColor onPress={() => void setView($, v)} />
+              <Button key={`view:${v}`} label={glyph} plain dimColor onPress={act(`view:${v}`, () => void setView($, v))} />
             ),
           )
         : VIEWS.flatMap(([v, glyph], i) => [
             ...(i > 0 ? [<Text key="gap"> </Text>] : []),
-            <Button key={`view:${v}`} label={view === v ? `[${glyph}]` : glyph} plain dimColor={view !== v} onPress={() => void setView($, v)} />,
+            <Button key={`view:${v}`} label={view === v ? `[${glyph}]` : glyph} plain dimColor={view !== v} onPress={act(`view:${v}`, () => void setView($, v))} />,
           ])
 
     if (e.surface === 'desktop' && 'Svg' in ui) {
@@ -2982,5 +3106,23 @@ const REPLY = 'resposta'
         })}
       </Box>
     )
+    })()
+    // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
+    // long session's history, 1.3 MB): an emergency drawing says so in one line instead.
+    drawSize = JSON.stringify(drawn ?? null).length
+    if (drawSize > DRAW_LIMIT) {
+      await debug($, `task-tree: desenho de ${Math.round(drawSize / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
+      const { Text } = $.ui.resolve(e) as any
+      return (
+        <Text color="warning">{`Painel grande demais (${Math.round(drawSize / 1024)} KB): mostrando só o essencial. Use ≡ (/task-tree resumida) para a visão resumida.`}</Text>
+      )
+    }
+    return drawn
+   } catch (err) {
+      renderError = String((err as any)?.stack ?? err).slice(0, 600)
+      await debug($, `task-tree: erro ao desenhar o painel: ${renderError}`)
+      const { Text } = $.ui.resolve(e) as any
+      return <Text color="error">{`Painel de tarefas: erro ao desenhar: ${String(err).slice(0, 300)}`}</Text>
+    }
   })
 }
