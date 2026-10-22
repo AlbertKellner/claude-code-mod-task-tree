@@ -2,6 +2,10 @@ import { atom, read, update } from 'claude-code'
 import type { AgentInfo, Register } from 'claude-code'
 
 import type { Child, Group, Launch, LegacyNode, Panel, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
+import {
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
+  ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlay, ringFromRight, textRight,
+} from '../draw/geometry'
 
 const PANE = 'task-tree'
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
@@ -1642,8 +1646,8 @@ function icon(tone: Tone, x: number, y: number): string {
 // Folded by the person: " ⋯" after the name.
 // The label's name as drawn: fitted between its start and its tags.
 function labelName(r: Row, W: number, depth: number, inner: number): { name: string; whole: string; tx: number } {
-  const R = W - 2.5 - 6 * inner - 8
-  const tx = col(depth) + 13
+  const R = textRight(W, inner)
+  const tx = col(depth) + TEXT_IN
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const tags = (r.ring ? 26 : 0) + (r.meta ? textW(r.meta, 11) + 8 : 0)
   return { name: fit(whole, 12, Math.max(24, R - tx - tags)), whole, tx }
@@ -1656,8 +1660,8 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   const parts: string[] = [branch(x, cy, 'gy')]
   const at = tx + textW(name, 12) + 10
   if (r.ring) {
-    const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
-    // Drawn at the middle of its Button's Box (ringOver: the same overBox, whole cells, the line's
+    const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
+    // Drawn at the middle of its Button's Box (ringOver: overlay 'ring', whole cells, the line's
     // whole height), so the highlight has the same room on all four sides (the person's words:
     // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
     // last line up to half the card's edge off the name's middle.
@@ -1667,7 +1671,7 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   // The model and effort, dim, ending just left of the ring (else at the card's right edge); left
   // out when it would run into the name.
   if (r.engine) {
-    const end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - 7.5 - 8 : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
+    const end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
     if (end - textW(r.engine, 11) > at + (r.meta ? textW(r.meta, 11) + 8 : 0))
       parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
   }
@@ -1686,35 +1690,10 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   )
 }
 
-// The Box a Button is centered in over a glyph whose middle is `cx` px from the line's left: whole
-// cells (8 px), 3 or 2 of them, whichever puts the Box's middle nearest the glyph. Both the icon's
-// and the ring's Buttons use it, so their highlights keep the same room around the glyph.
-// `half`: half the glyph's width plus the room wanted on each side; a width that leaves less is
-// passed over while another leaves enough.
-function overBox(cx: number, widths: number[] = [3, 2], half = 0): { left: number; width: number } {
-  const fit = (width: number) => {
-    const left = Math.max(0, Math.round((cx - 4 * width) / 8))
-    const roomy = 8 * left <= cx - half && 8 * (left + width) >= cx + half
-    return { left, width, off: Math.abs(8 * left + 4 * width - cx) + (roomy ? 0 : 1000) }
-  }
-  const best = widths.map(fit).reduce((a, b) => (b.off < a.off ? b : a))
-  return { left: best.left, width: best.width }
-}
-// The context ring is 15 px across (radius 5.5, stroke 2) and its Button's label is an em space, so
-// the native highlight (the label's width plus the button's padding) covers the whole ring, not the
-// corner a one-space label made (the person's words: "o mouse over do anel de contexto continua
-// pequeno, nao envolvendo o icone todo"). That highlight is 32 px wide, 4 cells, and the desktop
-// keeps it at the left of a wider Box (measured on the person's screen: in a 5-cell Box, the ring
-// 7.5 px right of the highlight's middle): the Box is exactly 4 cells, the highlight's own width,
-// and the ring is drawn at its middle.
-// Placed from the line's right end, not its left: the desktop's cell is a little under 8 px
-// (measured on the person's screen, the Box counted from the left landed 7 px left of the ring
-// after some 57 cells), so cells counted from the left drift; from the right, a few cells off the
-// edge, the drift is a fraction of a pixel. The ring is drawn at the Box's middle: the card's
-// right edge less 15 px (on the innermost card, 6 px in per card), moved to a whole cell.
-const RING_CELLS = 4
-const ringRight = (m: number) => Math.max(0, Math.round((17.5 + 6 * m) / 8 - RING_CELLS / 2))
-const ringFromRight = (m: number) => 8 * (ringRight(m) + RING_CELLS / 2)
+// The ring's Button's label is an em space, so the native highlight (the label's width plus the
+// button's padding) covers the whole ring, not the corner a one-space label made (the person's
+// words: "o mouse over do anel de contexto continua pequeno, nao envolvendo o icone todo"). Where
+// the Box goes, in cells, is the geometry module's (overlay 'ring').
 const RING_LABEL = ' '
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
@@ -1761,15 +1740,12 @@ async function engineOf($: any, id: string): Promise<string | undefined> {
 const TIME_W = textW('0:00:00', 12)
 const COUNT_W = textW('00/00', 12)
 
-
-// Where the icon of depth k sits; the guides run through it (+.5 keeps 1 px lines crisp).
-const col = (k: number) => 12 + k * 20 + 0.5
 // The cards a line is drawn in, outermost first: the card of the header at `depth`, whether it
 // starts (`first`) or ends (`last`) on this line. A card takes its header and every line below
-// it deeper than it; its edges add `PAD` px above its first line and below its last.
+// it deeper than it; its edges add `PAD` px above its first line and below its last (the px, and
+// where the columns, cards and overlays sit, are the geometry module's: ../draw/geometry).
 type Card = { depth: number; first: boolean; last: boolean }
 type Frame = { cards: Card[]; top: number; bottom: number }
-const PAD = 6
 // A session's card is headed by a label (its name), not a task line: the tasks inside are its
 // roots, with no tree line to the label. Per row, the depths of the session labels it is inside:
 // their column (col(depth)) is drawn empty.
@@ -1797,12 +1773,12 @@ function frames(rows: Row[]): Frame[] {
   })
 }
 const NO_FRAME: Frame = { cards: [], top: 0, bottom: 0 }
-const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? 30 : 28) + f.top + f.bottom
+const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? ROW_H_TOP : ROW_H) + f.top + f.bottom
 
 // One card's slice on a line, from y0 to y1: its fill, then its border (the top edge on its
 // first line, the bottom one on its last, the sides on all).
 function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, bottom: boolean): string {
-  const r = 6
+  const r = CARD_RADIUS
   const a = (x: number, y: number) => `A${r} ${r} 0 0 1 ${x} ${y}`
   const yt = top ? y0 + r : y0
   const yb = bottom ? y1 - r : y1
@@ -1828,10 +1804,10 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   // right keeps inside the innermost.
   const ends = f.cards.filter(c => c.last)
   const cards = f.cards.map((c, m) => {
-    const L = col(c.depth) - 12
-    const Rc = W - 2.5 - 6 * m
-    const y0 = c.first ? f.top - 3.5 : 0
-    const y1 = c.last ? H - f.bottom + 3.5 + PAD * (ends.length - 1 - ends.indexOf(c)) : H
+    const L = col(c.depth) - CARD_IN
+    const Rc = cardRight(W, m)
+    const y0 = c.first ? f.top - CARD_EDGE : 0
+    const y1 = c.last ? H - f.bottom + CARD_EDGE + PAD * (ends.length - 1 - ends.indexOf(c)) : H
     return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
   })
   const paths: string[] = g.bars.flatMap((on, k) => (on && !hide.includes(k) ? [`M${col(k)} 0V${H}`] : []))
@@ -1839,12 +1815,12 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   // label's height (the person's words: "conecte ela no painel"); the roots of the card have no
   // branch to the label.
   if (r.depth > 0 && !hide.includes(r.depth - 1)) {
-    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - 12 : x - 9}`)
+    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - CARD_IN : x - BRANCH_GAP}`)
   }
-  if (g.down && !r.session) paths.push(`M${x} ${cy + 8}V${H}`)
+  if (g.down && !r.session) paths.push(`M${x} ${cy + GUIDE_FROM}V${H}`)
   if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
   const right: string[] = []
-  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
+  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
   const section = r.tone === 'section'
   const size = section ? 13 : r.depth === 0 && r.tone !== 'wait' ? 14 : 13
   const forked = r.session === true || r.kids === true
@@ -1859,24 +1835,24 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   if (tabular) {
     const t = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
     if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
-    const countX = R - TIME_W - 12
+    const countX = R - TIME_W - RIGHT_GAP
     if (r.sub) {
       const quiet = r.tone === 'interrupted' || r.tone === 'archived'
       right.push(
         `<text class="s" x="${countX}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"${quiet ? ' opacity=".75"' : ''}>${r.sub[0]}/${r.sub[1]}</text>`,
       )
     }
-    const bx = countX - COUNT_W - 8 - 36
+    const bx = countX - COUNT_W - BAR_GAP - BAR_W
     if (r.sub) {
       const [d, n] = r.sub
       right.push(
-        `<rect class="tr" x="${bx}" y="${cy - 2}" width="36" height="4" rx="2"/>`,
-        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (36 * d) / n)}" height="4" rx="2"/>` : '',
+        `<rect class="tr" x="${bx}" y="${cy - 2}" width="${BAR_W}" height="4" rx="2"/>`,
+        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (BAR_W * d) / n)}" height="4" rx="2"/>` : '',
       )
     }
-    const ix = bx - 12
+    const ix = bx - BRANCH_IN
     if (forked) mark = branch(ix, cy, 'gy')
-    edge = ix - 12
+    edge = ix - RIGHT_GAP
     if (r.meta) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)
       edge -= textW(r.meta, 12) + 8
@@ -1884,7 +1860,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
   } else {
     const t = typeof r.time === 'number' ? clockText(r.time) : ''
     if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
-    if (t) edge = R - textW(t, 12) - 12
+    if (t) edge = R - textW(t, 12) - RIGHT_GAP
     const words = rightText(r)
     if (words) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(words)}</text>`)
@@ -1892,7 +1868,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
     }
   }
   const lead = section ? '' : icon(progress(r), x, cy)
-  const tx = section ? x - 6 : x + 13
+  const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
@@ -1925,12 +1901,11 @@ function chips(active: number, waiting: number, cut: number, live: number, sent 
 
 // The header: the title alone on the first line (its right end is left to the view icons, drawn
 // over it), the count and time below it, the bar, then the chips.
-const ICONS_W = 72
 function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number): { source: string; height: number } {
-  const L = 8
-  const R = W - 8
+  const L = HEADER_PAD
+  const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
-  const H = empty ? 44 : list.length > 0 ? 88 : 66
+  const H = empty ? HEADER_H_EMPTY : list.length > 0 ? HEADER_H_CHIPS : HEADER_H
   const parts: string[] = []
   if (empty) {
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
@@ -3064,27 +3039,23 @@ const REPLY = 'resposta'
     // Desktop: the line stays one drawing (the icon in its color, the label inside its card). Only
     // the progress icon folds it (on a session's card, the ⑂ left of its name): an empty-label
     // Button over the icon, its native highlight the icon's size with some room around it. A Box is
-    // placed in whole cells (about 8 px), but what it holds is laid out in pixels: the Box spans an
-    // odd or even number of cells around the icon (3 cells at an even depth, 2 at an odd one, so its
-    // middle falls on col(depth) to half a pixel), the line's whole height, and centers the Button
-    // both ways. A line with nothing below has no Button.
-    const iconBox = (r: Row) => overBox(col(r.depth))
+    // placed in whole cells, the line's whole height, and centers the Button both ways; where each
+    // Box goes (the icon's, the ring's, the name layer's), in cells anchored by the nearest edge, is
+    // the geometry module's `overlay`. A line with nothing below has no Button.
     // The context ring at a session card's right end opens that session (the person's words:
     // "quando clicar nele, abra a sessao que ele representa"): an empty-label Button over the ring,
-    // as over the icon. The ring sits 15 px inside the innermost card's right edge, each card 6 px
-    // inside the one around it; the Box spans 3 cells around it. The app shows it in this window's
-    // main pane (open_session_in, focus); what it refuses is said in a toast.
-    const ringOver = (r: Row, f: Frame, W: number) => {
-      const m = Math.max(0, f.cards.length - 1)
-      const right = ringRight(m)
+    // as over the icon. The app shows it in this window's main pane (open_session_in, focus); what
+    // it refuses is said in a toast.
+    const ringOver = (r: Row, f: Frame) => {
+      const { right, width } = overlay('ring', Math.max(0, f.cards.length - 1))
       return (
-        <Box position="absolute" top={0} bottom={0} right={right} width={RING_CELLS} flexDirection="row" alignItems="center" justifyContent="center">
+        <Box position="absolute" top={0} bottom={0} right={right} width={width} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
         </Box>
       )
     }
     const foldOver = (r: Row) => {
-      const { left, width } = iconBox(r)
+      const { left, width } = overlay('icon', r.depth)
       return (
         <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, press(r))} />
@@ -3095,9 +3066,7 @@ const REPLY = 'resposta'
     // icon's Button.
     const nameLayer = (r: Row, source: string, H: number, RWidth: number) => {
       const { Svg } = ui
-      const box = iconBox(r)
-      const left = Math.max(box.left + box.width, Math.floor((col(r.depth) + 13) / 8))
-      const w = Math.max(16, RWidth - left * 8)
+      const { left, width: w } = overlay('name', r.depth, RWidth)
       return (
         <Box position="absolute" top={0} left={left}>
           <Svg source={hoverLayer(source, w, H)} alt="" width={w} height={H} isInteractive />
@@ -3130,7 +3099,7 @@ const REPLY = 'resposta'
 
     if (e.surface === 'desktop' && 'Svg' in ui) {
       const { Svg } = ui
-      const W = Math.max(240, Math.min(900, ((e.props as any).bodyColumns || 40) * 8 - 8))
+      const W = lineWidth((e.props as any).bodyColumns || 40)
       const top = headerSvg(head, d, n, list, W, headTime)
       const alt =
         (n + x === 0
@@ -3164,7 +3133,7 @@ const REPLY = 'resposta'
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
                   {r.fold ? foldOver(r) : null}
-                  {r.session && r.sid && r.ring ? ringOver(r, cards[i], RW) : null}
+                  {r.session && r.sid && r.ring ? ringOver(r, cards[i]) : null}
                   {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
