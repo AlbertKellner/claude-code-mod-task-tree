@@ -1307,6 +1307,12 @@ type Row = {
   ring?: Ring
   // A session's card: its id, for the ring's button that opens the session (see ringOver).
   sid?: string
+  // The tasks the line stands for in the header's count and time: a leaf's own; a folded line's
+  // whole subtree (its sessions' tasks too); none for an open parent (its lines below stand for
+  // theirs) or a line that is not a task. The header sums the drawn lines' nodes, so each view's
+  // header says what that view shows (the person's words: "cada visao deve refletir os dados do
+  // seu tipo de vizualizacao").
+  nodes?: TaskNode[]
   // A session's card: its model and effort ("Opus 5.5 · high"), drawn left of the ring.
   engine?: string
 }
@@ -2537,7 +2543,9 @@ const REPLY = 'resposta'
     // The sends still waiting to be taken up, by the scope of the main group they were sent from:
     // this session's, and those each session publishes (its card shows ✉ on its task too).
     const sendsAt: Record<string, Send[]> = { [`${MAIN}|`]: queued }
-    const [d, n, x] = total({ groups: withMain(held ?? []), waits, children: sessions })
+    // The whole session's count, for the header's tooltip; the header itself counts what the
+    // view draws (see shown, below).
+    const [ad, an] = total({ groups: withMain(held ?? []), waits, children: sessions })
     // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
     const now = await stamp($)
     drawNow = now
@@ -2613,12 +2621,13 @@ const REPLY = 'resposta'
           active: tone !== 'sent' && t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
         }
         const under = below(t, depth)
-        if (t.children.length === 0 && under.length === 0) return [row]
+        if (t.children.length === 0 && under.length === 0) return [{ ...row, nodes: [t] }]
         const key = `${scope}t:${t.id}`
         // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
         const kids = t.children
         const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, pinned, scope, work)] : []
         row.fold = { key, open: rest.length > 0 }
+        row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.tasks]
         return [row, ...rest]
       })
 
@@ -2677,6 +2686,7 @@ const REPLY = 'resposta'
       }
       // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
       const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work) : []
+      row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.tasks)]
       // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
       // not when a session's card hangs in the group: the answers that count are in the cards, and
       // one after a card still at work would read as the group being over.
@@ -2737,6 +2747,7 @@ const REPLY = 'resposta'
       const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
       if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
+      header.nodes = inner.length > 0 ? [] : allTasks(p, level + 1)
       return [header, ...inner]
     }
 
@@ -2835,10 +2846,11 @@ const REPLY = 'resposta'
           card: true,
         } as Row
         const inner = body(g, b + 1, g.tasks, true)
-        if (inner.length === 0) return [header]
+        if (inner.length === 0) return [{ ...header, nodes: g.tasks }]
         const key = `${scope}g:${g.agent}`
         const open = opened(key, true)
         header.fold = { key, open }
+        header.nodes = open ? [] : g.tasks
         return [header, ...(open ? inner : closed ? mine.map(w => notice(w, b + 1)) : [])]
       }
 
@@ -2857,7 +2869,7 @@ const REPLY = 'resposta'
         .concat(inOrder(ends).flatMap(c => session(c, base, level, scope)))
     }
     const all = { groups: held ?? [], waits, children: sessions }
-    const plain = panel(all, 0, 0, '', ownId)
+    panel(all, 0, 0, '', ownId)
     fl = chosen
     // The summary view is the full view of a cut of the panel: the current work (trimToWork), with
     // its sessions under the task they were last sent a message from (else where they were opened;
@@ -2888,14 +2900,17 @@ const REPLY = 'resposta'
     const headTask =
       mainTasks.find(t => t.id === current(mainTasks).lit[0]) ?? mainTasks.find(t => atWork(t, sessions, 0).busy)
     const head = headTask?.title ?? 'Tarefas'
-    // The header's time is the whole session's, in both views: from the first start (or plan) of
-    // any task here, its subagents' and its sessions' (archived ones too), to the last close, or to now
-    // while anything is open or a session is at work.
-    const everything = allTasks({ groups: withMain(held ?? []), waits, children: sessions }, 0)
-    const headTime = sessionTime(everything, sessions.some(live) || hasOpen(everything), now)
-    const tally = (pick: (r: Row) => boolean | undefined) => plain.filter(pick).length
+    // The header counts, times and chips what the view draws: the tasks the drawn lines stand
+    // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
+    // group limit, the drawn groups'. The whole session's count stays in the tooltip.
+    const shown = lines.flatMap(r => r.nodes ?? [])
+    const [d, n, x] = count(shown)
+    const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
+    const headTime = sessionTime(shown, tally(r => r.live) > 0 || hasOpen(shown), now)
     // A notice is a wait; a session waiting counts only when it published no notice of its own.
-    const active = activeLeaves({ groups: withMain(held ?? []), waits, children: sessions }, 0, queued.map(q => q.anchor ?? ''))
+    const sentIds = queued.map(q => q.anchor ?? '')
+    const active = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id)).length
+    const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
     const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'))
     const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
@@ -2991,7 +3006,7 @@ const REPLY = 'resposta'
               `${head}: ${d} de ${n} (${percent(d, n)}%)`,
               ...(headTime !== undefined ? [clockText(headTime)] : []),
               ...list.map(c => c.text),
-            ].join(', ')) + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
+            ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
       // Each line: its Svg, the tooltip layer over a cut name and, over the icon, the Button that
       // folds and opens it (drawn last, on top).
       const RW = W
@@ -3043,6 +3058,7 @@ const REPLY = 'resposta'
                 <Text bold>{head}</Text>
                 {`  ${d} de ${n} · ${percent(d, n)}%`}
                 {headTime !== undefined ? <Text dimColor>{`  ${clockText(headTime)}`}</Text> : null}
+                {whole ? <Text dimColor>{`  (${whole})`}</Text> : null}
               </Text>
               <Text>{'  '}</Text>
               {views}

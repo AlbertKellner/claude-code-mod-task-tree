@@ -196,6 +196,17 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Acima de 600 KB
   (`DRAW_LIMIT`), desenho de emergência: só "Painel grande demais (N KB): mostrando só o essencial.
   Use ≡ (/task-tree resumida) para a visão resumida.". Aprovado pelo usuário: "Sim, está bom".
+- Cabeçalho por visão (pedido do usuário: "na visao resumida, quero que a barra superior reflita o
+  que tem nessa visao ... cada visao deve refletir os dados do seu tipo de vizualizacao"; aprovado
+  com "Sim, bate nas duas"): o cabeçalho (X de Y, %, barra, tempo e os chips "em andamento",
+  "interrompidas", "sessões ativas", "aguardando") é a soma das linhas desenhadas na visão. Cada
+  linha carrega as tarefas que representa (`Row.nodes`): uma folha, ela mesma; uma linha recolhida,
+  a subárvore inteira (com as tarefas das sessões embaixo); um pai aberto, nada; seções, ↩ e avisos,
+  nada. Resumida: só o pedido atual (ex.: "1 de 1 · 100% · 0:17"). Completa: só os pedidos
+  desenhados pelo limite de 3, com a linha "+N pedidos anteriores". O total da sessão inteira vai
+  discreto, só quando difere do mostrado: no terminal, "(sessão inteira: D de N)" depois do
+  cabeçalho; no desktop, no `alt` do cabeçalho. A barra e o % seguem a lista visível. Recolher uma
+  linha não muda os números.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
