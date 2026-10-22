@@ -85,14 +85,29 @@ o cenário com bug imprime `TODO …` e passa; quando o bug for corrigido, o tes
 nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
 
 1. (corrigido, fora de `KNOWN`) `reinicio-sem-session-start`: ver "Grupos do store sem `session.start`" abaixo.
-2. `links-lista-parcial`: com a lista do host parcial, `restoreLinks` só mapeia as filhas listadas e
-   `saveLinks` grava o store sem as outras (uma filha com 20 rodadas some). Correção prevista: unir as
-   antigas em `restoreLinks`.
+2. (corrigido, fora de `KNOWN`) `links-lista-parcial`: ver "Ligações com lista parcial do host" abaixo.
 3. `recarga-perde-summary`: `lastBrief` é variável do módulo; `done` com `summary` → recarga →
    `turn.complete` deixa o turno sem ↩ com o resumo (fica a mensagem final). Correção prevista: `lastBrief`
    no `$.state`.
 
 Limite: o kit não simula o respawn real do worker.
+
+### Ligações com lista parcial do host
+
+Antes, com a lista do host parcial, `restoreLinks` só mapeava as filhas listadas e `saveLinks` gravava o
+store sem as outras (uma filha com 20 rodadas sumia). Agora:
+
+- `Link`/`linkOf` e `keptLinks: Map<id, Link>`: cópia, no módulo, do que o store guarda em
+  `links:<id>.children`; preenchida em `restoreLinks` e atualizada em `saveLinks`. É variável de módulo,
+  refeita na primeira gravação após a recarga (como `linksLoaded`).
+- `saveLinks` grava a união: filhas do state (ligações atuais) + entradas de `keptLinks` cujo id não está no
+  state. Logo `links:<id>.children` pode ter mais ids que o state; leitores fazem merge por id.
+- `refreshChildren` e `recordStart`: uma filha que entra no state sem histórico recebe
+  `anchor`/`lastAnchor`/`rounds` de `keptLinks`; a filha que o host volta a listar recupera as ligações.
+- Regra: o desenho segue a lista do host; o store só não esquece. Entradas de filhas não listadas ficam inertes
+  (não vão ao state, ao desenho nem ao arquivo publicado) e só reaparecem se o host listar o id de novo. O
+  host lista com `include_archived: true`, então arquivada continua listada e marcada `archived`. Custo
+  aceito: o store pode guardar ids de sessões apagadas.
 
 ### Grupos do store sem `session.start`
 
