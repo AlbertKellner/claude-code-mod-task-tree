@@ -474,7 +474,16 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   usuário: "deve estar solto e na direita da mesma linha"). Linhas de tarefa e de pedido não mostram
   mais o anel das filhas nem o citam no `alt` (pedido do usuário: "nao precisa colocar esse icone
   na tarefa pai que originou essas sessoes, porque gera inconsistencia"); o ⑂ continua nelas,
-  marcando que há sessões embaixo. Sem percentual, sem anel. Terminal: "42%" no fim da linha do
+  marcando que há sessões embaixo. Sem percentual, sem anel. No desktop o anel é clicável e abre a sessão
+  no painel principal da janela (pedido do usuário: "quero que o icone de contexto seja um icone
+  clicavel tambem, e quando clicar nele, abra a sessao que ele representa"): um `Button` sem
+  rótulo centrado no anel (`ringOver`, como o do ícone de progresso) chama `open_session_in`
+  (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
+  clicar na sessão na barra lateral; o kit não tem API própria para isso e o `Link` do desktop só
+  abre https:. Limites do app: só abre esta sessão ou uma aberta por ela (o cartão de uma neta é
+  recusado), só com esta sessão na tela, e recusa com o cursor num campo de texto; a recusa vira o
+  toast "Não abriu <nome>: <motivo>". Sem tooltip "Abrir <nome>" (o `Button` não tem, e uma camada
+  por cima engoliria o clique) e sem cursor de mão. O ⑂ continua recolhendo o cartão. Terminal: "42%" no fim da linha do
   rótulo, na cor da faixa.
 - Sessão arquivada (pedido do usuário: "Manter visível, marcada"): continua na árvore como histórico,
   sob a âncora, nas duas visões (na resumida, se a âncora estiver no recorte), com o cartão cinza,
