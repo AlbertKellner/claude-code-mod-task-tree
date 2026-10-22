@@ -187,9 +187,12 @@ export const inOrder = (list: Child[]) =>
 export const WAIT_ORIGIN = 10000
 // `now`: the drawing's clock (undefined where it cannot be read); `memo`: the drawing's cache of breaks.
 export function split(c: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
+  // A card already cut to one round (the summary view's cut() splits the sessions before the pass
+  // that draws them) is kept as it is, with no breaks computed for it.
+  if (c.part !== undefined) return [c]
   const rounds = breaks(c, sisters, me, [], owner, memo)
   const p = c.panel
-  if (c.part !== undefined || rounds.length === 0 || p === undefined) return [c]
+  if (rounds.length === 0 || p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
   const turns = main.turns ?? []
