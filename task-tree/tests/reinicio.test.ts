@@ -193,6 +193,29 @@ describe('reinício do processo (state vazio, store cheio)', () => {
     expect(last.groups?.[0]?.tasks?.length).toBe(n)
   })
 
+  test('sem session.start: a visão e o trabalho atual voltam do store no primeiro uso; o plan seguinte soma ao trabalho em vez de sobrescrevê-lo', async ($, on) => {
+    const store = storeOf()
+    store['view:uuid-eu'] = 'summary'
+    const h = host(on, store)
+    // Drawn before any write: the summary view the person had chosen, not the default (full).
+    const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PROPS, requestId: 'task-tree' })
+    const root: any = await ui.drawn()
+    await ui.unmount()
+    const lines = (root.children as any[]).filter(c => typeof c === 'object').map(shown)
+    expect(lines.find(l => l.includes('≡'))).toContain('[≡]')
+    expect(lines.length).toBeLessThan(before.length)
+    // The next plan joins the current work (the store's), instead of writing its own over it.
+    const r = await call($, 'plan', { tasks: [{ id: 'N', title: 'Nova etapa' }] })
+    expect(text(r)).toContain('Plano exibido')
+    const work = store['work:uuid-eu'] as string[]
+    expect(work).toEqual(expect.arrayContaining([...own.work, 'N']))
+    expect(store['view:uuid-eu']).toBe('summary')
+    // The file published by that plan (before the work joined it, as always) carries the restored
+    // work, not an empty one.
+    const last = JSON.parse(h.published[h.published.length - 1] ?? '{}')
+    expect(last.work).toEqual(expect.arrayContaining(own.work))
+  })
+
   test('sem session.start: a primeira gravação das ligações traz as antigas do store (guarda linksLoaded)', async ($, on) => {
     const store = storeOf()
     host(on, store, [...hostRows(), { sessionId: NEW, name: 'nova', title: 'Nova', isRunning: true, isArchived: false, startedBy: ME }])
