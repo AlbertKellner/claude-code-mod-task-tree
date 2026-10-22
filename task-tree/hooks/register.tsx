@@ -277,18 +277,31 @@ const panelOf = (c: Child): Panel => {
 // the task the sister's own card was under when it sent (followed down a chain of sisters).
 // `peer`: a sister's message; `known`: its origin was found (else drawn only after a while, see split).
 type Break = { at: number; anchor?: string; peer?: boolean; known?: boolean }
-function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): Break[] {
+// Each session's breaks once per list of sisters (one drawing): the chain follows a sister's own
+// breaks for every message it sent, and sisters message each other in a ring (implementation →
+// docs → SVG → governance → implementation). Recomputed per message, with up to 20 kept each, that
+// was 20^5 calls per card on every redraw, and it crashed the hooks worker. A session met again
+// inside its own chain counts with its own rounds only.
+const breaksMemo = new WeakMap<Child[], Map<string, Break[]>>()
+function breaks(c: Child, sisters: Child[], me: string | undefined, seen: string[] = []): Break[] {
+  let memo = breaksMemo.get(sisters)
+  if (memo === undefined) breaksMemo.set(sisters, (memo = new Map()))
+  // The path is in the key: a session met again inside its chain is cut there, and only there.
+  const key = `${me ?? ''}|${seen.join(',')}|${c.id}|${c.part ?? ''}`
+  const hit = memo.get(key)
+  if (hit !== undefined) return hit
   const own: Break[] = (c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor }))
-  const peer: Break[] =
-    depth > 4
-      ? []
-      : (c.panel?.received ?? []).flatMap(x => {
+  if (seen.includes(c.id) || seen.length > 4) return own
+  const path = [...seen, c.id]
+  const sisterBreaks = new Map<string, Break[]>()
+  const peer: Break[] = (c.panel?.received ?? []).flatMap(x => {
           const from = sisters.find(k => k.id === x.from && k.id !== c.id)
           if (from === undefined || x.from === me || typeof x.at !== 'number') return []
           // The sister sent it in one of its turns: the message belongs to that turn's round (the one
           // the turn opened after), not to the last round before it arrived, which may be a later
           // message the sister had not taken up yet.
-          const fb = breaks(from, sisters, me, depth + 1)
+          let fb = sisterBreaks.get(from.id)
+          if (fb === undefined) sisterBreaks.set(from.id, (fb = breaks(from, sisters, me, path)))
           const fmain = withMain(from.panel?.groups ?? []).find(g => g.agent === MAIN)
           const fturns = fmain?.turns ?? []
           // First, the sister's own sending task, while its ✉ is up (its published `sends`): the turn
@@ -302,7 +315,9 @@ function breaks(c: Child, sisters: Child[], me: string | undefined, depth = 0): 
           const last = before[before.length - 1]
           return [{ at: x.at, anchor: last ? last.anchor : from.anchor, peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined) }]
         })
-  return [...own, ...peer].sort((a, b) => a.at - b.at)
+  const out = [...own, ...peer].sort((a, b) => a.at - b.at)
+  memo.set(key, out)
+  return out
 }
 
 // When a card's work began: its first turn (the message it was opened or sent with), else its
