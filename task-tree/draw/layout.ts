@@ -590,10 +590,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const memo = newBreaksMemo()
   const notice = (w: Wait, depth: number): Row => ({ depth, tone: 'wait', title: waitText(w), label: '' })
 
-  // What the person opened or closed; `fl` is read by the builders below, which run twice:
-  // with no choices (the chips count what is drawn by default, however the lines are folded)
-  // and with the person's.
-  let fl: Record<string, boolean> = {}
+  // What the person opened or closed, read by the builders below. They run once per drawing: the
+  // header's chips count the drawn lines' nodes (Row.nodes, see ui.render), so no pass without the
+  // choices is needed (there was one, discarded, until phase 6).
+  const fl: Record<string, boolean> = chosen
   // Drawn below a line: the person's choice, else the default.
   const opened = (key: string, byDefault: boolean) => (fl[key] === undefined ? byDefault : !fl[key])
 
@@ -911,8 +911,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       .concat(inOrder(ends).flatMap(c => session(c, base, level, scope)))
   }
   const all = { groups: held ?? [], waits, children: sessions }
-  panel(all, 0, 0, '', ownId)
-  fl = chosen
   // The summary view is the full view of a cut of the panel: the current work (trimToWork), with
   // its sessions under the task they were last sent a message from (else where they were opened;
   // one still at work with neither in the work goes at the end), each cut to its own round. Same

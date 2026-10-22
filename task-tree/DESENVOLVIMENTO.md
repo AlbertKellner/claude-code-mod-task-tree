@@ -815,8 +815,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
-- O render monta as linhas duas vezes: sem escolhas (`plain`, para os chips, que não mudam ao
-  recolher) e com as escolhas (`lines`, o desenho).
+- O layout monta as linhas uma vez só, com as escolhas da pessoa (fase 6). Os chips do cabeçalho
+  vêm dos nós das linhas desenhadas (`Row.nodes`), por isso não mudam ao recolher; a passada sem
+  escolhas que existia para eles, com resultado descartado, saiu.
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
   concluída vem aberta, como as outras, e recolhe pelo clique. O tom
@@ -1329,8 +1330,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ### Pendências
 
-- Sobras da etapa 1 do layout: `panel(all, …)` roda uma vez sem escolhas com resultado descartado
-  (mantido para o comportamento idêntico, inclusive o aquecimento do cache) e `elapsed` não é usado.
+- Sobra da etapa 1 do layout: `elapsed` não é usado. (A passada de `panel(all, …)` sem escolhas, com
+  resultado descartado, saiu na fase 6: a medida mostrou que ela só preenchia o memo que a passada
+  seguinte preenchia igual, e as linhas ficaram idênticas.)
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
   rolável própria. O único caminho é o padrão do `ui.scroll` do `Pane`: não chamar `next`, guardar o
   próprio offset (`e.by`), invalidar e redesenhar o cabeçalho mais a fatia das linhas
