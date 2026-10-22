@@ -10,9 +10,7 @@ import type { Child, Group, Panel, Published, TaskNode, Turn } from '../types'
 // (fixtures/orquestradora-real.ts), then small made-up ones for each rule.
 // A test that reveals a bug marks it in KNOWN (the kit has no skip/todo) and says so.
 
-const KNOWN: Record<string, string> = {
-  'chip em andamento com ✉ de filha': 'o cabeçalho conta como "em andamento" a tarefa ✉ de um cartão de filha (sentIds só tem as mensagens desta sessão); ela já conta em "aguardando sessão"',
-}
+const KNOWN: Record<string, string> = {}
 function known(name: string, ok: boolean, detail: string) {
   if (name in KNOWN) {
     if (ok) throw new Error(`"${name}" passou: o bug conhecido (${KNOWN[name]}) parece corrigido; tire-o de KNOWN.`)
@@ -61,7 +59,8 @@ function header(rows: Row[], sentIds: string[] = []) {
   const shown = rows.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
   const tally = (pick: (r: Row) => boolean | undefined) => rows.filter(pick).length
-  const active = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id)).length
+  const sentTasks = new Set(rows.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
+  const active = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t)).length
   return { d, n, x, active, waiting: tally(r => (r.tone === 'wait' && r.label === '') || r.pending), live: tally(r => r.live), sent: tally(r => r.tone === 'sent') }
 }
 // The row right below `row` that is one level deeper, and all the rows under it.
@@ -235,9 +234,10 @@ describe('layout: regras, em modelos pequenos', () => {
     expect(avisar.tone).toBe('sent')
     expect(avisar.label).toBe('Aguardando confirmação de local_outra')
     expect(header(rows, ['A/2']).sent).toBe(2)
-    // The header's "em andamento" leaves out this session's own queued tasks (sentIds), not a
-    // card's: the child's ✉ task still counts as in progress there.
-    known('chip em andamento com ✉ de filha', header(rows, ['A/2']).active === 0, `active = ${header(rows, ['A/2']).active}`)
+    // Neither task waiting on a session is in progress: this session's (sentIds) nor the card's ✉.
+    expect(header(rows, ['A/2']).active).toBe(0)
+    // With the session's own queue unknown to the header, the lines still say which tasks wait.
+    expect(header(rows, []).active).toBe(0)
   })
 
   test('aviso ao usuário: sob a tarefa em andamento do agente, e no chip de espera', () => {
