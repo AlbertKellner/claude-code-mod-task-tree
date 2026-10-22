@@ -6,7 +6,384 @@ das ferramentas). Princípio do repositório (ver "Comportamento dos mods" no
 [CLAUDE.md](../CLAUDE.md)): regra nova de uso do painel entra no `RULES` e, onde couber, nos
 contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máquina.
 
-## Estrutura
+## Como é hoje
+
+Esta parte descreve o mod como o código está (branch `docs/fase-5-desenvolvimento`, sobre a `main`
+`152da41`, fim da fase 4). Cada afirmação foi conferida contra os arquivos citados; os números de
+linhas são os de `wc -l` nesse commit, para dar a ordem de grandeza. As notas de cada fase, com os
+pedidos do usuário e os motivos de cada decisão, estão em "Decisões (histórico)", no fim.
+
+### Módulos
+
+Pasta `task-tree/`, carregada como plugin (`.claude-plugin/plugin.json`: nome `task-tree`, versão
+`0.7.4`, `types: ./types/index.d.ts`). `hooks/hooks.json` aponta um módulo só: `./register.tsx`.
+
+Quem recebe `$` (o engine) e quem não recebe:
+
+- **Hooks** (`hooks/`), os únicos que registram hooks e que leem e gravam `$.state`:
+  - `register.tsx` (31 linhas): só registra os 14 hooks, cada um pelo nome de uma função importada.
+  - `panel.ts` (490): o estado do painel e como os hooks o mudam: as 14 chaves de `$.state` que este
+    arquivo usa, `change`/`replace`/`persist`, os `ensure*` (volta do store sem `session.start`),
+    `publishPanel`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, a visão (`setView`/`restoreView`),
+    o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`), as ligações
+    (`keptLinks`/`saveLinks`/`restoreLinks`/`restoreWork`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
+    `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
+  - `sessions.ts` (233): as sessões que esta abriu: `refreshChildren` (os quatro passos de
+    `io/host.ts`), `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`,
+    `endedNote`, os relógios (`ticker`/`tick`/`keepTime`, `POLL`/`poller`/`watchSessions`,
+    `anyRunning`) e `openSession`.
+  - `session-start.ts` (80): `sessionStart` (registra o comando e as três ferramentas, traz o painel
+    do store, abre o pane, lê as sessões) e `classicSessionStart` (`/clear` e `resume`).
+  - `prompt-submit.ts` (98): `said` (classificação pura do prompt), `promptSubmit`, `promptCompose`,
+    `NO_TURN`.
+  - `command.ts` (34): `commandRun` (`/task-tree [resumida|completa]`).
+  - `tools.ts` (208): `planTool`, `doneTool`, `startTool` e os schemas (`node`, `level`).
+  - `permission.ts` (22): `permissionRequest`.
+  - `turn.ts` (87): `brief` (pura), `turnStep`, `turnComplete`.
+  - `tool-call.ts` (211): o `tool.call` genérico em handlers por responsabilidade (`launch`, `asked`,
+    `wrapUpAsk`, `sentMessage`, `sessionNotes`, `wrapUpOpen`, `reminder`) e o hook `toolCall`.
+  - `render.tsx` (332): `render` (o pane nas duas superfícies: `drawDesktop`, `drawTerminal`), `press`,
+    o atom `folds` e `setFold`.
+- **IO** (`io/`), o que fala com o mundo fora do engine, com `$` só onde precisa:
+  - `publish.ts` (137): o arquivo publicado: `PUBLISHED_VERSION`, `parsePublished` (pura), `waitFile`,
+    `readPublished`, `publishWait`, o tipo `Publication`.
+  - `host.ts` (156): a leitura das sessões filhas em quatro passos: `parseSessions` (pura),
+    `listSessions`, `mineOf` (pura), `panelOf` (pura), `readFiles`, `engineText` (pura), `engineOf`
+    (com o cache `engineSeen`), `deriveChildren` (pura).
+  - `log.ts` (6): `debug($, texto)`, uma linha no log de depuração que nunca falha.
+- **Estado** (`state/`):
+  - `durability.ts` (167): a tabela de durabilidade `TABLE` e o que a lê (`rowOf`, `restoredAt`,
+    `storeKey`, `STATE_KEYS`, `STORES`, `LINK_KEYS`), o conjunto `loaded`, `merge`/`current`,
+    `Link`/`linkOf`, e o acesso ao store (`loadStore`, `saveStore`, `saveGroups`, `KEEP`): os únicos
+    helpers fora de `hooks/` e `io/` que recebem `$`.
+  - `tasks.ts` (107): as edições puras da árvore: `build`, `duplicates`, `resolve`, `edit`, `finish`,
+    `fillStarts`/`fill`, `settle`, `begin`.
+- **Desenho** (`draw/`), puro, sem `$`:
+  - `layout.ts` (932): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os hooks
+    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`,
+    `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
+    constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
+    `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta".
+  - `geometry.ts` (154): a geometria do desktop em px e células (`CELL` = 8, `col`, `lineWidth`,
+    alturas, `overBox`, `overlay`, `overlays`, `spanOf`, `crossings`).
+  - `svg.ts` (420): os construtores de SVG e os glifos do terminal (`GLYPH`, `prefix`, `clockText`,
+    `slim`, `fit`/`textW`, `contextRing`, `branch`, `icon`, `rowSvg`, `labelSvg`, `headerSvg`,
+    `chips`, `rowAlt`, `RING_LABEL`).
+- **Textos** (`text/rules.ts`, 178): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
+  `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`) e `BRIEF` = 120.
+- **Tipos** (`types/index.d.ts`, 145): `TaskNode`, `Turn`, `Group`, `Launch`, `Wait`, `Panel`,
+  `Published`, `Child`, `Send`, `LegacyNode` e o contrato `PluginState['task-tree']` (as 15 chaves de
+  `$.state`).
+- **Testes** (`tests/`): ver "Testes e como rodá-los".
+- `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina; não versionar.
+
+Regra de dependência que o código segue: `draw/`, `state/tasks.ts` e `text/` importam só `../types`
+e uns aos outros (sem `$`); `io/` e `state/durability.ts` recebem `$` em funções de topo; `hooks/`
+importa de todos e é o único lugar com `$.state.get/set` (chave literal em cada arquivo, ver "Limites
+do kit"). Não há import circular entre `hooks/panel.ts` e `hooks/sessions.ts`: `sessions.ts` importa
+de `panel.ts`, e `panel.ts` não importa de `sessions.ts`.
+
+### Os 14 hooks
+
+Na ordem de `register.tsx`:
+
+| Evento | Filtro | Função (arquivo) | O que faz |
+|---|---|---|---|
+| `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada), `restore` do store se o state está vazio, `restoreView`, `restoreWork`, `restoreLinks`; abre o pane; `refreshChildren` e `watchSessions` |
+| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`; `resume`: `restore` do store |
+| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido) |
+| `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
+| `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
+| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui um nível 1 aberto com o mesmo id no lugar, renomeia um fechado que colide (`<tag>:id`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual (`startsWork`/`joinWork`), abre o pane |
+| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; tira os `sends` das tarefas fechadas |
+| `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
+| `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
+| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido |
+| `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
+| `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
+| `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | ver "Desenho" |
+
+Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
+elas (por isso cada uma marca `reminders.planned` por conta própria).
+
+### Fluxo de dados
+
+**Toda escrita do painel passa por `change($, fn)`** (`hooks/panel.ts`): `ensureGroups`, `ensureView`,
+`ensureWork` (volta do store se o módulo ainda não a fez), `adopt` (a lista legada `tasks` entra no
+grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `persist`: `showStatus`
+(`$.ui.status` "Tarefas d/n"), `saveGroups` (store `session:<uuid>` e a lista `sessions`, as
+`KEEP` = 30 mais novas) e `publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
+
+**O `tool.call` genérico** (`hooks/tool-call.ts`), em torno de `Call = { agent, e, sentAt, r }`:
+
+1. Antes da chamada: `launch` (uma chamada `Agent`/`Task` grava em `launches` a tarefa em andamento do
+   laço que lançou, com a descrição; o grupo do subagente a reclama em `identify`); `asked` (uma
+   `AskUserQuestion` do loop principal sem tarefa aberta é recusada com `deny`; senão a pergunta ou o
+   `ExitPlanMode` vira um aviso enquanto `next(e)` roda, e a resposta volta com `ASK.answered` ou
+   `ASK.inChat`); `wrapUpAsk` (um `mcp__ccd_turn__wrap_up` grava o `recap` no state e, com `ask`, o
+   aviso `choice`, chave `<agente>:wrap_up:ask`).
+2. `sentAt` é lido antes de um `SendMessage`; a chamada roda; o aviso `<agente>:<tool>` sai.
+3. Só no loop principal, depois da chamada: `keepTime`, `watchSessions`, `refreshStale` (a lista do
+   host de novo, se tem mais de `POLL` ms); um `mcp__ccd_session__start_session` passa por
+   `recordStart` (o id `local_…` do resultado entra em `children` com a tarefa em andamento como
+   `anchor`); então, por nome e nesta ordem, `sentMessage` (grava a rodada em `Child.rounds` e
+   `lastAnchor`, o envio em `sends`, e avisa se ficou na fila), `sessionNotes` (`endedNote`,
+   `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
+   chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
+
+**Um prompt** (`hooks/prompt-submit.ts`): `said(text)` tira os `<system-reminder>` e classifica em
+mensagem de outra sessão (`peer`, `<cross-session-message`), volta de subagente (`handback`), aviso
+do app (`notice`: corpo vazio ou `<side-sessions-event>`) ou pedido. `noteReceived` guarda `from`/`at`
+das mensagens de outras sessões (os últimos 20) e publica. Um prompt de origem `NO_TURN`
+(`task-notification`, `observer`, `observer-activity`, `auto-continuation`, `unclassified`), um aviso
+ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete curto (`PROMPT.handback`,
+`.background` ou `.notice`). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
+principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: título com até 60
+caracteres da mensagem sem tags; turnos sem tarefa são descartados), releem a lista se está velha e
+levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensagem é a resposta") e
+`PROMPT.request`.
+
+**As sessões filhas** (`hooks/sessions.ts` + `io/host.ts`): `refreshChildren` roda no
+`session.start`, a cada `POLL` = 3 000 ms (`watchSessions`, recriado a cada chamada e prompt do loop
+principal porque a recarga do mod cancela o intervalo), depois de um `start_session`, num aviso do
+app e quando a lista está velha (`refreshStale`). Passos: (1) `listSessions` (`list_sessions` com
+`linked: true, include_archived: true, limit: 100`; falha vai para `childrenError`, mostrada só no app
+desktop, `inDesktopApp`); `watchSends` antes de qualquer retorno (confirma os envios pelo `received`
+do destino com `at` ≥ envio, senão por um turno dele depois do envio, senão parada-depois-rodando; um
+envio confirmado fecha a tarefa de origem se ela está aberta sem subtarefa aberta); lista vazia zera
+`children`; `mineOf` (as linhas cujo `startedBy` é um id que a lista não traz, o desta sessão);
+(2) `readFiles` (cada arquivo publicado por `readPublished`; o modelo por `engineOf` quando o arquivo
+não o traz, cache de 60 s); (3) `deriveChildren` (as filhas no state a partir das linhas, dos
+arquivos, das conhecidas antes e das ligações do store por `keptLink`; `ended` = as que corriam ou
+esperavam e pararam, exceto `starting`); (4) `showStatus` e `publishPanel`; `keepTime`.
+
+**Relógios**: `ticker` (`$.clock.every(1000)`, `tick` invalida o `ui.render` enquanto `running`; cancela
+quando nada roda) e `poller` (3 s). Os dois são variáveis de módulo: uma recarga os perde e a próxima
+chamada, prompt ou `start` os recria.
+
+**Publicação** (`publishPanel` em `hooks/panel.ts` → `publishWait` em `io/publish.ts`): a cada
+`persist`, aviso, `received`, `engine`, fim de turno e `/task-tree`. Ver "Arquivo publicado".
+
+### Estado e durabilidade
+
+Três camadas guardam dados, e cada uma morre num momento: `$.state` sobrevive à recarga a quente do
+mod (salvar um arquivo) e morre com o processo (crash do hooks worker, `/model`, reinício do app);
+`$.store` sobrevive a tudo, com chave por sessão (`<prefixo>:<uuid do $.session.id()>`); uma variável
+de módulo morre na recarga. Como a recarga não roda `session.start`, e um processo que reiniciou sem
+ele parte de state vazio, o que vive no store volta também no primeiro uso depois (`loaded`, em
+`state/durability.ts`; `ensureGroups`/`ensureView`/`ensureWork` e `saveLinks`→`restoreLinks` em
+`hooks/panel.ts`).
+
+A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o prefixo do store
+(`store`; `field` quando é um campo do registro `links`), como a cópia do store encontra o state
+(`merge`), quantas entradas ficam (`keep`), quando volta (`restoredAt`). `tests/durabilidade.test.ts`
+a põe à prova linha a linha e falha numa chave de state ou prefixo de store sem linha.
+
+| Chave | Vive | Store | Fusão | Volta em | O que é |
+|---|---|---|---|---|---|
+| `groups` | state+store | `session` | current | start, resume, first-use | os grupos (tarefas, turnos, respostas); no resume o store substitui; subagentes voltam com o aberto interrompido |
+| `tasks` | state | | none | | legado: a lista única de antes dos grupos, movida para o grupo principal uma vez (`adopt`) |
+| `view` | state+store | `view` | current | start, first-use | a visão (`summary`, padrão de sessão nova, ou `full`); vai ao store só no clique (`setView`) |
+| `work` | state+store | `work` | current | start, first-use | os níveis 1 do trabalho atual (a visão resumida) |
+| `children` | state+store | `links` (campo) | fill | start, first-save | as sessões abertas por esta, como o host lista; o store guarda só as ligações (`Link`: id, name, title, anchor, lastAnchor, rounds), também de sessões que o host deixou de listar (`keptLinks`) |
+| `sends` | state+store | `links` (campo) | union | start, first-save | mensagens a outras sessões ainda não tomadas |
+| `received` | state+store | `links` (campo) | union, 20 | start, first-save | mensagens de outras sessões recebidas |
+| `launches` | state+store | `links` (campo) | union, 20 | start, first-save | chamadas `Agent` ainda não reclamadas por um grupo |
+| `waits` | state | | none | | o que espera a pessoa (pergunta, plano, permissão, `choice` do wrap_up) |
+| `engine` | state | | none | | modelo e esforço do loop principal, publicados |
+| `ended` | state | | none | | sessões cujo turno terminou, até o lembrete |
+| `childrenError` | state | | none | | por que a lista do host falhou |
+| `brief` | state | | none | | o `summary` do `done` até o fim do turno |
+| `recap` | state | | none | | o `recap` do `wrap_up` até o fim do turno |
+| `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`) |
+| `sessions` | store | `sessions` | none | | as sessões com painel guardado, a atual primeiro, `KEEP` = 30 |
+
+Fusões: `current` (o state vence; o store só com state vazio), `fill` (cada sessão do state ganha
+do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o store inteiro), `union`
+(as entradas do store que o state não tem vêm primeiro, depois as do state, cortadas em `keep`),
+`replace` (o store substitui, usado no resume), `none`.
+
+Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
+`refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
+`actions`, `ticker`, `poller`, `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+(hoje `reminders` em `hooks/panel.ts`). Duas linhas sobraram da fase 2 e não têm mais variável no
+código: `drawNow` e `breaksMemo` (o `layout()` recebe `now` e cria um `BreaksMemo` por desenho).
+
+Quem traz do store e quando: `session.start` (`restore` se o state não tem grupos, `restoreView`,
+`restoreWork`, `restoreLinks`); `resume` (`restore`, que substitui); primeiro uso (`ensureGroups`,
+`ensureView`, `ensureWork`, chamados em `change`, `publishPanel`, `nothingOpen` e no `ui.render`, que
+não pode gravar e usa o valor devolvido); primeira gravação das ligações (`saveLinks` chama
+`restoreLinks` antes). O `ensure*` só marca `loaded` quando o state recebeu o valor.
+
+### Arquivo publicado (versão 1)
+
+Cada sessão escreve `~/.claude/task-tree-waits/<id local_…>.json` (`waitFile`: `USERPROFILE`, senão
+`HOME`; fora do app desktop não há id e nada é publicado). A sessão que a abriu lê o arquivo para
+desenhar o cartão dela. É o contrato entre sessões, que podem rodar versões diferentes do mod.
+
+O que `publishWait($, id, publicação)` escreve, nesta ordem de chaves (`satisfies Published`):
+`version` (= `PUBLISHED_VERSION` = 1), `waiting` (há aviso), `at`, `tasks` (o grupo principal, para
+leitores antigos), `groups`, `waits`, `children`, `context` (`{ percent, at }` de `$.session.usage()`),
+`engine`, `panes` (`$.ui.panes()`: id, `isPlaced`, `isShown`), `renderError`, `drawSize`, `rows`,
+`work`, `received`, `sends` (só os não tomados). `JSON.stringify` omite o que está `undefined`.
+`publishPanel` junta tudo do state (sete `$.state.get`) e de `drawn`, e qualquer falha vai só ao log.
+
+Leitura: `parsePublished(texto)` (pura) devolve `{ ok }` normalizado ou `{ error }`: JSON inválido,
+não-objeto, ou `version` presente e ≠ 1. Normaliza: listas só se são listas (`waits` e `children`
+vazias por padrão), `waiting` só `=== true`, `context` só com `percent` e `at` numéricos, `engine` só
+string não vazia, `work` mapeado a string; `panes`, `drawSize` e `rows` não saem na leitura (são para
+olhar o arquivo à mão). `readPublished($, id)` lê, valida e diz uma vez por sessão e motivo no log
+("task-tree: arquivo publicado de <id> ignorado: <motivo>"); arquivo inválido vale como ausente. Um
+arquivo de antes de `version` é lido como está; `panelOf` (io/host.ts) aceita `groups` ou, de versões
+antigas, só `tasks`. `tests/fixtures/publicados.ts` guarda um arquivo real de cada um dos 8 formatos já
+escritos (do `{ waiting, at }` ao de versão 1), e `tests/publicado-versoes.test.ts` lê todos.
+
+### Textos para o modelo
+
+`text/rules.ts` concentra tudo o que o modelo lê do mod; o golden `tests/golden/textos.ts` (23
+textos) os fixa letra por letra. `RULES` vai ao prompt de sistema (seção `task-tree:regras`, escopo
+`session`) em todo pedido que oferece a ferramenta `plan`; `COMMAND` e `TOOLS` são as descrições
+registradas no `session.start`; `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
+`SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas. O limite do resumo ↩ é um só,
+`BRIEF` = 120, interpolado em cada texto que o cita. Os resultados das ferramentas ("Plano exibido…",
+"Concluídas: d/n…", "Em andamento: …") e os textos do desenho (`alt`, rótulos) ficam fora dele.
+
+### Desenho
+
+`ui.render` (`hooks/render.tsx`) lê o state uma vez (grupos, visão e trabalho com os `ensure*`, avisos,
+sessões, erro da lista, envios pendentes, `folds`), monta o `Model` e chama `layout()`
+(`draw/layout.ts`, puro): `panel()` percorre os grupos, os turnos (`turnRows`), as tarefas (`rows`),
+os cartões das sessões (`session`, cada uma dividida por mensagem em `split`) e os grupos de
+subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `limitRows` corta em
+`MAX_ROWS` = 400. Daí `Row[]`: profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
+`running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
+`fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
+cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
+(`count` dos `nodes`, `sessionTime`, `chips`); o total da sessão inteira vai no `alt`.
+
+- **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
+  cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
+  o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
+  (`RING_LABEL`, 4 células pela direita) e a camada de tooltip (`hoverLayer`) sobre um nome cortado. A
+  largura é `lineWidth(bodyColumns)` = `clamp(240, colunas × 8 − 8, 900)`. Cada SVG leva só as regras
+  CSS que usa (`slim`), claro e escuro.
+- **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
+  (`GLYPH`), o glifo como `Button` quando a linha recolhe; os botões de visão `[≡] ▤`.
+- Um desenho acima de `DRAW_LIMIT` = 600 KB vira uma linha de aviso; um que lança exceção vira uma
+  linha de erro e publica `renderError`. `drawn` guarda tamanho, linhas e erro do último desenho.
+- `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
+  último desenho registrou em `actions` (`act`).
+
+### Testes e como rodá-los
+
+Use o binário da mesma versão do Claude Code que roda a sessão (o app desktop traz o dele; no
+Windows, em `%APPDATA%\Claude\claude-code\<versão>\<hash>\claude.exe`). Da raiz do repositório:
+
+```
+claude plugin validate .
+claude plugin validate task-tree
+claude plugin test task-tree
+```
+
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 316 testes em 13
+arquivos (contagem da fase 4, etapa 3); rode-a sozinha, sem outra ao mesmo tempo, e, numa falha,
+guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio e tem 5 s.
+
+| Arquivo | Testes | O que cobre |
+|---|---|---|
+| `task-tree.test.ts` | 166 | o painel desenhado e os resultados das ferramentas: ids, replanejar, visão, dobras, tempos, cartões, avisos, sessões, mensagens, turnos, ↩ |
+| `durabilidade.test.ts` | 63 | a tabela: 4 cenários por chave de state (plantar; reinício com `session.start`; sem; recarga a quente), `sessions`, sanidade, "chave sem linha" |
+| `layout.test.ts` | 14 | `layout()` direto, com o fixture real e modelos pequenos: pedidos desenhados, cartões, ↩, cabeçalho, resumida, ordem, cadeias, ✉, corte |
+| `host.test.ts` | 13 | os passos de `io/host.ts` com `$` falso ou entradas puras, inclusive a lista parcial |
+| `reinicio.test.ts` | 11 | reinício do processo (com e sem `session.start`) e recarga a quente, com o fixture real; `KNOWN` (vazio) para bugs futuros |
+| `hooks-puros.test.ts` | 9 | `said`, `brief` e as edições de `state/tasks.ts` |
+| `publicado.test.ts` | 8 | escrita e leitura do arquivo publicado: válido, parcial, vazio, antigo, outra versão, corrompido, `watchSends` |
+| `svg-golden.test.ts` | 7 | 12 cenários de SVG contra `golden/svg.ts` |
+| `textos.test.ts` | 7 | os textos contra `golden/textos.ts`, e o limite 120 |
+| `sobreposicao.test.ts` | 6 | nenhum par de `Box` se cruza numa linha (`overlays`, `crossings`) |
+| `limite-linhas.test.ts` | 4 | `limitRows`: 400 linhas, blocos antigos contados, `rows`/`drawSize` publicados |
+| `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
+| `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
+
+Fixtures e goldens:
+
+- `tests/fixtures/orquestradora-real.ts` (`REAL`): o estado real de uma orquestradora (97 níveis 1 em
+  70 pedidos, 5 filhas), anonimizado por `docs/analises/medicoes/gen-fixture.mjs`; não editar à mão.
+- `tests/fixtures/publicados.ts` (`PUBLISHED_FILES`): os 8 formatos do arquivo publicado.
+- `tests/golden/svg.ts` (`GOLDEN`, gerado): um `Svg` por linha, 12 cenários. Mudança intencional de
+  SVG ou de `alt`: `node task-tree/tests/golden/atualizar.mjs [claude.exe]` (copia `task-tree/` para
+  uma pasta temporária só com o teste do golden, roda `claude plugin test`, recolhe as linhas
+  `GOLDEN-NEW` e funde no arquivo); a aprovação é o diff do git.
+- `tests/golden/textos.ts` (`TEXTOS`): quando o teste difere, imprime `TEXTOS-NEW <json>` para colar.
+- `BASELINE` em `orcamento.test.ts` (HEAD 6d79470, kit 2.1.308, 100 colunas): terminal resumida 11 671
+  bytes/29 linhas, completa 11 789/30; desktop resumida 47 416/28 linhas/30 Svg, completa 48 174/29/31.
+  Para refazer, rode o teste e copie a linha `ORCAMENTO` do log.
+
+Regras dos testes: o que muda linhas vai em `layout.test.ts`, o que muda pixels no golden do SVG, o
+que muda texto no golden dos textos; chave nova de state ou store ganha linha em `TABLE`; formato
+novo do arquivo publicado ganha um arquivo em `publicados.ts` e sobe `PUBLISHED_VERSION`. Não afirmam
+tempo de parede; a leitura de fundo das filhas é esperada pelo fato (`settled()`, em
+`orcamento.test.ts` e no golden do estado real), não por `setTimeout` fixo; sobram esperas fixas em
+`durabilidade.test.ts` (150 ms), `reinicio.test.ts` (150 ms) e `task-tree.test.ts` (20/50 ms e um laço
+de até 200 ms).
+
+O kit nos testes: o host é simulado por `on('…')` (`clock.now`, `clock.every` negado, `env.get`,
+`session.id`, `store.*`, `fs.*`, `mcp.call`, `tool.call` de outras ferramentas); o painel é lido por
+`$.ui.mount` + `ui.drawn()`/`findAll` + `unmount`, e os cliques por `ui.press({ key })`; o
+`agentId` de subagente vai no argumento da ferramenta; `$.prompt.submit` aceita `origin` e `isMeta`;
+`$.turn.complete` exige `answer`, `durationMs`, `isAborted`, `turnId`. O kit não expõe `$.state`
+(os testes de durabilidade o espelham com hooks `state.get`/`state.set` abaixo do kit), não importa
+`fs` nem vê `process.env` (por isso o golden é atualizado por um script de fora), não tem skip/todo
+(`known()`/`KNOWN` em `reinicio.test.ts`) e não simula subagente nem o respawn real do worker.
+
+### Limites do kit
+
+Confirmados no `claude plugin validate`; o código está escrito em volta deles:
+
+1. Um hook é uma função literal ou o nome de uma função, que pode vir de outro arquivo do módulo;
+   `on('x', hookOf())` é recusado.
+2. `$.state.get/set` exige a chave `{ plugin, key }` literal no arquivo que chama (ou numa `const`
+   dele, que não pode ser exportada nem importada). Por isso cada arquivo de `hooks/` declara as
+   chaves que usa, `hooks/panel.ts` não as exporta e o `stateOf` de `state/durability.ts` não serve
+   para chamar `$.state` (o teste de durabilidade é que confere a correspondência com a tabela).
+3. Uma função que recebe `$` tem de estar declarada no topo do arquivo e não pode ter o nome de uma
+   variável atribuída em outro lugar; `$` não vai para uma variável de laço (os handlers de
+   `tool-call.ts` são chamados pelo nome).
+4. O engine recusa o módulo inteiro e segue com a versão anterior quando uma dessas regras falha.
+5. Um `$.state.set` de dentro do `ui.render` não vinga: o render usa o valor que `ensure*` devolve.
+6. Desestruturar um `Set` pode virar `set[0]` na compilação; use arrays.
+7. Uma ferramenta registrada no `session.start` só aparece a partir do próximo prompt; a recarga
+   depois de uma edição pode atrasar.
+
+### O que só é verificável no app
+
+Nada disto é coberto pelos testes do kit; só uma sessão real no app desktop mostra:
+
+- O painel na tela: o pane aberto sem pedido só é posto com 144 colunas ou mais (110 com pedido);
+  `showPane` o reabre num prompt da pessoa; `/task-tree` responde o que o app disse.
+- Os cliques: se o `Button` sobre o ícone e sobre o anel acertam o alvo nos dois temas e em todas as
+  larguras (o teste de sobreposição confere células, não pixels); se o clique na troca de desenho
+  ainda chega (`ui.press` por chave); o realce do botão nativo; o toast de `open_session_in` recusado.
+- O tooltip da camada `hoverLayer` e se a linha pisca a cada segundo.
+- A recarga a quente real e o respawn do hooks worker (o kit só os simula: módulo novo com state
+  semeado ou vazio).
+- As sessões filhas de verdade: `list_sessions`, `get_session`, os arquivos publicados por versões
+  diferentes do mod, o `startedBy`, a latência entre a publicação de uma filha e a releitura de 3 s.
+- `turn.step` (modelo e esforço): o kit não tem implementação base para o evento em stream.
+- O `wrap_up` com `ask` do app e os avisos `<side-sessions-event>`.
+- O tamanho real do desenho que o app aceita (o teste mede o JSON que o kit devolve, não o que o app
+  renderiza).
+- O `$.ui.status` embaixo da caixa de mensagem.
+
+## Decisões (histórico)
+
+As notas abaixo são o texto anterior deste arquivo, por fase, na íntegra (só os títulos desceram um
+nível): os pedidos do usuário citados palavra por palavra, as decisões e os motivos, as medições e as
+armadilhas de cada mudança. Onde dizem "no `register.tsx`", a função está hoje num dos arquivos de
+`task-tree/hooks/` (ver "Módulos"). Os códigos entre parênteses (R6, H3.2 etc.) são os itens dos
+relatórios de análise em `docs/analises/`.
+### Estrutura
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks. Desde a fase 4 (etapa 3) o `register.tsx` tem ~31 linhas e só registra os 14 hooks, cada um pelo nome de uma função importada; o resto vive em um arquivo por responsabilidade (ver "Arquivos de hook"). `hooks.json` segue com um módulo só (`./register.tsx`).
@@ -40,7 +417,7 @@ Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG
 (R20: removidos `Work.ring`/`topRing`, o anel na linha de tarefa, o parâmetro `pinned` e `_up`/`up`).
 Critério atendido: um teste falha se o desenho crescer 50% ou se qualquer SVG mudar sem golden novo.
 
-## Validar e testar
+### Validar e testar
 
 Use o binário da mesma versão do Claude Code que roda a sessão. Versões antigas acusam erros
 falsos (a 2.1.268, por exemplo, não reconhece `tool.check`). O app desktop traz o próprio binário:
@@ -57,7 +434,7 @@ claude plugin test task-tree
 
 O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
 
-### Teste de orçamento do desenho
+#### Teste de orçamento do desenho
 
 `tests/orcamento.test.ts` monta o painel com o fixture `REAL` nas quatro combinações superfície
 (terminal/desktop) × visão (resumida/completa), com `bodyColumns` 100. Afirma que o desenho não
@@ -84,7 +461,7 @@ de parede (`ms`) não é afirmado: só sai na linha `ORCAMENTO …` do log do ki
   11.789/30; desktop resumida 47.416 bytes/28 linhas/30 Svg, completa 48.174/29/31; 14–41 ms.
 - Com este fixture as duas visões medem quase o mesmo, porque o limite de 3 pedidos corta antes.
 
-### Golden do SVG
+#### Golden do SVG
 
 `tests/svg-golden.test.ts` (7 testes, 12 cenários: basico, basico-concluido, retomada, filha-rodando,
 filha-parada, filha-arquivada, filha-recolhida, envio, espera-propria, subagente, real-completa,
@@ -102,7 +479,7 @@ lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho 
 - Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
   (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
 
-### Golden dos textos
+#### Golden dos textos
 
 `tests/textos.test.ts` (7 testes) coleta os textos que chegam ao modelo (descrições registradas no
 `session.start`, regras do `prompt.compose`, contextos do `prompt.submit`, as três saídas do
@@ -115,7 +492,7 @@ caracteres" diz 120 (pelo menos 6). Quando difere, imprime `TEXTOS-NEW <json>` p
   tocou todas).
 - O golden foi gerado com o código anterior à extração, e o teste passou sem diferença depois dela.
 
-### Tabela de durabilidade
+#### Tabela de durabilidade
 
 `state/durability.ts` diz, por chave, onde o dado vive e como volta. `tests/durabilidade.test.ts` roda
 4 cenários por chave do state: A (planta pela API do mod e confere state/store), B (reinício com
@@ -154,7 +531,7 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 7. O `ended` não é consumido pelas tools do painel (`plan`/`start`/`done` não passam pelo `tool.call`
    genérico); o lembrete "terminou o turno" sai na próxima chamada comum ou no `prompt.submit`.
 
-### Sobreposição dos Box
+#### Sobreposição dos Box
 
 `tests/sobreposicao.test.ts` (6 testes) confere que `overlays()` dá os mesmos `Box` que `overlay()` dava
 (7 profundidades × 4 aninhamentos), os trechos em px, e a regra "nenhum par de `Box` na mesma linha se
@@ -165,7 +542,7 @@ camada do nome (a camada vai da coluna do nome até a borda ou, com anel, até o
   nativo a largura certa). Com espaço comum, o teste "só o ícone recolhe" cai. Ferramentas de edição
   podem normalizar o caractere; ao mexer nessa linha, confira o U+2003 (um script com perl resolve).
 
-### Testes de layout
+#### Testes de layout
 
 `tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 28 linhas
 ("+67 pedidos anteriores" no topo, "+41 cartões antigos de sessões" no fim, só os pedidos 71–73
@@ -178,7 +555,7 @@ escopo), aviso ao usuário, escolhas (linha fechada guarda `nodes`) e o corte de
 
 - Regra para quem mexer no layout: mudança de linhas → `layout.test.ts`; mudança de pixels → golden do SVG.
 
-### Reinício e recarga
+#### Reinício e recarga
 
 `tests/reinicio.test.ts` (11 testes, com o fixture `REAL`) cobre dois casos:
 
@@ -203,7 +580,7 @@ nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
 
 Limite: o kit não simula o respawn real do worker.
 
-### Ligações com lista parcial do host
+#### Ligações com lista parcial do host
 
 Antes, com a lista do host parcial, `restoreLinks` só mapeava as filhas listadas e `saveLinks` gravava o
 store sem as outras (uma filha com 20 rodadas sumia). Agora:
@@ -220,7 +597,7 @@ store sem as outras (uma filha com 20 rodadas sumia). Agora:
   host lista com `include_archived: true`, então arquivada continua listada e marcada `archived`. Custo
   aceito: o store pode guardar ids de sessões apagadas.
 
-### Resumo do turno no state
+#### Resumo do turno no state
 
 O `summary` do último `done` (a linha ↩) era a variável de módulo `lastBrief` e morria na recarga: o turno
 ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de state `brief`
@@ -235,7 +612,7 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 - O recap do `wrap_up` seguiu o mesmo caminho: chave de state `recap` (divergência 2 do R13), lida por
   `lastRecap($)`.
 
-### Arquivo publicado
+#### Arquivo publicado
 
 `task-tree/io/publish.ts` escreve e lê `~/.claude/task-tree-waits/<id>.json`; a sessão mãe o lê. O
 `register.tsx` só junta o estado em `publishPanel($)` (sete `$.state.get` com chave literal, limite do kit:
@@ -274,7 +651,7 @@ antigas), `groups?`, `waits`, `children`, `context?`, `engine?`, `panes?`, `rend
   desenha o cartão e nada vai ao log; o que esta versão escreve tem as chaves do último formato, na mesma
   ordem. Ao mudar o formato, acrescente um arquivo ao fixture.
 
-### Leitura das filhas (`io/host.ts`)
+#### Leitura das filhas (`io/host.ts`)
 
 `refreshChildren` (no `register.tsx`) é a composição de quatro passos, numerados em comentário; os três
 primeiros estão em `task-tree/io/host.ts` e testam sem o app, com `$` falso ou entradas puras. O register
@@ -298,7 +675,7 @@ update `children`/`ended` → status → publicar → `keepTime`. `inDesktopApp`
 `describe`: lista, arquivos, filhas) usa também os 8 formatos de `fixtures/publicados.ts`. Quando os arquivos
 são lidos não mudou (performance fica fora desta fase).
 
-### Arquivos de hook
+#### Arquivos de hook
 
 A fase 4 (etapa 3) dividiu o `register.tsx` (2 116 → 31 linhas) em um arquivo por responsabilidade em
 `task-tree/hooks/`; o comportamento é o mesmo (mesmos hooks, mesma ordem, mesmas chamadas):
@@ -345,7 +722,7 @@ Limites do kit, confirmados no `claude plugin validate` com experimentos antes d
 (agora "via" as funções dos outros arquivos) e os mesmos 15 reads/writes de estado. `tsc --noEmit` dá 194
 erros contra 193 antes, todos de tipo e já existentes.
 
-### Grupos do store sem `session.start`
+#### Grupos do store sem `session.start`
 
 Sem `session.start` (respawn do hooks worker, `/model`), o módulo novo tinha `$.state` vazio e a primeira
 escrita partia de `[]`, sobrescrevendo `session:<id>` (o store ia de 97 para 0 tarefas). Agora `groups`
@@ -369,7 +746,7 @@ escrita confirmada. (2) `claude plugin validate` recusa uma função que recebe 
 variável atribuída em outro lugar ("the function handed $ "saved" is assigned to elsewhere"); por isso
 `keptGroups`, não `saved`.
 
-## Desenho do painel
+### Desenho do painel
 
 - Referência do visual aprovado pelo usuário (claro e escuro):
   [docs/task-tree-proposta-visual.svg](../docs/task-tree-proposta-visual.svg).
@@ -574,7 +951,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   interrompida só nasce de subagente, que o kit não simula: o teste a traz pelo `store.get` de uma
   sessão retomada (`classic.SessionStart` com `source: 'resume'`).
 
-## Armadilhas
+### Armadilhas
 
 - O engine recusa o módulo inteiro, e continua rodando a versão anterior, se `$` for passado para
   uma função que não está no topo do arquivo. Helpers que recebem `$` são `function` ou `const`
@@ -950,7 +1327,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   rodando). Um `done` que fecha a tarefa do envio, um replan dela e o `/clear` tiram o envio de `sends`
   (sem ✉ fantasma num id reaproveitado).
 
-## Pendências
+### Pendências
 
 - Sobras da etapa 1 do layout: `panel(all, …)` roda uma vez sem escolhas com resultado descartado
   (mantido para o comportamento idêntico, inclusive o aquecimento do cache) e `elapsed` não é usado.
