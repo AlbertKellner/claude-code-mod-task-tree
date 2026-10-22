@@ -524,6 +524,19 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   toast "Não abriu <nome>: <motivo>". Sem tooltip "Abrir <nome>" (o `Button` não tem, e uma camada
   por cima engoliria o clique) e sem cursor de mão. O ⑂ continua recolhendo o cartão. Terminal: "42%" no fim da linha do
   rótulo, na cor da faixa.
+- Modelo e esforço no cartão (pedido do usuário: "quero que voce mostre o nome do modelo e o
+  esforco de cada sessao, ao lado esquerdo do anel de contexto"; depois "nao aparece em todos os
+  paineis, somente no primeiro"; aprovado com "Sim, em todos"): cada sessão pega `model` e
+  `effort` do `turn.step` (os pedidos do loop principal; hook em `async function*`) e publica o
+  texto em `engine` no arquivo de `task-tree-waits`, só quando muda, como o % de contexto. Sem
+  publicação (sessão que ainda não rodou um turno com esta versão), o cartão busca no registro do
+  app (`get_session`), com cache de 1 min por sessão; o publicado tem prioridade. `engineText` dá o
+  nome legível: `claude-opus-5-5[1m]` vira "Opus 5.5 · high", `claude-sonnet-5-5` vira "Sonnet
+  5.5" (sem `[1m]` nem data; nome fora do formato fica como veio). Desenho: texto cinza de 11 px,
+  terminando 8 px à esquerda do anel (sem anel, na borda do cartão), omitido se fosse encostar no
+  nome, e citado no `alt`; vale em todos os cartões da sessão. Não entra no cabeçalho do painel da
+  própria sessão (o app já mostra o próprio modelo). O hook `turn.step` não tem teste: o kit não
+  tem implementação base para o evento em stream.
 - Sessão arquivada (pedido do usuário: "Manter visível, marcada"): continua na árvore como histórico,
   sob a âncora, nas duas visões (na resumida, se a âncora estiver no recorte), com o cartão cinza,
   ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros. O

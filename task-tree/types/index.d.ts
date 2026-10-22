@@ -71,6 +71,9 @@ export type Child = {
   // The share of its context window the session has used (0-100), as it publishes it; absent until
   // its first answer, or from earlier versions.
   context?: number
+  // Its model and effort in a few words ("Opus 5.5 · high"), as it publishes them; absent until its
+  // first model request, or from earlier versions.
+  engine?: string
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
@@ -106,6 +109,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // with no entry keeps its default.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[] }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string }
   }
 }

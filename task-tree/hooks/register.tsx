@@ -15,6 +15,7 @@ const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
+const engineState = { plugin: 'task-tree', key: 'engine' } as const
 // The pane's lines the person opened or closed (see setFold).
 const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
 
@@ -753,12 +754,18 @@ async function refreshChildren($: any) {
   const waiting: string[] = []
   const panels: Record<string, Panel> = {}
   const contexts: Record<string, number> = {}
+  const engines: Record<string, string> = {}
   for (const r of mine) {
     try {
       const path = await waitFile($, r.sessionId)
       const file = path ? JSON.parse(await $.fs.read(path)) : {}
       if (file.waiting === true) waiting.push(r.sessionId)
       if (typeof file.context?.percent === 'number') contexts[r.sessionId] = file.context.percent
+      if (typeof file.engine === 'string' && file.engine !== '') engines[r.sessionId] = file.engine
+      else {
+        const known = await engineOf($, r.sessionId)
+        if (known) engines[r.sessionId] = known
+      }
       const list = (v: unknown) => (Array.isArray(v) ? v : [])
       if (Array.isArray(file.groups)) {
         panels[r.sessionId] = {
@@ -800,6 +807,7 @@ async function refreshChildren($: any) {
           archived: r.isArchived === true,
           waiting: r.isArchived !== true && waiting.includes(r.sessionId),
           context: contexts[r.sessionId] ?? before?.context,
+          engine: engines[r.sessionId] ?? before?.engine,
           lastAnchor: before?.lastAnchor,
           rounds: before?.rounds,
           anchor: before?.anchor,
@@ -994,9 +1002,10 @@ async function publishWait($: any) {
     } catch {}
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
+    const { value: engine } = await $.state.get(engineState)
     await $.fs.write(
       path,
-      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
+      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
     )
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
@@ -1254,6 +1263,8 @@ type Row = {
   ring?: Ring
   // A session's card: its id, for the ring's button that opens the session (see ringOver).
   sid?: string
+  // A session's card: its model and effort ("Opus 5.5 · high"), drawn left of the ring.
+  engine?: string
 }
 
 // The tree lines of a row: `bars[k]` continues the line of the ancestor at depth k past it,
@@ -1451,6 +1462,13 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
     const ring = contextRing(r.ring.percent, W - ringFromRight(Math.max(0, cards.length - 1)), H / 2)
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
+  // The model and effort, dim, ending just left of the ring (else at the card's right edge); left
+  // out when it would run into the name.
+  if (r.engine) {
+    const end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - 7.5 - 8 : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
+    if (end - textW(r.engine, 11) > at + (r.meta ? textW(r.meta, 11) + 8 : 0))
+      parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
+  }
   // Waiting on the person: the word in amber (the label has no icon to color).
   if (r.meta) {
     const waiting = r.meta === 'aguardando'
@@ -1507,6 +1525,34 @@ async function openSession($: any, id: string, name: string) {
   } catch (err) {
     await $.ui.toast(`Não abriu ${name}: ${String(err).slice(0, 120)}`)
   }
+}
+
+// A session's model and effort in a few words, as its card shows them left of the ring: the model's
+// readable name ("claude-opus-5-5" → "Opus 5.5", "claude-sonnet-5-5[1m]" → "Sonnet 5.5") and the
+// effort level ("Opus 5.5 · high"); a name it cannot read stays as given, cut short.
+function engineText(model: string, effort?: string | number): string {
+  const id = model.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
+  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(id)
+  const name = m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] !== undefined ? `.${m[3]}` : ''}` : id.slice(0, 24)
+  return effort === undefined || effort === '' ? name : `${name} · ${effort}`
+}
+
+// A session that has not published its model yet (no model request since it got this version):
+// the app's own record of it (get_session's model and effort), kept a minute per session, so the
+// 3 s reread does not ask the app each time.
+const engineSeen = new Map<string, { at: number; text?: string }>()
+async function engineOf($: any, id: string): Promise<string | undefined> {
+  const now = Date.now()
+  const hit = engineSeen.get(id)
+  if (hit && now - hit.at < 60000) return hit.text
+  let text: string | undefined
+  try {
+    const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: id })
+    const body = JSON.parse((r?.content ?? []).map((c: any) => c?.text ?? '').join(''))
+    if (!r?.isError && typeof body?.model === 'string' && body.model !== '') text = engineText(body.model, typeof body.effort === 'string' ? body.effort : undefined)
+  } catch {}
+  engineSeen.set(id, { at: now, text })
+  return text
 }
 
 // The desktop's time column: room for "0:00:00".
@@ -1730,6 +1776,7 @@ const rowAlt = (r: Row) =>
   (r.meta ? `, ${r.meta}` : '') +
   (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
   (r.kids ? ', com sessão filha' : '') +
+  (r.engine ? `, ${r.engine}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
   (r.fold && !r.fold.open ? ', recolhida' : '')
 // The right-hand words: "3/5", "1/2 · concluída", "interrompida".
@@ -2136,6 +2183,19 @@ const REPLY = 'resposta'
 
 // A subagent's turn ending is the subagent ending: what it left open is interrupted.
   // A teammate ends a turn per message and is left alone.
+  // The model and effort of the main loop's requests, published for the card in the session that
+  // opened this one (the person's words: "mostre o nome do modelo e o esforco de cada sessao").
+  on('turn.step', async function* ($, e, next) {
+    if (!e.agentId && typeof e.model === 'string') {
+      const text = engineText(e.model, e.effort)
+      if ((await $.state.get(engineState)).value !== text) {
+        await $.state.set(engineState, text)
+        void publishWait($).catch(() => {})
+      }
+    }
+    return yield* next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     const agent = e.agentId
@@ -2559,6 +2619,7 @@ const REPLY = 'resposta'
         card: true,
         session: true,
         sid: c.id,
+        engine: c.engine,
         ring: ringOf(c),
         live: live(c),
         pending,
