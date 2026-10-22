@@ -3349,7 +3349,6 @@ describe('resposta da sessão no cartão', () => {
 
   test('grupo com cartão de sessão filha não mostra o ↩ da própria sessão', async ($, on) => {
     const KID = 'local_eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
-    publish(on, {})
     on('mcp.call', () => ({
       value: {
         content: [{ type: 'text', text: JSON.stringify([
@@ -3359,6 +3358,11 @@ describe('resposta da sessão no cartão', () => {
         isError: false,
       },
     }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('fs.read', () => ({ value: '{}' }) as any)
+    on('prompt.submit', (_$: any, e: any) => e)
+    on('turn.complete', () => ({ text: '' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' } as any, async () => ({ result: 'ok' }))
     on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
     await $.prompt.submit({ text: 'delegar' } as any)
     await plan($, [{ id: 'A', title: 'Abrir a filha' }])
@@ -3369,6 +3373,7 @@ describe('resposta da sessão no cartão', () => {
     await $.turn.complete({ reason: 'answer', answer: 'x', durationMs: 1, isAborted: false, turnId: 't1' } as any)
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(texts.some(t => t.includes('Abrir a filha'))).toBe(true)
+    expect(texts.some(t => t.includes('⑂ impl'))).toBe(true)
     expect(texts.some(t => t.includes('Filha aberta.'))).toBe(false)
   })
 })
