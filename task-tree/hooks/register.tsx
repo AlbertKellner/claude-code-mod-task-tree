@@ -47,7 +47,7 @@ const RULES = [
     'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
     'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
     'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
-  '- No done do último passo do pedido, passe em `summary` um resumo da resposta em até 60 caracteres ' +
+  '- No done do último passo do pedido, passe em `summary` um resumo da resposta em até 120 caracteres ' +
     '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
     'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
   '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
@@ -1205,6 +1205,8 @@ type Row = {
   // The context ring of a session: on its card, and on the highest line above it (its turn, else
   // its level-1 task) with the largest share among the sessions there.
   ring?: Ring
+  // A session's card: its id, for the ring's button that opens the session (see ringOver).
+  sid?: string
 }
 
 // The tree lines of a row: `bars[k]` continues the line of the ancestor at depth k past it,
@@ -1411,6 +1413,18 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
     parts.join('') +
     '</svg>'
   )
+}
+
+// Opens a session in this window's main pane, as a click on its sidebar row (the app's
+// open_session_in, which takes this session or one it started); a refusal goes to a toast.
+async function openSession($: any, id: string, name: string) {
+  try {
+    const r = await $.mcp.call('ccd_window', 'open_session_in', { session_id: id, target: 'focus' })
+    const said = (r?.content ?? []).map((c: any) => c?.text ?? '').join(' ').trim()
+    if (r?.isError) await $.ui.toast(`Não abriu ${name}: ${said || 'recusado pelo app'}`)
+  } catch (err) {
+    await $.ui.toast(`Não abriu ${name}: ${String(err).slice(0, 120)}`)
+  }
 }
 
 // The desktop's time column: room for "0:00:00".
@@ -1675,7 +1689,7 @@ export const register: Register = on => {
         'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
         'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
         'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore. ' +
-        'No done da última etapa do turno, passe summary: a resposta do turno em manchete de até 60 ' +
+        'No done da última etapa do turno, passe summary: a resposta do turno em manchete de até 120 ' +
         'caracteres (ex.: "Commit 946f653 no PR #5; 151 testes ok"). Sem etapa a fechar, chame done só com summary.',
       inputSchema: {
         type: 'object',
@@ -1685,7 +1699,7 @@ export const register: Register = on => {
           summary: {
             type: 'string',
             description:
-              'Resumo super curto da resposta deste turno, em até 60 caracteres, tipo manchete ' +
+              'Resumo curto da resposta deste turno, em até 120 caracteres (o que mudou e o resultado), tipo manchete ' +
               '(ex.: "Commit 946f653 no PR #5; 151 testes ok"). Vira a linha ↩ do painel; a resposta inteira fica no tooltip.',
           },
         },
@@ -1806,7 +1820,7 @@ export const register: Register = on => {
           'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
           'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
           'request um título curto do que foi pedido. No done da última etapa do turno, passe summary: ' +
-          'resumo da resposta em até 60 caracteres, tipo manchete.',
+          'resumo da resposta em até 120 caracteres, tipo manchete.',
       ],
     })
   })
@@ -1939,7 +1953,7 @@ export const register: Register = on => {
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
         // The last step closed with no summary: the ↩ line would say only "resposta".
         if (lastBrief === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
-          notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 60 caracteres (vira a linha ↩)')
+          notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 120 caracteres (vira a linha ↩)')
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
       // Several steps never started and closed together: the panel showed the first one in progress
@@ -2025,7 +2039,7 @@ let lastRecap: string | undefined
 let lastBrief: string | undefined
 // The ↩ line says the answer in at most BRIEF characters: the summary the session gave, else the
 // first sentence of the answer; longer, cut at a word with "…". The whole answer stays in the tooltip.
-const BRIEF = 60
+const BRIEF = 120
 function brief(text: string): string {
   const one = text.replace(/\s+/g, ' ').trim()
   if (one.length <= BRIEF) return one
@@ -2233,7 +2247,7 @@ const REPLY = 'resposta'
       if (lastBrief === undefined)
         notes.push(
           'Painel de tarefas (task-tree): falta o resumo do turno. Antes da mensagem final, chame ' +
-            'mcp__task-tree__done com summary: a resposta em até 60 caracteres, tipo manchete (ids pode ficar vazio).',
+            'mcp__task-tree__done com summary: a resposta em até 120 caracteres, tipo manchete (ids pode ficar vazio).',
         )
       if (hasOpen(tasks)) {
         notes.push(
@@ -2460,6 +2474,7 @@ const REPLY = 'resposta'
         time: span(tasksOf(p.groups ?? []), now) ?? (live(c) ? undefined : null),
         card: true,
         session: true,
+        sid: c.id,
         ring: ringOf(c),
         live: live(c),
         pending,
@@ -2634,6 +2649,20 @@ const REPLY = 'resposta'
       const even = r.depth % 2 === 0
       return even ? { left: (5 * r.depth) / 2, width: 3 } : { left: (1 + 5 * r.depth) / 2, width: 2 }
     }
+    // The context ring at a session card's right end opens that session (the person's words:
+    // "quando clicar nele, abra a sessao que ele representa"): an empty-label Button over the ring,
+    // as over the icon. The ring sits 15 px inside the innermost card's right edge, each card 6 px
+    // inside the one around it; the Box spans 3 cells around it. The app shows it in this window's
+    // main pane (open_session_in, focus); what it refuses is said in a toast.
+    const ringOver = (r: Row, f: Frame) => {
+      const m = Math.max(0, f.cards.length - 1)
+      const right = Math.max(0, Math.round((17.5 + 6 * m - 12) / 8))
+      return (
+        <Box position="absolute" top={0} bottom={0} right={right} width={3} flexDirection="row" alignItems="center" justifyContent="center">
+          <Button key={`open:${r.sid}`} label={' '} plain onPress={() => void openSession($, r.sid as string, r.title)} />
+        </Box>
+      )
+    }
     const foldOver = (r: Row) => {
       const { left, width } = iconBox(r)
       return (
@@ -2715,6 +2744,7 @@ const REPLY = 'resposta'
                 <Box position="relative">
                   <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
                   {r.fold ? foldOver(r) : null}
+                  {r.session && r.sid && r.ring ? ringOver(r, cards[i]) : null}
                   {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
                 </Box>
               ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}

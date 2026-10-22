@@ -2646,6 +2646,42 @@ describe('textos reais do host (0.7.3)', () => {
   })
 })
 
+describe('anel de contexto abre a sessão', () => {
+  test('no desktop, o anel do cartão é um botão que abre a sessão (open_session_in, focus)', async ($, on) => {
+    const KID = 'local_99999999-9999-9999-9999-999999999999'
+    const opened: any[] = []
+    on('mcp.call', (_$: any, e: any) => {
+      if (e.tool === 'open_session_in') {
+        opened.push({ server: e.server, ...e.args })
+        return { value: { content: [{ type: 'text', text: 'ok' }], isError: false } } as any
+      }
+      return {
+        value: {
+          content: [{ type: 'text', text: JSON.stringify([
+            { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+            { sessionId: KID, name: 'filha', title: 'Filha', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+          ]) }],
+          isError: false,
+        },
+      } as any
+    })
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('99999999') ? JSON.stringify({ waiting: false, tasks: [], context: { percent: 42, at: 1 } }) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID} (filha)` }))
+    await plan($, [{ id: 'A', title: 'Delegar' }])
+    await start($, ['A'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
+    const src = JSON.stringify(await ui.drawn())
+    expect(src).toContain(`open:${KID}`)
+    await ui.press({ key: `open:${KID}` })
+    await ui.unmount()
+    expect(opened).toEqual([expect.objectContaining({ session_id: KID, target: 'focus' })])
+    // On the card's line: the ring's Button only (the ⑂ folds a card with something below it).
+    expect(src).not.toContain(`fold:|s:${KID}`)
+  })
+})
+
 describe('cartão por mensagem na filha', () => {
   const KID = 'local_22222222-2222-2222-2222-222222222222'
   const task = (id: string, title: string, status: string, turn: number, started?: number) => ({ id, short: id, title, status, turn, ...(started ? { started } : {}), children: [] })
@@ -3347,7 +3383,7 @@ describe('resposta da sessão no cartão', () => {
     expect(texts[at('Nada a commitar.')]).not.toMatch(/\d+\/\d+|\d:\d\d/)
   })
 
-  test('↩ mostra o summary do done (até 60, cortado em palavra); sem summary, só "resposta", nunca a resposta cortada', async ($, on) => {
+  test('↩ mostra o summary do done (até 120, cortado em palavra); sem summary, só "resposta", nunca a resposta cortada', async ($, on) => {
     const written: Record<string, string> = {}
     publish(on, written)
     const full = 'Você está certo, voltou. Os cartões da governança e do SVG são da cadeia da tarefa 44 e caíram na raiz.'
@@ -3367,12 +3403,12 @@ describe('resposta da sessão no cartão', () => {
     await $.prompt.submit({ text: 'tres' } as any)
     await plan($, [{ id: 'C', title: 'Fazer C' }])
     await done($, ['C'])
-    await call($, 'done', { summary: 'Um resumo comprido demais que passa muito dos sessenta caracteres permitidos' })
+    await call($, 'done', { summary: 'Um resumo comprido demais que passa muito dos cento e vinte caracteres permitidos para a linha de resposta do painel lateral de tarefas' })
     await $.turn.complete({ reason: 'answer', answer: 'resposta três', durationMs: 1, isAborted: false, turnId: 't3' } as any)
     const turns = turnsOf(written)
     expect(turns[0]).toMatchObject({ reply: full, brief: 'Cartões na raiz: causa na recarga; correção enviada' })
     expect(turns[1]?.brief).toBeUndefined()
-    expect(turns[2]?.brief).toBe('Um resumo comprido demais que passa muito dos sessenta…')
+    expect(turns[2]?.brief).toBe('Um resumo comprido demais que passa muito dos cento e vinte caracteres permitidos para a linha de resposta do painel…')
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(texts.some(t => t.includes('Cartões na raiz: causa na recarga; correção enviada'))).toBe(true)
     expect(texts.some(t => t.includes('Você está certo'))).toBe(false)
