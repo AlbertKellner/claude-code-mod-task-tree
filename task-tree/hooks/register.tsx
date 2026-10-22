@@ -688,6 +688,7 @@ async function adopt($: any) {
 }
 
 async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
+  await ensureGroups($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
   await persist($, groups)
@@ -699,11 +700,49 @@ async function replace($: any, groups: Group[]) {
   await persist($, groups)
 }
 
-// A resumed session's panel comes back; its subagents do not, so what they left open
-// is interrupted.
+// The session's panel as the store keeps it; its subagents do not come back, so what they left
+// open is interrupted.
+async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
+  const kept = (await $.store.get(`session:${id}`)) as Group[] | undefined
+  return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
+}
+
+// A resumed session's panel comes back.
 async function restore($: any, id: string) {
-  const saved = (await $.store.get(`session:${id}`)) as Group[] | undefined
-  if (saved) await replace($, saved.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })))
+  const groups = await keptGroups($, id)
+  if (groups) await replace($, groups)
+}
+
+// Whether this module has seen the groups since it loaded. session.start brings them back from the
+// store when the state holds none (a new process); a process that restarted without it (the hooks
+// worker respawned after a crash) would otherwise start from nothing: the first write would then
+// overwrite the store with the reduced panel, and the panel and the published file would show it
+// empty. So the first write, drawing or publication of the module brings them back first, as
+// `linksLoaded` does for the links.
+// Answers the groups it brought back, for a caller that cannot write the state (a drawing): the
+// module counts them as loaded only once they are in the state, so the next write brings them back
+// again if this one could not.
+let groupsLoaded = false
+async function ensureGroups($: any): Promise<Group[] | undefined> {
+  if (groupsLoaded) return undefined
+  try {
+    if ((await $.state.get(groupsState)).value !== undefined) {
+      groupsLoaded = true
+      return undefined
+    }
+    const groups = await keptGroups($, await $.session.id())
+    if (groups === undefined) {
+      groupsLoaded = true
+      return undefined
+    }
+    try {
+      await $.state.set(groupsState, groups)
+      groupsLoaded = true
+    } catch {}
+    return groups
+  } catch {
+    return undefined
+  }
 }
 
 // The desktop app's own tools (`mcp__ccd_…`) exist only there. If the list fails, assume
@@ -980,6 +1019,7 @@ async function selfId($: any): Promise<string | undefined> {
 // (groups, waits, the sessions it opened), for the session that opened it to draw under the
 // task it was opened on, as this session draws it. `tasks` is for earlier versions.
 async function publishWait($: any) {
+  await ensureGroups($)
   await saveLinks($)
   try {
     const id = await selfId($)
@@ -1106,6 +1146,7 @@ async function restoreView($: any) {
 // session) starts new work; otherwise its level-1 tasks join the current one. Kept in the state
 // and in the store under the session, like the view.
 async function nothingOpen($: any): Promise<boolean> {
+  await ensureGroups($)
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   return activeLeaves({ groups: withMain(groups), waits: [], children }, 0) === 0
@@ -1916,6 +1957,7 @@ export const register: Register = on => {
     // With nothing held (a new process), a resumed session's panel comes back from the store.
     await adopt($)
     if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
+    groupsLoaded = true
     await restoreView($)
     await restoreWork($)
     await restoreLinks($)
@@ -2532,7 +2574,10 @@ const REPLY = 'resposta'
     const drawn = await (async () => {
     const ui = $.ui.resolve(e) as any
     const { Box, Text } = ui
-    const { value: held } = await $.state.get(groupsState)
+    // After a restart without session.start, the groups come from the store (see ensureGroups).
+    const brought = await ensureGroups($)
+    const { value: heldState } = await $.state.get(groupsState)
+    const held = heldState ?? brought
     const { value: waits = [] } = await $.state.get(waitsState)
     const { value: sessions = [] } = await $.state.get(childrenState)
     const { value: sessionsError = '' } = await $.state.get(childrenErrorState)

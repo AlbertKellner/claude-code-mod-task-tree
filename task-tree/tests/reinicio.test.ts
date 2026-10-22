@@ -15,9 +15,6 @@ import { REAL } from './fixtures/orquestradora-real'
 // para tirá-lo da lista. É o skip/todo que o kit não tem.
 
 const KNOWN: Record<string, string> = {
-  'reinicio-sem-session-start':
-    'H6.1 (01 §6): sem session.start o $.state nasce vazio e change() parte de []; o primeiro start/done não acha ' +
-    'as tarefas ("não existe") e persist() grava session:<id> com o painel reduzido (caso F). Correção: R13 (guarda em change como o linksLoaded).',
   'links-lista-parcial':
     'H3.2 (01 §3), confirmada: restoreLinks só devolve âncoras e rodadas às filhas que o host já listou; com a lista parcial, ' +
     'a saveLinks seguinte grava o store sem as outras (perda definitiva). Correção: fundir as entradas antigas em vez de só mapear as atuais.',
@@ -181,14 +178,25 @@ describe('reinício do processo (state vazio, store cheio)', () => {
     expect(linksOf(SHARED).find((c: any) => c.id === ANALISE)?.anchor).toBe('92')
   })
 
-  test('sem session.start (respawn do hooks worker): start/done acham as tarefas do store e o store não encolhe', async ($, on) => {
+  test('sem session.start (respawn do hooks worker): o painel desenha, start/done acham as tarefas do store e o store não encolhe', async ($, on) => {
     const store = storeOf()
-    host(on, store)
+    const h = host(on, store)
     const n = tasksOf(store).length
+    // Drawn before any write: the tasks come back from the store (not the empty panel). The
+    // sessions' cards are not there yet: the host's list is read at session.start or by the poll.
+    const title = (l: string) => /^[✓◉○] (.*?)(?:  |$)/.exec(l)?.[1]
+    const drawn = await rows($)
+    const titles = drawn.map(title).filter(Boolean)
+    expect(titles.length).toBeGreaterThan(0)
+    for (const t of before.map(title).filter(Boolean)) expect(titles).toContain(t)
+    expect(drawn).toContain('+67 pedidos anteriores')
     const s = await call($, 'start', { ids: ['98'] })
-    const found = !text(s).includes('não existe')
-    const kept = tasksOf(store).length
-    known('reinicio-sem-session-start', found && kept === n, `start: "${text(s).slice(0, 80)}"; tarefas no store: ${n} → ${kept}`)
+    expect(text(s)).not.toContain('não existe')
+    expect(tasksOf(store).length).toBe(n)
+    expect(tasksOf(store).find((t: any) => t.id === '98')?.status).toBe('open')
+    // The published file carries the whole panel too.
+    const last = JSON.parse(h.published[h.published.length - 1] ?? '{}')
+    expect(last.groups?.[0]?.tasks?.length).toBe(n)
   })
 
   test('sem session.start: a primeira gravação das ligações traz as antigas do store (guarda linksLoaded)', async ($, on) => {
