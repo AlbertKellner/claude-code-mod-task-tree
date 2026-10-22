@@ -18,8 +18,8 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
 - `text/rules.ts`: todos os textos que o plugin escreve para o modelo (R16, fase 2): `BRIEF` = 120 e `LIMIT` ("até 120 caracteres", interpolado nos 6 textos que citam o limite), `RULES` (seção `task-tree:regras`), `COMMAND`, `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `EXAMPLE`. Ficam fora dele os resultados das tools ("Plano exibido…", "Concluídas: d/n…") e os `alt`/títulos do desenho.
 - `tests/textos.test.ts` e `tests/golden/textos.ts`: golden dos 23 textos (ver "Golden dos textos").
-- `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 14 chaves de `$.state`, 1 do store (`sessions`) e 16 variáveis de módulo. Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
-- `tests/durabilidade.test.ts`: 59 testes sobre a tabela (ver "Tabela de durabilidade").
+- `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 15 chaves de `$.state` (com `recap`), 1 do store (`sessions`) e 15 variáveis de módulo (`lastRecap` saiu). Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
+- `tests/durabilidade.test.ts`: 63 testes sobre a tabela (ver "Tabela de durabilidade").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
@@ -103,12 +103,12 @@ e todo prefixo do store tocados, e falha se algum não tem linha ou se alguma li
 
 - Chave nova de state ou de store: acrescente a linha em `TABLE`, senão o teste falha.
 - Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
-  no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 14 consts de
+  no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
   chave continuam literais em `register.tsx`, e o teste é que garante a correspondência com a tabela.
 - Funções que recebem `$` em arquivo importado (`loadStore`, `saveStore`, `saveGroups`) passam no
   validador: a armadilha do `$` fora do topo não apareceu aí.
 
-Divergências que a tabela expôs (a extração não mudou nada; a 1 já foi corrigida):
+Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já foram corrigidas):
 
 1. (corrigida) `view` e `work` só voltavam no `session.start`: num respawn do worker sem ele (reinício
    do hooks worker, `/model`), a visão caía na padrão e o próximo `plan` gravava `work` por cima do
@@ -118,8 +118,11 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 já foi cor
    lá dentro lança). Chamados em `change()`, `publishWait()`, `nothingOpen()` e no `ui.render`. Sem nada
    no store, o painel fica nos padrões. Teste: `reinicio.test.ts`, "sem session.start: a visão e o
    trabalho atual voltam do store no primeiro uso".
-2. `lastRecap` é variável de módulo: recarga entre o `wrap_up` e o fim do turno perde o recap (o ↩ usa a
-   mensagem final). A corrigir no próximo item (vai para o state, como o `brief`).
+2. (corrigida) `lastRecap` era variável de módulo: recarga entre o `wrap_up` e o fim do turno perdia o
+   recap (o cartão mostrava a mensagem final). Agora é a chave de state `recap`, como o `brief`
+   (`merge` none, `restoredAt` vazio: sobrevive à recarga, morre com o processo); `lastRecap($)` lê o
+   state ('' = nenhum), o `wrap_up` grava e o `turn.complete` lê e zera. Testes: `reinicio.test.ts`
+   ("recap antes da recarga", 1/2 e 2/2) e a linha nova na tabela, com os 4 testes do laço.
 3. `groups` no `resume` substitui o state (o `SessionStart` de resume chama restore sem olhar o state);
    no `session.start`, o state vence.
 4. `sends` sem teto na fusão; `received` e `launches` com 20.
@@ -130,7 +133,7 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 já foi cor
 
 ### Reinício e recarga
 
-`tests/reinicio.test.ts` (9 testes, com o fixture `REAL`) cobre dois casos:
+`tests/reinicio.test.ts` (11 testes, com o fixture `REAL`) cobre dois casos:
 
 - **Reinício do processo** (`$.state` vazio, store cheio): cada teste do kit é um módulo novo com
   `$.state` vazio; o store passa entre testes por um objeto compartilhado. Testado com e sem `session.start`.
@@ -182,8 +185,8 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 - O contrato `PluginState['task-tree']` precisa listar a chave: o validador confere as chaves de state por ele.
 - Armadilha: uma função que recebe `$` precisa estar declarada no topo do arquivo (o validador recusa dentro do
   `register`: "$ is passed to "lastBrief", which is not a function declared at the top of this file").
-- `lastRecap` (recap do `wrap_up`) continua variável de módulo: mesma classe, efeito menor (o tooltip do ↩ cai
-  para a mensagem final).
+- O recap do `wrap_up` seguiu o mesmo caminho: chave de state `recap` (divergência 2 do R13), lida por
+  `lastRecap($)`.
 
 ### Arquivo publicado
 

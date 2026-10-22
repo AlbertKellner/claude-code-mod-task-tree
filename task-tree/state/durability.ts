@@ -70,13 +70,13 @@ export const TABLE: readonly Row[] = [
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
+  { key: 'recap', lives: 'state', merge: 'none', restoredAt: [], note: 'wrap_up\'s recap until the turn ends (the turn\'s answer for the card); in the state so a reload between the wrap_up and the end of the turn keeps it' },
   { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
   // The store alone.
   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
   // Variables of the module: a hot reload starts them over.
   { key: 'loaded', lives: 'module', merge: 'none', restoredAt: [], note: 'which store copies this module brought back (groups, links): a reload brings them back again on first use' },
   { key: 'keptLinks', lives: 'module', merge: 'none', restoredAt: ['start', 'first-save'], note: 'the links record as the store holds it, refilled whenever it is read or written; the ties of sessions the host leaves out' },
-  { key: 'lastRecap', lives: 'module', merge: 'none', restoredAt: [], note: 'wrap_up\'s recap until the turn ends: a reload between them loses it (the final message is used instead)' },
   { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (asked again after a reload)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
   { key: 'drawNow', lives: 'module', merge: 'none', restoredAt: [], note: 'the clock of the drawing in progress' },
