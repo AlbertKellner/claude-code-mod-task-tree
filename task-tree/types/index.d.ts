@@ -23,7 +23,10 @@ export type TaskNode = {
 
 // One message of the person in the main loop: its level-1 tasks are drawn under it, titled with
 // what was asked (the start of the message, until a plan names it with `request`).
-export type Turn = { id: number; title: string; at?: number }
+// `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
+// message), shown under the turn's tasks in its card; absent while the turn runs.
+// reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
+export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
@@ -48,7 +51,8 @@ export type Wait = {
 // `work`: its current work (the summary view's level-1 tasks), absent from earlier versions.
 // `received`: the messages of other sessions it got (see the state's `received`): a sister's
 // message opens a card of its own, as one from the session drawing it does.
-export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[] }
+// `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
+export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
 // `running` while it works; `waiting` while it waits on the person (a question, a plan,
@@ -67,6 +71,9 @@ export type Child = {
   // The share of its context window the session has used (0-100), as it publishes it; absent until
   // its first answer, or from earlier versions.
   context?: number
+  // Its model and effort in a few words ("Opus 5.5 · high"), as it publishes them; absent until its
+  // first model request, or from earlier versions.
+  engine?: string
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
@@ -84,7 +91,9 @@ export type Child = {
 // A message the main loop sent another session (SendMessage) that was queued, not yet taken up:
 // `anchor` is the task it was sent from; `idle` once the session was seen stopped after the send,
 // `taken` once it was seen running again (it started on the message).
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean }
+// `delivered`: the session took it at once ("its turn has started"); kept until seen taken up, so
+// its task shows ✉ meanwhile, with no reminder when taken.
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }
@@ -100,6 +109,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // with no entry keeps its default.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[] }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string }
   }
 }
