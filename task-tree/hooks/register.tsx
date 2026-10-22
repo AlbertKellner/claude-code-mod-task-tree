@@ -1114,7 +1114,7 @@ async function publishWait($: any) {
     } catch {}
     await $.fs.write(
       path,
-      JSON.stringify({ version: PUBLISHED_VERSION, waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) } satisfies Published),
+      JSON.stringify({ version: PUBLISHED_VERSION, waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, drawSize, rows: drawRows, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) } satisfies Published),
     )
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
@@ -1137,6 +1137,33 @@ const SHOWN_CARD_TURNS = 3
 // anteriores resolveu").
 let drawSize = 0
 const DRAW_LIMIT = 600 * 1024
+// The last drawing's lines (after the limit below), published with the size for the session that
+// opened this one to see how big its children's panels are.
+let drawRows = 0
+// The most lines a drawing holds, decided on the rows before any SVG is made: past it, whole blocks
+// (a level-0 line and what hangs under it) go from the start, the oldest, and one line counts them;
+// the recent ones, where the work is, stay. The size limit above stays as the last resort. Far
+// above a real panel (a long session drew 31 lines); the open steps of a huge plan reached it.
+const MAX_ROWS = 400
+function limitRows(rows: Row[]): Row[] {
+  if (rows.length <= MAX_ROWS) return rows
+  const room = MAX_ROWS - 1
+  const before = (n: number): Row => ({ depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas' })
+  const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i <= room)
+  if (from > 0) return [before(from), ...rows.slice(from)]
+  // The last block alone is past the limit: what came before it goes whole, and the block is drawn
+  // to the limit, the rest counted at its end.
+  let last = 0
+  for (let i = rows.length - 1; i > 0; i--) {
+    if (rows[i].depth === 0) {
+      last = i
+      break
+    }
+  }
+  const head = last > 0 ? [before(last)] : []
+  const kept = rows.slice(last, last + room - head.length)
+  return [...head, ...kept, { depth: 1, tone: 'section', title: `+${rows.length - last - kept.length} linhas`, label: 'Linhas seguintes, não desenhadas' }]
+}
 // The last drawing's error, if it threw (see the Pane hook), published with the panel.
 let renderError: string | undefined
 const actions = new Map<string, () => void>()
@@ -3006,7 +3033,8 @@ const REPLY = 'resposta'
       )
       return trimToWork({ ...base, children: moved }, 0)
     }
-    const lines = panel(summary ? cut() : all, 0, 0, '', ownId)
+    const lines = limitRows(panel(summary ? cut() : all, 0, 0, '', ownId))
+    drawRows = lines.length
     const lanes = guides(lines)
     const hides = labelCols(lines)
 

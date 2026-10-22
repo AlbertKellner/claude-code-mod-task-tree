@@ -58,8 +58,8 @@ export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: 
 // see waitFile): the contract between sessions, which may run different versions of the mod.
 // `version` names the shape (absent from versions before it); a file of another version, or one
 // that is not an object, is ignored by the readers (parsePublished), never drawn wrong.
-// `tasks` is what earlier versions published instead of `groups`. `panes` and `renderError` are
-// for reading the file by hand (/task-tree); the readers leave them alone.
+// `tasks` is what earlier versions published instead of `groups`. `panes`, `renderError`,
+// `drawSize` and `rows` are for reading the file by hand (/task-tree); the readers leave them alone.
 export type Published = {
   version?: number
   waiting: boolean
@@ -72,6 +72,10 @@ export type Published = {
   engine?: string
   panes?: unknown
   renderError?: string
+  // The last drawing: its serialized size and its lines (after the line limit), for the session
+  // that opened this one to see how big the panel is; absent from earlier versions.
+  drawSize?: number
+  rows?: number
   work?: string[]
   received?: { from: string; at: number }[]
   sends?: Send[]

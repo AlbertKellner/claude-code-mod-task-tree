@@ -17,6 +17,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
+- `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 ## Validar e testar
@@ -335,9 +336,25 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   cartão, até 3 pedidos, com a mesma linha; cartões sem tarefa de origem, concluídos e começados
   antes do pedido mais antigo desenhado viram "+N cartões antigos de sessões". O cabeçalho continua
   contando tudo. Cada `Svg` leva só as regras CSS das classes que usa (`slim`). Medido com o estado
-  da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Acima de 600 KB
-  (`DRAW_LIMIT`), desenho de emergência: só "Painel grande demais (N KB): mostrando só o essencial.
-  Use ≡ (/task-tree resumida) para a visão resumida.". Aprovado pelo usuário: "Sim, está bom".
+  da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Os três limites, em
+  ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas, ver abaixo) → `DRAW_LIMIT` (600 KB): só
+  se 400 linhas passarem disso, desenho de emergência: "Painel grande demais (N KB): mostrando só o
+  essencial. Use ≡ (/task-tree resumida) para a visão resumida." (agora raro). Aprovado pelo usuário:
+  "Sim, está bom".
+- Limite de linhas (R15; mudança de visual aprovada pelo usuário: "Sim, com o corte"): `MAX_ROWS = 400` e
+  `limitRows(rows)`, aplicado no `ui.render` logo depois de `panel()`, antes de guias, molduras e SVG.
+  Até 400 linhas nada muda. Acima, saem blocos inteiros de nível 0 do começo (os mais antigos), contados
+  numa linha de seção `+N linhas anteriores` (tom `section`, alt "Linhas anteriores, não desenhadas"); as
+  recentes ficam. Se o último bloco sozinho passa do limite, o que vinha antes sai contado, o bloco é
+  desenhado até o limite e fecha com `+N linhas` (profundidade 1, alt "Linhas seguintes, não desenhadas").
+  Total sempre ≤ 400. Corta-se por blocos inteiros do começo porque o trabalho atual fica no fim e cortar
+  dentro de um bloco quebraria as guias. O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
+  no tooltip). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
+  linhas) não muda. O arquivo publicado ganha `drawRows` (`rows` em `Published`) e `drawSize`, informativos
+  (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). Testes:
+  `tests/limite-linhas.test.ts` (4 testes: 750 linhas → 400 com `+N linhas anteriores` e contagem fechando
+  em 750; bloco de 700 etapas → `+302 linhas` no fim; 100 linhas → nada muda; `rows`/`drawSize` publicados) e
+  o teste "desenho grande demais" de `task-tree.test.ts`, que agora espera o corte.
 - Cabeçalho por visão (pedido do usuário: "na visao resumida, quero que a barra superior reflita o
   que tem nessa visao ... cada visao deve refletir os dados do seu tipo de vizualizacao"; aprovado
   com "Sim, bate nas duas"): o cabeçalho (X de Y, %, barra, tempo e os chips "em andamento",
