@@ -855,7 +855,21 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       ]
       // With no task to go under, a notice goes under the header, or ends the main list.
       if (extras && anchor === undefined && g.agent !== MAIN) lines.push(...mine.map(w => notice(w, top)))
-      const work = g.agent === MAIN ? (t: TaskNode) => atWork(t, sessions, level) : undefined
+      // The sessions' work under each task, once per task and pass: a turn's line sums it for its
+      // level-1 tasks (turnRows) and each task's line asks for it again (rows); the answer is the
+      // same within one pass (same task, same sessions), so it is kept by task object.
+      const works = new WeakMap<TaskNode, Work>()
+      const work =
+        g.agent === MAIN
+          ? (t: TaskNode) => {
+              let w = works.get(t)
+              if (w === undefined) {
+                w = atWork(t, sessions, level)
+                works.set(t, w)
+              }
+              return w
+            }
+          : undefined
       const inScope = `${scope}${g.agent}|`
       // Only the last SHOWN_TURNS requests (turns) of a main list are drawn, on the top panel and in
       // a session's card alike, and any request with something still open; the rest are counted
