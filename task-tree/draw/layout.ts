@@ -197,30 +197,49 @@ export function split(c: Child, sisters: Child[], me: string | undefined, owner:
   const main = groups.find(g => g.agent === MAIN) as Group
   const turns = main.turns ?? []
   const roundOf = (u: Turn) => rounds.reduce((k, r, i) => (u.at !== undefined && u.at >= r.at ? i + 1 : k), 0)
-  const turnPart = (id?: number) => {
-    const u = turns.find(u => u.id === id)
-    return u === undefined ? 0 : roundOf(u)
-  }
-  const parts: number[] = []
+  // The part (round) of each turn, once per turn; a task with no turn, or with a turn not listed, is
+  // in part 0 (the card before the first round), as before.
+  const partOfTurn = new Map<number, number>()
+  for (const u of turns) if (!partOfTurn.has(u.id)) partOfTurn.set(u.id, roundOf(u))
+  const turnPart = (id?: number) => (id === undefined ? 0 : (partOfTurn.get(id) ?? 0))
+  // The level-1 tasks of each part, in the list's order, and all the tasks under them (flat), once.
+  const tasksByPart = new Map<number, TaskNode[]>()
   for (const t of main.tasks) {
     const k = turnPart(t.turn)
-    if (!parts.includes(k)) parts.push(k)
+    const list = tasksByPart.get(k)
+    if (list) list.push(t)
+    else tasksByPart.set(k, [t])
   }
-  parts.sort((a, b) => a - b)
+  const parts = [...tasksByPart.keys()].sort((a, b) => a - b)
   if (parts.length < 2 && (parts[0] ?? 0) === 0) return [c]
-  const tasksIn = (k: number) => main.tasks.filter(t => turnPart(t.turn) === k)
-  const busy = parts.find(k => flat(tasksIn(k)).some(t => t.status === 'open' && t.started !== undefined))
+  const tasksIn = (k: number) => tasksByPart.get(k) ?? []
+  const flatIn = new Map(parts.map(k => [k, flat(tasksIn(k))] as const))
+  const busy = parts.find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
   const lead = busy ?? parts[parts.length - 1]
-  // What hangs from a task goes to that task's card; with no such task, to the leading card.
-  const holder = (anchor?: string) => parts.find(k => anchor !== undefined && flat(tasksIn(k)).some(t => t.id === anchor)) ?? lead
-  const ownerOf = (agent: string) => (agent === MAIN ? holder(current(main.tasks).anchor) : holder(groups.find(g => g.agent === agent)?.anchor))
+  // What hangs from a task goes to that task's card (the first part holding the task, in part order,
+  // as the search was); with no such task, to the leading card.
+  const partOfTask = new Map<string, number>()
+  for (const k of parts) for (const t of flatIn.get(k) ?? []) if (!partOfTask.has(t.id)) partOfTask.set(t.id, k)
+  const holder = (anchor?: string) => (anchor === undefined ? lead : (partOfTask.get(anchor) ?? lead))
+  // The part a group's or a wait's agent belongs to, once per agent (the main group's anchor is the
+  // task in progress, found once).
+  const owners = new Map<string, number>()
+  const ownerOf = (agent: string) => {
+    let k = owners.get(agent)
+    if (k === undefined) {
+      k = agent === MAIN ? holder(current(main.tasks).anchor) : holder(groups.find(g => g.agent === agent)?.anchor)
+      owners.set(agent, k)
+    }
+    return k
+  }
   const waiting = (k: number) => {
     const b = k > 0 ? rounds[k - 1] : undefined
     return b?.peer === true && !b.known && now !== undefined && now - b.at < WAIT_ORIGIN
   }
   return parts.filter(k => !waiting(k)).map(k => {
     const tasks = tasksIn(k)
-    const ids = tasks.map(t => t.id)
+    const ids = new Set(tasks.map(t => t.id))
+    const turnsOf = new Set(tasks.map(t => t.turn))
     const at = k === lead
     return {
       ...c,
@@ -237,11 +256,11 @@ export function split(c: Child, sisters: Child[], me: string | undefined, owner:
       panel: {
         ...p,
         groups: groups
-          .map(g => (g.agent === MAIN ? { ...g, tasks, turns: turns.filter(u => tasks.some(t => t.turn === u.id)) } : g))
+          .map(g => (g.agent === MAIN ? { ...g, tasks, turns: turns.filter(u => turnsOf.has(u.id)) } : g))
           .filter(g => g.agent === MAIN || ownerOf(g.agent) === k),
         waits: (p.waits ?? []).filter(w => ownerOf(w.agent) === k),
         children: (p.children ?? []).filter(s => holder(s.anchor) === k),
-        ...(p.work ? { work: p.work.filter(id => ids.includes(id)) } : {}),
+        ...(p.work ? { work: p.work.filter(id => ids.has(id)) } : {}),
       },
     }
   })
