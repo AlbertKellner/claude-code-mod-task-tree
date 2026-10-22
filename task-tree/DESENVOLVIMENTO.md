@@ -9,7 +9,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 ## Estrutura
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
-- `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
+- `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks. Desde a fase 4 (etapa 3) o `register.tsx` tem ~31 linhas e só registra os 14 hooks, cada um pelo nome de uma função importada; o resto vive em um arquivo por responsabilidade (ver "Arquivos de hook"). `hooks.json` segue com um módulo só (`./register.tsx`).
 - `draw/layout.ts`: o layout do painel (R12, fase 3, etapa 1): `layout(model, choices, now, ownId): Row[]`, função de topo e pura: não lê nada além dos argumentos (etapa 2). Saíram o relógio de módulo `drawNow` (`split(c, sisters, me, owner, now, memo)` recebe o `now`), o `WeakMap` de módulo `breaksMemo` (agora um `BreaksMemo` por desenho, criado por `newBreaksMemo()` no `layout()` e passado a `split`/`breaks`; chave explícita de `hits`: `lista|me|caminho|id|parte`, a mesma partição de antes) e o mapa lateral `sendsAt` (o `panel` calcula `pending` e o passa como parâmetro a `rows`/`turnRows`; só o grupo principal manda mensagens, os escopos de subagente recebem `[]`). `Model` = `{ groups, waits, children, sends (só as não tomadas), view, work }`; `Choices` = o atom `folds`. Leva junto os auxiliares puros de modelo que o `register.tsx` também usa (`count`, `total`, `split`, `atWork`, `trimToWork`, `limitRows`, `MAX_ROWS`, `SHOWN_TURNS`, `Row`, `Tone` etc.), exportados daqui. Só importa `../types`: sem import circular e sem `$`.
 - `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Também `overlays(line, nested, W): Placed[]` (todos os `Box` de uma linha, na ordem de desenho, cada um pela regra da borda mais próxima), `spanOf(p, W)` (trecho em px) e `crossings(list, W)` (pares que se cruzam): as sobreposições do desenho saem só de `overlays()`. Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
@@ -29,6 +29,10 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
 - `tests/sobreposicao.test.ts`: regra de não-sobreposição dos `Box` de uma linha (6 testes; ver "Sobreposição dos Box").
 - `tests/layout.test.ts`: testes de layout diretos, sem mount e sem SVG, com o fixture real (14 testes, ~130 ms); chamam `layout(model, choices, now, ownId)` com o `Model` montado como o `refreshChildren` monta (ver "Testes de layout").
+- `hooks/panel.ts`, `sessions.ts`, `session-start.ts`, `prompt-submit.ts`, `command.ts`, `tools.ts`, `permission.ts`, `turn.ts`, `tool-call.ts`, `render.tsx`: os hooks e o estado do painel (ver "Arquivos de hook").
+- `draw/svg.ts`: construtores puros de SVG e glifos do terminal (`GLYPH`, `prefix`, `ratioBar`, `contextRing`, `rowSvg`, `chips`, `headerSvg` etc.).
+- `state/tasks.ts`: edições puras da árvore (`build`, `resolve`, `edit`, `finish`, `fill`, `settle`, `begin` etc.).
+- `tests/hooks-puros.test.ts`: 9 testes de `said`, `brief` e das edições da árvore.
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
@@ -293,6 +297,53 @@ update `children`/`ended` → status → publicar → `keepTime`. `inDesktopApp`
 `openSession` e `showPane` seguem no register (etapa 3 ou depois). `tests/host.test.ts` (13 testes em 3
 `describe`: lista, arquivos, filhas) usa também os 8 formatos de `fixtures/publicados.ts`. Quando os arquivos
 são lidos não mudou (performance fica fora desta fase).
+
+### Arquivos de hook
+
+A fase 4 (etapa 3) dividiu o `register.tsx` (2 116 → 31 linhas) em um arquivo por responsabilidade em
+`task-tree/hooks/`; o comportamento é o mesmo (mesmos hooks, mesma ordem, mesmas chamadas):
+
+- `panel.ts` (~490): o estado do painel. As chaves de `$.state` literais só deste arquivo; `lastBrief`/
+  `lastRecap`; `reminders` (antes `unplanned`/`planned`/`answeredInChat`, closures do register); `stamp`,
+  `migrate`, `openTurn`, `sendAnchor`, `openList`, `identify`, `ensureGroup`, `showStatus`, `persist`, `adopt`,
+  `change`, `replace`, `keptGroups`, `restore`, `ensureGroups/View/Work`, `inDesktopApp`, `selfId` +
+  `knownId()`, `publishPanel`, `DRAW_LIMIT`, `drawn` (antes `drawSize`/`drawRows`/`renderError`),
+  `actions`/`act`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, `setView`/`restoreView`, `nothingOpen`/
+  `startsWork`/`setWork`/`joinWork`, `keptLinks`/`keptLink`/`saveLinks`/`restoreLinks`/`restoreWork`.
+- `sessions.ts` (~233): `refreshChildren`, `noteReceived`, `watchSends`, `takenNote`, `refreshStale`,
+  `recordStart`, `endedNote`, `ticker`/`POLL`/`poller`/`watchSessions`/`anyRunning`/`tick`/`keepTime`,
+  `openSession`.
+- `session-start.ts` (`sessionStart`, `classicSessionStart`), `prompt-submit.ts` (`NO_TURN`, `said`:
+  classificação pura e exportada; `promptSubmit`: efeitos; `promptCompose`), `command.ts` (`commandRun`),
+  `tools.ts` (`node`/`level`, `planTool`, `doneTool`, `startTool`), `permission.ts` (`permissionRequest`),
+  `turn.ts` (`brief` exportada, `turnStep`, `turnComplete`).
+- `tool-call.ts` (~211): o `tool.call` genérico em handlers por responsabilidade, em torno de `Call = { agent,
+  e, sentAt, r }`. Antes da chamada: `launch` (Agent/Task), `asked` (pergunta/plano: toma a chamada inteira),
+  `wrapUpAsk` (recap e pergunta do `wrap_up`). Depois, só no laço principal: `sentMessage`, `sessionNotes`
+  (`ended`, `taken`), `wrapUpOpen` e `reminder` (lembrete de planejar), chamados pelo nome e na ordem original.
+- `render.tsx` (~332): `folds` + `setFold`, `pressOf`, `drawDesktop`, `drawTerminal`, `press`, `render`; lê o
+  `ownId` por `knownId()`. O atom `folds` ficou aqui pelo limite do kit abaixo.
+- Tabela de durabilidade: as linhas de `drawSize`/`drawRows`/`renderError`/`unplanned…`/`ownId` seguem
+  verdadeiras (variáveis de módulo; agora `drawn`, `reminders` e `ownId` em `panel.ts`); só os nomes nas
+  notas mudaram. `selfId`, `watchSends`, `inDesktopApp`, `openSession` e `showPane` ficaram em `hooks/panel.ts`
+  e `hooks/sessions.ts`, não em `io/host.ts`.
+
+Atenção: seções mais antigas ainda dizem "no `register.tsx`" para funções que hoje estão nos arquivos acima
+(busque o nome da função em `task-tree/hooks/`).
+
+Limites do kit, confirmados no `claude plugin validate` com experimentos antes da divisão:
+
+1. `on('x', hookOf())` é recusado: o hook tem de ser função literal ou o NOME de uma função, que pode ser
+   importada de outro arquivo do módulo.
+2. `$.state.get/set` exige a chave literal escrita no arquivo que chama (ou numa `const` dele); essa `const`
+   NÃO pode ser exportada nem importada. Por isso cada arquivo de hook declara as chaves que usa (7 arquivos)
+   e `panel.ts` não as exporta.
+3. `$` não pode ser passado a uma variável de laço (`for (const add of NOTES) await add($)`): os handlers de
+   notas são chamados pelo nome.
+
+`$` dos hooks é tipado `EngineInterface`. O `validate` lista os mesmos 14 hooks, as mesmas chamadas do engine
+(agora "via" as funções dos outros arquivos) e os mesmos 15 reads/writes de estado. `tsc --noEmit` dá 194
+erros contra 193 antes, todos de tipo e já existentes.
 
 ### Grupos do store sem `session.start`
 
