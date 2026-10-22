@@ -193,6 +193,29 @@ describe('reinício do processo (state vazio, store cheio)', () => {
     expect(last.groups?.[0]?.tasks?.length).toBe(n)
   })
 
+  test('sem session.start: a visão e o trabalho atual voltam do store no primeiro uso; o plan seguinte soma ao trabalho em vez de sobrescrevê-lo', async ($, on) => {
+    const store = storeOf()
+    store['view:uuid-eu'] = 'summary'
+    const h = host(on, store)
+    // Drawn before any write: the summary view the person had chosen, not the default (full).
+    const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PROPS, requestId: 'task-tree' })
+    const root: any = await ui.drawn()
+    await ui.unmount()
+    const lines = (root.children as any[]).filter(c => typeof c === 'object').map(shown)
+    expect(lines.find(l => l.includes('≡'))).toContain('[≡]')
+    expect(lines.length).toBeLessThan(before.length)
+    // The next plan joins the current work (the store's), instead of writing its own over it.
+    const r = await call($, 'plan', { tasks: [{ id: 'N', title: 'Nova etapa' }] })
+    expect(text(r)).toContain('Plano exibido')
+    const work = store['work:uuid-eu'] as string[]
+    expect(work).toEqual(expect.arrayContaining([...own.work, 'N']))
+    expect(store['view:uuid-eu']).toBe('summary')
+    // The file published by that plan (before the work joined it, as always) carries the restored
+    // work, not an empty one.
+    const last = JSON.parse(h.published[h.published.length - 1] ?? '{}')
+    expect(last.work).toEqual(expect.arrayContaining(own.work))
+  })
+
   test('sem session.start: a primeira gravação das ligações traz as antigas do store (guarda linksLoaded)', async ($, on) => {
     const store = storeOf()
     host(on, store, [...hostRows(), { sessionId: NEW, name: 'nova', title: 'Nova', isRunning: true, isArchived: false, startedBy: ME }])
@@ -268,5 +291,29 @@ describe('recarga a quente (state mantido, módulo novo, sem session.start)', ()
     expect(turn?.reply).toBe('A recarga foi conferida e nada se perdeu no painel.')
     // Spent with the turn: the next one starts with none.
     expect(HOT.brief).toBe('')
+  })
+
+  // The same for the end-of-turn recap (wrap_up): the first test gives it, the second (a new
+  // module) ends the turn, with a final message that is not the recap.
+  const HOT2: Record<string, unknown> = {}
+  test('recap antes da recarga, 1/2: o wrap_up guarda o recap no state', async ($, on) => {
+    seedState(on, HOT2)
+    host(on, {})
+    on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' } as any, async () => ({ result: 'ok' }))
+    await $.prompt.submit({ text: 'conferir o recap' } as any)
+    await call($, 'plan', { tasks: [{ id: 'A', title: 'Conferir' }], request: 'Conferir o recap' })
+    await call($, 'done', { ids: ['A'] })
+    await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Recap da recarga, inteiro no cartão.' } as any)
+    expect(HOT2.recap).toBe('Recap da recarga, inteiro no cartão.')
+  })
+
+  test('recap antes da recarga, 2/2: o turno termina no módulo novo e o cartão traz o recap, não a mensagem final', async ($, on) => {
+    seedState(on, HOT2)
+    host(on, {})
+    await $.turn.complete({ reason: 'answer', answer: 'A mensagem final, que não é o recap.', durationMs: 1, isAborted: false, turnId: 't1' } as any)
+    const turn = ((HOT2.groups as any[])[0].turns ?? []).slice(-1)[0]
+    expect(turn?.reply).toBe('Recap da recarga, inteiro no cartão.')
+    // Spent with the turn: the next one starts with none.
+    expect(HOT2.recap).toBe('')
   })
 })

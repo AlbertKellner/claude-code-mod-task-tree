@@ -10,11 +10,16 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
+- `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
 - `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
 - `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
+- `text/rules.ts`: todos os textos que o plugin escreve para o modelo (R16, fase 2): `BRIEF` = 120 e `LIMIT` ("até 120 caracteres", interpolado nos 6 textos que citam o limite), `RULES` (seção `task-tree:regras`), `COMMAND`, `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `EXAMPLE`. Ficam fora dele os resultados das tools ("Plano exibido…", "Concluídas: d/n…") e os `alt`/títulos do desenho.
+- `tests/textos.test.ts` e `tests/golden/textos.ts`: golden dos 23 textos (ver "Golden dos textos").
+- `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 15 chaves de `$.state` (com `recap`), 1 do store (`sessions`) e 15 variáveis de módulo (`lastRecap` saiu). Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
+- `tests/durabilidade.test.ts`: 63 testes sobre a tabela (ver "Tabela de durabilidade").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
@@ -74,9 +79,61 @@ lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho 
 - Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
   (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
 
+### Golden dos textos
+
+`tests/textos.test.ts` (7 testes) coleta os textos que chegam ao modelo (descrições registradas no
+`session.start`, regras do `prompt.compose`, contextos do `prompt.submit`, as três saídas do
+`AskUserQuestion`, avisos do `done`, do `SendMessage` na fila, do `wrap_up`, da chamada sem plano e as
+notas de sessão) e compara com `tests/golden/textos.ts`. Confere também que toda ocorrência de "até N
+caracteres" diz 120 (pelo menos 6). Quando difere, imprime `TEXTOS-NEW <json>` para colar no golden.
+
+- Regra: mudança de texto = golden novo, aprovado de propósito (como no golden do SVG).
+- O limite do resumo mora em um lugar só, `BRIEF` em `text/rules.ts`; antes eram 6 strings (o 60 → 120
+  tocou todas).
+- O golden foi gerado com o código anterior à extração, e o teste passou sem diferença depois dela.
+
+### Tabela de durabilidade
+
+`state/durability.ts` diz, por chave, onde o dado vive e como volta. `tests/durabilidade.test.ts` roda
+4 cenários por chave do state: A (planta pela API do mod e confere state/store), B (reinício com
+`session.start`), C (reinício sem `session.start`) e D (recarga a quente com o state semeado); mais o
+`sessions`, uma sanidade da tabela e "chave nova sem linha": um cenário largo grava toda chave do state
+e todo prefixo do store tocados, e falha se algum não tem linha ou se alguma linha não é tocada. `engine`,
+`ended` e `tasks` (legado) são plantados por semeadura.
+
+- Chave nova de state ou de store: acrescente a linha em `TABLE`, senão o teste falha.
+- Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
+  no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
+  chave continuam literais em `register.tsx`, e o teste é que garante a correspondência com a tabela.
+- Funções que recebem `$` em arquivo importado (`loadStore`, `saveStore`, `saveGroups`) passam no
+  validador: a armadilha do `$` fora do topo não apareceu aí.
+
+Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já foram corrigidas):
+
+1. (corrigida) `view` e `work` só voltavam no `session.start`: num respawn do worker sem ele (reinício
+   do hooks worker, `/model`), a visão caía na padrão e o próximo `plan` gravava `work` por cima do
+   store. Agora `ensureView($)` e `ensureWork($)`, no molde de `ensureGroups`, trazem do store no primeiro
+   uso (`restoredAt` = `first-use` na tabela, como `groups`); marcam `loaded` só quando o state recebe o
+   valor e devolvem o que trouxeram para quem não pode gravar (o `ui.render` não pode: `$.state.set`
+   lá dentro lança). Chamados em `change()`, `publishWait()`, `nothingOpen()` e no `ui.render`. Sem nada
+   no store, o painel fica nos padrões. Teste: `reinicio.test.ts`, "sem session.start: a visão e o
+   trabalho atual voltam do store no primeiro uso".
+2. (corrigida) `lastRecap` era variável de módulo: recarga entre o `wrap_up` e o fim do turno perdia o
+   recap (o cartão mostrava a mensagem final). Agora é a chave de state `recap`, como o `brief`
+   (`merge` none, `restoredAt` vazio: sobrevive à recarga, morre com o processo); `lastRecap($)` lê o
+   state ('' = nenhum), o `wrap_up` grava e o `turn.complete` lê e zera. Testes: `reinicio.test.ts`
+   ("recap antes da recarga", 1/2 e 2/2) e a linha nova na tabela, com os 4 testes do laço.
+3. `groups` no `resume` substitui o state (o `SessionStart` de resume chama restore sem olhar o state);
+   no `session.start`, o state vence.
+4. `sends` sem teto na fusão; `received` e `launches` com 20.
+5. Um `Agent` só chega ao store na próxima publicação dos links (fica no state até lá).
+6. A visão vai ao store só no clique (`setView`); nenhuma outra gravação a leva.
+7. O `ended` não é consumido pelas tools do painel (`plan`/`start`/`done` não passam pelo `tool.call`
+   genérico); o lembrete "terminou o turno" sai na próxima chamada comum ou no `prompt.submit`.
+
 ### Reinício e recarga
 
-`tests/reinicio.test.ts` (8 testes, com o fixture `REAL`) cobre dois casos:
+`tests/reinicio.test.ts` (11 testes, com o fixture `REAL`) cobre dois casos:
 
 - **Reinício do processo** (`$.state` vazio, store cheio): cada teste do kit é um módulo novo com
   `$.state` vazio; o store passa entre testes por um objeto compartilhado. Testado com e sem `session.start`.
@@ -128,8 +185,8 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 - O contrato `PluginState['task-tree']` precisa listar a chave: o validador confere as chaves de state por ele.
 - Armadilha: uma função que recebe `$` precisa estar declarada no topo do arquivo (o validador recusa dentro do
   `register`: "$ is passed to "lastBrief", which is not a function declared at the top of this file").
-- `lastRecap` (recap do `wrap_up`) continua variável de módulo: mesma classe, efeito menor (o tooltip do ↩ cai
-  para a mensagem final).
+- O recap do `wrap_up` seguiu o mesmo caminho: chave de state `recap` (divergência 2 do R13), lida por
+  `lastRecap($)`.
 
 ### Arquivo publicado
 
@@ -285,7 +342,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
   cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. A linha mostra um
-  resumo de até 120 caracteres (`BRIEF`), e o tooltip a resposta inteira (pedido do usuário: "devem
+  resumo de até 120 caracteres (`BRIEF`, em `text/rules.ts`), e o tooltip a resposta inteira (pedido do usuário: "devem
   ser um resumo", depois "aumente a resposta para 120 caracteres, esta muito sucinto"; antes eram
   60). Se a linha não couber na largura, o corte visual com "…" e o tooltip continuam. Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
   sessão, tipo manchete, com o que mudou e o resultado (ex.: "Cartões na raiz: causa na recarga; correção
@@ -689,7 +746,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   marcando que há sessões embaixo. Sem percentual, sem anel. No desktop o anel é clicável e abre a sessão
   no painel principal da janela (pedido do usuário: "quero que o icone de contexto seja um icone
   clicavel tambem, e quando clicar nele, abra a sessao que ele representa"): um `Button` sem
-  rótulo centrado no anel (`ringOver`; o mesmo helper `overBox(cx)` do ícone de progresso escolhe
+  rótulo centrado no anel (`ringOver`, que chama `overlay('ring', …)` de `draw/geometry.ts`; o `overBox(cx)` do módulo, o mesmo do ícone de progresso, escolhe
   as células inteiras com o meio mais perto do centro do glifo; pedidos do usuário: "mesmo problema
   do icone de progresso, o botao atras nao tem padding" e "o mouse over do anel de contexto continua
   pequeno, nao envolvendo o icone todo"). O realce é do botão nativo: o tamanho vem do texto do botão
@@ -697,7 +754,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` do botão tem 4 células
   (`RING_CELLS`), a largura do realce nativo (32 px), ancorado pela ponta direita da linha
   (`right`, `ringRight`), e o anel é desenhado no meio dele (`ringFromRight`: x = W − 8·(right +
-  2)); o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
+  2); constantes `RING_D` 15, `RING_CELLS` 4, `RING_IN` = `CARD_RIGHT` + `RING_D` = 17,5). A regra "ancorar pela borda mais próxima" (ícone e nome contados pela esquerda, anel pela direita; célula `CELL` = 8 contra ≈7,87 reais) está escrita uma vez, no cabeçalho de `draw/geometry.ts`; `foldOver`/`ringOver`/`nameLayer` só chamam `overlay`; o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
   desalinhado"; aprovado depois com "Sim, ficou certo"): a célula do desktop tem um pouco menos de
   8 px (≈7,87); contado da esquerda (cerca de 57 células) o erro somava ≈7 px e o anel ficava fora
   do realce, e contado da direita ele é de fração de px. O teste confere o `Box` pela direita, com 4
