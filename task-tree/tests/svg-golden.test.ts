@@ -130,6 +130,18 @@ function withChild(on: any, running: boolean, panel: unknown = CHILD_PANEL) {
   on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID} (filha)` }))
 }
 
+// Waits for the background read at the start (the app's list, every child's file, the state, then
+// the panel published) to be through, by the facts the host sees, up to `limit` ms. A fixed sleep
+// here oscillated with the machine's load (two suites at once).
+async function settled(h: { children: boolean; published: number }, limit = 4000) {
+  const t0 = Date.now()
+  while (Date.now() - t0 < limit) {
+    if (h.children && h.published > 0) return
+    await new Promise(r => setTimeout(r, 10))
+  }
+  throw new Error(`a leitura de fundo não terminou em ${limit} ms (filhas no estado: ${h.children}, publicações: ${h.published})`)
+}
+
 describe('golden do SVG (desktop)', () => {
   test('básico: pedido, três níveis, em andamento, concluída, resposta ↩, nome cortado e cabeçalho com chips', async ($, on) => {
     clock(on)
@@ -257,7 +269,17 @@ describe('golden do SVG (desktop)', () => {
       return { value: undefined } as any
     })
     on('store.get', (_$: any, e: any) => ({ value: store[e.key] }) as any)
-    on('fs.write', () => ({ value: undefined }) as any)
+    // How far the background read at the start got (see `settled`).
+    const h = { children: false, published: 0 }
+    on('fs.write', () => {
+      if (h.children) h.published++
+      return { value: undefined } as any
+    })
+    on('state.set', async (_$: any, e: any, next: any) => {
+      const r = await next(e)
+      if (e.key === 'children' && Array.isArray(e.value) && e.value.length >= own.children.length) h.children = true
+      return r
+    })
     on('fs.read', (_$: any, e: any) => {
       const id = Object.keys(REAL.files).find(k => String(e.path).includes(k))
       return ({ value: id ? REAL.files[id] : '{}' }) as any
@@ -271,7 +293,7 @@ describe('golden do SVG (desktop)', () => {
       return { value: { content: [{ type: 'text', text: '{}' }], isError: false } } as any
     })
     await $.session.start({ cwd: '.' } as any)
-    await new Promise(r => setTimeout(r, 100))
+    await settled(h)
     await setView($, 'full')
     check('real-completa', await svgs($, 100))
     await setView($, 'summary')
