@@ -10,7 +10,8 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
-- `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
+- `draw/layout.ts`: o layout do painel (R12, fase 3, etapa 1): `layout(model, choices, now, ownId): Row[]`, função de topo e pura: não lê nada além dos argumentos (etapa 2). Saíram o relógio de módulo `drawNow` (`split(c, sisters, me, owner, now, memo)` recebe o `now`), o `WeakMap` de módulo `breaksMemo` (agora um `BreaksMemo` por desenho, criado por `newBreaksMemo()` no `layout()` e passado a `split`/`breaks`; chave explícita de `hits`: `lista|me|caminho|id|parte`, a mesma partição de antes) e o mapa lateral `sendsAt` (o `panel` calcula `pending` e o passa como parâmetro a `rows`/`turnRows`; só o grupo principal manda mensagens, os escopos de subagente recebem `[]`). `Model` = `{ groups, waits, children, sends (só as não tomadas), view, work }`; `Choices` = o atom `folds`. Leva junto os auxiliares puros de modelo que o `register.tsx` também usa (`count`, `total`, `split`, `atWork`, `trimToWork`, `limitRows`, `MAX_ROWS`, `SHOWN_TURNS`, `Row`, `Tone` etc.), exportados daqui. Só importa `../types`: sem import circular e sem `$`.
+- `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Também `overlays(line, nested, W): Placed[]` (todos os `Box` de uma linha, na ordem de desenho, cada um pela regra da borda mais próxima), `spanOf(p, W)` (trecho em px) e `crossings(list, W)` (pares que se cruzam): as sobreposições do desenho saem só de `overlays()`. Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
 - `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
@@ -23,6 +24,8 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
+- `tests/sobreposicao.test.ts`: regra de não-sobreposição dos `Box` de uma linha (6 testes; ver "Sobreposição dos Box").
+- `tests/layout.test.ts`: testes de layout diretos, sem mount e sem SVG, com o fixture real (14 testes, ~130 ms); chamam `layout(model, choices, now, ownId)` com o `Model` montado como o `refreshChildren` monta (ver "Testes de layout").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
@@ -130,6 +133,30 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 6. A visão vai ao store só no clique (`setView`); nenhuma outra gravação a leva.
 7. O `ended` não é consumido pelas tools do painel (`plan`/`start`/`done` não passam pelo `tool.call`
    genérico); o lembrete "terminou o turno" sai na próxima chamada comum ou no `prompt.submit`.
+
+### Sobreposição dos Box
+
+`tests/sobreposicao.test.ts` (6 testes) confere que `overlays()` dá os mesmos `Box` que `overlay()` dava
+(7 profundidades × 4 aninhamentos), os trechos em px, e a regra "nenhum par de `Box` na mesma linha se
+cruza": estado real nas duas visões em 6 larguras (30–112 colunas), ícone × anel (8 × 4 × 5) e ícone ×
+camada do nome (a camada vai da coluna do nome até a borda ou, com anel, até o `Box` do anel; `overlay('name', depth, W, ringNested?)`, nunca abaixo de `NAME_MIN` = 16 px). Nenhuma falha conhecida: a que o teste revelou (a camada cobria o anel, e o clique nele não abria a sessão) foi corrigida no bug 2 da fase 3. Só a área do tooltip do nome cortado num cartão com anel mudou (32 px a menos, mais com cartões aninhados); nenhum pixel do SVG.
+
+- O rótulo do botão do ícone é um espaço em (U+2003), não um espaço comum: é de propósito (dá ao realce
+  nativo a largura certa). Com espaço comum, o teste "só o ícone recolhe" cai. Ferramentas de edição
+  podem normalizar o caractere; ao mexer nessa linha, confira o U+2003 (um script com perl resolve).
+
+### Testes de layout
+
+`tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 28 linhas
+("+67 pedidos anteriores" no topo, "+41 cartões antigos de sessões" no fim, só os pedidos 71–73
+desenhados, 2 cartões sob as tarefas 97 e 98, nenhum na raiz), o ↩ (presente no 71, suprimido nos
+pedidos com cartão), o cabeçalho (conta só os nós desenhados, 8/14; chips 6 em andamento, 1 sessão
+ativa, 0 aguardando, 0 ✉), a visão resumida (27 linhas, "+1 pedidos anteriores", sem cartões antigos) e o
+determinismo. Modelos pequenos (9): ordem dos cartões (`begins`), cadeia, filha de filha aninhada, ↩ por
+turno, "+N pedidos anteriores" com pedido antigo aberto, ✉ no painel e dentro de um cartão (`pending` por
+escopo), aviso ao usuário, escolhas (linha fechada guarda `nodes`) e o corte de 400 linhas.
+
+- Regra para quem mexer no layout: mudança de linhas → `layout.test.ts`; mudança de pixels → golden do SVG.
 
 ### Reinício e recarga
 
@@ -240,8 +267,13 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 - Referência do visual aprovado pelo usuário (claro e escuro):
   [docs/task-tree-proposta-visual.svg](../docs/task-tree-proposta-visual.svg).
-- O `ui.render` monta uma lista de linhas (`Row`: profundidade, estado, título, contagem) com a
-  mesma travessia para as duas superfícies; `guides` calcula, só pela sequência de profundidades,
+- O desenho é um pipeline: estado → `Model` → `layout()` (`draw/layout.ts`, puro) → `Row[]` →
+  `drawDesktop`/`drawTerminal` (funções de topo no `register.tsx`, que recebem as linhas prontas) →
+  orçamento. `guides`, `frames` e `labelCols` moram em `layout.ts`. O `ui.render` só lê o estado
+  (groups, view e work com os `ensure*`, waits, children, sends, folds), monta o `Model`, chama
+  `layout()`, calcula o cabeçalho e chama uma das duas; tudo o que toca `$` fica no
+  `register.tsx` (o limite do kit continua respeitado). `layout()` devolve uma lista de linhas (`Row`:
+  profundidade, estado, título, contagem) com a mesma travessia para as duas superfícies; `guides` calcula, só pela sequência de profundidades,
   onde cada linha continua as guias dos ancestrais (`bars`), se fecha o próprio ramo (`last`) e se
   desce para as filhas (`down`).
 - Desktop (`e.surface === 'desktop'` e `Svg` no `$.ui.resolve`): cabeçalho e cada linha são um `Svg`
@@ -654,7 +686,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
   do ícone no desktop, "✉" (cor `permission`) no terminal, `alt` "Aguardando confirmação de
-  <sessão>: título" e chip "N aguardando sessão"; não conta como "em andamento". O chip "N em andamento" conta, pelos dados e não
+  <sessão>: título" e chip "N aguardando sessão"; não conta como "em andamento" (nem a das linhas ✉ dos cartões de filha: o `active` do `ui.render` exclui, além dos `sentIds` da fila desta sessão, os objetos de tarefa das linhas de tom `sent`, por objeto e não por id, porque ids se repetem entre sessões; uma ✉ com filhos desenhados tem `nodes` vazio e as folhas abertas dela continuam contando; corrigido na fase 3, teste em `layout.test.ts`). O chip "N em andamento" conta, pelos dados e não
   pelas linhas desenhadas (`activeLeaves`), todas as folhas abertas (◉ e ○, sem subtarefas) de todos
   os grupos do painel e das sessões não arquivadas (até `DEEP`), como o `total`: é M − N do "N de M"
   (interrompidas fora dos dois), menos as que esperam confirmação (chip ✉). Pedido do usuário: "a
@@ -814,6 +846,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ## Pendências
 
+- Sobras da etapa 1 do layout: `panel(all, …)` roda uma vez sem escolhas com resultado descartado
+  (mantido para o comportamento idêntico, inclusive o aquecimento do cache) e `elapsed` não é usado.
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
   rolável própria. O único caminho é o padrão do `ui.scroll` do `Pane`: não chamar `next`, guardar o
   próprio offset (`e.by`), invalidar e redesenhar o cabeçalho mais a fatia das linhas
