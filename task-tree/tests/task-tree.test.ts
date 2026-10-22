@@ -1810,7 +1810,7 @@ describe('visão resumida', () => {
     ])
   })
 
-  test('o cabeçalho tem o tempo e o N de M da sessão inteira, nas duas visões', async ($, on) => {
+  test('o cabeçalho conta e cronometra o que a visão desenha: a completa, os dois pedidos; a resumida, só o atual', async ($, on) => {
     let t = 0
     on('clock.now', () => ({ value: t }) as any)
     on('clock.every', () => ({ deny: 'sem relógio no teste' }) as any)
@@ -1824,13 +1824,13 @@ describe('visão resumida', () => {
     await plan($, [{ id: 'B', title: 'Atual', children: [{ id: '1', title: 'b1' }, { id: '2', title: 'b2' }] }])
     await start($, ['B/1'])
     t = 200_000
-    // From the first plan (0:00) to now: 3:20, though the current turn took 1:40.
+    // The full view draws both requests: from the first plan (0:00) to now, 3:20.
     const full = (await view($)).slice(0, 2).map(l => l.text)
     expect(full[0]).toBe('Atual  2 de 4 · 50%  3:20')
+    // The summary draws the current request only: its 2 tasks and its 1:40, the whole session aside.
     await pick($, 'summary')
     const lines = await view($)
-    expect(lines.slice(0, 2).map(l => l.text)).toEqual(full)
-    // The turn's own line keeps its own time.
+    expect(lines[0]?.text).toBe('Atual  0 de 2 · 0%  1:40  (sessão inteira: 2 de 4)')
     expect(rowsOf(lines)[0]?.text).toBe('◉ segundo pedido  0/2  1:40')
   })
 
@@ -1859,7 +1859,7 @@ describe('visão resumida', () => {
     await plan($, [{ id: 'C', title: 'Nova' }])
     lines = await view($)
     expect(rowsOf(lines).map(l => l.text)).toEqual(['◉ Nova'])
-    expect(lines[0].text).toBe('Nova  2 de 3 · 67%')
+    expect(lines[0].text).toBe('Nova  0 de 1 · 0%  (sessão inteira: 2 de 3)')
     expect(saved['work:sessao-1']).toEqual(['C'])
     // A plan while it is open joins it.
     await plan($, [{ id: 'D', title: 'Junto' }])
@@ -2745,6 +2745,55 @@ describe('desenho grande demais', () => {
     await ui.unmount()
     expect(big).toContain('Painel grande demais')
     expect(big.length).toBeLessThan(2000)
+  })
+})
+
+describe('cabeçalho por visão', () => {
+  test('nas duas visões, com linhas recolhidas e o limite de pedidos, o X de Y do cabeçalho é a soma das linhas desenhadas', async ($, on) => {
+    on('prompt.submit', (_$: any, e: any) => e)
+    for (let i = 1; i <= 6; i++) {
+      await $.prompt.submit({ text: `pedido ${i}`, origin: { kind: 'composer' } } as any)
+      await call($, 'plan', { tasks: [{ id: `P${i}`, title: `Pedido ${i}`, children: [{ id: 'a', title: 'Etapa a' }, { id: 'b', title: 'Etapa b' }, { id: 'c', title: 'Etapa c' }] }], request: `Pedido ${i}` })
+      if (i < 6) await done($, [`P${i}`])
+      else await done($, [`P${i}/a`])
+    }
+    // The drawn leaves: ✓ done, ◉/○ open; a folded line says its own d/n.
+    const sum = (lines: Line[]) => {
+      let d = 0
+      let n = 0
+      for (const l of rowsOf(lines)) {
+        const m = /(\d+)\/(\d+)/.exec(l.text)
+        if (l.fold === '▸' && m) {
+          d += Number(m[1])
+          n += Number(m[2])
+        } else if (!m && /^[│ ├└─]*[✓◉○] /.test(l.text)) {
+          n++
+          if (l.text.includes('✓ ')) d++
+        }
+      }
+      return [d, n]
+    }
+    const head = (lines: Line[]) => {
+      const m = /(\d+) de (\d+)/.exec(lines[0]?.text ?? '')
+      return [Number(m?.[1]), Number(m?.[2])]
+    }
+    // Full view: the last 3 requests (9 leaves, 7 done); the first 3 are counted in the tooltip only.
+    let lines = await view($)
+    expect(head(lines)).toEqual([7, 9])
+    expect(head(lines)).toEqual(sum(lines))
+    expect(lines[0]?.text).toContain('(sessão inteira: 16 de 18)')
+    // A folded request still counts, by its own d/n.
+    await fold($, '|T:5')
+    lines = await view($)
+    expect(head(lines)).toEqual([7, 9])
+    expect(head(lines)).toEqual(sum(lines))
+    // Summary view: the current request only.
+    const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
+    await ui.press({ key: 'view:summary' })
+    await ui.unmount()
+    lines = await view($)
+    expect(head(lines)).toEqual([1, 3])
+    expect(head(lines)).toEqual(sum(lines))
   })
 })
 
