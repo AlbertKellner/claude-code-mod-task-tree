@@ -18,6 +18,8 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
 - `text/rules.ts`: todos os textos que o plugin escreve para o modelo (R16, fase 2): `BRIEF` = 120 e `LIMIT` ("até 120 caracteres", interpolado nos 6 textos que citam o limite), `RULES` (seção `task-tree:regras`), `COMMAND`, `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `EXAMPLE`. Ficam fora dele os resultados das tools ("Plano exibido…", "Concluídas: d/n…") e os `alt`/títulos do desenho.
 - `tests/textos.test.ts` e `tests/golden/textos.ts`: golden dos 23 textos (ver "Golden dos textos").
+- `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 14 chaves de `$.state`, 1 do store (`sessions`) e 16 variáveis de módulo. Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
+- `tests/durabilidade.test.ts`: 59 testes sobre a tabela (ver "Tabela de durabilidade").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
@@ -89,6 +91,36 @@ caracteres" diz 120 (pelo menos 6). Quando difere, imprime `TEXTOS-NEW <json>` p
 - O limite do resumo mora em um lugar só, `BRIEF` em `text/rules.ts`; antes eram 6 strings (o 60 → 120
   tocou todas).
 - O golden foi gerado com o código anterior à extração, e o teste passou sem diferença depois dela.
+
+### Tabela de durabilidade
+
+`state/durability.ts` diz, por chave, onde o dado vive e como volta. `tests/durabilidade.test.ts` roda
+4 cenários por chave do state: A (planta pela API do mod e confere state/store), B (reinício com
+`session.start`), C (reinício sem `session.start`) e D (recarga a quente com o state semeado); mais o
+`sessions`, uma sanidade da tabela e "chave nova sem linha": um cenário largo grava toda chave do state
+e todo prefixo do store tocados, e falha se algum não tem linha ou se alguma linha não é tocada. `engine`,
+`ended` e `tasks` (legado) são plantados por semeadura.
+
+- Chave nova de state ou de store: acrescente a linha em `TABLE`, senão o teste falha.
+- Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
+  no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 14 consts de
+  chave continuam literais em `register.tsx`, e o teste é que garante a correspondência com a tabela.
+- Funções que recebem `$` em arquivo importado (`loadStore`, `saveStore`, `saveGroups`) passam no
+  validador: a armadilha do `$` fora do topo não apareceu aí.
+
+Divergências que a tabela expôs (comportamento atual, nada mudado na extração):
+
+1. `view` e `work` só voltam no `session.start`: num respawn do worker sem ele, a visão fica padrão e o
+   próximo `plan` grava `work` por cima do store. A corrigir depois do commit (`first-use`, como `groups`).
+2. `lastRecap` é variável de módulo: recarga entre o `wrap_up` e o fim do turno perde o recap (o ↩ usa a
+   mensagem final). A corrigir depois do commit (vai para o state, como o `brief`).
+3. `groups` no `resume` substitui o state (o `SessionStart` de resume chama restore sem olhar o state);
+   no `session.start`, o state vence.
+4. `sends` sem teto na fusão; `received` e `launches` com 20.
+5. Um `Agent` só chega ao store na próxima publicação dos links (fica no state até lá).
+6. A visão vai ao store só no clique (`setView`); nenhuma outra gravação a leva.
+7. O `ended` não é consumido pelas tools do painel (`plan`/`start`/`done` não passam pelo `tool.call`
+   genérico); o lembrete "terminou o turno" sai na próxima chamada comum ou no `prompt.submit`.
 
 ### Reinício e recarga
 
