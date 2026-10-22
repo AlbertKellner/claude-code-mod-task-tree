@@ -3895,3 +3895,26 @@ describe('resposta da sessão no cartão', () => {
     expect(texts.some(t => t.includes('Filha aberta.'))).toBe(false)
   })
 })
+
+describe('cabeçalho com muitos níveis 1', () => {
+  // One level-1 task per request, as a long session leaves them: the header's title is the task in
+  // progress wherever it is in the list (the last, in the normal case), and the first open one with
+  // none in progress. Semantic only: the header is computed once per drawing, not once per task.
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `N${i + 1}`, title: `Pedido ${i + 1}` }))
+
+  test('com 300 níveis 1 e a última em andamento, o título é o dela', async $ => {
+    await plan($, many(300))
+    await start($, ['N300'])
+    const lines = await view($)
+    expect(lines[0].text.startsWith('Pedido 300')).toBe(true)
+    expect(rowsOf(lines).length).toBe(300)
+  })
+
+  test('com 300 níveis 1 e nenhuma em andamento, o título é o da primeira aberta', async $ => {
+    await plan($, many(300))
+    await done($, ['N1', 'N2'])
+    const lines = await view($)
+    expect(lines[0].text.startsWith('Pedido 3')).toBe(true)
+    expect(lines[0].text).toContain('2 de 300')
+  })
+})
