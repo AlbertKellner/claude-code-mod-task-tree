@@ -108,12 +108,15 @@ function duplicates(list: TaskNode[]): string[] {
 // unambiguous, an open task preferred over a closed one.
 function resolve(list: TaskNode[], id: string): { node?: TaskNode; error?: string } {
   const all = flat(list)
-  const exact = all.find(t => t.id === id)
-  if (exact) return { node: exact }
-  const same = all.filter(t => t.short === id)
+  // A closed level-1 task from an old plan ("1") must not win over the open "D/1" of the plan
+  // in progress: the open tasks come first, by full or short id alike.
+  const same = all.filter(t => t.id === id || t.short === id)
+  if (same.length === 1) return { node: same[0] }
   for (const status of ['open', 'done', 'interrupted'] as Status[]) {
     const hits = same.filter(t => t.status === status)
     if (hits.length === 1) return { node: hits[0] }
+    const exact = hits.find(t => t.id === id)
+    if (exact) return { node: exact }
     if (hits.length > 1) return { error: `"${id}" é ambíguo, use ${hits.map(t => `"${t.id}"`).join(' ou ')}` }
   }
   return {}
@@ -2321,7 +2324,12 @@ let lastRecap: string | undefined
       }
       // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
       const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work) : []
-      return [row, ...inner]
+      // The turn's answer closes the message's group, after all its level-1 tasks, as on a card.
+      const said: Row[] =
+        open && typeof u.reply === 'string' && u.reply !== ''
+          ? [{ depth: top + 1, tone: 'reply', title: u.reply, label: 'Resposta' }]
+          : []
+      return [row, ...inner, ...said]
     }
 
     // A session this one opened, in a card: "title · name", the count and time of its tasks, and

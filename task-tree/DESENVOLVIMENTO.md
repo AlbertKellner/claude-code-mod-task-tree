@@ -150,6 +150,12 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
   cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. Cortada com
   "…" e tooltip do texto inteiro. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
+  No próprio painel da sessão (inclusive na orquestradora; pedido do usuário: "igual a sessao
+  filha, as tarefas que tenham filhas precisam ter tambem a resposta com o icone de resposta"), o
+  grupo da mensagem (linha do pedido, `turnRows`) ganha no fim, depois de todos os níveis 1 dele,
+  uma linha ↩ com a resposta do turno, da mesma fonte e com o mesmo visual. Uma linha por turno,
+  mesmo com vários níveis 1 ou com nível 1 sem filhas; tarefas soltas, de antes dos turnos, não têm
+  ↩; a linha só aparece com o grupo aberto.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
