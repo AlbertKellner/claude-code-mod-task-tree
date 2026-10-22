@@ -10,6 +10,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
+- `draw/layout.ts`: o layout do painel (R12, fase 3, etapa 1): `layout(model, choices, now, ownId): Row[]`, função de topo e pura (a menos de `drawNow` e `breaksMemo`, que seguem como estavam; a etapa 2 os transforma em parâmetros). `Model` = `{ groups, waits, children, sends (só as não tomadas), view, work }`; `Choices` = o atom `folds`. Leva junto os auxiliares puros de modelo que o `register.tsx` também usa (`count`, `total`, `split`, `atWork`, `trimToWork`, `limitRows`, `MAX_ROWS`, `SHOWN_TURNS`, `Row`, `Tone` etc.), exportados daqui. Só importa `../types`: sem import circular e sem `$`.
 - `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
@@ -240,8 +241,11 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 - Referência do visual aprovado pelo usuário (claro e escuro):
   [docs/task-tree-proposta-visual.svg](../docs/task-tree-proposta-visual.svg).
-- O `ui.render` monta uma lista de linhas (`Row`: profundidade, estado, título, contagem) com a
-  mesma travessia para as duas superfícies; `guides` calcula, só pela sequência de profundidades,
+- O desenho é um pipeline: estado → `Model` → `layout()` (`draw/layout.ts`, puro) → `Row[]` → guides/frames
+  → SVG/JSX → orçamento. O `ui.render` só lê o estado (groups, view e work com os `ensure*`, waits,
+  children, sends, folds), monta o `Model` e chama `layout()`; tudo o que toca `$` fica no
+  `register.tsx` (o limite do kit continua respeitado). `layout()` devolve uma lista de linhas (`Row`:
+  profundidade, estado, título, contagem) com a mesma travessia para as duas superfícies; `guides` calcula, só pela sequência de profundidades,
   onde cada linha continua as guias dos ancestrais (`bars`), se fecha o próprio ramo (`last`) e se
   desce para as filhas (`down`).
 - Desktop (`e.surface === 'desktop'` e `Svg` no `$.ui.resolve`): cabeçalho e cada linha são um `Svg`
