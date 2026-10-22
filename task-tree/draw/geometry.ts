@@ -104,16 +104,21 @@ export const ringFromRight = (m: number) => CELL * (ringRight(m) + RING_CELLS / 
 // - `ring`: the Button that opens the session, over the context ring at the innermost card's
 //   right end (`nested` cards inside the outermost): from the right, in cells.
 // - `name`: the tooltip layer over a cut name, from the left, in cells, clear of the icon's Box
-//   and starting where the name is drawn; its width in px, to the line's right end (`W`).
+//   and starting where the name is drawn; its width in px, to the line's right end (`W`) or, on a
+//   line with a ring (`ringNested`: the cards inside the outermost), to the ring's Box, so the layer
+//   never covers the Button that opens the session (at least NAME_MIN px).
+export const NAME_MIN = 16
 export type Overlay = { left: number; width: number } | { right: number; width: number }
-export function overlay(kind: 'icon' | 'name', depth: number, W?: number): { left: number; width: number }
+export function overlay(kind: 'icon', depth: number): { left: number; width: number }
+export function overlay(kind: 'name', depth: number, W: number, ringNested?: number): { left: number; width: number }
 export function overlay(kind: 'ring', nested: number): { right: number; width: number }
-export function overlay(kind: 'icon' | 'ring' | 'name', n: number, W = 0): Overlay {
+export function overlay(kind: 'icon' | 'ring' | 'name', n: number, W = 0, ringNested?: number): Overlay {
   if (kind === 'ring') return { right: ringRight(n), width: RING_CELLS }
   const box = overBox(col(n))
   if (kind === 'icon') return box
   const left = Math.max(box.left + box.width, Math.floor((col(n) + TEXT_IN) / CELL))
-  return { left, width: Math.max(16, W - left * CELL) }
+  const end = ringNested === undefined ? W : W - (ringRight(ringNested) + RING_CELLS) * CELL
+  return { left, width: Math.max(NAME_MIN, end - left * CELL) }
 }
 
 // Every Box laid over one line, in drawing order (the last on top): the icon's Button when the line
@@ -126,7 +131,7 @@ export function overlays(line: { depth: number; folds: boolean; ring: boolean; h
   const out: Placed[] = []
   if (line.folds) out.push({ kind: 'icon', ...overlay('icon', line.depth) })
   if (line.ring) out.push({ kind: 'ring', ...overlay('ring', nested) })
-  if (line.hover) out.push({ kind: 'name', ...overlay('name', line.depth, W) })
+  if (line.hover) out.push({ kind: 'name', ...overlay('name', line.depth, W, line.ring ? nested : undefined) })
   return out
 }
 // The px a Box spans on a line of `W` px, from its left edge: cells become px at CELL each.

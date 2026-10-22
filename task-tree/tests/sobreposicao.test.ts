@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { REAL } from './fixtures/orquestradora-real'
-import { CELL, RING_CELLS, crossings, lineWidth, overlay, overlays, spanOf } from '../draw/geometry'
+import { CELL, NAME_MIN, RING_CELLS, crossings, lineWidth, overlay, overlays, spanOf } from '../draw/geometry'
 import { MAIN, frames, layout } from '../draw/layout'
 import type { Model, Row } from '../draw/layout'
 import type { Child, Published } from '../types'
@@ -11,9 +11,7 @@ import type { Child, Published } from '../types'
 // (the row, the cards it is inside, the width, whether its name is cut).
 // A scenario that reveals a bug is in KNOWN (the kit has no skip/todo): it prints TODO and passes.
 
-const KNOWN: Record<string, string> = {
-  'camada do nome cobre o anel': 'a camada de tooltip de um nome cortado vai até a borda direita da linha e cobre o Box do anel (desenhada por cima dele): o clique no anel de uma sessão com nome cortado cai na camada',
-}
+const KNOWN: Record<string, string> = {}
 function known(name: string, ok: boolean, detail: string) {
   if (name in KNOWN) {
     if (ok) throw new Error(`"${name}" passou: o bug conhecido (${KNOWN[name]}) parece corrigido; tire-o de KNOWN.`)
@@ -51,7 +49,9 @@ describe('sobreposições: uma regra, nenhum par de Box se cruza na mesma linha'
         expect(all.map(p => p.kind)).toEqual(['icon', 'ring', 'name'])
         expect(all[0]).toEqual({ kind: 'icon', ...overlay('icon', depth) })
         expect(all[1]).toEqual({ kind: 'ring', ...overlay('ring', nested) })
-        expect(all[2]).toEqual({ kind: 'name', ...overlay('name', depth, W) })
+        // With a ring on the line, the name layer stops at the ring's Box; without, at the right end.
+        expect(all[2]).toEqual({ kind: 'name', ...overlay('name', depth, W, nested) })
+        expect(overlays({ depth, folds: true, ring: false, hover: true }, nested, W)[1]).toEqual({ kind: 'name', ...overlay('name', depth, W) })
         expect(all[1].width).toBe(RING_CELLS)
       }
     }
@@ -105,12 +105,22 @@ describe('sobreposições: uma regra, nenhum par de Box se cruza na mesma linha'
     }
   })
 
-  test('sessão com nome cortado e anel: a camada do nome cruza o Box do anel (falha conhecida)', () => {
+  test('sessão com nome cortado e anel: a camada do nome encerra onde o Box do anel começa, em qualquer largura e aninhamento', () => {
+    for (const columns of [30, 40, 60, 100, 112]) {
+      const W = lineWidth(columns)
+      for (let depth = 0; depth < 6; depth++) {
+        for (let nested = 0; nested < 4; nested++) {
+          const list = overlays({ depth, folds: true, ring: true, hover: true }, nested, W)
+          expect(crossings(list, W), `${columns} colunas, profundidade ${depth}, ${nested} cartões`).toEqual([])
+          const [, ring, name] = list.map(p => spanOf(p, W))
+          // Touching, not crossing: the layer ends on the ring Box's left edge (or at its minimum).
+          expect(name[1] <= ring[0] || name[1] - name[0] === NAME_MIN).toBe(true)
+          if (name[1] - name[0] > NAME_MIN) expect(name[1]).toBe(ring[0])
+        }
+      }
+    }
+    // Without a ring the layer still runs to the right end.
     const W = lineWidth(60)
-    const list = overlays({ depth: 2, folds: true, ring: true, hover: true }, 1, W)
-    const crossed = crossings(list, W)
-    known('camada do nome cobre o anel', crossed.length === 0, `${crossed.map(([a, b]) => `${a.kind}×${b.kind}`).join(', ')} em ${W} px: anel ${JSON.stringify(spanOf(list[1], W))}, nome ${JSON.stringify(spanOf(list[2], W))}`)
-    // The other pair is clear: the icon and the name layer.
-    expect(crossed.every(([a, b]) => a.kind !== 'icon' && b.kind !== 'icon')).toBe(true)
+    expect(spanOf(overlays({ depth: 2, folds: true, ring: false, hover: true }, 1, W)[1], W)[1]).toBe(W)
   })
 })
