@@ -2729,7 +2729,7 @@ describe('histórico longo', () => {
 })
 
 describe('desenho grande demais', () => {
-  test('acima do limite, o painel mostra só o aviso; o /task-tree diz o tamanho do desenho', async ($, on) => {
+  test('acima do limite de linhas, o painel corta e conta; o /task-tree diz o tamanho do desenho', async ($, on) => {
     on('ui.panes', () => ({ value: [{ id: 'task-tree', isPlaced: true, isShown: true }] }) as any)
     on('ui.open', () => ({ value: { isPlaced: true } }) as any)
     await plan($, [{ id: 'A', title: 'Pequeno' }])
@@ -2738,13 +2738,18 @@ describe('desenho grande demais', () => {
     await ui.unmount()
     const r: any = await ($ as any).command.run({ command: 'task-tree', args: '' })
     expect(String(r?.text)).toMatch(/Desenho: \d+ KB de 600 KB\./)
-    // 700 open steps: nothing to cut (open work is always drawn), well past the limit.
+    // 700 open steps: nothing to cut by request (open work is always drawn), well past the line
+    // limit: the block is drawn to the limit, one line counts the rest, and the size stays under the
+    // size limit, so no warning takes the panel's place.
     await plan($, [{ id: 'B', title: 'Enorme', children: Array.from({ length: 700 }, (_, i) => ({ id: `s${i}`, title: `Etapa com um nome razoavelmente comprido número ${i}` })) }])
     ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
     const big = JSON.stringify(await ui.drawn())
     await ui.unmount()
-    expect(big).toContain('Painel grande demais')
-    expect(big.length).toBeLessThan(2000)
+    expect(big).not.toContain('Painel grande demais')
+    // "Pequeno" (the block before) counted first, the big block drawn to the limit, the rest counted.
+    expect(big).toContain('+1 linhas anteriores')
+    expect(big).toContain('+303 linhas')
+    expect(big.length).toBeLessThan(600 * 1024)
   })
 })
 
