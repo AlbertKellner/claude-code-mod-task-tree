@@ -284,7 +284,14 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   22,7 s medidos) e derrubava o worker ("task-tree was unloaded: it crashed the hooks worker", sem
   exceção no log). Agora há memo por desenho (`WeakMap` pela lista de irmãs, com o caminho na
   chave), a cadeia de cada irmã é calculada uma vez e há corte de ciclo (a sessão reencontrada no
-  próprio caminho conta só as rodadas dela): 0,1 s, mesmo resultado. Teste de regressão no kit. Cartão de rodada já
+  próprio caminho conta só as rodadas dela): 0,1 s, mesmo resultado. Teste de regressão no kit.
+  Mensagem sem rodada registrada (pedido do usuário: "layout quebrou novamente"; envio feito com o
+  painel fora do ar ou durante um crash): cada mensagem da dona que a filha tratou (o `received`
+  dela) é casada em ordem com as rodadas registradas (`unsent`); a que sobra abre uma rodada mesmo
+  assim, sob a tarefa da dona que estava aberta quando ela chegou (a que esperava a entrega) ou,
+  sem tarefa aberta, no fim do painel, depois de todos os pedidos. Rodadas de irmãs sem origem
+  também vão para o fim. Antes, essas mensagens caíam na rodada anterior e o cartão ficava acima de
+  outro pedido. Um turno interrompido por crash antes de salvar a resposta fica sem ↩. Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
@@ -496,9 +503,14 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   no painel principal da janela (pedido do usuário: "quero que o icone de contexto seja um icone
   clicavel tambem, e quando clicar nele, abra a sessao que ele representa"): um `Button` sem
   rótulo centrado no anel (`ringOver`; o mesmo helper `overBox(cx)` do ícone de progresso escolhe
-  3 ou 2 células inteiras com o meio mais perto do centro do glifo; antes o box do anel ficava
-  2,5 px fora do centro; pedido do usuário: "mesmo problema do icone de progresso, o botao atras nao
-  tem padding") chama `open_session_in`
+  as células inteiras com o meio mais perto do centro do glifo; pedidos do usuário: "mesmo problema
+  do icone de progresso, o botao atras nao tem padding" e "o mouse over do anel de contexto continua
+  pequeno, nao envolvendo o icone todo"). O realce é do botão nativo: o tamanho vem do texto do botão
+  mais o padding nativo, e o `Box` só posiciona. No anel, o texto é um em space (U+2003,
+  `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` tem 4 ou 5 células
+  (`RING_BOX`; `overBox` com `widths` e `half`), com pelo menos 1 célula (8 px) de folga de cada
+  lado; o ícone de progresso continua com 3 ou 2. O kit não dá tamanho ao `Button`, e o teste mede
+  o `Box` e o texto, não o realce nativo chama `open_session_in`
   (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
   clicar na sessão na barra lateral; o kit não tem API própria para isso e o `Link` do desktop só
   abre https:. Limites do app: só abre esta sessão ou uma aberta por ela (o cartão de uma neta é

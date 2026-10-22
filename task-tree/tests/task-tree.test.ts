@@ -2688,8 +2688,13 @@ describe('anel de contexto abre a sessão', () => {
     walk(tree)
     const ringBox = boxes.find(b => b.children.some((c: any) => String(c.props?.key).startsWith('open:')))
     const ringCx = Number(/class="tk" cx="([\d.]+)"/.exec(tree.children.map((c: any) => JSON.stringify(c)).join('').replace(/\\"/g, '"'))?.[1])
-    expect([2, 3]).toContain(ringBox.props.width)
+    // 4 or 5 cells, holding the ring's whole box (15 px across) with room on each side; the Button's
+    // label an em space, for a highlight the ring's size.
+    expect([4, 5]).toContain(ringBox.props.width)
     expect(Math.abs(8 * ringBox.props.left + 4 * ringBox.props.width - ringCx)).toBeLessThanOrEqual(2.5)
+    expect(8 * ringBox.props.left).toBeLessThanOrEqual(ringCx - 7.5 - 8)
+    expect(8 * (ringBox.props.left + ringBox.props.width)).toBeGreaterThanOrEqual(ringCx + 7.5 + 8)
+    expect(ringBox.children.find((c: any) => c.type === 'Button').props.label).toBe(' ')
     expect(ringBox.props).toMatchObject({ top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' })
     const iconBox = boxes.find(b => b.children.some((c: any) => String(c.props?.key) === 'fold:|t:A'))
     expect(iconBox.props).toMatchObject({ left: 0, width: 3, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' })
@@ -2733,6 +2738,74 @@ describe('irmãs em anel com muitas mensagens', () => {
     const texts = rowsOf(await view($)).map(l => l.text)
     expect(Date.now() - t0).toBeLessThan(3000)
     expect(texts.some(t => t.includes('Tarefa 3.20'))).toBe(true)
+  })
+})
+
+describe('mensagem enviada sem rodada registrada', () => {
+  test('o cartão fica sob a tarefa que esperava a entrega, no grupo dela; sem tarefa aberta, no fim; nunca acima de outro pedido', async ($, on) => {
+    const I = 'local_b1111111-1111-1111-1111-111111111111'
+    const D = 'local_b2222222-2222-2222-2222-222222222222'
+    const task = (id: string, title: string, turn: number) => ({ id, short: id, title, status: 'done', turn, children: [] })
+    const panel = (received: any[], turns: [number, number][], tasks: any[]) => ({
+      waiting: false, received, waits: [], children: [],
+      groups: [{ agent: '', label: '', turns: turns.map(([id, at]) => ({ id, title: 't', at })), tasks }],
+    })
+    // The implementation took up three messages of this session: at 120 (sent at 100, recorded), at
+    // 300 (sent with the panel off: no round) and at 500 (no round, nothing open here then). Docs
+    // got the second one passed on at 310.
+    const PANELS: Record<string, any> = {
+      [I]: panel([{ from: 'local_eu', at: 120 }, { from: 'local_eu', at: 300 }, { from: 'local_eu', at: 500 }], [[1, 50], [2, 121], [3, 301], [4, 501]],
+        [task('I0', 'Impl abertura', 1), task('I1', 'Impl um', 2), task('I2', 'Impl dois', 3), task('I3', 'Impl três', 4)]),
+      [D]: panel([{ from: I, at: 310 }], [[1, 50], [2, 311]], [task('D0', 'Docs abertura', 1), task('D1', 'Docs dois', 2)]),
+    }
+    let t = 10
+    let n = 0
+    on('clock.now', () => ({ value: t }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('prompt.submit', (_$: any, e: any) => e)
+    on('mcp.call', (_$: any, e: any) => e.tool === 'get_session' ? ({ value: { content: [{ type: 'text', text: JSON.stringify({ sessionId: 'local_eu' }) }], isError: false } } as any) : ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: I, name: 'impl', title: 'impl', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+          { sessionId: D, name: 'docs', title: 'docs', isRunning: false, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(PANELS).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify(PANELS[id]) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${[I, D][n++]}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+    await $.prompt.submit({ text: 'um', origin: { kind: 'composer' } } as any)
+    await call($, 'plan', { tasks: [{ id: 'P', title: 'Pedido um: repassar' }], request: 'Pedido um' })
+    await start($, ['P'])
+    for (let i = 0; i < 2; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    t = 100
+    await $.tool.call({ tool: 'SendMessage', to: I, message: 'um' } as any)
+    await done($, ['P'])
+    t = 200
+    await $.prompt.submit({ text: 'dois', origin: { kind: 'composer' } } as any)
+    await call($, 'plan', { tasks: [{ id: 'Q', title: 'Pedido dois: repassar' }], request: 'Pedido dois' })
+    await start($, ['Q'])
+    t = 400
+    await done($, ['Q'])
+    t = 450
+    await $.prompt.submit({ text: 'tres', origin: { kind: 'composer' } } as any)
+    await call($, 'plan', { tasks: [{ id: 'R', title: 'Pedido três' }], request: 'Pedido três' })
+    t = 600
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (w: string) => texts.findIndex(x => x.includes(w))
+    // Each card under its own request, nothing of the second above its header.
+    expect(at('Impl um')).toBeGreaterThan(at('Pedido um: repassar'))
+    expect(at('Impl um')).toBeLessThan(at('Pedido dois'))
+    expect(at('Impl dois')).toBeGreaterThan(at('Pedido dois: repassar'))
+    expect(at('Docs dois')).toBeGreaterThan(at('Impl dois'))
+    expect(at('Docs dois')).toBeLessThan(at('Pedido três'))
+    // No task open when the third came: at the end, after every request.
+    expect(at('Impl três')).toBeGreaterThan(at('Pedido três'))
   })
 })
 

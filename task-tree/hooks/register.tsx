@@ -276,21 +276,51 @@ const panelOf = (c: Child): Panel => {
 // they were sent from, and those a sister session sent (its published `received`), drawn under
 // the task the sister's own card was under when it sent (followed down a chain of sisters).
 // `peer`: a sister's message; `known`: its origin was found (else drawn only after a while, see split).
-type Break = { at: number; anchor?: string; peer?: boolean; known?: boolean }
+type Break = { at: number; anchor?: string; peer?: boolean; known?: boolean; orphan?: boolean }
+// The messages `me` sent this session with no round recorded (the send was not seen: the panel
+// was off, or the mod reloaded or crashed then): each one the session took up (its published
+// `received`), matched in order against the rounds, opens a round all the same, or its turns would
+// join the round before it, under a task of an earlier request, drawn above requests between them
+// (the person's words: "layout quebrou novamente"). Its task is the main task of `me` that was open
+// when the message came (the one that sent it, waiting on it); with none, no task: the card goes
+// to the end of the panel, never between other requests.
+function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Break[] {
+  const rounds = [...(c.rounds ?? [])].sort((a, b) => a.at - b.at)
+  if (me === undefined || rounds.length === 0) return []
+  const got = (c.panel?.received ?? [])
+    .filter(x => x.from === me && typeof x.at === 'number' && x.at > rounds[0].at)
+    .map(x => x.at as number)
+    .sort((a, b) => a - b)
+  const out: Break[] = []
+  let i = 0
+  for (const at of got) {
+    // The earliest round not matched yet, sent before the message came: that send's message.
+    if (i < rounds.length && rounds[i].at <= at) {
+      i++
+      continue
+    }
+    const open = flat(owner)
+      .filter(t => typeof t.startedAt === 'number' && t.startedAt <= at && (t.endedAt === undefined || t.endedAt >= at))
+      .sort((a, b) => (b.startedAt as number) - (a.startedAt as number))[0]
+    out.push({ at, anchor: open?.id, orphan: true })
+  }
+  return out
+}
+
 // Each session's breaks once per list of sisters (one drawing): the chain follows a sister's own
 // breaks for every message it sent, and sisters message each other in a ring (implementation →
 // docs → SVG → governance → implementation). Recomputed per message, with up to 20 kept each, that
 // was 20^5 calls per card on every redraw, and it crashed the hooks worker. A session met again
 // inside its own chain counts with its own rounds only.
 const breaksMemo = new WeakMap<Child[], Map<string, Break[]>>()
-function breaks(c: Child, sisters: Child[], me: string | undefined, seen: string[] = []): Break[] {
+function breaks(c: Child, sisters: Child[], me: string | undefined, seen: string[] = [], owner: TaskNode[] = []): Break[] {
   let memo = breaksMemo.get(sisters)
   if (memo === undefined) breaksMemo.set(sisters, (memo = new Map()))
   // The path is in the key: a session met again inside its chain is cut there, and only there.
   const key = `${me ?? ''}|${seen.join(',')}|${c.id}|${c.part ?? ''}`
   const hit = memo.get(key)
   if (hit !== undefined) return hit
-  const own: Break[] = (c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor }))
+  const own: Break[] = [...(c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor })), ...unsent(c, me, owner)]
   if (seen.includes(c.id) || seen.length > 4) return own
   const path = [...seen, c.id]
   const sisterBreaks = new Map<string, Break[]>()
@@ -301,7 +331,7 @@ function breaks(c: Child, sisters: Child[], me: string | undefined, seen: string
           // the turn opened after), not to the last round before it arrived, which may be a later
           // message the sister had not taken up yet.
           let fb = sisterBreaks.get(from.id)
-          if (fb === undefined) sisterBreaks.set(from.id, (fb = breaks(from, sisters, me, path)))
+          if (fb === undefined) sisterBreaks.set(from.id, (fb = breaks(from, sisters, me, path, owner)))
           const fmain = withMain(from.panel?.groups ?? []).find(g => g.agent === MAIN)
           const fturns = fmain?.turns ?? []
           // First, the sister's own sending task, while its ✉ is up (its published `sends`): the turn
@@ -342,8 +372,8 @@ const inOrder = (list: Child[]) =>
 // not drawn, for up to WAIT_ORIGIN ms: it would show at the root and jump into place on the next read.
 const WAIT_ORIGIN = 10000
 let drawNow: number | undefined
-function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
-  const rounds = breaks(c, sisters, me)
+function split(c: Child, sisters: Child[] = [], me?: string, owner: TaskNode[] = []): Child[] {
+  const rounds = breaks(c, sisters, me, [], owner)
   const p = c.panel
   if (c.part !== undefined || rounds.length === 0 || p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
@@ -365,8 +395,8 @@ function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
   const busy = parts.find(k => flat(tasksIn(k)).some(t => t.status === 'open' && t.started !== undefined))
   const lead = busy ?? parts[parts.length - 1]
   // What hangs from a task goes to that task's card; with no such task, to the leading card.
-  const owner = (anchor?: string) => parts.find(k => anchor !== undefined && flat(tasksIn(k)).some(t => t.id === anchor)) ?? lead
-  const ownerOf = (agent: string) => (agent === MAIN ? owner(current(main.tasks).anchor) : owner(groups.find(g => g.agent === agent)?.anchor))
+  const holder = (anchor?: string) => parts.find(k => anchor !== undefined && flat(tasksIn(k)).some(t => t.id === anchor)) ?? lead
+  const ownerOf = (agent: string) => (agent === MAIN ? holder(current(main.tasks).anchor) : holder(groups.find(g => g.agent === agent)?.anchor))
   const waiting = (k: number) => {
     const b = k > 0 ? rounds[k - 1] : undefined
     return b?.peer === true && !b.known && drawNow !== undefined && drawNow - b.at < WAIT_ORIGIN
@@ -378,7 +408,7 @@ function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
     return {
       ...c,
       part: k,
-      anchor: k === 0 ? c.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
+      anchor: k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),
@@ -393,7 +423,7 @@ function split(c: Child, sisters: Child[] = [], me?: string): Child[] {
           .map(g => (g.agent === MAIN ? { ...g, tasks, turns: turns.filter(u => tasks.some(t => t.turn === u.id)) } : g))
           .filter(g => g.agent === MAIN || ownerOf(g.agent) === k),
         waits: (p.waits ?? []).filter(w => ownerOf(w.agent) === k),
-        children: (p.children ?? []).filter(s => owner(s.anchor) === k),
+        children: (p.children ?? []).filter(s => holder(s.anchor) === k),
         ...(p.work ? { work: p.work.filter(id => ids.includes(id)) } : {}),
       },
     }
@@ -1435,15 +1465,24 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
 // The Box a Button is centered in over a glyph whose middle is `cx` px from the line's left: whole
 // cells (8 px), 3 or 2 of them, whichever puts the Box's middle nearest the glyph. Both the icon's
 // and the ring's Buttons use it, so their highlights keep the same room around the glyph.
-function overBox(cx: number): { left: number; width: number } {
+// `half`: half the glyph's width plus the room wanted on each side; a width that leaves less is
+// passed over while another leaves enough.
+function overBox(cx: number, widths: number[] = [3, 2], half = 0): { left: number; width: number } {
   const fit = (width: number) => {
     const left = Math.max(0, Math.round((cx - 4 * width) / 8))
-    return { left, width, off: Math.abs(8 * left + 4 * width - cx) }
+    const roomy = 8 * left <= cx - half && 8 * (left + width) >= cx + half
+    return { left, width, off: Math.abs(8 * left + 4 * width - cx) + (roomy ? 0 : 1000) }
   }
-  const [a, b] = [fit(3), fit(2)]
-  const best = a.off <= b.off ? a : b
+  const best = widths.map(fit).reduce((a, b) => (b.off < a.off ? b : a))
   return { left: best.left, width: best.width }
 }
+// The context ring is 15 px across (radius 5.5, stroke 2): its Box spans 4 or 5 cells (32-40 px),
+// a cell or more of room on each side, and its Button's label is an em space, so the native
+// highlight (the label's width plus the button's padding) covers the whole ring, not the corner
+// a one-space label made (the person's words: "o mouse over do anel de contexto continua pequeno,
+// nao envolvendo o icone todo").
+const RING_BOX = [4, 5]
+const RING_LABEL = ' '
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
 // open_session_in, which takes this session or one it started); a refusal goes to a toast.
@@ -2537,7 +2576,7 @@ const REPLY = 'resposta'
       const waits = p.waits ?? []
       // Archived sessions stay, as history, drawn gray with "arquivada".
       // One card per message the session was sent (split).
-      const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me))
+      const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me, withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? []))
 
       // A subagent's group hangs from the loop that launched it; one whose launcher has no
       // group (it never planned) hangs from the main one.
@@ -2635,7 +2674,7 @@ const REPLY = 'resposta'
       const ids = flat(kept).map(t => t.id)
       const has = (id?: string) => id !== undefined && ids.includes(id)
       // A session split in cards keeps each card under the task its message was sent from.
-      const moved = sessions.flatMap(c => split(c, sessions, ownId)).map(c =>
+      const moved = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [])).map(c =>
         c.part !== undefined ? c : has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
       )
       return trimToWork({ ...base, children: moved }, 0)
@@ -2691,10 +2730,10 @@ const REPLY = 'resposta'
     // main pane (open_session_in, focus); what it refuses is said in a toast.
     const ringOver = (r: Row, f: Frame, W: number) => {
       const m = Math.max(0, f.cards.length - 1)
-      const { left, width } = overBox(W - 17.5 - 6 * m)
+      const { left, width } = overBox(W - 17.5 - 6 * m, RING_BOX, 7.5 + 8)
       return (
         <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
-          <Button key={`open:${r.sid}`} label={' '} plain onPress={() => void openSession($, r.sid as string, r.title)} />
+          <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={() => void openSession($, r.sid as string, r.title)} />
         </Box>
       )
     }
