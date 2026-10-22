@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { AgentInfo, Register } from 'claude-code'
 
-import type { Child, Group, Launch, LegacyNode, Panel, Send, Status, TaskNode, Turn, Wait } from '../types'
+import type { Child, Group, Launch, LegacyNode, Panel, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
 
 const PANE = 'task-tree'
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
@@ -16,6 +16,15 @@ const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
+const briefState = { plugin: 'task-tree', key: 'brief' } as const
+// The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
+// In the state, not a variable of the module: a reload of the mod between the done and the end of
+// the turn (saving a file of the mod mid-turn) kept the variable's value nowhere, and the ↩ line
+// lost the summary. Empty: none given.
+async function lastBrief($: any): Promise<string | undefined> {
+  const { value } = await $.state.get(briefState)
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
 // The pane's lines the person opened or closed (see setFold).
 const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
 
@@ -448,15 +457,13 @@ function total(p: Panel, level = 0): [number, number, number] {
 // The sessions opened on a task or below it (archived ones as history): their tasks add to its count and
 // its time, and while one is still at work the task is drawn in progress, its clock running,
 // whatever its own status says.
-// `ring`: the session below with the largest share of its context used (see contextRing).
+// `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
 type Ring = { percent: number; name: string; faded?: boolean }
 const ringOf = (c: Child): Ring | undefined =>
   typeof c.context === 'number' ? { percent: c.context, name: c.name || c.title, ...(c.archived ? { faded: true } : {}) } : undefined
-type Work = { busy: boolean; any: boolean; d: number; n: number; tasks: TaskNode[]; ring?: Ring }
+type Work = { busy: boolean; any: boolean; d: number; n: number; tasks: TaskNode[] }
 const idle: Work = { busy: false, any: false, d: 0, n: 0, tasks: [] }
-const topRing = (rings: (Ring | undefined)[]) =>
-  rings.reduce<Ring | undefined>((top, r) => (r && (!top || r.percent > top.percent) ? r : top), undefined)
 // A panel's tasks with its sessions' (archived ones too), as deep as the count follows them.
 function allTasks(p: Panel, level: number): TaskNode[] {
   const own = tasksOf(p.groups ?? [])
@@ -474,8 +481,7 @@ function atWork(t: TaskNode, sessions: Child[], level: number): Work {
     n += cn
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
-  const ring = topRing(mine.map(c => ringOf(c)))
-  return { busy: mine.some(live), any: mine.length > 0, d, n, tasks, ring }
+  return { busy: mine.some(live), any: mine.length > 0, d, n, tasks }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
@@ -688,6 +694,7 @@ async function adopt($: any) {
 }
 
 async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
+  await ensureGroups($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
   await persist($, groups)
@@ -699,11 +706,49 @@ async function replace($: any, groups: Group[]) {
   await persist($, groups)
 }
 
-// A resumed session's panel comes back; its subagents do not, so what they left open
-// is interrupted.
+// The session's panel as the store keeps it; its subagents do not come back, so what they left
+// open is interrupted.
+async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
+  const kept = (await $.store.get(`session:${id}`)) as Group[] | undefined
+  return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
+}
+
+// A resumed session's panel comes back.
 async function restore($: any, id: string) {
-  const saved = (await $.store.get(`session:${id}`)) as Group[] | undefined
-  if (saved) await replace($, saved.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })))
+  const groups = await keptGroups($, id)
+  if (groups) await replace($, groups)
+}
+
+// Whether this module has seen the groups since it loaded. session.start brings them back from the
+// store when the state holds none (a new process); a process that restarted without it (the hooks
+// worker respawned after a crash) would otherwise start from nothing: the first write would then
+// overwrite the store with the reduced panel, and the panel and the published file would show it
+// empty. So the first write, drawing or publication of the module brings them back first, as
+// `linksLoaded` does for the links.
+// Answers the groups it brought back, for a caller that cannot write the state (a drawing): the
+// module counts them as loaded only once they are in the state, so the next write brings them back
+// again if this one could not.
+let groupsLoaded = false
+async function ensureGroups($: any): Promise<Group[] | undefined> {
+  if (groupsLoaded) return undefined
+  try {
+    if ((await $.state.get(groupsState)).value !== undefined) {
+      groupsLoaded = true
+      return undefined
+    }
+    const groups = await keptGroups($, await $.session.id())
+    if (groups === undefined) {
+      groupsLoaded = true
+      return undefined
+    }
+    try {
+      await $.state.set(groupsState, groups)
+      groupsLoaded = true
+    } catch {}
+    return groups
+  } catch {
+    return undefined
+  }
 }
 
 // The desktop app's own tools (`mcp__ccd_…`) exist only there. If the list fails, assume
@@ -757,26 +802,25 @@ async function refreshChildren($: any) {
   const engines: Record<string, string> = {}
   for (const r of mine) {
     try {
-      const path = await waitFile($, r.sessionId)
-      const file = path ? JSON.parse(await $.fs.read(path)) : {}
-      if (file.waiting === true) waiting.push(r.sessionId)
-      if (typeof file.context?.percent === 'number') contexts[r.sessionId] = file.context.percent
-      if (typeof file.engine === 'string' && file.engine !== '') engines[r.sessionId] = file.engine
+      // No file, or one this version cannot read: the session shows by the host's row alone.
+      const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
+      if (file.waiting) waiting.push(r.sessionId)
+      if (file.context) contexts[r.sessionId] = file.context.percent
+      if (file.engine) engines[r.sessionId] = file.engine
       else {
         const known = await engineOf($, r.sessionId)
         if (known) engines[r.sessionId] = known
       }
-      const list = (v: unknown) => (Array.isArray(v) ? v : [])
-      if (Array.isArray(file.groups)) {
+      if (file.groups) {
         panels[r.sessionId] = {
           groups: file.groups,
-          waits: list(file.waits),
-          children: list(file.children),
-          ...(Array.isArray(file.work) ? { work: file.work.map(String) } : {}),
-          ...(Array.isArray(file.received) ? { received: file.received } : {}),
-          ...(Array.isArray(file.sends) ? { sends: file.sends } : {}),
+          waits: file.waits,
+          children: file.children,
+          ...(file.work ? { work: file.work } : {}),
+          ...(file.received ? { received: file.received } : {}),
+          ...(file.sends ? { sends: file.sends } : {}),
         }
-      } else if (Array.isArray(file.tasks)) {
+      } else if (file.tasks) {
         panels[r.sessionId] = { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }
       }
     } catch {}
@@ -808,9 +852,10 @@ async function refreshChildren($: any) {
           waiting: r.isArchived !== true && waiting.includes(r.sessionId),
           context: contexts[r.sessionId] ?? before?.context,
           engine: engines[r.sessionId] ?? before?.engine,
-          lastAnchor: before?.lastAnchor,
-          rounds: before?.rounds,
-          anchor: before?.anchor,
+          // A session the host lists again after leaving it out: its ties come back from the store's copy.
+          lastAnchor: before?.lastAnchor ?? keptLink(r.sessionId)?.lastAnchor,
+          rounds: before?.rounds ?? keptLink(r.sessionId)?.rounds,
+          anchor: before?.anchor ?? keptLink(r.sessionId)?.anchor,
           panel: panels[r.sessionId] ?? before?.panel,
           tasks: panels[r.sessionId] ? undefined : before?.tasks,
         }
@@ -843,16 +888,9 @@ async function watchSends($: any, rows: any[]) {
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).every(s => s.taken)) return
   const me = await selfId($)
-  const files: Record<string, any> = {}
-  const fileOf = async (id: string) => {
-    if (!(id in files)) {
-      try {
-        const path = await waitFile($, id)
-        files[id] = path ? JSON.parse(await $.fs.read(path)) : {}
-      } catch {
-        files[id] = {}
-      }
-    }
+  const files: Record<string, Published> = {}
+  const fileOf = async (id: string): Promise<Published> => {
+    if (!(id in files)) files[id] = (await readPublished($, id)) ?? { waiting: false, waits: [], children: [] }
     return files[id]
   }
   const marks: Record<number, Partial<Send>> = {}
@@ -863,8 +901,8 @@ async function watchSends($: any, rows: any[]) {
     if (id === undefined) continue
     const file = await fileOf(id)
     const since = s.at ?? 0
-    const got = Array.isArray(file.received) && file.received.some((x: any) => x?.from === me && Number(x?.at) >= since)
-    const main = Array.isArray(file.groups) ? file.groups.find((g: any) => g?.agent === MAIN) : undefined
+    const got = (file.received ?? []).some((x: any) => x?.from === me && Number(x?.at) >= since)
+    const main = file.groups?.find((g: any) => g?.agent === MAIN)
     const turned = Array.isArray(main?.turns) && main.turns.some((u: any) => typeof u?.at === 'number' && u.at >= since)
     if (got || turned) marks[i] = { taken: true }
     else if (r && r.isRunning !== true && !s.idle) marks[i] = { idle: true }
@@ -927,7 +965,7 @@ async function recordStart($: any, resultText: string) {
   await update($, childrenState, cur => {
     const list = cur ?? []
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
-    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor }]
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor }]
   })
   await refreshChildren($)
 }
@@ -955,6 +993,67 @@ async function endedNote($: any): Promise<string | undefined> {
   )
 }
 
+// The shape of the published file this version writes (`Published.version`). Files from before it
+// carry none and are read as they are; a file of another version is ignored.
+const PUBLISHED_VERSION = 1
+// The published file as read: `ok` the file checked and normalized (the lists are lists, the flags
+// flags; what is missing is left out or empty), else `error` says why it is ignored. Pure: the
+// readers log the error (once per session and reason, see readPublished).
+function parsePublished(text: string): { ok: Published } | { error: string } {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (err) {
+    return { error: `JSON inválido (${String((err as any)?.message ?? err).slice(0, 80)})` }
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { error: `não é um objeto (${Array.isArray(raw) ? 'lista' : typeof raw})` }
+  const f = raw as Record<string, unknown>
+  if (f.version !== undefined && f.version !== PUBLISHED_VERSION) return { error: `versão ${String(f.version)}, esta é ${PUBLISHED_VERSION}` }
+  const list = <T,>(v: unknown): T[] | undefined => (Array.isArray(v) ? (v as T[]) : undefined)
+  const context = f.context as Record<string, unknown> | undefined
+  const out: Published = {
+    ...(typeof f.version === 'number' ? { version: f.version } : {}),
+    waiting: f.waiting === true,
+    ...(typeof f.at === 'number' ? { at: f.at } : {}),
+    ...(list<TaskNode>(f.tasks) ? { tasks: list<TaskNode>(f.tasks) } : {}),
+    ...(list<Group>(f.groups) ? { groups: list<Group>(f.groups) } : {}),
+    waits: list<Wait>(f.waits) ?? [],
+    children: list<Child>(f.children) ?? [],
+    ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
+    ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
+    ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
+    ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
+    ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
+    ...(list<Send>(f.sends) ? { sends: list<Send>(f.sends) } : {}),
+  }
+  return { ok: out }
+}
+// A session's published file, read and checked; `undefined` when there is none to use (no path,
+// unreadable, or invalid: then said once in the debug log, per session and reason, as the poll
+// reads it every few seconds).
+const badPublished = new Set<string>()
+async function readPublished($: any, id: string): Promise<Published | undefined> {
+  const path = await waitFile($, id)
+  if (!path) return undefined
+  let text: string
+  try {
+    text = await $.fs.read(path)
+  } catch {
+    return undefined
+  }
+  const parsed = parsePublished(text)
+  if ('ok' in parsed) {
+    for (const k of badPublished) if (k.startsWith(`${id}|`)) badPublished.delete(k)
+    return parsed.ok
+  }
+  const key = `${id}|${parsed.error}`
+  if (!badPublished.has(key)) {
+    badPublished.add(key)
+    await debug($, `task-tree: arquivo publicado de ${id} ignorado: ${parsed.error}`)
+  }
+  return undefined
+}
+
 // Where a session says whether it waits on the person, read by the session that opened it.
 async function waitFile($: any, id: string): Promise<string | undefined> {
   const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
@@ -980,6 +1079,7 @@ async function selfId($: any): Promise<string | undefined> {
 // (groups, waits, the sessions it opened), for the session that opened it to draw under the
 // task it was opened on, as this session draws it. `tasks` is for earlier versions.
 async function publishWait($: any) {
+  await ensureGroups($)
   await saveLinks($)
   try {
     const id = await selfId($)
@@ -1011,7 +1111,7 @@ async function publishWait($: any) {
     } catch {}
     await $.fs.write(
       path,
-      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
+      JSON.stringify({ version: PUBLISHED_VERSION, waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, drawSize, rows: drawRows, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) } satisfies Published),
     )
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
@@ -1034,6 +1134,33 @@ const SHOWN_CARD_TURNS = 3
 // anteriores resolveu").
 let drawSize = 0
 const DRAW_LIMIT = 600 * 1024
+// The last drawing's lines (after the limit below), published with the size for the session that
+// opened this one to see how big its children's panels are.
+let drawRows = 0
+// The most lines a drawing holds, decided on the rows before any SVG is made: past it, whole blocks
+// (a level-0 line and what hangs under it) go from the start, the oldest, and one line counts them;
+// the recent ones, where the work is, stay. The size limit above stays as the last resort. Far
+// above a real panel (a long session drew 31 lines); the open steps of a huge plan reached it.
+const MAX_ROWS = 400
+function limitRows(rows: Row[]): Row[] {
+  if (rows.length <= MAX_ROWS) return rows
+  const room = MAX_ROWS - 1
+  const before = (n: number): Row => ({ depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas' })
+  const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i <= room)
+  if (from > 0) return [before(from), ...rows.slice(from)]
+  // The last block alone is past the limit: what came before it goes whole, and the block is drawn
+  // to the limit, the rest counted at its end.
+  let last = 0
+  for (let i = rows.length - 1; i > 0; i--) {
+    if (rows[i].depth === 0) {
+      last = i
+      break
+    }
+  }
+  const head = last > 0 ? [before(last)] : []
+  const kept = rows.slice(last, last + room - head.length)
+  return [...head, ...kept, { depth: 1, tone: 'section', title: `+${rows.length - last - kept.length} linhas`, label: 'Linhas seguintes, não desenhadas' }]
+}
 // The last drawing's error, if it threw (see the Pane hook), published with the panel.
 let renderError: string | undefined
 const actions = new Map<string, () => void>()
@@ -1106,6 +1233,7 @@ async function restoreView($: any) {
 // session) starts new work; otherwise its level-1 tasks join the current one. Kept in the state
 // and in the store under the session, like the view.
 async function nothingOpen($: any): Promise<boolean> {
+  await ensureGroups($)
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   return activeLeaves({ groups: withMain(groups), waits: [], children }, 0) === 0
@@ -1139,6 +1267,17 @@ async function joinWork($: any, ids: string[], fresh: boolean) {
 // Whether this module brought them back yet: a reload does not run session.start, so the first
 // save brings them back before it writes, and nothing new is lost to the old copy.
 let linksLoaded = false
+// What the store keeps of a session this one linked to: its ties to the tasks, not its state.
+type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds'>
+const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })
+// The links as the store holds them, by session id, this module's copy. The state's `children` are
+// the sessions the host lists (refreshChildren rebuilds them from the list, archived ones included);
+// a session the list leaves out for a while is not in the state, so a save from the state alone
+// would drop its ties from the store for good. The save keeps those entries, and a session the host
+// lists again gets its ties back from here (refreshChildren, recordStart). Nothing is drawn from
+// here: a session shows only while the host lists it.
+let keptLinks = new Map<string, Link>()
+const keptLink = (id: string): Link | undefined => keptLinks.get(id)
 async function saveLinks($: any) {
   if (!linksLoaded) await restoreLinks($)
   try {
@@ -1146,12 +1285,10 @@ async function saveLinks($: any) {
     const { value: sends } = await $.state.get(sendsState)
     const { value: received } = await $.state.get(receivedState)
     const { value: launches } = await $.state.get(launchesState)
-    await $.store.set(`links:${await $.session.id()}`, {
-      children: (children as Child[] | undefined)?.map(c => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })),
-      sends,
-      received,
-      launches,
-    })
+    const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
+    const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
+    await $.store.set(`links:${await $.session.id()}`, { children: links, sends, received, launches })
+    keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
 // Merged into what the state may already hold (the host's list read before): a session keeps its
@@ -1168,6 +1305,7 @@ async function restoreLinks($: any) {
       return [...old.filter(x => !seen.has(JSON.stringify(x))), ...now]
     }
     const old = list('children') as Child[]
+    keptLinks = new Map(old.filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
     if (old.length > 0)
       await update($, childrenState, cur =>
         cur === undefined || cur.length === 0
@@ -1355,14 +1493,13 @@ const GLYPH: Record<Tone, [string, string]> = {
   paused: ['◷', 'warning'],
 }
 // Two columns at the left for the ▾/▸ of the level-1 lines; deeper, the ▾/▸ goes after the
-// branch, so the guides below a line that has one move two columns right (`up` holds the
-// line's ancestors by depth).
+// branch, so the guides below a line that has one move two columns right.
 // No ▾/▸ column: a level-1 line starts at its icon; deeper, the guides of the ancestors and the
 // branch, three columns each.
 // Inside a session's card (`hide`, its label's depth) the label's column is left out: the card's
 // roots start under the label, with no branch to it, and the label has none to its task (the
 // siblings' line passes by).
-const prefix = (r: Row, g: Guide, _up: Row[], hide: number[] = []) =>
+const prefix = (r: Row, g: Guide, hide: number[] = []) =>
   r.depth === 0
     ? ''
     : g.bars.map((on, k) => (hide.includes(k) ? '' : on ? '│  ' : '   ')).join('') +
@@ -1740,11 +1877,6 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
     const ix = bx - 12
     if (forked) mark = branch(ix, cy, 'gy')
     edge = ix - 12
-    if (r.ring) {
-      const ring = contextRing(r.ring.percent, ix - 18, cy)
-      mark += r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring
-      edge -= 18
-    }
     if (r.meta) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)
       edge -= textW(r.meta, 12) + 8
@@ -1916,6 +2048,7 @@ export const register: Register = on => {
     // With nothing held (a new process), a resumed session's panel comes back from the store.
     await adopt($)
     if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
+    groupsLoaded = true
     await restoreView($)
     await restoreWork($)
     await restoreLinks($)
@@ -2134,7 +2267,7 @@ export const register: Register = on => {
       const agent = e.agentId ?? MAIN
       if (agent === MAIN) planned = true
       const input = ((e as any).input ?? e) as { ids?: string[]; summary?: unknown }
-      if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') lastBrief = input.summary
+      if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') await $.state.set(briefState, input.summary)
       let notes: string[] = []
       let closed: string[] = []
       let unstarted: string[] = []
@@ -2172,7 +2305,7 @@ export const register: Register = on => {
         // Closed, its send waits no more: no ✉ left behind on an id used again.
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
         // The last step closed with no summary: the ↩ line would say only "resposta".
-        if (lastBrief === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
+        if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
           notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 120 caracteres (vira a linha ↩)')
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
@@ -2255,8 +2388,6 @@ export const register: Register = on => {
 
   // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
 let lastRecap: string | undefined
-// The turn's answer in a few words, as the session gave it (done's `summary`).
-let lastBrief: string | undefined
 // The ↩ line says the answer in at most BRIEF characters: the summary the session gave, else the
 // first sentence of the answer; longer, cut at a word with "…". The whole answer stays in the tooltip.
 const BRIEF = 120
@@ -2299,9 +2430,10 @@ const REPLY = 'resposta'
     // recap (wrap_up), which is what the opener's notice carries; else the final message.
     if (!agent && !e.isAborted) {
       const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
-      const short = lastBrief !== undefined ? brief(lastBrief) : undefined
+      const given = await lastBrief($)
+      const short = given !== undefined ? brief(given) : undefined
       lastRecap = undefined
-      lastBrief = undefined
+      if (given !== undefined) await $.state.set(briefState, '')
       if (said !== '') {
         await change($, all =>
           all.map(g => {
@@ -2477,7 +2609,7 @@ const REPLY = 'resposta'
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const { value = [] } = await $.state.get(groupsState)
       const tasks = value.find(g => g.agent === MAIN)?.tasks ?? []
-      if (lastBrief === undefined)
+      if ((await lastBrief($)) === undefined)
         notes.push(
           'Painel de tarefas (task-tree): falta o resumo do turno. Antes da mensagem final, chame ' +
             'mcp__task-tree__done com summary: a resposta em até 120 caracteres, tipo manchete (ids pode ficar vazio).',
@@ -2532,7 +2664,10 @@ const REPLY = 'resposta'
     const drawn = await (async () => {
     const ui = $.ui.resolve(e) as any
     const { Box, Text } = ui
-    const { value: held } = await $.state.get(groupsState)
+    // After a restart without session.start, the groups come from the store (see ensureGroups).
+    const brought = await ensureGroups($)
+    const { value: heldState } = await $.state.get(groupsState)
+    const held = heldState ?? brought
     const { value: waits = [] } = await $.state.get(waitsState)
     const { value: sessions = [] } = await $.state.get(childrenState)
     const { value: sessionsError = '' } = await $.state.get(childrenErrorState)
@@ -2569,7 +2704,6 @@ const REPLY = 'resposta'
       top: number,
       lit: string[],
       below: (t: TaskNode, depth: number) => Row[],
-      pinned: string[],
       scope: string,
       work: (t: TaskNode) => Work = () => idle,
     ): Row[] =>
@@ -2625,7 +2759,7 @@ const REPLY = 'resposta'
         const key = `${scope}t:${t.id}`
         // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
         const kids = t.children
-        const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, pinned, scope, work)] : []
+        const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work)] : []
         row.fold = { key, open: rest.length > 0 }
         row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.tasks]
         return [row, ...rest]
@@ -2641,7 +2775,6 @@ const REPLY = 'resposta'
       top: number,
       lit: string[],
       below: (t: TaskNode, depth: number) => Row[],
-      pinned: string[],
       scope: string,
       work: (t: TaskNode) => Work,
       // The turn's own ↩ (the top panel's): a card draws its session's answers below its tasks.
@@ -2685,7 +2818,7 @@ const REPLY = 'resposta'
         kids: ws.some(w => w.any) || undefined,
       }
       // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-      const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work) : []
+      const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work) : []
       row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.tasks)]
       // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
       // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -2771,7 +2904,6 @@ const REPLY = 'resposta'
 
       const main = groups.find(g => g.agent === MAIN) as Group
       const allIds = flat(main.tasks).map(t => t.id)
-      const pinned = sessions.filter(live).map(c => c.anchor ?? '')
       const loose = sessions.filter(c => c.anchor === undefined || !allIds.includes(c.anchor))
       // A group's tasks from `top` (`list`), with what hangs below them. Its subagents' groups
       // go under the task they were launched on, hidden with it once it closes; one launched
@@ -2817,8 +2949,8 @@ const REPLY = 'resposta'
             ? []
             : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || drawn.filter(t => t.turn === u.id).length > 1))
         const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
-        lines.push(...rows(loose, top, top, lit, below, g.agent === MAIN ? pinned : [], inScope, work))
-        for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle), level === 0))
+        lines.push(...rows(loose, top, top, lit, below, inScope, work))
+        for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), level === 0))
         if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
         return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
       }
@@ -2889,7 +3021,8 @@ const REPLY = 'resposta'
       )
       return trimToWork({ ...base, children: moved }, 0)
     }
-    const lines = panel(summary ? cut() : all, 0, 0, '', ownId)
+    const lines = limitRows(panel(summary ? cut() : all, 0, 0, '', ownId))
+    drawRows = lines.length
     const lanes = guides(lines)
     const hides = labelCols(lines)
 
@@ -3071,21 +3204,18 @@ const REPLY = 'resposta'
               ))}
             </Text>,
           ]
-    // The line's ancestors by depth, for the guides of the lines below a ▾/▸.
-    const up: Row[] = []
     return (
       <Box flexDirection="column">
         {errorLine}
         {header}
         {lines.map((r, i) => {
-          up[r.depth] = r
           const [glyph, color] = GLYPH[progress(r)]
           const forked = r.session === true || r.kids === true
           const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
           const words = rightText(r)
           const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
           const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
-          const lead = prefix(r, lanes[i], up, hides[i])
+          const lead = prefix(r, lanes[i], hides[i])
           // A session's label: its name (the Button that folds its card), its tags, no count or time.
           // A session's label: the ⑂ (the Button that folds the card) left of its name, then its tags.
           const parts = r.session ? [
@@ -3102,7 +3232,6 @@ const REPLY = 'resposta'
             glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
             <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
             r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
-            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
             tail ? <Text key="tail" dimColor>{tail}</Text> : null,
           ]
           if (!r.fold) {

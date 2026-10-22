@@ -54,6 +54,33 @@ export type Wait = {
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
 export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
+// The whole file a session publishes (publishWait writes it, the session that opened it reads it;
+// see waitFile): the contract between sessions, which may run different versions of the mod.
+// `version` names the shape (absent from versions before it); a file of another version, or one
+// that is not an object, is ignored by the readers (parsePublished), never drawn wrong.
+// `tasks` is what earlier versions published instead of `groups`. `panes`, `renderError`,
+// `drawSize` and `rows` are for reading the file by hand (/task-tree); the readers leave them alone.
+export type Published = {
+  version?: number
+  waiting: boolean
+  at?: number
+  tasks?: TaskNode[]
+  groups?: Group[]
+  waits: Wait[]
+  children: Child[]
+  context?: { percent: number; at: number }
+  engine?: string
+  panes?: unknown
+  renderError?: string
+  // The last drawing: its serialized size and its lines (after the line limit), for the session
+  // that opened this one to see how big the panel is; absent from earlier versions.
+  drawSize?: number
+  rows?: number
+  work?: string[]
+  received?: { from: string; at: number }[]
+  sends?: Send[]
+}
+
 // A session this one opened with start_session (the desktop app's linked sessions):
 // `running` while it works; `waiting` while it waits on the person (a question, a plan,
 // a permission), as that session publishes it (see waitFile); `anchor` is the task the main loop was on when it opened it;
@@ -105,10 +132,12 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // to confirm a queued SendMessage.
 // `work`: the main group's level-1 tasks of the current work, drawn by the summary view until new
 // work starts (a plan or start with no open task left).
+// `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
+// the state so a reload of the mod mid-turn does not lose it.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string }
   }
 }

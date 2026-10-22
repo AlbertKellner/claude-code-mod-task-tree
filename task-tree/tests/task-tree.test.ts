@@ -105,19 +105,10 @@ async function desktop($: any, columns = 60, layers = false): Promise<{ alt: str
   const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
   const found = await ui.findAll({ type: 'Svg' })
   await ui.unmount()
-  const all = found.map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
-  // A line that folds is drawn in two Svgs around its Button (the stretch left of the icon has no
-  // alt): read here as one line, the two sources together and the widths added.
-  const out: typeof all = []
-  for (let i = 0; i < all.length; i++) {
-    const s = all[i]
-    if (!s.hover && s.alt === '' && all[i + 1] && !all[i + 1].hover) {
-      const n = all[i + 1]
-      out.push({ ...n, source: s.source + n.source, width: s.width + n.width })
-      i++
-    } else out.push(s)
-  }
-  return out.filter((s: { hover: boolean }) => layers || !s.hover)
+  // Every line is one Svg with its alt; only the tooltip layers have none.
+  return found
+    .map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
+    .filter((s: { hover: boolean }) => layers || !s.hover)
 }
 
 describe('plan', () => {
@@ -2729,7 +2720,7 @@ describe('histórico longo', () => {
 })
 
 describe('desenho grande demais', () => {
-  test('acima do limite, o painel mostra só o aviso; o /task-tree diz o tamanho do desenho', async ($, on) => {
+  test('acima do limite de linhas, o painel corta e conta; o /task-tree diz o tamanho do desenho', async ($, on) => {
     on('ui.panes', () => ({ value: [{ id: 'task-tree', isPlaced: true, isShown: true }] }) as any)
     on('ui.open', () => ({ value: { isPlaced: true } }) as any)
     await plan($, [{ id: 'A', title: 'Pequeno' }])
@@ -2738,13 +2729,18 @@ describe('desenho grande demais', () => {
     await ui.unmount()
     const r: any = await ($ as any).command.run({ command: 'task-tree', args: '' })
     expect(String(r?.text)).toMatch(/Desenho: \d+ KB de 600 KB\./)
-    // 700 open steps: nothing to cut (open work is always drawn), well past the limit.
+    // 700 open steps: nothing to cut by request (open work is always drawn), well past the line
+    // limit: the block is drawn to the limit, one line counts the rest, and the size stays under the
+    // size limit, so no warning takes the panel's place.
     await plan($, [{ id: 'B', title: 'Enorme', children: Array.from({ length: 700 }, (_, i) => ({ id: `s${i}`, title: `Etapa com um nome razoavelmente comprido número ${i}` })) }])
     ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
     const big = JSON.stringify(await ui.drawn())
     await ui.unmount()
-    expect(big).toContain('Painel grande demais')
-    expect(big.length).toBeLessThan(2000)
+    expect(big).not.toContain('Painel grande demais')
+    // "Pequeno" (the block before) counted first, the big block drawn to the limit, the rest counted.
+    expect(big).toContain('+1 linhas anteriores')
+    expect(big).toContain('+303 linhas')
+    expect(big.length).toBeLessThan(600 * 1024)
   })
 })
 
