@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { AgentInfo, Register } from 'claude-code'
 
-import type { Child, Group, Launch, LegacyNode, Panel, Send, Status, TaskNode, Turn, Wait } from '../types'
+import type { Child, Group, Launch, LegacyNode, Panel, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
 
 const PANE = 'task-tree'
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
@@ -805,26 +805,25 @@ async function refreshChildren($: any) {
   const engines: Record<string, string> = {}
   for (const r of mine) {
     try {
-      const path = await waitFile($, r.sessionId)
-      const file = path ? JSON.parse(await $.fs.read(path)) : {}
-      if (file.waiting === true) waiting.push(r.sessionId)
-      if (typeof file.context?.percent === 'number') contexts[r.sessionId] = file.context.percent
-      if (typeof file.engine === 'string' && file.engine !== '') engines[r.sessionId] = file.engine
+      // No file, or one this version cannot read: the session shows by the host's row alone.
+      const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
+      if (file.waiting) waiting.push(r.sessionId)
+      if (file.context) contexts[r.sessionId] = file.context.percent
+      if (file.engine) engines[r.sessionId] = file.engine
       else {
         const known = await engineOf($, r.sessionId)
         if (known) engines[r.sessionId] = known
       }
-      const list = (v: unknown) => (Array.isArray(v) ? v : [])
-      if (Array.isArray(file.groups)) {
+      if (file.groups) {
         panels[r.sessionId] = {
           groups: file.groups,
-          waits: list(file.waits),
-          children: list(file.children),
-          ...(Array.isArray(file.work) ? { work: file.work.map(String) } : {}),
-          ...(Array.isArray(file.received) ? { received: file.received } : {}),
-          ...(Array.isArray(file.sends) ? { sends: file.sends } : {}),
+          waits: file.waits,
+          children: file.children,
+          ...(file.work ? { work: file.work } : {}),
+          ...(file.received ? { received: file.received } : {}),
+          ...(file.sends ? { sends: file.sends } : {}),
         }
-      } else if (Array.isArray(file.tasks)) {
+      } else if (file.tasks) {
         panels[r.sessionId] = { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }
       }
     } catch {}
@@ -892,16 +891,9 @@ async function watchSends($: any, rows: any[]) {
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).every(s => s.taken)) return
   const me = await selfId($)
-  const files: Record<string, any> = {}
-  const fileOf = async (id: string) => {
-    if (!(id in files)) {
-      try {
-        const path = await waitFile($, id)
-        files[id] = path ? JSON.parse(await $.fs.read(path)) : {}
-      } catch {
-        files[id] = {}
-      }
-    }
+  const files: Record<string, Published> = {}
+  const fileOf = async (id: string): Promise<Published> => {
+    if (!(id in files)) files[id] = (await readPublished($, id)) ?? { waiting: false, waits: [], children: [] }
     return files[id]
   }
   const marks: Record<number, Partial<Send>> = {}
@@ -912,8 +904,8 @@ async function watchSends($: any, rows: any[]) {
     if (id === undefined) continue
     const file = await fileOf(id)
     const since = s.at ?? 0
-    const got = Array.isArray(file.received) && file.received.some((x: any) => x?.from === me && Number(x?.at) >= since)
-    const main = Array.isArray(file.groups) ? file.groups.find((g: any) => g?.agent === MAIN) : undefined
+    const got = (file.received ?? []).some((x: any) => x?.from === me && Number(x?.at) >= since)
+    const main = file.groups?.find((g: any) => g?.agent === MAIN)
     const turned = Array.isArray(main?.turns) && main.turns.some((u: any) => typeof u?.at === 'number' && u.at >= since)
     if (got || turned) marks[i] = { taken: true }
     else if (r && r.isRunning !== true && !s.idle) marks[i] = { idle: true }
@@ -1004,6 +996,67 @@ async function endedNote($: any): Promise<string | undefined> {
   )
 }
 
+// The shape of the published file this version writes (`Published.version`). Files from before it
+// carry none and are read as they are; a file of another version is ignored.
+const PUBLISHED_VERSION = 1
+// The published file as read: `ok` the file checked and normalized (the lists are lists, the flags
+// flags; what is missing is left out or empty), else `error` says why it is ignored. Pure: the
+// readers log the error (once per session and reason, see readPublished).
+function parsePublished(text: string): { ok: Published } | { error: string } {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (err) {
+    return { error: `JSON inválido (${String((err as any)?.message ?? err).slice(0, 80)})` }
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { error: `não é um objeto (${Array.isArray(raw) ? 'lista' : typeof raw})` }
+  const f = raw as Record<string, unknown>
+  if (f.version !== undefined && f.version !== PUBLISHED_VERSION) return { error: `versão ${String(f.version)}, esta é ${PUBLISHED_VERSION}` }
+  const list = <T,>(v: unknown): T[] | undefined => (Array.isArray(v) ? (v as T[]) : undefined)
+  const context = f.context as Record<string, unknown> | undefined
+  const out: Published = {
+    ...(typeof f.version === 'number' ? { version: f.version } : {}),
+    waiting: f.waiting === true,
+    ...(typeof f.at === 'number' ? { at: f.at } : {}),
+    ...(list<TaskNode>(f.tasks) ? { tasks: list<TaskNode>(f.tasks) } : {}),
+    ...(list<Group>(f.groups) ? { groups: list<Group>(f.groups) } : {}),
+    waits: list<Wait>(f.waits) ?? [],
+    children: list<Child>(f.children) ?? [],
+    ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
+    ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
+    ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
+    ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
+    ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
+    ...(list<Send>(f.sends) ? { sends: list<Send>(f.sends) } : {}),
+  }
+  return { ok: out }
+}
+// A session's published file, read and checked; `undefined` when there is none to use (no path,
+// unreadable, or invalid: then said once in the debug log, per session and reason, as the poll
+// reads it every few seconds).
+const badPublished = new Set<string>()
+async function readPublished($: any, id: string): Promise<Published | undefined> {
+  const path = await waitFile($, id)
+  if (!path) return undefined
+  let text: string
+  try {
+    text = await $.fs.read(path)
+  } catch {
+    return undefined
+  }
+  const parsed = parsePublished(text)
+  if ('ok' in parsed) {
+    for (const k of badPublished) if (k.startsWith(`${id}|`)) badPublished.delete(k)
+    return parsed.ok
+  }
+  const key = `${id}|${parsed.error}`
+  if (!badPublished.has(key)) {
+    badPublished.add(key)
+    await debug($, `task-tree: arquivo publicado de ${id} ignorado: ${parsed.error}`)
+  }
+  return undefined
+}
+
 // Where a session says whether it waits on the person, read by the session that opened it.
 async function waitFile($: any, id: string): Promise<string | undefined> {
   const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
@@ -1061,7 +1114,7 @@ async function publishWait($: any) {
     } catch {}
     await $.fs.write(
       path,
-      JSON.stringify({ waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) }),
+      JSON.stringify({ version: PUBLISHED_VERSION, waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) } satisfies Published),
     )
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)

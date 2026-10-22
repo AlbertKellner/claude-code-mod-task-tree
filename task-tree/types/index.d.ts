@@ -54,6 +54,29 @@ export type Wait = {
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
 export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
+// The whole file a session publishes (publishWait writes it, the session that opened it reads it;
+// see waitFile): the contract between sessions, which may run different versions of the mod.
+// `version` names the shape (absent from versions before it); a file of another version, or one
+// that is not an object, is ignored by the readers (parsePublished), never drawn wrong.
+// `tasks` is what earlier versions published instead of `groups`. `panes` and `renderError` are
+// for reading the file by hand (/task-tree); the readers leave them alone.
+export type Published = {
+  version?: number
+  waiting: boolean
+  at?: number
+  tasks?: TaskNode[]
+  groups?: Group[]
+  waits: Wait[]
+  children: Child[]
+  context?: { percent: number; at: number }
+  engine?: string
+  panes?: unknown
+  renderError?: string
+  work?: string[]
+  received?: { from: string; at: number }[]
+  sends?: Send[]
+}
+
 // A session this one opened with start_session (the desktop app's linked sessions):
 // `running` while it works; `waiting` while it waits on the person (a question, a plan,
 // a permission), as that session publishes it (see waitFile); `anchor` is the task the main loop was on when it opened it;

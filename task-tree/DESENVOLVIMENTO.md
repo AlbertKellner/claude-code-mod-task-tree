@@ -16,6 +16,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
 - `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
+- `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 ## Validar e testar
@@ -123,6 +124,30 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
   `register`: "$ is passed to "lastBrief", which is not a function declared at the top of this file").
 - `lastRecap` (recap do `wrap_up`) continua variável de módulo: mesma classe, efeito menor (o tooltip do ↩ cai
   para a mensagem final).
+
+### Arquivo publicado
+
+`publishWait` escreve `~/.claude/task-tree-waits/<id>.json` e a sessão mãe o lê. O contrato é o tipo
+`Published` em `types/index.d.ts`: `version?`, `waiting`, `at?`, `tasks?` (versões antigas), `groups?`,
+`waits`, `children`, `context?`, `engine?`, `panes?`, `renderError?`, `work?`, `received?`, `sends?`.
+
+- `PUBLISHED_VERSION = 1`: `publishWait` escreve `version: 1` (`satisfies Published`). Formato só acrescido.
+- `parsePublished(text)` (pura): JSON inválido, não-objeto (lista/número/string/null) ou `version` presente e
+  ≠ 1 → `{ error }`; senão normaliza (listas que não são listas saem; `waiting` só `=== true`; `context` só
+  com `percent` e `at` numéricos; `engine` só string não vazia; `work` mapeado a string).
+- `readPublished($, id)`: lê, valida e registra uma vez por sessão e motivo no log de depuração
+  ("task-tree: arquivo publicado de <id> ignorado: <motivo>"); ao voltar a válido, o motivo é esquecido.
+  `refreshChildren` e `watchSends` usam `readPublished`; `breaks`/`split` leem `c.panel` já normalizado.
+- Regra: arquivo inválido = "sem arquivo". A sessão aparece pela linha do host e o último painel válido
+  continua desenhado (o mesmo que arquivo ausente).
+- Versões mistas (clone × instalado): a sessão antiga lendo o arquivo novo ignora `version`; a nova lendo o
+  antigo (sem `version`) lê normal; arquivo com `version` ≠ 1 é ignorado por inteiro (a sessão aparece só
+  pela lista do host, sem painel). Um arquivo que o código antigo aceitava pela metade (ex.: `groups`
+  não-lista) agora é lido como "sem painel". Quando uma mudança de formato exigir, suba `PUBLISHED_VERSION`
+  e decida a compatibilidade na leitura.
+- `tests/publicado.test.ts` (8 testes): `version` no arquivo escrito; válido; só `groups`; `{}`; versão
+  antiga (só `tasks`); versão 2 (ignorada, 1 log, volta ao consertar, logada de novo ao quebrar); corrompido
+  e tipos errados; `watchSends` com arquivo corrompido do destino (✉ fica; com `received` válido, some).
 
 ### Grupos do store sem `session.start`
 
