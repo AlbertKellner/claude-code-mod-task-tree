@@ -2698,6 +2698,47 @@ describe('anel de contexto abre a sessão', () => {
   })
 })
 
+describe('níveis 1 do mesmo turno no cartão', () => {
+  test('turno com vários níveis 1 ganha o cabeçalho do pedido, com as tarefas ligadas embaixo; turno de um só fica como estava', async ($, on) => {
+    const KID = 'local_77777777-7777-7777-7777-777777777777'
+    const task = (id: string, title: string, turn: number) => ({ id, short: id, title, status: 'open', turn, children: [] })
+    const panel = {
+      waiting: false, waits: [], children: [],
+      groups: [{ agent: '', label: '', turns: [{ id: 1, title: 'Pedido um', at: 1 }, { id: 2, title: 'Anel: estado e padding', at: 2 }],
+        tasks: [task('U', 'Única', 1), task('A', 'Anel em qualquer estado', 2), task('B', 'Padding do botão', 2), task('C', 'Notas', 2)] }],
+    }
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: KID, name: 'impl', title: 'Impl', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => ({ value: String(e.path).includes('77777777') ? JSON.stringify(panel) : '{}' }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
+    await plan($, [{ id: 'X', title: 'Delegar' }])
+    await start($, ['X'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (w: string) => texts.findIndex(t => t.includes(w))
+    const indent = (w: string) => (texts[at(w)] ?? '').search(/[○◉✓●◷]/)
+    // The turn of one task: no header; the turn of three: its header, the three one level deeper.
+    expect(at('Pedido um')).toBe(-1)
+    expect(at('Anel: estado e padding')).toBeGreaterThan(at('Única'))
+    for (const w of ['Anel em qualquer estado', 'Padding do botão', 'Notas']) {
+      expect(at(w)).toBeGreaterThan(at('Anel: estado e padding'))
+      expect(indent(w)).toBeGreaterThan(indent('Única'))
+    }
+    // Linked: the guides run from the first to the last of them.
+    expect(texts[at('Anel em qualquer estado')]).toMatch(/├/)
+    expect(texts[at('Padding do botão')]).toMatch(/├/)
+    expect(texts[at('Notas')]).toMatch(/└/)
+  })
+})
+
 describe('cartão por mensagem na filha', () => {
   const KID = 'local_22222222-2222-2222-2222-222222222222'
   const task = (id: string, title: string, status: string, turn: number, started?: number) => ({ id, short: id, title, status, turn, ...(started ? { started } : {}), children: [] })

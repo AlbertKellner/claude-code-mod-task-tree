@@ -2408,6 +2408,8 @@ const REPLY = 'resposta'
       pinned: string[],
       scope: string,
       work: (t: TaskNode) => Work,
+      // The turn's own ↩ (the top panel's): a card draws its session's answers below its tasks.
+      reply = true,
     ): Row[] => {
       const ws = list.map(work)
       const busy = ws.some(w => w.busy)
@@ -2452,7 +2454,7 @@ const REPLY = 'resposta'
       // not when a session's card hangs in the group: the answers that count are in the cards, and
       // one after a card still at work would read as the group being over.
       const said: Row[] =
-        open && typeof u.reply === 'string' && u.reply !== '' && !ws.some(w => w.any)
+        reply && open && typeof u.reply === 'string' && u.reply !== '' && !ws.some(w => w.any)
           ? [{ depth: top + 1, tone: 'reply', title: u.brief ?? REPLY, whole: u.reply, label: 'Resposta' }]
           : []
       return [row, ...inner, ...said]
@@ -2556,10 +2558,16 @@ const REPLY = 'resposta'
         const inScope = `${scope}${g.agent}|`
         // The top panel's main tasks go under the turn (the person's message) they were planned
         // in, oldest first; tasks from before turns existed stay loose, ahead of them.
-        const turns = g.agent === MAIN && level === 0 ? (g.turns ?? []).filter(u => list.some(t => t.turn === u.id)) : []
+        // In a session's card, only a turn that planned more than one level-1 task gets its header:
+        // with no line from the card's label, those tasks read as loose ones (the person's words:
+        // "Tarefas sem ligação"); a turn of one task stays as it was, that task its own header.
+        const turns =
+          g.agent !== MAIN
+            ? []
+            : (g.turns ?? []).filter(u => list.some(t => t.turn === u.id) && (level === 0 || list.filter(t => t.turn === u.id).length > 1))
         const loose = turns.length === 0 ? list : list.filter(t => !turns.some(u => u.id === t.turn))
         lines.push(...rows(loose, top, top, lit, below, g.agent === MAIN ? pinned : [], inScope, work))
-        for (const u of turns) lines.push(...turnRows(u, list.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle)))
+        for (const u of turns) lines.push(...turnRows(u, list.filter(t => t.turn === u.id), top, lit, below, pinned, inScope, work ?? (() => idle), level === 0))
         if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
         return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
       }
