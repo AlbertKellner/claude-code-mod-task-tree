@@ -12,7 +12,18 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
+- `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
+- `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
+- `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
+- `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
+- `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
+- `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
+
+Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
+(R8, com os 3 bugs corrigidos), contrato `Published` (R9), limite de linhas (R15) e limpeza de resíduos
+(R20: removidos `Work.ring`/`topRing`, o anel na linha de tarefa, o parâmetro `pinned` e `_up`/`up`).
+Critério atendido: um teste falha se o desenho crescer 50% ou se qualquer SVG mudar sem golden novo.
 
 ## Validar e testar
 
@@ -30,6 +41,143 @@ claude plugin test task-tree
 ```
 
 O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
+
+### Teste de orçamento do desenho
+
+`tests/orcamento.test.ts` monta o painel com o fixture `REAL` nas quatro combinações superfície
+(terminal/desktop) × visão (resumida/completa), com `bodyColumns` 100. Afirma que o desenho não
+caiu no de emergência nem em erro, que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`, e que
+cada desenho leva menos de 500 ms. Imprime a linha `ORCAMENTO …` no log do kit.
+
+- `size` no teste é o JSON da árvore que o kit devolve: proporcional ao `drawSize` do módulo, não igual.
+- Se o desenho crescer de propósito, refaça a `BASELINE` em `orcamento.test.ts`: rode o teste numa cópia
+  sem `task-tree.test.ts` e copie os números da linha `ORCAMENTO`.
+- Baseline gravada (HEAD 6d79470, kit 2.1.308): terminal resumida 11.671 bytes/29 linhas, completa
+  11.789/30; desktop resumida 47.416 bytes/28 linhas/30 Svg, completa 48.174/29/31; 14–41 ms.
+- Com este fixture as duas visões medem quase o mesmo, porque o limite de 3 pedidos corta antes.
+
+### Golden do SVG
+
+`tests/svg-golden.test.ts` (7 testes, 12 cenários: basico, basico-concluido, retomada, filha-rodando,
+filha-parada, filha-arquivada, filha-recolhida, envio, espera-propria, subagente, real-completa,
+real-resumida) monta o painel no desktop com relógio e largura fixos, recolhe cada `Svg` (alt, largura,
+altura, interativo, fonte) e compara com `tests/golden/svg.ts`. Cobre os 12 valores de `Tone`. A falha
+lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho de fonte diferente com contexto.
+
+- `tests/golden/svg.ts` é gerado (`GOLDEN`, um `Svg` por linha, para o diff do git mostrar um SVG mudado
+  como uma linha). Não editar à mão.
+- O `alt` faz parte do golden de propósito: é o que o terminal lê.
+- Mudança intencional de SVG (inclusive texto de `alt`): rode `node task-tree/tests/golden/atualizar.mjs [claude.exe]`
+  e commite o `svg.ts` junto. O script copia `task-tree/` para uma pasta temporária só com o teste do golden, roda
+  `claude plugin test`, recolhe as linhas `GOLDEN-NEW <cenário> <json>` e funde no `svg.ts`, mantendo os
+  cenários que batem. Segunda rodada: "Nada a atualizar". A aprovação é o diff do `svg.ts`.
+- Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
+  (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
+
+### Reinício e recarga
+
+`tests/reinicio.test.ts` (8 testes, com o fixture `REAL`) cobre dois casos:
+
+- **Reinício do processo** (`$.state` vazio, store cheio): cada teste do kit é um módulo novo com
+  `$.state` vazio; o store passa entre testes por um objeto compartilhado. Testado com e sem `session.start`.
+- **Recarga a quente** (state mantido, módulo novo, sem `session.start`): `seedState` põe hooks
+  `state.get`/`state.set` abaixo do kit, espelha as escritas e devolve o state semeado nas leituras vazias
+  (as versões continuam do kit). O teste de recarga recebe o state exato que o módulo montou no reinício anterior.
+
+O que sobrevive a quê, como medido: `$.state` sobrevive à recarga e não ao reinício; o store sobrevive a
+tudo; variáveis do módulo não sobrevivem a nada.
+
+**Falhas conhecidas (`KNOWN`):** o kit não tem skip/todo. `known(nome, ok, detalhe)` e a lista `KNOWN`:
+o cenário com bug imprime `TODO …` e passa; quando o bug for corrigido, o teste falha pedindo para tirar o
+nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
+
+1. (corrigido, fora de `KNOWN`) `reinicio-sem-session-start`: ver "Grupos do store sem `session.start`" abaixo.
+2. (corrigido, fora de `KNOWN`) `links-lista-parcial`: ver "Ligações com lista parcial do host" abaixo.
+3. (corrigido, fora de `KNOWN`) `recarga-perde-summary`: ver "Resumo do turno no state" abaixo.
+
+`KNOWN` está vazio; o mecanismo `known()`/`KNOWN` fica para bugs futuros.
+
+Limite: o kit não simula o respawn real do worker.
+
+### Ligações com lista parcial do host
+
+Antes, com a lista do host parcial, `restoreLinks` só mapeava as filhas listadas e `saveLinks` gravava o
+store sem as outras (uma filha com 20 rodadas sumia). Agora:
+
+- `Link`/`linkOf` e `keptLinks: Map<id, Link>`: cópia, no módulo, do que o store guarda em
+  `links:<id>.children`; preenchida em `restoreLinks` e atualizada em `saveLinks`. É variável de módulo,
+  refeita na primeira gravação após a recarga (como `linksLoaded`).
+- `saveLinks` grava a união: filhas do state (ligações atuais) + entradas de `keptLinks` cujo id não está no
+  state. Logo `links:<id>.children` pode ter mais ids que o state; leitores fazem merge por id.
+- `refreshChildren` e `recordStart`: uma filha que entra no state sem histórico recebe
+  `anchor`/`lastAnchor`/`rounds` de `keptLinks`; a filha que o host volta a listar recupera as ligações.
+- Regra: o desenho segue a lista do host; o store só não esquece. Entradas de filhas não listadas ficam inertes
+  (não vão ao state, ao desenho nem ao arquivo publicado) e só reaparecem se o host listar o id de novo. O
+  host lista com `include_archived: true`, então arquivada continua listada e marcada `archived`. Custo
+  aceito: o store pode guardar ids de sessões apagadas.
+
+### Resumo do turno no state
+
+O `summary` do último `done` (a linha ↩) era a variável de módulo `lastBrief` e morria na recarga: o turno
+ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de state `brief`
+(`brief: string` em `types/index.d.ts`; '' = nenhum):
+
+- O `done` grava o `summary` no state; `turn.complete` lê, usa no ↩ e zera; os avisos "falta o summary" (no
+  `done` e no `wrap_up`) também leem o state. A função de topo `lastBrief($)` lê a chave.
+- Sobrevive à recarga; não ao reinício nem ao resume, o que é aceitável porque o turno morre com o processo.
+- O contrato `PluginState['task-tree']` precisa listar a chave: o validador confere as chaves de state por ele.
+- Armadilha: uma função que recebe `$` precisa estar declarada no topo do arquivo (o validador recusa dentro do
+  `register`: "$ is passed to "lastBrief", which is not a function declared at the top of this file").
+- `lastRecap` (recap do `wrap_up`) continua variável de módulo: mesma classe, efeito menor (o tooltip do ↩ cai
+  para a mensagem final).
+
+### Arquivo publicado
+
+`publishWait` escreve `~/.claude/task-tree-waits/<id>.json` e a sessão mãe o lê. O contrato é o tipo
+`Published` em `types/index.d.ts`: `version?`, `waiting`, `at?`, `tasks?` (versões antigas), `groups?`,
+`waits`, `children`, `context?`, `engine?`, `panes?`, `renderError?`, `work?`, `received?`, `sends?`.
+
+- `PUBLISHED_VERSION = 1`: `publishWait` escreve `version: 1` (`satisfies Published`). Formato só acrescido.
+- `parsePublished(text)` (pura): JSON inválido, não-objeto (lista/número/string/null) ou `version` presente e
+  ≠ 1 → `{ error }`; senão normaliza (listas que não são listas saem; `waiting` só `=== true`; `context` só
+  com `percent` e `at` numéricos; `engine` só string não vazia; `work` mapeado a string).
+- `readPublished($, id)`: lê, valida e registra uma vez por sessão e motivo no log de depuração
+  ("task-tree: arquivo publicado de <id> ignorado: <motivo>"); ao voltar a válido, o motivo é esquecido.
+  `refreshChildren` e `watchSends` usam `readPublished`; `breaks`/`split` leem `c.panel` já normalizado.
+- Regra: arquivo inválido = "sem arquivo". A sessão aparece pela linha do host e o último painel válido
+  continua desenhado (o mesmo que arquivo ausente).
+- Versões mistas (clone × instalado): a sessão antiga lendo o arquivo novo ignora `version`; a nova lendo o
+  antigo (sem `version`) lê normal; arquivo com `version` ≠ 1 é ignorado por inteiro (a sessão aparece só
+  pela lista do host, sem painel). Um arquivo que o código antigo aceitava pela metade (ex.: `groups`
+  não-lista) agora é lido como "sem painel". Quando uma mudança de formato exigir, suba `PUBLISHED_VERSION`
+  e decida a compatibilidade na leitura.
+- `tests/publicado.test.ts` (8 testes): `version` no arquivo escrito; válido; só `groups`; `{}`; versão
+  antiga (só `tasks`); versão 2 (ignorada, 1 log, volta ao consertar, logada de novo ao quebrar); corrompido
+  e tipos errados; `watchSends` com arquivo corrompido do destino (✉ fica; com `received` válido, some).
+
+### Grupos do store sem `session.start`
+
+Sem `session.start` (respawn do hooks worker, `/model`), o módulo novo tinha `$.state` vazio e a primeira
+escrita partia de `[]`, sobrescrevendo `session:<id>` (o store ia de 97 para 0 tarefas). Agora `groups`
+volta do store também sem `session.start`, como já valia para `links`:
+
+- `keptGroups($, id)`: o painel como o store guarda (subagentes interrompidos); extraído de `restore`, que o usa.
+- `groupsLoaded` e `ensureGroups($)`, no estilo do `linksLoaded`: se o módulo ainda não viu os grupos e o
+  state está vazio, lê `session:<id>` do store e grava no state; devolve os grupos trazidos e só marca
+  "carregado" quando a escrita no state vingou (ou o state já tinha, ou o store não tem nada).
+- Chamado em `change()` (toda escrita), `publishWait()` (toda publicação), `nothingOpen()` (antes do
+  `change` do `plan`) e no `ui.render` (`held = state ?? brought`). `session.start` marca `groupsLoaded = true`
+  depois do `restore`.
+- `view` e `work` continuam só no `session.start`, de propósito: `restoreView` na guarda mudaria o padrão do
+  desenho ('full' no render × 'summary' no restore) e quebraria o golden; fica para o R13.
+- Sem `session.start`, o desenho traz as tarefas do store, mas ainda não os cartões de sessão (a lista do
+  host só é lida no `session.start` ou pelo poll).
+
+Armadilhas: (1) um `$.state.set` feito de dentro do `ui.render` não vinga no kit (a leitura acontece, o
+desenho segue vazio); por isso o render usa o valor devolvido por `ensureGroups` e a flag só sobe com a
+escrita confirmada. (2) `claude plugin validate` recusa uma função que recebe `$` com o mesmo nome de uma
+variável atribuída em outro lugar ("the function handed $ "saved" is assigned to elsewhere"); por isso
+`keptGroups`, não `saved`.
 
 ## Desenho do painel
 
@@ -81,14 +229,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   nativo for simétrico. Linha sem nada embaixo não tem botão. A camada do tooltip cobre o nome
   cortado inteiro e começa depois do `Box` do ícone. Não usar a linha em três peças (Svg | Button
   | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou, corrija"): o desktop desenha o
-  `Button` como botão nativo opaco e os SVGs cortados deslocavam o cartão. Não há
-  controle visível; ao passar o mouse, o realce nativo aparece na linha toda. Linha sem nada embaixo
-  não tem botão. Em nome cortado, a camada do tooltip cobre só o nome e fica acima do `Button`:
-  sobre o nome aparece o nome completo e o clique ali não recolhe; o resto da linha recolhe (o
-  mesmo ponto não faz os dois, porque a camada é uma moldura que toma o ponteiro). Não usar a linha
-  em três peças (Svg | Button | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou,
-  corrija"): o desktop desenha o `Button` como botão nativo opaco e os SVGs cortados deslocavam o
-  cartão e tiravam o rótulo da moldura. Não visto ao vivo: se o botão sobre a imagem que muda a
+  `Button` como botão nativo opaco e os SVGs cortados deslocavam o cartão. Não há controle visível. Não visto ao vivo: se o botão sobre a imagem que muda a
   cada segundo pisca. O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
   Recolhida, a linha ganha " ⋯" depois do nome; o `alt` continua dizendo "recolhida". Toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
   subagente pendurado; sessão com painel; grupo de subagente) ganha
@@ -108,13 +249,8 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
   concluída vem aberta, como as outras, e recolhe pelo clique. O tom
   `section` do desenho ficou sem uso.
-- Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
-  (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
-  com `W - 24` px. O cabeçalho continua com a largura toda. A seta fica nessa coluna à esquerda,
-  não ao lado do ícone como no SVG de referência (alternativa da seção 7.5 da análise), porque a
-  largura do botão nativo não é conhecida e as guias são desenhadas em posições fixas.
-  **Não visto ao vivo** (o acesso ao app para o print foi negado): conferir se o `Box` respeita a
-  largura em células e se o `Button` e o `Svg` ficam na mesma linha.
+- Desktop: a linha é um `Svg` com o ícone de progresso clicável por um `Button` vazio num `Box` absoluto
+  (ver o item do clique no ícone acima). Não há coluna de botão nem seta à esquerda: o `GUTTER` foi removido.
 - Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
   em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
   tem botão.
@@ -193,9 +329,25 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   cartão, até 3 pedidos, com a mesma linha; cartões sem tarefa de origem, concluídos e começados
   antes do pedido mais antigo desenhado viram "+N cartões antigos de sessões". O cabeçalho continua
   contando tudo. Cada `Svg` leva só as regras CSS das classes que usa (`slim`). Medido com o estado
-  da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Acima de 600 KB
-  (`DRAW_LIMIT`), desenho de emergência: só "Painel grande demais (N KB): mostrando só o essencial.
-  Use ≡ (/task-tree resumida) para a visão resumida.". Aprovado pelo usuário: "Sim, está bom".
+  da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Os três limites, em
+  ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas, ver abaixo) → `DRAW_LIMIT` (600 KB): só
+  se 400 linhas passarem disso, desenho de emergência: "Painel grande demais (N KB): mostrando só o
+  essencial. Use ≡ (/task-tree resumida) para a visão resumida." (agora raro). Aprovado pelo usuário:
+  "Sim, está bom".
+- Limite de linhas (R15; mudança de visual aprovada pelo usuário: "Sim, com o corte"): `MAX_ROWS = 400` e
+  `limitRows(rows)`, aplicado no `ui.render` logo depois de `panel()`, antes de guias, molduras e SVG.
+  Até 400 linhas nada muda. Acima, saem blocos inteiros de nível 0 do começo (os mais antigos), contados
+  numa linha de seção `+N linhas anteriores` (tom `section`, alt "Linhas anteriores, não desenhadas"); as
+  recentes ficam. Se o último bloco sozinho passa do limite, o que vinha antes sai contado, o bloco é
+  desenhado até o limite e fecha com `+N linhas` (profundidade 1, alt "Linhas seguintes, não desenhadas").
+  Total sempre ≤ 400. Corta-se por blocos inteiros do começo porque o trabalho atual fica no fim e cortar
+  dentro de um bloco quebraria as guias. O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
+  no tooltip). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
+  linhas) não muda. O arquivo publicado ganha `drawRows` (`rows` em `Published`) e `drawSize`, informativos
+  (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). Testes:
+  `tests/limite-linhas.test.ts` (4 testes: 750 linhas → 400 com `+N linhas anteriores` e contagem fechando
+  em 750; bloco de 700 etapas → `+302 linhas` no fim; 100 linhas → nada muda; `rows`/`drawSize` publicados) e
+  o teste "desenho grande demais" de `task-tree.test.ts`, que agora espera o corte.
 - Cabeçalho por visão (pedido do usuário: "na visao resumida, quero que a barra superior reflita o
   que tem nessa visao ... cada visao deve refletir os dados do seu tipo de vizualizacao"; aprovado
   com "Sim, bate nas duas"): o cabeçalho (X de Y, %, barra, tempo e os chips "em andamento",
