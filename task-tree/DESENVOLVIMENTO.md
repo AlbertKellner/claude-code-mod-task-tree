@@ -55,10 +55,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   com a linha inteira interativa, o relógio a fazia piscar a cada segundo. A fonte da camada não
   muda com o relógio. Sobre ela o ponteiro é a seta padrão, não o cursor de texto
   (`cursor:default;user-select:none`; pedido do usuário: "quero que o mouse seja o mouse padrão,
-  seta"). Linha sem corte não tem camada; recolher (▾/▸) não corta nome; terminal sem tooltip.
+  seta"). Linha sem corte não tem camada; recolher não corta nome; terminal sem tooltip.
   Nos testes, o helper `desktop()` ignora as camadas por padrão. Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
-  e os glifos `○ ◉ ✓ ✕ ◷ ⑂ ▸`. A cor fica só no ícone; o título vai em negrito na tarefa em
+  e os glifos `○ ◉ ✓ ✕ ◷ ⑂`; linha recolhida ganha " ⋯" depois do nome (nas duas superfícies). A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.
 - Ícones: anel âmbar com ponto (em andamento), check verde (concluída), círculo cinza (aberta),
   ✕ cinza com "interrompida" à direita (interrompida), relógio âmbar (espera), ramificação cinza
@@ -67,7 +67,30 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   acima de zero: em andamento (tarefas em andamento sem nada aberto embaixo), aguardando (avisos
   desenhados, mais as sessões que esperam sem aviso publicado), interrompidas (fora da
   porcentagem) e sessões ativas.
-- Abrir e recolher (▾/▸): toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
+- Abrir e recolher pelo clique no ícone de progresso (pedido do usuário: "quero que o botao de colapse nao
+  apareca, e que a funcao de colapsar e expandir esteja no icone de progresso da tarefa"): não há
+  coluna ▾/▸. No terminal, o glifo do ícone é o próprio `Button` (só em linha que recolhe); no
+  desktop, só o ícone é o alvo (pedido do usuário: "volte para a solucao anterior de somente o
+  icone de progresso ser clicavel, e ajuste o tamanho do box atras para ocupar o tamanho do icone
+  com adicional de padding nos 4 lados"; a linha inteira, tentada antes, saiu): a linha continua uma
+  imagem só e um `Button` de rótulo vazio (um espaço em) fica sobre o ícone, num `Box` absoluto da
+  altura da linha que o centra nos dois eixos. O `Box` fica em células inteiras (~8 px), mas o
+  conteúdo é centrado em pixels: 3 células em profundidade par, 2 em ímpar; o meio cai a menos de
+  0,5 px do centro do ícone. O tamanho do realce é o do botão nativo (um espaço em mais o padding
+  dele), que o plugin não controla; centrado, a margem é igual nos quatro lados enquanto o botão
+  nativo for simétrico. Linha sem nada embaixo não tem botão. A camada do tooltip cobre o nome
+  cortado inteiro e começa depois do `Box` do ícone. Não usar a linha em três peças (Svg | Button
+  | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou, corrija"): o desktop desenha o
+  `Button` como botão nativo opaco e os SVGs cortados deslocavam o cartão. Não há
+  controle visível; ao passar o mouse, o realce nativo aparece na linha toda. Linha sem nada embaixo
+  não tem botão. Em nome cortado, a camada do tooltip cobre só o nome e fica acima do `Button`:
+  sobre o nome aparece o nome completo e o clique ali não recolhe; o resto da linha recolhe (o
+  mesmo ponto não faz os dois, porque a camada é uma moldura que toma o ponteiro). Não usar a linha
+  em três peças (Svg | Button | Svg, tentada em 6af2b20; pedido do usuário: "o layout quebrou,
+  corrija"): o desktop desenha o `Button` como botão nativo opaco e os SVGs cortados deslocavam o
+  cartão e tiravam o rótulo da moldura. Não visto ao vivo: se o botão sobre a imagem que muda a
+  cada segundo pisca. O kit não tem tooltip em `Button`: o sinal de clicável é o ponteiro invertendo o botão.
+  Recolhida, a linha ganha " ⋯" depois do nome; o `alt` continua dizendo "recolhida". Toda linha com algo embaixo (tarefa com subtarefas, aviso, sessão ou
   subagente pendurado; sessão com painel; grupo de subagente) ganha
   `Row.fold = { key, open }`. A escolha do usuário fica no atom `folds` (estado `collapsed`:
   `true` recolhida, `false` aberta; sem entrada, o padrão) e é gravada pelo `setFold`, helper de topo
@@ -75,7 +98,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   sozinho ao concluir (pedido do usuário: "quando você finalizar as tarefas, não colapse os itens,
   se eu quiser, eu mesmo colapso"): tarefa concluída mostra todas as subtarefas, pedido (turno)
   concluído, cartão de sessão filha em qualquer estado e grupo de subagente fechado vêm abertos.
-  Só a escolha do usuário pelo ▾/▸ recolhe. Chaves: `<escopo><agente>|t:<id>`
+  Só o clique do usuário recolhe. Chaves: `<escopo><agente>|t:<id>`
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
@@ -83,7 +106,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recolher) e com as escolhas (`lines`, o desenho).
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
-  concluída vem aberta, como as outras, e recolhe pelo ▾/▸. O tom
+  concluída vem aberta, como as outras, e recolhe pelo clique. O tom
   `section` do desenho ficou sem uso.
 - Desktop: cada linha é um `Box` em linha: uma coluna de `GUTTER` (3) células com o `Button`
   (`plain`, `dimColor`; vazia nas linhas sem seta, para as guias seguirem alinhadas) e o `Svg`
@@ -92,9 +115,9 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   largura do botão nativo não é conhecida e as guias são desenhadas em posições fixas.
   **Não visto ao vivo** (o acesso ao app para o print foi negado): conferir se o `Box` respeita a
   largura em células e se o `Button` e o `Svg` ficam na mesma linha.
-- Terminal: duas colunas à esquerda para o ▾/▸ do nível 1 ("  " quando não há); mais fundo, a seta
-  vem depois do `├─`, e as guias abaixo de uma linha com seta andam duas colunas (`prefix` recebe
-  os ancestrais da linha). Linha com seta é um `Box` em linha (`Text` das guias, `Button`, `Text`).
+- Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
+  em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
+  tem botão.
 - Cartões (sessão filha e grupo de subagente): a linha de cabeçalho tem `Row.card`; o cartão
   pega ela e as linhas seguintes mais fundas. `frames` calcula, pela sequência de profundidades,
   em que cartões cada linha está (do de fora para o de dentro) e se ela abre ou fecha cada um. Cada
@@ -102,12 +125,88 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `.cs`, cantos de 6 px só na primeira e na última linha) e ganha `PAD` (6 px) em cima, onde o cartão
   abre, e 6 px embaixo por cartão que fecha nela; um cartão de dentro fica 6 px mais estreito à
   direita, e o texto da direita fica dentro do cartão mais interno. A guia que entra no cabeçalho
-  para na borda esquerda do cartão. Cabeçalho da sessão: ícone de ramificação cinza (relógio âmbar
-  só se ela espera sem aviso publicado; check quando parou), "título · nome", contador `d/n`, o
-  estado em palavra quando não está só rodando ("aguardando", "concluída") e o tempo. Subagente:
-  `tipo: descrição`, contador e tempo. O ▾/▸ continua na coluna à esquerda, fora do cartão (no SVG
-  de referência ele fica dentro). No terminal não há caixa: o cartão vira a linha de cabeçalho
-  ("⑂ Filha A · filha  1/2 · aguardando  0:04"), como no esboço 7.3 da análise.
+  para na borda esquerda do cartão. Cabeçalho da sessão: um rótulo solto, não uma tarefa (pedido do usuário: "deve
+  ser um texto solto nomeando esse painel, e na linha de baixo a tarefa em si"): só o nome
+  (`c.name`, ou o título sem nome), em 12 px, cinza e negrito, sem ícone de progresso, barra,
+  contador, tempo nem guia até a tarefa da principal. À esquerda do nome, no lugar do ícone de
+  uma tarefa, o ⑂, que é o botão de recolher o cartão (pedido do usuário: "coloque o icone se sessao
+  filha do lado esquerdo do nome da sessao, e ele tera a funcao de colapsar o painel"; mesmo `Box`
+  e centragem do ícone de progresso). À direita do nome, o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
+  "parada", "concluída" e "arquivada" apagadas); o anel de contexto fica solto na ponta direita da
+  linha. Contador e tempo da sessão vão só no `alt`
+  ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
+  da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas
+  dentro do cartão). O cartão inteiro recolhe pelo clique no ⑂ (no terminal, o glifo ⑂ é o
+  `Button`). A guia desce da tarefa da
+  principal e entra no cartão, terminando na borda esquerda dele à altura do rótulo (pedido do
+  usuário: "a linha de conexao ... esta interrompida, conecte ela no painel"). Recolhido, " ⋯" depois do nome. Subagente:
+  `tipo: descrição`, contador e tempo. No desktop a linha ocupa a largura toda. No terminal não há caixa: o cartão vira a linha de cabeçalho
+  ("⑂ filha  aguardando", com as tarefas embaixo), como no esboço 7.3 da análise.
+- Resposta da sessão (↩; pedido do usuário: "adicione nos paineis de sessao, o que foi gerado como
+  resposta, com um icone de resposta"): no fim de cada turno do loop principal da filha
+  (`turn.complete`, não abortado), ela grava em `Turn.reply` o `recap` do `wrap_up` desse turno (o
+  mesmo texto que abre o aviso de fim de turno da principal) ou, sem ele, a mensagem final visível
+  (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
+  rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
+  cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. A linha mostra um
+  resumo de até 120 caracteres (`BRIEF`), e o tooltip a resposta inteira (pedido do usuário: "devem
+  ser um resumo", depois "aumente a resposta para 120 caracteres, esta muito sucinto"; antes eram
+  60). Se a linha não couber na largura, o corte visual com "…" e o tooltip continuam. Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
+  sessão, tipo manchete, com o que mudou e o resultado (ex.: "Cartões na raiz: causa na recarga; correção
+  enviada"); acima de 120
+  caracteres, corta no limite de uma palavra com "…". Sem `summary`, a linha mostra só "resposta",
+  com a resposta inteira no tooltip; nunca o texto da resposta cortado (pedido do usuário: "nao
+  ficou bom, voce esta imprimindo o texto integral cortado. quero que seja um resumo da resposta,
+  super curto"). Como o pedido chega a quem responde: o contexto do `prompt.submit` pede `summary`
+  no `done` da última etapa do turno; no schema do `done`, `summary` tem descrição própria e `ids`
+  deixou de ser obrigatório (dá para chamar `done` só com `summary`); um `done` que fecha a última
+  tarefa aberta sem `summary` responde "falta o summary…", e um `wrap_up` sem `summary` no turno
+  avisa "falta o resumo do turno…". O resumo fica em `Turn.brief` e a resposta inteira em
+  `Turn.reply`. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
+  No próprio painel da sessão (inclusive na orquestradora; pedido do usuário: "igual a sessao
+  filha, as tarefas que tenham filhas precisam ter tambem a resposta com o icone de resposta"), o
+  grupo da mensagem (linha do pedido, `turnRows`) ganha no fim, depois de todos os níveis 1 dele,
+  uma linha ↩ com a resposta do turno, da mesma fonte e com o mesmo visual. Uma linha por turno,
+  mesmo com vários níveis 1 ou com nível 1 sem filhas; tarefas soltas, de antes dos turnos, não têm
+  ↩; a linha só aparece com o grupo aberto. Exceção: grupo com alguma tarefa que tem cartão de
+  sessão filha embaixo (aberta por `start_session` ou acionada por `SendMessage`) não tem ↩; ali a
+  resposta que conta é a das filhas, já nos cartões delas (pedido do usuário: "quando as tarefas da
+  sessao orquestradora abrirem sessao, a resposta nao deve aparecer, senao, fica quebrado").
+- Cliques por chave (pedido do usuário: "as vezes clico nas acoes e nao faz nada, preciso clicar
+  algumas vezes para funcionar"): o host só guarda o `onPress` enquanto o desenho existe, e o painel
+  redesenha a cada segundo, então o clique na troca do desenho se perdia. O hook `ui.press` responde
+  pela chave do botão (`fold:`, `open:`, `view:`) com a ação mais recente (mapa `actions`/`act`), e
+  cada press vai para o log de depuração ("task-tree: press <chave> (<superfície>)").
+- Painel na tela (`showPane`; pedidos do usuário: "o tasktree nao esta aparecendo na orquestradora",
+  "eu troquei o modelo de opus para sonnet na orquestradora, e o task tree nao rendenizou a partir
+  dai"): aberto sem pedido (`session.start`, `plan`), o painel só é posto com 144 colunas ou mais;
+  num prompt da própria pessoa, se não estiver na tela (ex.: depois do reinício de uma troca de
+  modelo), é reaberto como pedido, em qualquer largura. `/task-tree` abre com pedido e responde o
+  diagnóstico: o que o app disse (posto ou o motivo), os painéis (na frente, aba atrás de outro, não
+  desenhado) e "Desenho: N KB de 600 KB."; `/task-tree resumida | completa` troca a visão sem clicar.
+  O arquivo de `task-tree-waits` publica também `panes` (id, `isPlaced`, `isShown`) e
+  `renderError`; se o desenho lança exceção, o painel mostra "Painel de tarefas: erro ao desenhar:
+  …" e publica o erro.
+- Tamanho do desenho (causa do sumiço: o da orquestradora tinha 1,6 MB e o app não o mostrava;
+  "resumir os 57 pedidos anteriores resolveu"): o painel do topo desenha só os 3 últimos pedidos,
+  mais qualquer um com algo aberto, e os anteriores viram a linha "+N pedidos anteriores"; cada
+  cartão, até 3 pedidos, com a mesma linha; cartões sem tarefa de origem, concluídos e começados
+  antes do pedido mais antigo desenhado viram "+N cartões antigos de sessões". O cabeçalho continua
+  contando tudo. Cada `Svg` leva só as regras CSS das classes que usa (`slim`). Medido com o estado
+  da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Acima de 600 KB
+  (`DRAW_LIMIT`), desenho de emergência: só "Painel grande demais (N KB): mostrando só o essencial.
+  Use ≡ (/task-tree resumida) para a visão resumida.". Aprovado pelo usuário: "Sim, está bom".
+- Cabeçalho por visão (pedido do usuário: "na visao resumida, quero que a barra superior reflita o
+  que tem nessa visao ... cada visao deve refletir os dados do seu tipo de vizualizacao"; aprovado
+  com "Sim, bate nas duas"): o cabeçalho (X de Y, %, barra, tempo e os chips "em andamento",
+  "interrompidas", "sessões ativas", "aguardando") é a soma das linhas desenhadas na visão. Cada
+  linha carrega as tarefas que representa (`Row.nodes`): uma folha, ela mesma; uma linha recolhida,
+  a subárvore inteira (com as tarefas das sessões embaixo); um pai aberto, nada; seções, ↩ e avisos,
+  nada. Resumida: só o pedido atual (ex.: "1 de 1 · 100% · 0:17"). Completa: só os pedidos
+  desenhados pelo limite de 3, com a linha "+N pedidos anteriores". O total da sessão inteira vai
+  discreto, só quando difere do mostrado: no terminal, "(sessão inteira: D de N)" depois do
+  cabeçalho; no desktop, no `alt` do cabeçalho. A barra e o % seguem a lista visível. Recolher uma
+  linha não muda os números.
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
@@ -188,7 +287,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
   dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
   (`Child.part` = k). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
-  deles. Só o cartão da frente mostra a espera e o anel de contexto. Com a filha rodando, todo
+  deles. Só o cartão da frente mostra a espera; o anel de contexto aparece em todo
+  cartão da sessão, em qualquer estado (trabalhando, ocioso, parado, concluído ou de rodada antiga),
+  com o último % publicado (pedido do usuário: "mesmo depois que a sessao termina, o icone se
+  contexto precisa continuar aparecendo"). Sem % publicado, sem anel nem botão de abrir (um anel
+  vazio diria 0%, o que é falso). Com a filha rodando, todo
   cartão com tarefas abertas é desenhado em andamento. Mensagem ainda não lida não tem turno, logo
   não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
   novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
@@ -198,12 +301,32 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
   de uma irmã pertence à rodada do turno em que a irmã a mandou (não à última rodada dela antes de
   a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
-  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia
+  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia.
+  A origem vem primeiro do ✉ da irmã: o envio pendente dela para esta sessão (`sends` publicado)
+  aponta a tarefa que enviou, e o turno dessa tarefa dá a âncora na principal; sem ✉, o último turno
+  da irmã antes da chegada. Sem origem conhecida, o cartão da mensagem não é desenhado por até 10 s
+  (`WAIT_ORIGIN`) e depois vai para onde der (raiz, se nada). Motivo (pedido do usuário: "ela
+  deveria abrir direto no lugar correto"): as leituras de 3 s e os arquivos gravados em momentos
+  diferentes faziam o cartão nascer na raiz e pular depois. Na mesma cadeia
   (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
   abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Sob uma mesma
   tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
   (`begins(c)` + `inOrder()`; ex.: implementação → documentação → SVG → governança), não na ordem da
-  lista do host (pedido do usuário: "e rodou, ficando tudo junto"). Cartão de rodada já
+  lista do host (pedido do usuário: "e rodou, ficando tudo junto").
+  Custo do `breaks()`: as irmãs trocam mensagens em anel (impl → docs → SVG → governança → impl) e,
+  com o `received` persistido, cada lista guarda 10–20 entradas; recalcular a cadeia da irmã por
+  mensagem, recursivamente, crescia exponencialmente (até 20^5 chamadas por cartão a cada desenho,
+  22,7 s medidos) e derrubava o worker ("task-tree was unloaded: it crashed the hooks worker", sem
+  exceção no log). Agora há memo por desenho (`WeakMap` pela lista de irmãs, com o caminho na
+  chave), a cadeia de cada irmã é calculada uma vez e há corte de ciclo (a sessão reencontrada no
+  próprio caminho conta só as rodadas dela): 0,1 s, mesmo resultado. Teste de regressão no kit.
+  Mensagem sem rodada registrada (pedido do usuário: "layout quebrou novamente"; envio feito com o
+  painel fora do ar ou durante um crash): cada mensagem da dona que a filha tratou (o `received`
+  dela) é casada em ordem com as rodadas registradas (`unsent`); a que sobra abre uma rodada mesmo
+  assim, sob a tarefa da dona que estava aberta quando ela chegou (a que esperava a entrega) ou,
+  sem tarefa aberta, no fim do painel, depois de todos os pedidos. Rodadas de irmãs sem origem
+  também vão para o fim. Antes, essas mensagens caíam na rodada anterior e o cartão ficava acima de
+  outro pedido. Um turno interrompido por crash antes de salvar a resposta fica sem ↩. Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
@@ -219,10 +342,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   de 3 s (`Child.panel`). Rodando ou esperando: cabeçalho (ícone de ramificação cinza ou relógio
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
-  as netas (até `DEEP` níveis). Parada sem tarefa aberta: `✓ título · nome  d/n · concluída`, com o cartão aberto como os demais.
+  as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `⑂ nome  concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
-  dela"); o ▾/▸ continua recolhendo. Não se usa `$.store` para isso: a chave
+  dela"); o clique continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
   que as duas sabem.
 - Contador: `total` soma as tarefas da principal (todos os grupos) com as das filhas (as arquivadas
@@ -277,7 +400,12 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   houver). Um nível 1 replanejado (mesmo id aberto) fica no turno em que estava. Como os turnos vão
   dentro do grupo, persistência, resume e o painel publicado já os levam; painéis antigos (sem
   `turns`) desenham os níveis 1 soltos, como antes, e esses ficam à frente dos turnos. Desenho só no
-  painel de cima (`level === 0`; dentro do cartão de uma filha, os níveis 1 continuam soltos):
+  painel de cima (`level === 0`) e, no cartão de uma filha, só para turno com mais de um
+  nível 1 (pedido do usuário: "parece que quebrou de novo o layuot dos elementos", escolha "Tarefas
+  sem ligação" → opção a): ali o cartão ganha o cabeçalho com o título do pedido e os níveis 1 ficam
+  ligados por conector embaixo dele, sem repetir o ↩ (o cartão já mostra as respostas abaixo das
+  tarefas); turno com um só nível 1 continua sem cabeçalho, para o cartão não ganhar uma linha por
+  turno:
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
   nelas, como no `atWork`), em andamento enquanto algo dele está, aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
@@ -305,11 +433,15 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `session.start`). Sem isso, uma sessão parada podia ficar desenhada como viva e manter os pais em
   andamento.
 - Mensagens a outras sessões (pedido do usuário: "somente encerre tarefas de mensagens enviadas
-  para as filhas, quando houver confirmacao de recebimento"): o `SendMessage` do loop principal cujo
-  resultado diz "queued", "held" ou "pending" e não diz "its turn has started" (um "will be
-  delivered" ainda conta como pendente; pedido do usuário: "quando enviar uma mensagem, e a tarefa
-  estiver esperando a entrega, o icone de progresso da tarefa deve ser a carta azul") grava em `sends` `{ to, anchor, at }`, com a tarefa em
-  andamento, e o resultado ganha o aviso de manter a tarefa aberta. Enquanto o envio está pendente,
+  para as filhas, quando houver confirmacao de recebimento"): todo `SendMessage` do loop principal que não falha (pedido do usuário: "uma
+  sessao esta chamando a outra, mas nao esta aparecendo as tarefas com o icone de mensagem"; antes
+  só o resultado "queued" contava, e entre filhas a entrega costuma ser imediata) grava em `sends` `{ to, anchor, at }`, com a tarefa em
+  andamento, e o resultado ganha o aviso de manter a tarefa aberta. Entrega imediata ("delivered; its turn has started") grava com `delivered: true`
+  e não ganha lembrete de recebimento; envio que falha não grava nem deixa ✉. Os `sends` vão no
+  painel publicado, e a principal desenha o ✉ na tarefa que enviou dentro do cartão espelhado da
+  filha. A tarefa fica com ✉ até o destino ser visto tratando a mensagem (o `received` publicado
+  por ele, na releitura de 3 s); aí o painel a fecha sozinho, e o `RULES` diz para não chamar
+  `done` nela. Enquanto o envio está pendente,
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
   do ícone no desktop, "✉" (cor `permission`) no terminal, `alt` "Aguardando confirmação de
@@ -330,6 +462,25 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   o aviso de "ficou na fila" dizem que a tarefa fica em andamento até o recebimento e que a sessão
   pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
   A regra está no `RULES`.
+- Etapa por etapa (pedido do usuário: "ela ficou parada muito tempo na primeira tarefa, e derepente
+  pulo para a ultima"): a causa era o agente, que não chamava `start` e fechava várias etapas num
+  `done` só no fim (as do meio saíam com 0:00); o espelho publica a cada mudança e a principal relê
+  a cada 3 s. O `RULES` e o contexto do `prompt.submit` pedem `start` no começo de cada etapa e
+  `done` assim que ela termina, antes da próxima, nunca várias de uma vez no fim. O `done` avisa
+  quando 2 ou mais etapas nunca iniciadas fecham juntas ("N etapas fecharam juntas sem start ...");
+  com `start` antes, ou com uma só, não há aviso.
+- Id curto em `start`/`done` (`resolve()`; pedido do usuário: "as terafas foram executadas fora de
+  ordem, verifique se existe um erro"): o id completo e o curto entram juntos e vence o aberto; no
+  mesmo estado, o id completo desempata. Antes o id completo tinha prioridade, e "1" ou "3" pegavam
+  níveis 1 antigos e já concluídos com esse id em vez de "31/1" e "31/3", abertos no plano atual,
+  que ficavam pendentes no cartão.
+- Ligações persistidas (pedido do usuário: "voltou o comportamento de sessoes abrirem no lugar
+  errado"): âncoras e rodadas das sessões abertas, `sends`, `received` e `launches` ficavam só em
+  memória; depois de recarregar o plugin ou reiniciar o app, os grupos voltavam do store mas as
+  filhas ficavam sem âncora e as cadeias sem origem, e os cartões caíam na raiz. `saveLinks` grava
+  `links:<sessão>` no store a cada publicação; `restoreLinks` restaura no `session.start` e, numa
+  recarga (que não passa por ele), antes da primeira gravação, juntando ao estado atual em vez de
+  sobrescrever.
 - Visões (pedido do usuário: "quero que exista essa visao atual, e uma visão resumida, onde mostre
   somente as tarefas em andamento"; depois: "deixe mais bonito esse toggle, esta solto no layout. e
   a visao resumida deve ser a visao padrao ao iniciar uma nova sessao"; depois "o toggle ainda esta
@@ -357,7 +508,7 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   A resumida é a visão completa de um recorte do painel (pedido do usuário: "a visao resumida deve
   usar a mesma base de logica da visao completa, com o diferencial que ela somente mostra as tarefas
   em andamento e elas somente sao ocultas dessa visao quando todas estao completas"): mesmas linhas,
-  mesmos ▾/▸ e o mesmo estado de abrir e recolher (`collapsed`, compartilhado pelas duas visões, já
+  mesmos botões no ícone e o mesmo estado de abrir e recolher (`collapsed`, compartilhado pelas duas visões, já
   que as chaves são as mesmas). O recorte (`cut` no render, com `trimToWork`) é o trabalho atual:
   seus níveis 1 com os demais dos mesmos turnos (o d/n do turno bate com as linhas), os subagentes
   e as sessões debaixo deles ou ainda vivos; sem `work` (painéis antigos), o turno mais recente com
@@ -377,17 +528,57 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `context: { percent, at }` de `$.session.usage()` (sem `breakdown`, que é caro); a que a abriu
   guarda em `Child.context`. O anel (`contextRing`: trilha cinza, arco do topo em sentido horário,
   azul até 69%, âmbar de 70%, vermelho de 85%; só o círculo, sem nada no centro: "pode ser somente o
-  circular, nao precisa do icone dentro") fica à esquerda do ⑂ na linha
-  mais alta acima da sessão (o turno, se houver; senão o nível 1), com a maior parte entre as
-  sessões dali (`Work.ring`), e no cartão da própria sessão. Sem percentual, sem anel. `alt`:
-  ", contexto da sessão <nome>: 42%"; terminal: "42%" antes do ⑂, na cor da faixa.
+  circular, nao precisa do icone dentro") fica só no cartão da
+  própria sessão, solto na ponta direita da linha do rótulo, na coluna onde termina o tempo das
+  linhas de baixo, longe do nome; a palavra de estado continua logo depois do nome (pedido do
+  usuário: "deve estar solto e na direita da mesma linha"). Linhas de tarefa e de pedido não mostram
+  mais o anel das filhas nem o citam no `alt` (pedido do usuário: "nao precisa colocar esse icone
+  na tarefa pai que originou essas sessoes, porque gera inconsistencia"); o ⑂ continua nelas,
+  marcando que há sessões embaixo. Sem percentual, sem anel. No desktop o anel é clicável e abre a sessão
+  no painel principal da janela (pedido do usuário: "quero que o icone de contexto seja um icone
+  clicavel tambem, e quando clicar nele, abra a sessao que ele representa"): um `Button` sem
+  rótulo centrado no anel (`ringOver`; o mesmo helper `overBox(cx)` do ícone de progresso escolhe
+  as células inteiras com o meio mais perto do centro do glifo; pedidos do usuário: "mesmo problema
+  do icone de progresso, o botao atras nao tem padding" e "o mouse over do anel de contexto continua
+  pequeno, nao envolvendo o icone todo"). O realce é do botão nativo: o tamanho vem do texto do botão
+  mais o padding nativo, e o `Box` só posiciona. No anel, o texto é um em space (U+2003,
+  `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` do botão tem 4 células
+  (`RING_CELLS`), a largura do realce nativo (32 px), ancorado pela ponta direita da linha
+  (`right`, `ringRight`), e o anel é desenhado no meio dele (`ringFromRight`: x = W − 8·(right +
+  2)); o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
+  desalinhado"; aprovado depois com "Sim, ficou certo"): a célula do desktop tem um pouco menos de
+  8 px (≈7,87); contado da esquerda (cerca de 57 células) o erro somava ≈7 px e o anel ficava fora
+  do realce, e contado da direita ele é de fração de px. O teste confere o `Box` pela direita, com 4
+  células e folgas iguais até 1 px. O kit não dá tamanho ao `Button`, e o teste não mede o realce
+  nativo)
+  chama `open_session_in`
+  (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
+  clicar na sessão na barra lateral; o kit não tem API própria para isso e o `Link` do desktop só
+  abre https:. Limites do app: só abre esta sessão ou uma aberta por ela (o cartão de uma neta é
+  recusado), só com esta sessão na tela, e recusa com o cursor num campo de texto; a recusa vira o
+  toast "Não abriu <nome>: <motivo>". Sem tooltip "Abrir <nome>" (o `Button` não tem, e uma camada
+  por cima engoliria o clique) e sem cursor de mão. O ⑂ continua recolhendo o cartão. Terminal: "42%" no fim da linha do
+  rótulo, na cor da faixa.
+- Modelo e esforço no cartão (pedido do usuário: "quero que voce mostre o nome do modelo e o
+  esforco de cada sessao, ao lado esquerdo do anel de contexto"; depois "nao aparece em todos os
+  paineis, somente no primeiro"; aprovado com "Sim, em todos"): cada sessão pega `model` e
+  `effort` do `turn.step` (os pedidos do loop principal; hook em `async function*`) e publica o
+  texto em `engine` no arquivo de `task-tree-waits`, só quando muda, como o % de contexto. Sem
+  publicação (sessão que ainda não rodou um turno com esta versão), o cartão busca no registro do
+  app (`get_session`), com cache de 1 min por sessão; o publicado tem prioridade. `engineText` dá o
+  nome legível: `claude-opus-5-5[1m]` vira "Opus 5.5 · high", `claude-sonnet-5-5` vira "Sonnet
+  5.5" (sem `[1m]` nem data; nome fora do formato fica como veio). Desenho: texto cinza de 11 px,
+  terminando 8 px à esquerda do anel (sem anel, na borda do cartão), omitido se fosse encostar no
+  nome, e citado no `alt`; vale em todos os cartões da sessão. Não entra no cabeçalho do painel da
+  própria sessão (o app já mostra o próprio modelo). O hook `turn.step` não tem teste: o kit não
+  tem implementação base para o evento em stream.
 - Sessão arquivada (pedido do usuário: "Manter visível, marcada"): continua na árvore como histórico,
   sob a âncora, nas duas visões (na resumida, se a âncora estiver no recorte), com o cartão cinza,
   ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros. O
   `panelOf` de uma arquivada marca como interrompido o que ela deixou aberto (fora do M do "N de
   M", no chip de interrompidas). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
-  do cabeçalho; o chip "em andamento" e "sessão ativa" não a contam. Nos ancestrais, a ⑂ continua e o
-  anel mostra o último percentual, esmaecido (`Ring.faded`).
+  do cabeçalho; o chip "em andamento" e "sessão ativa" não a contam. Nos ancestrais, a ⑂ continua; no cartão,
+  o anel mostra o último percentual, esmaecido (`Ring.faded`).
 - Pai aguardando (pedido do usuário: "nas tarefas que estao aguardando e ja tem alguma tarefa
   concluida, marque os pais como aguardando"): uma tarefa ou turno aberto, com algo concluído abaixo e
   nada em andamento (não acesa pelo `current`, sem ✉ nem sessão viva), tem o tom `paused`: ◷ âmbar
