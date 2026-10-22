@@ -24,6 +24,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
+- `tests/layout.test.ts`: testes de layout diretos, sem mount e sem SVG, com o fixture real (14 testes, ~130 ms); chamam `layout(model, choices, now, ownId)` com o `Model` montado como o `refreshChildren` monta (ver "Testes de layout").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
@@ -131,6 +132,19 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 6. A visão vai ao store só no clique (`setView`); nenhuma outra gravação a leva.
 7. O `ended` não é consumido pelas tools do painel (`plan`/`start`/`done` não passam pelo `tool.call`
    genérico); o lembrete "terminou o turno" sai na próxima chamada comum ou no `prompt.submit`.
+
+### Testes de layout
+
+`tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 28 linhas
+("+67 pedidos anteriores" no topo, "+41 cartões antigos de sessões" no fim, só os pedidos 71–73
+desenhados, 2 cartões sob as tarefas 97 e 98, nenhum na raiz), o ↩ (presente no 71, suprimido nos
+pedidos com cartão), o cabeçalho (conta só os nós desenhados, 8/14; chips 6 em andamento, 1 sessão
+ativa, 0 aguardando, 0 ✉), a visão resumida (27 linhas, "+1 pedidos anteriores", sem cartões antigos) e o
+determinismo. Modelos pequenos (9): ordem dos cartões (`begins`), cadeia, filha de filha aninhada, ↩ por
+turno, "+N pedidos anteriores" com pedido antigo aberto, ✉ no painel e dentro de um cartão (`pending` por
+escopo), aviso ao usuário, escolhas (linha fechada guarda `nodes`) e o corte de 400 linhas.
+
+- Regra para quem mexer no layout: mudança de linhas → `layout.test.ts`; mudança de pixels → golden do SVG.
 
 ### Reinício e recarga
 
@@ -818,6 +832,11 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ## Pendências
 
+- Bug conhecido (falha marcada `KNOWN` em `layout.test.ts`, que imprime `TODO` e passa; a orquestradora
+  decide se vira correção): o cabeçalho conta como "em andamento" a tarefa ✉ de um cartão de filha. A
+  fórmula `active` do `ui.render` exclui só as tarefas de `sentIds` (mensagens na fila DESTA sessão); a
+  tarefa da filha que espera outra sessão fica como folha aberta e entra no "em andamento", embora já
+  conte em "aguardando sessão". No cenário do teste: 1 em andamento + 2 aguardando; o esperado é 0 + 2.
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
   rolável própria. O único caminho é o padrão do `ui.scroll` do `Pane`: não chamar `next`, guardar o
   próprio offset (`e.by`), invalidar e redesenhar o cabeçalho mais a fatia das linhas
