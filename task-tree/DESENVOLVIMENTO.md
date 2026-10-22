@@ -23,6 +23,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/durabilidade.test.ts`: 63 testes sobre a tabela (ver "Tabela de durabilidade").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `io/publish.ts` (arquivo publicado: `parsePublished`, `readPublished`, `waitFile`, `publishWait`) e `io/log.ts` (`debug`); ver "Arquivo publicado".
+- `io/host.ts` (leitura das filhas em passos: `parseSessions`, `listSessions`, `mineOf`, `panelOf`, `readFiles`, `deriveChildren`, `engineText`; ver "Leitura das filhas") e `tests/host.test.ts` (13 testes).
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
 - `tests/publicado-versoes.test.ts` e `tests/fixtures/publicados.ts`: um arquivo de cada formato antigo (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
@@ -268,6 +269,30 @@ antigas), `groups?`, `waits`, `children`, `context?`, `engine?`, `panes?`, `rend
   desta versão (só o último tem `version`); `parsePublished` lê cada um sem erro; uma filha com cada formato
   desenha o cartão e nada vai ao log; o que esta versão escreve tem as chaves do último formato, na mesma
   ordem. Ao mudar o formato, acrescente um arquivo ao fixture.
+
+### Leitura das filhas (`io/host.ts`)
+
+`refreshChildren` (no `register.tsx`) é a composição de quatro passos, numerados em comentário; os três
+primeiros estão em `task-tree/io/host.ts` e testam sem o app, com `$` falso ou entradas puras. O register
+guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState`, `update(childrenState)`,
+`endedState`, `groupsState`) e passa `keptLink` a `deriveChildren`.
+
+1. **Lista do host:** `parseSessions(resposta)` (pura: JSON → linhas; "No … sessions found" → lista vazia;
+   `isError` lança o texto), `listSessions($)` (`$.mcp.call list_sessions` → `{ rows }` | `{ error }`, erro
+   cortado em 200) e `mineOf(rows)` (pura: as linhas abertas por quem a lista não traz; `undefined` se não há).
+2. **Arquivos publicados:** `panelOf(file)` (pura: `groups` e o resto, ou `tasks` antigas como grupo
+   principal, ou nada) e `readFiles($, mine)` → `{ waiting, panels, contexts, engines }` (usa `readPublished`
+   e `engineOf` quando o arquivo não traz o modelo). `engineText`, `engineOf` e o cache `engineSeen` moraram
+   no register e vieram para cá.
+3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
+   com a regra do `starting`, dos laços vindos do store (`kept`) e do painel mantido quando o arquivo some.
+4. **Publicar:** `publishWait` de `io/publish.ts`, chamado por `publishPanel`.
+
+Ordem, idêntica à de antes: stamp → lista → erro/limpa erro → `watchSends` → vazio → mine → arquivos →
+update `children`/`ended` → status → publicar → `keepTime`. `inDesktopApp`, `watchSends`, `selfId`,
+`openSession` e `showPane` seguem no register (etapa 3 ou depois). `tests/host.test.ts` (13 testes em 3
+`describe`: lista, arquivos, filhas) usa também os 8 formatos de `fixtures/publicados.ts`. Quando os arquivos
+são lidos não mudou (performance fica fora desta fase).
 
 ### Grupos do store sem `session.start`
 
