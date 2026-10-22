@@ -1444,7 +1444,12 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
   const at = tx + textW(name, 12) + 10
   if (r.ring) {
     const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 8
-    const ring = contextRing(r.ring.percent, R - 7, cy)
+    // Drawn at the middle of its Button's Box (ringOver: the same overBox, whole cells, the line's
+    // whole height), so the highlight has the same room on all four sides (the person's words:
+    // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
+    // last line up to half the card's edge off the name's middle.
+    const box = overBox(R - 7, RING_BOX, 7.5 + 8)
+    const ring = contextRing(r.ring.percent, 8 * box.left + 4 * box.width, H / 2)
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
   // Waiting on the person: the word in amber (the label has no icon to color).

@@ -510,7 +510,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` tem 4 ou 5 células
   (`RING_BOX`; `overBox` com `widths` e `half`), com pelo menos 1 célula (8 px) de folga de cada
   lado; o ícone de progresso continua com 3 ou 2. O kit não dá tamanho ao `Button`, e o teste mede
-  o `Box` e o texto, não o realce nativo chama `open_session_in`
+  o `Box` e o texto, não o realce nativo. O anel é desenhado no centro do `Box` do
+  botão, e não o contrário (`labelSvg`, pelo mesmo `overBox`: x = 8·left + 4·width, y = metade da
+  altura da linha; pedido do usuário: "quase, ainda esta desalinhado"), com folga igual nos quatro
+  lados (o teste aceita até 1 px de diferença). Antes ele ficava na coluna do tempo e no meio do
+  nome, até 5 px fora do centro do `Box`, que no cabeçalho do cartão inclui a borda de cima chama `open_session_in`
   (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
   clicar na sessão na barra lateral; o kit não tem API própria para isso e o `Link` do desktop só
   abre https:. Limites do app: só abre esta sessão ou uma aberta por ela (o cartão de uma neta é
