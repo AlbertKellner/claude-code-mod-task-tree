@@ -277,7 +277,14 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Sob uma mesma
   tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
   (`begins(c)` + `inOrder()`; ex.: implementação → documentação → SVG → governança), não na ordem da
-  lista do host (pedido do usuário: "e rodou, ficando tudo junto"). Cartão de rodada já
+  lista do host (pedido do usuário: "e rodou, ficando tudo junto").
+  Custo do `breaks()`: as irmãs trocam mensagens em anel (impl → docs → SVG → governança → impl) e,
+  com o `received` persistido, cada lista guarda 10–20 entradas; recalcular a cadeia da irmã por
+  mensagem, recursivamente, crescia exponencialmente (até 20^5 chamadas por cartão a cada desenho,
+  22,7 s medidos) e derrubava o worker ("task-tree was unloaded: it crashed the hooks worker", sem
+  exceção no log). Agora há memo por desenho (`WeakMap` pela lista de irmãs, com o caminho na
+  chave), a cadeia de cada irmã é calculada uma vez e há corte de ciclo (a sessão reencontrada no
+  próprio caminho conta só as rodadas dela): 0,1 s, mesmo resultado. Teste de regressão no kit. Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem

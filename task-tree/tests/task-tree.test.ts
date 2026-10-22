@@ -2698,6 +2698,44 @@ describe('anel de contexto abre a sessão', () => {
   })
 })
 
+describe('irmãs em anel com muitas mensagens', () => {
+  test('a cadeia de origens não explode: 4 irmãs em anel, 20 mensagens cada, o desenho sai rápido', async ($, on) => {
+    const ids = ['a', 'b', 'c', 'd'].map(x => `local_${x.repeat(8)}-${x.repeat(4)}-${x.repeat(4)}-${x.repeat(4)}-${x.repeat(12)}`)
+    // Each sister got 20 messages from the one before it (the last from the first: a ring), and
+    // opened a turn for each.
+    const panelOf = (i: number) => {
+      const from = ids[(i + 3) % 4]
+      const received = Array.from({ length: 20 }, (_, k) => ({ from, at: 1000 + k * 40 + i * 10 }))
+      const turns = received.map((r, k) => ({ id: k + 1, title: `t${k}`, at: r.at + 1 }))
+      const tasks = turns.map(u => ({ id: `T${u.id}`, short: `T${u.id}`, title: `Tarefa ${i}.${u.id}`, status: 'done', turn: u.id, children: [] }))
+      return { waiting: false, waits: [], children: [], received, groups: [{ agent: '', label: '', turns, tasks }] }
+    }
+    let n = 0
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          ...ids.map((id, i) => ({ sessionId: id, name: `s${i}`, title: `s${i}`, isRunning: false, isArchived: false, startedBy: 'local_eu' })),
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const i = ids.findIndex(id => String(e.path).includes(id))
+      return ({ value: i >= 0 ? JSON.stringify(panelOf(i)) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${ids[n++]}` }))
+    await plan($, [{ id: 'X', title: 'Abrir' }])
+    await start($, ['X'])
+    for (let i = 0; i < 4; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    const t0 = Date.now()
+    const texts = rowsOf(await view($)).map(l => l.text)
+    expect(Date.now() - t0).toBeLessThan(3000)
+    expect(texts.some(t => t.includes('Tarefa 3.20'))).toBe(true)
+  })
+})
+
 describe('níveis 1 do mesmo turno no cartão', () => {
   test('turno com vários níveis 1 ganha o cabeçalho do pedido, com as tarefas ligadas embaixo; turno de um só fica como estava', async ($, on) => {
     const KID = 'local_77777777-7777-7777-7777-777777777777'
