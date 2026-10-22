@@ -507,9 +507,11 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   do icone de progresso, o botao atras nao tem padding" e "o mouse over do anel de contexto continua
   pequeno, nao envolvendo o icone todo"). O realce é do botão nativo: o tamanho vem do texto do botão
   mais o padding nativo, e o `Box` só posiciona. No anel, o texto é um em space (U+2003,
-  `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` tem 4 ou 5 células
-  (`RING_BOX`; `overBox` com `widths` e `half`), com pelo menos 1 célula (8 px) de folga de cada
-  lado; o ícone de progresso continua com 3 ou 2. O kit não dá tamanho ao `Button`, e o teste mede
+  `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` tem exatamente a largura do
+  realce nativo, 4 células (32 px; `RING_BOX = [4]`, `RING_ROOM`; `overBox` com `widths` e
+  `half`), cerca de 8,5 px de folga de cada lado do anel. Medido nos prints do usuário ("ainda
+  desalinhado"): o realce nativo tem 32 px e encosta à esquerda quando o `Box` é mais largo; com 5
+  células (40 px) e o anel no meio do `Box`, o anel ficava 7,5 px à direita do meio do realce; o ícone de progresso continua com 3 ou 2. O kit não dá tamanho ao `Button`, e o teste mede
   o `Box` e o texto, não o realce nativo. O anel é desenhado no centro do `Box` do
   botão, e não o contrário (`labelSvg`, pelo mesmo `overBox`: x = 8·left + 4·width, y = metade da
   altura da linha; pedido do usuário: "quase, ainda esta desalinhado"), com folga igual nos quatro
