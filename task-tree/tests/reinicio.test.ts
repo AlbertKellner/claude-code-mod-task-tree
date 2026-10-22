@@ -14,10 +14,7 @@ import { REAL } from './fixtures/orquestradora-real'
 // com o motivo, o teste imprime "TODO …" e passa; quando o bug for corrigido o teste falha pedindo
 // para tirá-lo da lista. É o skip/todo que o kit não tem.
 
-const KNOWN: Record<string, string> = {
-  'recarga-perde-summary':
-    '02 §2.3: lastBrief é variável do módulo; um done com summary antes da recarga deixa o turno sem ↩ com o resumo. Correção: R13 (lastBrief no state).',
-}
+const KNOWN: Record<string, string> = {}
 function known(name: string, ok: boolean, detail: string) {
   if (name in KNOWN) {
     if (ok) throw new Error(`"${name}" passou: o bug conhecido (${KNOWN[name]}) parece corrigido; tire-o de KNOWN.`)
@@ -262,11 +259,14 @@ describe('recarga a quente (state mantido, módulo novo, sem session.start)', ()
     expect((HOT.groups as any[])[0].tasks[0].status).toBe('done')
   })
 
-  test('summary antes da recarga, 2/2: o turno termina no módulo novo; o ↩ deveria trazer o resumo', async ($, on) => {
+  test('summary antes da recarga, 2/2: o turno termina no módulo novo e o ↩ traz o resumo', async ($, on) => {
     seedState(on, HOT)
     host(on, {})
     await $.turn.complete({ reason: 'answer', answer: 'A recarga foi conferida e nada se perdeu no painel.', durationMs: 1, isAborted: false, turnId: 't1' } as any)
     const turn = ((HOT.groups as any[])[0].turns ?? []).slice(-1)[0]
-    known('recarga-perde-summary', turn?.brief === 'Recarga conferida, nada perdido', `turno depois: brief=${JSON.stringify(turn?.brief)} reply=${JSON.stringify(turn?.reply)}`)
+    expect(turn?.brief).toBe('Recarga conferida, nada perdido')
+    expect(turn?.reply).toBe('A recarga foi conferida e nada se perdeu no painel.')
+    // Spent with the turn: the next one starts with none.
+    expect(HOT.brief).toBe('')
   })
 })

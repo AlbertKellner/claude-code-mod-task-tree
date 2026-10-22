@@ -16,6 +16,15 @@ const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
+const briefState = { plugin: 'task-tree', key: 'brief' } as const
+// The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
+// In the state, not a variable of the module: a reload of the mod between the done and the end of
+// the turn (saving a file of the mod mid-turn) kept the variable's value nowhere, and the ↩ line
+// lost the summary. Empty: none given.
+async function lastBrief($: any): Promise<string | undefined> {
+  const { value } = await $.state.get(briefState)
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
 // The pane's lines the person opened or closed (see setFold).
 const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
 
@@ -2187,7 +2196,7 @@ export const register: Register = on => {
       const agent = e.agentId ?? MAIN
       if (agent === MAIN) planned = true
       const input = ((e as any).input ?? e) as { ids?: string[]; summary?: unknown }
-      if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') lastBrief = input.summary
+      if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') await $.state.set(briefState, input.summary)
       let notes: string[] = []
       let closed: string[] = []
       let unstarted: string[] = []
@@ -2225,7 +2234,7 @@ export const register: Register = on => {
         // Closed, its send waits no more: no ✉ left behind on an id used again.
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
         // The last step closed with no summary: the ↩ line would say only "resposta".
-        if (lastBrief === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
+        if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
           notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 120 caracteres (vira a linha ↩)')
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
@@ -2308,8 +2317,6 @@ export const register: Register = on => {
 
   // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
 let lastRecap: string | undefined
-// The turn's answer in a few words, as the session gave it (done's `summary`).
-let lastBrief: string | undefined
 // The ↩ line says the answer in at most BRIEF characters: the summary the session gave, else the
 // first sentence of the answer; longer, cut at a word with "…". The whole answer stays in the tooltip.
 const BRIEF = 120
@@ -2352,9 +2359,10 @@ const REPLY = 'resposta'
     // recap (wrap_up), which is what the opener's notice carries; else the final message.
     if (!agent && !e.isAborted) {
       const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
-      const short = lastBrief !== undefined ? brief(lastBrief) : undefined
+      const given = await lastBrief($)
+      const short = given !== undefined ? brief(given) : undefined
       lastRecap = undefined
-      lastBrief = undefined
+      if (given !== undefined) await $.state.set(briefState, '')
       if (said !== '') {
         await change($, all =>
           all.map(g => {
@@ -2530,7 +2538,7 @@ const REPLY = 'resposta'
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const { value = [] } = await $.state.get(groupsState)
       const tasks = value.find(g => g.agent === MAIN)?.tasks ?? []
-      if (lastBrief === undefined)
+      if ((await lastBrief($)) === undefined)
         notes.push(
           'Painel de tarefas (task-tree): falta o resumo do turno. Antes da mensagem final, chame ' +
             'mcp__task-tree__done com summary: a resposta em até 120 caracteres, tipo manchete (ids pode ficar vazio).',
