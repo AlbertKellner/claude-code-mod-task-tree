@@ -4,9 +4,9 @@
 // the terminal then draw; nothing here reads the state or the host. With it the model's helpers
 // (counts, times, sessions' cards split by message, the current work's cut) that the hooks module
 // uses too, imported from here.
-// Hidden dependencies kept as they were (the plan's next step makes them parameters): `drawNow`
-// (set by layout from `now`, read by split), `breaksMemo` (a per-drawing cache keyed by the
-// sessions' list).
+// Nothing is read behind the arguments' back: the clock is `now`, passed down to split; the cache of
+// the sessions' breaks is a BreaksMemo made by layout() for one drawing and passed down; the sends
+// still queued reach the task lines as `pending`, from the panel that holds them.
 
 import type { Child, Group, Panel, Send, TaskNode, Turn, Wait } from '../types'
 
@@ -122,13 +122,16 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
 // docs → SVG → governance → implementation). Recomputed per message, with up to 20 kept each, that
 // was 20^5 calls per card on every redraw, and it crashed the hooks worker. A session met again
 // inside its own chain counts with its own rounds only.
-export const breaksMemo = new WeakMap<Child[], Map<string, Break[]>>()
-export function breaks(c: Child, sisters: Child[], me: string | undefined, seen: string[] = [], owner: TaskNode[] = []): Break[] {
-  let memo = breaksMemo.get(sisters)
-  if (memo === undefined) breaksMemo.set(sisters, (memo = new Map()))
+// The cache lives for one drawing (layout() makes it and passes it down): `hits` by an explicit key,
+// the list of sisters (numbered as met, `lists`), the drawing session, the path and the card.
+export type BreaksMemo = { lists: WeakMap<Child[], number>; next: number; hits: Map<string, Break[]> }
+export const newBreaksMemo = (): BreaksMemo => ({ lists: new WeakMap(), next: 0, hits: new Map() })
+export function breaks(c: Child, sisters: Child[], me: string | undefined, seen: string[], owner: TaskNode[], memo: BreaksMemo): Break[] {
+  let list = memo.lists.get(sisters)
+  if (list === undefined) memo.lists.set(sisters, (list = memo.next++))
   // The path is in the key: a session met again inside its chain is cut there, and only there.
-  const key = `${me ?? ''}|${seen.join(',')}|${c.id}|${c.part ?? ''}`
-  const hit = memo.get(key)
+  const key = `${list}|${me ?? ''}|${seen.join(',')}|${c.id}|${c.part ?? ''}`
+  const hit = memo.hits.get(key)
   if (hit !== undefined) return hit
   const own: Break[] = [...(c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor })), ...unsent(c, me, owner)]
   if (seen.includes(c.id) || seen.length > 4) return own
@@ -141,7 +144,7 @@ export function breaks(c: Child, sisters: Child[], me: string | undefined, seen:
           // the turn opened after), not to the last round before it arrived, which may be a later
           // message the sister had not taken up yet.
           let fb = sisterBreaks.get(from.id)
-          if (fb === undefined) sisterBreaks.set(from.id, (fb = breaks(from, sisters, me, path, owner)))
+          if (fb === undefined) sisterBreaks.set(from.id, (fb = breaks(from, sisters, me, path, owner, memo)))
           const fmain = withMain(from.panel?.groups ?? []).find(g => g.agent === MAIN)
           const fturns = fmain?.turns ?? []
           // First, the sister's own sending task, while its ✉ is up (its published `sends`): the turn
@@ -156,7 +159,7 @@ export function breaks(c: Child, sisters: Child[], me: string | undefined, seen:
           return [{ at: x.at, anchor: last ? last.anchor : from.anchor, peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined) }]
         })
   const out = [...own, ...peer].sort((a, b) => a.at - b.at)
-  memo.set(key, out)
+  memo.hits.set(key, out)
   return out
 }
 
@@ -181,9 +184,9 @@ export const inOrder = (list: Child[]) =>
 // While a sister's message has no known origin yet (the sister's state not read yet), its card is
 // not drawn, for up to WAIT_ORIGIN ms: it would show at the root and jump into place on the next read.
 export const WAIT_ORIGIN = 10000
-export let drawNow: number | undefined
-export function split(c: Child, sisters: Child[] = [], me?: string, owner: TaskNode[] = []): Child[] {
-  const rounds = breaks(c, sisters, me, [], owner)
+// `now`: the drawing's clock (undefined where it cannot be read); `memo`: the drawing's cache of breaks.
+export function split(c: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
+  const rounds = breaks(c, sisters, me, [], owner, memo)
   const p = c.panel
   if (c.part !== undefined || rounds.length === 0 || p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
@@ -209,7 +212,7 @@ export function split(c: Child, sisters: Child[] = [], me?: string, owner: TaskN
   const ownerOf = (agent: string) => (agent === MAIN ? holder(current(main.tasks).anchor) : holder(groups.find(g => g.agent === agent)?.anchor))
   const waiting = (k: number) => {
     const b = k > 0 ? rounds[k - 1] : undefined
-    return b?.peer === true && !b.known && drawNow !== undefined && drawNow - b.at < WAIT_ORIGIN
+    return b?.peer === true && !b.known && now !== undefined && now - b.at < WAIT_ORIGIN
   }
   return parts.filter(k => !waiting(k)).map(k => {
     const tasks = tasksIn(k)
@@ -519,7 +522,7 @@ export type Model = {
 export type Choices = Record<string, boolean>
 
 // The panel's lines from the model and the person's choices, against `now` (the times) and for
-// `ownId` (this session's id, for the sisters' messages). Pure, but for drawNow and breaksMemo.
+// `ownId` (this session's id, for the sisters' messages). Pure: it reads nothing but its arguments.
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
   const held = model.groups
   const waits = model.waits
@@ -528,8 +531,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const chosen = choices
   const summary = model.view === 'summary'
   const work = model.work
-  const sendsAt: Record<string, Send[]> = { [`${MAIN}|`]: queued }
-  drawNow = now
+  // The breaks of the sessions' cards, computed once per drawing (see breaks).
+  const memo = newBreaksMemo()
   const notice = (w: Wait, depth: number): Row => ({ depth, tone: 'wait', title: waitText(w), label: '' })
 
   // What the person opened or closed; `fl` is read by the builders below, which run twice:
@@ -542,7 +545,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // A task line and, while it is open, what hangs below it (`below`) and its subtasks.
   // Nothing folds by itself when it is done (the person's words: "se eu quiser, eu mesmo
   // colapso"): every line comes open and only the ▾/▸ closes it. A task with anything below it
-  // opens and closes (`fold`, keyed under `scope`).
+  // opens and closes (`fold`, keyed under `scope`). `pending`: the sends from this group's tasks
+  // still waiting to be taken up (the panel's that holds the group).
   const rows = (
     items: TaskNode[],
     depth: number,
@@ -550,13 +554,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     lit: string[],
     below: (t: TaskNode, depth: number) => Row[],
     scope: string,
-    work: (t: TaskNode) => Work = () => idle,
+    work: (t: TaskNode) => Work,
+    pending: Send[],
   ): Row[] =>
     items.flatMap(t => {
       // Sessions opened on it or below add to its count and keep it in progress (atWork).
       const w = work(t)
       // A message sent from it is still queued: it waits on that session (its own icon).
-      const waitsOn = t.status === 'open' ? (sendsAt[scope] ?? []).filter(s => s.anchor === t.id).map(s => s.to) : []
+      const waitsOn = t.status === 'open' ? pending.filter(s => s.anchor === t.id).map(s => s.to) : []
       const tone: Tone =
         t.status === 'interrupted'
           ? 'interrupted'
@@ -604,7 +609,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const key = `${scope}t:${t.id}`
       // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
       const kids = t.children
-      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work)] : []
+      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work, pending)] : []
       row.fold = { key, open: rest.length > 0 }
       row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.tasks]
       return [row, ...rest]
@@ -622,6 +627,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     below: (t: TaskNode, depth: number) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
+    pending: Send[],
     // The turn's own ↩ (the top panel's): a card draws its session's answers below its tasks.
     reply = true,
   ): Row[] => {
@@ -663,7 +669,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       kids: ws.some(w => w.any) || undefined,
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-    const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work) : []
+    const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending) : []
     row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.tasks)]
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -734,12 +740,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // one shows only it); at the end of the list when it has no such task. Archived ones are
   // left out. Done tasks stay in their place in the plan, closed.
   const panel = (p: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
-    if (level > 0) sendsAt[`${scope}${MAIN}|`] = (p.sends ?? []).filter(x => !x.taken)
+    // The sends of this panel's main group still waiting to be taken up: this session's at the top,
+    // what each session publishes in its card (its task shows ✉ too).
+    const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken) : queued
     const groups = withMain(p.groups ?? [])
     const waits = p.waits ?? []
     // Archived sessions stay, as history, drawn gray with "arquivada".
     // One card per message the session was sent (split).
-    const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me, withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? []))
+    const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me, withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
 
     // A subagent's group hangs from the loop that launched it; one whose launcher has no
     // group (it never planned) hangs from the main one.
@@ -794,8 +802,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           ? []
           : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || drawn.filter(t => t.turn === u.id).length > 1))
       const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
-      lines.push(...rows(loose, top, top, lit, below, inScope, work))
-      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), level === 0))
+      // Only the main group's tasks send messages: a subagent's lines have none pending.
+      const sent = g.agent === MAIN ? pending : []
+      lines.push(...rows(loose, top, top, lit, below, inScope, work ?? (() => idle), sent))
+      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), sent, level === 0))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
     }
@@ -858,7 +868,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const ids = flat(kept).map(t => t.id)
     const has = (id?: string) => id !== undefined && ids.includes(id)
     // A session split in cards keeps each card under the task its message was sent from.
-    const moved = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [])).map(c =>
+    const moved = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo)).map(c =>
       c.part !== undefined ? c : has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
     )
     return trimToWork({ ...base, children: moved }, 0)
