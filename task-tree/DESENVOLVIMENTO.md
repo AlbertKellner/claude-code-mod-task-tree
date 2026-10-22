@@ -10,6 +10,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
+- `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
 - `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
@@ -689,7 +690,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   marcando que há sessões embaixo. Sem percentual, sem anel. No desktop o anel é clicável e abre a sessão
   no painel principal da janela (pedido do usuário: "quero que o icone de contexto seja um icone
   clicavel tambem, e quando clicar nele, abra a sessao que ele representa"): um `Button` sem
-  rótulo centrado no anel (`ringOver`; o mesmo helper `overBox(cx)` do ícone de progresso escolhe
+  rótulo centrado no anel (`ringOver`, que chama `overlay('ring', …)` de `draw/geometry.ts`; o `overBox(cx)` do módulo, o mesmo do ícone de progresso, escolhe
   as células inteiras com o meio mais perto do centro do glifo; pedidos do usuário: "mesmo problema
   do icone de progresso, o botao atras nao tem padding" e "o mouse over do anel de contexto continua
   pequeno, nao envolvendo o icone todo"). O realce é do botão nativo: o tamanho vem do texto do botão
@@ -697,7 +698,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` do botão tem 4 células
   (`RING_CELLS`), a largura do realce nativo (32 px), ancorado pela ponta direita da linha
   (`right`, `ringRight`), e o anel é desenhado no meio dele (`ringFromRight`: x = W − 8·(right +
-  2)); o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
+  2); constantes `RING_D` 15, `RING_CELLS` 4, `RING_IN` = `CARD_RIGHT` + `RING_D` = 17,5). A regra "ancorar pela borda mais próxima" (ícone e nome contados pela esquerda, anel pela direita; célula `CELL` = 8 contra ≈7,87 reais) está escrita uma vez, no cabeçalho de `draw/geometry.ts`; `foldOver`/`ringOver`/`nameLayer` só chamam `overlay`; o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
   desalinhado"; aprovado depois com "Sim, ficou certo"): a célula do desktop tem um pouco menos de
   8 px (≈7,87); contado da esquerda (cerca de 57 células) o erro somava ≈7 px e o anel ficava fora
   do realce, e contado da direita ele é de fração de px. O teste confere o `Box` pela direita, com 4
