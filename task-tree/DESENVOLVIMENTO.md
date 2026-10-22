@@ -56,8 +56,21 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
 
 `tests/orcamento.test.ts` monta o painel com o fixture `REAL` nas quatro combinações superfície
 (terminal/desktop) × visão (resumida/completa), com `bodyColumns` 100. Afirma que o desenho não
-caiu no de emergência nem em erro, que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`, e que
-cada desenho leva menos de 500 ms. Imprime a linha `ORCAMENTO …` no log do kit.
+caiu no de emergência nem em erro e que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`. É um
+teste por combinação (4 testes, cada um com os 5 s que o kit dá por teste; 3 desenhos por medida). O tempo
+de parede (`ms`) não é afirmado: só sai na linha `ORCAMENTO …` do log do kit, para o olho.
+
+- Regra dos testes: não afirmam tempo de parede nem esperam por `setTimeout` fixo a leitura de fundo das
+  filhas; esperam o fato. `settled()` (em `orcamento.test.ts` e no golden do estado real de
+  `svg-golden.test.ts`) espera, até 4 s, o estado `children` com todas as filhas (via `on('state.set')`) e
+  uma publicação do painel depois disso (via `fs.write`), com erro que diz onde parou. Esperar "dois
+  desenhos iguais" não serve: os `handle` dos botões são sorteados a cada desenho.
+- Motivo (bug de teste instável): o teste único fazia 4 combinações × 5 desenhos (1,4 s livre) e estourava
+  os 5 s do kit com duas suítes rodando juntas. Esperas fixas da mesma família seguem em
+  `durabilidade.test.ts` (150 ms), `reinicio.test.ts` (150 ms) e `task-tree.test.ts` (20/50 ms e um laço de
+  até 200 ms); não falharam, nem sob carga.
+- Rode a suíte sozinha, sem outra ao mesmo tempo; se algo falhar, guarde a saída inteira (as linhas
+  `(fail)` e o erro), não só o total.
 
 - `size` no teste é o JSON da árvore que o kit devolve: proporcional ao `drawSize` do módulo, não igual.
 - Se o desenho crescer de propósito, refaça a `BASELINE` em `orcamento.test.ts`: rode o teste numa cópia
