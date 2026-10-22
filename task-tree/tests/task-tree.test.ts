@@ -3005,6 +3005,73 @@ describe('cadeias separadas e na ordem de execução (caso do print)', () => {
     expect([...c15].sort((a, b) => a - b)).toEqual(c15)
     expect([...c16].sort((a, b) => a - b)).toEqual(c16)
   })
+
+  // The store as the first test leaves it, read by the second one: a reload of the mod empties the
+  // state, so the second test (a fresh module) starts from nothing but this store.
+  const store: Record<string, unknown> = {}
+  const host = (on: any) => {
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('clock.every', () => ({ deny: 'sem relógio no teste' }) as any)
+    on('session.id', () => ({ value: 'local_eu' }) as any)
+    on('command.register', () => ({ value: {} }) as any)
+    on('tool.register', () => ({ value: {} }) as any)
+    on('ui.open', () => ({ value: {} }) as any)
+    on('store.set', (_$: any, e: any) => {
+      store[e.key] = JSON.parse(JSON.stringify(e.value))
+      return { value: undefined } as any
+    })
+    on('store.get', (_$: any, e: any) => ({ value: store[e.key] }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          ...[[I, 'impl'], [G, 'gov'], [S, 'svg'], [D, 'docs']].map(([id, name]) => ({ sessionId: id, name, title: name, isRunning: false, isArchived: false, startedBy: 'local_eu' })),
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(PANELS).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify(PANELS[id]) : '{}' }) as any
+    })
+  }
+  test('recarga do mod, antes: as rodadas e âncoras das sessões vão para o store', async ($, on) => {
+    let t = 10
+    let n = 0
+    host(on)
+    on('clock.now', () => ({ value: t }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${[I, D, S, G][n++]}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+    await plan($, [{ id: 'X', title: 'Abrir' }, { id: 'Y', title: 'Repassar 15' }, { id: 'Z', title: 'Repassar 16' }])
+    await start($, ['X'])
+    for (let i = 0; i < 4; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['X'])
+    await start($, ['Y'])
+    t = 100
+    await $.tool.call({ tool: 'SendMessage', to: I, message: '15' } as any)
+    await done($, ['Y'])
+    await start($, ['Z'])
+    t = 300
+    await $.tool.call({ tool: 'SendMessage', to: I, message: '16' } as any)
+    const links = store['links:local_eu'] as any
+    expect(links.children.find((c: any) => c.id === I).rounds.map((r: any) => r.anchor)).toEqual(['Y', 'Z'])
+  })
+
+  test('recarga do mod, depois: módulo novo, só com o store; cada cadeia continua sob a tarefa de origem', async ($, on) => {
+    on('clock.now', () => ({ value: 500 }) as any)
+    on('session.start', () => ({ cwd: '.' }) as any)
+    host(on)
+    await $.session.start({ cwd: '.' } as any)
+    // The host's list of sessions is read in the background at the start.
+    await new Promise(r => setTimeout(r, 50))
+    const texts = rowsOf(await view($)).map(l => l.text)
+    const at = (s: string) => texts.findIndex(x => x.includes(s))
+    for (const w of ['Impl', 'Docs', 'SVG', 'Gov']) {
+      expect(at(`${w} 15`)).toBeGreaterThan(at('Repassar 15'))
+      expect(at(`${w} 15`)).toBeLessThan(at('Repassar 16'))
+      expect(at(`${w} 16`)).toBeGreaterThan(at('Repassar 16'))
+    }
+  })
 })
 
 describe('tooltip e ícone que recolhe, juntos', () => {
@@ -3278,5 +3345,30 @@ describe('resposta da sessão no cartão', () => {
     expect(at('Nada a commitar.')).toBeLessThan(at('Outra coisa'))
     // Not a task: no count, no time on its line.
     expect(texts[at('Nada a commitar.')]).not.toMatch(/\d+\/\d+|\d:\d\d/)
+  })
+
+  test('grupo com cartão de sessão filha não mostra o ↩ da própria sessão', async ($, on) => {
+    const KID = 'local_eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+    publish(on, {})
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          { sessionId: KID, name: 'impl', title: 'Impl', isRunning: true, isArchived: false, startedBy: 'local_eu' },
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${KID}` }))
+    await $.prompt.submit({ text: 'delegar' } as any)
+    await plan($, [{ id: 'A', title: 'Abrir a filha' }])
+    await start($, ['A'])
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['A'])
+    await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Filha aberta.' } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'x', durationMs: 1, isAborted: false, turnId: 't1' } as any)
+    const texts = rowsOf(await view($)).map(l => l.text)
+    expect(texts.some(t => t.includes('Abrir a filha'))).toBe(true)
+    expect(texts.some(t => t.includes('Filha aberta.'))).toBe(false)
   })
 })

@@ -922,6 +922,7 @@ async function selfId($: any): Promise<string | undefined> {
 // (groups, waits, the sessions it opened), for the session that opened it to draw under the
 // task it was opened on, as this session draws it. `tasks` is for earlier versions.
 async function publishWait($: any) {
+  await saveLinks($)
   try {
     const id = await selfId($)
     const path = id ? await waitFile($, id) : undefined
@@ -1027,6 +1028,56 @@ async function joinWork($: any, ids: string[], fresh: boolean) {
   if (ids.length === 0) return
   const { value: cur = [] } = await $.state.get(workState)
   await setWork($, fresh ? [...new Set(ids)] : [...new Set([...(cur as string[]), ...ids])])
+}
+// What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
+// rounds of their messages; the sends still waiting; the messages received; the subagents'
+// launches) lives in the state, which a reload of the mod empties: kept in the store too, and
+// brought back at the start, else the cards fall to the root and the chains lose their origin.
+// Whether this module brought them back yet: a reload does not run session.start, so the first
+// save brings them back before it writes, and nothing new is lost to the old copy.
+let linksLoaded = false
+async function saveLinks($: any) {
+  if (!linksLoaded) await restoreLinks($)
+  try {
+    const { value: children } = await $.state.get(childrenState)
+    const { value: sends } = await $.state.get(sendsState)
+    const { value: received } = await $.state.get(receivedState)
+    const { value: launches } = await $.state.get(launchesState)
+    await $.store.set(`links:${await $.session.id()}`, {
+      children: (children as Child[] | undefined)?.map(c => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })),
+      sends,
+      received,
+      launches,
+    })
+  } catch {}
+}
+// Merged into what the state may already hold (the host's list read before): a session keeps its
+// fields and gets back the anchors and rounds; the lists get back the entries they lack.
+async function restoreLinks($: any) {
+  linksLoaded = true
+  try {
+    const saved = (await $.store.get(`links:${await $.session.id()}`)) as Record<string, unknown> | undefined
+    if (saved === undefined || saved === null || typeof saved !== 'object') return
+    const list = (k: string) => (Array.isArray(saved[k]) ? (saved[k] as any[]) : [])
+    const join = (cur: any[] | undefined, old: any[]) => {
+      const now = cur ?? []
+      const seen = new Set(now.map(x => JSON.stringify(x)))
+      return [...old.filter(x => !seen.has(JSON.stringify(x))), ...now]
+    }
+    const old = list('children') as Child[]
+    if (old.length > 0)
+      await update($, childrenState, cur =>
+        cur === undefined || cur.length === 0
+          ? old
+          : cur.map(c => {
+              const o = old.find(k => k.id === c.id)
+              return o ? { ...c, anchor: c.anchor ?? o.anchor, lastAnchor: c.lastAnchor ?? o.lastAnchor, rounds: c.rounds ?? o.rounds } : c
+            }),
+      )
+    if (list('sends').length > 0) await update($, sendsState, cur => join(cur, list('sends')))
+    if (list('received').length > 0) await update($, receivedState, cur => join(cur, list('received')).slice(-20))
+    if (list('launches').length > 0) await update($, launchesState, cur => join(cur, list('launches')).slice(-20))
+  } catch {}
 }
 async function restoreWork($: any) {
   if ((await $.state.get(workState)).value !== undefined) return
@@ -1644,6 +1695,7 @@ export const register: Register = on => {
     if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
     await restoreView($)
     await restoreWork($)
+    await restoreLinks($)
     const r = await next(e)
     // Opens the panel with the session, so nobody has to type /task-tree.
     void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
@@ -2324,9 +2376,11 @@ let lastRecap: string | undefined
       }
       // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
       const inner = open ? rows(list, top + 1, top + 1, lit, below, pinned, scope, work) : []
-      // The turn's answer closes the message's group, after all its level-1 tasks, as on a card.
+      // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
+      // not when a session's card hangs in the group: the answers that count are in the cards, and
+      // one after a card still at work would read as the group being over.
       const said: Row[] =
-        open && typeof u.reply === 'string' && u.reply !== ''
+        open && typeof u.reply === 'string' && u.reply !== '' && !ws.some(w => w.any)
           ? [{ depth: top + 1, tone: 'reply', title: u.reply, label: 'Resposta' }]
           : []
       return [row, ...inner, ...said]
