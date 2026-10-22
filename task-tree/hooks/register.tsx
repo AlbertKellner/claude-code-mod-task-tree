@@ -1448,8 +1448,7 @@ function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number,
     // whole height), so the highlight has the same room on all four sides (the person's words:
     // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
     // last line up to half the card's edge off the name's middle.
-    const box = overBox(R - 7, RING_BOX, RING_ROOM)
-    const ring = contextRing(r.ring.percent, 8 * box.left + 4 * box.width, H / 2)
+    const ring = contextRing(r.ring.percent, W - ringFromRight(Math.max(0, cards.length - 1)), H / 2)
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
   // Waiting on the person: the word in amber (the label has no icon to color).
@@ -1488,8 +1487,14 @@ function overBox(cx: number, widths: number[] = [3, 2], half = 0): { left: numbe
 // keeps it at the left of a wider Box (measured on the person's screen: in a 5-cell Box, the ring
 // 7.5 px right of the highlight's middle): the Box is exactly 4 cells, the highlight's own width,
 // and the ring is drawn at its middle.
-const RING_BOX = [4]
-const RING_ROOM = 7.5 + 4
+// Placed from the line's right end, not its left: the desktop's cell is a little under 8 px
+// (measured on the person's screen, the Box counted from the left landed 7 px left of the ring
+// after some 57 cells), so cells counted from the left drift; from the right, a few cells off the
+// edge, the drift is a fraction of a pixel. The ring is drawn at the Box's middle: the card's
+// right edge less 15 px (on the innermost card, 6 px in per card), moved to a whole cell.
+const RING_CELLS = 4
+const ringRight = (m: number) => Math.max(0, Math.round((17.5 + 6 * m) / 8 - RING_CELLS / 2))
+const ringFromRight = (m: number) => 8 * (ringRight(m) + RING_CELLS / 2)
 const RING_LABEL = ' '
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
@@ -2738,9 +2743,9 @@ const REPLY = 'resposta'
     // main pane (open_session_in, focus); what it refuses is said in a toast.
     const ringOver = (r: Row, f: Frame, W: number) => {
       const m = Math.max(0, f.cards.length - 1)
-      const { left, width } = overBox(W - 17.5 - 6 * m, RING_BOX, RING_ROOM)
+      const right = ringRight(m)
       return (
-        <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
+        <Box position="absolute" top={0} bottom={0} right={right} width={RING_CELLS} flexDirection="row" alignItems="center" justifyContent="center">
           <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={() => void openSession($, r.sid as string, r.title)} />
         </Box>
       )

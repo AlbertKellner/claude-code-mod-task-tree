@@ -2690,19 +2690,24 @@ describe('anel de contexto abre a sessão', () => {
     const ringCx = Number(/class="tk" cx="([\d.]+)"/.exec(tree.children.map((c: any) => JSON.stringify(c)).join('').replace(/\\"/g, '"'))?.[1])
     // 4 or 5 cells, holding the ring's whole box (15 px across) with room on each side; the Button's
     // label an em space, for a highlight the ring's size.
+    // Anchored from the line's right end (cells counted from the left drift on the desktop).
     expect(ringBox.props.width).toBe(4)
+    expect(ringBox.props.left).toBeUndefined()
+    const lineW = Number(/width="(\d+)"/.exec(String(tree.children[1]?.children?.[0]?.children?.[0]?.props?.source ?? ''))?.[1] ?? 472)
+    const boxL = lineW - 8 * (ringBox.props.right + ringBox.props.width)
+    const boxR = lineW - 8 * ringBox.props.right
     // The same room on all four sides (to 1 px): the ring at the Box's middle, the Box the line's
     // whole height (top 0, bottom 0: the Svg's height).
     const flatSrc = JSON.stringify(tree).replace(/\\"/g, '"')
     const ringCy = Number(/class="tk" cx="[\d.]+" cy="([\d.]+)"/.exec(flatSrc)?.[1])
     const rowH = Number(/height="(\d+)" viewBox="0 0 \d+ \d+"[^]*?class="tk"/.exec(flatSrc.slice(flatSrc.lastIndexOf('<svg', flatSrc.indexOf('class="tk"'))))?.[1])
-    const [gl, gr] = [ringCx - 7.5 - 8 * ringBox.props.left, 8 * (ringBox.props.left + ringBox.props.width) - (ringCx + 7.5)]
+    const [gl, gr] = [ringCx - 7.5 - boxL, boxR - (ringCx + 7.5)]
     const [gt, gb] = [ringCy - 7.5, rowH - ringCy - 7.5]
     expect(Math.abs(gl - gr)).toBeLessThanOrEqual(1)
     expect(Math.abs(gt - gb)).toBeLessThanOrEqual(1)
     expect(Math.min(gl, gr, gt, gb)).toBeGreaterThan(0)
-    expect(8 * ringBox.props.left).toBeLessThanOrEqual(ringCx - 7.5 - 4)
-    expect(8 * (ringBox.props.left + ringBox.props.width)).toBeGreaterThanOrEqual(ringCx + 7.5 + 4)
+    expect(boxL).toBeLessThanOrEqual(ringCx - 7.5 - 4)
+    expect(boxR).toBeGreaterThanOrEqual(ringCx + 7.5 + 4)
     expect(ringBox.children.find((c: any) => c.type === 'Button').props.label).toBe(' ')
     expect(ringBox.props).toMatchObject({ top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' })
     const iconBox = boxes.find(b => b.children.some((c: any) => String(c.props?.key) === 'fold:|t:A'))

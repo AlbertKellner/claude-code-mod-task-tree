@@ -507,16 +507,16 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   do icone de progresso, o botao atras nao tem padding" e "o mouse over do anel de contexto continua
   pequeno, nao envolvendo o icone todo"). O realce é do botão nativo: o tamanho vem do texto do botão
   mais o padding nativo, e o `Box` só posiciona. No anel, o texto é um em space (U+2003,
-  `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` tem exatamente a largura do
-  realce nativo, 4 células (32 px; `RING_BOX = [4]`, `RING_ROOM`; `overBox` com `widths` e
-  `half`), cerca de 8,5 px de folga de cada lado do anel. Medido nos prints do usuário ("ainda
-  desalinhado"): o realce nativo tem 32 px e encosta à esquerda quando o `Box` é mais largo; com 5
-  células (40 px) e o anel no meio do `Box`, o anel ficava 7,5 px à direita do meio do realce; o ícone de progresso continua com 3 ou 2. O kit não dá tamanho ao `Button`, e o teste mede
-  o `Box` e o texto, não o realce nativo. O anel é desenhado no centro do `Box` do
-  botão, e não o contrário (`labelSvg`, pelo mesmo `overBox`: x = 8·left + 4·width, y = metade da
-  altura da linha; pedido do usuário: "quase, ainda esta desalinhado"), com folga igual nos quatro
-  lados (o teste aceita até 1 px de diferença). Antes ele ficava na coluna do tempo e no meio do
-  nome, até 5 px fora do centro do `Box`, que no cabeçalho do cartão inclui a borda de cima chama `open_session_in`
+  `RING_LABEL`), para o realce ter o tamanho do anel (15 px), e o `Box` do botão tem 4 células
+  (`RING_CELLS`), a largura do realce nativo (32 px), ancorado pela ponta direita da linha
+  (`right`, `ringRight`), e o anel é desenhado no meio dele (`ringFromRight`: x = W − 8·(right +
+  2)); o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
+  desalinhado"; aprovado depois com "Sim, ficou certo"): a célula do desktop tem um pouco menos de
+  8 px (≈7,87); contado da esquerda (cerca de 57 células) o erro somava ≈7 px e o anel ficava fora
+  do realce, e contado da direita ele é de fração de px. O teste confere o `Box` pela direita, com 4
+  células e folgas iguais até 1 px. O kit não dá tamanho ao `Button`, e o teste não mede o realce
+  nativo)
+  chama `open_session_in`
   (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
   clicar na sessão na barra lateral; o kit não tem API própria para isso e o `Link` do desktop só
   abre https:. Limites do app: só abre esta sessão ou uma aberta por ela (o cartão de uma neta é
