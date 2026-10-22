@@ -321,6 +321,21 @@ describe('desktop', () => {
 })
 
 describe('abrir e recolher', () => {
+  test('clique depois de o desenho ser trocado (tique do relógio, plano novo) ainda recolhe e abre', async $ => {
+    await plan($, PLAN)
+    for (const surface of ['terminal', 'desktop'] as const) {
+      const ui = await $.ui.mount({ plugin: 'task-tree', surface, component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
+      await ui.drawn()
+      // The drawing is replaced before the press lands (here: a change to the panel).
+      await start($, ['A/2'])
+      await ui.press({ key: 'fold:|t:A' })
+      await ui.unmount()
+      expect(rowsOf(await view($)).map(l => l.text)[0]).toContain('⋯')
+      await fold($, '|t:A', surface)
+      expect(rowsOf(await view($)).map(l => l.text)[0]).not.toContain('⋯')
+    }
+  })
+
   test('▾ recolhe a tarefa e o que vem embaixo; ▸ abre de novo', async $ => {
     await plan($, PLAN)
     let lines = await view($)
@@ -2643,6 +2658,109 @@ describe('textos reais do host (0.7.3)', () => {
     expect(lines[0]).not.toContain('42%')
     expect(lines.find(l => l.includes('Delegar'))).not.toContain('42%')
     expect(lines.find(l => /^[│ ]*⑂ filha/.test(l))).toContain('42%')
+  })
+})
+
+describe('painel de volta depois de reiniciar a sessão', () => {
+  test('prompt da pessoa reabre o painel que não está na tela; com o painel na tela, não reabre', async ($, on) => {
+    let placed = false
+    const opens: any[] = []
+    on('ui.panes', () => ({ value: placed ? [{ id: 'task-tree', isPlaced: true }] : [] }) as any)
+    on('ui.open', (_$: any, e: any) => {
+      opens.push(e)
+      placed = true
+      return { value: { isPlaced: true } } as any
+    })
+    on('prompt.submit', (_$: any, e: any) => e)
+    await $.prompt.submit({ text: 'oi', origin: { kind: 'composer' } } as any)
+    expect(opens.filter(o => o.id === 'task-tree')).toHaveLength(1)
+    await $.prompt.submit({ text: 'de novo', origin: { kind: 'composer' } } as any)
+    expect(opens.filter(o => o.id === 'task-tree')).toHaveLength(1)
+    // Another session's message is not the person asking: no open from it.
+    placed = false
+    await $.prompt.submit({ text: '<cross-session-message from="local_x">oi</cross-session-message>', origin: { kind: 'composer' } } as any)
+    expect(opens.filter(o => o.id === 'task-tree')).toHaveLength(1)
+  })
+})
+
+describe('/task-tree com diagnóstico', () => {
+  test('abre o painel, diz o que o app respondeu e os painéis; resumida/completa trocam a visão', async ($, on) => {
+    let placed = false
+    on('ui.panes', () => ({ value: [{ id: 'task-tree', isPlaced: placed, isShown: placed }, { id: 'outro', isPlaced: true, isShown: !placed }] }) as any)
+    on('ui.open', () => ({ value: placed ? { isPlaced: true } : { isPlaced: false, reason: 'unasked under 144 columns (now 100)' } }) as any)
+    await plan($, PLAN)
+    let r: any = await ($ as any).command.run({ command: 'task-tree', args: 'resumida' })
+    expect(String(r?.text)).toContain('O app não pôs o painel na tela: unasked under 144 columns (now 100)')
+    expect(String(r?.text)).toContain('outro (na frente)')
+    expect(rowsOf(await view($)).length).toBeGreaterThan(0)
+    placed = true
+    r = await ($ as any).command.run({ command: 'task-tree', args: 'completa' })
+    expect(String(r?.text)).toContain('Painel de tarefas aberto. Painéis: task-tree (na frente)')
+  })
+})
+
+describe('histórico longo', () => {
+  test('a visão completa desenha só os 3 últimos pedidos e conta os anteriores numa linha; o desenho fica pequeno', async ($, on) => {
+    on('prompt.submit', (_$: any, e: any) => e)
+    let t = 1000
+    on('clock.now', () => ({ value: t }) as any)
+    for (let i = 1; i <= 60; i++) {
+      t += 1000
+      await $.prompt.submit({ text: `pedido ${i}`, origin: { kind: 'composer' } } as any)
+      await call($, 'plan', { tasks: [{ id: `P${i}`, title: `Pedido ${i}`, children: [{ id: 'a', title: 'Etapa a' }, { id: 'b', title: 'Etapa b' }] }], request: `Pedido ${i}` })
+      await done($, [`P${i}`])
+    }
+    for (const v of ['summary', 'full'] as const) {
+      const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
+      await ui.press({ key: `view:${v}` })
+      await ui.unmount()
+      const texts = rowsOf(await view($)).map(l => l.text)
+      if (v === 'full') {
+        expect(texts.some(x => x.includes('Pedido 60'))).toBe(true)
+        expect(texts.some(x => x.includes('Pedido 57 '))).toBe(false)
+      }
+    }
+    const rows = await desktop($)
+    expect(rows.some(r => r.alt.includes('+57 pedidos anteriores'))).toBe(true)
+    expect(rows.reduce((a, r) => a + r.source.length + r.alt.length, 0)).toBeLessThan(100000)
+    // The header still counts the whole session.
+    expect(rows[0].alt).toContain('120 de 120')
+  })
+})
+
+describe('desenho grande demais', () => {
+  test('acima do limite, o painel mostra só o aviso; o /task-tree diz o tamanho do desenho', async ($, on) => {
+    on('ui.panes', () => ({ value: [{ id: 'task-tree', isPlaced: true, isShown: true }] }) as any)
+    on('ui.open', () => ({ value: { isPlaced: true } }) as any)
+    await plan($, [{ id: 'A', title: 'Pequeno' }])
+    let ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
+    await ui.drawn()
+    await ui.unmount()
+    const r: any = await ($ as any).command.run({ command: 'task-tree', args: '' })
+    expect(String(r?.text)).toMatch(/Desenho: \d+ KB de 600 KB\./)
+    // 700 open steps: nothing to cut (open work is always drawn), well past the limit.
+    await plan($, [{ id: 'B', title: 'Enorme', children: Array.from({ length: 700 }, (_, i) => ({ id: `s${i}`, title: `Etapa com um nome razoavelmente comprido número ${i}` })) }])
+    ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
+    const big = JSON.stringify(await ui.drawn())
+    await ui.unmount()
+    expect(big).toContain('Painel grande demais')
+    expect(big.length).toBeLessThan(2000)
+  })
+})
+
+describe('tamanho do desenho no desktop', () => {
+  test('cada Svg leva só as regras de estilo das classes que usa, claras e escuras', async $ => {
+    await plan($, PLAN)
+    await start($, ['A/1/1.1'])
+    const rows = await desktop($)
+    for (const r of rows) {
+      const style = /<style>([^<]*)<\/style>/.exec(r.source)?.[1] ?? ''
+      const body = r.source.replace(/<style>[^<]*<\/style>/, '')
+      const used = new Set([...body.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(' ')))
+      const ruled = new Set([...style.matchAll(/\.([a-z]+)\{/g)].map(m => m[1]))
+      for (const c of ruled) expect(used.has(c)).toBe(true)
+      for (const c of used) if (['p', 's', 'am', 'amf', 'gr', 'grf', 'gy', 'gyf', 'g', 'tr', 'ln', 'cd', 'cs', 'bl', 'rd', 'tk'].includes(c)) expect(ruled.has(c)).toBe(true)
+    }
   })
 })
 
