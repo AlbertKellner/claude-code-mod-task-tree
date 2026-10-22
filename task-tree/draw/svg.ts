@@ -73,12 +73,27 @@ export const DARK: [string, string][] = [
   ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#444441'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
-// The sheet of one Svg: its classes' rules, light and dark.
+// The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
+// alone, so it is built once per set (a drawing's lines share a handful of sets) and kept in a Map of
+// the module; the string is the same the rules would give again.
+const sheets = new Map<string, string>()
+const CLASS = /class="([^"]+)"/g
 export function slim(svg: string): string {
-  const used = new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(' ')))
-  const rules = (list: [string, string][]) => list.filter(([c]) => used.has(c)).map(([c, d]) => `.${c}{${d}}`).join('')
-  const dark = rules(DARK)
-  return svg.replace(STYLE, `<style>svg,text{cursor:default;user-select:none}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`)
+  // The key is the class attributes in the order they come (lines of one kind share it), read in
+  // one pass; the set itself is only built when the sheet is not known yet.
+  let key = ''
+  CLASS.lastIndex = 0
+  for (let m = CLASS.exec(svg); m !== null; m = CLASS.exec(svg)) key += m[1] + '|'
+  let sheet = sheets.get(key)
+  if (sheet === undefined) {
+    const used = new Set(key.split(/[ |]/))
+    const rules = (list: [string, string][]) => list.filter(([c]) => used.has(c)).map(([c, d]) => `.${c}{${d}}`).join('')
+    const dark = rules(DARK)
+    sheet = `<style>svg,text{cursor:default;user-select:none}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`
+    if (sheets.size > 1000) sheets.clear()
+    sheets.set(key, sheet)
+  }
+  return svg.replace(STYLE, sheet)
 }
 
 export const xml = (s: string) =>
