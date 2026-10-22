@@ -2691,7 +2691,16 @@ describe('anel de contexto abre a sessão', () => {
     // 4 or 5 cells, holding the ring's whole box (15 px across) with room on each side; the Button's
     // label an em space, for a highlight the ring's size.
     expect([4, 5]).toContain(ringBox.props.width)
-    expect(Math.abs(8 * ringBox.props.left + 4 * ringBox.props.width - ringCx)).toBeLessThanOrEqual(2.5)
+    // The same room on all four sides (to 1 px): the ring at the Box's middle, the Box the line's
+    // whole height (top 0, bottom 0: the Svg's height).
+    const flatSrc = JSON.stringify(tree).replace(/\\"/g, '"')
+    const ringCy = Number(/class="tk" cx="[\d.]+" cy="([\d.]+)"/.exec(flatSrc)?.[1])
+    const rowH = Number(/height="(\d+)" viewBox="0 0 \d+ \d+"[^]*?class="tk"/.exec(flatSrc.slice(flatSrc.lastIndexOf('<svg', flatSrc.indexOf('class="tk"'))))?.[1])
+    const [gl, gr] = [ringCx - 7.5 - 8 * ringBox.props.left, 8 * (ringBox.props.left + ringBox.props.width) - (ringCx + 7.5)]
+    const [gt, gb] = [ringCy - 7.5, rowH - ringCy - 7.5]
+    expect(Math.abs(gl - gr)).toBeLessThanOrEqual(1)
+    expect(Math.abs(gt - gb)).toBeLessThanOrEqual(1)
+    expect(Math.min(gl, gr, gt, gb)).toBeGreaterThan(0)
     expect(8 * ringBox.props.left).toBeLessThanOrEqual(ringCx - 7.5 - 8)
     expect(8 * (ringBox.props.left + ringBox.props.width)).toBeGreaterThanOrEqual(ringCx + 7.5 + 8)
     expect(ringBox.children.find((c: any) => c.type === 'Button').props.label).toBe(' ')
