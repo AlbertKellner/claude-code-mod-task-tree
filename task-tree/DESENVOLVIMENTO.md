@@ -686,7 +686,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
   do ícone no desktop, "✉" (cor `permission`) no terminal, `alt` "Aguardando confirmação de
-  <sessão>: título" e chip "N aguardando sessão"; não conta como "em andamento". O chip "N em andamento" conta, pelos dados e não
+  <sessão>: título" e chip "N aguardando sessão"; não conta como "em andamento" (nem a das linhas ✉ dos cartões de filha: o `active` do `ui.render` exclui, além dos `sentIds` da fila desta sessão, os objetos de tarefa das linhas de tom `sent`, por objeto e não por id, porque ids se repetem entre sessões; uma ✉ com filhos desenhados tem `nodes` vazio e as folhas abertas dela continuam contando; corrigido na fase 3, teste em `layout.test.ts`). O chip "N em andamento" conta, pelos dados e não
   pelas linhas desenhadas (`activeLeaves`), todas as folhas abertas (◉ e ○, sem subtarefas) de todos
   os grupos do painel e das sessões não arquivadas (até `DEEP`), como o `total`: é M − N do "N de M"
   (interrompidas fora dos dois), menos as que esperam confirmação (chip ✉). Pedido do usuário: "a
@@ -853,11 +853,6 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   parar antes do `Box` do anel quando há anel.
 - Sobras da etapa 1 do layout: `panel(all, …)` roda uma vez sem escolhas com resultado descartado
   (mantido para o comportamento idêntico, inclusive o aquecimento do cache) e `elapsed` não é usado.
-- Bug conhecido (falha marcada `KNOWN` em `layout.test.ts`, que imprime `TODO` e passa; a orquestradora
-  decide se vira correção): o cabeçalho conta como "em andamento" a tarefa ✉ de um cartão de filha. A
-  fórmula `active` do `ui.render` exclui só as tarefas de `sentIds` (mensagens na fila DESTA sessão); a
-  tarefa da filha que espera outra sessão fica como folha aberta e entra no "em andamento", embora já
-  conte em "aguardando sessão". No cenário do teste: 1 em andamento + 2 aguardando; o esperado é 0 + 2.
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
   rolável própria. O único caminho é o padrão do `ui.scroll` do `Pane`: não chamar `next`, guardar o
   próprio offset (`e.by`), invalidar e redesenhar o cabeçalho mais a fatia das linhas
