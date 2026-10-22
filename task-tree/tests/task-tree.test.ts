@@ -2677,6 +2677,22 @@ describe('anel de contexto abre a sessão', () => {
     await ui.press({ key: `open:${KID}` })
     await ui.unmount()
     expect(opened).toEqual([expect.objectContaining({ session_id: KID, target: 'focus' })])
+    // The ring's Box: 2 or 3 whole cells, its middle within 2.5 px of the ring's center; the icon's
+    // Box (depth 0, at 12.5 px) is the same helper's: 3 cells from 0.
+    const tree = JSON.parse(src)
+    const boxes: any[] = []
+    const walk = (el: any) => {
+      if (el?.type === 'Box' && (el.children ?? []).some((c: any) => c?.type === 'Button')) boxes.push(el)
+      for (const c of el?.children ?? []) walk(c)
+    }
+    walk(tree)
+    const ringBox = boxes.find(b => b.children.some((c: any) => String(c.props?.key).startsWith('open:')))
+    const ringCx = Number(/class="tk" cx="([\d.]+)"/.exec(tree.children.map((c: any) => JSON.stringify(c)).join('').replace(/\\"/g, '"'))?.[1])
+    expect([2, 3]).toContain(ringBox.props.width)
+    expect(Math.abs(8 * ringBox.props.left + 4 * ringBox.props.width - ringCx)).toBeLessThanOrEqual(2.5)
+    expect(ringBox.props).toMatchObject({ top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' })
+    const iconBox = boxes.find(b => b.children.some((c: any) => String(c.props?.key) === 'fold:|t:A'))
+    expect(iconBox.props).toMatchObject({ left: 0, width: 3, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' })
     // On the card's line: the ring's Button only (the ⑂ folds a card with something below it).
     expect(src).not.toContain(`fold:|s:${KID}`)
   })
@@ -3040,6 +3056,42 @@ describe('cadeias separadas e na ordem de execução (caso do print)', () => {
     expect(c16.every(i => i > at('Repassar 16'))).toBe(true)
     expect([...c15].sort((a, b) => a - b)).toEqual(c15)
     expect([...c16].sort((a, b) => a - b)).toEqual(c16)
+  })
+
+  test('o anel aparece em todos os cartões da sessão, também parada e nos cartões de rodadas antigas', async ($, on) => {
+    let t = 10
+    let n = 0
+    on('clock.now', () => ({ value: t }) as any)
+    on('env.get', () => ({ value: 'C:/home' }) as any)
+    on('mcp.call', () => ({
+      value: {
+        content: [{ type: 'text', text: JSON.stringify([
+          { sessionId: 'local_pai', title: 'Pai', isRunning: false },
+          ...[[I, 'impl'], [G, 'gov'], [S, 'svg'], [D, 'docs']].map(([id, name]) => ({ sessionId: id, name, title: name, isRunning: false, isArchived: false, startedBy: 'local_eu' })),
+        ]) }],
+        isError: false,
+      },
+    }) as any)
+    on('fs.read', (_$: any, e: any) => {
+      const id = Object.keys(PANELS).find(k => String(e.path).includes(k))
+      return ({ value: id ? JSON.stringify({ ...PANELS[id], ...(id === I ? { context: { percent: 37, at: 1 } } : {}) }) : '{}' }) as any
+    })
+    on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({ result: `Started session ${[I, D, S, G][n++]}` }))
+    on('tool.call', { tool: 'SendMessage' } as any, async () => ({ result: 'Message delivered; its turn has started on it' }))
+    await plan($, [{ id: 'X', title: 'Abrir' }, { id: 'Y', title: 'Repassar 15' }, { id: 'Z', title: 'Repassar 16' }])
+    await start($, ['X'])
+    for (let i = 0; i < 4; i++) await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    await done($, ['X'])
+    await start($, ['Y'])
+    t = 100
+    await $.tool.call({ tool: 'SendMessage', to: I, message: '15' } as any)
+    await done($, ['Y'])
+    await start($, ['Z'])
+    t = 300
+    await $.tool.call({ tool: 'SendMessage', to: I, message: '16' } as any)
+    const cards = rowsOf(await view($)).map(l => l.text).filter(x => /⑂ impl/.test(x))
+    expect(cards).toHaveLength(3)
+    for (const c of cards) expect(c).toContain('37%')
   })
 
   // The store as the first test leaves it, read by the second one: a reload of the mod empties the
