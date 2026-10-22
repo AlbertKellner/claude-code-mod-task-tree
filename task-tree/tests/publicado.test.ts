@@ -193,9 +193,15 @@ describe('arquivo publicado: contrato e validação', () => {
 // record in the store, not the status line; and the home folder is asked of the host once. A change
 // in a session's file publishes again.
 describe('publicar só quando muda', () => {
-  type Counts = { t: number; file: string; written: string[]; stores: number; statuses: number; envs: number }
+  type Counts = { t: number; file: string; written: string[]; stores: number; statuses: number; envs: number; childrenSets: number }
   function counting(on: any, file: string): Counts {
-    const h: Counts = { t: 1_000, file, written: [], stores: 0, statuses: 0, envs: 0 }
+    const h: Counts = { t: 1_000, file, written: [], stores: 0, statuses: 0, envs: 0, childrenSets: 0 }
+    // Beneath the kit's own state: counts the writes of the children's key.
+    on('state.set', async (_$: any, e: any, next: any) => {
+      const r = await next(e)
+      if (e.key === 'children') h.childrenSets++
+      return r
+    })
     on('clock.now', () => ({ value: h.t }) as any)
     on('clock.every', () => ({ deny: 'sem relógio' }) as any)
     on('env.get', () => {
@@ -254,6 +260,22 @@ describe('publicar só quando muda', () => {
     // And nothing again while it stays the same.
     await poll($, h)
     expect(h.written.length).toBe(before.written + 1)
+  })
+
+  test('poll sem mudança não grava children no state; uma mudança na filha grava', async ($, on) => {
+    const h = counting(on, JSON.stringify({ groups: GROUPS }))
+    await open($)
+    const before = h.childrenSets
+    expect(before).toBeGreaterThanOrEqual(1)
+    await poll($, h)
+    await poll($, h)
+    expect(h.childrenSets).toBe(before)
+    // The child's file changed: the derived children differ, so the state is written once.
+    h.file = JSON.stringify(VALID)
+    await poll($, h)
+    expect(h.childrenSets).toBe(before + 1)
+    await poll($, h)
+    expect(h.childrenSets).toBe(before + 1)
   })
 
   test('o relógio e os painéis não contam como mudança, mas uma espera nova conta', async ($, on) => {
