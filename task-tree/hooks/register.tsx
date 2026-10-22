@@ -7,8 +7,13 @@ import {
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlay, ringFromRight, textRight,
 } from '../draw/geometry'
 import { ASK, BRIEF, COMMAND, DONE, PROMPT, RULES, SEND, SESSION, TOOLS, UNPLANNED, WRAP_UP } from '../text/rules'
+import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
+import type { Link } from '../state/durability'
 
 const PANE = 'task-tree'
+// The state's keys, as literals (the kit's validator wants them written in this file). Where each
+// lives and how it comes back is the durability table's (../state/durability), which has a row
+// for every one of them (tests/durabilidade.test.ts).
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
@@ -39,8 +44,6 @@ const MAIN = ''
 // than make a new one: background tasks' notifications (a subagent's hand-back), observers'
 // reports, follow-ups of a UI action and the engine's own notices.
 const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-continuation', 'unclassified']
-// How many sessions' panels the store keeps for a resume.
-const KEEP = 30
 
 // The texts the model reads (the rules in the system prompt, the tools' descriptions, the reminders
 // and warnings) are the text module's: ../text/rules.
@@ -636,12 +639,7 @@ async function showStatus($: any, groups: Group[]) {
 async function persist($: any, groups: Group[]) {
   await showStatus($, groups)
   try {
-    const id: string = await $.session.id()
-    await $.store.set(`session:${id}`, groups)
-    const known = ((await $.store.get('sessions')) as string[] | undefined) ?? []
-    const order = [id, ...known.filter(k => k !== id)]
-    for (const old of order.slice(KEEP)) await $.store.delete(`session:${old}`)
-    await $.store.set('sessions', order.slice(0, KEEP))
+    await saveGroups($, groups)
   } catch {}
   await publishWait($)
 }
@@ -673,7 +671,7 @@ async function replace($: any, groups: Group[]) {
 // The session's panel as the store keeps it; its subagents do not come back, so what they left
 // open is interrupted.
 async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
-  const kept = (await $.store.get(`session:${id}`)) as Group[] | undefined
+  const kept = (await loadStore($, 'groups', id)) as Group[] | undefined
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
 }
 
@@ -683,31 +681,30 @@ async function restore($: any, id: string) {
   if (groups) await replace($, groups)
 }
 
-// Whether this module has seen the groups since it loaded. session.start brings them back from the
-// store when the state holds none (a new process); a process that restarted without it (the hooks
-// worker respawned after a crash) would otherwise start from nothing: the first write would then
-// overwrite the store with the reduced panel, and the panel and the published file would show it
-// empty. So the first write, drawing or publication of the module brings them back first, as
-// `linksLoaded` does for the links.
+// The groups' "first use" of the table (restoredAt): session.start brings them back from the store
+// when the state holds none (a new process); a process that restarted without it (the hooks worker
+// respawned after a crash) would otherwise start from nothing: the first write would then overwrite
+// the store with the reduced panel, and the panel and the published file would show it empty. So
+// the first write, drawing or publication of the module brings them back first (`loaded`), as the
+// first save does for the links.
 // Answers the groups it brought back, for a caller that cannot write the state (a drawing): the
 // module counts them as loaded only once they are in the state, so the next write brings them back
 // again if this one could not.
-let groupsLoaded = false
 async function ensureGroups($: any): Promise<Group[] | undefined> {
-  if (groupsLoaded) return undefined
+  if (loaded.has('groups') || !restoredAt('groups', 'first-use')) return undefined
   try {
     if ((await $.state.get(groupsState)).value !== undefined) {
-      groupsLoaded = true
+      loaded.add('groups')
       return undefined
     }
     const groups = await keptGroups($, await $.session.id())
     if (groups === undefined) {
-      groupsLoaded = true
+      loaded.add('groups')
       return undefined
     }
     try {
       await $.state.set(groupsState, groups)
-      groupsLoaded = true
+      loaded.add('groups')
     } catch {}
     return groups
   } catch {
@@ -1171,18 +1168,19 @@ async function dropAsked($: any, agent: string) {
 async function setView($: any, view: 'full' | 'summary') {
   await $.state.set(viewState, view)
   try {
-    await $.store.set(`view:${await $.session.id()}`, view)
+    await saveStore($, 'view', view)
   } catch {}
 }
 // At the session's start: the view chosen before (a reload, a resume), else the summary, the
-// default of a new session.
+// default of a new session (the table's `current`: the state's wins).
 async function restoreView($: any) {
-  if ((await $.state.get(viewState)).value !== undefined) return
+  const { value: cur } = await $.state.get(viewState)
+  if (cur !== undefined) return
   let saved: unknown
   try {
-    saved = await $.store.get(`view:${await $.session.id()}`)
+    saved = await loadStore($, 'view')
   } catch {}
-  await $.state.set(viewState, saved === 'full' || saved === 'summary' ? saved : 'summary')
+  await $.state.set(viewState, keepCurrent(cur, saved === 'full' || saved === 'summary' ? saved : 'summary'))
 }
 
 // The current work (the summary view's list): the main group's level-1 tasks opened since all was
@@ -1209,7 +1207,7 @@ async function startsWork($: any): Promise<boolean> {
 async function setWork($: any, ids: string[]) {
   await $.state.set(workState, ids)
   try {
-    await $.store.set(`work:${await $.session.id()}`, ids)
+    await saveStore($, 'work', ids)
   } catch {}
 }
 async function joinWork($: any, ids: string[], fresh: boolean) {
@@ -1221,12 +1219,9 @@ async function joinWork($: any, ids: string[], fresh: boolean) {
 // rounds of their messages; the sends still waiting; the messages received; the subagents'
 // launches) lives in the state, which a reload of the mod empties: kept in the store too, and
 // brought back at the start, else the cards fall to the root and the chains lose their origin.
-// Whether this module brought them back yet: a reload does not run session.start, so the first
-// save brings them back before it writes, and nothing new is lost to the old copy.
-let linksLoaded = false
-// What the store keeps of a session this one linked to: its ties to the tasks, not its state.
-type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds'>
-const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })
+// Whether this module brought them back yet (`loaded`, the table's "first save"): a reload does not
+// run session.start, so the first save brings them back before it writes, and nothing new is lost
+// to the old copy.
 // The links as the store holds them, by session id, this module's copy. The state's `children` are
 // the sessions the host lists (refreshChildren rebuilds them from the list, archived ones included);
 // a session the list leaves out for a while is not in the state, so a save from the state alone
@@ -1236,7 +1231,7 @@ const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, an
 let keptLinks = new Map<string, Link>()
 const keptLink = (id: string): Link | undefined => keptLinks.get(id)
 async function saveLinks($: any) {
-  if (!linksLoaded) await restoreLinks($)
+  if (!loaded.has('links') && restoredAt('children', 'first-save')) await restoreLinks($)
   try {
     const { value: children } = await $.state.get(childrenState)
     const { value: sends } = await $.state.get(sendsState)
@@ -1244,44 +1239,32 @@ async function saveLinks($: any) {
     const { value: launches } = await $.state.get(launchesState)
     const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
     const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
-    await $.store.set(`links:${await $.session.id()}`, { children: links, sends, received, launches })
+    await saveStore($, 'children', { children: links, sends, received, launches })
     keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
-// Merged into what the state may already hold (the host's list read before): a session keeps its
-// fields and gets back the anchors and rounds; the lists get back the entries they lack.
+// Each key of the record merged as the table says (`fill` for the sessions: a session keeps its
+// fields and gets back the anchors and rounds; `union` for the lists: they get back the entries
+// they lack).
 async function restoreLinks($: any) {
-  linksLoaded = true
+  loaded.add('links')
   try {
-    const saved = (await $.store.get(`links:${await $.session.id()}`)) as Record<string, unknown> | undefined
+    const saved = (await loadStore($, 'children')) as Record<string, unknown> | undefined
     if (saved === undefined || saved === null || typeof saved !== 'object') return
     const list = (k: string) => (Array.isArray(saved[k]) ? (saved[k] as any[]) : [])
-    const join = (cur: any[] | undefined, old: any[]) => {
-      const now = cur ?? []
-      const seen = new Set(now.map(x => JSON.stringify(x)))
-      return [...old.filter(x => !seen.has(JSON.stringify(x))), ...now]
-    }
-    const old = list('children') as Child[]
-    keptLinks = new Map(old.filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
-    if (old.length > 0)
-      await update($, childrenState, cur =>
-        cur === undefined || cur.length === 0
-          ? old
-          : cur.map(c => {
-              const o = old.find(k => k.id === c.id)
-              return o ? { ...c, anchor: c.anchor ?? o.anchor, lastAnchor: c.lastAnchor ?? o.lastAnchor, rounds: c.rounds ?? o.rounds } : c
-            }),
-      )
-    if (list('sends').length > 0) await update($, sendsState, cur => join(cur, list('sends')))
-    if (list('received').length > 0) await update($, receivedState, cur => join(cur, list('received')).slice(-20))
-    if (list('launches').length > 0) await update($, launchesState, cur => join(cur, list('launches')).slice(-20))
+    keptLinks = new Map((list('children') as Child[]).filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
+    if (list('children').length > 0) await update($, childrenState, cur => merge('children', cur, list('children')))
+    if (list('sends').length > 0) await update($, sendsState, cur => merge('sends', cur, list('sends')))
+    if (list('received').length > 0) await update($, receivedState, cur => merge('received', cur, list('received')))
+    if (list('launches').length > 0) await update($, launchesState, cur => merge('launches', cur, list('launches')))
   } catch {}
 }
 async function restoreWork($: any) {
-  if ((await $.state.get(workState)).value !== undefined) return
+  const { value: cur } = await $.state.get(workState)
+  if (cur !== undefined) return
   try {
-    const saved = await $.store.get(`work:${await $.session.id()}`)
-    if (Array.isArray(saved)) await $.state.set(workState, saved.map(String))
+    const saved = await loadStore($, 'work')
+    if (Array.isArray(saved)) await $.state.set(workState, keepCurrent(cur, saved.map(String)))
   } catch {}
 }
 // A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
@@ -1955,7 +1938,7 @@ export const register: Register = on => {
     // With nothing held (a new process), a resumed session's panel comes back from the store.
     await adopt($)
     if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
-    groupsLoaded = true
+    loaded.add('groups')
     await restoreView($)
     await restoreWork($)
     await restoreLinks($)
