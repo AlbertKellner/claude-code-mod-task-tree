@@ -4,13 +4,14 @@ import type { AgentInfo, Register } from 'claude-code'
 import type { Child, Group, Launch, LegacyNode, Panel, Published, Send, Status, TaskNode, Turn, Wait } from '../types'
 import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
-  ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlay, ringFromRight, textRight,
+  ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, lineWidth, overlays, ringFromRight, textRight,
 } from '../draw/geometry'
+import type { Placed } from '../draw/geometry'
 import { ASK, BRIEF, COMMAND, DONE, PROMPT, RULES, SEND, SESSION, TOOLS, UNPLANNED, WRAP_UP } from '../text/rules'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, tasksOf, hasOpen, withMain, stop, interrupt, count, live, total, idle, atWork, activeLeaves, sessionTime, current, running, layout } from '../draw/layout'
-import type { Tone, Row } from '../draw/layout'
+import { MAIN, flat, tasksOf, hasOpen, withMain, stop, interrupt, count, live, total, idle, atWork, activeLeaves, sessionTime, current, running, layout, guides, labelCols, frames } from '../draw/layout'
+import type { Tone, Row, Frame, Guide } from '../draw/layout'
 
 const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in this file). Where each
@@ -985,24 +986,6 @@ async function keepTime($: any) {
 }
 
 
-// The tree lines of a row: `bars[k]` continues the line of the ancestor at depth k past it,
-// `last` ends its own branch here, `down` starts a line to the rows below it.
-type Guide = { bars: boolean[]; last: boolean; down: boolean }
-function guides(rows: Row[]): Guide[] {
-  // Whether a row at `level` comes later, before the tree climbs above it.
-  const later = (i: number, level: number) => {
-    for (let j = i + 1; j < rows.length; j++) {
-      if (rows[j].depth < level) return false
-      if (rows[j].depth === level) return true
-    }
-    return false
-  }
-  return rows.map((r, i) => ({
-    bars: Array.from({ length: Math.max(0, r.depth - 1) }, (_, k) => later(i, k + 1)),
-    last: !later(i, r.depth),
-    down: (rows[i + 1]?.depth ?? -1) > r.depth,
-  }))
-}
 
 // Terminal: glyph and theme color of each tone; the guides as box-drawing text.
 const GLYPH: Record<Tone, [string, string]> = {
@@ -1266,38 +1249,6 @@ async function engineOf($: any, id: string): Promise<string | undefined> {
 const TIME_W = textW('0:00:00', 12)
 const COUNT_W = textW('00/00', 12)
 
-// The cards a line is drawn in, outermost first: the card of the header at `depth`, whether it
-// starts (`first`) or ends (`last`) on this line. A card takes its header and every line below
-// it deeper than it; its edges add `PAD` px above its first line and below its last (the px, and
-// where the columns, cards and overlays sit, are the geometry module's: ../draw/geometry).
-type Card = { depth: number; first: boolean; last: boolean }
-type Frame = { cards: Card[]; top: number; bottom: number }
-// A session's card is headed by a label (its name), not a task line: the tasks inside are its
-// roots, with no tree line to the label. Per row, the depths of the session labels it is inside:
-// their column (col(depth)) is drawn empty.
-function labelCols(rows: Row[]): number[][] {
-  const open: number[] = []
-  return rows.map(r => {
-    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
-    const mine = open.slice()
-    if (r.session) open.push(r.depth)
-    return mine
-  })
-}
-function frames(rows: Row[]): Frame[] {
-  const open: number[] = []
-  return rows.map((r, i) => {
-    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
-    if (r.card) open.push(r.depth)
-    const next = rows[i + 1]
-    const cards = open.map(depth => ({
-      depth,
-      first: r.card === true && depth === r.depth,
-      last: next === undefined || next.depth <= depth,
-    }))
-    return { cards, top: r.card ? PAD : 0, bottom: cards.filter(c => c.last).length * PAD }
-  })
-}
 const NO_FRAME: Frame = { cards: [], top: 0, bottom: 0 }
 const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? ROW_H_TOP : ROW_H) + f.top + f.bottom
 
@@ -1479,6 +1430,140 @@ const rowAlt = (r: Row) =>
   (r.fold && !r.fold.open ? ', recolhida' : '')
 // The right-hand words: "3/5", "1/2 · concluída", "interrompida".
 const rightText = (r: Row) => [r.sub ? `${r.sub[0]}/${r.sub[1]}` : '', r.meta ?? ''].filter(Boolean).join(' · ')
+
+// The two drawings of the lines layout() made, each from the rows alone (and the header the render
+// built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
+// No ▾/▸ (the person's words: "quero que o botao de colapse nao apareca, e que a funcao de colapsar
+// e expandir esteja no icone de progresso da tarefa"): a line with something below it folds and
+// opens by its progress icon, a plain Button (the pointer inverts it); a line with nothing below has
+// no Button. Terminal: the icon glyph is the Button. Desktop: the Svg draws the icon and a Button
+// with an empty label lies over it.
+const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
+
+// Desktop: the header's Svg (its tooltip layer, the view toggle), then one Svg per line and, over it,
+// the Boxes `overlays` places (the geometry module's one rule: anchored by the nearest edge, none
+// crossing another): the Button that folds the line over its icon (on a session's card, the ⑂ left of
+// its name), the Button that opens the session over its context ring (the person's words: "quando
+// clicar nele, abra a sessao que ele representa"; the app shows it in this window's main pane,
+// open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
+// name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
+// the last one drawn is on top.
+function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[] }) {
+  const { Box, Svg, Button } = ui
+  const over = (r: Row, p: Placed, source: string, H: number) =>
+    p.kind === 'icon' ? (
+      <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
+        <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, pressOf($, r))} />
+      </Box>
+    ) : p.kind === 'ring' ? (
+      <Box position="absolute" top={0} bottom={0} right={p.right} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
+        <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
+      </Box>
+    ) : (
+      <Box position="absolute" top={0} left={p.left}>
+        <Svg source={hoverLayer(source, p.width, H)} alt="" width={p.width} height={H} isInteractive />
+      </Box>
+    )
+  const lanes = guides(lines)
+  const hides = labelCols(lines)
+  const cards = frames(lines)
+  return (
+    <Box flexDirection="column">
+      {chrome.errorLine}
+      <Box key="head" position="relative">
+        <Svg source={top.source} alt={alt} width={W} height={top.height} />
+        {hovers(top.source) ? (
+          <Box position="absolute" top={0} left={0}>
+            <Svg source={hoverLayer(top.source, W - 64, 24)} alt="" width={W - 64} height={24} isInteractive />
+          </Box>
+        ) : null}
+        <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
+          {chrome.views}
+        </Box>
+      </Box>
+      {lines.map((r, i) => (
+        <Box key={`r${i}`} flexDirection="row" alignItems="center">
+          {(source => {
+            const H = rowHeight(r, cards[i])
+            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring), hover: hovers(source) }, Math.max(0, cards[i].cards.length - 1), W)
+            const one = (kind: Placed['kind']) => {
+              const p = placed.find(x => x.kind === kind)
+              return p ? over(r, p, source, H) : null
+            }
+            return (
+              <Box position="relative">
+                <Svg source={source} alt={rowAlt(r)} width={W} height={H} />
+                {one('icon')}
+                {one('ring')}
+                {one('name')}
+              </Box>
+            )
+          })(rowSvg(r, lanes[i], cards[i], W, hides[i]))}
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+// Terminal: the same lines as text, the guides in box-drawing characters, color only on the icon
+// (the Button that folds, on a line with something below).
+function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: any) {
+  const { Box, Text, Button } = ui
+  const iconButton = (r: Row, glyph: string, color: string) => (
+    <Button key={`fold:${(r.fold as any).key}`} plain onPress={act(`fold:${(r.fold as any).key}`, pressOf($, r))}>
+      <Text color={color}>{glyph}</Text>
+    </Button>
+  )
+  const lanes = guides(lines)
+  const hides = labelCols(lines)
+  return (
+    <Box flexDirection="column">
+      {errorLine}
+      {header}
+      {lines.map((r, i) => {
+        const [glyph, color] = GLYPH[progress(r)]
+        const forked = r.session === true || r.kids === true
+        const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
+        const words = rightText(r)
+        const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
+        const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
+        const lead = prefix(r, lanes[i], hides[i])
+        // A session's label: the ⑂ (the Button that folds the card) left of its name, then its tags,
+        // no count or time.
+        const parts = r.session ? [
+          r.fold ? iconButton(r, '⑂', 'inactive') : <Text key="icon" color="inactive">{'⑂'}</Text>,
+          <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
+          r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
+          // Waiting on the person: the word in amber (the label has no icon to color).
+          r.meta ? (
+            <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
+          ) : null,
+          // The context ring last, on its own.
+          r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
+        ] : [
+          glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
+          <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
+          r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
+          tail ? <Text key="tail" dimColor>{tail}</Text> : null,
+        ]
+        if (!r.fold) {
+          return (
+            <Text key={`r${i}`}>
+              {lead ? <Text color="inactive">{lead}</Text> : null}
+              {parts}
+            </Text>
+          )
+        }
+        return (
+          <Box key={`r${i}`} flexDirection="row">
+            {lead ? <Text color="inactive">{lead}</Text> : null}
+            {parts}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
 
 export const register: Register = on => {
   // Tool calls of the main loop since a plan was last open (see the tool.call reminder).
@@ -2098,8 +2183,6 @@ function brief(text: string): string {
     // below needs besides the width.
     const lines = layout({ groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[] }, chosen, now, ownId)
     drawRows = lines.length
-    const lanes = guides(lines)
-    const hides = labelCols(lines)
 
     // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
     // is in progress, waiting, interrupted and the sessions at work.
@@ -2122,57 +2205,7 @@ function brief(text: string): string {
     const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'))
     const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
-    // The ▾/▸ of a line with something below it: a press closes what is open, opens what is
-    // closed. A Button, since a press does not go through an Svg.
     const { Button } = ui
-    // No ▾/▸ (the person's words: "quero que o botao de colapse nao apareca, e que a funcao de
-    // colapsar e expandir esteja no icone de progresso da tarefa"): a line with something below it
-    // folds and opens by its progress icon, a plain Button (the pointer inverts it); a line with
-    // nothing below has no Button. Terminal: the icon glyph is the Button. Desktop: the Svg draws
-    // the icon and a Button with an empty label lies over it.
-    const press = (r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
-    const iconButton = (r: Row, glyph: string, color: string) => (
-      <Button key={`fold:${(r.fold as any).key}`} plain onPress={act(`fold:${(r.fold as any).key}`, press(r))}>
-        <Text color={color}>{glyph}</Text>
-      </Button>
-    )
-    // Desktop: the line stays one drawing (the icon in its color, the label inside its card). Only
-    // the progress icon folds it (on a session's card, the ⑂ left of its name): an empty-label
-    // Button over the icon, its native highlight the icon's size with some room around it. A Box is
-    // placed in whole cells, the line's whole height, and centers the Button both ways; where each
-    // Box goes (the icon's, the ring's, the name layer's), in cells anchored by the nearest edge, is
-    // the geometry module's `overlay`. A line with nothing below has no Button.
-    // The context ring at a session card's right end opens that session (the person's words:
-    // "quando clicar nele, abra a sessao que ele representa"): an empty-label Button over the ring,
-    // as over the icon. The app shows it in this window's main pane (open_session_in, focus); what
-    // it refuses is said in a toast.
-    const ringOver = (r: Row, f: Frame) => {
-      const { right, width } = overlay('ring', Math.max(0, f.cards.length - 1))
-      return (
-        <Box position="absolute" top={0} bottom={0} right={right} width={width} flexDirection="row" alignItems="center" justifyContent="center">
-          <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
-        </Box>
-      )
-    }
-    const foldOver = (r: Row) => {
-      const { left, width } = overlay('icon', r.depth)
-      return (
-        <Box position="absolute" top={0} bottom={0} left={left} width={width} flexDirection="row" alignItems="center" justifyContent="center">
-          <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, press(r))} />
-        </Box>
-      )
-    }
-    // A cut name keeps its tooltip, over the whole name (from where it is drawn), clear of the
-    // icon's Button.
-    const nameLayer = (r: Row, source: string, H: number, RWidth: number) => {
-      const { Svg } = ui
-      const { left, width: w } = overlay('name', r.depth, RWidth)
-      return (
-        <Box position="absolute" top={0} left={left}>
-          <Svg source={hoverLayer(source, w, H)} alt="" width={w} height={H} isInteractive />
-        </Box>
-      )
-    }
 
     // The view toggle: two icon buttons at the right end of the header's title line, ≡ the
     // summary (what is in progress), ▤ the whole tree. The chosen one is the surface's primary
@@ -2209,38 +2242,7 @@ function brief(text: string): string {
               ...(headTime !== undefined ? [clockText(headTime)] : []),
               ...list.map(c => c.text),
             ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
-      // Each line: its Svg, the tooltip layer over a cut name and, over the icon, the Button that
-      // folds and opens it (drawn last, on top).
-      const RW = W
-      const cards = frames(lines)
-      return (
-        <Box flexDirection="column">
-          {errorLine}
-          <Box key="head" position="relative">
-            <Svg source={top.source} alt={alt} width={W} height={top.height} />
-            {hovers(top.source) ? (
-              <Box position="absolute" top={0} left={0}>
-                <Svg source={hoverLayer(top.source, W - 64, 24)} alt="" width={W - 64} height={24} isInteractive />
-              </Box>
-            ) : null}
-            <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
-              {views}
-            </Box>
-          </Box>
-          {lines.map((r, i) => (
-            <Box key={`r${i}`} flexDirection="row" alignItems="center">
-              {(source => (
-                <Box position="relative">
-                  <Svg source={source} alt={rowAlt(r)} width={RW} height={rowHeight(r, cards[i])} />
-                  {r.fold ? foldOver(r) : null}
-                  {r.session && r.sid && r.ring ? ringOver(r, cards[i]) : null}
-                  {hovers(source) ? nameLayer(r, source, rowHeight(r, cards[i]), RW) : null}
-                </Box>
-              ))(rowSvg(r, lanes[i], cards[i], RW, hides[i]))}
-            </Box>
-          ))}
-        </Box>
-      )
+      return drawDesktop($, ui, lines, W, top, alt, { errorLine, views })
     }
 
     // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -2273,53 +2275,7 @@ function brief(text: string): string {
               ))}
             </Text>,
           ]
-    return (
-      <Box flexDirection="column">
-        {errorLine}
-        {header}
-        {lines.map((r, i) => {
-          const [glyph, color] = GLYPH[progress(r)]
-          const forked = r.session === true || r.kids === true
-          const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
-          const words = rightText(r)
-          const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
-          const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
-          const lead = prefix(r, lanes[i], hides[i])
-          // A session's label: its name (the Button that folds its card), its tags, no count or time.
-          // A session's label: the ⑂ (the Button that folds the card) left of its name, then its tags.
-          const parts = r.session ? [
-            r.fold ? iconButton(r, '⑂', 'inactive') : <Text key="icon" color="inactive">{'⑂'}</Text>,
-            <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
-            r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
-            // Waiting on the person: the word in amber (the label has no icon to color).
-            r.meta ? (
-              <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
-            ) : null,
-            // The context ring last, on its own.
-            r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
-          ] : [
-            glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
-            <Text key="title" bold={r.strong} dimColor={quiet}>{glyph ? ` ${r.title}` : r.title}</Text>,
-            r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
-            tail ? <Text key="tail" dimColor>{tail}</Text> : null,
-          ]
-          if (!r.fold) {
-            return (
-              <Text key={`r${i}`}>
-                {lead ? <Text color="inactive">{lead}</Text> : null}
-                {parts}
-              </Text>
-            )
-          }
-          return (
-            <Box key={`r${i}`} flexDirection="row">
-              {lead ? <Text color="inactive">{lead}</Text> : null}
-              {parts}
-            </Box>
-          )
-        })}
-      </Box>
-    )
+    return drawTerminal($, ui, lines, header, errorLine)
     })()
     // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
     // long session's history, 1.3 MB): an emergency drawing says so in one line instead.

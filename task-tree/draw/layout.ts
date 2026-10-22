@@ -9,6 +9,7 @@
 // still queued reach the task lines as `pending`, from the panel that holds them.
 
 import type { Child, Group, Panel, Send, TaskNode, Turn, Wait } from '../types'
+import { PAD } from './geometry'
 
 // The main loop's agent id in the groups.
 export const MAIN = ''
@@ -506,6 +507,60 @@ export type Row = {
 // answer cut to the line's width summed nothing up (the person's words: "voce esta imprimindo o
 // texto integral cortado").
 export const REPLY = 'resposta'
+
+// From the rows to how they are drawn: the tree lines (guides), the cards each line is inside
+// (frames) and the session labels whose column stays empty (labelCols).
+// The tree lines of a row: `bars[k]` continues the line of the ancestor at depth k past it,
+// `last` ends its own branch here, `down` starts a line to the rows below it.
+export type Guide = { bars: boolean[]; last: boolean; down: boolean }
+export function guides(rows: Row[]): Guide[] {
+  // Whether a row at `level` comes later, before the tree climbs above it.
+  const later = (i: number, level: number) => {
+    for (let j = i + 1; j < rows.length; j++) {
+      if (rows[j].depth < level) return false
+      if (rows[j].depth === level) return true
+    }
+    return false
+  }
+  return rows.map((r, i) => ({
+    bars: Array.from({ length: Math.max(0, r.depth - 1) }, (_, k) => later(i, k + 1)),
+    last: !later(i, r.depth),
+    down: (rows[i + 1]?.depth ?? -1) > r.depth,
+  }))
+}
+
+// The cards a line is drawn in, outermost first: the card of the header at `depth`, whether it
+// starts (`first`) or ends (`last`) on this line. A card takes its header and every line below
+// it deeper than it; its edges add `PAD` px above its first line and below its last (the px, and
+// where the columns, cards and overlays sit, are the geometry module's: ../draw/geometry).
+export type Card = { depth: number; first: boolean; last: boolean }
+export type Frame = { cards: Card[]; top: number; bottom: number }
+// A session's card is headed by a label (its name), not a task line: the tasks inside are its
+// roots, with no tree line to the label. Per row, the depths of the session labels it is inside:
+// their column (col(depth)) is drawn empty.
+export function labelCols(rows: Row[]): number[][] {
+  const open: number[] = []
+  return rows.map(r => {
+    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    const mine = open.slice()
+    if (r.session) open.push(r.depth)
+    return mine
+  })
+}
+export function frames(rows: Row[]): Frame[] {
+  const open: number[] = []
+  return rows.map((r, i) => {
+    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    if (r.card) open.push(r.depth)
+    const next = rows[i + 1]
+    const cards = open.map(depth => ({
+      depth,
+      first: r.card === true && depth === r.depth,
+      last: next === undefined || next.depth <= depth,
+    }))
+    return { cards, top: r.card ? PAD : 0, bottom: cards.filter(c => c.last).length * PAD }
+  })
+}
 
 // What layout() reads: the state as the render read it, once.
 export type Model = {
