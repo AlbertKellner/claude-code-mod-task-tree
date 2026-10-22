@@ -12,6 +12,8 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
+- `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
+- `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 ## Validar e testar
@@ -30,6 +32,20 @@ claude plugin test task-tree
 ```
 
 O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
+
+### Teste de orçamento do desenho
+
+`tests/orcamento.test.ts` monta o painel com o fixture `REAL` nas quatro combinações superfície
+(terminal/desktop) × visão (resumida/completa), com `bodyColumns` 100. Afirma que o desenho não
+caiu no de emergência nem em erro, que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`, e que
+cada desenho leva menos de 500 ms. Imprime a linha `ORCAMENTO …` no log do kit.
+
+- `size` no teste é o JSON da árvore que o kit devolve: proporcional ao `drawSize` do módulo, não igual.
+- Se o desenho crescer de propósito, refaça a `BASELINE` em `orcamento.test.ts`: rode o teste numa cópia
+  sem `task-tree.test.ts` e copie os números da linha `ORCAMENTO`.
+- Baseline gravada (HEAD 6d79470, kit 2.1.308): terminal resumida 11.671 bytes/29 linhas, completa
+  11.789/30; desktop resumida 47.416 bytes/28 linhas/30 Svg, completa 48.174/29/31; 14–41 ms.
+- Com este fixture as duas visões medem quase o mesmo, porque o limite de 3 pedidos corta antes.
 
 ## Desenho do painel
 
