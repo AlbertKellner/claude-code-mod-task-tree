@@ -1675,12 +1675,20 @@ export const register: Register = on => {
         'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
         'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
         'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore. ' +
-        'No done do último passo do pedido, passe em summary um resumo da resposta em até 60 caracteres ' +
-        '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel.',
+        'No done da última etapa do turno, passe summary: a resposta do turno em manchete de até 60 ' +
+        'caracteres (ex.: "Commit 946f653 no PR #5; 151 testes ok"). Sem etapa a fechar, chame done só com summary.',
       inputSchema: {
         type: 'object',
-        required: ['ids'],
-        properties: { ids: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } },
+        required: [],
+        properties: {
+          ids: { type: 'array', items: { type: 'string' } },
+          summary: {
+            type: 'string',
+            description:
+              'Resumo super curto da resposta deste turno, em até 60 caracteres, tipo manchete ' +
+              '(ex.: "Commit 946f653 no PR #5; 151 testes ok"). Vira a linha ↩ do painel; a resposta inteira fica no tooltip.',
+          },
+        },
       },
     })
     await $.tool.register({
@@ -1797,7 +1805,8 @@ export const register: Register = on => {
           'uma vez no fim). Ao replanejar, chame plan de novo. ' +
           'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
           'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
-          'request um título curto do que foi pedido.',
+          'request um título curto do que foi pedido. No done da última etapa do turno, passe summary: ' +
+          'resumo da resposta em até 60 caracteres, tipo manchete.',
       ],
     })
   })
@@ -1928,6 +1937,9 @@ export const register: Register = on => {
         }
         // Closed, its send waits no more: no ✉ left behind on an id used again.
         if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
+        // The last step closed with no summary: the ↩ line would say only "resposta".
+        if (lastBrief === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
+          notes.push('falta o summary: chame done de novo só com summary, a resposta do turno em até 60 caracteres (vira a linha ↩)')
       }
       const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
       // Several steps never started and closed together: the panel showed the first one in progress
@@ -2021,7 +2033,10 @@ function brief(text: string): string {
   const at = cut.lastIndexOf(' ')
   return `${(at > BRIEF / 2 ? cut.slice(0, at) : cut).replace(/[\s,.;:–—-]+$/, '')}…`
 }
-const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s/)[0] ?? ''
+// With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
+// answer cut to the line's width summed nothing up (the person's words: "voce esta imprimindo o
+// texto integral cortado").
+const REPLY = 'resposta'
 
 // A subagent's turn ending is the subagent ending: what it left open is interrupted.
   // A teammate ends a turn per message and is left alone.
@@ -2037,7 +2052,7 @@ const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/
     // recap (wrap_up), which is what the opener's notice carries; else the final message.
     if (!agent && !e.isAborted) {
       const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
-      const short = brief(lastBrief ?? firstSentence(said))
+      const short = lastBrief !== undefined ? brief(lastBrief) : undefined
       lastRecap = undefined
       lastBrief = undefined
       if (said !== '') {
@@ -2046,7 +2061,7 @@ const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/
             if (g.agent !== MAIN) return g
             const turns = g.turns ?? []
             const last = [...turns].reverse().find(u => g.tasks.some(t => t.turn === u.id))
-            return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, reply: said, brief: short } : u)) } : g
+            return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, reply: said, ...(short !== undefined ? { brief: short } : {}) } : u)) } : g
           }),
         )
       }
@@ -2215,6 +2230,11 @@ const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const { value = [] } = await $.state.get(groupsState)
       const tasks = value.find(g => g.agent === MAIN)?.tasks ?? []
+      if (lastBrief === undefined)
+        notes.push(
+          'Painel de tarefas (task-tree): falta o resumo do turno. Antes da mensagem final, chame ' +
+            'mcp__task-tree__done com summary: a resposta em até 60 caracteres, tipo manchete (ids pode ficar vazio).',
+        )
       if (hasOpen(tasks)) {
         notes.push(
           'Painel de tarefas (task-tree): o turno termina com tarefas abertas no painel: ' +
@@ -2404,7 +2424,7 @@ const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/
       // one after a card still at work would read as the group being over.
       const said: Row[] =
         open && typeof u.reply === 'string' && u.reply !== '' && !ws.some(w => w.any)
-          ? [{ depth: top + 1, tone: 'reply', title: u.brief ?? brief(firstSentence(u.reply)), whole: u.reply, label: 'Resposta' }]
+          ? [{ depth: top + 1, tone: 'reply', title: u.brief ?? REPLY, whole: u.reply, label: 'Resposta' }]
           : []
       return [row, ...inner, ...said]
     }
@@ -2453,7 +2473,7 @@ const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/
       // turn order: a ↩ line, dim, with no count or time (not a task).
       const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
         .filter(u => typeof u.reply === 'string' && u.reply !== '')
-        .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.brief ?? brief(firstSentence(u.reply as string)), whole: u.reply, label: 'Resposta' }))
+        .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.brief ?? REPLY, whole: u.reply, label: 'Resposta' }))
       const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
       if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
