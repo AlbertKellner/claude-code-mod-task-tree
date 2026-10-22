@@ -105,10 +105,12 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // to confirm a queued SendMessage.
 // `work`: the main group's level-1 tasks of the current work, drawn by the summary view until new
 // work starts (a plan or start with no open task left).
+// `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
+// the state so a reload of the mod mid-turn does not lose it.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string }
   }
 }

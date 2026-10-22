@@ -86,9 +86,9 @@ nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
 
 1. (corrigido, fora de `KNOWN`) `reinicio-sem-session-start`: ver "Grupos do store sem `session.start`" abaixo.
 2. (corrigido, fora de `KNOWN`) `links-lista-parcial`: ver "Ligações com lista parcial do host" abaixo.
-3. `recarga-perde-summary`: `lastBrief` é variável do módulo; `done` com `summary` → recarga →
-   `turn.complete` deixa o turno sem ↩ com o resumo (fica a mensagem final). Correção prevista: `lastBrief`
-   no `$.state`.
+3. (corrigido, fora de `KNOWN`) `recarga-perde-summary`: ver "Resumo do turno no state" abaixo.
+
+`KNOWN` está vazio; o mecanismo `known()`/`KNOWN` fica para bugs futuros.
 
 Limite: o kit não simula o respawn real do worker.
 
@@ -108,6 +108,21 @@ store sem as outras (uma filha com 20 rodadas sumia). Agora:
   (não vão ao state, ao desenho nem ao arquivo publicado) e só reaparecem se o host listar o id de novo. O
   host lista com `include_archived: true`, então arquivada continua listada e marcada `archived`. Custo
   aceito: o store pode guardar ids de sessões apagadas.
+
+### Resumo do turno no state
+
+O `summary` do último `done` (a linha ↩) era a variável de módulo `lastBrief` e morria na recarga: o turno
+ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de state `brief`
+(`brief: string` em `types/index.d.ts`; '' = nenhum):
+
+- O `done` grava o `summary` no state; `turn.complete` lê, usa no ↩ e zera; os avisos "falta o summary" (no
+  `done` e no `wrap_up`) também leem o state. A função de topo `lastBrief($)` lê a chave.
+- Sobrevive à recarga; não ao reinício nem ao resume, o que é aceitável porque o turno morre com o processo.
+- O contrato `PluginState['task-tree']` precisa listar a chave: o validador confere as chaves de state por ele.
+- Armadilha: uma função que recebe `$` precisa estar declarada no topo do arquivo (o validador recusa dentro do
+  `register`: "$ is passed to "lastBrief", which is not a function declared at the top of this file").
+- `lastRecap` (recap do `wrap_up`) continua variável de módulo: mesma classe, efeito menor (o tooltip do ↩ cai
+  para a mensagem final).
 
 ### Grupos do store sem `session.start`
 
