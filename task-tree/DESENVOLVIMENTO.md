@@ -14,6 +14,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `tests/task-tree.test.ts`: testes do `claude plugin test`.
 - `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
 - `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
+- `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 ## Validar e testar
@@ -46,6 +47,24 @@ cada desenho leva menos de 500 ms. Imprime a linha `ORCAMENTO …` no log do kit
 - Baseline gravada (HEAD 6d79470, kit 2.1.308): terminal resumida 11.671 bytes/29 linhas, completa
   11.789/30; desktop resumida 47.416 bytes/28 linhas/30 Svg, completa 48.174/29/31; 14–41 ms.
 - Com este fixture as duas visões medem quase o mesmo, porque o limite de 3 pedidos corta antes.
+
+### Golden do SVG
+
+`tests/svg-golden.test.ts` (7 testes, 12 cenários: basico, basico-concluido, retomada, filha-rodando,
+filha-parada, filha-arquivada, filha-recolhida, envio, espera-propria, subagente, real-completa,
+real-resumida) monta o painel no desktop com relógio e largura fixos, recolhe cada `Svg` (alt, largura,
+altura, interativo, fonte) e compara com `tests/golden/svg.ts`. Cobre os 12 valores de `Tone`. A falha
+lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho de fonte diferente com contexto.
+
+- `tests/golden/svg.ts` é gerado (`GOLDEN`, um `Svg` por linha, para o diff do git mostrar um SVG mudado
+  como uma linha). Não editar à mão.
+- O `alt` faz parte do golden de propósito: é o que o terminal lê.
+- Mudança intencional de SVG (inclusive texto de `alt`): rode `node task-tree/tests/golden/atualizar.mjs [claude.exe]`
+  e commite o `svg.ts` junto. O script copia `task-tree/` para uma pasta temporária só com o teste do golden, roda
+  `claude plugin test`, recolhe as linhas `GOLDEN-NEW <cenário> <json>` e funde no `svg.ts`, mantendo os
+  cenários que batem. Segunda rodada: "Nada a atualizar". A aprovação é o diff do `svg.ts`.
+- Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
+  (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
 
 ## Desenho do painel
 
