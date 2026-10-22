@@ -351,7 +351,12 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   houver). Um nível 1 replanejado (mesmo id aberto) fica no turno em que estava. Como os turnos vão
   dentro do grupo, persistência, resume e o painel publicado já os levam; painéis antigos (sem
   `turns`) desenham os níveis 1 soltos, como antes, e esses ficam à frente dos turnos. Desenho só no
-  painel de cima (`level === 0`; dentro do cartão de uma filha, os níveis 1 continuam soltos):
+  painel de cima (`level === 0`) e, no cartão de uma filha, só para turno com mais de um
+  nível 1 (pedido do usuário: "parece que quebrou de novo o layuot dos elementos", escolha "Tarefas
+  sem ligação" → opção a): ali o cartão ganha o cabeçalho com o título do pedido e os níveis 1 ficam
+  ligados por conector embaixo dele, sem repetir o ↩ (o cartão já mostra as respostas abaixo das
+  tarefas); turno com um só nível 1 continua sem cabeçalho, para o cartão não ganhar uma linha por
+  turno:
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
   nelas, como no `atWork`), em andamento enquanto algo dele está, aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
