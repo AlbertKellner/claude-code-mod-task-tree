@@ -904,7 +904,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // line, not drawn (they were most of the 1.6 MB drawing).
     // One begun since the oldest request still drawn above (a message with no recorded origin)
     // stays: it is recent.
-    const ats = (main.turns ?? []).filter(u => main.tasks.some(t => t.turn === u.id)).flatMap(u => (typeof u.at === 'number' ? [u.at] : []))
+    // The requests (turns) with a level-1 task, by a set of the tasks' turns: one pass over each
+    // list, not one over the tasks per turn (a long session has thousands of both).
+    const withTasks = new Set(main.tasks.map(t => t.turn))
+    const ats = (main.turns ?? []).filter(u => withTasks.has(u.id)).flatMap(u => (typeof u.at === 'number' ? [u.at] : []))
     const since = ats.length > SHOWN_TURNS ? [...ats].sort((a, b) => a - b)[ats.length - SHOWN_TURNS] : -Infinity
     const busy = (c: Child) => begins(c) >= since || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
     const old = level === 0 ? loose.filter(c => !busy(c)) : []

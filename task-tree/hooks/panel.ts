@@ -85,7 +85,9 @@ export async function openTurn($: any, text: string) {
     all.map(g => {
       if (g.agent !== MAIN) return g
       const turns = g.turns ?? []
-      const used = turns.filter(u => g.tasks.some(t => t.turn === u.id))
+      // The turns still holding a level-1 task stay (by a set of the tasks' turns: one pass each).
+      const withTasks = new Set(g.tasks.map(t => t.turn))
+      const used = turns.filter(u => withTasks.has(u.id))
       const id = turns.reduce((top, u) => Math.max(top, u.id), 0) + 1
       return { ...g, turns: [...used, { id, title, at }] }
     }),
