@@ -47,6 +47,9 @@ const RULES = [
     'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
     'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
     'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
+  '- No done do último passo do pedido, passe em `summary` um resumo da resposta em até 60 caracteres ' +
+    '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
+    'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
   '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
     'substituído do zero no mesmo lugar da lista: remarque com done o que já estava concluído. Um nível 1 ' +
     'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
@@ -1170,6 +1173,8 @@ type Row = {
   depth: number
   tone: Tone
   title: string
+  // The whole text for the tooltip, when the title is a short form of it (the ↩ line's summary).
+  whole?: string
   // Said only in the alt, after the title: a session's title, its card showing just its name.
   hint?: string
   // What the alt text says first ("Em andamento"); empty for a notice.
@@ -1560,7 +1565,7 @@ function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): str
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
     (section ? `<path class="ln" d="M0 0.5H${R}" stroke-width="1"/>` : '') +
     lead +
-    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(whole, title)}${xml(title)}</text>` +
+    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(r.whole ?? whole, title)}${xml(title)}</text>` +
     mark +
     right.join('') +
     '</svg>'
@@ -1669,11 +1674,13 @@ export const register: Register = on => {
       description:
         'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
         'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
-        'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore.',
+        'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore. ' +
+        'No done do último passo do pedido, passe em summary um resumo da resposta em até 60 caracteres ' +
+        '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel.',
       inputSchema: {
         type: 'object',
         required: ['ids'],
-        properties: { ids: { type: 'array', items: { type: 'string' } } },
+        properties: { ids: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } },
       },
     })
     await $.tool.register({
@@ -1883,7 +1890,8 @@ export const register: Register = on => {
     try {
       const agent = e.agentId ?? MAIN
       if (agent === MAIN) planned = true
-      const input = ((e as any).input ?? e) as { ids?: string[] }
+      const input = ((e as any).input ?? e) as { ids?: string[]; summary?: unknown }
+      if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') lastBrief = input.summary
       let notes: string[] = []
       let closed: string[] = []
       let unstarted: string[] = []
@@ -2001,6 +2009,19 @@ export const register: Register = on => {
 
   // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
 let lastRecap: string | undefined
+// The turn's answer in a few words, as the session gave it (done's `summary`).
+let lastBrief: string | undefined
+// The ↩ line says the answer in at most BRIEF characters: the summary the session gave, else the
+// first sentence of the answer; longer, cut at a word with "…". The whole answer stays in the tooltip.
+const BRIEF = 60
+function brief(text: string): string {
+  const one = text.replace(/\s+/g, ' ').trim()
+  if (one.length <= BRIEF) return one
+  const cut = one.slice(0, BRIEF - 1)
+  const at = cut.lastIndexOf(' ')
+  return `${(at > BRIEF / 2 ? cut.slice(0, at) : cut).replace(/[\s,.;:–—-]+$/, '')}…`
+}
+const firstSentence = (text: string) => text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s/)[0] ?? ''
 
 // A subagent's turn ending is the subagent ending: what it left open is interrupted.
   // A teammate ends a turn per message and is left alone.
@@ -2016,14 +2037,16 @@ let lastRecap: string | undefined
     // recap (wrap_up), which is what the opener's notice carries; else the final message.
     if (!agent && !e.isAborted) {
       const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
+      const short = brief(lastBrief ?? firstSentence(said))
       lastRecap = undefined
+      lastBrief = undefined
       if (said !== '') {
         await change($, all =>
           all.map(g => {
             if (g.agent !== MAIN) return g
             const turns = g.turns ?? []
             const last = [...turns].reverse().find(u => g.tasks.some(t => t.turn === u.id))
-            return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, reply: said } : u)) } : g
+            return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, reply: said, brief: short } : u)) } : g
           }),
         )
       }
@@ -2381,7 +2404,7 @@ let lastRecap: string | undefined
       // one after a card still at work would read as the group being over.
       const said: Row[] =
         open && typeof u.reply === 'string' && u.reply !== '' && !ws.some(w => w.any)
-          ? [{ depth: top + 1, tone: 'reply', title: u.reply, label: 'Resposta' }]
+          ? [{ depth: top + 1, tone: 'reply', title: u.brief ?? brief(firstSentence(u.reply)), whole: u.reply, label: 'Resposta' }]
           : []
       return [row, ...inner, ...said]
     }
@@ -2430,7 +2453,7 @@ let lastRecap: string | undefined
       // turn order: a ↩ line, dim, with no count or time (not a task).
       const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
         .filter(u => typeof u.reply === 'string' && u.reply !== '')
-        .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.reply as string, label: 'Resposta' }))
+        .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.brief ?? brief(firstSentence(u.reply as string)), whole: u.reply, label: 'Resposta' }))
       const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
       // Whether a closed one has anything to open: its panel, drawn as it would be.
       if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }

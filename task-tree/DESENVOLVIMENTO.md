@@ -148,8 +148,13 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   mesmo texto que abre o aviso de fim de turno da principal) ou, sem ele, a mensagem final visível
   (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
-  cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. Cortada com
-  "…" e tooltip do texto inteiro. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
+  cinza, texto apagado, sem barra, contador nem tempo; não é tarefa e não conta no d/n. A linha mostra um
+  resumo de até 60 caracteres, e o tooltip a resposta inteira (pedido do usuário: "devem ser um
+  resumo, no maximo 60 caracteres"). Fonte do resumo: o campo `summary` do `done` (o `RULES` e a
+  descrição da ferramenta pedem que venha no `done` do último passo do pedido; ex.: "Cartões na
+  raiz: causa na recarga; correção enviada"); sem ele, a primeira frase da resposta. Acima de 60
+  caracteres, corta no limite de uma palavra com "…". O resumo fica em `Turn.brief` e a resposta
+  inteira em `Turn.reply`; turnos antigos, sem `brief`, derivam o resumo da resposta. Sem linha enquanto o turno roda. Terminal: "↩ texto", apagado.
   No próprio painel da sessão (inclusive na orquestradora; pedido do usuário: "igual a sessao
   filha, as tarefas que tenham filhas precisam ter tambem a resposta com o icone de resposta"), o
   grupo da mensagem (linha do pedido, `turnRows`) ganha no fim, depois de todos os níveis 1 dele,

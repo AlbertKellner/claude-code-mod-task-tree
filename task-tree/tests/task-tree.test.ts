@@ -3347,6 +3347,42 @@ describe('resposta da sessão no cartão', () => {
     expect(texts[at('Nada a commitar.')]).not.toMatch(/\d+\/\d+|\d:\d\d/)
   })
 
+  test('↩ é um resumo de até 60 caracteres: o summary do done, senão a primeira frase; o tooltip tem a resposta inteira', async ($, on) => {
+    const written: Record<string, string> = {}
+    publish(on, written)
+    const full = 'Você está certo, voltou. Os cartões da governança e do SVG são da cadeia da tarefa 44 e caíram na raiz.'
+    await $.prompt.submit({ text: 'um' } as any)
+    await plan($, [{ id: 'A', title: 'Fazer A' }])
+    await call($, 'done', { ids: ['A'], summary: 'Cartões na raiz: causa na recarga; correção enviada' })
+    await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: full } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'x', durationMs: 1, isAborted: false, turnId: 't1' } as any)
+    // No summary: the first sentence; a long one is cut at a word, with "…".
+    await $.prompt.submit({ text: 'dois' } as any)
+    await plan($, [{ id: 'B', title: 'Fazer B' }])
+    await done($, ['B'])
+    await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Primeira frase curta. Segunda frase.' } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'x', durationMs: 1, isAborted: false, turnId: 't2' } as any)
+    await $.prompt.submit({ text: 'tres' } as any)
+    await plan($, [{ id: 'C', title: 'Fazer C' }])
+    await call($, 'done', { ids: ['C'], summary: 'Um resumo comprido demais que passa muito dos sessenta caracteres permitidos' })
+    await $.turn.complete({ reason: 'answer', answer: 'resposta', durationMs: 1, isAborted: false, turnId: 't3' } as any)
+    const turns = turnsOf(written)
+    expect(turns[0]).toMatchObject({ reply: full, brief: 'Cartões na raiz: causa na recarga; correção enviada' })
+    expect(turns[1]?.brief).toBe('Primeira frase curta.')
+    expect(turns[2]?.brief?.length).toBeLessThanOrEqual(60)
+    expect(turns[2]?.brief).toMatch(/[a-z]…$/)
+    expect(turns[2]?.brief).toBe('Um resumo comprido demais que passa muito dos sessenta…')
+    const texts = rowsOf(await view($)).map(l => l.text)
+    expect(texts.some(t => t.includes('Cartões na raiz: causa na recarga; correção enviada'))).toBe(true)
+    expect(texts.some(t => t.includes('Você está certo'))).toBe(false)
+    // Desktop: the tooltip carries the whole answer.
+    const props = { ...PANE_PROPS, bodyColumns: 120 }
+    const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
+    const src = JSON.stringify(await ui.drawn())
+    await ui.unmount()
+    expect(src).toContain('<title>Você está certo, voltou.')
+  })
+
   test('grupo com cartão de sessão filha não mostra o ↩ da própria sessão', async ($, on) => {
     const KID = 'local_eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
     on('mcp.call', () => ({
