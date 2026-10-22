@@ -657,6 +657,8 @@ async function adopt($: any) {
 
 async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
   await ensureGroups($)
+  await ensureView($)
+  await ensureWork($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
   await persist($, groups)
@@ -707,6 +709,54 @@ async function ensureGroups($: any): Promise<Group[] | undefined> {
       loaded.add('groups')
     } catch {}
     return groups
+  } catch {
+    return undefined
+  }
+}
+// The view's and the work's "first use" (the table's restoredAt), as ensureGroups: a restart
+// without session.start would otherwise draw the default view and let the next plan write its own
+// work over the store's (the summary view would lose the work in progress). Each answers what it
+// brought, for a drawing that cannot write the state, and counts the key as loaded only once the
+// state holds it. With nothing in the store, nothing is brought: the pane keeps its defaults.
+async function ensureView($: any): Promise<'full' | 'summary' | undefined> {
+  if (loaded.has('view') || !restoredAt('view', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(viewState)).value !== undefined) {
+      loaded.add('view')
+      return undefined
+    }
+    const saved = await loadStore($, 'view')
+    if (saved !== 'full' && saved !== 'summary') {
+      loaded.add('view')
+      return undefined
+    }
+    try {
+      await $.state.set(viewState, saved)
+      loaded.add('view')
+    } catch {}
+    return saved
+  } catch {
+    return undefined
+  }
+}
+async function ensureWork($: any): Promise<string[] | undefined> {
+  if (loaded.has('work') || !restoredAt('work', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(workState)).value !== undefined) {
+      loaded.add('work')
+      return undefined
+    }
+    const saved = await loadStore($, 'work')
+    if (!Array.isArray(saved)) {
+      loaded.add('work')
+      return undefined
+    }
+    const work = saved.map(String)
+    try {
+      await $.state.set(workState, work)
+      loaded.add('work')
+    } catch {}
+    return work
   } catch {
     return undefined
   }
@@ -1034,6 +1084,7 @@ async function selfId($: any): Promise<string | undefined> {
 // task it was opened on, as this session draws it. `tasks` is for earlier versions.
 async function publishWait($: any) {
   await ensureGroups($)
+  await ensureWork($)
   await saveLinks($)
   try {
     const id = await selfId($)
@@ -1174,6 +1225,7 @@ async function setView($: any, view: 'full' | 'summary') {
 // At the session's start: the view chosen before (a reload, a resume), else the summary, the
 // default of a new session (the table's `current`: the state's wins).
 async function restoreView($: any) {
+  loaded.add('view')
   const { value: cur } = await $.state.get(viewState)
   if (cur !== undefined) return
   let saved: unknown
@@ -1189,6 +1241,7 @@ async function restoreView($: any) {
 // and in the store under the session, like the view.
 async function nothingOpen($: any): Promise<boolean> {
   await ensureGroups($)
+  await ensureWork($)
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   return activeLeaves({ groups: withMain(groups), waits: [], children }, 0) === 0
@@ -1260,6 +1313,7 @@ async function restoreLinks($: any) {
   } catch {}
 }
 async function restoreWork($: any) {
+  loaded.add('work')
   const { value: cur } = await $.state.get(workState)
   if (cur !== undefined) return
   try {
@@ -2483,8 +2537,12 @@ const REPLY = 'resposta'
     const drawn = await (async () => {
     const ui = $.ui.resolve(e) as any
     const { Box, Text } = ui
-    // After a restart without session.start, the groups come from the store (see ensureGroups).
+    // After a restart without session.start, the groups, the view and the work come from the store
+    // (see ensureGroups, ensureView, ensureWork): a drawing cannot write the state, so what they
+    // brought is used here.
     const brought = await ensureGroups($)
+    const viewBrought = await ensureView($)
+    const workBrought = await ensureWork($)
     const { value: heldState } = await $.state.get(groupsState)
     const held = heldState ?? brought
     const { value: waits = [] } = await $.state.get(waitsState)
@@ -2826,9 +2884,11 @@ const REPLY = 'resposta'
     // its sessions under the task they were last sent a message from (else where they were opened;
     // one still at work with neither in the work goes at the end), each cut to its own round. Same
     // lines, the same ▾/▸ and the same choices as the full view.
-    const { value: view = 'full' } = await $.state.get(viewState)
+    const { value: heldView } = await $.state.get(viewState)
+    const view = heldView ?? viewBrought ?? 'full'
     const summary = view === 'summary'
-    const { value: work = [] } = await $.state.get(workState)
+    const { value: heldWork } = await $.state.get(workState)
+    const work = heldWork ?? workBrought ?? []
     const cut = (): Panel => {
       const base = { groups: withMain(held ?? []), waits, work: work as string[] }
       const kept = withMain(trimToWork({ ...base, children: [] }, 0).groups).find(g => g.agent === MAIN)?.tasks ?? []

@@ -108,12 +108,18 @@ e todo prefixo do store tocados, e falha se algum não tem linha ou se alguma li
 - Funções que recebem `$` em arquivo importado (`loadStore`, `saveStore`, `saveGroups`) passam no
   validador: a armadilha do `$` fora do topo não apareceu aí.
 
-Divergências que a tabela expôs (comportamento atual, nada mudado na extração):
+Divergências que a tabela expôs (a extração não mudou nada; a 1 já foi corrigida):
 
-1. `view` e `work` só voltam no `session.start`: num respawn do worker sem ele, a visão fica padrão e o
-   próximo `plan` grava `work` por cima do store. A corrigir depois do commit (`first-use`, como `groups`).
+1. (corrigida) `view` e `work` só voltavam no `session.start`: num respawn do worker sem ele (reinício
+   do hooks worker, `/model`), a visão caía na padrão e o próximo `plan` gravava `work` por cima do
+   store. Agora `ensureView($)` e `ensureWork($)`, no molde de `ensureGroups`, trazem do store no primeiro
+   uso (`restoredAt` = `first-use` na tabela, como `groups`); marcam `loaded` só quando o state recebe o
+   valor e devolvem o que trouxeram para quem não pode gravar (o `ui.render` não pode: `$.state.set`
+   lá dentro lança). Chamados em `change()`, `publishWait()`, `nothingOpen()` e no `ui.render`. Sem nada
+   no store, o painel fica nos padrões. Teste: `reinicio.test.ts`, "sem session.start: a visão e o
+   trabalho atual voltam do store no primeiro uso".
 2. `lastRecap` é variável de módulo: recarga entre o `wrap_up` e o fim do turno perde o recap (o ↩ usa a
-   mensagem final). A corrigir depois do commit (vai para o state, como o `brief`).
+   mensagem final). A corrigir no próximo item (vai para o state, como o `brief`).
 3. `groups` no `resume` substitui o state (o `SessionStart` de resume chama restore sem olhar o state);
    no `session.start`, o state vence.
 4. `sends` sem teto na fusão; `received` e `launches` com 20.
@@ -124,7 +130,7 @@ Divergências que a tabela expôs (comportamento atual, nada mudado na extraçã
 
 ### Reinício e recarga
 
-`tests/reinicio.test.ts` (8 testes, com o fixture `REAL`) cobre dois casos:
+`tests/reinicio.test.ts` (9 testes, com o fixture `REAL`) cobre dois casos:
 
 - **Reinício do processo** (`$.state` vazio, store cheio): cada teste do kit é um módulo novo com
   `$.state` vazio; o store passa entre testes por um objeto compartilhado. Testado com e sem `session.start`.
