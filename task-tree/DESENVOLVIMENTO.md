@@ -84,9 +84,7 @@ tudo; variáveis do módulo não sobrevivem a nada.
 o cenário com bug imprime `TODO …` e passa; quando o bug for corrigido, o teste falha pedindo para tirar o
 nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
 
-1. `reinicio-sem-session-start`: sem `session.start`, `change()` parte de `[]` e `persist()` sobrescreve
-   `session:<id>`; `start(['98'])` responde "não existe" e o store vai de 97 para 0 tarefas. Correção prevista:
-   guarda em `change()`, como o `linksLoaded`.
+1. (corrigido, fora de `KNOWN`) `reinicio-sem-session-start`: ver "Grupos do store sem `session.start`" abaixo.
 2. `links-lista-parcial`: com a lista do host parcial, `restoreLinks` só mapeia as filhas listadas e
    `saveLinks` grava o store sem as outras (uma filha com 20 rodadas some). Correção prevista: unir as
    antigas em `restoreLinks`.
@@ -95,6 +93,30 @@ nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
    no `$.state`.
 
 Limite: o kit não simula o respawn real do worker.
+
+### Grupos do store sem `session.start`
+
+Sem `session.start` (respawn do hooks worker, `/model`), o módulo novo tinha `$.state` vazio e a primeira
+escrita partia de `[]`, sobrescrevendo `session:<id>` (o store ia de 97 para 0 tarefas). Agora `groups`
+volta do store também sem `session.start`, como já valia para `links`:
+
+- `keptGroups($, id)`: o painel como o store guarda (subagentes interrompidos); extraído de `restore`, que o usa.
+- `groupsLoaded` e `ensureGroups($)`, no estilo do `linksLoaded`: se o módulo ainda não viu os grupos e o
+  state está vazio, lê `session:<id>` do store e grava no state; devolve os grupos trazidos e só marca
+  "carregado" quando a escrita no state vingou (ou o state já tinha, ou o store não tem nada).
+- Chamado em `change()` (toda escrita), `publishWait()` (toda publicação), `nothingOpen()` (antes do
+  `change` do `plan`) e no `ui.render` (`held = state ?? brought`). `session.start` marca `groupsLoaded = true`
+  depois do `restore`.
+- `view` e `work` continuam só no `session.start`, de propósito: `restoreView` na guarda mudaria o padrão do
+  desenho ('full' no render × 'summary' no restore) e quebraria o golden; fica para o R13.
+- Sem `session.start`, o desenho traz as tarefas do store, mas ainda não os cartões de sessão (a lista do
+  host só é lida no `session.start` ou pelo poll).
+
+Armadilhas: (1) um `$.state.set` feito de dentro do `ui.render` não vinga no kit (a leitura acontece, o
+desenho segue vazio); por isso o render usa o valor devolvido por `ensureGroups` e a flag só sobe com a
+escrita confirmada. (2) `claude plugin validate` recusa uma função que recebe `$` com o mesmo nome de uma
+variável atribuída em outro lugar ("the function handed $ "saved" is assigned to elsewhere"); por isso
+`keptGroups`, não `saved`.
 
 ## Desenho do painel
 
