@@ -156,6 +156,7 @@ const PLANTS: Record<string, Plant> = {
     },
   },
   brief: { marker: 'Resumo X', plant: async $ => void (await call($, 'done', { summary: 'Resumo X' })) },
+  recap: { marker: 'Recap X', plant: async $ => void (await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Recap X' } as any)) },
   collapsed: {
     marker: '"|t:A"',
     plant: async $ => {

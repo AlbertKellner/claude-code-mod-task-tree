@@ -27,12 +27,21 @@ const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
+const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
 // In the state, not a variable of the module: a reload of the mod between the done and the end of
 // the turn (saving a file of the mod mid-turn) kept the variable's value nowhere, and the ↩ line
 // lost the summary. Empty: none given.
 async function lastBrief($: any): Promise<string | undefined> {
   const { value } = await $.state.get(briefState)
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
+// The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete),
+// until the turn ends. In the state for the same reason as the brief: a reload between the wrap_up
+// and the end of the turn kept a module variable's value nowhere, and the card showed the final
+// message instead of the recap. Empty: none given.
+async function lastRecap($: any): Promise<string | undefined> {
+  const { value } = await $.state.get(recapState)
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 // The pane's lines the person opened or closed (see setFold).
@@ -2299,8 +2308,6 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete).
-let lastRecap: string | undefined
 // The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
 // that names the limit): the summary the session gave, else the first sentence of the answer;
 // longer, cut at a word with "…". The whole answer stays in the tooltip.
@@ -2342,10 +2349,11 @@ const REPLY = 'resposta'
     // words: "adicione nos paineis de sessao, o que foi gerado como resposta"). The end-of-turn
     // recap (wrap_up), which is what the opener's notice carries; else the final message.
     if (!agent && !e.isAborted) {
-      const said = (lastRecap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
+      const recap = await lastRecap($)
+      const said = (recap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
       const given = await lastBrief($)
       const short = given !== undefined ? brief(given) : undefined
-      lastRecap = undefined
+      if (recap !== undefined) await $.state.set(recapState, '')
       if (given !== undefined) await $.state.set(briefState, '')
       if (said !== '') {
         await change($, all =>
@@ -2418,7 +2426,7 @@ const REPLY = 'resposta'
     // stays until the next prompt (prompt.submit drops it) or a wrap_up with no question.
     if (String(e.tool) === 'mcp__ccd_turn__wrap_up') {
       const input = ((e as any).input ?? e) as { ask?: unknown; recap?: unknown }
-      if (agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') lastRecap = input.recap
+      if (agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
       const key = `${agent}:wrap_up:ask`
       await dropWaits($, w => w.key !== key)
       if (typeof input.ask === 'string' && input.ask.trim() !== '') {

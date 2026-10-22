@@ -292,4 +292,28 @@ describe('recarga a quente (state mantido, módulo novo, sem session.start)', ()
     // Spent with the turn: the next one starts with none.
     expect(HOT.brief).toBe('')
   })
+
+  // The same for the end-of-turn recap (wrap_up): the first test gives it, the second (a new
+  // module) ends the turn, with a final message that is not the recap.
+  const HOT2: Record<string, unknown> = {}
+  test('recap antes da recarga, 1/2: o wrap_up guarda o recap no state', async ($, on) => {
+    seedState(on, HOT2)
+    host(on, {})
+    on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' } as any, async () => ({ result: 'ok' }))
+    await $.prompt.submit({ text: 'conferir o recap' } as any)
+    await call($, 'plan', { tasks: [{ id: 'A', title: 'Conferir' }], request: 'Conferir o recap' })
+    await call($, 'done', { ids: ['A'] })
+    await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Recap da recarga, inteiro no cartão.' } as any)
+    expect(HOT2.recap).toBe('Recap da recarga, inteiro no cartão.')
+  })
+
+  test('recap antes da recarga, 2/2: o turno termina no módulo novo e o cartão traz o recap, não a mensagem final', async ($, on) => {
+    seedState(on, HOT2)
+    host(on, {})
+    await $.turn.complete({ reason: 'answer', answer: 'A mensagem final, que não é o recap.', durationMs: 1, isAborted: false, turnId: 't1' } as any)
+    const turn = ((HOT2.groups as any[])[0].turns ?? []).slice(-1)[0]
+    expect(turn?.reply).toBe('Recap da recarga, inteiro no cartão.')
+    // Spent with the turn: the next one starts with none.
+    expect(HOT2.recap).toBe('')
+  })
 })
