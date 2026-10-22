@@ -15,9 +15,6 @@ import { REAL } from './fixtures/orquestradora-real'
 // para tirá-lo da lista. É o skip/todo que o kit não tem.
 
 const KNOWN: Record<string, string> = {
-  'links-lista-parcial':
-    'H3.2 (01 §3), confirmada: restoreLinks só devolve âncoras e rodadas às filhas que o host já listou; com a lista parcial, ' +
-    'a saveLinks seguinte grava o store sem as outras (perda definitiva). Correção: fundir as entradas antigas em vez de só mapear as atuais.',
   'recarga-perde-summary':
     '02 §2.3: lastBrief é variável do módulo; um done com summary antes da recarga deixa o turno sem ↩ com o resumo. Correção: R13 (lastBrief no state).',
 }
@@ -211,15 +208,27 @@ describe('reinício do processo (state vazio, store cheio)', () => {
     expect(links.find((c: any) => c.id === NEW)?.anchor).toBe('N')
   })
 
-  test('sem session.start, lista do host parcial (H3.2): as ligações das filhas que o host não listou ficam no store', async ($, on) => {
+  test('sem session.start, lista do host parcial (H3.2): as ligações das filhas que o host não listou ficam no store e voltam quando ele as lista de novo', async ($, on) => {
     const store = storeOf()
     // The host lists only one child (and the new one) when the links are first written back.
-    host(on, store, [...hostRows([ANALISE]), { sessionId: NEW, name: 'nova', title: 'Nova', isRunning: true, isArchived: false, startedBy: ME }])
+    const h = host(on, store, [...hostRows([ANALISE]), { sessionId: NEW, name: 'nova', title: 'Nova', isRunning: true, isArchived: false, startedBy: ME }])
     await call($, 'plan', { tasks: [{ id: 'N', title: 'Abrir outra' }] })
     await call($, 'start', { ids: ['N'] })
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     const codigo = linksOf(store).find((c: any) => c.id === CODIGO)
-    known('links-lista-parcial', codigo?.rounds?.length === 20, `codigo no store depois: ${JSON.stringify(codigo ?? null).slice(0, 120)}; filhas no store: ${linksOf(store).map((c: any) => c.name || c.id.slice(0, 14)).join(', ')}`)
+    expect(codigo?.rounds?.length).toBe(20)
+    expect(codigo?.lastAnchor).toBe('90')
+    expect(linksOf(store).map((c: any) => c.id)).toEqual(expect.arrayContaining([...own.children.map((c: any) => c.id), NEW]))
+    // Not drawn while the host leaves it out: the published children are the listed ones.
+    const shown = (JSON.parse(h.published[h.published.length - 1] ?? '{}').children ?? []).map((c: any) => c.id)
+    expect(shown).not.toContain(CODIGO)
+    // Listed again (a refresh): back with its ties.
+    h.rows = [...hostRows(), { sessionId: NEW, name: 'nova', title: 'Nova', isRunning: true, isArchived: false, startedBy: ME }]
+    await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
+    const back = (JSON.parse(h.published[h.published.length - 1] ?? '{}').children ?? []).find((c: any) => c.id === CODIGO)
+    expect(back?.rounds?.length).toBe(20)
+    expect(back?.lastAnchor).toBe('90')
+    expect(linksOf(store).find((c: any) => c.id === CODIGO)?.rounds?.length).toBe(20)
   })
 })
 

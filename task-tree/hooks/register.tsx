@@ -847,9 +847,10 @@ async function refreshChildren($: any) {
           waiting: r.isArchived !== true && waiting.includes(r.sessionId),
           context: contexts[r.sessionId] ?? before?.context,
           engine: engines[r.sessionId] ?? before?.engine,
-          lastAnchor: before?.lastAnchor,
-          rounds: before?.rounds,
-          anchor: before?.anchor,
+          // A session the host lists again after leaving it out: its ties come back from the store's copy.
+          lastAnchor: before?.lastAnchor ?? keptLink(r.sessionId)?.lastAnchor,
+          rounds: before?.rounds ?? keptLink(r.sessionId)?.rounds,
+          anchor: before?.anchor ?? keptLink(r.sessionId)?.anchor,
           panel: panels[r.sessionId] ?? before?.panel,
           tasks: panels[r.sessionId] ? undefined : before?.tasks,
         }
@@ -966,7 +967,7 @@ async function recordStart($: any, resultText: string) {
   await update($, childrenState, cur => {
     const list = cur ?? []
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
-    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor }]
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor }]
   })
   await refreshChildren($)
 }
@@ -1180,6 +1181,17 @@ async function joinWork($: any, ids: string[], fresh: boolean) {
 // Whether this module brought them back yet: a reload does not run session.start, so the first
 // save brings them back before it writes, and nothing new is lost to the old copy.
 let linksLoaded = false
+// What the store keeps of a session this one linked to: its ties to the tasks, not its state.
+type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds'>
+const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })
+// The links as the store holds them, by session id, this module's copy. The state's `children` are
+// the sessions the host lists (refreshChildren rebuilds them from the list, archived ones included);
+// a session the list leaves out for a while is not in the state, so a save from the state alone
+// would drop its ties from the store for good. The save keeps those entries, and a session the host
+// lists again gets its ties back from here (refreshChildren, recordStart). Nothing is drawn from
+// here: a session shows only while the host lists it.
+let keptLinks = new Map<string, Link>()
+const keptLink = (id: string): Link | undefined => keptLinks.get(id)
 async function saveLinks($: any) {
   if (!linksLoaded) await restoreLinks($)
   try {
@@ -1187,12 +1199,10 @@ async function saveLinks($: any) {
     const { value: sends } = await $.state.get(sendsState)
     const { value: received } = await $.state.get(receivedState)
     const { value: launches } = await $.state.get(launchesState)
-    await $.store.set(`links:${await $.session.id()}`, {
-      children: (children as Child[] | undefined)?.map(c => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })),
-      sends,
-      received,
-      launches,
-    })
+    const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
+    const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
+    await $.store.set(`links:${await $.session.id()}`, { children: links, sends, received, launches })
+    keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
 // Merged into what the state may already hold (the host's list read before): a session keeps its
@@ -1209,6 +1219,7 @@ async function restoreLinks($: any) {
       return [...old.filter(x => !seen.has(JSON.stringify(x))), ...now]
     }
     const old = list('children') as Child[]
+    keptLinks = new Map(old.filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
     if (old.length > 0)
       await update($, childrenState, cur =>
         cur === undefined || cur.length === 0
