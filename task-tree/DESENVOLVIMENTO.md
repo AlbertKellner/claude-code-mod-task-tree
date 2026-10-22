@@ -22,7 +22,9 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 15 chaves de `$.state` (com `recap`), 1 do store (`sessions`) e 15 variáveis de módulo (`lastRecap` saiu). Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
 - `tests/durabilidade.test.ts`: 63 testes sobre a tabela (ver "Tabela de durabilidade").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
+- `io/publish.ts` (arquivo publicado: `parsePublished`, `readPublished`, `waitFile`, `publishWait`) e `io/log.ts` (`debug`); ver "Arquivo publicado".
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
+- `tests/publicado-versoes.test.ts` e `tests/fixtures/publicados.ts`: um arquivo de cada formato antigo (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
 - `tests/sobreposicao.test.ts`: regra de não-sobreposição dos `Box` de uma linha (6 testes; ver "Sobreposição dos Box").
 - `tests/layout.test.ts`: testes de layout diretos, sem mount e sem SVG, com o fixture real (14 testes, ~130 ms); chamam `layout(model, choices, now, ownId)` com o `Model` montado como o `refreshChildren` monta (ver "Testes de layout").
@@ -217,9 +219,18 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 
 ### Arquivo publicado
 
-`publishWait` escreve `~/.claude/task-tree-waits/<id>.json` e a sessão mãe o lê. O contrato é o tipo
-`Published` em `types/index.d.ts`: `version?`, `waiting`, `at?`, `tasks?` (versões antigas), `groups?`,
-`waits`, `children`, `context?`, `engine?`, `panes?`, `renderError?`, `work?`, `received?`, `sends?`.
+`task-tree/io/publish.ts` escreve e lê `~/.claude/task-tree-waits/<id>.json`; a sessão mãe o lê. O
+`register.tsx` só junta o estado em `publishPanel($)` (sete `$.state.get` com chave literal, limite do kit:
+referências de estado só literais no arquivo que chama `$.state`) e chama `publishWait($, id, publicação)`,
+que recebe o painel já lido e escreve o arquivo (contexto, `panes`, `at`, filtro dos `sends` tomados), com
+`try/catch` e o mesmo aviso em falha. As sete leituras de estado vêm antes de checar o caminho do arquivo,
+dentro do mesmo `try`. `io/log.ts` tem `debug($, texto)`, usado pelo register e pelo módulo. `waitFile` ficou
+em `io/publish.ts` (o item 2 da fase 4 pode importá-lo daqui). O contrato é o tipo `Published` em
+`types/index.d.ts` (reexportado por `io/publish.ts`): `version?`, `waiting`, `at?`, `tasks?` (versões
+antigas), `groups?`, `waits`, `children`, `context?`, `engine?`, `panes?`, `renderError?`, `drawSize?`,
+`rows?`, `work?`, `received?`, `sends?`. As chaves saem do JSON nesta ordem: `version`, `waiting`, `at`,
+`tasks`, `groups`, `waits`, `children`, `context`, `engine`, `panes`, `renderError`, `drawSize`, `rows`,
+`work`, `received`, `sends`.
 
 - `PUBLISHED_VERSION = 1`: `publishWait` escreve `version: 1` (`satisfies Published`). Formato só acrescido.
 - `parsePublished(text)` (pura): JSON inválido, não-objeto (lista/número/string/null) ou `version` presente e
@@ -238,6 +249,12 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 - `tests/publicado.test.ts` (8 testes): `version` no arquivo escrito; válido; só `groups`; `{}`; versão
   antiga (só `tasks`); versão 2 (ignorada, 1 log, volta ao consertar, logada de novo ao quebrar); corrompido
   e tipos errados; `watchSends` com arquivo corrompido do destino (✉ fica; com `received` válido, some).
+- `tests/publicado-versoes.test.ts` (4 testes) com `tests/fixtures/publicados.ts` (`PUBLISHED_FILES`): um
+  arquivo de cada um dos 8 formatos que já existiram (o menor de cada, anonimizado: textos "Texto N", nomes
+  "sessao-filha", ids `local_` zerados, listas cortadas em 3). Cobrem: o fixture vai do primeiro formato ao
+  desta versão (só o último tem `version`); `parsePublished` lê cada um sem erro; uma filha com cada formato
+  desenha o cartão e nada vai ao log; o que esta versão escreve tem as chaves do último formato, na mesma
+  ordem. Ao mudar o formato, acrescente um arquivo ao fixture.
 
 ### Grupos do store sem `session.start`
 

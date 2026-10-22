@@ -12,6 +12,8 @@ import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, s
 import type { Link } from '../state/durability'
 import { MAIN, flat, tasksOf, hasOpen, withMain, stop, interrupt, count, live, total, idle, atWork, activeLeaves, sessionTime, current, running, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Tone, Row, Frame, Guide } from '../draw/layout'
+import { debug } from '../io/log'
+import { publishWait, readPublished } from '../io/publish'
 
 const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in this file). Where each
@@ -291,7 +293,7 @@ async function persist($: any, groups: Group[]) {
   try {
     await saveGroups($, groups)
   } catch {}
-  await publishWait($)
+  await publishPanel($)
 }
 
 // Before groups the panel was one list (`tasks`): it moves into the main group, once,
@@ -527,7 +529,7 @@ async function refreshChildren($: any) {
   // that opened it.
   const { value: groups = [] } = await $.state.get(groupsState)
   await showStatus($, groups)
-  if (mine.length > 0) await publishWait($)
+  if (mine.length > 0) await publishPanel($)
   await keepTime($)
 }
 
@@ -539,7 +541,7 @@ async function noteReceived($: any, text: string) {
   const at = await stamp($)
   if (at === undefined) return
   await update($, receivedState, cur => [...(cur ?? []), ...froms.map(from => ({ from, at }))].slice(-20))
-  await publishWait($)
+  await publishPanel($)
 }
 
 // A queued message is taken up once its session says so: its published file lists a message from
@@ -647,73 +649,6 @@ async function endedNote($: any): Promise<string | undefined> {
   return SESSION.ended(lines, openList(tasks))
 }
 
-// The shape of the published file this version writes (`Published.version`). Files from before it
-// carry none and are read as they are; a file of another version is ignored.
-const PUBLISHED_VERSION = 1
-// The published file as read: `ok` the file checked and normalized (the lists are lists, the flags
-// flags; what is missing is left out or empty), else `error` says why it is ignored. Pure: the
-// readers log the error (once per session and reason, see readPublished).
-function parsePublished(text: string): { ok: Published } | { error: string } {
-  let raw: unknown
-  try {
-    raw = JSON.parse(text)
-  } catch (err) {
-    return { error: `JSON inválido (${String((err as any)?.message ?? err).slice(0, 80)})` }
-  }
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { error: `não é um objeto (${Array.isArray(raw) ? 'lista' : typeof raw})` }
-  const f = raw as Record<string, unknown>
-  if (f.version !== undefined && f.version !== PUBLISHED_VERSION) return { error: `versão ${String(f.version)}, esta é ${PUBLISHED_VERSION}` }
-  const list = <T,>(v: unknown): T[] | undefined => (Array.isArray(v) ? (v as T[]) : undefined)
-  const context = f.context as Record<string, unknown> | undefined
-  const out: Published = {
-    ...(typeof f.version === 'number' ? { version: f.version } : {}),
-    waiting: f.waiting === true,
-    ...(typeof f.at === 'number' ? { at: f.at } : {}),
-    ...(list<TaskNode>(f.tasks) ? { tasks: list<TaskNode>(f.tasks) } : {}),
-    ...(list<Group>(f.groups) ? { groups: list<Group>(f.groups) } : {}),
-    waits: list<Wait>(f.waits) ?? [],
-    children: list<Child>(f.children) ?? [],
-    ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
-    ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
-    ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
-    ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
-    ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
-    ...(list<Send>(f.sends) ? { sends: list<Send>(f.sends) } : {}),
-  }
-  return { ok: out }
-}
-// A session's published file, read and checked; `undefined` when there is none to use (no path,
-// unreadable, or invalid: then said once in the debug log, per session and reason, as the poll
-// reads it every few seconds).
-const badPublished = new Set<string>()
-async function readPublished($: any, id: string): Promise<Published | undefined> {
-  const path = await waitFile($, id)
-  if (!path) return undefined
-  let text: string
-  try {
-    text = await $.fs.read(path)
-  } catch {
-    return undefined
-  }
-  const parsed = parsePublished(text)
-  if ('ok' in parsed) {
-    for (const k of badPublished) if (k.startsWith(`${id}|`)) badPublished.delete(k)
-    return parsed.ok
-  }
-  const key = `${id}|${parsed.error}`
-  if (!badPublished.has(key)) {
-    badPublished.add(key)
-    await debug($, `task-tree: arquivo publicado de ${id} ignorado: ${parsed.error}`)
-  }
-  return undefined
-}
-
-// Where a session says whether it waits on the person, read by the session that opened it.
-async function waitFile($: any, id: string): Promise<string | undefined> {
-  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
-  return home ? `${home}/.claude/task-tree-waits/${id}.json` : undefined
-}
-
 // This session's id as the desktop app names it (local_…); none outside the app.
 let ownId: string | undefined
 async function selfId($: any): Promise<string | undefined> {
@@ -729,51 +664,28 @@ async function selfId($: any): Promise<string | undefined> {
   return ownId
 }
 
-// Publishes whether anything in this session waits on the person, and its whole panel
-// (groups, waits, the sessions it opened), for the session that opened it to draw under the
-// task it was opened on, as this session draws it. `tasks` is for earlier versions.
-async function publishWait($: any) {
+// Publishes this session's panel (io/publish.ts): gathers it from the state here, where the kit
+// wants the state keys literal, and what the last drawing left; `tasks` is for earlier versions.
+async function publishPanel($: any) {
   await ensureGroups($)
   await ensureWork($)
   await saveLinks($)
   try {
     const id = await selfId($)
-    const path = id ? await waitFile($, id) : undefined
-    if (!path) {
-      // Outside the desktop app there is no id, and nothing to publish.
-      if (id) await debug($, 'task-tree: sem USERPROFILE/HOME, painel não publicado')
-      return
-    }
-    const { value = [] } = await $.state.get(waitsState)
+    const { value: waits = [] } = await $.state.get(waitsState)
     const { value: groups = [] } = await $.state.get(groupsState)
     const { value: children = [] } = await $.state.get(childrenState)
-    const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    // The share of the context window used, for the ring the session that opened this one draws
-    // (the default usage call is free; no breakdown).
-    let context: { percent: number; at: number } | undefined
-    try {
-      const percent = (await $.session.usage())?.context?.percent
-      if (typeof percent === 'number') context = { percent, at: await $.clock.now() }
-    } catch {}
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
-    // The panes as the app holds them for this session (placed, shown or a tab behind another), for a
-    // panel that does not show up (read in this file from outside, or with /task-tree).
-    let panes: unknown
-    try {
-      panes = (await $.ui.panes()).map((p: any) => ({ id: p.id, isPlaced: p.isPlaced, isShown: p.isShown }))
-    } catch {}
-    await $.fs.write(
-      path,
-      JSON.stringify({ version: PUBLISHED_VERSION, waiting: value.length > 0, at: await $.clock.now(), tasks, groups, waits: value, children, context, engine, panes, renderError, drawSize, rows: drawRows, work, received, sends: ((await $.state.get(sendsState)).value ?? []).filter((x: Send) => !x.taken) } satisfies Published),
-    )
+    const { value: sends = [] } = await $.state.get(sendsState)
+    const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, sends, renderError, drawSize, rows: drawRows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }
 }
 
-// A line in the debug log only; a failing log never breaks the session.
 // What each of the pane's Buttons does, by its key, as the last drawing made it. The host keeps a
 // Button's onPress only for the life of the drawing it is in, and the pane is drawn again every
 // second while a task runs (its clock): a press landing as the drawing is replaced reached a
@@ -811,21 +723,15 @@ async function showPane($: any) {
   } catch {}
 }
 
-async function debug($: any, text: string) {
-  try {
-    await $.ui.log(text, { to: 'debug' })
-  } catch {}
-}
-
 async function addWait($: any, w: Wait) {
   await ensureGroup($, w.agent)
   await update($, waitsState, cur => [...(cur ?? []), w])
-  await publishWait($)
+  await publishPanel($)
 }
 async function dropWaits($: any, keep: (w: Wait) => boolean) {
   const before = (await $.state.get(waitsState)).value ?? []
   const after = await update($, waitsState, cur => (cur ?? []).filter(keep))
-  if (after.length !== before.length) await publishWait($)
+  if (after.length !== before.length) await publishPanel($)
 }
 // The agent's open question or plan dialog, once the agent has gone on without it.
 async function dropAsked($: any, agent: string) {
@@ -1721,7 +1627,7 @@ export const register: Register = on => {
         .map((p: any) => `${p.id}${p.isShown ? ' (na frente)' : p.isPlaced ? ' (aba atrás de outra)' : ' (não desenhado)'}`)
         .join(', ')
     } catch {}
-    void publishWait($).catch(() => {})
+    void publishPanel($).catch(() => {})
     return {
       text: opened?.isPlaced
         ? `Painel de tarefas aberto. Painéis: ${panes || 'nenhum'}. Desenho: ${Math.round(drawSize / 1024)} KB de ${Math.round(DRAW_LIMIT / 1024)} KB.`
@@ -1940,7 +1846,7 @@ function brief(text: string): string {
       const text = engineText(e.model, e.effort)
       if ((await $.state.get(engineState)).value !== text) {
         await $.state.set(engineState, text)
-        void publishWait($).catch(() => {})
+        void publishPanel($).catch(() => {})
       }
     }
     return yield* next(e)
@@ -1975,7 +1881,7 @@ function brief(text: string): string {
       }
     }
     // The turn's answer grew the context: publish its share for the session that opened this one.
-    if (!agent) await publishWait($)
+    if (!agent) await publishPanel($)
     if (agent) {
       const info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
       if (info?.type !== 'teammate' && info?.teammateId === undefined) {
@@ -2098,7 +2004,7 @@ function brief(text: string): string {
           ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
           { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true }) },
         ])
-        await publishWait($)
+        await publishPanel($)
       }
       if (waitsDelivery && to !== '') {
         const { value = [] } = await $.state.get(groupsState)
