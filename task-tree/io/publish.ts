@@ -49,9 +49,12 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
   return { ok: out }
 }
 
-// Where a session says whether it waits on the person, read by the session that opened it.
+// Where a session says whether it waits on the person, read by the session that opened it. The
+// home folder is asked of the host once per module (it does not change while the mod runs; a reload
+// asks again): the poll reads one file per session every few seconds.
+let home: string | undefined | null = null
 export async function waitFile($: any, id: string): Promise<string | undefined> {
-  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  if (home === null) home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? undefined
   return home ? `${home}/.claude/task-tree-waits/${id}.json` : undefined
 }
 
@@ -91,6 +94,12 @@ export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'childr
 // ring the session that opened this one draws) and the panes as the app holds them (for a panel
 // that does not show up, read in the file from outside or with /task-tree). A failure is said in
 // the debug log and never breaks the hook.
+// Written only when something in it changed: the panel, the waits, the share of context, the model,
+// the last drawing. The clocks (`at`, `context.at`) and the panes are left out of the comparison,
+// else every publication would differ; nobody reads `file.at` (the turns' and messages' `at` are
+// inside the panel). The last publication is kept per path in a variable of the module: a reload
+// forgets it and publishes once more, without harm.
+const lastPublished = new Map<string, string>()
 export async function publishWait($: any, id: string | undefined, p: Publication): Promise<void> {
   try {
     const path = id ? await waitFile($, id) : undefined
@@ -100,37 +109,57 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       return
     }
     // The share of the context window used (the default usage call is free; no breakdown).
-    let context: { percent: number; at: number } | undefined
+    let percent: number | undefined
     try {
-      const percent = (await $.session.usage())?.context?.percent
-      if (typeof percent === 'number') context = { percent, at: await $.clock.now() }
+      const got = (await $.session.usage())?.context?.percent
+      if (typeof got === 'number') percent = got
     } catch {}
+    const body = {
+      version: PUBLISHED_VERSION,
+      waiting: p.waits.length > 0,
+      tasks: p.tasks,
+      groups: p.groups,
+      waits: p.waits,
+      children: p.children,
+      engine: p.engine,
+      renderError: p.renderError,
+      drawSize: p.drawSize,
+      rows: p.rows,
+      work: p.work,
+      received: p.received,
+      sends: p.sends.filter(x => !x.taken),
+    }
+    const key = JSON.stringify({ ...body, percent })
+    if (lastPublished.get(path) === key) return
     // The panes as the app holds them for this session (placed, shown or a tab behind another).
     let panes: unknown
     try {
       panes = (await $.ui.panes()).map((x: any) => ({ id: x.id, isPlaced: x.isPlaced, isShown: x.isShown }))
     } catch {}
+    const at = await $.clock.now()
+    const context = percent === undefined ? undefined : { percent, at }
     await $.fs.write(
       path,
       JSON.stringify({
-        version: PUBLISHED_VERSION,
-        waiting: p.waits.length > 0,
-        at: await $.clock.now(),
-        tasks: p.tasks,
-        groups: p.groups,
-        waits: p.waits,
-        children: p.children,
+        version: body.version,
+        waiting: body.waiting,
+        at,
+        tasks: body.tasks,
+        groups: body.groups,
+        waits: body.waits,
+        children: body.children,
         context,
-        engine: p.engine,
+        engine: body.engine,
         panes,
-        renderError: p.renderError,
-        drawSize: p.drawSize,
-        rows: p.rows,
-        work: p.work,
-        received: p.received,
-        sends: p.sends.filter(x => !x.taken),
+        renderError: body.renderError,
+        drawSize: body.drawSize,
+        rows: body.rows,
+        work: body.work,
+        received: body.received,
+        sends: body.sends,
       } satisfies Published),
     )
+    lastPublished.set(path, key)
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }

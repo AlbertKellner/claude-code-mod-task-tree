@@ -144,11 +144,17 @@ export async function ensureGroup($: any, agent: string) {
   await change($, all => (all.some(g => g.agent === agent) ? all : [...all, { agent, tasks: [], ...meta }]))
 }
 
-// Keeps the status line and the store (for a resume) in step with the panel.
+// Keeps the status line and the store (for a resume) in step with the panel. The status is set
+// only when its text changes (the poll calls this every few seconds); `lastStatus` is a variable of
+// the module, so a reload sets it once more.
+let lastStatus: string | undefined | null = null
 export async function showStatus($: any, groups: Group[]) {
   const { value: children = [] } = await $.state.get(childrenState)
   const [d, n] = total({ groups, waits: [], children })
-  $.ui.status(d === n ? undefined : `Tarefas ${d}/${n}`)
+  const text = d === n ? undefined : `Tarefas ${d}/${n}`
+  if (lastStatus !== null && lastStatus === text) return
+  lastStatus = text
+  $.ui.status(text)
 }
 
 export async function persist($: any, groups: Group[]) {
@@ -449,6 +455,9 @@ export async function joinWork($: any, ids: string[], fresh: boolean) {
 // here: a session shows only while the host lists it.
 export let keptLinks = new Map<string, Link>()
 export const keptLink = (id: string): Link | undefined => keptLinks.get(id)
+// The record as it was last written to the store (a variable of the module: a reload writes once
+// more): the poll publishes every few seconds, and the store is written only when the record changed.
+let lastLinks: string | undefined
 export async function saveLinks($: any) {
   if (!loaded.has('links') && restoredAt('children', 'first-save')) await restoreLinks($)
   try {
@@ -458,7 +467,12 @@ export async function saveLinks($: any) {
     const { value: launches } = await $.state.get(launchesState)
     const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
     const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
-    await saveStore($, 'children', { children: links, sends, received, launches })
+    const record = { children: links, sends, received, launches }
+    const key = JSON.stringify(record)
+    if (key !== lastLinks) {
+      await saveStore($, 'children', record)
+      lastLinks = key
+    }
     keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
