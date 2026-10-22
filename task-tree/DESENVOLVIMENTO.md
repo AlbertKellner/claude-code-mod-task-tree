@@ -155,7 +155,10 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
   grupo da mensagem (linha do pedido, `turnRows`) ganha no fim, depois de todos os níveis 1 dele,
   uma linha ↩ com a resposta do turno, da mesma fonte e com o mesmo visual. Uma linha por turno,
   mesmo com vários níveis 1 ou com nível 1 sem filhas; tarefas soltas, de antes dos turnos, não têm
-  ↩; a linha só aparece com o grupo aberto.
+  ↩; a linha só aparece com o grupo aberto. Exceção: grupo com alguma tarefa que tem cartão de
+  sessão filha embaixo (aberta por `start_session` ou acionada por `SendMessage`) não tem ↩; ali a
+  resposta que conta é a das filhas, já nos cartões delas (pedido do usuário: "quando as tarefas da
+  sessao orquestradora abrirem sessao, a resposta nao deve aparecer, senao, fica quebrado").
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
