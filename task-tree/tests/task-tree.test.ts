@@ -105,19 +105,10 @@ async function desktop($: any, columns = 60, layers = false): Promise<{ alt: str
   const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
   const found = await ui.findAll({ type: 'Svg' })
   await ui.unmount()
-  const all = found.map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
-  // A line that folds is drawn in two Svgs around its Button (the stretch left of the icon has no
-  // alt): read here as one line, the two sources together and the widths added.
-  const out: typeof all = []
-  for (let i = 0; i < all.length; i++) {
-    const s = all[i]
-    if (!s.hover && s.alt === '' && all[i + 1] && !all[i + 1].hover) {
-      const n = all[i + 1]
-      out.push({ ...n, source: s.source + n.source, width: s.width + n.width })
-      i++
-    } else out.push(s)
-  }
-  return out.filter((s: { hover: boolean }) => layers || !s.hover)
+  // Every line is one Svg with its alt; only the tooltip layers have none.
+  return found
+    .map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source), width: Number(s.props.width), hover: s.props.isInteractive === true }))
+    .filter((s: { hover: boolean }) => layers || !s.hover)
 }
 
 describe('plan', () => {
