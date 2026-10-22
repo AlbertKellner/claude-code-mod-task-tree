@@ -9,7 +9,7 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 ## Estrutura
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
-- `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks.
+- `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks. Desde a fase 4 (etapa 3) o `register.tsx` tem ~31 linhas e só registra os 14 hooks, cada um pelo nome de uma função importada; o resto vive em um arquivo por responsabilidade (ver "Arquivos de hook"). `hooks.json` segue com um módulo só (`./register.tsx`).
 - `draw/layout.ts`: o layout do painel (R12, fase 3, etapa 1): `layout(model, choices, now, ownId): Row[]`, função de topo e pura: não lê nada além dos argumentos (etapa 2). Saíram o relógio de módulo `drawNow` (`split(c, sisters, me, owner, now, memo)` recebe o `now`), o `WeakMap` de módulo `breaksMemo` (agora um `BreaksMemo` por desenho, criado por `newBreaksMemo()` no `layout()` e passado a `split`/`breaks`; chave explícita de `hits`: `lista|me|caminho|id|parte`, a mesma partição de antes) e o mapa lateral `sendsAt` (o `panel` calcula `pending` e o passa como parâmetro a `rows`/`turnRows`; só o grupo principal manda mensagens, os escopos de subagente recebem `[]`). `Model` = `{ groups, waits, children, sends (só as não tomadas), view, work }`; `Choices` = o atom `folds`. Leva junto os auxiliares puros de modelo que o `register.tsx` também usa (`count`, `total`, `split`, `atWork`, `trimToWork`, `limitRows`, `MAX_ROWS`, `SHOWN_TURNS`, `Row`, `Tone` etc.), exportados daqui. Só importa `../types`: sem import circular e sem `$`.
 - `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Também `overlays(line, nested, W): Placed[]` (todos os `Box` de uma linha, na ordem de desenho, cada um pela regra da borda mais próxima), `spanOf(p, W)` (trecho em px) e `crossings(list, W)` (pares que se cruzam): as sobreposições do desenho saem só de `overlays()`. Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
@@ -22,10 +22,17 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 - `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 15 chaves de `$.state` (com `recap`), 1 do store (`sessions`) e 15 variáveis de módulo (`lastRecap` saiu). Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
 - `tests/durabilidade.test.ts`: 63 testes sobre a tabela (ver "Tabela de durabilidade").
 - `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
+- `io/publish.ts` (arquivo publicado: `parsePublished`, `readPublished`, `waitFile`, `publishWait`) e `io/log.ts` (`debug`); ver "Arquivo publicado".
+- `io/host.ts` (leitura das filhas em passos: `parseSessions`, `listSessions`, `mineOf`, `panelOf`, `readFiles`, `deriveChildren`, `engineText`; ver "Leitura das filhas") e `tests/host.test.ts` (13 testes).
 - `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
+- `tests/publicado-versoes.test.ts` e `tests/fixtures/publicados.ts`: um arquivo de cada formato antigo (ver "Arquivo publicado").
 - `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
 - `tests/sobreposicao.test.ts`: regra de não-sobreposição dos `Box` de uma linha (6 testes; ver "Sobreposição dos Box").
 - `tests/layout.test.ts`: testes de layout diretos, sem mount e sem SVG, com o fixture real (14 testes, ~130 ms); chamam `layout(model, choices, now, ownId)` com o `Model` montado como o `refreshChildren` monta (ver "Testes de layout").
+- `hooks/panel.ts`, `sessions.ts`, `session-start.ts`, `prompt-submit.ts`, `command.ts`, `tools.ts`, `permission.ts`, `turn.ts`, `tool-call.ts`, `render.tsx`: os hooks e o estado do painel (ver "Arquivos de hook").
+- `draw/svg.ts`: construtores puros de SVG e glifos do terminal (`GLYPH`, `prefix`, `ratioBar`, `contextRing`, `rowSvg`, `chips`, `headerSvg` etc.).
+- `state/tasks.ts`: edições puras da árvore (`build`, `resolve`, `edit`, `finish`, `fill`, `settle`, `begin` etc.).
+- `tests/hooks-puros.test.ts`: 9 testes de `said`, `brief` e das edições da árvore.
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
@@ -54,8 +61,21 @@ O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
 
 `tests/orcamento.test.ts` monta o painel com o fixture `REAL` nas quatro combinações superfície
 (terminal/desktop) × visão (resumida/completa), com `bodyColumns` 100. Afirma que o desenho não
-caiu no de emergência nem em erro, que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`, e que
-cada desenho leva menos de 500 ms. Imprime a linha `ORCAMENTO …` no log do kit.
+caiu no de emergência nem em erro e que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`. É um
+teste por combinação (4 testes, cada um com os 5 s que o kit dá por teste; 3 desenhos por medida). O tempo
+de parede (`ms`) não é afirmado: só sai na linha `ORCAMENTO …` do log do kit, para o olho.
+
+- Regra dos testes: não afirmam tempo de parede nem esperam por `setTimeout` fixo a leitura de fundo das
+  filhas; esperam o fato. `settled()` (em `orcamento.test.ts` e no golden do estado real de
+  `svg-golden.test.ts`) espera, até 4 s, o estado `children` com todas as filhas (via `on('state.set')`) e
+  uma publicação do painel depois disso (via `fs.write`), com erro que diz onde parou. Esperar "dois
+  desenhos iguais" não serve: os `handle` dos botões são sorteados a cada desenho.
+- Motivo (bug de teste instável): o teste único fazia 4 combinações × 5 desenhos (1,4 s livre) e estourava
+  os 5 s do kit com duas suítes rodando juntas. Esperas fixas da mesma família seguem em
+  `durabilidade.test.ts` (150 ms), `reinicio.test.ts` (150 ms) e `task-tree.test.ts` (20/50 ms e um laço de
+  até 200 ms); não falharam, nem sob carga.
+- Rode a suíte sozinha, sem outra ao mesmo tempo; se algo falhar, guarde a saída inteira (as linhas
+  `(fail)` e o erro), não só o total.
 
 - `size` no teste é o JSON da árvore que o kit devolve: proporcional ao `drawSize` do módulo, não igual.
 - Se o desenho crescer de propósito, refaça a `BASELINE` em `orcamento.test.ts`: rode o teste numa cópia
@@ -217,9 +237,18 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 
 ### Arquivo publicado
 
-`publishWait` escreve `~/.claude/task-tree-waits/<id>.json` e a sessão mãe o lê. O contrato é o tipo
-`Published` em `types/index.d.ts`: `version?`, `waiting`, `at?`, `tasks?` (versões antigas), `groups?`,
-`waits`, `children`, `context?`, `engine?`, `panes?`, `renderError?`, `work?`, `received?`, `sends?`.
+`task-tree/io/publish.ts` escreve e lê `~/.claude/task-tree-waits/<id>.json`; a sessão mãe o lê. O
+`register.tsx` só junta o estado em `publishPanel($)` (sete `$.state.get` com chave literal, limite do kit:
+referências de estado só literais no arquivo que chama `$.state`) e chama `publishWait($, id, publicação)`,
+que recebe o painel já lido e escreve o arquivo (contexto, `panes`, `at`, filtro dos `sends` tomados), com
+`try/catch` e o mesmo aviso em falha. As sete leituras de estado vêm antes de checar o caminho do arquivo,
+dentro do mesmo `try`. `io/log.ts` tem `debug($, texto)`, usado pelo register e pelo módulo. `waitFile` ficou
+em `io/publish.ts` (o item 2 da fase 4 pode importá-lo daqui). O contrato é o tipo `Published` em
+`types/index.d.ts` (reexportado por `io/publish.ts`): `version?`, `waiting`, `at?`, `tasks?` (versões
+antigas), `groups?`, `waits`, `children`, `context?`, `engine?`, `panes?`, `renderError?`, `drawSize?`,
+`rows?`, `work?`, `received?`, `sends?`. As chaves saem do JSON nesta ordem: `version`, `waiting`, `at`,
+`tasks`, `groups`, `waits`, `children`, `context`, `engine`, `panes`, `renderError`, `drawSize`, `rows`,
+`work`, `received`, `sends`.
 
 - `PUBLISHED_VERSION = 1`: `publishWait` escreve `version: 1` (`satisfies Published`). Formato só acrescido.
 - `parsePublished(text)` (pura): JSON inválido, não-objeto (lista/número/string/null) ou `version` presente e
@@ -238,6 +267,83 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
 - `tests/publicado.test.ts` (8 testes): `version` no arquivo escrito; válido; só `groups`; `{}`; versão
   antiga (só `tasks`); versão 2 (ignorada, 1 log, volta ao consertar, logada de novo ao quebrar); corrompido
   e tipos errados; `watchSends` com arquivo corrompido do destino (✉ fica; com `received` válido, some).
+- `tests/publicado-versoes.test.ts` (4 testes) com `tests/fixtures/publicados.ts` (`PUBLISHED_FILES`): um
+  arquivo de cada um dos 8 formatos que já existiram (o menor de cada, anonimizado: textos "Texto N", nomes
+  "sessao-filha", ids `local_` zerados, listas cortadas em 3). Cobrem: o fixture vai do primeiro formato ao
+  desta versão (só o último tem `version`); `parsePublished` lê cada um sem erro; uma filha com cada formato
+  desenha o cartão e nada vai ao log; o que esta versão escreve tem as chaves do último formato, na mesma
+  ordem. Ao mudar o formato, acrescente um arquivo ao fixture.
+
+### Leitura das filhas (`io/host.ts`)
+
+`refreshChildren` (no `register.tsx`) é a composição de quatro passos, numerados em comentário; os três
+primeiros estão em `task-tree/io/host.ts` e testam sem o app, com `$` falso ou entradas puras. O register
+guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState`, `update(childrenState)`,
+`endedState`, `groupsState`) e passa `keptLink` a `deriveChildren`.
+
+1. **Lista do host:** `parseSessions(resposta)` (pura: JSON → linhas; "No … sessions found" → lista vazia;
+   `isError` lança o texto), `listSessions($)` (`$.mcp.call list_sessions` → `{ rows }` | `{ error }`, erro
+   cortado em 200) e `mineOf(rows)` (pura: as linhas abertas por quem a lista não traz; `undefined` se não há).
+2. **Arquivos publicados:** `panelOf(file)` (pura: `groups` e o resto, ou `tasks` antigas como grupo
+   principal, ou nada) e `readFiles($, mine)` → `{ waiting, panels, contexts, engines }` (usa `readPublished`
+   e `engineOf` quando o arquivo não traz o modelo). `engineText`, `engineOf` e o cache `engineSeen` moraram
+   no register e vieram para cá.
+3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
+   com a regra do `starting`, dos laços vindos do store (`kept`) e do painel mantido quando o arquivo some.
+4. **Publicar:** `publishWait` de `io/publish.ts`, chamado por `publishPanel`.
+
+Ordem, idêntica à de antes: stamp → lista → erro/limpa erro → `watchSends` → vazio → mine → arquivos →
+update `children`/`ended` → status → publicar → `keepTime`. `inDesktopApp`, `watchSends`, `selfId`,
+`openSession` e `showPane` seguem no register (etapa 3 ou depois). `tests/host.test.ts` (13 testes em 3
+`describe`: lista, arquivos, filhas) usa também os 8 formatos de `fixtures/publicados.ts`. Quando os arquivos
+são lidos não mudou (performance fica fora desta fase).
+
+### Arquivos de hook
+
+A fase 4 (etapa 3) dividiu o `register.tsx` (2 116 → 31 linhas) em um arquivo por responsabilidade em
+`task-tree/hooks/`; o comportamento é o mesmo (mesmos hooks, mesma ordem, mesmas chamadas):
+
+- `panel.ts` (~490): o estado do painel. As chaves de `$.state` literais só deste arquivo; `lastBrief`/
+  `lastRecap`; `reminders` (antes `unplanned`/`planned`/`answeredInChat`, closures do register); `stamp`,
+  `migrate`, `openTurn`, `sendAnchor`, `openList`, `identify`, `ensureGroup`, `showStatus`, `persist`, `adopt`,
+  `change`, `replace`, `keptGroups`, `restore`, `ensureGroups/View/Work`, `inDesktopApp`, `selfId` +
+  `knownId()`, `publishPanel`, `DRAW_LIMIT`, `drawn` (antes `drawSize`/`drawRows`/`renderError`),
+  `actions`/`act`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, `setView`/`restoreView`, `nothingOpen`/
+  `startsWork`/`setWork`/`joinWork`, `keptLinks`/`keptLink`/`saveLinks`/`restoreLinks`/`restoreWork`.
+- `sessions.ts` (~233): `refreshChildren`, `noteReceived`, `watchSends`, `takenNote`, `refreshStale`,
+  `recordStart`, `endedNote`, `ticker`/`POLL`/`poller`/`watchSessions`/`anyRunning`/`tick`/`keepTime`,
+  `openSession`.
+- `session-start.ts` (`sessionStart`, `classicSessionStart`), `prompt-submit.ts` (`NO_TURN`, `said`:
+  classificação pura e exportada; `promptSubmit`: efeitos; `promptCompose`), `command.ts` (`commandRun`),
+  `tools.ts` (`node`/`level`, `planTool`, `doneTool`, `startTool`), `permission.ts` (`permissionRequest`),
+  `turn.ts` (`brief` exportada, `turnStep`, `turnComplete`).
+- `tool-call.ts` (~211): o `tool.call` genérico em handlers por responsabilidade, em torno de `Call = { agent,
+  e, sentAt, r }`. Antes da chamada: `launch` (Agent/Task), `asked` (pergunta/plano: toma a chamada inteira),
+  `wrapUpAsk` (recap e pergunta do `wrap_up`). Depois, só no laço principal: `sentMessage`, `sessionNotes`
+  (`ended`, `taken`), `wrapUpOpen` e `reminder` (lembrete de planejar), chamados pelo nome e na ordem original.
+- `render.tsx` (~332): `folds` + `setFold`, `pressOf`, `drawDesktop`, `drawTerminal`, `press`, `render`; lê o
+  `ownId` por `knownId()`. O atom `folds` ficou aqui pelo limite do kit abaixo.
+- Tabela de durabilidade: as linhas de `drawSize`/`drawRows`/`renderError`/`unplanned…`/`ownId` seguem
+  verdadeiras (variáveis de módulo; agora `drawn`, `reminders` e `ownId` em `panel.ts`); só os nomes nas
+  notas mudaram. `selfId`, `watchSends`, `inDesktopApp`, `openSession` e `showPane` ficaram em `hooks/panel.ts`
+  e `hooks/sessions.ts`, não em `io/host.ts`.
+
+Atenção: seções mais antigas ainda dizem "no `register.tsx`" para funções que hoje estão nos arquivos acima
+(busque o nome da função em `task-tree/hooks/`).
+
+Limites do kit, confirmados no `claude plugin validate` com experimentos antes da divisão:
+
+1. `on('x', hookOf())` é recusado: o hook tem de ser função literal ou o NOME de uma função, que pode ser
+   importada de outro arquivo do módulo.
+2. `$.state.get/set` exige a chave literal escrita no arquivo que chama (ou numa `const` dele); essa `const`
+   NÃO pode ser exportada nem importada. Por isso cada arquivo de hook declara as chaves que usa (7 arquivos)
+   e `panel.ts` não as exporta.
+3. `$` não pode ser passado a uma variável de laço (`for (const add of NOTES) await add($)`): os handlers de
+   notas são chamados pelo nome.
+
+`$` dos hooks é tipado `EngineInterface`. O `validate` lista os mesmos 14 hooks, as mesmas chamadas do engine
+(agora "via" as funções dos outros arquivos) e os mesmos 15 reads/writes de estado. `tsc --noEmit` dá 194
+erros contra 193 antes, todos de tipo e já existentes.
 
 ### Grupos do store sem `session.start`
 
