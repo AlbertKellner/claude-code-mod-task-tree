@@ -10,7 +10,7 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
+import { DUR, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -81,6 +81,14 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     if (r.leaf) return to === 'done' || to === 'interrupted' || (to === 'current' && marks.before.get(k) === 'open')
     return to === 'done' && (r.key?.includes('t:') || r.key?.includes('T:'))
   }
+  // A drawing with motion is drawn again once it has played (DUR), plain: the app mounts the Svgs
+  // again on its own, and an animation left in the drawing played again at each mount, in a loop.
+  // That drawing marks nothing new (past DUR, nothing changed), so it ends the motion.
+  let animated = false
+  const moving = (source: string, rules: string[]) => {
+    if (rules.length > 0) animated = true
+    return animate(source, rules)
+  }
   let entering = 0
   const motion = (i: number) =>
     marks.enter.has(keys[i])
@@ -107,11 +115,11 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={hoverLayer(source, p.width, H)} alt="" width={p.width} height={H} isInteractive />
       </Box>
     )
-  return (
+  const drawing = (
     <Box flexDirection="column">
       {chrome.errorLine}
       <Box key="head" position="relative">
-        <Svg source={animate(top.source, headMotion)} alt={alt} width={W} height={top.height} />
+        <Svg source={moving(top.source, headMotion)} alt={alt} width={W} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
             <Svg source={hoverLayer(top.source, W - 64, 24)} alt="" width={W - 64} height={24} isInteractive />
@@ -132,7 +140,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
             }
             return (
               <Box position="relative">
-                <Svg source={animate(source, motion(i))} alt={rowAlt(r)} width={W} height={H} />
+                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} width={W} height={H} />
                 {one('icon')}
                 {one('ring')}
                 {one('name')}
@@ -143,6 +151,25 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       ))}
     </Box>
   )
+  if (animated) settleMotion($)
+  return drawing
+}
+
+// The drawing again once its motion played (see drawDesktop): one wait at a time.
+let settling = false
+function settleMotion($: any) {
+  if (settling) return
+  settling = true
+  try {
+    $.clock.after(DUR + 50, () => {
+      settling = false
+      try {
+        $.ui.invalidate('ui.render')
+      } catch {}
+    })
+  } catch {
+    settling = false
+  }
 }
 
 // A line's name across drawings, for its motion: what the layout says it is (Row.key), the same in

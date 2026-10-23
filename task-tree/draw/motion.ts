@@ -52,19 +52,20 @@ export function animate(source: string, rules: string[]): string {
   return `${source.slice(0, open)}<style>${rules.join('')}${REDUCE}</style><g class="mv">${source.slice(open, end)}</g></svg>`
 }
 
-// A line coming in: fades in and slides 3 px down, `delay` ms after the drawing.
+// A line coming in: fades in and slides 3 px down, `delay` ms after the drawing. Nothing starts
+// unseen (from 60%, 85%, a half-drawn ✓), so a mount that plays it again does not flash.
 export const fadeIn = (delay: number) =>
-  `@keyframes in{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}.mv{animation:in .2s ease-out ${delay}ms both}`
+  `@keyframes in{from{opacity:.6;transform:translateY(-3px)}to{opacity:1;transform:none}}.mv{animation:in .2s ease-out ${delay}ms both}`
 
-// An icon whose state changed: it pops in from 60% (the drawing's `ic` group), and a ✓ draws its
-// stroke.
+// An icon whose state changed: it grows from 85% (the drawing's `ic` group), and a ✓ draws the
+// rest of its stroke.
 export const pop = (done: boolean) =>
-  '@keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}' +
+  '@keyframes pop{from{transform:scale(.85)}to{transform:none}}' +
   '.ic{animation:pop .25s ease-out both;transform-box:fill-box;transform-origin:center}' +
-  (done ? '@keyframes draw{from{stroke-dashoffset:16}to{stroke-dashoffset:0}}.ic .gr{stroke-dasharray:16;animation:draw .3s ease-out both}' : '')
+  (done ? '@keyframes draw{from{stroke-dashoffset:8}to{stroke-dashoffset:0}}.ic .gr{stroke-dasharray:16;animation:draw .3s ease-out both}' : '')
 
 // A chip new in the header fades in; a bar whose count went up grows from its old width to the new.
-export const chipIn = (tone: string) => `@keyframes ci{from{opacity:0}to{opacity:1}}.ch-${tone}{animation:ci .2s ease-out both}`
+export const chipIn = (tone: string) => `@keyframes ci{from{opacity:.6}to{opacity:1}}.ch-${tone}{animation:ci .2s ease-out both}`
 // The bar goes on from where it was (`from`, its width before, as a share of the new one): only
 // forward; shorter (more tasks planned), it is drawn as it is.
 export const growFrom = (before: string | undefined, now: string): string[] => {
