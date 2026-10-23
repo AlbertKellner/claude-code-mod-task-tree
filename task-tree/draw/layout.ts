@@ -86,9 +86,8 @@ export const panelOf = (c: Child): Panel => {
 // The messages that opened a round of `c`: those `me` (the session drawing it) sent, with the task
 // they were sent from, and those a sister session sent (its published `received`), drawn under
 // the task the sister's own card was under when it sent (followed down a chain of sisters).
-// `peer`: a sister's message; `known`: its origin was found (else drawn only after a while, see split);
-// `from` and `task`: the sister and her task that sent it, where its card goes (see nest).
-export type Break = { at: number; anchor?: string; peer?: boolean; known?: boolean; orphan?: boolean; from?: string; task?: string }
+// `peer`: a sister's message; `known`: its origin was found (else drawn only after a while, see split).
+export type Break = { at: number; anchor?: string; peer?: boolean; known?: boolean; orphan?: boolean }
 // The messages `me` sent this session with no round recorded (the send was not seen: the panel
 // was off, or the mod reloaded or crashed then): each one the session took up (its published
 // `received`), matched in order against the rounds, opens a round all the same, or its turns would
@@ -178,13 +177,7 @@ export function breaks(c: Child, sisters: Child[], me: string | undefined, seen:
           const when = viaSend ?? sent?.at
           const before = when === undefined ? [] : fb.filter(b => b.at <= when)
           const last = before[before.length - 1]
-          // The sister's task that sent it: her sending task, else the one in progress when it came,
-          // else the last one she started before it.
-          const started = flat(fmain?.tasks ?? [])
-            .filter(k => typeof k.startedAt === 'number' && (k.startedAt as number) <= (x.at as number))
-            .sort((a, b) => (b.startedAt as number) - (a.startedAt as number))
-          const sender = out?.anchor ?? (started.find(k => k.endedAt === undefined || k.endedAt >= (x.at as number)) ?? started[0])?.id
-          return [{ at: x.at, anchor: last ? last.anchor : resolveAnchor(owner, from.anchor, begins(from)), peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined), from: from.id, ...(sender !== undefined ? { task: sender } : {}) }]
+          return [{ at: x.at, anchor: last ? last.anchor : resolveAnchor(owner, from.anchor, begins(from)), peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined) }]
         })
   const out = [...own, ...peer].sort((a, b) => a.at - b.at)
   memo.hits.set(key, out)
@@ -298,10 +291,6 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
       ...c,
       part: k,
       ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : {}),
-      // A sister's message: the card goes inside hers, under the task that sent it (see nest).
-      ...(k > 0 && rounds[k - 1]?.peer && rounds[k - 1]?.from !== undefined && rounds[k - 1]?.task !== undefined
-        ? { via: { from: rounds[k - 1].from as string, task: rounds[k - 1].task as string } }
-        : {}),
       anchor: k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
@@ -323,43 +312,6 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     }
   })
 }
-
-// The cards of one list (a panel's sessions, cut in cards by split): the card of a message a sister
-// sent goes inside the sister's card that holds the task that sent it, as a session opened on that
-// task (the person: under the mother's task only the cards of the messages she sent; a message a
-// sister S sends C is in S's card, under the task of S that sent it). With no such card in the list
-// (the task not found, or the move would make a loop), it stays where split put it.
-export function nest(list: Child[]): Child[] {
-  const hosts = new Map<Child, Child>()
-  for (const c of list) {
-    const via = c.via
-    if (via === undefined) continue
-    const host = list.find(k => k !== c && k.id === via.from && flat(tasksOf((k.panel ?? panelOf(k)).groups ?? [])).some(t => t.id === via.task))
-    if (host !== undefined) hosts.set(c, host)
-  }
-  for (const c of [...hosts.keys()]) {
-    const seen = new Set<Child>([c])
-    let h = hosts.get(c)
-    while (h !== undefined && !seen.has(h)) {
-      seen.add(h)
-      h = hosts.get(h)
-    }
-    if (h !== undefined) hosts.delete(c)
-  }
-  if (hosts.size === 0) return list
-  const build = (c: Child): Child => {
-    const inner = [...hosts].filter(([, h]) => h === c).map(([k]) => ({ ...build(k), anchor: k.via?.task }))
-    if (inner.length === 0) return c
-    const p = c.panel ?? panelOf(c)
-    return { ...c, panel: { ...p, children: [...(p.children ?? []), ...inner] } }
-  }
-  return list.filter(c => !hosts.has(c)).map(build)
-}
-
-// A session at work, or one at work inside its card (a sister's card nested in it, see nest), as deep
-// as the drawing follows them.
-export const alive = (c: Child, level = 0): boolean =>
-  live(c) || (level < DEEP && (c.panel?.children ?? []).some(k => alive(k, level + 1)))
 
 // The count of a panel with its sessions' tasks: they are part of the tree, under the task
 // they were opened on (an archived one too, as history).
@@ -409,7 +361,7 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
   const cards = below.flatMap(c => allTasks(panelOf(c), level + 1))
-  return { busy: mine.some(c => alive(c, level + 1)), any: below.length > 0, live: below.some(c => alive(c, level + 1)), d, n, tasks, cards }
+  return { busy: mine.some(live), any: below.length > 0, live: below.some(live), d, n, tasks, cards }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
@@ -952,7 +904,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const waits = p.waits ?? []
     // Archived sessions stay, as history, drawn gray with "arquivada".
     // One card per message the session was sent (split).
-    const sessions = nest((p.children ?? []).flatMap(c => split(c, p.children ?? [], me, withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo)))
+    const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me, withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
 
     // A subagent's group hangs from the loop that launched it; one whose launcher has no
     // group (it never planned) hangs from the main one.
@@ -1087,7 +1039,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // as the full view.
   const cut = (): Panel => {
     const base = { groups: withMain(held ?? []), waits, work: work as string[] }
-    const cards = nest(sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo)))
+    const cards = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
     return trimToWork({ ...base, children: cards }, 0)
   }
   return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId))

@@ -3,9 +3,12 @@ import { MAIN, layout } from '../draw/layout'
 import type { Model, Row } from '../draw/layout'
 import type { Child, Group, Panel, TaskNode, Turn } from '../types'
 
-// The person: under the mother's task, only the cards of the messages she sent; a message a sister S
-// sends C goes inside S's card, under the task of S that sent it. The cards of the sisters' talk were
-// stacked under the mother's task (the chain put C's card under the task S's card hung from).
+// The person: "quando uma tarefa chama uma sessão, o painel não deve ficar dentro de outro. Ele deveria
+// ficar na sequencia que será executado". The cards of a chain (the mother sends correção a message,
+// correção sends governança one, governança sends correção one back) come one after the other, at the
+// same level, in the order they ran, under the mother's task that started the chain: no card inside a
+// card. They were nested three deep (correção ⊃ governança ⊃ correção), each inside the card of the
+// session that sent its message.
 
 const task = (id: string, title: string, status: TaskNode['status'] = 'open', extra: Partial<TaskNode> = {}): TaskNode => ({ id, short: id.split('/').pop() as string, title, status, children: [], ...extra })
 const turn = (id: number, at: number, extra: Partial<Turn> = {}): Turn => ({ id, title: `Pedido ${id}`, at, ...extra })
@@ -18,54 +21,48 @@ const NOW = 2_000_000
 const ME = 'local_eu'
 const titles = (rows: Row[]) => rows.map(r => `${'  '.repeat(r.depth)}${r.tone === 'section' ? '§ ' : r.session ? '⑂ ' : r.tone === 'reply' ? '↩ ' : ''}${r.title}`)
 
-// The mother sent impl a message from task 15; impl, in its turn, sent docs one from its task "Avisar a
-// docs" (still waiting on it: its published send); docs took it up in a turn of its own. Later the
-// mother sent docs a message herself, from task 16.
-const impl = () =>
-  child('local_impl', 'impl', panel(
-    [task('1', 'Implementar', 'done', { turn: 1, startedAt: T0 + 10, endedAt: T0 + 50 }), task('2', 'Avisar a docs', 'open', { turn: 1, started: 1, startedAt: T0 + 60 })],
-    [turn(1, T0 + 5)],
-    { sends: [{ to: 'local_docs', anchor: '2', at: T0 + 90 }] },
-  ), { anchor: '15', running: true, rounds: [{ at: T0 + 1, anchor: '15' }] })
-const docs = (mine: boolean) =>
-  child('local_docs', 'docs', panel(
-    [task('1', 'Documentar', mine ? 'done' : 'open', { turn: 1, started: 1, startedAt: T0 + 110, ...(mine ? { endedAt: T0 + 150 } : {}) }), ...(mine ? [task('2', 'Revisar', 'open', { turn: 2, started: 2, startedAt: T0 + 310 })] : [])],
-    [turn(1, T0 + 105), ...(mine ? [turn(2, T0 + 305)] : [])],
-    { received: [{ from: 'local_impl', at: T0 + 100 }, ...(mine ? [{ from: ME, at: T0 + 300 }] : [])] },
-  ), { running: true, ...(mine ? { anchor: '16', rounds: [{ at: T0 + 299, anchor: '16' }] } : {}) })
-const mother = (both: boolean) =>
-  main([task('15', 'Pedido 15', 'open', { started: 1, startedAt: T0 }), ...(both ? [task('16', 'Pedido 16', 'open', { started: 2, startedAt: T0 + 290 })] : [])])
+// The mother, on "Responder a pergunta do J", sent correção a message; correção, on "Sinal do commit à
+// governança", sent governança one; governança, on "Atualizar o PR e as labels", sent correção one, and
+// correção took it up on "Retomar depois do hash".
+const correcao = () =>
+  child('local_corr', 'correcao', panel(
+    [
+      task('1', 'Sinal do commit à governança', 'done', { turn: 1, startedAt: T0 + 10, endedAt: T0 + 40 }),
+      task('2', 'Retomar depois do hash', 'open', { turn: 2, started: 1, startedAt: T0 + 210 }),
+    ],
+    [turn(1, T0 + 5), turn(2, T0 + 205)],
+    { received: [{ from: 'local_gov', at: T0 + 200 }], sends: [{ to: 'local_gov', anchor: '1', at: T0 + 30 }] },
+  ), { anchor: 'M', running: true, rounds: [{ at: T0 + 1, anchor: 'M' }] })
+const governanca = () =>
+  child('local_gov', 'governanca', panel(
+    [task('1', 'Atualizar o PR e as labels', 'done', { turn: 1, startedAt: T0 + 110, endedAt: T0 + 190 })],
+    [turn(1, T0 + 105)],
+    { received: [{ from: 'local_corr', at: T0 + 100 }], sends: [{ to: 'local_corr', anchor: '1', at: T0 + 180 }] },
+  ))
+const mother = () => main([task('M', 'Responder a pergunta do J', 'open', { started: 1, startedAt: T0 })])
 
-describe('conversa entre irmãs: no cartão de quem mandou', () => {
-  test('a mensagem de impl para docs fica dentro do cartão de impl, sob a tarefa que a mandou', () => {
+describe('cadeia de sessões: um cartão depois do outro, nenhum dentro de outro', () => {
+  test('mãe → correção → governança → correção: os três cartões sob a tarefa da mãe, no mesmo nível, na ordem em que rodaram', () => {
     for (const view of ['full', 'summary'] as const) {
-      const rows = layout(model([mother(false)], [impl(), docs(false)], { view }), {}, NOW, ME)
-      expect([view, titles(rows)]).toEqual([view, ['Pedido 15', '  ⑂ impl', '    Pedido 1', '      Implementar', '      Avisar a docs', '        ⑂ docs', '          Documentar']])
-      // The chain's card works inside impl's: the mother's task is at work too.
+      const rows = layout(model([mother()], [correcao(), governanca()], { view }), {}, NOW, ME)
+      expect([view, titles(rows)]).toEqual([view, [
+        'Responder a pergunta do J',
+        '  ⑂ correcao',
+        '    Sinal do commit à governança',
+        '  ⑂ governanca',
+        '    Atualizar o PR e as labels',
+        '  ⑂ correcao',
+        '    Retomar depois do hash',
+      ]])
+      // No card inside a card.
+      expect(rows.filter(r => r.session).map(r => r.depth)).toEqual([1, 1, 1])
+      // The chain still works under the mother's task: it is in progress.
       expect(rows[0].tone).toBe('current')
     }
   })
 
-  test('sob a tarefa da mãe, só os cartões das mensagens dela: a dela para docs fica sob a tarefa 16', () => {
-    const rows = layout(model([mother(true)], [impl(), docs(true)]), {}, NOW, ME)
-    expect(titles(rows)).toEqual([
-      'Pedido 15',
-      '  ⑂ impl',
-      '    Pedido 1',
-      '      Implementar',
-      '      Avisar a docs',
-      '        ⑂ docs',
-      '          Documentar',
-      'Pedido 16',
-      '  ⑂ docs',
-      '    Revisar',
-    ])
-  })
-
-  test('sem o envio publicado, a tarefa da irmã é a que estava em andamento quando a mensagem chegou', () => {
-    const quiet = impl()
-    ;(quiet.panel as Panel).sends = []
-    const rows = layout(model([mother(false)], [quiet, docs(false)]), {}, NOW, ME)
-    expect(titles(rows)).toEqual(['Pedido 15', '  ⑂ impl', '    Pedido 1', '      Implementar', '      Avisar a docs', '        ⑂ docs', '          Documentar'])
+  test('a ordem é a da execução, não a das sessões na lista', () => {
+    const rows = layout(model([mother()], [governanca(), correcao()]), {}, NOW, ME)
+    expect(rows.filter(r => r.session).map(r => `${r.depth} ${r.title}`)).toEqual(['1 correcao', '1 governanca', '1 correcao'])
   })
 })
