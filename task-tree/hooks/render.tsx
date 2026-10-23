@@ -234,13 +234,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
   // With nothing in progress: the task started last (done or not; the person: "o título é o do passo
-  // iniciado por último"), then the LAST level-1 task with a session still at work under it (the first
-  // one named a task from many requests before), then the first open task.
+  // iniciado por último"), then the most recent level-1 task with a session at work under it (by its
+  // current round, see atWork: an earlier round's task never), then the most recent request's.
   const now0 = current(mainTasks).anchor ?? startedLast(mainTasks)?.id
+  const newest = [...mainTasks].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
-    [...mainTasks].reverse().find(t => atWork(t, sessions, 0).live) ??
-    mainTasks.find(t => t.status === 'open')
+    newest.find(t => atWork(t, sessions, 0).live) ??
+    newest[0]
   const head = headTask?.title ?? 'Tarefas'
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
@@ -254,9 +255,12 @@ export async function render($: EngineInterface, e: any, next: any) {
   // A task waiting on a session is not in progress: this session's (the queued sends' tasks) and
   // the ones the lines show waiting (a card's ✉ task too), by the tasks the lines stand for.
   const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
-  const active = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t)).length
+  // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t))
+  const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
+  const pending = open.length - active
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
-  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'))
+  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   const { Button } = ui

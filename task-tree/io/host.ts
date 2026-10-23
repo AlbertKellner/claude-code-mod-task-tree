@@ -36,14 +36,19 @@ export async function listSessions($: any): Promise<{ rows: unknown } | { error:
     return { error: String(err).slice(0, 200) }
   }
 }
-// The rows this session opened. The list leaves this session out, so its own id is the `startedBy`
-// no listed session carries; with no such id (every starter is listed, or no row says who started
-// it), nothing is this session's.
-export function mineOf(rows: HostRow[]): HostRow[] | undefined {
+// The rows this session opened: those `startedBy` its own id (`self`). Without it (outside the app,
+// get_session failed), deduced: the list leaves this session out, so its id is the `startedBy` no
+// listed session carries. With no such id (every starter is listed, or no row says who started it),
+// or more than one (a list read mid-change), nothing is decided: undefined keeps the known children.
+export function mineOf(rows: HostRow[], self?: string): HostRow[] | undefined {
+  if (self !== undefined) return rows.filter(r => r.startedBy === self)
+  const own = deducedOwn(rows)
+  return own === undefined ? undefined : rows.filter(r => r.startedBy === own)
+}
+export function deducedOwn(rows: HostRow[]): string | undefined {
   const listed = rows.map(r => r.sessionId)
-  const own = rows.map(r => r.startedBy).find(s => typeof s === 'string' && !listed.includes(s))
-  if (own === undefined) return undefined
-  return rows.filter(r => r.startedBy === own)
+  const unlisted = [...new Set(rows.map(r => r.startedBy).filter((s): s is string => typeof s === 'string' && !listed.includes(s)))]
+  return unlisted.length === 1 ? unlisted[0] : undefined
 }
 
 // ---- 2. The files
