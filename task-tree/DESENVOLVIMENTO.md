@@ -408,18 +408,24 @@ mantida), em `draw/layout.ts`:
   o fim da resumida, aparece sob a tarefa de origem nas duas visões.
 - Completa: o corte dos 3 últimos pedidos (`SHOWN_TURNS`) mantém também o pedido cujo nível 1 tem
   sessão trabalhando embaixo (`work(t).live`), como já mantinha o que tem algo aberto.
-- Turno em lote (regra do usuário: "cada mensagem cria seu próprio cartão sob a tarefa que a enviou,
-  na ordem de execução"): mensagens enfileiradas para uma sessão ocupada são entregues de uma vez e
-  abrem um único turno dela; o cartão desse turno ia para a última mensagem e a tarefa da primeira
-  ficava sem cartão. Em `split`, na parte de cada turno (`partOfTurn`), os turnos da sessão são
-  percorridos em ordem de tempo: um turno que recebeu mensagens desta sessão (o `received` publicado
-  por ela tem recebimento desta sessão com `at` depois do turno anterior e até o turno) vai para a
-  rodada da PRIMEIRA mensagem desta sessão enviada desde o turno anterior (rodada não-irmã com `at`
-  depois do turno anterior e até o turno); qualquer outro turno (aberto por uma irmã, ou mais antigo
-  do que os 20 que o `received` guarda) vai para a última rodada antes dele, como antes. As outras
-  mensagens do mesmo lote ficam sem cartão próprio: não houve turno da sessão depois delas.
-- Teste: `tests/cartoes-lugar.test.ts` (7, incluindo as duas do lote: "quatro mensagens na fila
-  entregues juntas: o cartão do turno vai para a tarefa da primeira" e "uma mensagem por turno: cada
+- Turno em lote (regra do usuário: "concordo com a opcao 1", com o princípio dele: "quero ver as tarefas
+  lineares andando de cima pra baixo. as paralelas vão andar fora de ordem, normal, mas as lineares
+  precisam seguir uma linha do tempo"): mensagens enfileiradas para uma sessão ocupada são entregues de
+  uma vez e abrem um único turno dela; o trabalho só começa depois da última, então o cartão desse turno
+  fica sob a tarefa da ÚLTIMA mensagem do lote, e as tarefas ✉ das anteriores fecham com a entrega, sem
+  cartão. Em `split`, na parte de cada turno (`partOfTurn`), os turnos da sessão são percorridos em
+  ordem de tempo: um turno que recebeu mensagens desta sessão (o `received` publicado por ela tem
+  recebimento desta sessão com `at` depois do turno anterior e até o turno) vai para a rodada da ÚLTIMA
+  mensagem desta sessão enviada desde o turno anterior (rodada não-irmã com `at` depois do turno
+  anterior e até o turno); qualquer outro turno (aberto por uma irmã, ou mais antigo do que os 20 que o
+  `received` guarda) vai para a última rodada antes dele, como antes. Sob uma mesma tarefa, os cartões
+  seguem a hora em que cada sessão começou a trabalhar. (Regra substituída: na série anterior o cartão
+  do lote ia para a tarefa da PRIMEIRA mensagem; o caso real que a derrubou: "uma rodada basta" e o bug
+  dos cliques foram entregues juntos, o cartão com o trabalho apareceu sob a primeira e o pedido dos
+  cliques ficou sem cartão.)
+- Teste: `tests/cartoes-lugar.test.ts` (8, incluindo as três do lote: "quatro mensagens na fila
+  entregues juntas: o cartão do turno vai para a tarefa da última", "o caso real: "uma rodada basta" e
+  o bug dos cliques entregues juntos: o trabalho fica sob o pedido dos cliques" e "uma mensagem por turno: cada
   cartão sob a tarefa da sua mensagem", além de "sessão sem rodadas: o cartão não muda de lugar
   na resumida" e "estado real: cada cartão da resumida está sob a mesma linha que na completa");
   `layout.test.ts`, `task-tree.test.ts` e
@@ -517,8 +523,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 363 testes em 24
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 364 testes em 24
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -544,7 +550,7 @@ e tem 5 s.
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
 | `cadeia-irmas.test.ts` | 2 | cadeia de sessões: mãe → correção → governança → correção, os três cartões sob a tarefa da mãe, no mesmo nível, na ordem em que rodaram (nas duas visões); a ordem é a da execução, não a das sessões na lista |
 | `cartoes-resumida.test.ts` | 1 | sem escolha do usuário, nenhum cartão aparece recolhido ou sem linhas embaixo, no estado real e nas duas visões |
-| `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
+| `cartoes-lugar.test.ts` | 8 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da última; o caso real, "uma rodada basta" e o bug dos cliques entregues juntos: o trabalho fica sob o pedido dos cliques; uma mensagem por turno: cada cartão sob a tarefa da sua |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
 | `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
@@ -1264,7 +1270,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
   dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
   (`Child.part` = k). Várias mensagens entregues de uma vez abrem um turno só, que vai para a rodada
-  da primeira delas (ver "Turno em lote" em "Cartões no lugar certo", em "Como é hoje"). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
+  da última delas (ver "Turno em lote" em "Cartões no lugar certo", em "Como é hoje"). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
   deles. Só o cartão da frente mostra a espera; o anel de contexto aparece em todo
   cartão da sessão, em qualquer estado (trabalhando, ocioso, parado, concluído ou de rodada antiga),
   com o último % publicado (pedido do usuário: "mesmo depois que a sessao termina, o icone se
