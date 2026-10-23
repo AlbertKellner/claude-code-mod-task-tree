@@ -95,10 +95,9 @@ describe('visão resumida: só as tarefas do pedido atual e o que ainda corre', 
     expect(has(lines, 'Abrir a filha')).toBe(false)
   })
 
-  // A live session under a done task of an earlier request: the task leaves with its request (it is
-  // done), and the session still shows, at the end of the summary (the rule for a live session with
-  // no task in the current work).
-  test('uma sessão ainda trabalhando sob uma tarefa concluída: os pedidos concluídos saem e a sessão aparece no fim', async ($, on) => {
+  // A live session under a done task of an earlier request: the task is still going on (a session at
+  // work under it), so it stays with its request and the card under it; the other done requests leave.
+  test('uma sessão ainda trabalhando sob uma tarefa concluída mantém essa tarefa, com o cartão; os outros concluídos saem', async ($, on) => {
     const h = host(on, [{ id: 'X', short: 'X', title: 'Trabalho da filha', status: 'open', started: 1, children: [] }], true)
     await ask($, 'primeiro pedido')
     await call($, 'plan', { tasks: [{ id: 'A', title: 'Abrir a filha' }], request: 'primeiro pedido' })
@@ -117,10 +116,11 @@ describe('visão resumida: só as tarefas do pedido atual e o que ainda corre', 
     const lines = await summary($)
     expect(has(lines, 'Terceiro pedido novo')).toBe(true)
     expect(has(lines, 'Segundo pedido feito')).toBe(false)
-    expect(has(lines, 'Abrir a filha')).toBe(false)
-    // The session, at work, at the end of the list.
-    expect(lines[lines.length - 2]).toContain('⑂ filha')
-    expect(lines[lines.length - 1]).toContain('Trabalho da filha')
+    // The card right under the task that opened the session, in its request.
+    const origin = lines.findIndex(l => l.includes('Abrir a filha'))
+    expect(origin).toBeGreaterThanOrEqual(0)
+    expect(lines[origin + 1]).toContain('⑂ filha')
+    expect(has(lines, 'Trabalho da filha')).toBe(true)
   })
 
   test('no mesmo pedido, um plano depois de tudo concluído soma ao trabalho atual (regra mantida)', async ($, on) => {

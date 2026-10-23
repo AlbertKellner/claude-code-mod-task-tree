@@ -273,6 +273,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     return {
       ...c,
       part: k,
+      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : {}),
       anchor: k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
@@ -488,8 +489,13 @@ export function trimToWork(p: Panel, level: number): Panel {
     const lone = [...main.tasks].reverse().find(t => t.status === 'open') ?? main.tasks[main.tasks.length - 1]
     work = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : lone ? [lone.id] : []
   }
-  const turnsIn = main.tasks.filter(t => work.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
-  const keep = main.tasks.filter(t => work.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
+  // A level-1 task with a session at work under it is still going on: it stays, with its request,
+  // and the card stays under it (the person's words: "se existirem tarefas em andamento, essas
+  // tarefas devem continuar sendo mostradas").
+  const busy = level >= DEEP ? [] : main.tasks.filter(t => atWork(t, p.children ?? [], level).busy).map(t => t.id)
+  const wanted = [...work, ...busy]
+  const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+  const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
   const ids = flat(keep).map(t => t.id)
   const under = (anchor?: string) => anchor !== undefined && ids.includes(anchor)
   return {
@@ -835,7 +841,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     }
     if (level >= DEEP) return [header]
     // A card past the first (split) has keys of its own.
-    const part = c.part ? `#${c.part}` : ''
+    // The fold of a card is kept by when its message was sent (partAt), not by its index among the
+    // rounds: at the cap of 20 rounds a new message shifts every index, and the person's fold moved to
+    // another card (an open card came back folded).
+    const part = c.part ? `#${c.partAt ?? c.part}` : ''
     const key = `${scope}s:${c.id}${part}`
     const inside = `${scope}${c.id}${part}>`
     // Under the card's tasks, what the session answered at the end of each of its turns there, in
@@ -918,7 +927,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const keep = level === 0 ? SHOWN_TURNS : SHOWN_CARD_TURNS
       const recent = asked.slice(-keep)
       const cut = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
-      const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t])) : list
+      // A request with a session still at work under its task stays drawn too (it is going on).
+      const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).busy ?? false)) : list
       const left = cut ? new Set(list.filter(t => !drawn.includes(t)).map(t => t.turn ?? -1)).size : 0
       if (cut && left > 0) lines.push({ depth: top, tone: 'section', title: `+${left} pedidos anteriores`, label: 'Pedidos anteriores, não desenhados' })
       // The top panel's main tasks go under the turn (the person's message) they were planned
@@ -988,20 +998,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       .concat(inOrder(ends).flatMap(c => session(c, base, level, scope)))
   }
   const all = { groups: held ?? [], waits, children: sessions }
-  // The summary view is the full view of a cut of the panel: the current work (trimToWork), with
-  // its sessions under the task they were last sent a message from (else where they were opened;
-  // one still at work with neither in the work goes at the end), each cut to its own round. Same
-  // lines, the same ▾/▸ and the same choices as the full view.
+  // The summary view is the full view of a cut of the panel: the current work (trimToWork) with what
+  // is still going on, the finished requests of earlier turns left out. It never moves a card: each
+  // card stays under the task its message was sent from, as in the full view (the person's words, with
+  // two pictures of one moment: "a visão completa parece mais correta que a resumida"; a card used to
+  // move under the task of the session's last message). Same lines, the same ▾/▸ and the same choices
+  // as the full view.
   const cut = (): Panel => {
     const base = { groups: withMain(held ?? []), waits, work: work as string[] }
-    const kept = withMain(trimToWork({ ...base, children: [] }, 0).groups).find(g => g.agent === MAIN)?.tasks ?? []
-    const ids = flat(kept).map(t => t.id)
-    const has = (id?: string) => id !== undefined && ids.includes(id)
-    // A session split in cards keeps each card under the task its message was sent from.
-    const moved = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo)).map(c =>
-      c.part !== undefined ? c : has(c.lastAnchor) ? { ...c, anchor: c.lastAnchor } : has(c.anchor) ? c : live(c) ? { ...c, anchor: undefined } : c,
-    )
-    return trimToWork({ ...base, children: moved }, 0)
+    const cards = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
+    return trimToWork({ ...base, children: cards }, 0)
   }
   return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId))
 }

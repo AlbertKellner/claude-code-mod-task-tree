@@ -110,6 +110,9 @@ export type Child = {
   rounds?: { at: number; anchor?: string }[]
   // Drawn only: which of those cards this is (0 the opening message's).
   part?: number
+  // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:
+  // the index moves when the oldest round is dropped (the last 20 are kept), the time does not.
+  partAt?: number
   anchor?: string
   panel?: Panel
   tasks?: TaskNode[]
