@@ -300,7 +300,15 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   sem escolhas com resultado descartado (herança do render antigo, que tirava dela os chips) saiu:
   os chips vêm dos `nodes` das linhas desenhadas, e o memo dos `breaks` que ela preenchia era o mesmo.
 - Cabeçalho (`render.tsx`): o id da tarefa acesa (`current(mainTasks).lit[0]`) é calculado uma vez,
-  fora do `find` (dentro dele, `current` percorria a árvore inteira uma vez por nível 1).
+  fora do `find` (dentro dele, `current` percorria a árvore inteira uma vez por nível 1). Correção
+  seguinte (título do cabeçalho): o título é o nível 1 que contém a tarefa iniciada por último, a
+  âncora de `current()` (a mesma tarefa sob a qual vai um aviso de espera); sem nenhuma iniciada, a
+  âncora é a primeira aberta, como antes; sem nenhuma aberta, o nível 1 com sessão ainda trabalhando
+  embaixo, como antes. O título vinha de `current(mainTasks).lit[0]`, o primeiro das tarefas acesas,
+  ordenadas da iniciada há mais tempo para a mais recente, e uma tarefa que um pedido antigo deixou
+  aberta e iniciada ganhava da atual. Os números do cabeçalho não mudam: seguem a soma das linhas
+  desenhadas na visão (ver "Cabeçalho por visão" no histórico). Teste:
+  `tests/cabecalho-tarefa-atual.test.ts` (2).
 - `split()` devolve um cartão já cortado (`c.part` definido, os da visão resumida) antes de calcular
   `breaks`; dentro, a parte de cada turno (`partOfTurn`), as tarefas e o `flat` de cada parte
   (`tasksByPart`, `flatIn`) e a parte de cada tarefa (`partOfTask`, usada por `holder`) ficam em mapas
@@ -457,8 +465,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 353 testes em 20
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 355 testes em 21
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -479,6 +487,7 @@ e tem 5 s.
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
 | `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
+| `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
 | `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
@@ -1107,7 +1116,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   "interrompidas", "sessões ativas", "aguardando") é a soma das linhas desenhadas na visão. Cada
   linha carrega as tarefas que representa (`Row.nodes`): uma folha, ela mesma; uma linha recolhida,
   a subárvore inteira (com as tarefas das sessões embaixo); um pai aberto, nada; seções, ↩ e avisos,
-  nada. Resumida: só o pedido atual (ex.: "1 de 1 · 100% · 0:17"). Completa: só os pedidos
+  nada. Resumida: o que ela desenha, o pedido atual e o que segue em andamento (ex.: "1 de 1 · 100% ·
+  0:17" com só o pedido atual; com um pedido anterior ainda em andamento à vista, os números somam os
+  dois, consequência da regra, e se isso deve mudar ficou para decisão do usuário). Completa: só os pedidos
   desenhados pelo limite de 3, com a linha "+N pedidos anteriores". O total da sessão inteira vai
   discreto, só quando difere do mostrado: no terminal, "(sessão inteira: D de N)" depois do
   cabeçalho; no desktop, no `alt` do cabeçalho. A barra e o % seguem a lista visível. Recolher uma
