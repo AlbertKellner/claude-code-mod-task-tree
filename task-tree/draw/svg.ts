@@ -345,7 +345,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
       const [d, n] = r.sub
       right.push(
         `<rect class="tr" x="${bx}" y="${cy - 2}" width="${BAR_W}" height="4" rx="2"/>`,
-        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (BAR_W * d) / n)}" height="4" rx="2"/>` : '',
+        n > 0 && d > 0 ? `<rect class="grf bar" x="${bx}" y="${cy - 2}" width="${Math.max(4, (BAR_W * d) / n)}" height="4" rx="2"/>` : '',
       )
     }
     const ix = bx - BRANCH_IN
@@ -416,7 +416,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
     parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
     parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
-    if (n > 0 && d > 0) parts.push(`<rect class="grf" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
     const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
     let cx = L
@@ -424,12 +424,13 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
       const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0] }
       const w = 16 + textW(c.text, 12)
       if (cx + w > R) break
+      // Each chip in a group named by its tone (`ch-<tone>`), and the bars' filled part (`bar`): what
+      // the motion of a new chip and of a new count animates (../draw/motion).
       parts.push(
-        c.tone === 'current'
-          ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>`
-          : icon(c.tone, cx + 5, 68),
+        `<g class="ch-${c.tone}">` +
+          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>` : icon(c.tone, cx + 5, 68)) +
+          `<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text></g>`,
       )
-      parts.push(`<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text>`)
       cx += w + 16
     }
   }
