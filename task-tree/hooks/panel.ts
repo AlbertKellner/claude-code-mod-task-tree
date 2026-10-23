@@ -22,6 +22,13 @@ const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
+
+// The main loop works again (a prompt, or a call of its own): what the last turn left open is in
+// progress again, no longer drawn as halted (see turnEnded).
+export async function wake($: any) {
+  if (typeof (await $.state.get(turnEndedState)).value === 'number') await $.state.set(turnEndedState, null)
+}
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const endedState = { plugin: 'task-tree', key: 'ended' } as const

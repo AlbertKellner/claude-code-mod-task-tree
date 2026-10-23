@@ -94,7 +94,7 @@ Na ordem de `register.tsx`:
 |---|---|---|---|
 | `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada), `restore` do store se o state está vazio, `restoreView`, `restoreWork`, `restoreLinks`; abre o pane; `refreshChildren` e `watchSessions` |
 | `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`; `resume`: `restore` do store |
-| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (as tarefas que o turno anterior deixou abertas voltam a estar em andamento) |
+| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
 | `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
@@ -468,30 +468,45 @@ Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
   27 → 26, ↩ do pedido 71, ↩ por turno), `cartoes-ancora.test.ts` e `task-tree.test.ts` atualizados.
 
 Tarefas abertas de uma sessão que terminou o turno (série 3; regra: o painel independe de quem o usa):
-quando a sessão termina o turno, as tarefas que ela deixou abertas deixam de contar como em andamento:
-aparecem interrompidas (não concluídas, sem fechamento), sem relógio correndo, e saem de "N em
-andamento". Sintoma do usuário: o cartão docs-task-tree dizia "parada", mas a tarefa "Hunks do bug dos
-cliques" e a subtarefa "Ler o código e o doc" apareciam em andamento (◉) com o relógio correndo. Vale
-para qualquer sessão, a principal inclusive.
-- `draw/layout.ts`: `rawPanel(c)` devolve o painel publicado sem mudança; `panelOf(c)` trata como
-  interrompidas, só no desenho (`interrupt(undefined)`), as tarefas abertas de uma sessão que não está
-  trabalhando (não `live(c)` e não `starting`, recém-aberta); antes isso só valia para a arquivada, e as
-  `waits` continuam apagadas só na arquivada. No `session()`, `parked` (o rótulo "parada") olha
-  `rawPanel`, então o rótulo se mantém. O `Model` ganhou `ended?: number`: com ele, `layout()` desenha
-  as tarefas abertas do grupo principal como interrompidas, com o relógio parado em `ended`.
+quando a sessão termina o turno, o que estava em andamento (iniciado e não fechado) deixa de contar como
+em andamento: aparece interrompido (não concluído, sem fechamento), sem relógio correndo, e sai de "N em
+andamento". As tarefas pendentes (nunca iniciadas) continuam pendentes e contam, porque o plano continua
+no próximo turno. Sintoma do usuário: o cartão docs-task-tree dizia "parada", mas a tarefa "Hunks do bug
+dos cliques" e a subtarefa "Ler o código e o doc" apareciam em andamento (◉) com o relógio correndo.
+Vale para qualquer sessão, a principal inclusive. Regressão corrigida em seguida (print do usuário): a
+orquestradora planejou 5 passos, fez só o passo 1 e encerrou o turno esperando o usuário, e os passos 2
+a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2 · 2 de 2 · 100%".
+- `draw/layout.ts`: `rawPanel(c)` devolve o painel publicado sem mudança; `panelOf(c)` aplica
+  `halt(undefined)`, só no desenho, às tarefas de uma sessão que não está trabalhando (não `live(c)` e
+  não `starting`, recém-aberta) e marca os grupos dela `idle`; a arquivada continua com `interrupt` e
+  com as `waits` apagadas. `halt(at)` (exportada; substitui `interrupt` nos dois casos de turno
+  terminado, a filha parada e a própria sessão): folha aberta e iniciada (`started` ou `startedAt`) vira
+  interrompida, com o relógio parado em `at`; folha nunca iniciada fica pendente; pai aberto com
+  subtarefas ainda abertas fica aberto, sem `started` e com `endedAt` = `stop(t, at)` (o relógio não
+  corre); pai sem nada aberto embaixo vira interrompido. No `session()`, `parked` (o rótulo "parada")
+  olha `rawPanel`, então o rótulo se mantém. O `Model` ganhou `ended?: number`: com ele, `layout()`
+  aplica `halt(ended)` ao grupo principal e o marca `idle`. `Group` ganhou `idle?: boolean`
+  (`types/index.d.ts`, só de desenho): em `body()` um grupo `idle` não acende nada por padrão (`lit`
+  vazio); sem isso a primeira pendente apareceria em andamento.
 - Estado novo `turnEnded` (`number | null`, `types/index.d.ts`, linha em `TABLE`, vive em `state`):
-  `hooks/turn.ts` (`turnComplete`, sem `agentId`) grava a hora no fim do turno da principal;
-  `hooks/prompt-submit.ts` grava `null` no próximo prompt; `hooks/render.tsx` passa o valor ao layout
-  como `ended`; `anyRunning` (`hooks/sessions.ts`) ignora as tarefas da própria sessão com o turno
-  terminado, e o relógio de 1 s para.
-- Efeitos: uma filha parada com tarefa aberta passa a ter essa tarefa fora do total (ex.: "3 de 4" → "3
-  de 3 · 100%" num teste antigo); os goldens `filha-parada` e `filha-recolhida` mudaram ("Em andamento:
-  Trabalho da filha" → "Interrompida: Trabalho da filha").
-- Testes: `tests/sessao-parada.test.ts` (3: parada, a tarefa e a subtarefa abertas não estão acesas nem
-  cronometrando e saem do "em andamento"; trabalhando, seguem em andamento; a própria sessão, depois do
-  fim do turno a tarefa aberta não fica acesa e volta com o próximo pedido); `durabilidade.test.ts`
-  ganhou a semente de `turnEnded` (os 4 cenários da chave); em `task-tree.test.ts` a contagem com a
-  filha parada ficou "3 de 3 · 100%".
+  `hooks/turn.ts` (`turnComplete`, sem `agentId`) grava a hora no fim do turno da principal; `wake($)`
+  (em `hooks/panel.ts`) zera `turnEnded` (grava `null`) e é chamada no `prompt.submit`, no início do
+  `toolCall` da principal (`hooks/tool-call.ts`) e em `planTool`, `doneTool` e `startTool`
+  (`hooks/tools.ts`): assim um `start` depois do fim do turno reacende a tarefa; `hooks/render.tsx`
+  passa o valor ao layout como `ended` (com `turnEnded`, o título do cabeçalho é o nível 1 da tarefa com
+  o `startedAt` mais recente); `anyRunning` (`hooks/sessions.ts`) ignora as tarefas da própria sessão
+  com o turno terminado, e o relógio de 1 s para.
+- Efeitos: uma filha parada com tarefa em andamento passa a ter essa tarefa fora do total (ex.: "3 de 4"
+  → "3 de 3 · 100%" num teste antigo); os goldens `filha-parada` e `filha-recolhida` mudaram ("Em
+  andamento: Trabalho da filha" → "Interrompida: Trabalho da filha").
+- Testes: `tests/sessao-parada.test.ts` (5: parada, a tarefa e a subtarefa em andamento saem do "em
+  andamento" e uma pendente fica `open` e entra na conta (1 de 3); trabalhando, seguem em andamento; a
+  própria sessão, depois do fim do turno a tarefa em andamento não fica acesa e volta com o próximo
+  pedido; cinco passos, só o primeiro feito: os outros quatro seguem pendentes (○ Passo 2..5), o título
+  é "Passo 1" e a conta "2 de 6", e depois do próximo pedido um `start` no Passo 2 o acende (◉); uma
+  tarefa interrompida pelo fim do turno volta com `start`); `durabilidade.test.ts`: a semente de
+  `turnEnded` e o cenário D (a recarga mantém o valor e a primeira chamada da principal o zera); em
+  `task-tree.test.ts` a contagem com a filha parada ficou "3 de 3 · 100%".
 
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
@@ -550,8 +565,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 371 testes em 25
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas; 3 na sessão parada; 4 do `turnEnded` na tabela de durabilidade); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 373 testes em 25
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas; 5 na sessão parada; 4 do `turnEnded` na tabela de durabilidade); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -571,7 +586,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
-| `sessao-parada.test.ts` | 3 | sessão que terminou o turno: a tarefa e a subtarefa abertas aparecem interrompidas, sem relógio e fora do "em andamento" (a filha parada e a própria sessão); trabalhando, seguem em andamento; o próximo pedido as volta |
+| `sessao-parada.test.ts` | 5 | sessão que terminou o turno: o que estava em andamento aparece interrompido, sem relógio e fora do "em andamento", e as pendentes seguem pendentes e contam (a filha parada e a própria sessão); trabalhando, seguem em andamento; o próximo pedido ou um `start` reacende; cinco passos com só o primeiro feito: o título é o do passo iniciado por último |
 | `relogio-recarga.test.ts` | 3 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede; desenhos ao mesmo tempo (terminal e desktop juntos) ligam um relógio de 1 s só |
 | `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
 | `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
@@ -1362,8 +1377,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
   as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `⑂ nome  concluída`, com o cartão aberto como os demais.
-  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado (regra substituída: hoje essas
-  tarefas abertas aparecem interrompidas, sem relógio; o rótulo `parada` e o cartão ficam)
+  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado (regra substituída: hoje o que
+  estava em andamento aparece interrompido, sem relógio, e as pendentes seguem pendentes; o rótulo `parada` e o cartão ficam)
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o clique continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
@@ -1625,7 +1640,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros. O
   `panelOf` de uma arquivada marca como interrompido o que ela deixou aberto (fora do M do "N de
   M", no chip de interrompidas; desde a série 3 vale também para a sessão que terminou o turno sem
-  estar arquivada: ver "Tarefas abertas de uma sessão que terminou o turno" em "Como é hoje"). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
+  estar arquivada, só para o que estava em andamento, e as pendentes seguem pendentes: ver "Tarefas abertas de uma sessão que terminou o turno" em "Como é hoje"). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
   do cabeçalho; o chip "em andamento" e "sessão ativa" não a contam. Nos ancestrais, a ⑂ continua; no cartão,
   o anel mostra o último percentual, esmaecido (`Ring.faded`).
 - Pai aguardando (pedido do usuário: "nas tarefas que estao aguardando e ja tem alguma tarefa
