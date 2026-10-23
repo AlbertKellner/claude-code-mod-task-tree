@@ -6,12 +6,13 @@
 
 import { MAIN, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
+import { reminders, dropWaits, openList, openTurn, showPane } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
 // The main loop's group; a subagent's is keyed by its agentId.
 // Prompt origins (`prompt.submit`'s `e.origin.kind`) that continue the request in progress rather
@@ -47,7 +48,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // to be: the sender confirms its queued SendMessage by them (watchSends).
   await noteReceived($, text)
   // A prompt starts a turn: what the last one left open is in progress again.
-  await wake($)
+  if (typeof (await $.state.get(turnEndedState)).value === 'number') await $.state.set(turnEndedState, null)
   watchSessions($)
   // The person's own prompt: the panel comes back if it is not on screen (see showPane).
   if (!it.peer && !it.notice && !it.handback && !NO_TURN.includes(kind)) await showPane($)

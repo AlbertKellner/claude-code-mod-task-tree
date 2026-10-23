@@ -233,9 +233,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
-  // With the turn ended nothing is in progress: the title is the level-1 task of the task started last.
-  const startedLast = typeof ended === 'number' ? flat(mainTasks).filter(t => t.startedAt !== undefined).sort((a, b) => (b.startedAt as number) - (a.startedAt as number))[0] : undefined
-  const now0 = typeof ended === 'number' ? (startedLast?.id ?? current(mainTasks).anchor) : current(mainTasks).anchor
+  const { anchor: now0 } = current(mainTasks)
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
     mainTasks.find(t => atWork(t, sessions, 0).live)
