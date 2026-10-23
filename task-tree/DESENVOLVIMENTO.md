@@ -177,6 +177,16 @@ edição salva do clone recarrega o mod em todas as sessões, então sem esse re
 cronometrando ficava com o pane parado até o próximo evento (trocar de visão redesenhava). Os dois
 não fazem nada se já estão ligados; o de 1 s só liga enquanto algo roda; o kit recusa só
 `$.state.set` durante o desenho, não `$.clock.every`.
+Como todo desenho chama `keepTime`, ele tem no máximo um relógio de 1 s: a marca `starting` (variável de
+módulo de `hooks/sessions.ts`) é ligada antes do primeiro `await`, desligada no `finally`, e o
+`keepTime` sai cedo com `ticker || starting` e confere `ticker` de novo depois dos `await`
+(`anyRunning`, `stamp`). Sem ela, desenhos ao mesmo tempo criavam cada um o seu `$.clock.every(1000)` e
+só o último ficava guardado para cancelar: os outros redesenhavam o painel a cada segundo, sem parar, em
+rajadas que trocavam os `Button` debaixo do ponteiro, e o clique se perdia (sintoma do usuário: "preciso
+clicar algumas vezes no icone para a acao acontecer, é bem demorado", em qualquer ícone). Conferido: as
+chaves dos `Button` são estáveis (`fold:<chave da linha>`, `open:<id da sessão>`), só o relógio chama
+`$.ui.invalidate`, e o poll de 3 s só grava o estado quando ele muda. Falta conferir no app se o clique
+pega de primeira.
 
 **Publicação** (`publishPanel` em `hooks/panel.ts` → `publishWait` em `io/publish.ts`): pedida a cada
 `persist`, aviso, `received`, `engine`, fim de turno, poll com filhas e `/task-tree`; o arquivo só é
@@ -224,7 +234,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
 `refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
-`actions`, `ticker`, `poller`, `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
@@ -507,8 +517,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 362 testes em 24
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 363 testes em 24
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -528,7 +538,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
-| `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
+| `relogio-recarga.test.ts` | 3 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede; desenhos ao mesmo tempo (terminal e desktop juntos) ligam um relógio de 1 s só |
 | `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
 | `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
@@ -1182,7 +1192,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `$.ui.invalidate('ui.render')` enquanto alguma tarefa roda (aqui ou numa filha viva) e se cancela
   quando nada roda. Começa no `start`, no refresh das filhas, em toda chamada de ferramenta do loop
   principal e no desenho do pane (a recarga do mod cancela os timers do módulo antigo; o desenho que o
-  app faz ao carregar o mod os religa, bug do pane parado após edição do clone).
+  app faz ao carregar o mod os religa, bug do pane parado após edição do clone). Desde então, desenhos
+  ao mesmo tempo criavam vários relógios (só o último era guardado) e os cliques se perdiam; a marca
+  `starting` garante um só (ver "Relógios" em "Fluxo de dados").
 - Nos testes: terminal por `ui.drawn()` (os filhos do `Box`; o `key` do JSX não chega ao
   `findAll`; o `Button` é lido pelo `label`), desktop pelo `alt` de cada `Svg` em
   `findAll({ type: 'Svg' })`. A seta se aperta com `ui.press({ key: 'fold:<chave>' })` (helper
