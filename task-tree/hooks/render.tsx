@@ -232,9 +232,13 @@ export async function render($: EngineInterface, e: any, next: any) {
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
   const { anchor: now0 } = current(mainTasks)
+  const newest = [...mainTasks].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
-    mainTasks.find(t => atWork(t, sessions, 0).live)
+    // With everything closed, the most recent request's (a session still at work under one first),
+    // not an earlier one's.
+    newest.find(t => atWork(t, sessions, 0).live) ??
+    newest[0]
   const head = headTask?.title ?? 'Tarefas'
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
