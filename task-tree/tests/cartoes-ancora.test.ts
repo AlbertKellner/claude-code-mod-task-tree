@@ -35,7 +35,8 @@ describe('cartões ficam na tarefa que mandou a mensagem, mesmo com o id reutili
       rounds: [{ at: T0 + 500, anchor: '1' }],
     })
     const rows = layout(model([mother], [filha]), {}, NOW, ME)
-    expect(titles(rows)).toEqual(['Pedido 1', '  Velha', '    ⑂ filha', '      Feito', '      ↩ resposta', 'Pedido 2', '  Nova'])
+    // The child's turn has no summary: no ↩ line in its card.
+    expect(titles(rows)).toEqual(['Pedido 1', '  Velha', '    ⑂ filha', '      Feito', 'Pedido 2', '  Nova'])
     // The same in the summary view: the current work (Nova) has no card.
     const summary = layout(model([mother], [filha], { view: 'summary', work: ['1'] }), {}, NOW, ME)
     expect(titles(summary).some(t => t.includes('filha'))).toBe(false)

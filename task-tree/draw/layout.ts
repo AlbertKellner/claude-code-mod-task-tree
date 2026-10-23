@@ -590,6 +590,13 @@ export type Row = {
 // answer cut to the line's width summed nothing up (the person's words: "voce esta imprimindo o
 // texto integral cortado").
 export const REPLY = 'resposta'
+// The ↩ line of a turn shows its summary (the done's `summary`); a turn with none has no ↩ line. The
+// answer's text is never shown cut (the person: "quero que seja um resumo da resposta, super curto"),
+// and the placeholder "resposta" is gone too (the person: the ↩ line only with real text).
+export const hasBrief = (u: Turn) => typeof u.brief === 'string' && u.brief.trim() !== ''
+// Some task under `t` (or `t` itself) is open and waits on a session: a message from it not yet taken up.
+export const waitingBelow = (t: TaskNode, pending: { anchor?: string }[]) =>
+  pending.length > 0 && flat([t]).some(k => k.status === 'open' && pending.some(s => s.anchor === k.id))
 
 // From the rows to how they are drawn: the tree lines (guides), the cards each line is inside
 // (frames) and the session labels whose column stays empty (labelCols).
@@ -700,12 +707,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const w = work(t)
       // A message sent from it is still queued: it waits on that session (its own icon).
       const waitsOn = t.status === 'open' ? pending.filter(s => s.anchor === t.id).map(s => s.to) : []
+      // A task below it waits on a session (✉): the work is going on (it was drawn not started).
+      const waitsBelow = t.status === 'open' && t.children.length > 0 && waitingBelow(t, pending)
       const tone: Tone =
         t.status === 'interrupted'
           ? 'interrupted'
           : waitsOn.length > 0
             ? 'sent'
-            : w.busy
+            : w.busy || waitsBelow
               ? 'current'
               : t.status === 'done'
                 ? 'done'
@@ -774,7 +783,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const [ld, ln] = count(list)
     const [d, n] = [ws.reduce((a, w) => a + w.d, ld), ws.reduce((a, w) => a + w.n, ln)]
     const tone: Tone =
-      busy || list.some(t => t.status === 'open' && lit.includes(t.id))
+      busy || list.some(t => t.status === 'open' && (lit.includes(t.id) || waitingBelow(t, pending)))
         ? 'current'
         : list.some(t => t.status === 'open')
           ? resting(list)
@@ -813,8 +822,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // not when a session's card hangs in the group: the answers that count are in the cards, and
     // one after a card still at work would read as the group being over.
     const said: Row[] =
-      reply && open && typeof u.reply === 'string' && u.reply !== '' && !ws.some(w => w.any)
-        ? [{ depth: top + 1, tone: 'reply', title: u.brief ?? REPLY, whole: u.reply, label: 'Resposta' }]
+      reply && open && hasBrief(u) && !ws.some(w => w.any)
+        ? [{ depth: top + 1, tone: 'reply', title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }]
         : []
     return [row, ...inner, ...said]
   }
@@ -867,8 +876,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // Under the card's tasks, what the session answered at the end of each of its turns there, in
     // turn order: a ↩ line, dim, with no count or time (not a task).
     const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
-      .filter(u => typeof u.reply === 'string' && u.reply !== '')
-      .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.brief ?? REPLY, whole: u.reply, label: 'Resposta' }))
+      .filter(hasBrief)
+      .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
     const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
     // Whether a closed one has anything to open: its panel, drawn as it would be.
     if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }

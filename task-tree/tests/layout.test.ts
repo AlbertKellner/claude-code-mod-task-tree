@@ -76,7 +76,8 @@ describe('layout: estado real da orquestradora', () => {
   const sentAt = (anchor: string) => (realKids().find(c => c.id === ANALISE)?.rounds ?? []).find(r => r.anchor === anchor)?.at
   test('visão completa: os 3 últimos pedidos, o resto contado; cartões só sob as tarefas de origem; nenhum na raiz', () => {
     const rows = layout(realModel('full'), {}, AT, ME)
-    expect(rows.length).toBe(28)
+    // Turn 71 has no summary: no ↩ line (it was "resposta").
+    expect(rows.length).toBe(27)
     expect(rows[0]).toMatchObject({ depth: 0, tone: 'section', title: '+67 pedidos anteriores' })
     expect(rows[rows.length - 1]).toMatchObject({ depth: 0, tone: 'section', title: '+41 cartões antigos de sessões' })
     // The turns drawn: 71, 72, 73 (SHOWN_TURNS); 70, with a brief, is in the count line.
@@ -95,10 +96,11 @@ describe('layout: estado real da orquestradora', () => {
     expect(cs.map(r => r.ring?.percent)).toEqual([43, 43])
   })
 
-  test('↩: o pedido sem cartão mostra a resposta; os pedidos com cartão de filha não; o cartão mostra a resposta da filha por turno', () => {
+  test('↩: o pedido sem cartão e sem resumo não tem ↩; os pedidos com cartão de filha não; o cartão mostra a resposta da filha por turno', () => {
     const rows = layout(realModel('full'), {}, AT, ME)
     const replies = (i: number) => under(rows, i).filter(r => r.tone === 'reply' && r.depth === rows[i].depth + 1)
-    expect(replies(at(rows, '|T:71')).map(r => r.title)).toEqual(['resposta'])
+    // Turn 71 answered with no summary: no ↩ line (never the answer cut, nor the placeholder).
+    expect(replies(at(rows, '|T:71')).map(r => r.title)).toEqual([])
     expect(replies(at(rows, '|T:72'))).toEqual([])
     expect(replies(at(rows, '|T:73'))).toEqual([])
     // The card of the round sent from 97: its turn's answer, with the child's brief, below its tasks.
@@ -138,7 +140,7 @@ describe('layout: estado real da orquestradora', () => {
   test('visão resumida: o trabalho atual (pedidos 70 a 73), sem os cartões antigos; as mesmas linhas da completa', () => {
     const full = layout(realModel('full'), {}, AT, ME)
     const summary = layout(realModel('summary'), {}, AT, ME)
-    expect(summary.length).toBe(27)
+    expect(summary.length).toBe(26)
     expect(summary[0]).toMatchObject({ tone: 'section', title: '+1 pedidos anteriores' })
     expect(summary.some(r => r.title.includes('cartões antigos'))).toBe(false)
     expect(titles(summary).slice(1)).toEqual(titles(full).slice(1, -1))
@@ -200,7 +202,7 @@ describe('layout: regras, em modelos pequenos', () => {
     expect(rows.slice(0, 4).map(r => r.tone)).toEqual(['current', 'running', 'current', 'running'])
   })
 
-  test('↩ por turno: cada pedido fechado mostra sua resposta (o resumo do done, senão "resposta"); um pedido com cartão de filha não', () => {
+  test('↩ por turno: cada pedido fechado com resumo do done mostra o resumo; sem resumo, sem linha ↩; um pedido com cartão de filha não', () => {
     const tasks = [task('1', 'Um', 'done', { turn: 1 }), task('2', 'Dois', 'done', { turn: 2 }), task('3', 'Três', 'done', { turn: 3 })]
     const turns = [turn(1, T0, { reply: 'Primeira resposta inteira.', brief: 'Primeira' }), turn(2, T0 + 10, { reply: 'Segunda.' }), turn(3, T0 + 20, { reply: 'Terceira.' })]
     const kid = child('local_k', 'filha', panel([task('1', 'x', 'done')]), { anchor: '3' })
@@ -208,7 +210,6 @@ describe('layout: regras, em modelos pequenos', () => {
     const replies = rows.filter(r => r.tone === 'reply')
     expect(replies.map(r => [r.title, r.whole])).toEqual([
       ['Primeira', 'Primeira resposta inteira.'],
-      ['resposta', 'Segunda.'],
     ])
     // Under the third turn: its task, the card and the card's task; no ↩ of its own.
     expect(titles(under(rows, at(rows, '|T:3')))).toEqual(['  Três', '    ⑂ filha', '      x'])
