@@ -26,7 +26,9 @@ export type TaskNode = {
 // `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
 // message), shown under the turn's tasks in its card; absent while the turn runs.
 // reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string }
+// `own`: a turn the person opened by typing in that session (not a message of another session): its
+// card goes at the end of the request that opened the session, not under the last message's task.
+export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
@@ -113,9 +115,6 @@ export type Child = {
   // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:
   // the index moves when the oldest round is dropped (the last 20 are kept), the time does not.
   partAt?: number
-  // Drawn only: the card of a message a sister sent, and her task that sent it; the card goes inside
-  // the sister's card, under that task (see nest in ../draw/layout).
-  via?: { from: string; task: string }
   anchor?: string
   panel?: Panel
   tasks?: TaskNode[]
@@ -144,8 +143,12 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // ends (then ''); in the state for the same reason.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
+// `turnEnded`: when this session's turn ended (its clock), until the next prompt (then null):
+// meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
+// `turnAborted`: the last turn of the main loop ended interrupted (turn.complete with isAborted), until
+// the next request; a message of another session that comes then gets a reminder to replan the panel.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }

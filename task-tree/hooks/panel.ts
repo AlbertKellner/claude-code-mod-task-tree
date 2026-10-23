@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, goingOn } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
 import { debug } from '../io/log'
 import { publishWait } from '../io/publish'
 
@@ -22,6 +22,13 @@ const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
+
+// The main loop works again (a prompt, or a call of its own): what the last turn left open is in
+// progress again, no longer drawn as halted (see turnEnded).
+export async function wake($: any) {
+  if (typeof (await $.state.get(turnEndedState)).value === 'number') await $.state.set(turnEndedState, null)
+}
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
@@ -76,7 +83,7 @@ export const migrate = (t: LegacyNode): TaskNode => ({
 
 // A message of the person opens a turn of the main group, titled with its start; turns no plan
 // used are dropped then, so only turns with tasks are kept.
-export async function openTurn($: any, text: string) {
+export async function openTurn($: any, text: string, own = false) {
   // A message from another session comes wrapped in tags: its words are the title.
   const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
   const title = line.length > 60 ? `${line.slice(0, 59)}…` : line
@@ -89,16 +96,28 @@ export async function openTurn($: any, text: string) {
       const withTasks = new Set(g.tasks.map(t => t.turn))
       const used = turns.filter(u => withTasks.has(u.id))
       const id = turns.reduce((top, u) => Math.max(top, u.id), 0) + 1
-      return { ...g, turns: [...used, { id, title, at }] }
+      // The person's own prompt in this session is marked (`own`): the card of this turn, in the
+      // session that opened this one, goes at the end of the request that opened it.
+      return { ...g, turns: [...used, { id, title, at, ...(own ? { own: true } : {}) }] }
     }),
   )
 }
 
 
 // The task a message is sent from: the task in progress, unless an open task was planned after
-// it was started (planned to send, sent with no start): that newest one.
+// it was started (planned to send, sent with no start): that newest one. With nothing in progress
+// (the person's decision: "envio feito sem tarefa em andamento ancora na última iniciada do pedido
+// atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
+// current request (the last turn with tasks), else that request's last level-1 task. It was the first
+// open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
 export function sendAnchor(list: TaskNode[]): string | undefined {
   const { anchor } = current(list)
+  if (anchor === undefined) {
+    const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+    const last = turns.length > 0 ? Math.max(...turns) : undefined
+    const mine = list.filter(t => last === undefined || t.turn === last)
+    return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
+  }
   const leaves = flat(list).filter(t => t.status === 'open' && t.children.length === 0)
   const since = (t?: TaskNode) => (t === undefined ? undefined : t.started !== undefined ? t.startedAt : t.plannedAt)
   const base = since(flat(list).find(t => t.id === anchor))
@@ -449,10 +468,12 @@ export async function joinWork($: any, ids: string[], fresh: boolean) {
   if (ids.length === 0) return
   const { value: cur = [] } = await $.state.get(workState)
   if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
-  // New work: what of the work before is still going on stays (goingOn).
+  // New work: with anything still open in sight (a task, a ✉, a card with an open task), the work
+  // before stays whole, the new request below it; with nothing open, the new request alone (openInSight).
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
-  const kept = goingOn({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[])
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[], sends as Send[]) ? (cur as string[]) : []
   await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
