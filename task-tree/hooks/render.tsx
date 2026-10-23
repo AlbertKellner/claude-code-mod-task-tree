@@ -234,7 +234,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { anchor: now0 } = current(mainTasks)
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
-    mainTasks.find(t => atWork(t, sessions, 0).busy)
+    mainTasks.find(t => atWork(t, sessions, 0).live)
   const head = headTask?.title ?? 'Tarefas'
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its

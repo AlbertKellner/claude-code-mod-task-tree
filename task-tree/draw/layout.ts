@@ -329,14 +329,17 @@ export function total(p: Panel, level = 0): [number, number, number] {
 
 // The sessions opened on a task or below it (archived ones as history): their tasks add to its count and
 // its time, and while one is still at work the task is drawn in progress, its clock running,
-// whatever its own status says.
+// whatever its own status says. A task closed with done is done: the sessions opened on it or on a
+// task inside it add nothing and keep nothing in progress (their progress stays in their cards; it was
+// drawn ◉ "45/46" after the done); `any` still marks the ⑂, `live` that one is still at work there, and
+// `cards` holds all their tasks, for a folded line (it stands for what is drawn below it, the cards too).
 // `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
 export type Ring = { percent: number; name: string; faded?: boolean }
 export const ringOf = (c: Child): Ring | undefined =>
   typeof c.context === 'number' ? { percent: c.context, name: c.name || c.title, ...(c.archived ? { faded: true } : {}) } : undefined
-export type Work = { busy: boolean; any: boolean; d: number; n: number; tasks: TaskNode[] }
-export const idle: Work = { busy: false, any: false, d: 0, n: 0, tasks: [] }
+export type Work = { busy: boolean; any: boolean; live: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[] }
+export const idle: Work = { busy: false, any: false, live: false, d: 0, n: 0, tasks: [], cards: [] }
 // A panel's tasks with its sessions' (archived ones too), as deep as the count follows them.
 export function allTasks(p: Panel, level: number): TaskNode[] {
   const own = tasksOf(p.groups ?? [])
@@ -345,7 +348,10 @@ export function allTasks(p: Panel, level: number): TaskNode[] {
 }
 export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const ids = flat([t]).map(k => k.id)
-  const mine = sessions.filter(c => c.anchor !== undefined && ids.includes(c.anchor))
+  const below = sessions.filter(c => c.anchor !== undefined && ids.includes(c.anchor))
+  const open = (k: TaskNode): string[] => (k.status === 'done' ? [] : [k.id, ...k.children.flatMap(open)])
+  const counted = open(t)
+  const mine = below.filter(c => counted.includes(c.anchor as string))
   let d = 0
   let n = 0
   for (const c of mine) {
@@ -354,7 +360,8 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
     n += cn
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
-  return { busy: mine.some(live), any: mine.length > 0, d, n, tasks }
+  const cards = below.flatMap(c => allTasks(panelOf(c), level + 1))
+  return { busy: mine.some(live), any: below.length > 0, live: below.some(live), d, n, tasks, cards }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
@@ -509,7 +516,7 @@ export function trimToWork(p: Panel, level: number): Panel {
   // A level-1 task with a session at work under it is still going on: it stays, with its request,
   // and the card stays under it (the person's words: "se existirem tarefas em andamento, essas
   // tarefas devem continuar sendo mostradas").
-  const busy = level >= DEEP ? [] : main.tasks.filter(t => atWork(t, p.children ?? [], level).busy).map(t => t.id)
+  const busy = level >= DEEP ? [] : main.tasks.filter(t => atWork(t, p.children ?? [], level).live).map(t => t.id)
   const wanted = [...work, ...busy]
   const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
@@ -758,7 +765,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const kids = t.children
       const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work, pending)] : []
       row.fold = { key, open: rest.length > 0 }
-      row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.tasks]
+      row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.cards]
       return [row, ...rest]
     })
 
@@ -817,7 +824,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
     const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending) : []
-    row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.tasks)]
+    row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.cards)]
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
     // one after a card still at work would read as the group being over.
@@ -954,7 +961,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const recent = asked.slice(-keep)
       const cut = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
       // A request with a session still at work under its task stays drawn too (it is going on).
-      const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).busy ?? false)) : list
+      const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
       const left = cut ? new Set(list.filter(t => !drawn.includes(t)).map(t => t.turn ?? -1)).size : 0
       if (cut && left > 0) lines.push({ depth: top, tone: 'section', title: `+${left} pedidos anteriores`, label: 'Pedidos anteriores, não desenhados' })
       // The top panel's main tasks go under the turn (the person's message) they were planned
