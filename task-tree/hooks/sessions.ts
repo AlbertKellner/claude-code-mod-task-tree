@@ -7,11 +7,11 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, flat, current, running } from '../draw/layout'
+import { MAIN, flat, running } from '../draw/layout'
 import { readPublished } from '../io/publish'
 import { deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, inDesktopApp, keptLink, openList, publishPanel, selfId, showStatus, stamp } from './panel'
+import { change, inDesktopApp, keptLink, openList, publishPanel, selfId, sendAnchor, showStatus, stamp } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -189,7 +189,8 @@ export async function recordStart($: any, resultText: string) {
   const id = /local_[0-9a-f-]{36}/.exec(resultText)?.[0]
   if (!id) return
   const { value = [] } = await $.state.get(groupsState)
-  const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+  // The task the session is opened on: the one in progress, else as a message is anchored (sendAnchor).
+  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
   await update($, childrenState, cur => {
     const list = cur ?? []
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
