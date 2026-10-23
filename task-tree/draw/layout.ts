@@ -395,23 +395,24 @@ export function allTasks(p: Panel, level: number): TaskNode[] {
   if (level >= DEEP) return own
   return own.concat(...(p.children ?? []).map(c => allTasks(panelOf(c), level + 1)))
 }
+// Where a session's current round is (see atWork): none for a card of an earlier round.
+export const roundAt = (c: Child) => (c.part === undefined ? (c.lastAnchor ?? c.anchor) : c.lastAnchor)
 export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const ids = flat([t]).map(k => k.id)
   const below = sessions.filter(c => c.anchor !== undefined && ids.includes(c.anchor))
   const open = (k: TaskNode): string[] => (k.status === 'done' ? [] : [k.id, ...k.children.flatMap(open)])
   const counted = open(t)
   const mine = below.filter(c => counted.includes(c.anchor as string))
-  // At work, a session is where its current round is: a card cut to one round, at its round's
-  // anchor; a whole session, at its last message's (lastAnchor), not where it was opened. Else every
-  // task it ever worked under came back as in progress while it ran (the summary view pulled old
-  // requests in, and the header took the first one's title).
+  // At work, a session is where its current round is: its last message's task (lastAnchor), not
+  // where it was opened nor where an earlier round was. A card cut to one round counts only if it is
+  // the session's leading one (the one that keeps lastAnchor); an earlier round's card never does.
+  // Else every task it ever worked under came back as in progress while it ran (the summary view
+  // pulled old requests in, and the header took the first one's title).
   const here = sessions.filter(c => {
-    const a = c.part !== undefined ? c.anchor : (c.lastAnchor ?? c.anchor)
+    const a = roundAt(c)
     return a !== undefined && ids.includes(a)
   })
-  const hereOpen = here.filter(c => counted.includes((c.part !== undefined ? c.anchor : (c.lastAnchor ?? c.anchor)) as string))
-  // The count is every session opened in the subtree, its task closed or not (as the header counts
-  // them): opening one is a link, its leaves count. State and time stay with the open ones (mine).
+  const hereOpen = here.filter(c => counted.includes(roundAt(c) as string))
   let d = 0
   let n = 0
   for (const c of below) {
@@ -591,7 +592,10 @@ export function trimToWork(p: Panel, level: number): Panel {
       level >= DEEP
         ? (p.children ?? [])
         : (p.children ?? [])
-            .filter(c => under(c.anchor) || live(c))
+            // A session at work stays even with its task out of the work, but only by its current
+            // round: a card of an earlier round (or the leading card while its new round has no
+            // task yet) comes only with its own task.
+            .filter(c => under(c.anchor) || (live(c) && c.part === undefined))
             .map(c => ({ ...c, panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
   }
 }
