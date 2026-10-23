@@ -9,6 +9,23 @@ import {
 import type { Tone, Row, Frame, Guide } from './layout'
 
 // "0:04", "6:12", "1:02:09".
+// A running time, counted by the Svg itself: CLOCK_FRAMES texts of a second each, from `ms` on,
+// shown one after another by SMIL (an Svg is made again at every drawing, so the pane redraws only
+// for a change, or before the frames run out: see keepTime); the last frame stays. `attrs` are the
+// <text>'s (its place and look). Stopped, one text.
+export const CLOCK_FRAMES = 60
+export function liveClock(ms: number, attrs: string, runs: boolean | undefined): string {
+  if (!runs) return `<text ${attrs}>${clockText(ms)}</text>`
+  let out = ''
+  for (let i = 0; i < CLOCK_FRAMES; i++) {
+    const set =
+      i === 0
+        ? '<set attributeName="visibility" to="hidden" begin="1s" fill="freeze"/>'
+        : `<set attributeName="visibility" to="visible" begin="${i}s"${i === CLOCK_FRAMES - 1 ? ' fill="freeze"' : ' dur="1s"'}/>`
+    out += `<text ${attrs}${i === 0 ? '' : ' visibility="hidden"'}>${clockText(ms + i * 1000)}${set}</text>`
+  }
+  return out
+}
 export function clockText(ms: number): string {
   const s = Math.floor(ms / 1000)
   const two = (k: number) => String(k).padStart(2, '0')
@@ -331,8 +348,9 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   let edge = R
   let mark = ''
   if (tabular) {
-    const t = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
-    if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
+    const clock = `class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"`
+    if (typeof r.time === 'number') right.push(liveClock(r.time, clock, r.runs))
+    else if (r.time === null) right.push(`<text ${clock}>—</text>`)
     const countX = R - TIME_W - RIGHT_GAP
     if (r.sub) {
       const quiet = r.tone === 'interrupted' || r.tone === 'archived'
@@ -357,7 +375,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     }
   } else {
     const t = typeof r.time === 'number' ? clockText(r.time) : ''
-    if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
+    if (t) right.push(liveClock(r.time as number, `class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"`, r.runs))
     if (t) edge = R - textW(t, 12) - RIGHT_GAP
     const words = rightText(r)
     if (words) {
@@ -400,7 +418,7 @@ export function chips(active: number, waiting: number, cut: number, live: number
 
 // The header: the title alone on the first line (its right end is left to the view icons, drawn
 // over it), the count and time below it, the bar, then the chips.
-export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number): { source: string; height: number } {
+export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, runs?: boolean): { source: string; height: number } {
   const L = HEADER_PAD
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
@@ -410,10 +428,13 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
     parts.push(`<text class="s" x="${L}" y="34" font-size="12">Nenhuma tarefa planejada.</text>`)
   } else {
-    const score = `${d} de ${n} · ${percent(d, n)}%` + (time !== undefined ? ` · ${clockText(time)}` : '')
+    const score = `${d} de ${n} · ${percent(d, n)}%`
     const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
     parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
+    // The time in a text of its own, right after the count, so it can count its seconds (liveClock).
+    if (time !== undefined) parts.push(liveClock(time, `class="s" x="${L + textW(`${score} · `, 12)}" y="36" font-size="12" font-variant-numeric="tabular-nums"`, runs))
+    if (time !== undefined) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="36" font-size="12">·</text>`)
     parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
     if (n > 0 && d > 0) parts.push(`<rect class="grf" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.

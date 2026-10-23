@@ -223,7 +223,19 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
   const { value: ended } = await $.state.get(turnEndedState)
-  const lines = layout({ groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }, chosen, now, knownId())
+  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
+  const lines = layout(model, chosen, now, knownId())
+  // Which times are running: the same lines a second later show them a second further (the pane is
+  // drawn for a change or about once a minute, so the second layout costs little). Those Svgs count
+  // their seconds themselves (liveClock).
+  if (now !== undefined && e.surface === 'desktop') {
+    const later = layout(model, chosen, now + 1000, knownId())
+    if (later.length === lines.length)
+      lines.forEach((r, i) => {
+        const l = later[i]
+        if (typeof r.time === 'number' && l.depth === r.depth && l.title === r.title && l.time === r.time + 1000) r.runs = true
+      })
+  }
   drawn.rows = lines.length
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
@@ -249,7 +261,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
   const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
-  const headTime = sessionTime(shown, tally(r => r.live) > 0 || hasOpen(shown), now)
+  const busyNow = tally(r => r.live) > 0 || hasOpen(shown)
+  const headTime = sessionTime(shown, busyNow, now)
+  const headRuns = headTime !== undefined && now !== undefined && sessionTime(shown, busyNow, now + 1000) === headTime + 1000
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
   const sentIds = queued.map(q => q.anchor ?? '')
   // A task waiting on a session is not in progress: this session's (the queued sends' tasks) and
@@ -291,7 +305,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const { Svg } = ui
     const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime)
+    const top = headerSvg(head, d, n, list, W, headTime, headRuns)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
