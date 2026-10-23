@@ -83,7 +83,8 @@ describe('cartões: recolher fica com o cartão, mesmo quando as rodadas passam 
 
 describe('cartões: o cartão de uma sessão trabalhando fica sob a tarefa que mandou a mensagem', () => {
   // Request 1 sent the message from "z1" (done); requests 2, 3 and 4 came later; the child is at work on
-  // that message. The current work is request 4's.
+  // that message. The current work holds requests 1 and 4 (the card with an open task kept request 1
+  // in sight; requests 2 and 3 were planned with nothing open and left).
   const build = () => {
     const at = (k: number) => T0 + k * 10_000
     const mturns = [1, 2, 3, 4].map(k => turn(k, at(k), { title: `Pedido ${k}` }))
@@ -104,13 +105,13 @@ describe('cartões: o cartão de uma sessão trabalhando fica sob a tarefa que m
 
   test('resumida: o cartão aparece sob "Mandar o bug à filha", no pedido dela, não solto no fim', () => {
     const { mother, kid } = build()
-    const t = titles(layout(model([mother], [kid], { view: 'summary', work: ['v4'] }), {}, NOW, ME))
+    const t = titles(layout(model([mother], [kid], { view: 'summary', work: ['z1', 'v4'] }), {}, NOW, ME))
     const origin = t.findIndex(x => x.trim() === 'Mandar o bug à filha')
     const card = t.findIndex(x => x.trim() === '⑂ filha')
     expect(origin).toBeGreaterThanOrEqual(0)
     expect(card).toBe(origin + 1)
     expect(t.some(x => x.includes('Pedido atual'))).toBe(true)
-    // Done requests with nothing going on still leave the summary.
+    // Requests out of the work are not drawn.
     expect(t.some(x => x.includes('Outra coisa feita'))).toBe(false)
   })
 
@@ -146,8 +147,8 @@ describe('resumida: a completa sem os pedidos finalizados, cartões nas mesmas �
     // Opened on a1; its last message went from b2 (lastAnchor), with no round recorded (older data).
     const kid = child(KID, 'filha', panel([task('G', 'Trabalho da filha', 'open', { plannedAt: at(1) + 70, startedAt: at(1) + 70, started: 1 })]), { anchor: 'a1', lastAnchor: 'b2', running: true })
     const m = main(mtasks, mturns)
-    const full = layout(model([m], [kid], { work: ['b2'] }), {}, NOW, ME)
-    const summary = layout(model([m], [kid], { work: ['b2'], view: 'summary' }), {}, NOW, ME)
+    const full = layout(model([m], [kid], { work: ['a1', 'b2'] }), {}, NOW, ME)
+    const summary = layout(model([m], [kid], { work: ['a1', 'b2'], view: 'summary' }), {}, NOW, ME)
     expect(parents(full)).toEqual(['s:local_filha ⟵ Investigar ainda'])
     expect(parents(summary)).toEqual(parents(full))
   })
@@ -165,7 +166,11 @@ describe('resumida: a completa sem os pedidos finalizados, cartões nas mesmas �
 // The person's panel: messages from c1, f1, r1, e1, o1 and k1; f1 to k1 were delivered at once into one
 // turn, and its card went under k1, the last; the person expected it under the first.
 describe('cartões: um turno que recebeu várias mensagens de uma vez', () => {
-  test('quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira', () => {
+  // The person: "quero ver as tarefas lineares andando de cima pra baixo. as paralelas vão andar fora de
+  // ordem, normal, mas as lineares precisam seguir uma linha do tempo". A turn opened by messages
+  // delivered together starts after the last of them: its card goes under that one's task, and the
+  // earlier ones close with the delivery, with no card (it went under the first's).
+  test('quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da última', () => {
     const at = (k: number) => T0 + k * 10_000
     const mturns = [turn(1, at(1), { title: 'Pedido' })]
     const ids = ['c1', 'f1', 'r1', 'e1', 'o1']
@@ -183,11 +188,31 @@ describe('cartões: um turno que recebeu várias mensagens de uma vez', () => {
     const t = titles(layout(model([main(mtasks, mturns)], [kid]), {}, NOW, ME))
     const under = (task: string) => t[t.findIndex(x => x.trim() === task) + 1]?.trim()
     expect(under('Mensagem de c1')).toBe('⑂ filha')
-    expect(under('Mensagem de f1')).toBe('⑂ filha')
-    expect(t[t.findIndex(x => x.trim() === 'Mensagem de f1') + 2]?.trim()).toBe('Trabalho das quatro')
-    // The other messages of the batch have no card of their own (no turn of the child after them).
+    expect(under('Mensagem de o1')).toBe('⑂ filha')
+    expect(t[t.findIndex(x => x.trim() === 'Mensagem de o1') + 2]?.trim()).toBe('Trabalho das quatro')
+    // The other messages of the batch have no card of their own (the work began after the last one).
+    expect(under('Mensagem de f1')).not.toBe('⑂ filha')
     expect(under('Mensagem de r1')).not.toBe('⑂ filha')
-    expect(under('Mensagem de o1')).not.toBe('⑂ filha')
+    expect(under('Mensagem de e1')).not.toBe('⑂ filha')
+  })
+
+  test('o caso real: "uma rodada basta" e o bug dos cliques entregues juntos: o trabalho fica sob o pedido dos cliques', () => {
+    const at = (k: number) => T0 + k * 10_000
+    const mtasks = [
+      task('s1x', 'Suíte uma vez só', 'done', { turn: 1, plannedAt: at(1), startedAt: at(1), endedAt: at(1) + 100 }),
+      task('ck', 'Bug: clique nos ícones precisa repetir', 'done', { turn: 2, plannedAt: at(2), startedAt: at(2), endedAt: at(2) + 100 }),
+    ]
+    const rounds = [{ at: at(1) + 50, anchor: 's1x' }, { at: at(2) + 50, anchor: 'ck' }]
+    const tl = at(2) + 500
+    const kid = child(KID, 'filha', panel(
+      [task('L', 'L: cliques falham ou demoram', 'open', { turn: 1, started: 1, plannedAt: tl, startedAt: tl })],
+      [turn(1, tl, { title: 'Suíte uma vez; bug L dos cliques' })],
+      { received: [{ from: ME, at: tl - 20 }, { from: ME, at: tl - 20 }] },
+    ), { anchor: 's1x', rounds, running: true })
+    const t = titles(layout(model([main(mtasks, [turn(1, at(1), { title: 'Suíte' }), turn(2, at(2), { title: 'Cliques' })])], [kid]), {}, NOW, ME))
+    const next = (task: string) => t.slice(t.findIndex(x => x.trim() === task) + 1, t.findIndex(x => x.trim() === task) + 3).map(x => x.trim())
+    expect(next('Bug: clique nos ícones precisa repetir')).toEqual(['⑂ filha', 'L: cliques falham ou demoram'])
+    expect(next('Suíte uma vez só')[0]).not.toBe('⑂ filha')
   })
 
   test('uma mensagem por turno: cada cartão sob a tarefa da sua mensagem (regra mantida)', () => {

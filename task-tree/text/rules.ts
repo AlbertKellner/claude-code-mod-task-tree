@@ -78,7 +78,7 @@ export const TOOLS = {
     `${EXAMPLE}. Vira a linha ↩ do painel; a resposta inteira fica no tooltip.`,
   start:
     'Marca tarefas do painel como em andamento (destacadas em amarelo) ao começar cada uma. ' +
-    'Várias podem estar em andamento; sem nenhuma marcada, o painel destaca a primeira aberta. ' +
+    'Várias podem estar em andamento; sem nenhuma marcada, nenhuma tarefa aparece em andamento. ' +
     'Em uma tarefa concluída sem subtarefas, reabre a tarefa e os pais dela; ' +
     'para refazer um pai concluído, replaneje o nível 1 com plan. Ids como no done.',
 }

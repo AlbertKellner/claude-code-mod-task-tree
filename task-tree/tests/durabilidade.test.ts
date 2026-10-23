@@ -157,6 +157,7 @@ const PLANTS: Record<string, Plant> = {
   },
   brief: { marker: 'Resumo X', plant: async $ => void (await call($, 'done', { summary: 'Resumo X' })) },
   recap: { marker: 'Recap X', plant: async $ => void (await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'Recap X' } as any)) },
+  turnEnded: { marker: '424242', seeded: 424242, plant: async () => {} },
   collapsed: {
     marker: '"|t:A"',
     plant: async $ => {
@@ -219,8 +220,12 @@ describe('tabela de durabilidade', () => {
       const state: Record<string, unknown> = JSON.parse(JSON.stringify(LEFT[key].state))
       const h = host(on, {}, state)
       await draw($)
+      // Kept through the reload: the drawing still reads it; the main loop's next call wakes the turn.
+      if (key === 'turnEnded') expect(state.turnEnded).toBe(424242)
       const r = await call($, 'plan', { tasks: [{ id: 'B', title: 'Depois' }] })
-      if (key === 'ended') {
+      if (key === 'turnEnded') {
+        expect(state.turnEnded).toBe(null)
+      } else if (key === 'ended') {
         // Kept through the reload; consumed by the first ordinary tool call of the new module
         // (endedNote; the panel's own tools answer without it), once.
         expect(JSON.stringify(r)).toContain('Plano exibido')
