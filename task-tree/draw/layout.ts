@@ -750,8 +750,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     items.flatMap(t => {
       // Sessions opened on it or below add to its count and keep it in progress (atWork).
       const w = work(t)
-      // A message sent from it is still queued: it waits on that session (its own icon).
-      const waitsOn = t.status === 'open' ? pending.filter(s => s.anchor === t.id).map(s => s.to) : []
+      // A message sent from it is still queued: it waits on that session (its own icon), also once
+      // the model closed it with done right after sending (the person: the ✉ stays until the delivery,
+      // whatever the model does with the task; it was dropped by the done, and the task came out ✓).
+      const waitsOn = t.status !== 'interrupted' ? pending.filter(s => s.anchor === t.id).map(s => s.to) : []
       // A task below it waits on a session (✉): the work is going on (it was drawn not started).
       const waitsBelow = t.status === 'open' && t.children.length > 0 && waitingBelow(t, pending)
       const tone: Tone =
@@ -762,7 +764,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             : w.busy || waitsBelow
               ? 'current'
               : t.status === 'done'
-                ? 'done'
+                ? flat(t.children).some(k => k.status === 'interrupted')
+                  ? 'interrupted'
+                  : 'done'
                 : lit.includes(t.id)
                   ? 'current'
                   : t.children.length > 0 && resting(t.children)
@@ -834,7 +838,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           ? resting(list)
             ? 'paused'
             : 'open'
-          : list.every(t => t.status === 'interrupted')
+          : flat(list).some(t => t.status === 'interrupted')
             ? 'interrupted'
             : 'done'
     const key = `${scope}T:${u.id}`

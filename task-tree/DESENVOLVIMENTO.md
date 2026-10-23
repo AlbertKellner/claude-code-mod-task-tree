@@ -98,7 +98,7 @@ Na ordem de `register.tsx`:
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
 | `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
-| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; tira os `sends` das tarefas fechadas |
+| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
@@ -351,7 +351,8 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   ...filhos]`). Antes, uma tarefa concluída com uma filha ainda trabalhando aparecia ◉ "3/4", com o
   tempo correndo; agora aparece ✓ com a contagem própria (ex.: "✓ Investigar ⑂ 2/2 0:05"), e o cartão da
   filha mostra o estado e a contagem dela. Uma tarefa aberta continua em andamento e somando as tarefas
-  da sessão. O pedido (`turnRows`) com todas as tarefas concluídas com `done` fica concluído e não soma
+  da sessão. O pedido (`turnRows`) com todas as tarefas concluídas com `done` fica concluído (e ✕ se
+  alguma tarefa em qualquer nível foi interrompida) e não soma
   as sessões. `Work` ganhou dois campos: `live` (há sessão viva em qualquer ponto abaixo; `trimToWork` o
   usa para manter na resumida o nível 1 com sessão trabalhando, o corte da completa em `layout()` mantém
   o pedido com sessão viva, e o título do cabeçalho sem tarefa acesa usa o primeiro nível 1 com sessão
@@ -468,6 +469,25 @@ Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
   desktop 44 999/45 761), dentro da folga.
 - Testes: `tests/envio-e-resposta.test.ts` (4); `layout.test.ts` (contagens do estado real 28 → 27 e
   27 → 26, ↩ do pedido 71, ↩ por turno), `cartoes-ancora.test.ts` e `task-tree.test.ts` atualizados.
+
+✉ até a entrega e pedido ✕ (regras do usuário depois do teste visual: o painel mantém o ✉ até a entrega
+mesmo com `done` explícito na tarefa de envio, "não depender de o modelo deixar a tarefa aberta"; e
+pedido com tarefa interrompida e nada aberto fica ✕, não ✓). Sintomas: "Mensagem 2/3 na fila" apareciam
+✓ logo após o envio, sem ✉, porque a orquestradora deu `done` logo depois do `SendMessage`; o cartão da
+docs mostrava "✓ 1/1" com a subtarefa "Ler o código e o doc" interrompida dentro.
+- `hooks/tools.ts`, `doneTool`: deixou de apagar os `sends` das tarefas fechadas (o aviso `DONE.queued`
+  continua). Um id reusado por plano novo renomeia a tarefa antiga e o `send` dela junto
+  (`renameAnchors`) ou apaga os dois (tarefa replanejada), então não sobra ✉ em id reaproveitado.
+- `draw/layout.ts`, `rows()`: `waitsOn` vale para qualquer tarefa não interrompida (era só `open`),
+  então a tarefa concluída com envio pendente tem tom `sent` (✉) até a entrega; `watchSends` marca o
+  envio como `taken` na entrega e, como a tarefa já está concluída, não a fecha de novo. O tom de uma
+  tarefa `done` com alguma descendente interrompida passa a ser `interrupted` (✕). Em `turnRows`, o
+  pedido com tudo fechado e alguma tarefa interrompida (em qualquer nível, `flat`) é `interrupted` (era
+  só quando TODAS eram); só concluídas continua ✓.
+- Testes: `tests/envio-done.test.ts` (2: a tarefa de envio concluída com `done` logo depois de mandar
+  continua ✉ até a entrega e, entregue, fica ✓: plan, start, `SendMessage` na fila, `done` → ✉; a sessão
+  para e volta a rodar → ✓; e: tudo fechado e uma interrompida, o pedido é ✕, não ✓; só concluídas, ✓,
+  inclusive interrompida dentro de uma tarefa concluída). Nenhum golden muda.
 
 Sem start, nada aceso (decisão do usuário depois do teste visual: "sem start, nada aceso; envio feito
 sem tarefa em andamento ancora na ÚLTIMA INICIADA do pedido atual (mesmo concluída); sem nenhuma
@@ -600,8 +620,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 379 testes em 26
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas; 5 na sessão parada; 4 do `turnEnded` na tabela de durabilidade; 6 em sem start, nada aceso); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 381 testes em 27
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas; 5 na sessão parada; 4 do `turnEnded` na tabela de durabilidade; 6 em sem start, nada aceso; 2 no ✉ com done e no pedido ✕); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -626,6 +646,7 @@ e tem 5 s.
 | `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
 | `sem-start.test.ts` | 6 | sem `start`, nada aceso (plano, entre tarefas, título do cabeçalho pela iniciada por último); a mensagem sai da última iniciada do pedido atual, mesmo concluída, e sem nenhuma iniciada, do fim do pedido; a sessão aberta nesse intervalo fica sob a mesma tarefa |
 | `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
+| `envio-done.test.ts` | 2 | a tarefa de envio concluída com `done` logo depois de mandar continua ✉ até a entrega e depois fica ✓; pedido com tudo fechado e uma tarefa interrompida é ✕ (e só concluídas, ✓) |
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
 | `cadeia-irmas.test.ts` | 2 | cadeia de sessões: mãe → correção → governança → correção, os três cartões sob a tarefa da mãe, no mesmo nível, na ordem em que rodaram (nas duas visões); a ordem é a da execução, não a das sessões na lista |
 | `cartoes-resumida.test.ts` | 1 | sem escolha do usuário, nenhum cartão aparece recolhido ou sem linhas embaixo, no estado real e nas duas visões |
@@ -1492,7 +1513,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   turno:
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
   nas tarefas não concluídas, como no `atWork`), em andamento enquanto algo dele está (um pedido com
-  todas as tarefas concluídas com `done` fica concluído), aberta também quando tudo fechou
+  todas as tarefas concluídas com `done` fica concluído, e ✕ se alguma tarefa em qualquer nível foi
+  interrompida), aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
 - Ícone de sessão filha: toda linha mantém o ícone de progresso (○/◉/✓/✕/✉; no cartão da sessão,
   ◉ rodando ou aguardando, ✓ concluída, ✕ arquivada). O cartão de uma sessão (`Row.session`) e a
@@ -1545,7 +1567,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   subtarefa aberta, e publica o painel, para o cartão na sessão mãe não ficar "parada". O aviso de
   recebimento diz que o painel já fechou a tarefa (reabrir com `start` se faltou algo); o `RULES` e
   o aviso de "ficou na fila" dizem que a tarefa fica em andamento até o recebimento e que a sessão
-  pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
+  pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa; e,
+  desde o item do ✉ até a entrega, o ✉ continua na tarefa concluída até a entrega (o `done` não
+  apaga mais o envio).
   A regra está no `RULES`.
 - Etapa por etapa (pedido do usuário: "ela ficou parada muito tempo na primeira tarefa, e derepente
   pulo para a ultima"): a causa era o agente, que não chamava `start` e fechava várias etapas num
@@ -1708,8 +1732,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   recebida com `at` ≥ o envio, ou qualquer turno depois dele, confirmava todos: com duas mensagens
   na fila para a mesma sessão ocupada, a primeira entrega fechava as duas tarefas e a segunda, ainda
   pendente, sumia do painel. Destino sem `received` (versões antigas): um turno publicado depois do
-  envio; senão a regra antiga (vista parada, depois rodando). Um `done` que fecha a tarefa do envio, um replan dela e o `/clear` tiram o envio de `sends`
-  (sem ✉ fantasma num id reaproveitado).
+  envio; senão a regra antiga (vista parada, depois rodando). Um replan da tarefa de envio e o `/clear` tiram o envio de `sends`; um plano que
+  reusa o id de uma tarefa fechada renomeia a tarefa e o envio dela junto (`renameAnchors`); um `done`
+  não tira mais o envio (o ✉ fica até a entrega). Assim não sobra ✉ fantasma num id reaproveitado.
 
 ### Pendências
 
