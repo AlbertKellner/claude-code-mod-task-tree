@@ -159,3 +159,51 @@ describe('resumida: a completa sem os pedidos finalizados, cartões nas mesmas �
     for (const p of parents(summary)) expect(inFull.has(p) ? p : `fora da completa: ${p}`).toBe(p)
   })
 })
+
+// Messages queued to a busy session and delivered together open one turn of it: the turn's card goes
+// under the task of the first of those messages (the order the work ran in), not under the last one.
+// The person's panel: messages from c1, f1, r1, e1, o1 and k1; f1 to k1 were delivered at once into one
+// turn, and its card went under k1, the last; the person expected it under the first.
+describe('cartões: um turno que recebeu várias mensagens de uma vez', () => {
+  test('quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira', () => {
+    const at = (k: number) => T0 + k * 10_000
+    const mturns = [turn(1, at(1), { title: 'Pedido' })]
+    const ids = ['c1', 'f1', 'r1', 'e1', 'o1']
+    const mtasks = ids.map((id, k) => task(id, `Mensagem de ${id}`, 'done', { turn: 1, plannedAt: at(1) + k * 1000, startedAt: at(1) + k * 1000, endedAt: at(1) + k * 1000 + 100 }))
+    // c1's message opened the child's turn 1; f1, r1, e1, o1 went while it worked and were delivered
+    // together, opening turn 2.
+    const rounds = ids.map((id, k) => ({ at: at(1) + k * 1000 + 50, anchor: id }))
+    const t1 = at(1) + 80
+    const t2 = at(1) + 4 * 1000 + 500
+    const kid = child(KID, 'filha', panel(
+      [task('A', 'Trabalho da primeira', 'done', { turn: 1, plannedAt: t1, startedAt: t1, endedAt: t1 + 10 }), task('B', 'Trabalho das quatro', 'done', { turn: 2, plannedAt: t2, startedAt: t2, endedAt: t2 + 10 })],
+      [turn(1, t1, { title: 'Mensagem c1' }), turn(2, t2, { title: 'Mensagens f1 a o1' })],
+      { received: [{ from: ME, at: t1 - 10 }, { from: ME, at: t2 - 20 }, { from: ME, at: t2 - 20 }, { from: ME, at: t2 - 20 }, { from: ME, at: t2 - 20 }] },
+    ), { anchor: 'c1', rounds })
+    const t = titles(layout(model([main(mtasks, mturns)], [kid]), {}, NOW, ME))
+    const under = (task: string) => t[t.findIndex(x => x.trim() === task) + 1]?.trim()
+    expect(under('Mensagem de c1')).toBe('⑂ filha')
+    expect(under('Mensagem de f1')).toBe('⑂ filha')
+    expect(t[t.findIndex(x => x.trim() === 'Mensagem de f1') + 2]?.trim()).toBe('Trabalho das quatro')
+    // The other messages of the batch have no card of their own (no turn of the child after them).
+    expect(under('Mensagem de r1')).not.toBe('⑂ filha')
+    expect(under('Mensagem de o1')).not.toBe('⑂ filha')
+  })
+
+  test('uma mensagem por turno: cada cartão sob a tarefa da sua mensagem (regra mantida)', () => {
+    const at = (k: number) => T0 + k * 10_000
+    const mtasks = [task('a1', 'Abrir', 'done', { turn: 1, plannedAt: at(1), startedAt: at(1), endedAt: at(1) + 100 }), task('b1', 'Mandar outra', 'done', { turn: 1, plannedAt: at(2), startedAt: at(2), endedAt: at(2) + 100 })]
+    const rounds = [{ at: at(1) + 50, anchor: 'a1' }, { at: at(2) + 50, anchor: 'b1' }]
+    const t1 = at(1) + 80
+    const t2 = at(2) + 80
+    const kid = child(KID, 'filha', panel(
+      [task('A', 'Do a1', 'done', { turn: 1, plannedAt: t1, startedAt: t1, endedAt: t1 + 10 }), task('B', 'Do b1', 'done', { turn: 2, plannedAt: t2, startedAt: t2, endedAt: t2 + 10 })],
+      [turn(1, t1), turn(2, t2)],
+      { received: [{ from: ME, at: t1 - 10 }, { from: ME, at: t2 - 10 }] },
+    ), { anchor: 'a1', rounds })
+    const t = titles(layout(model([main(mtasks, [turn(1, at(1))])], [kid]), {}, NOW, ME))
+    const under = (task: string) => t.slice(t.findIndex(x => x.trim() === task) + 1, t.findIndex(x => x.trim() === task) + 3).map(x => x.trim())
+    expect(under('Abrir')).toEqual(['⑂ filha', 'Do a1'])
+    expect(under('Mandar outra')).toEqual(['⑂ filha', 'Do b1'])
+  })
+})
