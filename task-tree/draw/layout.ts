@@ -229,20 +229,23 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   // The part (round) of each turn, once per turn; a task with no turn, or with a turn not listed, is
   // in part 0 (the card before the first round), as before.
   const partOfTurn = new Map<number, number>()
-  // Messages of `me` queued while the session worked are delivered together and open one turn: that
-  // turn goes to the round of the first of them, the order the work ran in (it went to the last one,
-  // and the first message's task had no card). A turn that got messages of `me` (its published
-  // `received` has some since the turn before) takes the first round of `me` sent since the turn
-  // before; any other turn (opened by a sister, or older than what `received` keeps) goes to the last
-  // round before it, as before.
+  // Messages of `me` queued while the session worked are delivered together and open one turn: the
+  // work starts after the last of them, so that turn goes to the round of the last one (the person:
+  // "as lineares precisam seguir uma linha do tempo"); the earlier ones close with the delivery, with
+  // no card. A turn that got messages of `me` (its published `received` has some since the turn
+  // before) takes the last round of `me` sent since the turn before; any other turn (opened by a
+  // sister, or older than what `received` keeps) goes to the last round before it, as before.
   const got = (p.received ?? []).filter(x => x.from === me && typeof x.at === 'number').map(x => x.at as number)
   let before = -Infinity
   for (const u of [...turns].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
     if (partOfTurn.has(u.id)) continue
     let k = roundOf(u)
     if (u.at !== undefined && got.some(x => x > before && x <= (u.at as number))) {
-      const first = rounds.findIndex(r => !r.peer && r.at > before && r.at <= (u.at as number))
-      if (first >= 0) k = first + 1
+      let last = -1
+      rounds.forEach((r, i) => {
+        if (!r.peer && r.at > before && r.at <= (u.at as number)) last = i
+      })
+      if (last >= 0) k = last + 1
     }
     partOfTurn.set(u.id, k)
     if (u.at !== undefined) before = u.at
