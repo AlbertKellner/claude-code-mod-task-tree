@@ -538,7 +538,7 @@ export const MAX_ROWS = 400
 export function limitRows(rows: Row[]): Row[] {
   if (rows.length <= MAX_ROWS) return rows
   const room = MAX_ROWS - 1
-  const before = (n: number): Row => ({ depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas' })
+  const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas' })
   const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i <= room)
   if (from > 0) return [before(from), ...rows.slice(from)]
   // The last block alone is past the limit: what came before it goes whole, and the block is drawn
@@ -552,7 +552,7 @@ export function limitRows(rows: Row[]): Row[] {
   }
   const head = last > 0 ? [before(last)] : []
   const kept = rows.slice(last, last + room - head.length)
-  return [...head, ...kept, { depth: 1, tone: 'section', title: `+${rows.length - last - kept.length} linhas`, label: 'Linhas seguintes, não desenhadas' }]
+  return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${rows.length - last - kept.length} linhas`, label: 'Linhas seguintes, não desenhadas' }]
 }
 
 // A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
@@ -641,6 +641,11 @@ export type Row = {
   meta?: string
   // null: a closed task whose time is unknown (panels of earlier versions), drawn as "—".
   time?: number | null
+  // What the line is, the same in every state (its title, fold or nodes may change): its task, turn,
+  // session, wait, answer or section. The render's motion follows lines by it.
+  key?: string
+  // A task with no subtasks.
+  leaf?: boolean
   // Drawn only (the render sets it): the time is running, so the Svg counts its seconds itself.
   runs?: boolean
   // A session's or subagent's header: it and the lines below it are drawn in a card.
@@ -769,7 +774,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const work = model.work
   // The breaks of the sessions' cards, computed once per drawing (see breaks).
   const memo = newBreaksMemo()
-  const notice = (w: Wait, depth: number): Row => ({ depth, tone: 'wait', title: waitText(w), label: '' })
+  const notice = (w: Wait, depth: number): Row => ({ key: `w:${w.agent}:${w.key}`, depth, tone: 'wait', title: waitText(w), label: '' })
 
   // What the person opened or closed, read by the builders below. They run once per drawing: the
   // header's chips count the drawn lines' nodes (Row.nodes, see ui.render), so no pass without the
@@ -821,6 +826,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
       const row: Row = {
+        key: `${scope}t:${t.id}`,
+        leaf: t.children.length === 0,
         depth,
         tone,
         title: t.title,
@@ -890,6 +897,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const key = `${scope}T:${u.id}`
     const open = opened(key, true)
     const row: Row = {
+      key,
       depth: top,
       tone,
       title: u.title,
@@ -918,7 +926,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // one after a card still at work would read as the group being over.
     const said: Row[] =
       reply && open && hasBrief(u) && !ws.some(w => w.any)
-        ? [{ depth: top + 1, tone: 'reply', title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }]
+        ? [{ key: `${scope}r:${u.id}`, depth: top + 1, tone: 'reply', title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }]
         : []
     return [row, ...inner, ...said]
   }
@@ -941,6 +949,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : parked ? 'parada' : c.part !== undefined ? undefined : 'concluída'
     const [cd, cn] = total(p, level + 1)
     const header: Row = {
+      key: `${scope}s:${c.id}#${c.partAt ?? c.part ?? 0}`,
       depth,
       tone,
       // The card's first line is the session alone (its name); its tasks start on the line below.
@@ -972,7 +981,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // turn order: a ↩ line, dim, with no count or time (not a task).
     const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
       .filter(hasBrief)
-      .map(u => ({ depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
+      .map(u => ({ key: `${scope}${c.id}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
     const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
     // Whether a closed one has anything to open: its panel, drawn as it would be.
     if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
@@ -1051,7 +1060,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // A request with a session still at work under its task stays drawn too (it is going on).
       const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
       const left = cut ? new Set(list.filter(t => !drawn.includes(t)).map(t => t.turn ?? -1)).size : 0
-      if (cut && left > 0) lines.push({ depth: top, tone: 'section', title: `+${left} pedidos anteriores`, label: 'Pedidos anteriores, não desenhados' })
+      if (cut && left > 0) lines.push({ key: `${scope}sec:turns`, depth: top, tone: 'section', title: `+${left} pedidos anteriores`, label: 'Pedidos anteriores, não desenhados' })
       // The top panel's main tasks go under the turn (the person's message) they were planned
       // in, oldest first; tasks from before turns existed stay loose, ahead of them.
       // In a session's card, only a turn that planned more than one level-1 task gets its header:
@@ -1085,6 +1094,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         ...(closed
           ? { tone: cut ? 'interrupted' : 'done', meta: cut ? 'interrompido' : undefined }
           : { tone: 'agent', strong: true }),
+        key: `${scope}g:${g.agent}`,
         depth: b,
         title: g.label,
         label: 'Subagente',
@@ -1115,7 +1125,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const old = level === 0 ? loose.filter(c => !busy(c)) : []
     const ends = level === 0 ? loose.filter(busy) : loose
     return draw(main, base)
-      .concat(old.length > 0 ? [{ depth: base, tone: 'section' as Tone, title: `+${old.length} cartões antigos de sessões`, label: 'Cartões antigos, não desenhados' }] : [])
+      .concat(old.length > 0 ? [{ key: `${scope}sec:cards`, depth: base, tone: 'section' as Tone, title: `+${old.length} cartões antigos de sessões`, label: 'Cartões antigos, não desenhados' }] : [])
       .concat(inOrder(ends).flatMap(c => session(c, base, level, scope)))
   }
   const all = { groups: held ?? [], waits, children: sessions }
