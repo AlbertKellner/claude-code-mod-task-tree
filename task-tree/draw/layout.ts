@@ -244,9 +244,17 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   }
   const rounds = breaks(c, sisters, me, [], owner, memo)
   const p = c.panel
-  if (rounds.length === 0 || p === undefined) return [c]
+  if (p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
+  // The turns the person opened by typing in that session (`own`): each one a card of its own, at
+  // the end of the request that opened the session (the person: "turno aberto direto pelo usuário
+  // na filha vira cartão próprio, sem âncora, no fim do pedido de origem"), not under the task of
+  // the last message this session sent (work it did not ask for hung from "Reverter o commit…").
+  const ownTurns = (main.turns ?? []).filter(u => u.own === true)
+  if (rounds.length === 0 && ownTurns.length === 0) return [c]
+  const openedIn = owner.find(t => t.id === c.anchor || flat(t.children).some(k => k.id === c.anchor))
+  const originEnd = openedIn?.turn === undefined ? undefined : [...owner].reverse().find(t => t.turn === openedIn.turn)?.id
   const turns = main.turns ?? []
   const roundOf = (u: Turn) => rounds.reduce((k, r, i) => (u.at !== undefined && u.at >= r.at ? i + 1 : k), 0)
   // The part (round) of each turn, once per turn; a task with no turn, or with a turn not listed, is
@@ -262,6 +270,12 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   let before = -Infinity
   for (const u of [...turns].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
     if (partOfTurn.has(u.id)) continue
+    if (u.own === true) {
+      // Its own part, keyed below zero (one per turn), apart from the rounds.
+      partOfTurn.set(u.id, -1 - ownTurns.findIndex(o => o.id === u.id))
+      if (u.at !== undefined) before = u.at
+      continue
+    }
     let k = roundOf(u)
     if (u.at !== undefined && got.some(x => x > before && x <= (u.at as number))) {
       let last = -1
@@ -316,8 +330,8 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     return {
       ...c,
       part: k,
-      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : {}),
-      anchor: k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
+      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k].at } : {}),
+      anchor: k < 0 ? originEnd : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),

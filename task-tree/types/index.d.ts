@@ -26,7 +26,9 @@ export type TaskNode = {
 // `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
 // message), shown under the turn's tasks in its card; absent while the turn runs.
 // reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string }
+// `own`: a turn the person opened by typing in that session (not a message of another session): its
+// card goes at the end of the request that opened the session, not under the last message's task.
+export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under

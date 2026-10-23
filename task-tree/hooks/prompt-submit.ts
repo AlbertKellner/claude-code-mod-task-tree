@@ -76,7 +76,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   reminders.planned = false
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
-  await openTurn($, it.title)
+  await openTurn($, it.title, !it.peer)
   // A stale list first: a session that ended its turn is reminded of now, not later.
   await refreshStale($).catch(() => {})
   const note = await endedNote($)
