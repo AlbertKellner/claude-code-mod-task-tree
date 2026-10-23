@@ -10,6 +10,7 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { animate, fadeIn, mark } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -49,8 +50,13 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
 // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
 // the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[] }) {
+function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number }) {
   const { Box, Svg, Button } = ui
+  // What came in since the drawing before (../draw/motion): those lines fade in, one after another.
+  const keys = lines.map(rowKey)
+  const marks = mark(keys.map(k => [k, '']), chrome.now)
+  let entering = 0
+  const motion = (i: number) => (marks.enter.has(keys[i]) ? [fadeIn(Math.min(150, 30 * entering++))] : [])
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
@@ -93,7 +99,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
             }
             return (
               <Box position="relative">
-                <Svg source={source} alt={rowAlt(r)} width={W} height={H} />
+                <Svg source={animate(source, motion(i))} alt={rowAlt(r)} width={W} height={H} />
                 {one('icon')}
                 {one('ring')}
                 {one('name')}
@@ -105,6 +111,9 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     </Box>
   )
 }
+
+// A line's name across drawings, for its motion: its fold's key, else where it is and what it stands for.
+const rowKey = (r: Row) => (r.fold as any)?.key ?? [r.depth, r.sid ?? '', r.title, (r.nodes ?? []).map(t => t.id).join(',')].join('|')
 
 // Terminal: the same lines as text, the guides in box-drawing characters, color only on the icon
 // (the Button that folds, on a line with something below).
@@ -314,7 +323,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headTime !== undefined ? [clockText(headTime)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
-    return drawDesktop($, ui, lines, W, top, alt, { errorLine, views })
+    return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
