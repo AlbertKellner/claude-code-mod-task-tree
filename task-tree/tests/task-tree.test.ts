@@ -1326,15 +1326,18 @@ describe('turnos', () => {
     await planAs($, [{ id: 'B', title: 'Testar' }])
     const rows = rowsOf(await view($)).map(l => l.text)
     expect(rows).toEqual(['◉ Agrupar por turno  0/2', '├─ ◉ Agrupar', '└─ ○ Testar'])
-    // Replanned in a later message, a level-1 task stays in its turn, in its place.
+    // Planned again in a later message, an id of an open level-1 task of the earlier request goes to
+    // the new request; the old one, abandoned, stays in its request, interrupted (replacing in place
+    // is only within the same request: the person's panel had a new "1" under the request before).
     await ask($, 'outra coisa')
     await planAs($, [{ id: 'A', title: 'Agrupar de novo' }], 'Outra coisa')
     await planAs($, [{ id: 'Z', title: 'Nova' }])
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ Agrupar por turno  0/2',
-      '├─ ◉ Agrupar de novo',
-      '└─ ○ Testar',
-      '○ Outra coisa  0/1',
+      '◉ Agrupar por turno  0/1',
+      '├─ ✕ Agrupar  interrompida  —',
+      '└─ ◉ Testar',
+      '○ Outra coisa  0/2',
+      '├─ ○ Agrupar de novo',
       '└─ ○ Nova',
     ])
   })
