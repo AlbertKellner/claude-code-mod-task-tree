@@ -3837,7 +3837,7 @@ describe('resposta da sessão no cartão', () => {
     expect(texts[at('Nada a commitar.')]).not.toMatch(/\d+\/\d+|\d:\d\d/)
   })
 
-  test('↩ mostra o summary do done (até 120, cortado em palavra); sem summary, só "resposta", nunca a resposta cortada', async ($, on) => {
+  test('↩ mostra o summary do done (até 120, cortado em palavra); sem summary, sem linha ↩, nunca a resposta cortada', async ($, on) => {
     const written: Record<string, string> = {}
     publish(on, written)
     const full = 'Você está certo, voltou. Os cartões da governança e do SVG são da cadeia da tarefa 44 e caíram na raiz.'
@@ -3846,7 +3846,8 @@ describe('resposta da sessão no cartão', () => {
     await call($, 'done', { ids: ['A'], summary: 'Cartões na raiz: causa na recarga; correção enviada' })
     await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: full } as any)
     await $.turn.complete({ reason: 'answer', answer: 'x', durationMs: 1, isAborted: false, turnId: 't1' } as any)
-    // No summary: the done and the wrap_up ask for it; the line says only "resposta".
+    // No summary: the done and the wrap_up ask for it; that turn has no ↩ line (the person: the ↩ line
+    // only with real text; before, never the answer cut).
     await $.prompt.submit({ text: 'dois' } as any)
     await plan($, [{ id: 'B', title: 'Fazer B' }])
     expect(text(await done($, ['B']))).toContain('falta o summary')
@@ -3867,14 +3868,14 @@ describe('resposta da sessão no cartão', () => {
     expect(texts.some(t => t.includes('Cartões na raiz: causa na recarga; correção enviada'))).toBe(true)
     expect(texts.some(t => t.includes('Você está certo'))).toBe(false)
     expect(texts.some(t => t.includes('Primeira frase'))).toBe(false)
-    expect(line(await view($), 'resposta')).toMatchObject({ glyph: '↩' })
-    // Desktop: the tooltip carries the whole answer.
+    expect(line(await view($), 'resposta')).toBeUndefined()
+    // Desktop: the tooltip carries the whole answer, for a turn with a summary.
     const props = { ...PANE_PROPS, bodyColumns: 120 }
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
     const src = JSON.stringify(await ui.drawn())
     await ui.unmount()
     expect(src).toContain('<title>Você está certo, voltou.')
-    expect(src).toContain('<title>Primeira frase longa da segunda resposta.')
+    expect(src).not.toContain('Primeira frase longa da segunda resposta.')
   })
 
   test('grupo com cartão de sessão filha não mostra o ↩ da própria sessão', async ($, on) => {

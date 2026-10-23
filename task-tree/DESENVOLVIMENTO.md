@@ -65,7 +65,8 @@ Quem recebe `$` (o engine) e quem não recebe:
     também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `goingOn`,
     `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
-    `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta".
+    `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
+    só existe com resumo, `hasBrief`).
   - `geometry.ts` (154): a geometria do desktop em px e células (`CELL` = 8, `col`, `lineWidth`,
     alturas, `overBox`, `overlay`, `overlays`, `spanOf`, `crossings`).
   - `svg.ts` (420): os construtores de SVG e os glifos do terminal (`GLYPH`, `prefix`, `clockText`,
@@ -381,6 +382,24 @@ mantida), em `draw/layout.ts`:
   tarefa do trabalho atual: a resumida não muda o cartão de lugar") para a regra nova. O orçamento cresceu 84 bytes nas
   quatro medidas (chaves dos botões mais longas), dentro da folga.
 
+Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
+
+- Pai de tarefa ✉: um nível 1 cuja subtarefa espera a entrega de uma mensagem (✉, envio pendente
+  ancorado nela) aparecia como não iniciado (○) quando a tarefa acesa era outra (a que mandou foi
+  planejada e enviada sem `start`). `rows` dá o tom `current` a uma tarefa aberta com filhas quando
+  alguma tarefa embaixo dela espera uma sessão (`waitingBelow(t, pending)`, exportada), e `turnRows`
+  dá `current` ao pedido nesse caso; sem envio pendente, nada muda.
+- Linha ↩: só aparece com resumo (`hasBrief(u)`, exportada: `brief` não vazio), no pedido
+  (`turnRows`) e nos turnos do cartão; sem resumo, não há linha. A resposta nunca aparece cortada, e
+  o marcador "resposta" (`REPLY`) não é mais desenhado (a constante continua exportada). Regras do
+  usuário: antes, "quero que seja um resumo da resposta, super curto"; agora, a linha ↩ só aparece
+  com texto de verdade. No estado real, o pedido 71 (sem resumo) perdeu a linha "Resposta: resposta"
+  e a camada de tooltip dela: os goldens `real-completa` e `real-resumida` foram regravados (só isso
+  mudou nos SVG) e o orçamento caiu uma linha e ~220 bytes por desenho (terminal 11 519/11 637,
+  desktop 44 999/45 761), dentro da folga.
+- Testes: `tests/envio-e-resposta.test.ts` (4); `layout.test.ts` (contagens do estado real 28 → 27 e
+  27 → 26, ↩ do pedido 71, ↩ por turno), `cartoes-ancora.test.ts` e `task-tree.test.ts` atualizados.
+
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
   o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
@@ -438,8 +457,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 349 testes em 19
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 353 testes em 20
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -460,6 +479,7 @@ e tem 5 s.
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
 | `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
+| `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
 | `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
@@ -703,11 +723,11 @@ camada do nome (a camada vai da coluna do nome até a borda ou, com anel, até o
 
 #### Testes de layout
 
-`tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 28 linhas
+`tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 27 linhas (28 antes de a linha ↩ exigir resumo)
 ("+67 pedidos anteriores" no topo, "+41 cartões antigos de sessões" no fim, só os pedidos 71–73
-desenhados, 2 cartões sob as tarefas 97 e 98, nenhum na raiz), o ↩ (presente no 71, suprimido nos
+desenhados, 2 cartões sob as tarefas 97 e 98, nenhum na raiz), o ↩ (o pedido 71 não tem resumo e não tem linha ↩; suprimido nos
 pedidos com cartão), o cabeçalho (conta só os nós desenhados, 8/14; chips 6 em andamento, 1 sessão
-ativa, 0 aguardando, 0 ✉), a visão resumida (27 linhas, "+1 pedidos anteriores", sem cartões antigos) e o
+ativa, 0 aguardando, 0 ✉), a visão resumida (26 linhas, "+1 pedidos anteriores", sem cartões antigos) e o
 determinismo. Modelos pequenos (9): ordem dos cartões (`begins`), cadeia, filha de filha aninhada, ↩ por
 turno, "+N pedidos anteriores" com pedido antigo aberto, ✉ no painel e dentro de um cartão (`pending` por
 escopo), aviso ao usuário, escolhas (linha fechada guarda `nodes`) e o corte de 400 linhas.
@@ -1022,8 +1042,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   60). Se a linha não couber na largura, o corte visual com "…" e o tooltip continuam. Fonte do resumo: só o campo `summary` do `done`, escrito pela própria
   sessão, tipo manchete, com o que mudou e o resultado (ex.: "Cartões na raiz: causa na recarga; correção
   enviada"); acima de 120
-  caracteres, corta no limite de uma palavra com "…". Sem `summary`, a linha mostra só "resposta",
-  com a resposta inteira no tooltip; nunca o texto da resposta cortado (pedido do usuário: "nao
+  caracteres, corta no limite de uma palavra com "…". (Regra substituída depois: sem `summary`, a
+  linha mostrava só "resposta", com a resposta inteira no tooltip; hoje não há linha, ver "Pai de ✉ e
+  linha ↩" em "Como é hoje".) Nunca o texto da resposta cortado (pedido do usuário: "nao
   ficou bom, voce esta imprimindo o texto integral cortado. quero que seja um resumo da resposta,
   super curto"). Como o pedido chega a quem responde: o contexto do `prompt.submit` pede `summary`
   no `done` da última etapa do turno; no schema do `done`, `summary` tem descrição própria e `ids`
