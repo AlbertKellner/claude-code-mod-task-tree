@@ -13,10 +13,15 @@
 
 // The desktop's cell, in px, as it declares it (the real one ≈7.87; see above).
 export const CELL = 8
-// The line's width from the pane's columns: a cell per column, less one, within bounds.
+// The pane's body in px per column, measured: with 77 columns the slot spans ≈670 px (≈8.7 per
+// column, wider than the cell, since the slot is not a whole number of cells). COL_PX errs a little
+// under it, so the line ends a few px short of the slot instead of overflowing it.
+export const COL_PX = 8.6
+// The line's width from the pane's columns, within bounds: it reaches the slot's right edge, where
+// the ≡/▤ buttons are anchored.
 export const MIN_W = 240
-export const MAX_W = 900
-export const lineWidth = (columns: number) => Math.max(MIN_W, Math.min(MAX_W, columns * CELL - CELL))
+export const MAX_W = 1400
+export const lineWidth = (columns: number) => Math.max(MIN_W, Math.min(MAX_W, Math.floor(columns * COL_PX)))
 
 // Columns of the tree: the icon of depth k sits at `col(k)`, and the guides run through it. The
 // first column is COL_0 px in, each depth COL_STEP px further; +.5 keeps 1 px lines crisp.
