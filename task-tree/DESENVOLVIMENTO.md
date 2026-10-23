@@ -567,11 +567,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
 
 Dez commits, um por item, na branch `perf/fase-6-desempenho` (`4038e45` … `d1916f2`), com a regra de que nenhuma linha, byte ou texto do desenho muda. O que cada um mudou está nas seções "Fluxo de dados" (poll,
 status, ligações), "Estado e durabilidade" (as variáveis de módulo novas), "Arquivo publicado"
-(gravado só quando muda) e "Desenho" (layout, cabeçalho, `split`, `atWork`, `fit`, `slim`). As
-medidas abaixo são da bancada `docs/analises/medicoes/fase6/run6.sh` (mesma máquina, medianas; a
-cópia oficial do `patch6.mjs` em `docs/analises/` ainda ancora no texto antigo em 6 trechos e precisa
-ser atualizada para rodar sobre este código); as metas vêm do relatório de desempenho
-`docs/analises/06-performance-fase-6.md`. Nenhum número deve ser alterado sem remedir.
+(gravado só quando muda) e "Desenho" (layout, cabeçalho, `split`, `atWork`, `fit`, `slim`). As medidas abaixo são de uma bancada de medição que não está mais no repositório (mesma máquina, medianas); as metas vinham de um relatório de desempenho que também não está mais. Ficam como registro histórico. Nenhum número deve ser alterado sem remedir.
 
 | Medida | Antes | Depois | Meta |
 |---|---|---|---|
@@ -646,8 +642,7 @@ Só uma sessão real no app desktop mostra:
 As notas abaixo são o texto anterior deste arquivo, por fase, na íntegra (só os títulos desceram um
 nível): os pedidos do usuário citados palavra por palavra, as decisões e os motivos, as medições e as
 armadilhas de cada mudança. Onde dizem "no `register.tsx`", a função está hoje num dos arquivos de
-`task-tree/hooks/` (ver "Módulos"). Os códigos entre parênteses (R6, H3.2 etc.) são os itens dos
-relatórios de análise em `docs/analises/`.
+`task-tree/hooks/` (ver "Módulos"). Os códigos entre parênteses (R6, H3.2 etc.) eram itens de relatórios de análise que não estão mais no repositório.
 ### Estrutura
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
@@ -896,8 +891,6 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ### Desenho do painel
 
-- Referência do visual aprovado pelo usuário (claro e escuro):
-  [docs/task-tree-proposta-visual.svg](../docs/task-tree-proposta-visual.svg).
 - O desenho é um pipeline: estado → `Model` → `layout()` (`draw/layout.ts`, puro) → `Row[]` →
   `drawDesktop`/`drawTerminal` (funções de topo no `register.tsx`, que recebem as linhas prontas) →
   orçamento. `guides`, `frames` e `labelCols` moram em `layout.ts`. O `ui.render` só lê o estado
