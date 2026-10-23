@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Group } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp } from './panel'
+import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -99,16 +99,20 @@ const sentMessage: Notes = async ($, c, notes) => {
     const { value = [] } = await $.state.get(groupsState)
     const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     // Each message opens a round of the session, drawn in a card of its own under the task it was
-    // sent from once the session takes it up (see split).
+    // sent from once the session takes it up (see split). A session the host's list does not hold
+    // yet (just opened, or listed late) gets its entry here, with the round, as recordStart does:
+    // the round was lost, and the card of the turn the message opened had no task to go under.
     const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
     if (to !== '') {
-      await update($, childrenState, cur =>
-        (cur ?? []).map(ch =>
-          ch.id === to || (ch.name !== '' && ch.name === to)
-            ? { ...ch, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) }
-            : ch,
-        ),
-      )
+      await update($, childrenState, cur => {
+        const list = cur ?? []
+        const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
+        if (list.some(mine)) {
+          return list.map(ch => (mine(ch) ? { ...ch, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
+        }
+        if (!to.startsWith('local_')) return list
+        return [...list, { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: round }]
+      })
     }
   }
   // Waiting for delivery: queued (or held) and not taken up yet. Only "its turn has started"
@@ -181,6 +185,8 @@ import type { EngineInterface } from 'claude-code'
 
 export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
+  // A call of the main loop: its turn is running, what the last one left open is in progress again.
+  if (c.agent === MAIN) await wake($)
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered

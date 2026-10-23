@@ -26,7 +26,7 @@ Quem recebe `$` (o engine) e quem não recebe:
   - `panel.ts` (490): o estado do painel e como os hooks o mudam: as 14 chaves de `$.state` que este
     arquivo usa, `change`/`replace`/`persist`, os `ensure*` (volta do store sem `session.start`),
     `publishPanel`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, a visão (`setView`/`restoreView`),
-    o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`; trabalho novo por turno, com `goingOn` de `draw/layout.ts`), as ligações
+    o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`; trabalho novo por turno, com `openInSight` de `draw/layout.ts`), as ligações
     (`keptLinks`/`saveLinks`/`restoreLinks`/`restoreWork`, e `renameAnchors`, que as renomeia junto
     com uma tarefa fechada renomeada pelo `plan`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
     `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
@@ -62,7 +62,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     `fillStarts`/`fill`, `settle`, `begin`.
 - **Desenho** (`draw/`), puro, sem `$`:
   - `layout.ts` (932): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os hooks
-    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `goingOn`, `nest`, `alive`,
+    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `openInSight`, `rawPanel`, `panelOf`,
     `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
@@ -75,9 +75,9 @@ Quem recebe `$` (o engine) e quem não recebe:
 - **Textos** (`text/rules.ts`, 178): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
   `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`) e `BRIEF` = 120.
 - **Tipos** (`types/index.d.ts`, 145): `TaskNode`, `Turn`, `Group`, `Launch`, `Wait`, `Panel`,
-  `Published`, `Child`, `Send`, `LegacyNode` e o contrato `PluginState['task-tree']` (as 15 chaves de
+  `Published`, `Child`, `Send`, `LegacyNode` e o contrato `PluginState['task-tree']` (as 16 chaves de
   `$.state`).
-- **Testes** (`tests/`): ver "Testes e como rodá-los".
+
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina; não versionar.
 
 Regra de dependência que o código segue: `draw/`, `state/tasks.ts` e `text/` importam só `../types`
@@ -94,15 +94,15 @@ Na ordem de `register.tsx`:
 |---|---|---|---|
 | `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada), `restore` do store se o state está vazio, `restoreView`, `restoreWork`, `restoreLinks`; abre o pane; `refreshChildren` e `watchSessions` |
 | `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`; `resume`: `restore` do store |
-| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido) |
+| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
-| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
-| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; tira os `sends` das tarefas fechadas |
+| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`), abre o pane |
+| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -132,7 +132,11 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    host de novo, se tem mais de `POLL` ms); um `mcp__ccd_session__start_session` passa por
    `recordStart` (o id `local_…` do resultado entra em `children` com a tarefa em andamento como
    `anchor`); então, por nome e nesta ordem, `sentMessage` (grava a rodada em `Child.rounds` e
-   `lastAnchor`, o envio em `sends`, e avisa se ficou na fila), `sessionNotes` (`endedNote`,
+   `lastAnchor`, o envio em `sends`, e avisa se ficou na fila; se o destino não está em `children`, por id
+   nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
+   `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
+   `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
+   host listar a sessão), `sessionNotes` (`endedNote`,
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
 
@@ -177,6 +181,16 @@ edição salva do clone recarrega o mod em todas as sessões, então sem esse re
 cronometrando ficava com o pane parado até o próximo evento (trocar de visão redesenhava). Os dois
 não fazem nada se já estão ligados; o de 1 s só liga enquanto algo roda; o kit recusa só
 `$.state.set` durante o desenho, não `$.clock.every`.
+Como todo desenho chama `keepTime`, ele tem no máximo um relógio de 1 s: a marca `starting` (variável de
+módulo de `hooks/sessions.ts`) é ligada antes do primeiro `await`, desligada no `finally`, e o
+`keepTime` sai cedo com `ticker || starting` e confere `ticker` de novo depois dos `await`
+(`anyRunning`, `stamp`). Sem ela, desenhos ao mesmo tempo criavam cada um o seu `$.clock.every(1000)` e
+só o último ficava guardado para cancelar: os outros redesenhavam o painel a cada segundo, sem parar, em
+rajadas que trocavam os `Button` debaixo do ponteiro, e o clique se perdia (sintoma do usuário: "preciso
+clicar algumas vezes no icone para a acao acontecer, é bem demorado", em qualquer ícone). Conferido: as
+chaves dos `Button` são estáveis (`fold:<chave da linha>`, `open:<id da sessão>`), só o relógio chama
+`$.ui.invalidate`, e o poll de 3 s só grava o estado quando ele muda. Falta conferir no app se o clique
+pega de primeira.
 
 **Publicação** (`publishPanel` em `hooks/panel.ts` → `publishWait` em `io/publish.ts`): pedida a cada
 `persist`, aviso, `received`, `engine`, fim de turno, poll com filhas e `/task-tree`; o arquivo só é
@@ -195,8 +209,7 @@ ele parte de state vazio, o que vive no store volta também no primeiro uso depo
 
 A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o prefixo do store
 (`store`; `field` quando é um campo do registro `links`), como a cópia do store encontra o state
-(`merge`), quantas entradas ficam (`keep`), quando volta (`restoredAt`). `tests/durabilidade.test.ts`
-a põe à prova linha a linha e falha numa chave de state ou prefixo de store sem linha.
+(`merge`), quantas entradas ficam (`keep`), quando volta (`restoredAt`). 
 
 | Chave | Vive | Store | Fusão | Volta em | O que é |
 |---|---|---|---|---|---|
@@ -215,6 +228,7 @@ a põe à prova linha a linha e falha numa chave de state ou prefixo de store se
 | `brief` | state | | none | | o `summary` do `done` até o fim do turno |
 | `recap` | state | | none | | o `recap` do `wrap_up` até o fim do turno |
 | `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`) |
+| `turnEnded` | state | | none | | a hora em que o turno desta sessão terminou, até o próximo prompt (então `null`): o que ela deixou aberto é desenhado interrompido, sem relógio |
 | `sessions` | store | `sessions` | none | | as sessões com painel guardado, a atual primeiro, `KEEP` = 30 |
 
 Fusões: `current` (o state vence; o store só com state vazio), `fill` (cada sessão do state ganha
@@ -224,7 +238,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
 `refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
-`actions`, `ticker`, `poller`, `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
@@ -268,13 +282,11 @@ string não vazia, `work` mapeado a string; `panes`, `drawSize` e `rows` não sa
 olhar o arquivo à mão). `readPublished($, id)` lê, valida e diz uma vez por sessão e motivo no log
 ("task-tree: arquivo publicado de <id> ignorado: <motivo>"); arquivo inválido vale como ausente. Um
 arquivo de antes de `version` é lido como está; `panelOf` (io/host.ts) aceita `groups` ou, de versões
-antigas, só `tasks`. `tests/fixtures/publicados.ts` guarda um arquivo real de cada um dos 8 formatos já
-escritos (do `{ waiting, at }` ao de versão 1), e `tests/publicado-versoes.test.ts` lê todos.
+antigas, só `tasks`.  Já existiram 8 formatos do arquivo, do `{ waiting, at }` ao de versão 1, e todos são lidos.
 
 ### Textos para o modelo
 
-`text/rules.ts` concentra tudo o que o modelo lê do mod; o golden `tests/golden/textos.ts` (23
-textos) os fixa letra por letra. `RULES` vai ao prompt de sistema (seção `task-tree:regras`, escopo
+`text/rules.ts` concentra tudo o que o modelo lê do mod;  `RULES` vai ao prompt de sistema (seção `task-tree:regras`, escopo
 `session`) em todo pedido que oferece a ferramenta `plan`; `COMMAND` e `TOOLS` são as descrições
 registradas no `session.start`; `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
 `SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas. O limite do resumo ↩ é um só,
@@ -302,25 +314,22 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
 - Cabeçalho (`render.tsx`): o id da tarefa acesa (`current(mainTasks).lit[0]`) é calculado uma vez,
   fora do `find` (dentro dele, `current` percorria a árvore inteira uma vez por nível 1). Correção
   seguinte (título do cabeçalho): o título é o nível 1 que contém a tarefa iniciada por último, a
-  âncora de `current()` (a mesma tarefa sob a qual vai um aviso de espera); sem nenhuma iniciada, a
-  âncora é a primeira aberta, como antes; sem nenhuma aberta, o nível 1 com sessão ainda trabalhando
-  embaixo, como antes. O título vinha de `current(mainTasks).lit[0]`, o primeiro das tarefas acesas,
+  âncora de `current()` (a mesma tarefa sob a qual vai um aviso de espera); sem nenhuma em andamento, o
+  nível 1 da tarefa iniciada por último (`startedLast`, concluída ou não; o título é o do passo
+  iniciado por último); senão o ÚLTIMO nível 1 com sessão viva embaixo (era o primeiro: nomeava uma
+  tarefa de muitos pedidos antes; o título de tarefa muito antiga que o teste visual achou ficou
+  fechado com isso); senão a primeira aberta. O título vinha de `current(mainTasks).lit[0]`, o primeiro das tarefas acesas,
   ordenadas da iniciada há mais tempo para a mais recente, e uma tarefa que um pedido antigo deixou
   aberta e iniciada ganhava da atual. Os números do cabeçalho não mudam: seguem a soma das linhas
-  desenhadas na visão (ver "Cabeçalho por visão" no histórico). Teste:
-  `tests/cabecalho-tarefa-atual.test.ts` (2).
-  Regra dos números, confirmada por testes sem mudança de código (nas palavras do usuário: "deve somar
+  desenhadas na visão (ver "Cabeçalho por visão" no histórico). 
+  Regra dos números, sem mudança de código (nas palavras do usuário: "deve somar
   as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa
   visao" e "as colapsada, mas que estao nessa visao, tambem entram"): cada visão conta as tarefas que
   ela inclui, inclusive as recolhidas (cartão, tarefa ou pedido recolhido pela pessoa), porque o
   `Row.nodes` da linha recolhida leva o que está embaixo, cartões inclusive, via `Work.cards`. Fica de
   fora o que a visão não inclui: na resumida, os pedidos finalizados de turnos anteriores e, dentro de
   um cartão, o que o corte do cartão para o trabalho atual dele tira (`trimToWork` recursivo); na
-  completa, o que o limite corta ("+N pedidos anteriores", "+N cartões antigos"). Testes, em
-  `layout.test.ts`: "recolher cartões e tarefas não muda os números, nas duas visões" (estado real, cada
-  dobra de uma vez e depois todas) e "a resumida deixa de fora o pedido finalizado e o cartão dele; a
-  completa conta os dois" (modelo pequeno: completa 5/6, resumida 1/2, e com tudo recolhido os números
-  se mantêm).
+  completa, o que o limite corta ("+N pedidos anteriores", "+N cartões antigos"). 
 - `split()` devolve um cartão já cortado (`c.part` definido, os da visão resumida) antes de calcular
   `breaks`; dentro, a parte de cada turno (`partOfTurn`), as tarefas e o `flat` de cada parte
   (`tasksByPart`, `flatIn`) e a parte de cada tarefa (`partOfTask`, usada por `holder`) ficam em mapas
@@ -338,14 +347,15 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   ...filhos]`). Antes, uma tarefa concluída com uma filha ainda trabalhando aparecia ◉ "3/4", com o
   tempo correndo; agora aparece ✓ com a contagem própria (ex.: "✓ Investigar ⑂ 2/2 0:05"), e o cartão da
   filha mostra o estado e a contagem dela. Uma tarefa aberta continua em andamento e somando as tarefas
-  da sessão. O pedido (`turnRows`) com todas as tarefas concluídas com `done` fica concluído e não soma
-  as sessões. `Work` ganhou dois campos: `live` (há sessão viva em qualquer ponto abaixo; `trimToWork` o
-  usa para manter na resumida o nível 1 com sessão trabalhando, o corte da completa em `layout()` mantém
-  o pedido com sessão viva, e o título do cabeçalho sem tarefa acesa usa o primeiro nível 1 com sessão
+  da sessão. O pedido (`turnRows`) com todas as tarefas concluídas com `done` fica concluído (e ✕ se
+  alguma tarefa em qualquer nível foi interrompida) e não soma
+  as sessões. `Work` ganhou dois campos: `live` (há sessão viva em qualquer ponto abaixo; o corte da
+  completa em `layout()` mantém o pedido com sessão viva; a resumida não o usa mais, ver "Resumida: tudo
+  à vista segura o painel"; e o título do cabeçalho sem tarefa acesa usa o último nível 1 com sessão
   viva abaixo) e `cards` (todas as tarefas das sessões abaixo, inclusive as de baixo de tarefa
   concluída: é o que o `Row.nodes` de uma linha recolhida, tarefa ou pedido, soma, então recolher não
   muda o cabeçalho). `any` continua marcando o ⑂. O cabeçalho segue somando os nós das linhas
-  desenhadas, os cartões inclusive. Testes: `tests/mae-concluida.test.ts` (2).
+  desenhadas, os cartões inclusive. 
 - `fit` (`svg.ts`) é linear no título: acumula a largura do que fica com os mesmos termos e na
   mesma ordem de `textW` (mesma soma em ponto flutuante, mesmo corte) em vez de medir o prefixo
   inteiro a cada caractere; `em(ch)` lembra a largura de cada caractere num `Map` do módulo.
@@ -372,9 +382,7 @@ das filhas de pedidos anteriores apareciam sob a tarefa do turno atual. Dois pon
   início do trabalho dela, `begins`) e em `split` (o `anchor` do cartão pelo início do trabalho da
   sessão; o `lastAnchor` pela última rodada, senão pelo início).
 
-Teste: `tests/cartoes-ancora.test.ts` (3): dois de layout com tarefas renomeadas (`ab12:1`, `cd34:1`,
-uma e duas renomeações do mesmo id) e um pelas ferramentas (`plan` "1" → sessão aberta nela → `done`
-→ pedido novo com `plan` "1" → o cartão fica na tarefa velha). Goldens e orçamento iguais.
+
 
 Cartões no lugar certo (série de correções seguinte; regra do usuário: "se existirem tarefas em
 andamento, essas tarefas devem continuar sendo mostradas"; todo cartão aparece desde o primeiro
@@ -386,8 +394,10 @@ mantida), em `draw/layout.ts`:
   rodada: as rodadas ficam nas últimas 20 e, no teto, cada mensagem nova descarta a mais antiga e
   desloca todos os índices, e o recolhimento passava para outro cartão (um cartão novo vinha
   recolhido). As escolhas antigas com `#<índice>` deixam de valer uma vez.
-- Resumida (`trimToWork`): um nível 1 com sessão trabalhando embaixo (`atWork(t, children, level).live`)
-  fica no recorte, com o seu pedido. O `cut()` não realoca mais a âncora de cartão nenhum: só divide
+- Resumida (`trimToWork`): os pedidos do trabalho, inteiros; uma sessão viva sob um pedido fora do
+  trabalho não o puxa de volta (puxava, e um pedido de um dia atrás voltava com os cartões antigos
+  enquanto uma sessão trabalhava), e o cartão dela não é desenhado solto: um cartão aparece onde está
+  a sua tarefa (os sem âncora aparecem soltos, como na completa). O `cut()` não realoca mais a âncora de cartão nenhum: só divide
   as sessões em cartões (`split`) e passa a `trimToWork`, e cada cartão fica sob a tarefa que mandou
   a mensagem, como na completa (antes, um cartão sem parte ia para a tarefa da última mensagem,
   `lastAnchor`, se ela estivesse no trabalho, ou solto no fim da lista se a sessão estava viva).
@@ -398,47 +408,58 @@ mantida), em `draw/layout.ts`:
   o fim da resumida, aparece sob a tarefa de origem nas duas visões.
 - Completa: o corte dos 3 últimos pedidos (`SHOWN_TURNS`) mantém também o pedido cujo nível 1 tem
   sessão trabalhando embaixo (`work(t).live`), como já mantinha o que tem algo aberto.
-- Turno em lote (regra do usuário: "cada mensagem cria seu próprio cartão sob a tarefa que a enviou,
-  na ordem de execução"): mensagens enfileiradas para uma sessão ocupada são entregues de uma vez e
-  abrem um único turno dela; o cartão desse turno ia para a última mensagem e a tarefa da primeira
-  ficava sem cartão. Em `split`, na parte de cada turno (`partOfTurn`), os turnos da sessão são
-  percorridos em ordem de tempo: um turno que recebeu mensagens desta sessão (o `received` publicado
-  por ela tem recebimento desta sessão com `at` depois do turno anterior e até o turno) vai para a
-  rodada da PRIMEIRA mensagem desta sessão enviada desde o turno anterior (rodada não-irmã com `at`
-  depois do turno anterior e até o turno); qualquer outro turno (aberto por uma irmã, ou mais antigo
-  do que os 20 que o `received` guarda) vai para a última rodada antes dele, como antes. As outras
-  mensagens do mesmo lote ficam sem cartão próprio: não houve turno da sessão depois delas.
-- Teste: `tests/cartoes-lugar.test.ts` (7, incluindo as duas do lote: "quatro mensagens na fila
-  entregues juntas: o cartão do turno vai para a tarefa da primeira" e "uma mensagem por turno: cada
-  cartão sob a tarefa da sua mensagem", além de "sessão sem rodadas: o cartão não muda de lugar
-  na resumida" e "estado real: cada cartão da resumida está sob a mesma linha que na completa");
-  `layout.test.ts`, `task-tree.test.ts` e
-  `resumida-turno.test.ts` foram atualizados (e, em `task-tree.test.ts`, "mensagem à filha numa
-  tarefa do trabalho atual: a resumida não muda o cartão de lugar") para a regra nova. O orçamento cresceu 84 bytes nas
-  quatro medidas (chaves dos botões mais longas), dentro da folga.
-- Conversas entre irmãs (regra do usuário: "sob a tarefa da mãe, só os cartões das mensagens dela. A
-  mensagem de uma irmã S para C fica dentro do cartão de S, sob a tarefa de S que a enviou"): antes, a
-  regra das cadeias punha o cartão de C sob a tarefa da mãe da qual pendia o cartão de S, e os cartões
-  das conversas entre filhas ficavam empilhados sob a tarefa da mãe (no estado real, uns 14 cartões
-  "nome ⋯"). Em `draw/layout.ts`: `Break` ganhou `from` e `task`; em `breaks()`, para a mensagem de uma
-  irmã, `task` é a tarefa de S que a mandou: a âncora do envio publicado dela (`sends`), senão a tarefa
-  em andamento quando a mensagem chegou, senão a última que ela iniciou antes. `split()` dá à parte
-  aberta pela mensagem de uma irmã `via: { from, task }` (campo novo de `Child`, só de desenho, em
-  `types/index.d.ts`). `nest(list)`, aplicada nas duas listas de cartões (em `panel()`, sobre os cartões
-  de cada painel, e em `cut()`, na resumida), põe a parte com `via` dentro do cartão da irmã que tem
-  essa tarefa, como sessão aberta nela (`anchor` = `task`); sem esse cartão na lista, ou se a mudança
-  fizesse um laço, a parte fica onde o `split` a pôs. `alive(c)` (sessão viva, ou viva dentro do cartão
-  dela, até `DEEP`) é o que `atWork` usa para `busy` e `live`, então a tarefa da mãe segue em andamento
-  com a conversa trabalhando dentro do cartão da irmã. Efeito no estado real: "+41 cartões antigos de
-  sessões" passou a "+4" (os cartões das conversas agora estão dentro dos cartões antigos das irmãs
-  remetentes); o golden `real-completa` mudou só nessa linha. Cartões que apareciam recolhidos sem
-  clique eram essas partes empilhadas: o código só fecha uma dobra com escolha gravada, e um
-  teste-guarda falha se algum cartão aparecer recolhido ou sem linhas sem escolha do usuário. Testes:
-  `cadeia-irmas.test.ts` (3: a mensagem de impl para docs fica dentro do cartão de impl, sob a tarefa
-  que a mandou, nas duas visões; sob a tarefa da mãe ficam só os cartões das mensagens dela; sem o envio
-  publicado vale a tarefa da irmã em andamento quando a mensagem chegou) e `cartoes-resumida.test.ts`
-  (1: sem escolha do usuário, nenhum cartão aparece recolhido ou vazio, no estado real e nas duas
-  visões); `layout.test.ts` passa a esperar o cartão da irmã dentro do cartão de impl e "+4".
+- Turno em lote (regra do usuário: "concordo com a opcao 1", com o princípio dele: "quero ver as tarefas
+  lineares andando de cima pra baixo. as paralelas vão andar fora de ordem, normal, mas as lineares
+  precisam seguir uma linha do tempo"): mensagens enfileiradas para uma sessão ocupada são entregues de
+  uma vez e abrem um único turno dela; o trabalho só começa depois da última, então o cartão desse turno
+  fica sob a tarefa da ÚLTIMA mensagem do lote, e as tarefas ✉ das anteriores fecham com a entrega, sem
+  cartão. Em `split`, na parte de cada turno (`partOfTurn`), os turnos da sessão são percorridos em
+  ordem de tempo: um turno que recebeu mensagens desta sessão (o `received` publicado por ela tem
+  recebimento desta sessão com `at` depois do turno anterior e até o turno) vai para a rodada da ÚLTIMA
+  mensagem desta sessão enviada desde o turno anterior (rodada não-irmã com `at` depois do turno
+  anterior e até o turno); qualquer outro turno (aberto por uma irmã, ou mais antigo do que os 20 que o
+  `received` guarda) vai para a última rodada antes dele, como antes. Sob uma mesma tarefa, os cartões
+  seguem a hora em que cada sessão começou a trabalhar. (Regra substituída: na série anterior o cartão
+  do lote ia para a tarefa da PRIMEIRA mensagem; o caso real que a derrubou: "uma rodada basta" e o bug
+  dos cliques foram entregues juntos, o cartão com o trabalho apareceu sob a primeira e o pedido dos
+  cliques ficou sem cartão.)
+- Rodadas perdidas: se a sessão não estava na lista do host quando a mensagem saiu, `sentMessage` cria a
+  entrada com a rodada (como `recordStart`), e `unsent()` abre uma rodada órfã por mensagem recebida
+  mesmo com zero rodadas registradas (âncora: a tarefa aberta na hora, senão a iniciada por último
+  antes, senão sem âncora). Sem isso o cartão do turno caía na parte 0, sem tarefa para ficar embaixo, e
+  a resumida o cortava.
+
+- Cadeia de sessões em sequência (regra do usuário: "quando uma tarefa chama uma sessão, o painel não
+  deve ficar dentro de outro. Ele deveria ficar na sequencia que será executado"). Na série anterior, a
+  mensagem de uma irmã S para C passou a ficar dentro do cartão de S (`via`/`nest`/`alive`); isso foi
+  retirado: no print do usuário apareciam três cartões, um dentro do outro (correção ⊃ governança ⊃
+  correção). Saíram de `draw/layout.ts` `nest()`, `alive()`, o campo `via` de `Child`
+  (`types/index.d.ts`) e os campos `from`/`task` do `Break`; `atWork` volta a usar `live(c)` para `busy`
+  e `live`. As partes de uma cadeia ficam sob a tarefa da mãe que a iniciou, no mesmo nível, uma depois
+  da outra, na ordem em que o trabalho de cada uma começou (`inOrder`, por `begins`); nenhum cartão fica
+  dentro de outro na cadeia. No estado real, "+N cartões antigos de sessões" volta de +4 para +41.
+
+Resumida: tudo à vista segura o painel (regra do usuário depois do teste visual: "as tarefas concluídas
+deveriam ficar do jeito que estão até todas as tarefas estarem concluídas, só então o painel seria
+resetado com um novo turno; senão, as tarefas vão sendo adicionadas no painel"; decisão: qualquer aberto
+à vista, tarefa ou cartão com tarefa aberta, segura o painel; sessão viva sob pedido fora da vista NÃO
+puxa o pedido). Sintomas: ao "pode seguir", o pedido concluído "Erro de recarga do plugin" sumiu com
+"Passo 5" ainda aberto; o pedido anterior sumiu embora o cartão dele tivesse tarefas abertas; um pedido
+antigo finalizado reapareceu com 5 cartões antigos enquanto a sessão de correção estava viva; depois de
+"Lote ok" o pedido 186 saiu e pedidos velhos ficaram por sessão viva.
+- `draw/layout.ts`: `goingOn` saiu; entrou `openInSight(p, ids, sends)`: verdadeiro se, entre os níveis
+  1 do trabalho (`ids`) e os outros níveis 1 dos mesmos pedidos, há tarefa aberta; ou um envio não
+  tomado (✉) ancorado numa delas; ou uma sessão ancorada numa delas com tarefa aberta no painel dela
+  (como o cartão desenha, `panelOf`: a parada tem as iniciadas interrompidas e as pendentes abertas;
+  `allTasks` até `DEEP`). `trimToWork` tirou a regra "nível 1 com sessão trabalhando fica" e o `live(c)`
+  que desenhava solto o cartão de sessão viva.
+- `hooks/panel.ts`, `joinWork(fresh)`: com trabalho novo (primeiro `plan` de um pedido novo), se
+  `openInSight` do trabalho anterior é verdadeiro, o trabalho anterior fica INTEIRO (concluídos
+  inclusive) e os ids novos entram embaixo, na ordem; senão só os novos. Sem trabalho novo, união como
+  antes. `startsWork` não mudou.
+- Efeito no estado real: a resumida passa a terminar com a linha "+41 cartões antigos de sessões" (os
+  cartões sem âncora, antes deixados de fora da resumida salvo sessão viva) (a resumida passa a mostrar as mesmas linhas da completa, inclusive a última).
+
 
 Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
 
@@ -452,11 +473,82 @@ Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
   o marcador "resposta" (`REPLY`) não é mais desenhado (a constante continua exportada). Regras do
   usuário: antes, "quero que seja um resumo da resposta, super curto"; agora, a linha ↩ só aparece
   com texto de verdade. No estado real, o pedido 71 (sem resumo) perdeu a linha "Resposta: resposta"
-  e a camada de tooltip dela: os goldens `real-completa` e `real-resumida` foram regravados (só isso
-  mudou nos SVG) e o orçamento caiu uma linha e ~220 bytes por desenho (terminal 11 519/11 637,
-  desktop 44 999/45 761), dentro da folga.
-- Testes: `tests/envio-e-resposta.test.ts` (4); `layout.test.ts` (contagens do estado real 28 → 27 e
-  27 → 26, ↩ do pedido 71, ↩ por turno), `cartoes-ancora.test.ts` e `task-tree.test.ts` atualizados.
+  e a camada de tooltip dela.
+
+
+✉ até a entrega e pedido ✕ (regras do usuário depois do teste visual: o painel mantém o ✉ até a entrega
+mesmo com `done` explícito na tarefa de envio, "não depender de o modelo deixar a tarefa aberta"; e
+pedido com tarefa interrompida e nada aberto fica ✕, não ✓). Sintomas: "Mensagem 2/3 na fila" apareciam
+✓ logo após o envio, sem ✉, porque a orquestradora deu `done` logo depois do `SendMessage`; o cartão da
+docs mostrava "✓ 1/1" com a subtarefa "Ler o código e o doc" interrompida dentro.
+- `hooks/tools.ts`, `doneTool`: deixou de apagar os `sends` das tarefas fechadas (o aviso `DONE.queued`
+  continua). Um id reusado por plano novo renomeia a tarefa antiga e o `send` dela junto
+  (`renameAnchors`) ou apaga os dois (tarefa replanejada), então não sobra ✉ em id reaproveitado.
+- `draw/layout.ts`, `rows()`: `waitsOn` vale para qualquer tarefa não interrompida (era só `open`),
+  então a tarefa concluída com envio pendente tem tom `sent` (✉) até a entrega; `watchSends` marca o
+  envio como `taken` na entrega e, como a tarefa já está concluída, não a fecha de novo. O tom de uma
+  tarefa `done` com alguma descendente interrompida passa a ser `interrupted` (✕). Em `turnRows`, o
+  pedido com tudo fechado e alguma tarefa interrompida (em qualquer nível, `flat`) é `interrupted` (era
+  só quando TODAS eram); só concluídas continua ✓.
+
+
+Sem start, nada aceso (decisão do usuário depois do teste visual: "sem start, nada aceso; envio feito
+sem tarefa em andamento ancora na ÚLTIMA INICIADA do pedido atual (mesmo concluída); sem nenhuma
+iniciada, no fim do pedido"): uma tarefa só está em andamento depois que o modelo chama `start`.
+Sintomas do teste visual: o cartão da mensagem mandada antes do `start` do Passo 2 ficava sob "Passo 2";
+o cartão "Passo 2 filha" (mandado pelo Passo 2, já concluído) ficava sob "Passo 3"; "Passo 3" aparecia ✓
+1/1 sem `start` (a entrega fechava a tarefa errada); "Passo 4" ficava ◉ com relógio sem `start`; o
+título do cabeçalho era "Passo 2"/"Passo 4", nunca iniciados. Causa comum: `current()` acendia a
+primeira tarefa aberta quando nada estava iniciado, e `sendAnchor`, `recordStart`, o título e o tom das
+linhas herdavam isso.
+- `draw/layout.ts`: `current(list)`, com nenhuma iniciada, devolve `{ lit: [], anchor: undefined }`
+  (antes, o caminho de `firstOpen`). `startedLast(list)` (nova, exportada) devolve a tarefa com
+  `startedAt` mais recente, concluída ou não; num empate (pai e filha começam juntos) vence a que vem
+  depois na árvore, a filha.
+- `hooks/panel.ts`, `sendAnchor(list)`: sem tarefa em andamento, devolve `startedLast` das tarefas do
+  pedido atual (o último turno com tarefas, `t.turn` máximo), senão o último nível 1 desse pedido; a
+  regra "planejada depois da em andamento e sem `start`" continua quando há tarefa em andamento.
+  `recordStart` (`hooks/sessions.ts`) usa `sendAnchor` para a âncora da sessão aberta (era
+  `current().anchor`).
+- `hooks/render.tsx`, título: ver o bullet do cabeçalho acima. O texto da ferramenta `start`
+  (`text/rules.ts`) deixou de dizer que o painel destaca a primeira aberta: "sem
+  nenhuma marcada, nenhuma tarefa aparece em andamento".
+- Efeitos no desenho: sem `start` nada fica ◉; uma folha pendente é ○ sem relógio; um pai aberto com
+  algo concluído embaixo e nada aceso fica ◷ ("Aguardando"); um pedido sem nada aceso fica "Pedido
+  aberto" (○) ou ◷. O chip "● N em andamento" continua contando as folhas abertas (◉ e ○).
+
+
+Tarefas abertas de uma sessão que terminou o turno (série 3; regra: o painel independe de quem o usa):
+quando a sessão termina o turno, o que estava em andamento (iniciado e não fechado) deixa de contar como
+em andamento: aparece interrompido (não concluído, sem fechamento), sem relógio correndo, e sai de "N em
+andamento". As tarefas pendentes (nunca iniciadas) continuam pendentes e contam, porque o plano continua
+no próximo turno. Sintoma do usuário: o cartão docs-task-tree dizia "parada", mas a tarefa "Hunks do bug
+dos cliques" e a subtarefa "Ler o código e o doc" apareciam em andamento (◉) com o relógio correndo.
+Vale para qualquer sessão, a principal inclusive. Regressão corrigida em seguida (print do usuário): a
+orquestradora planejou 5 passos, fez só o passo 1 e encerrou o turno esperando o usuário, e os passos 2
+a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2 · 2 de 2 · 100%".
+- `draw/layout.ts`: `rawPanel(c)` devolve o painel publicado sem mudança; `panelOf(c)` aplica
+  `halt(undefined)`, só no desenho, às tarefas de uma sessão que não está trabalhando (não `live(c)` e
+  não `starting`, recém-aberta); a arquivada continua com `interrupt` e com as `waits` apagadas.
+  `halt(at)` (exportada; substitui `interrupt` nos dois casos de turno terminado, a filha parada e a
+  própria sessão): folha aberta e iniciada (`started` ou `startedAt`) vira interrompida, com o relógio
+  parado em `at`; folha nunca iniciada fica pendente; pai aberto com subtarefas ainda abertas fica
+  aberto, sem `started` e com `endedAt` = `stop(t, at)` (o relógio não corre); pai sem nada aberto
+  embaixo vira interrompido. Não há marca de grupo parado: sem `start` nada acende (ver "Sem start, nada
+  aceso"), então o painel parado não precisa de uma. No `session()`, `parked` (o rótulo "parada") olha
+  `rawPanel`, então o rótulo se mantém. O `Model` ganhou `ended?: number`: com ele, `layout()` aplica
+  `halt(ended)` ao grupo principal.
+- Estado novo `turnEnded` (`number | null`, `types/index.d.ts`, linha em `TABLE`, vive em `state`):
+  `hooks/turn.ts` (`turnComplete`, sem `agentId`) grava a hora no fim do turno da principal; `wake($)`
+  (em `hooks/panel.ts`) zera `turnEnded` (grava `null`) e é chamada no `prompt.submit`, no início do
+  `toolCall` da principal (`hooks/tool-call.ts`) e em `planTool`, `doneTool` e `startTool`
+  (`hooks/tools.ts`): assim um `start` depois do fim do turno reacende a tarefa; `hooks/render.tsx`
+  passa o valor ao layout como `ended` (o título do cabeçalho com o turno terminado é o do grupo A, ver
+  "Sem start, nada aceso"); `anyRunning` (`hooks/sessions.ts`) ignora as tarefas da própria sessão com o
+  turno terminado, e o relógio de 1 s para.
+- Efeitos: uma filha parada com tarefa em andamento passa a ter essa tarefa fora do total (ex.: "3 de 4"
+  → "3 de 3 · 100%" ).
+
 
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
@@ -473,15 +565,9 @@ Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
 
 ### Desempenho (fase 6, parte A)
 
-Dez commits, um por item, na branch `perf/fase-6-desempenho` (`4038e45` … `d1916f2`), com a regra de
-que nenhuma linha, byte ou texto do desenho muda: goldens do SVG e dos textos, orçamento e
-`layout.test.ts` idênticos em todos. O que cada um mudou está nas seções "Fluxo de dados" (poll,
+Dez commits, um por item, na branch `perf/fase-6-desempenho` (`4038e45` … `d1916f2`), com a regra de que nenhuma linha, byte ou texto do desenho muda. O que cada um mudou está nas seções "Fluxo de dados" (poll,
 status, ligações), "Estado e durabilidade" (as variáveis de módulo novas), "Arquivo publicado"
-(gravado só quando muda) e "Desenho" (layout, cabeçalho, `split`, `atWork`, `fit`, `slim`). As
-medidas abaixo são da bancada `docs/analises/medicoes/fase6/run6.sh` (mesma máquina, medianas; a
-cópia oficial do `patch6.mjs` em `docs/analises/` ainda ancora no texto antigo em 6 trechos e precisa
-ser atualizada para rodar sobre este código); as metas vêm do relatório de desempenho
-`docs/analises/06-performance-fase-6.md`. Nenhum número deve ser alterado sem remedir.
+(gravado só quando muda) e "Desenho" (layout, cabeçalho, `split`, `atWork`, `fit`, `slim`). As medidas abaixo são de uma bancada de medição que não está mais no repositório (mesma máquina, medianas); as metas vinham de um relatório de desempenho que também não está mais. Ficam como registro histórico. Nenhum número deve ser alterado sem remedir.
 
 | Medida | Antes | Depois | Meta |
 |---|---|---|---|
@@ -500,11 +586,7 @@ ser atualizada para rodar sobre este código); as metas vêm do relatório de de
 | `atWork` por passada, 3 000 níveis 1 | 12 000 (6 000 após a passada única) | 3 000 | ≤ 1 por nível 1 ✓ |
 | Desenho real inteiro no kit, completa / resumida (terminal) | 17 / 17 ms | 11 / 8 | |
 
-Artefato pré-existente, deixado para a parte B (relógio): o host do `orcamento.test.ts` devolve
-`t += 1000` a cada `clock.now`, então em 2 de 14 rodadas os tamanhos saíram ±14/16 bytes (tempo
-decorrido desenhado), dentro da folga de 1,5×.
-
-### Testes e como rodá-los
+### Validar
 
 Use o binário da mesma versão do Claude Code que roda a sessão (o app desktop traz o dele; no
 Windows, em `%APPDATA%\Claude\claude-code\<versão>\<hash>\claude.exe`). Da raiz do repositório:
@@ -512,71 +594,11 @@ Windows, em `%APPDATA%\Claude\claude-code\<versão>\<hash>\claude.exe`). Da raiz
 ```
 claude plugin validate .
 claude plugin validate task-tree
-claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 363 testes em 24
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 3 nas conversas entre irmãs; 1 nos cartões abertos sem escolha); rode-a sozinha, sem outra ao mesmo
-tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
-e tem 5 s.
+O primeiro confere o `marketplace.json` da raiz; o segundo, o mod.
 
-| Arquivo | Testes | O que cobre |
-|---|---|---|
-| `task-tree.test.ts` | 168 | o painel desenhado e os resultados das ferramentas: ids, replanejar, visão, dobras, tempos, cartões, avisos, sessões, mensagens, turnos, ↩; o cabeçalho com 300 níveis 1 (fase 6) |
-| `durabilidade.test.ts` | 63 | a tabela: 4 cenários por chave de state (plantar; reinício com `session.start`; sem; recarga a quente), `sessions`, sanidade, "chave sem linha" |
-| `layout.test.ts` | 18 | `layout()` direto, com o fixture real e modelos pequenos: pedidos desenhados, cartões, ↩, cabeçalho, resumida, ordem, cadeias, ✉, corte; os cartões e as linhas de uma filha funda fixados (fase 6); o cabeçalho com cartões e tarefas recolhidos, nas duas visões, e a resumida sem o pedido finalizado e o cartão dele |
-| `host.test.ts` | 13 | os passos de `io/host.ts` com `$` falso ou entradas puras, inclusive a lista parcial |
-| `reinicio.test.ts` | 11 | reinício do processo (com e sem `session.start`) e recarga a quente, com o fixture real; `KNOWN` (vazio) para bugs futuros |
-| `hooks-puros.test.ts` | 11 | `said`, `brief` e as edições de `state/tasks.ts`; `fit` contra a regra antiga, em todos os títulos, tamanhos e larguras (fase 6) |
-| `publicado.test.ts` | 11 | escrita e leitura do arquivo publicado: válido, parcial, vazio, antigo, outra versão, corrompido, `watchSends`; publicar só quando muda: dois polls sem mudança não gravam arquivo, store nem status, o relógio e os painéis não contam, uma espera nova conta (fase 6) |
-| `svg-golden.test.ts` | 7 | 12 cenários de SVG contra `golden/svg.ts` |
-| `textos.test.ts` | 7 | os textos contra `golden/textos.ts`, e o limite 120 |
-| `sobreposicao.test.ts` | 6 | nenhum par de `Box` se cruza numa linha (`overlays`, `crossings`) |
-| `limite-linhas.test.ts` | 4 | `limitRows`: 400 linhas, blocos antigos contados, `rows`/`drawSize` publicados |
-| `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
-| `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
-| `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
-| `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
-| `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
-| `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
-| `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
-| `cadeia-irmas.test.ts` | 3 | conversa entre irmãs: a mensagem de impl para docs fica dentro do cartão de impl, sob a tarefa que a mandou, nas duas visões; sob a tarefa da mãe ficam só os cartões das mensagens dela; sem o envio publicado vale a tarefa da irmã em andamento quando a mensagem chegou |
-| `cartoes-resumida.test.ts` | 1 | sem escolha do usuário, nenhum cartão aparece recolhido ou sem linhas embaixo, no estado real e nas duas visões |
-| `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
-| `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
-| `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
-| `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
-
-Fixtures e goldens:
-
-- `tests/fixtures/orquestradora-real.ts` (`REAL`): o estado real de uma orquestradora (97 níveis 1 em
-  70 pedidos, 5 filhas), anonimizado por `docs/analises/medicoes/gen-fixture.mjs`; não editar à mão.
-- `tests/fixtures/publicados.ts` (`PUBLISHED_FILES`): os 8 formatos do arquivo publicado.
-- `tests/golden/svg.ts` (`GOLDEN`, gerado): um `Svg` por linha, 12 cenários. Mudança intencional de
-  SVG ou de `alt`: `node task-tree/tests/golden/atualizar.mjs [claude.exe]` (copia `task-tree/` para
-  uma pasta temporária só com o teste do golden, roda `claude plugin test`, recolhe as linhas
-  `GOLDEN-NEW` e funde no arquivo); a aprovação é o diff do git.
-- `tests/golden/textos.ts` (`TEXTOS`): quando o teste difere, imprime `TEXTOS-NEW <json>` para colar.
-- `BASELINE` em `orcamento.test.ts` (HEAD 6d79470, kit 2.1.308, 100 colunas): terminal resumida 11 671
-  bytes/29 linhas, completa 11 789/30; desktop resumida 47 416/28 linhas/30 Svg, completa 48 174/29/31.
-  Para refazer, rode o teste e copie a linha `ORCAMENTO` do log.
-
-Regras dos testes: o que muda linhas vai em `layout.test.ts`, o que muda pixels no golden do SVG, o
-que muda texto no golden dos textos; chave nova de state ou store ganha linha em `TABLE`; formato
-novo do arquivo publicado ganha um arquivo em `publicados.ts` e sobe `PUBLISHED_VERSION`. Não afirmam
-tempo de parede; a leitura de fundo das filhas é esperada pelo fato (`settled()`, em
-`orcamento.test.ts` e no golden do estado real), não por `setTimeout` fixo; sobram esperas fixas em
-`durabilidade.test.ts` (150 ms), `reinicio.test.ts` (150 ms) e `task-tree.test.ts` (20/50 ms e um laço
-de até 200 ms).
-
-O kit nos testes: o host é simulado por `on('…')` (`clock.now`, `clock.every` negado, `env.get`,
-`session.id`, `store.*`, `fs.*`, `mcp.call`, `tool.call` de outras ferramentas); o painel é lido por
-`$.ui.mount` + `ui.drawn()`/`findAll` + `unmount`, e os cliques por `ui.press({ key })`; o
-`agentId` de subagente vai no argumento da ferramenta; `$.prompt.submit` aceita `origin` e `isMeta`;
-`$.turn.complete` exige `answer`, `durationMs`, `isAborted`, `turnId`. O kit não expõe `$.state`
-(os testes de durabilidade o espelham com hooks `state.get`/`state.set` abaixo do kit), não importa
-`fs` nem vê `process.env` (por isso o golden é atualizado por um script de fora), não tem skip/todo
-(`known()`/`KNOWN` em `reinicio.test.ts`) e não simula subagente nem o respawn real do worker.
+A suíte de testes (`task-tree/tests/`) foi removida em 2026-10-23 por decisão do usuário, que vai seguir outra abordagem de teste; este documento não cita mais arquivos de teste.
 
 ### Limites do kit
 
@@ -587,7 +609,7 @@ Confirmados no `claude plugin validate`; o código está escrito em volta deles:
 2. `$.state.get/set` exige a chave `{ plugin, key }` literal no arquivo que chama (ou numa `const`
    dele, que não pode ser exportada nem importada). Por isso cada arquivo de `hooks/` declara as
    chaves que usa, `hooks/panel.ts` não as exporta e o `stateOf` de `state/durability.ts` não serve
-   para chamar `$.state` (o teste de durabilidade é que confere a correspondência com a tabela).
+   para chamar `$.state` (a correspondência com a tabela de durabilidade é conferida à mão).
 3. Uma função que recebe `$` tem de estar declarada no topo do arquivo e não pode ter o nome de uma
    variável atribuída em outro lugar; `$` não vai para uma variável de laço (os handlers de
    `tool-call.ts` são chamados pelo nome).
@@ -599,22 +621,20 @@ Confirmados no `claude plugin validate`; o código está escrito em volta deles:
 
 ### O que só é verificável no app
 
-Nada disto é coberto pelos testes do kit; só uma sessão real no app desktop mostra:
+Só uma sessão real no app desktop mostra:
 
 - O painel na tela: o pane aberto sem pedido só é posto com 144 colunas ou mais (110 com pedido);
   `showPane` o reabre num prompt da pessoa; `/task-tree` responde o que o app disse.
 - Os cliques: se o `Button` sobre o ícone e sobre o anel acertam o alvo nos dois temas e em todas as
-  larguras (o teste de sobreposição confere células, não pixels); se o clique na troca de desenho
+  larguras (a regra de não-sobreposição fala em células, não em pixels); se o clique na troca de desenho
   ainda chega (`ui.press` por chave); o realce do botão nativo; o toast de `open_session_in` recusado.
 - O tooltip da camada `hoverLayer` e se a linha pisca a cada segundo.
-- A recarga a quente real e o respawn do hooks worker (o kit só os simula: módulo novo com state
-  semeado ou vazio).
+- A recarga a quente real e o respawn do hooks worker (o kit não os reproduz).
 - As sessões filhas de verdade: `list_sessions`, `get_session`, os arquivos publicados por versões
   diferentes do mod, o `startedBy`, a latência entre a publicação de uma filha e a releitura de 3 s.
 - `turn.step` (modelo e esforço): o kit não tem implementação base para o evento em stream.
 - O `wrap_up` com `ask` do app e os avisos `<side-sessions-event>`.
-- O tamanho real do desenho que o app aceita (o teste mede o JSON que o kit devolve, não o que o app
-  renderiza).
+- O tamanho real do desenho que o app aceita (o `drawSize` do módulo é o JSON do desenho, não o que o app renderiza).
 - O `$.ui.status` embaixo da caixa de mensagem.
 
 ## Decisões (histórico)
@@ -622,8 +642,7 @@ Nada disto é coberto pelos testes do kit; só uma sessão real no app desktop m
 As notas abaixo são o texto anterior deste arquivo, por fase, na íntegra (só os títulos desceram um
 nível): os pedidos do usuário citados palavra por palavra, as decisões e os motivos, as medições e as
 armadilhas de cada mudança. Onde dizem "no `register.tsx`", a função está hoje num dos arquivos de
-`task-tree/hooks/` (ver "Módulos"). Os códigos entre parênteses (R6, H3.2 etc.) são os itens dos
-relatórios de análise em `docs/analises/`.
+`task-tree/hooks/` (ver "Módulos"). Os códigos entre parênteses (R6, H3.2 etc.) eram itens de relatórios de análise que não estão mais no repositório.
 ### Estrutura
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
@@ -631,34 +650,19 @@ relatórios de análise em `docs/analises/`.
 - `draw/layout.ts`: o layout do painel (R12, fase 3, etapa 1): `layout(model, choices, now, ownId): Row[]`, função de topo e pura: não lê nada além dos argumentos (etapa 2). Saíram o relógio de módulo `drawNow` (`split(c, sisters, me, owner, now, memo)` recebe o `now`), o `WeakMap` de módulo `breaksMemo` (agora um `BreaksMemo` por desenho, criado por `newBreaksMemo()` no `layout()` e passado a `split`/`breaks`; chave explícita de `hits`: `lista|me|caminho|id|parte`, a mesma partição de antes) e o mapa lateral `sendsAt` (o `panel` calcula `pending` e o passa como parâmetro a `rows`/`turnRows`; só o grupo principal manda mensagens, os escopos de subagente recebem `[]`). `Model` = `{ groups, waits, children, sends (só as não tomadas), view, work }`; `Choices` = o atom `folds`. Leva junto os auxiliares puros de modelo que o `register.tsx` também usa (`count`, `total`, `split`, `atWork`, `trimToWork`, `limitRows`, `MAX_ROWS`, `SHOWN_TURNS`, `Row`, `Tone` etc.), exportados daqui. Só importa `../types`: sem import circular e sem `$`.
 - `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Também `overlays(line, nested, W): Placed[]` (todos os `Box` de uma linha, na ordem de desenho, cada um pela regra da borda mais próxima), `spanOf(p, W)` (trecho em px) e `crossings(list, W)` (pares que se cruzam): as sobreposições do desenho saem só de `overlays()`. Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
-- `tests/task-tree.test.ts`: testes do `claude plugin test`.
-- `tests/orcamento.test.ts`: teste de orçamento do desenho (ver "Validar e testar").
-- `tests/fixtures/orquestradora-real.ts`: estado real de uma orquestradora (97 pedidos de nível 1, 70 turnos, 5 filhas), com títulos anonimizados; exporta `REAL`.
-- `tests/svg-golden.test.ts`, `tests/golden/svg.ts` e `tests/golden/atualizar.mjs`: golden do SVG por tom (ver "Validar e testar").
 - `text/rules.ts`: todos os textos que o plugin escreve para o modelo (R16, fase 2): `BRIEF` = 120 e `LIMIT` ("até 120 caracteres", interpolado nos 6 textos que citam o limite), `RULES` (seção `task-tree:regras`), `COMMAND`, `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `EXAMPLE`. Ficam fora dele os resultados das tools ("Plano exibido…", "Concluídas: d/n…") e os `alt`/títulos do desenho.
-- `tests/textos.test.ts` e `tests/golden/textos.ts`: golden dos 23 textos (ver "Golden dos textos").
 - `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 15 chaves de `$.state` (com `recap`), 1 do store (`sessions`) e 15 variáveis de módulo (`lastRecap` saiu). Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
-- `tests/durabilidade.test.ts`: 63 testes sobre a tabela (ver "Tabela de durabilidade").
-- `tests/reinicio.test.ts`: testes de reinício do processo e recarga a quente (ver "Validar e testar").
 - `io/publish.ts` (arquivo publicado: `parsePublished`, `readPublished`, `waitFile`, `publishWait`) e `io/log.ts` (`debug`); ver "Arquivo publicado".
-- `io/host.ts` (leitura das filhas em passos: `parseSessions`, `listSessions`, `mineOf`, `panelOf`, `readFiles`, `deriveChildren`, `engineText`; ver "Leitura das filhas") e `tests/host.test.ts` (13 testes).
-- `tests/publicado.test.ts`: leitura e escrita do arquivo publicado (ver "Arquivo publicado").
-- `tests/publicado-versoes.test.ts` e `tests/fixtures/publicados.ts`: um arquivo de cada formato antigo (ver "Arquivo publicado").
-- `tests/limite-linhas.test.ts`: limite de 400 linhas do desenho (ver "Desenho do painel").
-- `tests/sobreposicao.test.ts`: regra de não-sobreposição dos `Box` de uma linha (6 testes; ver "Sobreposição dos Box").
-- `tests/layout.test.ts`: testes de layout diretos, sem mount e sem SVG, com o fixture real (14 testes, ~130 ms); chamam `layout(model, choices, now, ownId)` com o `Model` montado como o `refreshChildren` monta (ver "Testes de layout").
+- `io/host.ts` (leitura das filhas em passos: `parseSessions`, `listSessions`, `mineOf`, `panelOf`, `readFiles`, `deriveChildren`, `engineText`; ver "Leitura das filhas").
 - `hooks/panel.ts`, `sessions.ts`, `session-start.ts`, `prompt-submit.ts`, `command.ts`, `tools.ts`, `permission.ts`, `turn.ts`, `tool-call.ts`, `render.tsx`: os hooks e o estado do painel (ver "Arquivos de hook").
 - `draw/svg.ts`: construtores puros de SVG e glifos do terminal (`GLYPH`, `prefix`, `ratioBar`, `contextRing`, `rowSvg`, `chips`, `headerSvg` etc.).
 - `state/tasks.ts`: edições puras da árvore (`build`, `resolve`, `edit`, `finish`, `fill`, `settle`, `begin` etc.).
-- `tests/hooks-puros.test.ts`: 9 testes de `said`, `brief` e das edições da árvore.
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
-Fase 1 da rede de proteção concluída: teste de orçamento (R6), golden do SVG (R7), reinício e recarga
-(R8, com os 3 bugs corrigidos), contrato `Published` (R9), limite de linhas (R15) e limpeza de resíduos
-(R20: removidos `Work.ring`/`topRing`, o anel na linha de tarefa, o parâmetro `pinned` e `_up`/`up`).
-Critério atendido: um teste falha se o desenho crescer 50% ou se qualquer SVG mudar sem golden novo.
+Fase 1 da rede de proteção concluída: contrato `Published`, limite de linhas e limpeza de resíduos
+(removidos `Work.ring`/`topRing`, o anel na linha de tarefa, o parâmetro `pinned` e `_up`/`up`).
 
-### Validar e testar
+### Validar
 
 Use o binário da mesma versão do Claude Code que roda a sessão. Versões antigas acusam erros
 falsos (a 2.1.268, por exemplo, não reconhece `tool.check`). O app desktop traz o próprio binário:
@@ -670,82 +674,18 @@ A partir da raiz do repositório:
 ```
 claude plugin validate .
 claude plugin validate task-tree
-claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` (e o README); os outros, o mod.
-
-#### Teste de orçamento do desenho
-
-`tests/orcamento.test.ts` monta o painel com o fixture `REAL` nas quatro combinações superfície
-(terminal/desktop) × visão (resumida/completa), com `bodyColumns` 100. Afirma que o desenho não
-caiu no de emergência nem em erro e que `size`, `lines` e `svgs` ficam em até 1,5 × a `BASELINE`. É um
-teste por combinação (4 testes, cada um com os 5 s que o kit dá por teste; 3 desenhos por medida). O tempo
-de parede (`ms`) não é afirmado: só sai na linha `ORCAMENTO …` do log do kit, para o olho.
-
-- Regra dos testes: não afirmam tempo de parede nem esperam por `setTimeout` fixo a leitura de fundo das
-  filhas; esperam o fato. `settled()` (em `orcamento.test.ts` e no golden do estado real de
-  `svg-golden.test.ts`) espera, até 4 s, o estado `children` com todas as filhas (via `on('state.set')`) e
-  uma publicação do painel depois disso (via `fs.write`), com erro que diz onde parou. Esperar "dois
-  desenhos iguais" não serve: os `handle` dos botões são sorteados a cada desenho.
-- Motivo (bug de teste instável): o teste único fazia 4 combinações × 5 desenhos (1,4 s livre) e estourava
-  os 5 s do kit com duas suítes rodando juntas. Esperas fixas da mesma família seguem em
-  `durabilidade.test.ts` (150 ms), `reinicio.test.ts` (150 ms) e `task-tree.test.ts` (20/50 ms e um laço de
-  até 200 ms); não falharam, nem sob carga.
-- Rode a suíte sozinha, sem outra ao mesmo tempo; se algo falhar, guarde a saída inteira (as linhas
-  `(fail)` e o erro), não só o total.
-
-- `size` no teste é o JSON da árvore que o kit devolve: proporcional ao `drawSize` do módulo, não igual.
-- Se o desenho crescer de propósito, refaça a `BASELINE` em `orcamento.test.ts`: rode o teste numa cópia
-  sem `task-tree.test.ts` e copie os números da linha `ORCAMENTO`.
-- Baseline gravada (HEAD 6d79470, kit 2.1.308): terminal resumida 11.671 bytes/29 linhas, completa
-  11.789/30; desktop resumida 47.416 bytes/28 linhas/30 Svg, completa 48.174/29/31; 14–41 ms.
-- Com este fixture as duas visões medem quase o mesmo, porque o limite de 3 pedidos corta antes.
-
-#### Golden do SVG
-
-`tests/svg-golden.test.ts` (7 testes, 12 cenários: basico, basico-concluido, retomada, filha-rodando,
-filha-parada, filha-arquivada, filha-recolhida, envio, espera-propria, subagente, real-completa,
-real-resumida) monta o painel no desktop com relógio e largura fixos, recolhe cada `Svg` (alt, largura,
-altura, interativo, fonte) e compara com `tests/golden/svg.ts`. Cobre os 12 valores de `Tone`. A falha
-lista por `Svg`: índice, alt, tamanho do golden × atual, ou o primeiro trecho de fonte diferente com contexto.
-
-- `tests/golden/svg.ts` é gerado (`GOLDEN`, um `Svg` por linha, para o diff do git mostrar um SVG mudado
-  como uma linha). Não editar à mão.
-- O `alt` faz parte do golden de propósito: é o que o terminal lê.
-- Mudança intencional de SVG (inclusive texto de `alt`): rode `node task-tree/tests/golden/atualizar.mjs [claude.exe]`
-  e commite o `svg.ts` junto. O script copia `task-tree/` para uma pasta temporária só com o teste do golden, roda
-  `claude plugin test`, recolhe as linhas `GOLDEN-NEW <cenário> <json>` e funde no `svg.ts`, mantendo os
-  cenários que batem. Segunda rodada: "Nada a atualizar". A aprovação é o diff do `svg.ts`.
-- Limite do kit: um teste não importa `node:fs`/`fs` (recusado ao carregar) nem vê `process.env`
-  (`process` é `undefined`); por isso a atualização é um script, não uma variável de ambiente.
-
-#### Golden dos textos
-
-`tests/textos.test.ts` (7 testes) coleta os textos que chegam ao modelo (descrições registradas no
-`session.start`, regras do `prompt.compose`, contextos do `prompt.submit`, as três saídas do
-`AskUserQuestion`, avisos do `done`, do `SendMessage` na fila, do `wrap_up`, da chamada sem plano e as
-notas de sessão) e compara com `tests/golden/textos.ts`. Confere também que toda ocorrência de "até N
-caracteres" diz 120 (pelo menos 6). Quando difere, imprime `TEXTOS-NEW <json>` para colar no golden.
-
-- Regra: mudança de texto = golden novo, aprovado de propósito (como no golden do SVG).
-- O limite do resumo mora em um lugar só, `BRIEF` em `text/rules.ts`; antes eram 6 strings (o 60 → 120
-  tocou todas).
-- O golden foi gerado com o código anterior à extração, e o teste passou sem diferença depois dela.
+O primeiro confere o `marketplace.json` (e o README); o segundo, o mod.
 
 #### Tabela de durabilidade
 
-`state/durability.ts` diz, por chave, onde o dado vive e como volta. `tests/durabilidade.test.ts` roda
-4 cenários por chave do state: A (planta pela API do mod e confere state/store), B (reinício com
-`session.start`), C (reinício sem `session.start`) e D (recarga a quente com o state semeado); mais o
-`sessions`, uma sanidade da tabela e "chave nova sem linha": um cenário largo grava toda chave do state
-e todo prefixo do store tocados, e falha se algum não tem linha ou se alguma linha não é tocada. `engine`,
-`ended` e `tasks` (legado) são plantados por semeadura.
+`state/durability.ts` diz, por chave, onde o dado vive e como volta. 
 
-- Chave nova de state ou de store: acrescente a linha em `TABLE`, senão o teste falha.
+- Chave nova de state ou de store: acrescente a linha em `TABLE`.
 - Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
   no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
-  chave continuam literais em `register.tsx`, e o teste é que garante a correspondência com a tabela.
+  chave continuam literais em `register.tsx`; a correspondência com a tabela é conferida à mão.
 - Funções que recebem `$` em arquivo importado (`loadStore`, `saveStore`, `saveGroups`) passam no
   validador: a armadilha do `$` fora do topo não apareceu aí.
 
@@ -757,13 +697,11 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
    uso (`restoredAt` = `first-use` na tabela, como `groups`); marcam `loaded` só quando o state recebe o
    valor e devolvem o que trouxeram para quem não pode gravar (o `ui.render` não pode: `$.state.set`
    lá dentro lança). Chamados em `change()`, `publishWait()`, `nothingOpen()` e no `ui.render`. Sem nada
-   no store, o painel fica nos padrões. Teste: `reinicio.test.ts`, "sem session.start: a visão e o
-   trabalho atual voltam do store no primeiro uso".
+   no store, o painel fica nos padrões. 
 2. (corrigida) `lastRecap` era variável de módulo: recarga entre o `wrap_up` e o fim do turno perdia o
    recap (o cartão mostrava a mensagem final). Agora é a chave de state `recap`, como o `brief`
    (`merge` none, `restoredAt` vazio: sobrevive à recarga, morre com o processo); `lastRecap($)` lê o
-   state ('' = nenhum), o `wrap_up` grava e o `turn.complete` lê e zera. Testes: `reinicio.test.ts`
-   ("recap antes da recarga", 1/2 e 2/2) e a linha nova na tabela, com os 4 testes do laço.
+   state ('' = nenhum), o `wrap_up` grava e o `turn.complete` lê e zera.  A linha nova da tabela cobre a chave.
 3. `groups` no `resume` substitui o state (o `SessionStart` de resume chama restore sem olhar o state);
    no `session.start`, o state vence.
 4. `sends` sem teto na fusão; `received` e `launches` com 20.
@@ -774,50 +712,23 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 
 #### Sobreposição dos Box
 
-`tests/sobreposicao.test.ts` (6 testes) confere que `overlays()` dá os mesmos `Box` que `overlay()` dava
-(7 profundidades × 4 aninhamentos), os trechos em px, e a regra "nenhum par de `Box` na mesma linha se
-cruza": estado real nas duas visões em 6 larguras (30–112 colunas), ícone × anel (8 × 4 × 5) e ícone ×
-camada do nome (a camada vai da coluna do nome até a borda ou, com anel, até o `Box` do anel; `overlay('name', depth, W, ringNested?)`, nunca abaixo de `NAME_MIN` = 16 px). Nenhuma falha conhecida: a que o teste revelou (a camada cobria o anel, e o clique nele não abria a sessão) foi corrigida no bug 2 da fase 3. Só a área do tooltip do nome cortado num cartão com anel mudou (32 px a menos, mais com cartões aninhados); nenhum pixel do SVG.
+A regra conferida: `overlays()` dá os mesmos `Box` que `overlay()` dava (7 profundidades × 4 aninhamentos), os trechos em px, e nenhum par de `Box` na mesma linha se cruza (estado real nas duas visões em 6 larguras, 30–112 colunas; ícone × anel; ícone × camada do nome: a camada vai da coluna do nome até a borda ou, com anel, até o `Box` do anel; `overlay('name', depth, W, ringNested?)`, nunca abaixo de `NAME_MIN` = 16 px). Nenhuma falha conhecida: a que a conferência revelou (a camada cobria o anel, e o clique nele não abria a sessão) foi corrigida no bug 2 da fase 3. Só a área do tooltip do nome cortado num cartão com anel mudou (32 px a menos, mais com cartões aninhados); nenhum pixel do SVG.
 
 - O rótulo do botão do ícone é um espaço em (U+2003), não um espaço comum: é de propósito (dá ao realce
-  nativo a largura certa). Com espaço comum, o teste "só o ícone recolhe" cai. Ferramentas de edição
+  nativo a largura certa). Com espaço comum, o clique "só o ícone recolhe" falha. Ferramentas de edição
   podem normalizar o caractere; ao mexer nessa linha, confira o U+2003 (um script com perl resolve).
-
-#### Testes de layout
-
-`tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 27 linhas (28 antes de a linha ↩ exigir resumo)
-("+67 pedidos anteriores" no topo, "+4 cartões antigos de sessões" no fim (+41 antes de as conversas entre irmãs irem para dentro do cartão da remetente), só os pedidos 71–73
-desenhados, 2 cartões sob as tarefas 97 e 98, nenhum na raiz), o ↩ (o pedido 71 não tem resumo e não tem linha ↩; suprimido nos
-pedidos com cartão), o cabeçalho (conta só os nós desenhados, 8/14; chips 6 em andamento, 1 sessão
-ativa, 0 aguardando, 0 ✉), a visão resumida (26 linhas, "+1 pedidos anteriores", sem cartões antigos) e o
-determinismo. Modelos pequenos (9): ordem dos cartões (`begins`), cadeia, filha de filha aninhada, ↩ por
-turno, "+N pedidos anteriores" com pedido antigo aberto, ✉ no painel e dentro de um cartão (`pending` por
-escopo), aviso ao usuário, escolhas (linha fechada guarda `nodes`) e o corte de 400 linhas.
-
-- Regra para quem mexer no layout: mudança de linhas → `layout.test.ts`; mudança de pixels → golden do SVG.
 
 #### Reinício e recarga
 
-`tests/reinicio.test.ts` (11 testes, com o fixture `REAL`) cobre dois casos:
+Dois casos:
 
-- **Reinício do processo** (`$.state` vazio, store cheio): cada teste do kit é um módulo novo com
-  `$.state` vazio; o store passa entre testes por um objeto compartilhado. Testado com e sem `session.start`.
-- **Recarga a quente** (state mantido, módulo novo, sem `session.start`): `seedState` põe hooks
-  `state.get`/`state.set` abaixo do kit, espelha as escritas e devolve o state semeado nas leituras vazias
-  (as versões continuam do kit). O teste de recarga recebe o state exato que o módulo montou no reinício anterior.
+- **Reinício do processo** (`$.state` vazio, store cheio): um módulo novo começa com `$.state` vazio e o store cheio. Vale com e sem `session.start`.
+- **Recarga a quente** (state mantido, módulo novo, sem `session.start`): o state é mantido, o módulo é novo e `session.start` não roda.
 
 O que sobrevive a quê, como medido: `$.state` sobrevive à recarga e não ao reinício; o store sobrevive a
 tudo; variáveis do módulo não sobrevivem a nada.
 
-**Falhas conhecidas (`KNOWN`):** o kit não tem skip/todo. `known(nome, ok, detalhe)` e a lista `KNOWN`:
-o cenário com bug imprime `TODO …` e passa; quando o bug for corrigido, o teste falha pedindo para tirar o
-nome de `KNOWN`. Ao corrigir um bug, tire o nome da lista. Bugs abertos:
-
-1. (corrigido, fora de `KNOWN`) `reinicio-sem-session-start`: ver "Grupos do store sem `session.start`" abaixo.
-2. (corrigido, fora de `KNOWN`) `links-lista-parcial`: ver "Ligações com lista parcial do host" abaixo.
-3. (corrigido, fora de `KNOWN`) `recarga-perde-summary`: ver "Resumo do turno no state" abaixo.
-
-`KNOWN` está vazio; o mecanismo `known()`/`KNOWN` fica para bugs futuros.
+Bugs achados por esses cenários, todos corrigidos: o painel sem `session.start` (ver "Grupos do store sem `session.start`"), as ligações com lista parcial do host (ver "Ligações com lista parcial do host") e o resumo perdido na recarga (ver "Resumo do turno no state").
 
 Limite: o kit não simula o respawn real do worker.
 
@@ -882,15 +793,7 @@ antigas), `groups?`, `waits`, `children`, `context?`, `engine?`, `panes?`, `rend
   pela lista do host, sem painel). Um arquivo que o código antigo aceitava pela metade (ex.: `groups`
   não-lista) agora é lido como "sem painel". Quando uma mudança de formato exigir, suba `PUBLISHED_VERSION`
   e decida a compatibilidade na leitura.
-- `tests/publicado.test.ts` (8 testes): `version` no arquivo escrito; válido; só `groups`; `{}`; versão
-  antiga (só `tasks`); versão 2 (ignorada, 1 log, volta ao consertar, logada de novo ao quebrar); corrompido
-  e tipos errados; `watchSends` com arquivo corrompido do destino (✉ fica; com `received` válido, some).
-- `tests/publicado-versoes.test.ts` (4 testes) com `tests/fixtures/publicados.ts` (`PUBLISHED_FILES`): um
-  arquivo de cada um dos 8 formatos que já existiram (o menor de cada, anonimizado: textos "Texto N", nomes
-  "sessao-filha", ids `local_` zerados, listas cortadas em 3). Cobrem: o fixture vai do primeiro formato ao
-  desta versão (só o último tem `version`); `parsePublished` lê cada um sem erro; uma filha com cada formato
-  desenha o cartão e nada vai ao log; o que esta versão escreve tem as chaves do último formato, na mesma
-  ordem. Ao mudar o formato, acrescente um arquivo ao fixture.
+  
 
 #### Leitura das filhas (`io/host.ts`)
 
@@ -912,8 +815,7 @@ guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState
 
 Ordem, idêntica à de antes: stamp → lista → erro/limpa erro → `watchSends` → vazio → mine → arquivos →
 update `children`/`ended` → status → publicar → `keepTime`. `inDesktopApp`, `watchSends`, `selfId`,
-`openSession` e `showPane` seguem no register (etapa 3 ou depois). `tests/host.test.ts` (13 testes em 3
-`describe`: lista, arquivos, filhas) usa também os 8 formatos de `fixtures/publicados.ts`. Quando os arquivos
+`openSession` e `showPane` seguem no register (etapa 3 ou depois).  Quando os arquivos
 são lidos não mudou (performance fica fora desta fase).
 
 #### Arquivos de hook
@@ -977,7 +879,7 @@ volta do store também sem `session.start`, como já valia para `links`:
   `change` do `plan`) e no `ui.render` (`held = state ?? brought`). `session.start` marca `groupsLoaded = true`
   depois do `restore`.
 - `view` e `work` continuam só no `session.start`, de propósito: `restoreView` na guarda mudaria o padrão do
-  desenho ('full' no render × 'summary' no restore) e quebraria o golden; fica para o R13.
+  desenho ('full' no render × 'summary' no restore) e mudaria o desenho; ficou para a tabela de durabilidade.
 - Sem `session.start`, o desenho traz as tarefas do store, mas ainda não os cartões de sessão (a lista do
   host só é lida no `session.start` ou pelo poll).
 
@@ -989,8 +891,6 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ### Desenho do painel
 
-- Referência do visual aprovado pelo usuário (claro e escuro):
-  [docs/task-tree-proposta-visual.svg](../docs/task-tree-proposta-visual.svg).
 - O desenho é um pipeline: estado → `Model` → `layout()` (`draw/layout.ts`, puro) → `Row[]` →
   `drawDesktop`/`drawTerminal` (funções de topo no `register.tsx`, que recebem as linhas prontas) →
   orçamento. `guides`, `frames` e `labelCols` moram em `layout.ts`. O `ui.render` só lê o estado
@@ -1017,7 +917,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   muda com o relógio. Sobre ela o ponteiro é a seta padrão, não o cursor de texto
   (`cursor:default;user-select:none`; pedido do usuário: "quero que o mouse seja o mouse padrão,
   seta"). Linha sem corte não tem camada; recolher não corta nome; terminal sem tooltip.
-  Nos testes, o helper `desktop()` ignora as camadas por padrão. Quando os chips não cabem com as palavras, ficam só os números.
+    Quando os chips não cabem com as palavras, ficam só os números.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂`; linha recolhida ganha " ⋯" depois do nome (nas duas superfícies). A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.
@@ -1159,10 +1059,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   dentro de um bloco quebraria as guias. O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
   no tooltip). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
   linhas) não muda. O arquivo publicado ganha `drawRows` (`rows` em `Published`) e `drawSize`, informativos
-  (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). Testes:
-  `tests/limite-linhas.test.ts` (4 testes: 750 linhas → 400 com `+N linhas anteriores` e contagem fechando
-  em 750; bloco de 700 etapas → `+302 linhas` no fim; 100 linhas → nada muda; `rows`/`drawSize` publicados) e
-  o teste "desenho grande demais" de `task-tree.test.ts`, que agora espera o corte.
+  (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). 
 - Cabeçalho por visão (pedido do usuário: "na visao resumida, quero que a barra superior reflita o
   que tem nessa visao ... cada visao deve refletir os dados do seu tipo de vizualizacao"; aprovado
   com "Sim, bate nas duas"): o cabeçalho (X de Y, %, barra, tempo e os chips "em andamento",
@@ -1190,15 +1087,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `$.ui.invalidate('ui.render')` enquanto alguma tarefa roda (aqui ou numa filha viva) e se cancela
   quando nada roda. Começa no `start`, no refresh das filhas, em toda chamada de ferramenta do loop
   principal e no desenho do pane (a recarga do mod cancela os timers do módulo antigo; o desenho que o
-  app faz ao carregar o mod os religa, bug do pane parado após edição do clone).
-- Nos testes: terminal por `ui.drawn()` (os filhos do `Box`; o `key` do JSX não chega ao
-  `findAll`; o `Button` é lido pelo `label`), desktop pelo `alt` de cada `Svg` em
-  `findAll({ type: 'Svg' })`. A seta se aperta com `ui.press({ key: 'fold:<chave>' })` (helper
-  `fold` do teste); subagentes, ao vivo. Tempo: `on('clock.now')` com um relógio do teste e
-  `on('clock.every', () => ({ deny }))` (um período negado encerra o intervalo). Cartões: pelo
-  `class="cd"` e pela altura de cada `Svg`. Uma tarefa
-  interrompida só nasce de subagente, que o kit não simula: o teste a traz pelo `store.get` de uma
-  sessão retomada (`classic.SessionStart` com `source: 'resume'`).
+  app faz ao carregar o mod os religa, bug do pane parado após edição do clone). Desde então, desenhos
+  ao mesmo tempo criavam vários relógios (só o último era guardado) e os cliques se perdiam; a marca
+  `starting` garante um só (ver "Relógios" em "Fluxo de dados").
+
 
 ### Armadilhas
 
@@ -1227,11 +1119,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   ainda estiver aberta. Fora do app desktop (sem wrap_up nem sessões) nada disso dispara.
 - O `$.ui.status` fica embaixo da caixa de mensagem, que some enquanto uma pergunta está aberta:
   avisos de espera vão no painel.
-- O kit de testes (`claude-code/testing`) não expõe `$.state`. Teste pelo painel montado
-  (`$.ui.mount` + `findAll`, com `unmount` depois) e pelos resultados das ferramentas. O `agentId`
-  de subagente vai no argumento das ferramentas (`plan($, tasks, 'sub1')`, com `on('agent.list')`);
-  o `$.prompt.submit` do kit aceita `origin` e `isMeta`. Eventos sem implementação embaixo (`classic.SessionStart`,
-  `prompt.compose`) precisam de um `on(...)` do teste que responda.
+
 - O grupo de um subagente se liga à tarefa em que ele foi lançado pela descrição da chamada do
   Agent (`launches`); grupos criados antes disso não têm âncora e vão para o fim da lista.
 - Fora do app desktop não há sessões filhas: se a lista falhar e nenhuma ferramenta `mcp__ccd_…`
@@ -1242,7 +1130,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `session.start` e a cada chamada de ferramenta e prompt do loop principal, porque recarregar o
   módulo cancela o anterior) e após cada `start_session`. A lista
   exclui a própria sessão: o id dela é o `startedBy` que nenhuma linha listada tem. Em andamento =
-  `isRunning` (ícone de ramificação). No teste, o hook `mcp.call` responde `{ value }`.
+  `isRunning` (ícone de ramificação). 
 - Onde a sessão filha aparece: o `tool.call` de `mcp__ccd_session__start_session` grava em `children`
   o `anchor` (a tarefa em andamento da principal, como o `launches` dos subagentes) com o id `local_…`
   do resultado. A filha faz parte da árvore: fica embaixo dessa tarefa, aberta ou concluída (a
@@ -1260,7 +1148,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
   dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
   (`Child.part` = k). Várias mensagens entregues de uma vez abrem um turno só, que vai para a rodada
-  da primeira delas (ver "Turno em lote" em "Cartões no lugar certo", em "Como é hoje"). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
+  da última delas (ver "Turno em lote" em "Cartões no lugar certo", em "Como é hoje"). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
   deles. Só o cartão da frente mostra a espera; o anel de contexto aparece em todo
   cartão da sessão, em qualquer estado (trabalhando, ocioso, parado, concluído ou de rodada antiga),
   com o último % publicado (pedido do usuário: "mesmo depois que a sessao termina, o icone se
@@ -1281,17 +1169,16 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
   de uma irmã pertence à rodada do turno em que a irmã a mandou (não à última rodada dela antes de
   a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
-  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia, agora dentro do cartão da irmã remetente (`via`/`nest`).
+  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia, no mesmo nível, uma depois da outra, na ordem de execução.
   A origem vem primeiro do ✉ da irmã: o envio pendente dela para esta sessão (`sends` publicado)
   aponta a tarefa que enviou, e o turno dessa tarefa dá a âncora na principal; sem ✉, o último turno
   da irmã antes da chegada. Sem origem conhecida, o cartão da mensagem não é desenhado por até 10 s
   (`WAIT_ORIGIN`) e depois vai para onde der (raiz, se nada). Motivo (pedido do usuário: "ela
   deveria abrir direto no lugar correto"): as leituras de 3 s e os arquivos gravados em momentos
-  diferentes faziam o cartão nascer na raiz e pular depois. (Regra substituída: a cadeia, ex.: docs →
-  SVG → governança, punha cada grupo novo no seu cartão sob a tarefa da principal que abriu a cadeia,
-  sem aninhar no cartão da irmã; hoje a mensagem de uma irmã S para C fica dentro do cartão de S, sob
-  a tarefa de S que a enviou, e sob a tarefa da principal ficam só os cartões das mensagens dela; ver
-  "Conversas entre irmãs" em "Cartões no lugar certo", em "Como é hoje".) Sob uma mesma
+  diferentes faziam o cartão nascer na raiz e pular depois. (Regra de hoje, igual à primeira e depois de uma
+  tentativa retirada: a cadeia, ex.: docs → SVG → governança, põe cada grupo novo no seu cartão sob a
+  tarefa da principal que abriu a cadeia, sem aninhar no cartão da irmã, na ordem de execução; ver
+  "Cadeia de sessões em sequência" em "Cartões no lugar certo", em "Como é hoje".) Sob uma mesma
   tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
   (`begins(c)` + `inOrder()`; ex.: implementação → documentação → SVG → governança), não na ordem da
   lista do host (pedido do usuário: "e rodou, ficando tudo junto").
@@ -1301,7 +1188,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   22,7 s medidos) e derrubava o worker ("task-tree was unloaded: it crashed the hooks worker", sem
   exceção no log). Agora há memo por desenho (`WeakMap` pela lista de irmãs, com o caminho na
   chave), a cadeia de cada irmã é calculada uma vez e há corte de ciclo (a sessão reencontrada no
-  próprio caminho conta só as rodadas dela): 0,1 s, mesmo resultado. Teste de regressão no kit.
+  próprio caminho conta só as rodadas dela): 0,1 s, mesmo resultado. 
   Mensagem sem rodada registrada (pedido do usuário: "layout quebrou novamente"; envio feito com o
   painel fora do ar ou durante um crash): cada mensagem da dona que a filha tratou (o `received`
   dela) é casada em ordem com as rodadas registradas (`unsent`); a que sobra abre uma rodada mesmo
@@ -1310,12 +1197,24 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   também vão para o fim. Antes, essas mensagens caíam na rodada anterior e o cartão ficava acima de
   outro pedido. Um turno interrompido por crash antes de salvar a resposta fica sem ↩. Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
+  Rodadas perdidas por a sessão não estar na lista do host (teste visual: as mensagens do primeiro
+  "passo 5" para a svg não deixaram rodada, porque a svg não estava na lista naquele instante;
+  `unsent()` devolvia nada com zero rodadas, e os turnos abertos por elas caíram na parte 0 do cartão,
+  sem tarefa para ficar embaixo: cartões soltos, cortados pela resumida): (1) `sentMessage`
+  (`hooks/tool-call.ts`) cria a entrada da sessão com a rodada quando o destino ainda não está em
+  `children` (ver "Fluxo de dados"); (2) `unsent()` (`draw/layout.ts`) não exige mais rodada registrada:
+  com zero rodadas, cada mensagem recebida desta sessão (o `received` publicado pela outra) abre uma
+  rodada órfã, com a âncora na tarefa da principal aberta na hora da mensagem, senão a iniciada por
+  último antes dela (a mesma regra de um envio sem tarefa em andamento), senão sem âncora (fim do
+  painel).
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
   de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
   tarefa folha aberta sem `start`; aí é a mais nova dessas. Tarefas planejadas junto, antes do
   início, não mudam nada. Vale para o lugar do cartão (`rounds`), para o `lastAnchor` (que a visão
-  resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`).
+  resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`). Sem
+  tarefa em andamento (decisão do usuário depois do teste visual), é a iniciada por último no pedido
+  atual, mesmo concluída, senão a última do pedido (ver "Sem start, nada aceso" em "Como é hoje").
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo
@@ -1325,7 +1224,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   âmbar, com `d/n`) e, embaixo, o painel dela desenhado pela mesma função (`panel`) que desenha o da
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
   as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `⑂ nome  concluída`, com o cartão aberto como os demais.
-  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado
+  Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado (regra substituída: hoje o que
+  estava em andamento aparece interrompido, sem relógio, e as pendentes seguem pendentes; o rótulo `parada` e o cartão ficam)
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o clique continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
@@ -1341,15 +1241,14 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   substituída: antes ela era desenhada em andamento "mesmo com `done` gravado"; o progresso das
   filhas fica no cartão delas; ver o bullet "Tarefa da mãe concluída" em "Como é hoje"). O chip "● em andamento" conta só o andamento próprio
   (`active`); a sessão já conta no chip ⑂. Sem nível 1 aberto, o cabeçalho mostra o que tem sessão
-  viva embaixo (`atWork(...).live`). O tempo (`timeOf`) vai do primeiro início ao último fim da
+  viva embaixo (`atWork(...).live`; o último nível 1 com sessão viva, não o primeiro). O tempo (`timeOf`) vai do primeiro início ao último fim da
   tarefa, das subtarefas e das tarefas dessas sessões (`allTasks`, até `DEEP`; só as de tarefa não
   concluída), ou até agora enquanto alguma roda ou uma sessão embaixo de tarefa não concluída está viva; vale para linha, terminal e `alt`. O tempo do cabeçalho é o da sessão
   inteira (`sessionTime`), nas duas visões: do primeiro início (ou `plannedAt`) de qualquer tarefa
   do painel (todos os turnos, níveis 1 soltos, subagentes e sessões, arquivadas inclusive, até `DEEP`) ao
   último fim, ou até agora enquanto houver tarefa aberta ou sessão viva. O "N de M" vem do `total`. O relógio de 1 s
   (`running`) corre enquanto houver sessão viva.
-- No kit de testes, o caminho chega ao `fs.write` com `\` no Windows, e `$.clock.now` precisa de um
-  `on('clock.now', ...)`; sem ele, o `publishWait` falha calado.
+
 - Os `tool.call` de `mcp__task-tree__plan`/`start`/`done` respondem sem chamar `next`, então o
   `tool.call` genérico (lembrete "sem plano aberto") não roda para eles: o que precisa saber que o
   pedido usou o painel (`planned`) é marcado dentro de cada um. `planned` volta a `false` no
@@ -1401,7 +1300,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   turno:
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
   nas tarefas não concluídas, como no `atWork`), em andamento enquanto algo dele está (um pedido com
-  todas as tarefas concluídas com `done` fica concluído), aberta também quando tudo fechou
+  todas as tarefas concluídas com `done` fica concluído, e ✕ se alguma tarefa em qualquer nível foi
+  interrompida), aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
 - Ícone de sessão filha: toda linha mantém o ícone de progresso (○/◉/✓/✕/✉; no cartão da sessão,
   ◉ rodando ou aguardando, ✓ concluída, ✕ arquivada). O cartão de uma sessão (`Row.session`) e a
@@ -1418,7 +1318,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   título, barra, d/n e tempo da aberta. `plan` grava `plannedAt`; `done` sem `start` dá início à
   tarefa (`fillStarts`): o fim da irmã anterior fechada, senão o início do pai, senão `plannedAt`
   (nunca depois de agora); o que ela fecha embaixo começa dela. Interrompida mantém o tempo até a
-  interrupção. Sem tempo conhecido (painéis antigos, ou o kit de testes sem relógio), a linha fechada
+  interrupção. Sem tempo conhecido (painéis antigos, ou sem relógio), a linha fechada
   mostra "—" (`Row.time === null`). No desktop as colunas são fixas (ver a posição do ícone); no
   terminal o resto vem depois do título, sem colunas.
 - Lista das sessões velha: além do refresh de 3 s (cujo callback não rejeita mais, para não
@@ -1439,7 +1339,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   a tarefa tem um ícone de progresso próprio (tom `sent`; pedido do usuário: "para as tarefas que
   voce esta esperando confirmacao da sessao filha, use um icone diferente"): envelope azul na coluna
   do ícone no desktop, "✉" (cor `permission`) no terminal, `alt` "Aguardando confirmação de
-  <sessão>: título" e chip "N aguardando sessão"; não conta como "em andamento" (nem a das linhas ✉ dos cartões de filha: o `active` do `ui.render` exclui, além dos `sentIds` da fila desta sessão, os objetos de tarefa das linhas de tom `sent`, por objeto e não por id, porque ids se repetem entre sessões; uma ✉ com filhos desenhados tem `nodes` vazio e as folhas abertas dela continuam contando; corrigido na fase 3, teste em `layout.test.ts`). O chip "N em andamento" conta, pelos dados e não
+  <sessão>: título" e chip "N aguardando sessão"; não conta como "em andamento" (nem a das linhas ✉ dos cartões de filha: o `active` do `ui.render` exclui, além dos `sentIds` da fila desta sessão, os objetos de tarefa das linhas de tom `sent`, por objeto e não por id, porque ids se repetem entre sessões; uma ✉ com filhos desenhados tem `nodes` vazio e as folhas abertas dela continuam contando; corrigido na fase 3). O chip "N em andamento" conta, pelos dados e não
   pelas linhas desenhadas (`activeLeaves`), todas as folhas abertas (◉ e ○, sem subtarefas) de todos
   os grupos do painel e das sessões não arquivadas (até `DEEP`), como o `total`: é M − N do "N de M"
   (interrompidas fora dos dois), menos as que esperam confirmação (chip ✉). Pedido do usuário: "a
@@ -1454,7 +1354,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   subtarefa aberta, e publica o painel, para o cartão na sessão mãe não ficar "parada". O aviso de
   recebimento diz que o painel já fechou a tarefa (reabrir com `start` se faltou algo); o `RULES` e
   o aviso de "ficou na fila" dizem que a tarefa fica em andamento até o recebimento e que a sessão
-  pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa.
+  pode encerrar o turno. `done` que fecha a tarefa de um envio ainda na fila conclui, mas avisa; e,
+  desde o item do ✉ até a entrega, o ✉ continua na tarefa concluída até a entrega (o `done` não
+  apaga mais o envio).
   A regra está no `RULES`.
 - Etapa por etapa (pedido do usuário: "ela ficou parada muito tempo na primeira tarefa, e derepente
   pulo para a ultima"): a causa era o agente, que não chamava `start` e fechava várias etapas num
@@ -1490,17 +1392,18 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   resumida, selecionada (≡ resumida, ▤ completa)"). No terminal, os glifos no fim da linha do
   título, o escolhido entre colchetes ("[≡] ▤").
   A escolha fica no estado `view` (reload) e no store em `view:<session id>`; no `session.start`,
-  sem estado, vale a do store (resume) ou, sem ela, a resumida (sessão nova). Sem estado nenhum (o
-  kit de testes, que não roda o `session.start`), o render usa a completa.
+  sem estado, vale a do store (resume) ou, sem ela, a resumida (sessão nova). Sem estado nenhum (sem `session.start`), o render usa a completa.
   Trabalho atual (pedido do usuário: "somente limpe os itens quando todos estiverem concluidos e quando
   iniciarem novas tarefas"): o estado `work` (e o store em `work:<session id>`, restaurado no
   `session.start`) guarda os níveis 1 do grupo principal do trabalho atual. Regra de hoje (correção
   depois da fase 6, branch `fix/resumida-so-tarefas-do-turno`; pedido do usuário: "segundo a regra
   antiga, na visão resumida, ficam somente as tarefas novas do turno"): um `plan` ou `start` do loop
   principal começa trabalho novo (`startsWork`) numa mensagem do usuário (turno) diferente da do
-  trabalho atual, mesmo com folhas abertas no painel; o trabalho novo são os níveis 1 novos mais os
-  do trabalho anterior que ainda têm algo aberto embaixo (`goingOn`); os pedidos todos concluídos
-  saem. No mesmo turno, os níveis 1 dele entram no atual (um nível 1 concluído renomeado pelo plano
+  trabalho atual, mesmo com folhas abertas no painel (regra substituída: o trabalho novo eram os níveis
+  1 novos mais os do trabalho anterior que ainda tinham algo aberto embaixo (`goingOn`), e os pedidos
+  todos concluídos saíam; hoje, com algo aberto à vista o trabalho anterior fica inteiro e o novo entra
+  embaixo, e só com tudo à vista concluído o painel é limpo (`openInSight`); ver "Resumida: tudo à
+  vista segura o painel" em "Como é hoje"). No mesmo turno, os níveis 1 dele entram no atual (um nível 1 concluído renomeado pelo plano
   continua); `/clear` zera. Sem turnos registrados (painéis antigos), vale a regra antiga: só com
   `nothingOpen` (nenhuma folha aberta no painel, sessões incluídas). Antes, só `nothingOpen` decidia:
   uma filha parada com uma tarefa aberta (caso comum na orquestradora) fazia todo pedido novo entrar
@@ -1508,7 +1411,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   concluídos acima do novo). (Regra substituída depois: um nível 1 concluído com sessão viva embaixo agora fica no
   recorte, com o seu pedido, e o cartão fica sob a tarefa que mandou a mensagem; ver "Cartões no
   lugar certo" em "Como é hoje".)
-  Regra do usuário fixada em teste (`resumida-limpeza.test.ts`): "quando eu enviar novas mensagens,
+  Regra do usuário: "quando eu enviar novas mensagens,
   em novos turnos, se existirem tarefas em andamento, essas tarefas devem continuar sendo mostradas.
   o painel só deve ser limpo quando enviar uma mensagem em um novo turno e todas as tarefas estiverem
   finalizadas." Uma tarefa com ✉ pendente não está finalizada: continua à vista, com o ✉.
@@ -1516,7 +1419,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   usar a mesma base de logica da visao completa, com o diferencial que ela somente mostra as tarefas
   em andamento e elas somente sao ocultas dessa visao quando todas estao completas"): mesmas linhas,
   mesmos botões no ícone e o mesmo estado de abrir e recolher (`collapsed`, compartilhado pelas duas visões, já
-  que as chaves são as mesmas). O recorte (`cut` no render, com `trimToWork`) é o trabalho atual:
+  que as chaves são as mesmas). O recorte (`cut` no render, com `trimToWork`) é o trabalho atual (hoje
+  com a regra de tudo à vista: ver "Resumida: tudo à vista segura o painel"):
   seus níveis 1 com os demais dos mesmos turnos (o d/n do turno bate com as linhas), os subagentes
   e as sessões debaixo deles ou ainda vivos; sem `work` (painéis antigos), o turno mais recente com
   tarefas; sem turnos, o último nível 1 aberto (ou o último), nunca o painel inteiro. Tudo concluído, o recorte continua com ✓ até o trabalho novo.
@@ -1524,14 +1428,14 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `SendMessage` do loop principal a uma sessão grava em `Child.lastAnchor` a tarefa em andamento; o
   recorte põe a sessão sob essa tarefa se ela estiver no trabalho, senão sob a de origem (se
   estiver), senão, viva, solta no fim da lista (regra substituída: hoje o recorte não realoca
-  cartão nenhum, cada um fica sob a tarefa que mandou a mensagem, como na completa, e o nível 1 com
-  sessão trabalhando embaixo fica no recorte; ver "Cartões no lugar certo" em "Como é hoje"); a completa não muda, salvo que o pedido com sessão trabalhando embaixo não sai do corte
+  cartão nenhum, cada um fica sob a tarefa que mandou a mensagem, como na completa, e uma sessão viva
+  sob pedido fora do trabalho não puxa o pedido de volta; ver "Cartões no lugar certo" em "Como é hoje"); a completa não muda, salvo que o pedido com sessão trabalhando embaixo não sai do corte
   dos 3 últimos. Dentro do cartão, só a rodada
   atual da sessão ("so devem aparecer as novas dessa rodada"): cada sessão publica o seu `work`
   (`Panel.work`) e o mesmo `trimToWork` corta o painel dela e o das netas. No recorte, d/n, barra,
   tempo e as somas dos pais seguem a rodada; o cabeçalho segue a sessão inteira. Tarefa em
   andamento sem `start` conta o tempo desde `plannedAt` (linha e turno). O `alt` do cabeçalho diz a
-  visão. Nos testes, o helper `view` tira os glifos do toggle da linha do título.
+  visão. 
 - Anel de contexto da sessão filha (pedido do usuário: "no item pai mais alto de uma sessao filha
   ... um icone a esquerda do icone de sessao filha, mostrando a porcentagem de contexto usado"): cada
   sessão publica no seu arquivo (`publishWait`, também no `turn.complete` do loop principal)
@@ -1558,8 +1462,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   2); constantes `RING_D` 15, `RING_CELLS` 4, `RING_IN` = `CARD_RIGHT` + `RING_D` = 17,5). A regra "ancorar pela borda mais próxima" (ícone e nome contados pela esquerda, anel pela direita; célula `CELL` = 8 contra ≈7,87 reais) está escrita uma vez, no cabeçalho de `draw/geometry.ts`; `foldOver`/`ringOver`/`nameLayer` só chamam `overlay`; o anel não usa mais o `overBox`. Motivo, medido nos prints do usuário ("ainda não, segue
   desalinhado"; aprovado depois com "Sim, ficou certo"): a célula do desktop tem um pouco menos de
   8 px (≈7,87); contado da esquerda (cerca de 57 células) o erro somava ≈7 px e o anel ficava fora
-  do realce, e contado da direita ele é de fração de px. O teste confere o `Box` pela direita, com 4
-  células e folgas iguais até 1 px. O kit não dá tamanho ao `Button`, e o teste não mede o realce
+  do realce, e contado da direita ele é de fração de px. O `Box` fica conferido pela direita, com 4 células e folgas iguais até 1 px. O kit não dá tamanho ao `Button`, e o realce
   nativo)
   chama `open_session_in`
   (servidor `ccd_window`, `target: focus`) por `$.mcp.call` (`openSession`), o mesmo efeito de
@@ -1580,21 +1483,22 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   5.5" (sem `[1m]` nem data; nome fora do formato fica como veio). Desenho: texto cinza de 11 px,
   terminando 8 px à esquerda do anel (sem anel, na borda do cartão), omitido se fosse encostar no
   nome, e citado no `alt`; vale em todos os cartões da sessão. Não entra no cabeçalho do painel da
-  própria sessão (o app já mostra o próprio modelo). O hook `turn.step` não tem teste: o kit não
-  tem implementação base para o evento em stream.
+  própria sessão (o app já mostra o próprio modelo). O hook `turn.step` não é reproduzido pelo kit: ele não tem implementação base para o evento em stream.
 - Sessão arquivada (pedido do usuário: "Manter visível, marcada"): continua na árvore como histórico,
   sob a âncora, nas duas visões (na resumida, se a âncora estiver no recorte), com o cartão cinza,
   ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros. O
   `panelOf` de uma arquivada marca como interrompido o que ela deixou aberto (fora do M do "N de
-  M", no chip de interrompidas). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
+  M", no chip de interrompidas; desde a série 3 vale também para a sessão que terminou o turno sem
+  estar arquivada, só para o que estava em andamento, e as pendentes seguem pendentes: ver "Tarefas abertas de uma sessão que terminou o turno" em "Como é hoje"). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
   do cabeçalho; o chip "em andamento" e "sessão ativa" não a contam. Nos ancestrais, a ⑂ continua; no cartão,
   o anel mostra o último percentual, esmaecido (`Ring.faded`).
 - Pai aguardando (pedido do usuário: "nas tarefas que estao aguardando e ja tem alguma tarefa
   concluida, marque os pais como aguardando"): uma tarefa ou turno aberto, com algo concluído abaixo e
   nada em andamento (não acesa pelo `current`, sem ✉ nem sessão viva), tem o tom `paused`: ◷ âmbar
   no lugar do ○, `alt` "Aguardando: …", tempo parado no último fim abaixo (`stillSpan`). Não entra em
-  chip. Como o `current` acende a primeira aberta quando nada foi iniciado, isso aparece quando outra
-  tarefa está em andamento.
+  chip. (Hoje o `current` não acende nada sem `start`, então um pai aberto com algo concluído embaixo
+  e nada aceso aparece ◷ sempre que não há tarefa em andamento; ver "Sem start, nada aceso" em "Como é
+  hoje".)
 - Avisos do app (`<system-reminder>` com `<side-sessions-event>`, quando uma sessão filha termina) não
   chegam como `unclassified`: são reconhecidos pelo texto e tratados como `NO_TURN` (sem turno, sem
   título, sem pedido de request).
@@ -1615,8 +1519,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   recebida com `at` ≥ o envio, ou qualquer turno depois dele, confirmava todos: com duas mensagens
   na fila para a mesma sessão ocupada, a primeira entrega fechava as duas tarefas e a segunda, ainda
   pendente, sumia do painel. Destino sem `received` (versões antigas): um turno publicado depois do
-  envio; senão a regra antiga (vista parada, depois rodando). Um `done` que fecha a tarefa do envio, um replan dela e o `/clear` tiram o envio de `sends`
-  (sem ✉ fantasma num id reaproveitado).
+  envio; senão a regra antiga (vista parada, depois rodando). Um replan da tarefa de envio e o `/clear` tiram o envio de `sends`; um plano que
+  reusa o id de uma tarefa fechada renomeia a tarefa e o envio dela junto (`renameAnchors`); um `done`
+  não tira mais o envio (o ✉ fica até a entrega). Assim não sobra ✉ fantasma num id reaproveitado.
 
 ### Pendências
 
