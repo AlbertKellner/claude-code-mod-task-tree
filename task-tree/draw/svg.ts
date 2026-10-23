@@ -3,7 +3,7 @@
 // puts them in the pane's Svg elements and lays the Buttons over them (../draw/geometry says where).
 
 import {
-  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
 import type { Tone, Row, Frame, Guide } from './layout'
@@ -404,7 +404,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
   const L = HEADER_PAD
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
-  const H = empty ? HEADER_H_EMPTY : list.length > 0 ? HEADER_H_CHIPS : HEADER_H
+  const H = HEADER_H
   const parts: string[] = []
   if (empty) {
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
