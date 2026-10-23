@@ -132,7 +132,11 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    host de novo, se tem mais de `POLL` ms); um `mcp__ccd_session__start_session` passa por
    `recordStart` (o id `local_…` do resultado entra em `children` com a tarefa em andamento como
    `anchor`); então, por nome e nesta ordem, `sentMessage` (grava a rodada em `Child.rounds` e
-   `lastAnchor`, o envio em `sends`, e avisa se ficou na fila), `sessionNotes` (`endedNote`,
+   `lastAnchor`, o envio em `sends`, e avisa se ficou na fila; se o destino não está em `children`, por id
+   nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
+   `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
+   `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
+   host listar a sessão), `sessionNotes` (`endedNote`,
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
 
@@ -429,6 +433,11 @@ mantida), em `draw/layout.ts`:
   do lote ia para a tarefa da PRIMEIRA mensagem; o caso real que a derrubou: "uma rodada basta" e o bug
   dos cliques foram entregues juntos, o cartão com o trabalho apareceu sob a primeira e o pedido dos
   cliques ficou sem cartão.)
+- Rodadas perdidas: se a sessão não estava na lista do host quando a mensagem saiu, `sentMessage` cria a
+  entrada com a rodada (como `recordStart`), e `unsent()` abre uma rodada órfã por mensagem recebida
+  mesmo com zero rodadas registradas (âncora: a tarefa aberta na hora, senão a iniciada por último
+  antes, senão sem âncora). Sem isso o cartão do turno caía na parte 0, sem tarefa para ficar embaixo, e
+  a resumida o cortava.
 - Teste: `tests/cartoes-lugar.test.ts` (8, incluindo as três do lote: "quatro mensagens na fila
   entregues juntas: o cartão do turno vai para a tarefa da última", "o caso real: "uma rodada basta" e
   o bug dos cliques entregues juntos: o trabalho fica sob o pedido dos cliques" e "uma mensagem por turno: cada
@@ -1452,6 +1461,16 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   também vão para o fim. Antes, essas mensagens caíam na rodada anterior e o cartão ficava acima de
   outro pedido. Um turno interrompido por crash antes de salvar a resposta fica sem ↩. Cartão de rodada já
   fechada de sessão ainda rodando mostra ✓ sem a palavra "concluída".
+  Rodadas perdidas por a sessão não estar na lista do host (teste visual: as mensagens do primeiro
+  "passo 5" para a svg não deixaram rodada, porque a svg não estava na lista naquele instante;
+  `unsent()` devolvia nada com zero rodadas, e os turnos abertos por elas caíram na parte 0 do cartão,
+  sem tarefa para ficar embaixo: cartões soltos, cortados pela resumida): (1) `sentMessage`
+  (`hooks/tool-call.ts`) cria a entrada da sessão com a rodada quando o destino ainda não está em
+  `children` (ver "Fluxo de dados"); (2) `unsent()` (`draw/layout.ts`) não exige mais rodada registrada:
+  com zero rodadas, cada mensagem recebida desta sessão (o `received` publicado pela outra) abre uma
+  rodada órfã, com a âncora na tarefa da principal aberta na hora da mensagem, senão a iniciada por
+  último antes dela (a mesma regra de um envio sem tarefa em andamento), senão sem âncora (fim do
+  painel).
 - Tarefa que enviou a mensagem (`sendAnchor`; pedido do usuário: "o segundo painel de
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
   de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
