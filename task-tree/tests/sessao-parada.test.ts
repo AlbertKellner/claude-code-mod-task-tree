@@ -24,7 +24,7 @@ const docs = (running: boolean) =>
     [task('H', 'Hunks do bug dos cliques', 'open', {
       turn: 1, started: 1, plannedAt: T0 + 10, startedAt: T0 + 10,
       children: [task('H/1', 'Ler o código e o doc', 'open', { started: 2, plannedAt: T0 + 10, startedAt: T0 + 20 }), task('H/2', 'Mandar os hunks', 'done', { plannedAt: T0 + 10, startedAt: T0 + 30, endedAt: T0 + 60 })],
-    }), task('P', 'Revisar depois', 'open', { turn: 1, plannedAt: T0 + 10 })],
+    })],
     [turn(1, T0 + 5, { reply: 'Hunks enviados.', brief: 'Hunks enviados' })],
   ), { anchor: 'M', running })
 const mother = () => main([task('M', 'Pedir a docs', 'open', { started: 1, plannedAt: T0, startedAt: T0 })])
@@ -39,13 +39,12 @@ describe('sessão que terminou o turno: as tarefas abertas dela não ficam em an
       // No clock running: not the time to now.
       expect(r.time === undefined || r.time === null || (r.time as number) < NOW - T0 - 1000).toBe(true)
     }
-    // A task it never started stays pending (open, not lit), not interrupted.
-    expect(row(rows, 'Revisar depois')?.tone).toBe('open')
-    // The header: the subtask left open is interrupted, out of the count; the mother's open task, the
-    // closed subtask and the pending task count (1 of 3).
+    // The header's "em andamento": no open leaf of the stopped session (the mother's own task stays).
     const shown = rows.flatMap(r => r.nodes ?? [])
-    expect(flat(shown).filter(t => t.status === 'open' && t.children.length === 0).map(t => t.title)).toEqual(['Pedir a docs', 'Revisar depois'])
-    expect(count(shown)).toEqual([1, 3, 1])
+    expect(flat(shown).filter(t => t.status === 'open' && t.children.length === 0).map(t => t.title)).toEqual(['Pedir a docs'])
+    // Not done either: of the leaves, the mother's open one and the closed subtask count (1 of 2), and
+    // the subtask left open is interrupted, out of the count.
+    expect(count(shown)).toEqual([1, 2, 1])
   })
 
   test('trabalhando: as mesmas tarefas seguem em andamento (regra mantida)', () => {
@@ -93,53 +92,5 @@ describe('a própria sessão, depois do fim do turno', () => {
     expect(after).toContain('✕ Ler')
     await ask($, 'continue')
     expect(await pane($)).toContain('◉ Ler')
-  })
-})
-
-// The end of a turn touches only what was in progress (started and not closed): a task never started
-// stays pending, the plan goes on in the next turn. The person's panel: five steps planned, the first
-// done, the turn ended on purpose waiting for the person; steps 2 to 5 came out "✕ interrompida" ("4
-// interrompidas"), and the header said "Passo 2 · 2 de 2 · 100%".
-describe('fim do turno com tarefas pendentes', () => {
-  test('cinco passos, só o primeiro feito: os outros quatro seguem pendentes; o título é o do passo iniciado por último', async ($, on) => {
-    host(on)
-    await ask($, 'teste passo a passo')
-    await call($, 'plan', {
-      tasks: [
-        { id: 'p1', title: 'Passo 1', children: [{ id: '1', title: 'Etapa 1' }, { id: '2', title: 'Etapa 2' }] },
-        { id: 'p2', title: 'Passo 2' },
-        { id: 'p3', title: 'Passo 3' },
-        { id: 'p4', title: 'Passo 4' },
-        { id: 'p5', title: 'Passo 5' },
-      ],
-      request: 'teste passo a passo',
-    })
-    await call($, 'start', { ids: ['p1/1'] })
-    await call($, 'done', { ids: ['p1/1'] })
-    await call($, 'start', { ids: ['p1/2'] })
-    await call($, 'done', { ids: ['p1/2'] })
-    await end($)
-    const after = await pane($)
-    for (const k of [2, 3, 4, 5]) {
-      expect(after).toContain(`○ Passo ${k}`)
-      expect(after).not.toContain(`✕ Passo ${k}`)
-    }
-    expect(after.startsWith('Passo 1')).toBe(true)
-    expect(after).toContain('2 de 6')
-    // The next turn goes on with the plan: start lights the next step.
-    await ask($, 'pode seguir')
-    await call($, 'start', { ids: ['p2'] })
-    expect(await pane($)).toContain('◉ Passo 2')
-  })
-
-  test('uma tarefa interrompida pelo fim do turno volta com start', async ($, on) => {
-    host(on)
-    await ask($, 'um pedido')
-    await call($, 'plan', { tasks: [{ id: 'A', title: 'Única' }], request: 'um pedido' })
-    await call($, 'start', { ids: ['A'] })
-    await end($)
-    expect(await pane($)).toContain('✕ Única')
-    await call($, 'start', { ids: ['A'] })
-    expect(await pane($)).toContain('◉ Única')
   })
 })

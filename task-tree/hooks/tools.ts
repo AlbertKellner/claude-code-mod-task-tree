@@ -9,7 +9,7 @@ import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { PANE, reminders, renameAnchors, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
+import { PANE, reminders, renameAnchors, change, ensureGroup, joinWork, lastBrief, stamp, startsWork } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -35,7 +35,6 @@ export async function planTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) reminders.planned = true
-    if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { tasks?: InNode[]; request?: string }
     const fresh = build(input.tasks ?? [], 1, undefined, await stamp($))
     const request = typeof input.request === 'string' ? input.request.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
@@ -123,7 +122,6 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) reminders.planned = true
-    if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { ids?: string[]; summary?: unknown }
     if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') await $.state.set(briefState, input.summary)
     let notes: string[] = []
@@ -181,7 +179,6 @@ export async function startTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) reminders.planned = true
-    if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { ids?: string[] }
     let notes: string[] = []
     let begun: string[] = []

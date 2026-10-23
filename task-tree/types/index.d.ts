@@ -32,8 +32,7 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
 // `anchor`, the task the loop that launched it (`parent`) was on at launch. `turns`, the main
 // group's only, in order; absent in panels of earlier versions, whose tasks are drawn loose.
-// `idle`: drawn only, a group whose turn ended (see halt in ../draw/layout): nothing lit by default.
-export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; idle?: boolean }
+export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[] }
 
 // An Agent call, recorded at launch until the subagent's group claims it.
 export type Launch = { parent: string; anchor?: string; description: string }
