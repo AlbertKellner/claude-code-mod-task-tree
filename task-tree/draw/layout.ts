@@ -529,13 +529,25 @@ export function limitRows(rows: Row[]): Row[] {
 // work (all those of the turns they are in), the subagents and sessions under them or still at
 // work, and the same cut on those sessions. With no work published (earlier versions), the last
 // turn that has tasks; with no turns either, the last open level-1 task, else the last one.
-// Of the current work (`ids`, level-1 tasks of the main group), the ones still going on: something
-// open below them. A new request keeps these and drops the requests all done. A session still at
-// work under a done task does not keep the task: the summary draws a live session with no task in
-// the work at the end of the list (trimToWork), as the person asked before.
-export function goingOn(p: Panel, ids: string[]): string[] {
+// Whether anything in the summary's sight is still open: the current work (`ids`, level-1 tasks of the
+// main group) with the other level-1 tasks of their requests, a message not yet taken up from one of
+// them (✉), or a session's card under one of them with an open task (as the card draws it, panelOf:
+// a stopped session's started tasks read interrupted, its pending ones stay open). The person's
+// rule for the summary: "as tarefas concluídas deveriam ficar do jeito que estão até todas as tarefas
+// estarem concluídas, só então o painel seria resetado com um novo turno; senão, as tarefas vão sendo
+// adicionadas no painel". A new request with something open in sight keeps everything in sight, done
+// requests included; with nothing open, it clears the summary (joinWork). It used to keep only the
+// level-1 tasks with something open of their own, so a done request left while another was still
+// open, and a card with an open task did not hold its request.
+export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; taken?: boolean }[]): boolean {
   const main = withMain(p.groups ?? []).find(g => g.agent === MAIN)
-  return (main?.tasks ?? []).filter(t => ids.includes(t.id) && hasOpen([t])).map(t => t.id)
+  const tasks = main?.tasks ?? []
+  const turns = tasks.filter(t => ids.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+  const seen = tasks.filter(t => ids.includes(t.id) || (t.turn !== undefined && turns.includes(t.turn)))
+  if (hasOpen(seen)) return true
+  const all = flat(seen).map(t => t.id)
+  if (sends.some(s => !s.taken && s.anchor !== undefined && all.includes(s.anchor))) return true
+  return (p.children ?? []).some(c => c.anchor !== undefined && all.includes(c.anchor) && hasOpen(allTasks(panelOf(c), 1)))
 }
 
 export function trimToWork(p: Panel, level: number): Panel {
@@ -547,11 +559,10 @@ export function trimToWork(p: Panel, level: number): Panel {
     const lone = [...main.tasks].reverse().find(t => t.status === 'open') ?? main.tasks[main.tasks.length - 1]
     work = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : lone ? [lone.id] : []
   }
-  // A level-1 task with a session at work under it is still going on: it stays, with its request,
-  // and the card stays under it (the person's words: "se existirem tarefas em andamento, essas
-  // tarefas devem continuar sendo mostradas").
-  const busy = level >= DEEP ? [] : main.tasks.filter(t => atWork(t, p.children ?? [], level).live).map(t => t.id)
-  const wanted = [...work, ...busy]
+  // The requests of the work, whole. A session still at work under a request out of the work does not
+  // pull the request back (the person's decision; it did, and a day-old request came back with its
+  // old cards while a session worked), nor is its card drawn loose: a card is drawn where its task is.
+  const wanted = work
   const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
   const ids = flat(keep).map(t => t.id)
@@ -565,7 +576,7 @@ export function trimToWork(p: Panel, level: number): Panel {
       level >= DEEP
         ? (p.children ?? [])
         : (p.children ?? [])
-            .filter(c => under(c.anchor) || live(c))
+            .filter(c => under(c.anchor) || c.anchor === undefined)
             .map(c => ({ ...c, panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
   }
 }

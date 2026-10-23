@@ -2170,18 +2170,16 @@ describe('sessão filha na resumida', () => {
     expect(texts.find(t => t.includes('Pedir à filha'))).not.toContain('⑂')
   })
 
-  // A live session whose task is not in the current work: its task is still going on (a session at
-  // work under it), so the summary keeps it, with its request, and the card under it (it was drawn
-  // loose at the end of the list; the person's rule now: every card under the task that sent it).
-  test('sessão viva sem tarefa no trabalho atual: a resumida a mostra sob a tarefa que a abriu, no pedido dela', async ($, on) => {
+  // A live session whose task is not in the current work: the summary does not pull its request back
+  // (the person's decision after the visual test; it did, and a day-old request came back with its
+  // old cards while a session worked). The card is drawn where its task is, in the full view.
+  test('sessão viva sem tarefa no trabalho atual: a resumida não puxa o pedido dela de volta', async ($, on) => {
     setup(on, () => true)
     await story($)
     await summary($)
     const texts = rowsOf(await view($)).map(l => l.text)
-    const origin = texts.findIndex(t => t.includes('Abrir a filha'))
-    expect(texts[0]).toContain('primeiro')
-    expect(origin).toBeGreaterThan(0)
-    expect(texts[origin + 1]).toContain('⑂ filha')
+    expect(texts.some(t => t.includes('Abrir a filha'))).toBe(false)
+    expect(texts.some(t => t.includes('⑂ filha'))).toBe(false)
     expect(texts.some(t => t.includes('terceiro'))).toBe(true)
   })
 })

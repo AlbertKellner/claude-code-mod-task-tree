@@ -83,7 +83,8 @@ describe('cartões: recolher fica com o cartão, mesmo quando as rodadas passam 
 
 describe('cartões: o cartão de uma sessão trabalhando fica sob a tarefa que mandou a mensagem', () => {
   // Request 1 sent the message from "z1" (done); requests 2, 3 and 4 came later; the child is at work on
-  // that message. The current work is request 4's.
+  // that message. The current work holds requests 1 and 4 (the card with an open task kept request 1
+  // in sight; requests 2 and 3 were planned with nothing open and left).
   const build = () => {
     const at = (k: number) => T0 + k * 10_000
     const mturns = [1, 2, 3, 4].map(k => turn(k, at(k), { title: `Pedido ${k}` }))
@@ -104,13 +105,13 @@ describe('cartões: o cartão de uma sessão trabalhando fica sob a tarefa que m
 
   test('resumida: o cartão aparece sob "Mandar o bug à filha", no pedido dela, não solto no fim', () => {
     const { mother, kid } = build()
-    const t = titles(layout(model([mother], [kid], { view: 'summary', work: ['v4'] }), {}, NOW, ME))
+    const t = titles(layout(model([mother], [kid], { view: 'summary', work: ['z1', 'v4'] }), {}, NOW, ME))
     const origin = t.findIndex(x => x.trim() === 'Mandar o bug à filha')
     const card = t.findIndex(x => x.trim() === '⑂ filha')
     expect(origin).toBeGreaterThanOrEqual(0)
     expect(card).toBe(origin + 1)
     expect(t.some(x => x.includes('Pedido atual'))).toBe(true)
-    // Done requests with nothing going on still leave the summary.
+    // Requests out of the work are not drawn.
     expect(t.some(x => x.includes('Outra coisa feita'))).toBe(false)
   })
 
@@ -146,8 +147,8 @@ describe('resumida: a completa sem os pedidos finalizados, cartões nas mesmas �
     // Opened on a1; its last message went from b2 (lastAnchor), with no round recorded (older data).
     const kid = child(KID, 'filha', panel([task('G', 'Trabalho da filha', 'open', { plannedAt: at(1) + 70, startedAt: at(1) + 70, started: 1 })]), { anchor: 'a1', lastAnchor: 'b2', running: true })
     const m = main(mtasks, mturns)
-    const full = layout(model([m], [kid], { work: ['b2'] }), {}, NOW, ME)
-    const summary = layout(model([m], [kid], { work: ['b2'], view: 'summary' }), {}, NOW, ME)
+    const full = layout(model([m], [kid], { work: ['a1', 'b2'] }), {}, NOW, ME)
+    const summary = layout(model([m], [kid], { work: ['a1', 'b2'], view: 'summary' }), {}, NOW, ME)
     expect(parents(full)).toEqual(['s:local_filha ⟵ Investigar ainda'])
     expect(parents(summary)).toEqual(parents(full))
   })
