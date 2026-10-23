@@ -73,12 +73,27 @@ export const DARK: [string, string][] = [
   ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#444441'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
-// The sheet of one Svg: its classes' rules, light and dark.
+// The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
+// alone, so it is built once per set (a drawing's lines share a handful of sets) and kept in a Map of
+// the module; the string is the same the rules would give again.
+const sheets = new Map<string, string>()
+const CLASS = /class="([^"]+)"/g
 export function slim(svg: string): string {
-  const used = new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(' ')))
-  const rules = (list: [string, string][]) => list.filter(([c]) => used.has(c)).map(([c, d]) => `.${c}{${d}}`).join('')
-  const dark = rules(DARK)
-  return svg.replace(STYLE, `<style>svg,text{cursor:default;user-select:none}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`)
+  // The key is the class attributes in the order they come (lines of one kind share it), read in
+  // one pass; the set itself is only built when the sheet is not known yet.
+  let key = ''
+  CLASS.lastIndex = 0
+  for (let m = CLASS.exec(svg); m !== null; m = CLASS.exec(svg)) key += m[1] + '|'
+  let sheet = sheets.get(key)
+  if (sheet === undefined) {
+    const used = new Set(key.split(/[ |]/))
+    const rules = (list: [string, string][]) => list.filter(([c]) => used.has(c)).map(([c, d]) => `.${c}{${d}}`).join('')
+    const dark = rules(DARK)
+    sheet = `<style>svg,text{cursor:default;user-select:none}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`
+    if (sheets.size > 1000) sheets.clear()
+    sheets.set(key, sheet)
+  }
+  return svg.replace(STYLE, sheet)
 }
 
 export const xml = (s: string) =>
@@ -87,8 +102,19 @@ export const xml = (s: string) =>
 // SVG text neither wraps nor clips: a rough width of system UI text, in px, to cut titles
 // with "…" before they run into what is on the right. Wide scripts and emoji take ~1em.
 export const WIDE = /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿가-힣豈-﫿！-｠\u{1f300}-\u{1faff}]/u
-export const em = (ch: string) =>
+const emOf = (ch: string) =>
   WIDE.test(ch) ? 1 : /[\s.,:;'!|il1()[\]ftrj]/.test(ch) ? 0.32 : /[A-ZMWmw@%]/.test(ch) ? 0.7 : 0.56
+// The width of each character is fixed: remembered once measured (three regex tests), as the same
+// characters come up in every title of every drawing.
+const ems = new Map<string, number>()
+export const em = (ch: string) => {
+  let w = ems.get(ch)
+  if (w === undefined) {
+    w = emOf(ch)
+    ems.set(ch, w)
+  }
+  return w
+}
 export const textW = (s: string, size: number) => Array.from(s).reduce((w, ch) => w + em(ch) * size, 0)
 // A name cut with … carries the whole one in a `<title>`: the tooltip under the mouse, drawn
 // only by an interactive Svg (`hovers`), so the pane need not be widened to read it.
@@ -108,10 +134,17 @@ export function hoverLayer(source: string, w: number, h: number): string {
 }
 export function fit(s: string, size: number, max: number): string {
   if (textW(s, size) <= max) return s
+  // Linear in the title: the width of what is kept is accumulated as textW would add it (the same
+  // terms in the same order, so the same floating-point sums and the same cut), instead of measuring
+  // the whole prefix again for every character.
+  const dots = em('…') * size
   let out = ''
+  let w = 0
   for (const ch of Array.from(s)) {
-    if (textW(out + ch + '…', size) > max) break
+    const next = w + em(ch) * size
+    if (next + dots > max) break
     out += ch
+    w = next
   }
   return out.trimEnd() + '…'
 }

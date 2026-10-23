@@ -32,18 +32,22 @@ export async function refreshChildren($: any) {
   // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
   // outside the desktop app there are no sessions to show, so no line either.
   const listed = await listSessions($)
+  // The error line is written only when it changes (every poll cleared it before).
+  const { value: shownError = '' } = await $.state.get(childrenErrorState)
   if ('error' in listed) {
-    await $.state.set(childrenErrorState, (await inDesktopApp($)) ? listed.error : '')
+    const error = (await inDesktopApp($)) ? listed.error : ''
+    if (error !== shownError) await $.state.set(childrenErrorState, error)
     return
   }
-  await $.state.set(childrenErrorState, '')
+  if (shownError !== '') await $.state.set(childrenErrorState, '')
   const rows = listed.rows
   if (!Array.isArray(rows)) return
   // Messages queued to any session (its children, its mother, its sisters): before the returns below.
   await watchSends($, rows)
-  // No linked session at all: this one opened none.
+  // No linked session at all: this one opened none (the state is cleared once, not every poll).
   if (rows.length === 0) {
-    await update($, childrenState, () => [])
+    const { value: cur } = await $.state.get(childrenState)
+    if ((cur ?? []).length > 0) await $.state.set(childrenState, [])
     return
   }
   const mine = mineOf(rows)
@@ -51,13 +55,13 @@ export async function refreshChildren($: any) {
   // 2. Their files.
   const read = await readFiles($, mine)
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
-  // it opened them on (see endedNote).
-  let ended: string[] = []
-  await update($, childrenState, cur => {
-    const derived = deriveChildren(mine, cur ?? [], read, keptLink)
-    ended = derived.ended
-    return derived.children
-  })
+  // it opened them on (see endedNote). The state is written only when the children changed: a poll
+  // with nothing new (the usual one, every 3 s) derives the same list, and a write of it would cost
+  // the whole value crossing to the host (220 KB in the real case) and a redraw.
+  const { value: cur } = await $.state.get(childrenState)
+  const derived = deriveChildren(mine, cur ?? [], read, keptLink)
+  const ended = derived.ended
+  if (JSON.stringify(derived.children) !== JSON.stringify(cur ?? [])) await $.state.set(childrenState, derived.children)
   if (ended.length > 0) await update($, endedState, cur => [...(cur ?? []).filter(id => !ended.includes(id)), ...ended])
   // 4. The sessions' tasks are in this session's count, and in what it publishes to the one that
   // opened it.

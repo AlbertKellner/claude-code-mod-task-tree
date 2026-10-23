@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { REAL } from './fixtures/orquestradora-real'
-import { MAIN, count, flat, layout, total } from '../draw/layout'
+import { MAIN, count, flat, layout, newBreaksMemo, split, total } from '../draw/layout'
 import type { Model, Row } from '../draw/layout'
 import type { Child, Group, Panel, Published, TaskNode, Turn } from '../types'
 
@@ -270,5 +270,70 @@ describe('layout: regras, em modelos pequenos', () => {
     expect(rows[1].depth).toBe(0)
     expect(rows.some(r => r.title === 'Etapa 3 do grupo 149')).toBe(true)
     expect(rows.some(r => r.title === 'Grupo 0')).toBe(false)
+  })
+})
+
+// A deep session's cards (split): a synthetic daughter with 6 requests and 3 rounds of messages from
+// the mother, a wait, a subagent group hanging from a task and a granddaughter hanging from another.
+// The cards (their part, tasks, anchors, groups, waits, children, work) and the drawn lines of both
+// views are pinned here, before split's inner lookups were rewritten with maps (phase 6), so the
+// rewrite must give the same cards and the same lines.
+describe('split: os cartões de uma filha funda, fixados', () => {
+  const STEP = 1000
+  const first = T0 + 100
+  const turns = Array.from({ length: 6 }, (_, k) => turn(k + 1, first + k * STEP, { title: `Pedido ${k + 1} da filha`, reply: `Resposta ${k + 1}`, brief: `R${k + 1}` }))
+  const tasks = turns.map(u => {
+    const at = u.at as number
+    const open = u.id === 6
+    return task(`T${u.id}`, `Tarefa ${u.id}`, open ? 'open' : 'done', {
+      turn: u.id,
+      plannedAt: at,
+      startedAt: at,
+      ...(open ? {} : { endedAt: at + 500 }),
+      children: [
+        task(`T${u.id}/a`, `Passo a de ${u.id}`, 'done', { plannedAt: at, startedAt: at, endedAt: at + 200 }),
+        task(`T${u.id}/b`, `Passo b de ${u.id}`, open ? 'open' : 'done', { plannedAt: at, startedAt: at + 200, ...(open ? { started: 1 } : { endedAt: at + 500 }) }),
+      ],
+    })
+  })
+  // Three rounds: between requests 2|3, 4|5 and 5|6.
+  const rounds = [2, 4, 5].map(k => ({ at: first + k * STEP - 10, anchor: 'X/2' }))
+  const neta = child('local_neta', 'neta', panel([task('n1', 'Fundo', 'done', { startedAt: first + 3 * STEP + 10, endedAt: first + 3 * STEP + 20 })]), { anchor: 'T4', running: true })
+  const sub: Group = { agent: 'a1', label: 'sub', anchor: 'T2', tasks: [task('s1', 'Sub', 'done', { startedAt: first + STEP + 10, endedAt: first + STEP + 20 })] }
+  const file: Panel = {
+    groups: [main(tasks, turns), sub],
+    waits: [{ agent: MAIN, kind: 'question', tool: 'AskUserQuestion', key: 'q' }],
+    children: [neta],
+    work: ['T6'],
+    received: [],
+  }
+  const funda = child('local_funda', 'funda', file, { running: true, anchor: 'X/1', lastAnchor: 'X/2', rounds, context: 42 })
+  const mother = main([task('X', 'Orquestrar', 'open', { started: 1, startedAt: T0, turn: 1, children: [task('X/1', 'Abrir', 'done', { startedAt: T0, endedAt: T0 + 50 }), task('X/2', 'Conferir', 'open', { started: 1, startedAt: T0 + 50 })] })], [turn(1, T0)])
+  const card = (c: Child) => ({
+    part: c.part,
+    anchor: c.anchor,
+    lastAnchor: c.lastAnchor,
+    running: c.running,
+    waiting: c.waiting,
+    context: c.context,
+    tasks: (c.panel?.groups ?? []).find(g => g.agent === MAIN)?.tasks.map(t => t.id),
+    turns: (c.panel?.groups ?? []).find(g => g.agent === MAIN)?.turns?.map(u => u.id),
+    groups: (c.panel?.groups ?? []).map(g => g.agent),
+    waits: (c.panel?.waits ?? []).length,
+    children: (c.panel?.children ?? []).map(s => s.id),
+    work: c.panel?.work,
+  })
+
+  test('os cartões: parte, tarefas, âncoras, grupos, esperas, neta e trabalho', () => {
+    const cards = split(funda, [funda], ME, mother.tasks, NOW, newBreaksMemo())
+    expect(cards.length).toBe(4)
+    expect(JSON.stringify(cards.map(card))).toBe('[{"part":0,"anchor":"X/1","running":false,"waiting":false,"context":42,"tasks":["T1","T2"],"turns":[1,2],"groups":["","a1"],"waits":0,"children":[],"work":[]},{"part":1,"anchor":"X/2","running":false,"waiting":false,"context":42,"tasks":["T3","T4"],"turns":[3,4],"groups":[""],"waits":0,"children":["local_neta"],"work":[]},{"part":2,"anchor":"X/2","running":false,"waiting":false,"context":42,"tasks":["T5"],"turns":[5],"groups":[""],"waits":0,"children":[],"work":[]},{"part":3,"anchor":"X/2","lastAnchor":"X/2","running":true,"context":42,"tasks":["T6"],"turns":[6],"groups":[""],"waits":1,"children":[],"work":["T6"]}]')
+  })
+
+  test('as linhas das duas visões', () => {
+    const full = layout(model([mother], [funda], { work: ['X'] }), {}, NOW, ME)
+    const summary = layout(model([mother], [funda], { work: ['X'], view: 'summary' }), {}, NOW, ME)
+    expect(JSON.stringify(titles(full))).toBe('["Pedido 1","  Orquestrar","    Abrir","      ⑂ funda","        Tarefa 1","          Passo a de 1","          Passo b de 1","        Tarefa 2","          Passo a de 2","          Passo b de 2","        ↩ R1","        ↩ R2","    Conferir","      ⑂ funda","        Tarefa 3","          Passo a de 3","          Passo b de 3","        Tarefa 4","          ⑂ neta","            Fundo","          Passo a de 4","          Passo b de 4","        ↩ R3","        ↩ R4","      ⑂ funda","        Tarefa 5","          Passo a de 5","          Passo b de 5","        ↩ R5","      ⑂ funda","        Tarefa 6","          Passo a de 6","          Passo b de 6","            Aguardando sua resposta","        ↩ R6"]')
+    expect(JSON.stringify(titles(summary))).toBe('["Pedido 1","  Orquestrar","    Abrir","      ⑂ funda","        Tarefa 2","          Passo a de 2","          Passo b de 2","        ↩ R2","    Conferir","      ⑂ funda","        Tarefa 4","          ⑂ neta","            Fundo","          Passo a de 4","          Passo b de 4","        ↩ R4","      ⑂ funda","        Tarefa 5","          Passo a de 5","          Passo b de 5","        ↩ R5","      ⑂ funda","        Tarefa 6","          Passo a de 6","          Passo b de 6","            Aguardando sua resposta","        ↩ R6"]')
   })
 })
