@@ -141,8 +141,10 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // ends (then ''); in the state for the same reason.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
+// `turnEnded`: when this session's turn ended (its clock), until the next prompt (then null):
+// meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string; turnEnded: number | null }
   }
 }

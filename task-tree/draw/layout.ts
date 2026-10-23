@@ -70,11 +70,15 @@ export const DEEP = 3
 export const live = (c: Child) => !c.archived && (c.running || c.waiting === true)
 // A session's panel; earlier versions published only its main group's tasks. An archived session
 // stays in the tree as history (its last published panel): what it left open will not be done,
-// so it reads as interrupted (out of the count's total, drawn gray).
+// so it reads as interrupted (out of the count's total, drawn gray). A session that ended its turn
+// (not at work, not just opened) is not working either: what it left open reads as interrupted too,
+// with no clock and out of "em andamento" (the person's panel: a card "parada" with its tasks ◉ and
+// the clock running); once it works again, they are its open tasks again.
+export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN, label: '', tasks: c.tasks ?? [] }], waits: [], children: [] }
 export const panelOf = (c: Child): Panel => {
-  const p = c.panel ?? { groups: [{ agent: MAIN, label: '', tasks: c.tasks ?? [] }], waits: [], children: [] }
-  if (!c.archived) return p
-  return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
+  const p = rawPanel(c)
+  if (!c.archived && (live(c) || c.starting)) return p
+  return { ...p, ...(c.archived ? { waits: [] } : {}), groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
 }
 // A session in one card per message the main loop sent it (`rounds`): the card of a message holds
 // the turns the session opened after it (its tasks in plan order, the subagents, notices and
@@ -672,6 +676,9 @@ export type Model = {
   sends: Send[]
   view: 'full' | 'summary'
   work: string[]
+  // When this session's turn ended, until the next prompt: what its main loop left open is drawn
+  // with no close and its clock stopped then (a session that ended its turn shows no task running).
+  ended?: number
 }
 // The lines the person opened or closed (the folds atom): true closed, false open.
 export type Choices = Record<string, boolean>
@@ -679,7 +686,8 @@ export type Choices = Record<string, boolean>
 // The panel's lines from the model and the person's choices, against `now` (the times) and for
 // `ownId` (this session's id, for the sisters' messages). Pure: it reads nothing but its arguments.
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
-  const held = model.groups
+  const ended = model.ended
+  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(interrupt(ended)) } : g))
   const waits = model.waits
   const sessions = model.children
   const queued = model.sends
@@ -849,7 +857,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const pending = c.waiting === true && (p.waits ?? []).length === 0
     // Stopped with tasks still open (it waits for a signal, or the next message): not done; its
     // tasks stay in sight, as it planned them.
-    const parked = !live(c) && !c.archived && hasOpen(tasksOf(p.groups ?? []))
+    const parked = !live(c) && !c.archived && hasOpen(tasksOf(rawPanel(c).groups ?? []))
     const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
     // A card of one round (split) speaks for its group only: done, it shows the check, with no
     // word that would say the whole session ended.
