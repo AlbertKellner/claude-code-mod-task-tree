@@ -113,13 +113,15 @@ export type Break = { at: number; anchor?: string; peer?: boolean; known?: boole
 // `received`), matched in order against the rounds, opens a round all the same, or its turns would
 // join the round before it, under a task of an earlier request, drawn above requests between them
 // (the person's words: "layout quebrou novamente"). Its task is the main task of `me` that was open
-// when the message came (the one that sent it, waiting on it); with none, no task: the card goes
-// to the end of the panel, never between other requests.
+// when the message came (the one that sent it, waiting on it), else the one started last before it
+// (as a message sent between tasks is anchored); with none, no task: the card goes to the end of the
+// panel, never between other requests. A session with no round at all is matched the same way (it
+// returned nothing: the svg's turns from a message sent before the host listed it had no card).
 export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Break[] {
   const rounds = [...(c.rounds ?? [])].sort((a, b) => a.at - b.at)
-  if (me === undefined || rounds.length === 0) return []
+  if (me === undefined) return []
   const got = (c.panel?.received ?? [])
-    .filter(x => x.from === me && typeof x.at === 'number' && x.at > rounds[0].at)
+    .filter(x => x.from === me && typeof x.at === 'number' && (rounds.length === 0 || x.at > rounds[0].at))
     .map(x => x.at as number)
     .sort((a, b) => a - b)
   const out: Break[] = []
@@ -130,9 +132,10 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
       i++
       continue
     }
-    const open = flat(owner)
-      .filter(t => typeof t.startedAt === 'number' && t.startedAt <= at && (t.endedAt === undefined || t.endedAt >= at))
-      .sort((a, b) => (b.startedAt as number) - (a.startedAt as number))[0]
+    const before = flat(owner)
+      .filter(t => typeof t.startedAt === 'number' && t.startedAt <= at)
+      .sort((a, b) => (b.startedAt as number) - (a.startedAt as number))
+    const open = before.find(t => t.endedAt === undefined || t.endedAt >= at) ?? before[0]
     out.push({ at, anchor: open?.id, orphan: true })
   }
   return out
