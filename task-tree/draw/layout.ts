@@ -375,11 +375,12 @@ export function total(p: Panel, level = 0): [number, number, number] {
   return [d, n, x]
 }
 
-// The sessions opened on a task or below it (archived ones as history): their tasks add to its count and
-// its time, and while one is still at work the task is drawn in progress, its clock running,
-// whatever its own status says. A task closed with done is done: the sessions opened on it or on a
-// task inside it add nothing and keep nothing in progress (their progress stays in their cards; it was
-// drawn ◉ "45/46" after the done); `any` still marks the ⑂, `live` that one is still at work there, and
+// The sessions opened on a task or below it (archived ones as history): their leaves add to its
+// count, closed task or not (the session is a link, not a task: the header counts them the same).
+// The open ones add to its time, and while one is still at work the task is drawn in progress, its
+// clock running, whatever its own status says. A task closed with done is done: the sessions opened
+// on it or on a task inside it keep nothing in progress and add no time (it was drawn ◉ after the
+// done); `any` still marks the ⑂, `live` that one is still at work there, and
 // `cards` holds all their tasks, for a folded line (it stands for what is drawn below it, the cards too).
 // `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
@@ -400,9 +401,11 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const open = (k: TaskNode): string[] => (k.status === 'done' ? [] : [k.id, ...k.children.flatMap(open)])
   const counted = open(t)
   const mine = below.filter(c => counted.includes(c.anchor as string))
+  // The count is every session opened in the subtree, its task closed or not (as the header counts
+  // them): opening one is a link, its leaves count. State and time stay with the open ones (mine).
   let d = 0
   let n = 0
-  for (const c of mine) {
+  for (const c of below) {
     const [cd, cn] = total(panelOf(c), level + 1)
     d += cd
     n += cn
