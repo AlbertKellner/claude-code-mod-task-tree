@@ -6,8 +6,8 @@ import type { Child, Published } from '../types'
 
 // Nothing folds by itself: with no choice of the person, every card comes open, with its lines, in
 // both views. The person's panel (summary, desktop) showed some 14 cards "nome ⋯" stacked under the
-// mother's task, folded with no click: the cards of the sisters' talk, now nested in the sender's card
-// (see nest and cadeia-irmas.test.ts). The real state, read again, draws none folded or empty.
+// mother's task, folded with no click: the cards of the sisters' talk (one after the other, see
+// cadeia-irmas.test.ts). The real state, read again, draws none folded or empty.
 
 const own: any = REAL.own
 const ME = REAL.me as string
