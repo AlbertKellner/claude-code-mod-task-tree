@@ -96,7 +96,7 @@ Na ordem de `register.tsx`:
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
-| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui um nível 1 aberto com o mesmo id no lugar, renomeia um fechado que colide (`<tag>:id`) e, com ele, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
+| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; tira os `sends` das tarefas fechadas |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
@@ -387,8 +387,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 332 testes em 15
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 336 testes em 16
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -408,6 +408,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
+| `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
 | `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
 
 Fixtures e goldens:
@@ -1230,7 +1231,16 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   filha ficava com um turno só e o trabalho atual dela nunca trocava), com o começo da mensagem sem
   as tags, numa linha (até 60 caracteres), como título; turnos sem tarefa são descartados nessa hora. O `plan` do loop principal grava `turn` em
   cada nível 1 novo (o último turno) e o `request` opcional renomeia esse turno (cria um, se não
-  houver). Um nível 1 replanejado (mesmo id aberto) fica no turno em que estava. Como os turnos vão
+  houver). Um nível 1 replanejado (mesmo id aberto) fica no turno em que estava, mas só dentro do
+  mesmo pedido (`replanned`/`sameRequest` em `planTool`: aberto, id reutilizado e do último turno, ou
+  sem turnos, ou tarefa sem turno, ou grupo de subagente). Um aberto de pedido anterior com id
+  reutilizado não é replanejado: é interrompido (`interrupt(now)`, a regra do código para trabalho
+  deixado aberto) e renomeado (`<tag>:id`, como os fechados que colidem), com as ligações indo junto
+  (`renameAnchors`), e fica no pedido antigo como histórico; o nível 1 novo vai para o turno novo.
+  Antes, uma mensagem nova com `plan` de "1", "2", "3" punha o "1" novo no lugar de um "1" aberto do
+  pedido anterior (que ficou aberto porque o `done` veio só com `summary`), sob o cabeçalho do pedido
+  antigo, e a resumida mantinha o pedido antigo à vista. Os `sends` só são descartados das tarefas de
+  fato replanejadas; os de uma renomeada são renomeados com ela. Como os turnos vão
   dentro do grupo, persistência, resume e o painel publicado já os levam; painéis antigos (sem
   `turns`) desenham os níveis 1 soltos, como antes, e esses ficam à frente dos turnos. Desenho só no
   painel de cima (`level === 0`) e, no cartão de uma filha, só para turno com mais de um

@@ -5,7 +5,7 @@ import { update } from 'claude-code'
 
 import type { Group, Send, TaskNode, Turn } from '../types'
 import { DONE } from '../text/rules'
-import { MAIN, flat, tasksOf, hasOpen, count } from '../draw/layout'
+import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
@@ -43,26 +43,38 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true }
     }
     await ensureGroup($, agent)
-    // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is
-    // replanned (replaced); a closed one stays as history, renamed if its id collides.
+    // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
+    // (replaced in its place) when it is of the request open now; a closed one stays as history,
+    // renamed if its id collides. An open one of an earlier request (the person sent another
+    // message since) is not replanned: the new plan's task goes to the new request, and the old one,
+    // abandoned, stays in its request interrupted and renamed (the person's panel: a new "1" took
+    // the place of an open "1" under the request before, and the summary kept that request in sight).
     const ids = fresh.map(t => t.id)
     const tag = Math.random().toString(36).slice(2, 6)
     const rename = (t: TaskNode): TaskNode => ({ ...t, id: `${tag}:${t.id}`, children: t.children.map(rename) })
     const fresh0 = agent === MAIN && (await startsWork($))
-    // A replanned task starts over: the sends from it (or below it) go with it.
-    if (agent === MAIN) await update($, sendsState, cur => (cur ?? []).filter(s => !ids.includes(String(s.anchor ?? '').split('/')[0] as string)))
     const { value: before = [] } = await $.state.get(groupsState)
-    const renamed = ((before as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
-      .filter(t => t.status !== 'open' && ids.includes(t.id))
-      .map(t => t.id)
+    const beforeMain = (before as Group[]).find(g => g.agent === MAIN)
+    // The request open now (the person's last message): the main group's last turn.
+    const nowTurn = beforeMain?.turns?.[beforeMain.turns.length - 1]?.id
+    const sameRequest = (t: TaskNode) => agent !== MAIN || nowTurn === undefined || t.turn === undefined || t.turn === nowTurn
+    const replanned = (t: TaskNode) => t.status === 'open' && ids.includes(t.id) && sameRequest(t)
+    const replannedIds = agent === MAIN ? (beforeMain?.tasks ?? []).filter(replanned).map(t => t.id) : ids
+    // A replanned task starts over: the sends from it (or below it) go with it. A renamed one keeps
+    // them, renamed with it (renameAnchors).
+    if (agent === MAIN) await update($, sendsState, cur => (cur ?? []).filter(s => !replannedIds.includes(String(s.anchor ?? '').split('/')[0] as string)))
+    const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+    const now = await stamp($)
     const groups = await change($, all => {
       return all.map(g => {
         if (g.agent !== agent) return g
         // In plan order: a replanned task takes the place of the one it replaces; the new ones
         // go below the ones already there.
-        const reused = (t: TaskNode) => t.status === 'open' && ids.includes(t.id)
+        const reused = (t: TaskNode) => replanned(t)
+        // Abandoned by a new request: interrupted (what was left open), then renamed.
+        const away = (t: TaskNode) => rename(t.status === 'open' ? interrupt(now)(t) : t)
         const inPlace = (list: TaskNode[]) => {
-          const out = g.tasks.map(t => (reused(t) ? (list.find(f => f.id === t.id) as TaskNode) : ids.includes(t.id) ? rename(t) : t))
+          const out = g.tasks.map(t => (reused(t) ? (list.find(f => f.id === t.id) as TaskNode) : ids.includes(t.id) ? away(t) : t))
           return [...out, ...list.filter(f => !g.tasks.some(t => reused(t) && t.id === f.id))]
         }
         if (agent !== MAIN) return { ...g, tasks: inPlace(fresh) }
@@ -79,7 +91,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
             turns = [...turns.slice(0, -1), cur]
           }
         }
-        const was = (id: string) => g.tasks.find(t => t.status === 'open' && t.id === id)?.turn
+        const was = (id: string) => g.tasks.find(t => replanned(t) && t.id === id)?.turn
         const placed = fresh.map(t => {
           const turn = was(t.id) ?? cur?.id
           return turn === undefined ? t : { ...t, turn }
