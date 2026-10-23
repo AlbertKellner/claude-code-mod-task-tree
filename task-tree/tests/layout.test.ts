@@ -137,6 +137,45 @@ describe('layout: estado real da orquestradora', () => {
     expect([header(folded).d, header(folded).n]).toEqual([8, 14])
   })
 
+  // The person: the header sums "as tarefas que estão sendo mostradas na listagem" and "as colapsada,
+  // mas que estao nessa visao, tambem entram": each view counts what it holds, folded or not; only what
+  // the view leaves out (the summary's finished requests, the full view's cut) is not counted.
+  test('cabeçalho: recolher cartões e tarefas não muda os números, nas duas visões; cada visão conta o que inclui', () => {
+    for (const view of ['full', 'summary'] as const) {
+      const open = layout(realModel(view), {}, AT, ME)
+      const base = header(open)
+      // Every fold the view offers, closed one at a time and all at once.
+      const keys = open.flatMap(r => (r.fold?.open ? [r.fold.key] : []))
+      expect(keys.some(k => k.startsWith('s:'))).toBe(true)
+      for (const key of keys) {
+        const h = header(layout(realModel(view), { [key]: true }, AT, ME))
+        expect([view, key, h.d, h.n, h.x]).toEqual([view, key, base.d, base.n, base.x])
+      }
+      const all = header(layout(realModel(view), Object.fromEntries(keys.map(k => [k, true])), AT, ME))
+      expect([view, all.d, all.n, all.x]).toEqual([view, base.d, base.n, base.x])
+    }
+  })
+
+  test('cabeçalho: a resumida deixa de fora o pedido finalizado e o cartão dele; a completa conta os dois, recolhidos ou não', () => {
+    const kid = (id: string, name: string) =>
+      child(id, name, panel([task(`${name}1`, `${name} 1`, 'done', { plannedAt: T0 + 10, endedAt: T0 + 20 }), task(`${name}2`, `${name} 2`, 'done', { plannedAt: T0 + 10, endedAt: T0 + 30 })]), { anchor: name === 'velha' ? 'A' : 'B' })
+    const tasks = [task('A', 'Feita', 'done', { turn: 1, plannedAt: T0, endedAt: T0 + 5 }), task('B', 'Atual', 'open', { turn: 2, plannedAt: T0 + 50, started: 1, startedAt: T0 + 50 })]
+    const m = (view: 'full' | 'summary') => model([main(tasks, [turn(1, T0), turn(2, T0 + 50)])], [kid('local_v', 'velha'), kid('local_n', 'nova')], { view })
+    const full = header(layout(m('full'), {}, NOW, ME))
+    const summary = header(layout(m('summary'), {}, NOW, ME))
+    // Full: Feita and its card's 2 (done), Atual (open) and its card's 2 (done). Summary: Atual and what its card
+    // holds there (a card is cut to its own work too: with no requests, its last task).
+    expect([full.d, full.n]).toEqual([5, 6])
+    expect([summary.d, summary.n]).toEqual([1, 2])
+    for (const view of ['full', 'summary'] as const) {
+      const rows = layout(m(view), {}, NOW, ME)
+      const keys = rows.flatMap(r => (r.fold?.open ? [r.fold.key] : []))
+      expect(keys.some(k => k.startsWith('s:'))).toBe(true)
+      const folded = header(layout(m(view), Object.fromEntries(keys.map(k => [k, true])), NOW, ME))
+      expect([view, folded.d, folded.n]).toEqual([view, ...(view === 'full' ? [5, 6] : [1, 2])])
+    }
+  })
+
   test('visão resumida: o trabalho atual (pedidos 70 a 73), sem os cartões antigos; as mesmas linhas da completa', () => {
     const full = layout(realModel('full'), {}, AT, ME)
     const summary = layout(realModel('summary'), {}, AT, ME)
