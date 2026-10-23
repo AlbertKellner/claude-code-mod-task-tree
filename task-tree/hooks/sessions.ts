@@ -246,11 +246,21 @@ export async function tick($: any) {
   ticker?.cancel()
   ticker = undefined
 }
+// Every drawing asks for the clock: the check and the start must not be split by an await, or drawings
+// at the same time each start one, and only the last is kept to cancel (the others redrew the pane
+// every second for good, in bursts that replaced the Buttons under the pointer: clicks were lost).
+let starting = false
 export async function keepTime($: any) {
-  if (ticker || !(await anyRunning($)) || (await stamp($)) === undefined) return
+  if (ticker || starting) return
+  starting = true
   try {
-    ticker = $.clock.every(1000, () => void tick($))
-  } catch {}
+    if (!(await anyRunning($)) || (await stamp($)) === undefined || ticker) return
+    try {
+      ticker = $.clock.every(1000, () => void tick($))
+    } catch {}
+  } finally {
+    starting = false
+  }
 }
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's
