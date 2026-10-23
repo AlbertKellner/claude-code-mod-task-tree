@@ -362,7 +362,19 @@ mantida), em `draw/layout.ts`:
   o fim da resumida, aparece sob a tarefa de origem nas duas visões.
 - Completa: o corte dos 3 últimos pedidos (`SHOWN_TURNS`) mantém também o pedido cujo nível 1 tem
   sessão trabalhando embaixo (`work(t).busy`), como já mantinha o que tem algo aberto.
-- Teste: `tests/cartoes-lugar.test.ts` (5, incluindo "sessão sem rodadas: o cartão não muda de lugar
+- Turno em lote (regra do usuário: "cada mensagem cria seu próprio cartão sob a tarefa que a enviou,
+  na ordem de execução"): mensagens enfileiradas para uma sessão ocupada são entregues de uma vez e
+  abrem um único turno dela; o cartão desse turno ia para a última mensagem e a tarefa da primeira
+  ficava sem cartão. Em `split`, na parte de cada turno (`partOfTurn`), os turnos da sessão são
+  percorridos em ordem de tempo: um turno que recebeu mensagens desta sessão (o `received` publicado
+  por ela tem recebimento desta sessão com `at` depois do turno anterior e até o turno) vai para a
+  rodada da PRIMEIRA mensagem desta sessão enviada desde o turno anterior (rodada não-irmã com `at`
+  depois do turno anterior e até o turno); qualquer outro turno (aberto por uma irmã, ou mais antigo
+  do que os 20 que o `received` guarda) vai para a última rodada antes dele, como antes. As outras
+  mensagens do mesmo lote ficam sem cartão próprio: não houve turno da sessão depois delas.
+- Teste: `tests/cartoes-lugar.test.ts` (7, incluindo as duas do lote: "quatro mensagens na fila
+  entregues juntas: o cartão do turno vai para a tarefa da primeira" e "uma mensagem por turno: cada
+  cartão sob a tarefa da sua mensagem", além de "sessão sem rodadas: o cartão não muda de lugar
   na resumida" e "estado real: cada cartão da resumida está sob a mesma linha que na completa");
   `layout.test.ts`, `task-tree.test.ts` e
   `resumida-turno.test.ts` foram atualizados (e, em `task-tree.test.ts`, "mensagem à filha numa
@@ -426,8 +438,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 347 testes em 19
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 349 testes em 19
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -448,7 +460,7 @@ e tem 5 s.
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
 | `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
-| `cartoes-lugar.test.ts` | 5 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa |
+| `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
 | `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
@@ -1159,7 +1171,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   mensagem): cada `SendMessage` grava em `Child.rounds` `{ at, anchor }`, com a hora tomada antes
   da chamada. `split(c)` divide o painel publicado da filha em cartões pela hora de cada turno
   dela: o cartão 0 fica na âncora original; o cartão k vai sob a tarefa que mandou a mensagem k
-  (`Child.part` = k). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
+  (`Child.part` = k). Várias mensagens entregues de uma vez abrem um turno só, que vai para a rodada
+  da primeira delas (ver "Turno em lote" em "Cartões no lugar certo", em "Como é hoje"). Subagentes, avisos de espera e netas vão para o cartão da tarefa-âncora
   deles. Só o cartão da frente mostra a espera; o anel de contexto aparece em todo
   cartão da sessão, em qualquer estado (trabalhando, ocioso, parado, concluído ou de rodada antiga),
   com o último % publicado (pedido do usuário: "mesmo depois que a sessao termina, o icone se
