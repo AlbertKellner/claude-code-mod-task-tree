@@ -12,7 +12,7 @@ import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
-import { openSession } from './sessions'
+import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -191,6 +191,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   const brought = await ensureGroups($)
   const viewBrought = await ensureView($)
   const workBrought = await ensureWork($)
+  // After a hot reload of the mod (each saved edit of the clone reloads it in every session) the clocks
+  // were the old module's, gone with it, and they came back only with the next event (a tool call, a
+  // refresh, a start): with a task timing and no event, the pane stood still. The app draws the pane
+  // when the mod loads: that drawing starts them again (the 1 s clock only while something runs, and
+  // the reread of the sessions). Both do nothing while they run; the clock may be asked while drawing
+  // (only a state write is refused then).
+  await keepTime($).catch(() => {})
+  watchSessions($)
   const { value: heldState } = await $.state.get(groupsState)
   const held = heldState ?? brought
   const { value: waits = [] } = await $.state.get(waitsState)
