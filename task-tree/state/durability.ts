@@ -91,6 +91,7 @@ export const TABLE: readonly Row[] = [
   { key: 'unplanned, planned, answeredInChat', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message' },
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
+  { key: 'usedReceipts', lives: 'module', merge: 'none', restoredAt: [], note: 'the messages received by other sessions already matched to a send of this one (watchSends): each closes one task; a reload starts it over' },
 ]
 
 // The keys of `$.state`: every key the hooks module reads or writes has a row (durabilidade.test.ts

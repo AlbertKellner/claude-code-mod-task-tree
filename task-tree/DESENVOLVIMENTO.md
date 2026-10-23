@@ -154,8 +154,10 @@ principal porque a recarga do mod cancela o intervalo), depois de um `start_sess
 app e quando a lista está velha (`refreshStale`). Passos: (1) `listSessions` (`list_sessions` com
 `linked: true, include_archived: true, limit: 100`; falha vai para `childrenError`, mostrada só no app
 desktop, `inDesktopApp`, e gravada só quando o texto muda); `watchSends` antes de qualquer retorno
-(confirma os envios pelo `received` do destino com `at` ≥ envio, senão por um turno dele depois do
-envio, senão parada-depois-rodando; um envio confirmado fecha a tarefa de origem se ela está aberta
+(destino que publica `received`: cada envio pendente, do mais antigo ao mais novo, casa com a SUA
+mensagem recebida desta sessão, a mais antiga ainda não casada com `at` ≥ envio, uma vez só
+(`usedReceipts`); destino sem `received`: um turno dele depois do envio, senão
+parada-depois-rodando; um envio confirmado fecha a tarefa de origem se ela está aberta
 sem subtarefa aberta); lista vazia zera `children` (uma vez, não a cada poll); `mineOf` (as linhas
 cujo `startedBy` é um id que a lista não traz, o desta sessão); (2) `readFiles` (cada arquivo
 publicado por `readPublished`; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
@@ -219,7 +221,9 @@ Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLink
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
-vez a mais, sem dano) e `home` (a pasta do usuário, pedida ao host uma vez por módulo). Duas linhas
+vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo) e
+`usedReceipts` (as mensagens recebidas por outras sessões que já casaram com um envio desta, chave
+`<id da sessão>|<at>`; uma recarga recomeça). Duas linhas
 sobraram da fase 2 e não têm mais variável no código: `drawNow` e `breaksMemo` (o `layout()` recebe
 `now` e cria um `BreaksMemo` por desenho).
 
@@ -387,8 +391,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 336 testes em 16
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 340 testes em 17
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -408,6 +412,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
+| `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
 | `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
 
@@ -1356,6 +1361,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   no trabalho atual, e o `work` acumulou 11 níveis 1 de 6 pedidos ("+3 pedidos anteriores" e três
   concluídos acima do novo). Um nível 1 concluído com sessão viva embaixo não fica: a resumida já
   desenha a sessão viva sem tarefa no trabalho no fim da lista (`trimToWork`).
+  Regra do usuário fixada em teste (`resumida-limpeza.test.ts`): "quando eu enviar novas mensagens,
+  em novos turnos, se existirem tarefas em andamento, essas tarefas devem continuar sendo mostradas.
+  o painel só deve ser limpo quando enviar uma mensagem em um novo turno e todas as tarefas estiverem
+  finalizadas." Uma tarefa com ✉ pendente não está finalizada: continua à vista, com o ✉.
   A resumida é a visão completa de um recorte do painel (pedido do usuário: "a visao resumida deve
   usar a mesma base de logica da visao completa, com o diferencial que ela somente mostra as tarefas
   em andamento e elas somente sao ocultas dessa visao quando todas estao completas"): mesmas linhas,
@@ -1449,9 +1458,14 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 - Confirmação de mensagem na fila (0.7.3): quem recebe guarda e publica `received: [{ from, at }]`
   (`<cross-session-message from="local_…">`, os últimos 20), em qualquer prompt. Quem envia, em
   `watchSends` (antes dos retornos do `refreshChildren`, então também numa sessão sem filhas, para a
-  mãe ou as irmãs), lê o arquivo do destino: `received` do próprio id (`selfId`) com `at` ≥ o envio
-  confirma; senão um turno publicado depois do envio; senão a regra antiga (vista parada, depois
-  rodando). Um `done` que fecha a tarefa do envio, um replan dela e o `/clear` tiram o envio de `sends`
+  mãe ou as irmãs), lê o arquivo do destino. Destino que publica `received`: os envios pendentes para
+  ele, do mais antigo ao mais novo, casam cada um com a SUA mensagem recebida do próprio id (`selfId`),
+  a mais antiga ainda não casada com `at` ≥ o envio, cada mensagem uma vez só (`usedReceipts`); envio
+  sem mensagem própria continua pendente (✉) e a tarefa continua aberta. Antes, qualquer mensagem
+  recebida com `at` ≥ o envio, ou qualquer turno depois dele, confirmava todos: com duas mensagens
+  na fila para a mesma sessão ocupada, a primeira entrega fechava as duas tarefas e a segunda, ainda
+  pendente, sumia do painel. Destino sem `received` (versões antigas): um turno publicado depois do
+  envio; senão a regra antiga (vista parada, depois rodando). Um `done` que fecha a tarefa do envio, um replan dela e o `/clear` tiram o envio de `sends`
   (sem ✉ fantasma num id reaproveitado).
 
 ### Pendências

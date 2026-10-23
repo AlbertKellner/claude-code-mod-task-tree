@@ -82,9 +82,16 @@ export async function noteReceived($: any, text: string) {
   await publishPanel($)
 }
 
-// A queued message is taken up once its session says so: its published file lists a message from
-// this one received at or after the send (`received`); else a turn of it opened after the send;
-// else, from sessions without that (earlier versions), seen stopped after the send and running again.
+// A queued message is taken up once its session says so. A session that publishes the messages it
+// got (`received`, this version) answers for each one: the sends to it still waiting, oldest first,
+// are matched each to its own message received from this one at or after the send (the oldest one
+// not matched yet), so the first delivery of two messages queued to a busy session closes only the
+// first task, and the second keeps its ✉ (one delivery closed both, and the second task vanished
+// from the panel while its message was still waiting). A message received is matched once
+// (`usedReceipts`, a variable of the module; a reload starts it over). Sessions without `received`
+// (earlier versions): a turn of it opened after the send; else seen stopped after the send and
+// running again.
+const usedReceipts = new Set<string>()
 export async function watchSends($: any, rows: any[]) {
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).every(s => s.taken)) return
@@ -95,19 +102,41 @@ export async function watchSends($: any, rows: any[]) {
     return files[id]
   }
   const marks: Record<number, Partial<Send>> = {}
+  // The sends still waiting, by the session they went to.
+  const waiting = new Map<string, { i: number; s: Send; r: any }[]>()
   for (const [i, s] of (sends as Send[]).entries()) {
     if (s.taken) continue
     const r = rows.find(r => r.sessionId === s.to || (r.name && r.name === s.to))
     const id = r?.sessionId ?? (String(s.to).startsWith('local_') ? s.to : undefined)
     if (id === undefined) continue
+    waiting.set(id, [...(waiting.get(id) ?? []), { i, s, r }])
+  }
+  for (const [id, list] of waiting) {
     const file = await fileOf(id)
-    const since = s.at ?? 0
-    const got = (file.received ?? []).some((x: any) => x?.from === me && Number(x?.at) >= since)
-    const main = file.groups?.find((g: any) => g?.agent === MAIN)
-    const turned = Array.isArray(main?.turns) && main.turns.some((u: any) => typeof u?.at === 'number' && u.at >= since)
-    if (got || turned) marks[i] = { taken: true }
-    else if (r && r.isRunning !== true && !s.idle) marks[i] = { idle: true }
-    else if (r && r.isRunning === true && s.idle) marks[i] = { taken: true }
+    if (Array.isArray(file.received)) {
+      const got = file.received
+        .filter((x: any) => x?.from === me && typeof x?.at === 'number' && !usedReceipts.has(`${id}|${x.at}`))
+        .map((x: any) => x.at as number)
+        .sort((a: number, b: number) => a - b)
+      let j = 0
+      for (const { i, s } of [...list].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))) {
+        const since = s.at ?? 0
+        while (j < got.length && got[j] < since) j++
+        if (j >= got.length) break
+        marks[i] = { taken: true }
+        usedReceipts.add(`${id}|${got[j]}`)
+        j++
+      }
+      continue
+    }
+    for (const { i, s, r } of list) {
+      const since = s.at ?? 0
+      const main = file.groups?.find((g: any) => g?.agent === MAIN)
+      const turned = Array.isArray(main?.turns) && main.turns.some((u: any) => typeof u?.at === 'number' && u.at >= since)
+      if (turned) marks[i] = { taken: true }
+      else if (r && r.isRunning !== true && !s.idle) marks[i] = { idle: true }
+      else if (r && r.isRunning === true && s.idle) marks[i] = { taken: true }
+    }
   }
   if (Object.keys(marks).length === 0) return
   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
