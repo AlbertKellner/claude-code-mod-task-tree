@@ -971,10 +971,11 @@ describe('sessões abertas', () => {
     await start($, ['A'])
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     await done($, ['A'])
+    // Closed with done: done, with the session still at work below it (its progress is in its card).
     expect((await view($)).map(l => l.text)).toEqual([
       'Depois  1 de 2 · 50%',
       '██████████░░░░░░░░░░  ● 1  ⑂ 1',
-      '◉ Orquestrar  ⑂  1/1',
+      '✓ Orquestrar  ⑂  1/1  —',
       '   ⑂ filha',
       '◉ Depois',
     ])
@@ -989,7 +990,7 @@ describe('sessões abertas', () => {
     ])
   })
 
-  test('os pais somam as tarefas da filha e ficam em andamento enquanto ela trabalha', async ($, on) => {
+  test('os pais concluídos com done ficam concluídos e não somam as tarefas da filha, trabalhando ou parada', async ($, on) => {
     let state: 'running' | 'stopped' | 'archived' = 'running'
     on('mcp.call', answer(() =>
       ROWS(state === 'running').map(r => (r.sessionId.includes('11111111') ? { ...r, isArchived: state === 'archived' } : r))))
@@ -1004,17 +1005,18 @@ describe('sessões abertas', () => {
     await start($, ['2'])
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     await done($, ['2'])
-    // Done by the model, but the session still works: in progress, its 1/2 added (2+1 of 2+2).
+    // Done by the model while the session still works: done, its own 2/2 (the session's 1/2 is in its
+    // card; it was drawn in progress with 3/4). The header counts the lines drawn, the card's too.
     let texts = (await view($)).map(l => l.text)
     expect(texts[0]).toBe('Investigar  3 de 4 · 75%')
-    expect(texts).toContain('◉ Investigar  ⑂  3/4')
-    expect(texts).toContain('└─ ◉ Encaminhar  ⑂  2/3')
-    // Stopped: back to done, the sum stays.
+    expect(texts).toContain('✓ Investigar  ⑂  2/2  —')
+    expect(texts).toContain('└─ ✓ Encaminhar  ⑂  1/1  —')
+    // Stopped: the same.
     state = 'stopped'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     texts = (await view($)).map(l => l.text)
     expect(texts[0]).toBe('Tarefas  3 de 4 · 75%')
-    expect(texts).toContain('✓ Investigar  ⑂  3/4  —')
+    expect(texts).toContain('✓ Investigar  ⑂  2/2  —')
     // Archived: still counted, as history; what it left open reads as interrupted (out of M).
     state = 'archived'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
@@ -1023,7 +1025,7 @@ describe('sessões abertas', () => {
     expect(texts[1]).toContain('✕ 1')
   })
 
-  test('o tempo dos pais vai até o fim das tarefas da filha, correndo enquanto ela trabalha', async ($, on) => {
+  test('o tempo dos pais concluídos com done é o deles; o da filha fica no cartão e no cabeçalho', async ($, on) => {
     let t = 0
     on('clock.now', () => ({ value: t }) as any)
     on('clock.every', () => ({ deny: 'sem relógio no teste' }) as any)
@@ -1047,19 +1049,20 @@ describe('sessões abertas', () => {
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     t = 5_000
     await done($, ['2'])
-    // Done here at 0:05, but the session still works: both run to now.
+    // Done here at 0:05 while the session still works: done at 0:05 (the session's time is in its card;
+    // the header's, of the lines drawn, runs to now).
     t = 90_000
     let texts = (await view($)).map(l => l.text)
     expect(texts[0]).toBe('Investigar  3 de 4 · 75%  1:30')
-    expect(texts).toContain('◉ Investigar  ⑂  3/4  1:30')
-    expect(texts).toContain('└─ ◉ Encaminhar  ⑂  2/3  1:29')
-    // Stopped: up to the end of its last task (1:10).
+    expect(texts).toContain('✓ Investigar  ⑂  2/2  0:05')
+    expect(texts).toContain('└─ ✓ Encaminhar  ⑂  1/1  0:04')
+    // Stopped: the same.
     state = 'stopped'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     t = 200_000
     texts = (await view($)).map(l => l.text)
-    expect(texts).toContain('✓ Investigar  ⑂  4/4  1:10')
-    expect(texts).toContain('└─ ✓ Encaminhar  ⑂  3/3  1:09')
+    expect(texts).toContain('✓ Investigar  ⑂  2/2  0:05')
+    expect(texts).toContain('└─ ✓ Encaminhar  ⑂  1/1  0:04')
   })
 
   test('as tarefas da filha entram no contador e no desenho, com o aviso embaixo da tarefa dela', async ($, on) => {
@@ -1086,8 +1089,9 @@ describe('sessões abertas', () => {
     expect(texts).toEqual([
       'Orquestrar  2 de 4 · 50%',
       '██████████░░░░░░░░░░  ● 2  ◷ 1  ⑂ 1',
-      '◉ Orquestrar  ⑂  2/4',
-      '├─ ◉ Abrir filha  ⑂  2/3',
+      // The session's tasks count in the header (drawn), not in the tasks closed with done above them.
+      '◉ Orquestrar  ⑂  1/2',
+      '├─ ✓ Abrir filha  ⑂  1/1  —',
       '│     ⑂ filha  aguardando',
       '│     ◉ Trabalho da filha  1/2',
       '│     ├─ ✓ Passo feito  —',
@@ -1100,7 +1104,7 @@ describe('sessões abertas', () => {
     expect(line(lines, 'Trabalho da filha')?.color).toBe('warning')
   })
 
-  test('origem dentro de um nível 1 concluído: tudo fica à vista, a filha sob a origem', async ($, on) => {
+  test('origem dentro de um nível 1 concluído: tudo fica à vista e concluído, a filha sob a origem', async ($, on) => {
     on('mcp.call', answer(() => ROWS(true)))
     on('tool.call', { tool: 'mcp__ccd_session__start_session' } as any, async () => ({
       result: 'Started session local_11111111-1111-1111-1111-111111111111 (filha)',
@@ -1110,8 +1114,8 @@ describe('sessões abertas', () => {
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     await done($, ['A'])
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ Orquestrar  ⑂  2/2',
-      '├─ ◉ Abrir filha  ⑂  1/1',
+      '✓ Orquestrar  ⑂  2/2  —',
+      '├─ ✓ Abrir filha  ⑂  1/1  —',
       '│     ⑂ filha',
       '└─ ✓ Outra  —',
     ])
@@ -1326,15 +1330,18 @@ describe('turnos', () => {
     await planAs($, [{ id: 'B', title: 'Testar' }])
     const rows = rowsOf(await view($)).map(l => l.text)
     expect(rows).toEqual(['◉ Agrupar por turno  0/2', '├─ ◉ Agrupar', '└─ ○ Testar'])
-    // Replanned in a later message, a level-1 task stays in its turn, in its place.
+    // Planned again in a later message, an id of an open level-1 task of the earlier request goes to
+    // the new request; the old one, abandoned, stays in its request, interrupted (replacing in place
+    // is only within the same request: the person's panel had a new "1" under the request before).
     await ask($, 'outra coisa')
     await planAs($, [{ id: 'A', title: 'Agrupar de novo' }], 'Outra coisa')
     await planAs($, [{ id: 'Z', title: 'Nova' }])
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ Agrupar por turno  0/2',
-      '├─ ◉ Agrupar de novo',
-      '└─ ○ Testar',
-      '○ Outra coisa  0/1',
+      '◉ Agrupar por turno  0/1',
+      '├─ ✕ Agrupar  interrompida  —',
+      '└─ ◉ Testar',
+      '○ Outra coisa  0/2',
+      '├─ ○ Agrupar de novo',
       '└─ ○ Nova',
     ])
   })
@@ -1348,7 +1355,7 @@ describe('turnos', () => {
     expect(rowsOf(await view($)).map(l => l.text)).toEqual(['✓ Velha  —', '◉ pedido novo  0/1', '└─ ◉ Nova'])
   })
 
-  test('o turno soma as tarefas e o tempo das sessões abertas nas tarefas dele', async ($, on) => {
+  test('o turno de tarefas concluídas com done fica concluído, sem somar as sessões abertas nelas', async ($, on) => {
     let t = 0
     on('clock.now', () => ({ value: t }) as any)
     on('clock.every', () => ({ deny: 'sem relógio no teste' }) as any)
@@ -1379,8 +1386,9 @@ describe('turnos', () => {
     await done($, ['A'])
     t = 90_000
     const rows = rowsOf(await view($)).map(l => l.text)
-    // 1 own task (done) + the session's 1 of 2; running while the session works.
-    expect(rows[0]).toBe('◉ Investigar o erro  ⑂  2/3  1:30')
+    // Its task closed with done: done, its own 1/1 and 0:05; the session's 1 of 2, running, is in its
+    // card (it was drawn in progress, 2/3 and 1:30).
+    expect(rows[0]).toBe('✓ Investigar o erro  ⑂  1/1  0:05')
   })
 })
 
@@ -1438,14 +1446,15 @@ describe('ícone de sessão filha', () => {
     let state: 'running' | 'stopped' | 'archived' = 'stopped'
     setup(on, () => state)
     await opened($)
-    // All done, session stopped: still open (only the person folds).
+    // All done, session stopped: still open (only the person folds). Closed with done, the tasks count
+    // their own (the session's are in its card).
     let rows = rowsOf(await view($)).map(l => l.text)
-    expect(rows.slice(0, 3)).toEqual(['✓ Investigar  ⑂  3/3  —', '├─ ✓ Ler  —', '└─ ✓ Encaminhar  ⑂  2/2  —'])
+    expect(rows.slice(0, 3)).toEqual(['✓ Investigar  ⑂  2/2  —', '├─ ✓ Ler  —', '└─ ✓ Encaminhar  ⑂  1/1  —'])
     // Folded by the person, the level-1 line still says a session is below.
     await fold($, '|t:A')
     rows = rowsOf(await view($)).map(l => l.text)
-    expect(rows).toEqual(['✓ Investigar ⋯  ⑂  3/3  —'])
-    expect((await desktop($)).map(s => s.alt).slice(1)).toEqual(['Concluída: Investigar, 3 de 3, com sessão filha, recolhida'])
+    expect(rows).toEqual(['✓ Investigar ⋯  ⑂  2/2  —'])
+    expect((await desktop($)).map(s => s.alt).slice(1)).toEqual(['Concluída: Investigar, 2 de 2, com sessão filha, recolhida'])
     await fold($, '|t:A')
     // Desktop: the check at the left, the title, then the branch left of the bar.
     const parent = (await desktop($)).find(s => s.alt.startsWith('Concluída: Investigar'))?.source ?? ''
@@ -1462,10 +1471,10 @@ describe('ícone de sessão filha', () => {
     // Archived: the session stays below, as history; the branch stays on the parent.
     state = 'archived'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
-    expect(rowsOf(await view($)).map(l => l.text)[0]).toBe('✓ Investigar  ⑂  3/3  —')
+    expect(rowsOf(await view($)).map(l => l.text)[0]).toBe('✓ Investigar  ⑂  2/2  —')
   })
 
-  test('com a sessão parada e tudo concluído, os pais ficam ✓ (lista velha lida de novo)', async ($, on) => {
+  test('com a sessão parada, o cartão diz concluída (lista velha lida de novo); os pais concluídos ficam ✓', async ($, on) => {
     let t = 0
     on('clock.now', () => ({ value: t }) as any)
     on('clock.every', () => ({ deny: 'sem relógio no teste' }) as any)
@@ -1473,16 +1482,20 @@ describe('ícone de sessão filha', () => {
     let state: 'running' | 'stopped' | 'archived' = 'running'
     setup(on, () => state)
     await opened($)
-    expect(rowsOf(await view($)).map(l => l.text)[0]).toBe('◉ Investigar  ⑂  3/3  0:00')
+    // Closed with done: done while the session works too (its state is on its card).
+    const card = async () => (await view($)).find(l => l.title === 'filha')?.text ?? ''
+    expect(rowsOf(await view($)).map(l => l.text)[0]).toMatch(/^✓ Investigar  ⑂  2\/2/)
+    expect(await card()).not.toContain('concluída')
     // The session stops; with no poll, the next call of the main loop reads the list again
     // once it is older than 3 s (the card follows the session's own pane closely).
     state = 'stopped'
     t = 2_000
     await $.tool.call({ tool: 'Read', file_path: 'a' } as any)
-    expect(rowsOf(await view($)).map(l => l.text)[0]).toMatch(/^◉ Investigar  ⑂  3\/3/)
+    expect(await card()).not.toContain('concluída')
     t = 5_000
     await $.tool.call({ tool: 'Read', file_path: 'a' } as any)
-    expect(rowsOf(await view($)).map(l => l.text)[0]).toMatch(/^✓ Investigar  ⑂  3\/3/)
+    expect(await card()).toContain('concluída')
+    expect(rowsOf(await view($)).map(l => l.text)[0]).toMatch(/^✓ Investigar  ⑂  2\/2/)
   })
 })
 
@@ -2134,15 +2147,18 @@ describe('sessão filha na resumida', () => {
     await start($, ['C'])
   }
 
-  test('mensagem à filha numa tarefa do trabalho atual: a resumida a mostra ali; a completa não muda', async ($, on) => {
+  // The summary is the full view without the finished requests: it never moves a card. The session
+  // was opened on "Abrir a filha" (a finished request); its message from "Pedir à filha" has no turn of
+  // the session yet (no card of its own): the summary shows the current request with the ✉, and the
+  // card stays where the full view draws it (it used to move under "Pedir à filha" in the summary).
+  test('mensagem à filha numa tarefa do trabalho atual: a resumida não muda o cartão de lugar; a completa não muda', async ($, on) => {
     setup(on, () => false)
     await story($)
     await $.tool.call({ tool: 'SendMessage', to: KID, message: 'faça' } as any)
     await summary($)
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ terceiro  ⑂  0/1',
-      '└─ ✉ Pedir à filha  ⑂  0/1',
-      '      ⑂ filha  concluída',
+      '◉ terceiro  0/1',
+      '└─ ✉ Pedir à filha',
     ])
     await full($)
     // Full view (the old turn stays open): still under the task it was opened on.
@@ -2152,13 +2168,19 @@ describe('sessão filha na resumida', () => {
     expect(texts.find(t => t.includes('Pedir à filha'))).not.toContain('⑂')
   })
 
-  test('sessão viva sem tarefa no trabalho atual: aparece no fim da resumida', async ($, on) => {
+  // A live session whose task is not in the current work: its task is still going on (a session at
+  // work under it), so the summary keeps it, with its request, and the card under it (it was drawn
+  // loose at the end of the list; the person's rule now: every card under the task that sent it).
+  test('sessão viva sem tarefa no trabalho atual: a resumida a mostra sob a tarefa que a abriu, no pedido dela', async ($, on) => {
     setup(on, () => true)
     await story($)
     await summary($)
     const texts = rowsOf(await view($)).map(l => l.text)
-    expect(texts[0]).toBe('◉ terceiro  0/1')
-    expect(texts[texts.length - 1]).toContain('⑂ filha')
+    const origin = texts.findIndex(t => t.includes('Abrir a filha'))
+    expect(texts[0]).toContain('primeiro')
+    expect(origin).toBeGreaterThan(0)
+    expect(texts[origin + 1]).toContain('⑂ filha')
+    expect(texts.some(t => t.includes('terceiro'))).toBe(true)
   })
 })
 
@@ -3825,7 +3847,7 @@ describe('resposta da sessão no cartão', () => {
     expect(texts[at('Nada a commitar.')]).not.toMatch(/\d+\/\d+|\d:\d\d/)
   })
 
-  test('↩ mostra o summary do done (até 120, cortado em palavra); sem summary, só "resposta", nunca a resposta cortada', async ($, on) => {
+  test('↩ mostra o summary do done (até 120, cortado em palavra); sem summary, sem linha ↩, nunca a resposta cortada', async ($, on) => {
     const written: Record<string, string> = {}
     publish(on, written)
     const full = 'Você está certo, voltou. Os cartões da governança e do SVG são da cadeia da tarefa 44 e caíram na raiz.'
@@ -3834,7 +3856,8 @@ describe('resposta da sessão no cartão', () => {
     await call($, 'done', { ids: ['A'], summary: 'Cartões na raiz: causa na recarga; correção enviada' })
     await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: full } as any)
     await $.turn.complete({ reason: 'answer', answer: 'x', durationMs: 1, isAborted: false, turnId: 't1' } as any)
-    // No summary: the done and the wrap_up ask for it; the line says only "resposta".
+    // No summary: the done and the wrap_up ask for it; that turn has no ↩ line (the person: the ↩ line
+    // only with real text; before, never the answer cut).
     await $.prompt.submit({ text: 'dois' } as any)
     await plan($, [{ id: 'B', title: 'Fazer B' }])
     expect(text(await done($, ['B']))).toContain('falta o summary')
@@ -3855,14 +3878,14 @@ describe('resposta da sessão no cartão', () => {
     expect(texts.some(t => t.includes('Cartões na raiz: causa na recarga; correção enviada'))).toBe(true)
     expect(texts.some(t => t.includes('Você está certo'))).toBe(false)
     expect(texts.some(t => t.includes('Primeira frase'))).toBe(false)
-    expect(line(await view($), 'resposta')).toMatchObject({ glyph: '↩' })
-    // Desktop: the tooltip carries the whole answer.
+    expect(line(await view($), 'resposta')).toBeUndefined()
+    // Desktop: the tooltip carries the whole answer, for a turn with a summary.
     const props = { ...PANE_PROPS, bodyColumns: 120 }
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props, requestId: 'task-tree' })
     const src = JSON.stringify(await ui.drawn())
     await ui.unmount()
     expect(src).toContain('<title>Você está certo, voltou.')
-    expect(src).toContain('<title>Primeira frase longa da segunda resposta.')
+    expect(src).not.toContain('Primeira frase longa da segunda resposta.')
   })
 
   test('grupo com cartão de sessão filha não mostra o ↩ da própria sessão', async ($, on) => {

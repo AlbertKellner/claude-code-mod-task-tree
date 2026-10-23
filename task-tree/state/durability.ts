@@ -84,13 +84,14 @@ export const TABLE: readonly Row[] = [
   { key: 'drawRows', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s lines, published' },
   { key: 'renderError', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s error, published' },
   { key: 'actions', lives: 'module', merge: 'none', restoredAt: [], note: 'the pane\'s buttons by key: a press between a reload and the next drawing finds none' },
-  { key: 'ticker', lives: 'module', merge: 'none', restoredAt: [], note: 'the 1 s clock, started again by the next start, refresh or tool call' },
-  { key: 'poller', lives: 'module', merge: 'none', restoredAt: [], note: 'the 3 s reread of the sessions, started again likewise' },
+  { key: 'ticker', lives: 'module', merge: 'none', restoredAt: [], note: 'the 1 s clock, started again by the pane\'s drawing (the app draws it when the mod loads) and by the next start, refresh or tool call' },
+  { key: 'poller', lives: 'module', merge: 'none', restoredAt: [], note: 'the 3 s reread of the sessions, started again likewise (the pane\'s drawing too)' },
   { key: 'engineSeen', lives: 'module', merge: 'none', restoredAt: [], note: 'the host\'s model per session, a minute each' },
   { key: 'breaksMemo', lives: 'module', merge: 'none', restoredAt: [], note: 'a drawing\'s cache of the cards\' splits' },
   { key: 'unplanned, planned, answeredInChat', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message' },
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
+  { key: 'usedReceipts', lives: 'module', merge: 'none', restoredAt: [], note: 'the messages received by other sessions already matched to a send of this one (watchSends): each closes one task; a reload starts it over' },
 ]
 
 // The keys of `$.state`: every key the hooks module reads or writes has a row (durabilidade.test.ts
