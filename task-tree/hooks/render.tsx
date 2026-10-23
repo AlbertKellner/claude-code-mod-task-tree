@@ -70,12 +70,23 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     ],
     chrome.now,
   )
+  // The icon pops only for a change of the line's own that lands somewhere new: a task with no
+  // subtasks when it starts or closes; a parent or a request only when it closes (✓), not on its way
+  // between in progress and waiting as its subtasks go; a session's card never.
+  const popsAt = (i: number) => {
+    const r = lines[i]
+    const k = `${keys[i]}#tone`
+    if (!marks.changed.has(k) || r.card || r.session) return false
+    const to = progress(r)
+    if (r.leaf) return to === 'done' || to === 'interrupted' || (to === 'current' && marks.before.get(k) === 'open')
+    return to === 'done' && (r.key?.includes('t:') || r.key?.includes('T:'))
+  }
   let entering = 0
   const motion = (i: number) =>
     marks.enter.has(keys[i])
       ? [fadeIn(Math.min(150, 30 * entering++))]
       : [
-          ...(marks.changed.has(`${keys[i]}#tone`) ? [pop(progress(lines[i]) === 'done')] : []),
+          ...(popsAt(i) ? [pop(progress(lines[i]) === 'done')] : []),
           ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? [grow] : []),
         ]
   const headMotion = [
