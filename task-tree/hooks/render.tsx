@@ -10,7 +10,7 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { animate, barOf, chipIn, chipTones, fadeIn, grow, mark, pop } from '../draw/motion'
+import { animate, fadeIn, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -53,35 +53,16 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number }) {
   const { Box, Svg, Button } = ui
   const keys = lines.map(rowKey)
-  const lanes = guides(lines)
-  const hides = labelCols(lines)
-  const cards = frames(lines)
-  // What changed since the drawing before (../draw/motion): new lines fade in, one after another; a
-  // line whose state changed pops its icon; a bar whose count changed grows; a new chip fades in.
-  const sources = lines.map((r, i) => rowSvg(r, lanes[i], cards[i], W, hides[i]))
-  const tones = chipTones(top.source)
-  const marks = mark(
-    [
-      ...keys.map(k => [k, ''] as [string, string]),
-      ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string]),
-      ...sources.map((s, i) => [`${keys[i]}#bar`, barOf(s)] as [string, string]),
-      ...tones.map(t => [`head#chip:${t}`, ''] as [string, string]),
-      ['head#bar', barOf(top.source)],
-    ],
-    chrome.now,
-  )
+  // What came in since the drawing before (../draw/motion): those lines fade in, one after another;
+  // a line whose state changed pops its icon.
+  const marks = mark([...keys.map(k => [k, ''] as [string, string]), ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string])], chrome.now)
   let entering = 0
   const motion = (i: number) =>
     marks.enter.has(keys[i])
       ? [fadeIn(Math.min(150, 30 * entering++))]
-      : [
-          ...(marks.changed.has(`${keys[i]}#tone`) ? [pop(progress(lines[i]) === 'done')] : []),
-          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? [grow] : []),
-        ]
-  const headMotion = [
-    ...tones.filter(t => marks.enter.has(`head#chip:${t}`)).map(chipIn),
-    ...(marks.changed.has('head#bar') && barOf(top.source) !== '' ? [grow] : []),
-  ]
+      : marks.changed.has(`${keys[i]}#tone`)
+        ? [pop(progress(lines[i]) === 'done')]
+        : []
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
@@ -96,11 +77,14 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={hoverLayer(source, p.width, H)} alt="" width={p.width} height={H} isInteractive />
       </Box>
     )
+  const lanes = guides(lines)
+  const hides = labelCols(lines)
+  const cards = frames(lines)
   return (
     <Box flexDirection="column">
       {chrome.errorLine}
       <Box key="head" position="relative">
-        <Svg source={animate(top.source, headMotion)} alt={alt} width={W} height={top.height} />
+        <Svg source={top.source} alt={alt} width={W} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
             <Svg source={hoverLayer(top.source, W - 64, 24)} alt="" width={W - 64} height={24} isInteractive />
@@ -127,7 +111,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
                 {one('name')}
               </Box>
             )
-          })(sources[i])}
+          })(rowSvg(r, lanes[i], cards[i], W, hides[i]))}
         </Box>
       ))}
     </Box>
