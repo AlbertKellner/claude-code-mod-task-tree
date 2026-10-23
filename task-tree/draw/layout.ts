@@ -441,6 +441,15 @@ export function limitRows(rows: Row[]): Row[] {
 // work (all those of the turns they are in), the subagents and sessions under them or still at
 // work, and the same cut on those sessions. With no work published (earlier versions), the last
 // turn that has tasks; with no turns either, the last open level-1 task, else the last one.
+// Of the current work (`ids`, level-1 tasks of the main group), the ones still going on: something
+// open below them. A new request keeps these and drops the requests all done. A session still at
+// work under a done task does not keep the task: the summary draws a live session with no task in
+// the work at the end of the list (trimToWork), as the person asked before.
+export function goingOn(p: Panel, ids: string[]): string[] {
+  const main = withMain(p.groups ?? []).find(g => g.agent === MAIN)
+  return (main?.tasks ?? []).filter(t => ids.includes(t.id) && hasOpen([t])).map(t => t.id)
+}
+
 export function trimToWork(p: Panel, level: number): Panel {
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
