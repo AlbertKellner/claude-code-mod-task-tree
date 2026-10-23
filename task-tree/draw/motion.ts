@@ -51,3 +51,10 @@ export function animate(source: string, rules: string[]): string {
 // A line coming in: fades in and slides 3 px down, `delay` ms after the drawing.
 export const fadeIn = (delay: number) =>
   `@keyframes in{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}.mv{animation:in .2s ease-out ${delay}ms both}`
+
+// An icon whose state changed: it pops in from 60% (the drawing's `ic` group), and a ✓ draws its
+// stroke.
+export const pop = (done: boolean) =>
+  '@keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}' +
+  '.ic{animation:pop .25s ease-out both;transform-box:fill-box;transform-origin:center}' +
+  (done ? '@keyframes draw{from{stroke-dashoffset:16}to{stroke-dashoffset:0}}.ic .gr{stroke-dasharray:16;animation:draw .3s ease-out both}' : '')
