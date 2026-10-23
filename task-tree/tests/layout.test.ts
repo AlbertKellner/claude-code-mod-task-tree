@@ -72,11 +72,16 @@ const under = (rows: Row[], i: number) => {
 const at = (rows: Row[], key: string) => rows.findIndex(r => r.fold?.key === key)
 
 describe('layout: estado real da orquestradora', () => {
+  // A card's fold key carries when its message was sent (the round's `at`), not its index.
+  const sentAt = (anchor: string) => (realKids().find(c => c.id === ANALISE)?.rounds ?? []).find(r => r.anchor === anchor)?.at
   test('visão completa: os 3 últimos pedidos, o resto contado; cartões só sob as tarefas de origem; nenhum na raiz', () => {
     const rows = layout(realModel('full'), {}, AT, ME)
-    expect(rows.length).toBe(28)
+    // Turn 71 has no summary: no ↩ line (it was "resposta").
+    expect(rows.length).toBe(27)
     expect(rows[0]).toMatchObject({ depth: 0, tone: 'section', title: '+67 pedidos anteriores' })
-    expect(rows[rows.length - 1]).toMatchObject({ depth: 0, tone: 'section', title: '+41 cartões antigos de sessões' })
+    // The cards of the sisters' talk go inside the sender's card (nest): of the old ones, only the
+    // senders' are counted (it was +41, each message between sisters a card of its own).
+    expect(rows[rows.length - 1]).toMatchObject({ depth: 0, tone: 'section', title: '+4 cartões antigos de sessões' })
     // The turns drawn: 71, 72, 73 (SHOWN_TURNS); 70, with a brief, is in the count line.
     expect(rows.filter(r => r.depth === 0 && r.fold).map(r => r.fold?.key)).toEqual(['|T:71', '|T:72', '|T:73'])
     // Every card hangs under a task: none at depth 0, each right under the task of its round.
@@ -84,7 +89,7 @@ describe('layout: estado real da orquestradora', () => {
     expect(cs.length).toBe(2)
     expect(cs.every(r => r.depth > 0)).toBe(true)
     expect(cs.map(r => r.sid)).toEqual([ANALISE, ANALISE])
-    expect(cs.map(r => r.fold?.key)).toEqual([`s:${ANALISE}#2`, `s:${ANALISE}#7`])
+    expect(cs.map(r => r.fold?.key)).toEqual([`s:${ANALISE}#${sentAt('97')}`, `s:${ANALISE}#${sentAt('98')}`])
     expect(rows[at(rows, '|t:97') + 1]).toBe(cs[0])
     expect(rows[at(rows, '|t:98') + 1]).toBe(cs[1])
     // The analysis session is at work: its last card runs, the one before is done.
@@ -93,14 +98,15 @@ describe('layout: estado real da orquestradora', () => {
     expect(cs.map(r => r.ring?.percent)).toEqual([43, 43])
   })
 
-  test('↩: o pedido sem cartão mostra a resposta; os pedidos com cartão de filha não; o cartão mostra a resposta da filha por turno', () => {
+  test('↩: o pedido sem cartão e sem resumo não tem ↩; os pedidos com cartão de filha não; o cartão mostra a resposta da filha por turno', () => {
     const rows = layout(realModel('full'), {}, AT, ME)
     const replies = (i: number) => under(rows, i).filter(r => r.tone === 'reply' && r.depth === rows[i].depth + 1)
-    expect(replies(at(rows, '|T:71')).map(r => r.title)).toEqual(['resposta'])
+    // Turn 71 answered with no summary: no ↩ line (never the answer cut, nor the placeholder).
+    expect(replies(at(rows, '|T:71')).map(r => r.title)).toEqual([])
     expect(replies(at(rows, '|T:72'))).toEqual([])
     expect(replies(at(rows, '|T:73'))).toEqual([])
-    // The card of round #2: its turn's answer, with the child's brief, below its tasks.
-    const card = at(rows, `s:${ANALISE}#2`)
+    // The card of the round sent from 97: its turn's answer, with the child's brief, below its tasks.
+    const card = at(rows, `s:${ANALISE}#${sentAt('97')}`)
     const inCard = under(rows, card)
     const reply = inCard.filter(r => r.tone === 'reply')
     expect(reply.length).toBe(1)
@@ -133,10 +139,49 @@ describe('layout: estado real da orquestradora', () => {
     expect([header(folded).d, header(folded).n]).toEqual([8, 14])
   })
 
+  // The person: the header sums "as tarefas que estão sendo mostradas na listagem" and "as colapsada,
+  // mas que estao nessa visao, tambem entram": each view counts what it holds, folded or not; only what
+  // the view leaves out (the summary's finished requests, the full view's cut) is not counted.
+  test('cabeçalho: recolher cartões e tarefas não muda os números, nas duas visões; cada visão conta o que inclui', () => {
+    for (const view of ['full', 'summary'] as const) {
+      const open = layout(realModel(view), {}, AT, ME)
+      const base = header(open)
+      // Every fold the view offers, closed one at a time and all at once.
+      const keys = open.flatMap(r => (r.fold?.open ? [r.fold.key] : []))
+      expect(keys.some(k => k.startsWith('s:'))).toBe(true)
+      for (const key of keys) {
+        const h = header(layout(realModel(view), { [key]: true }, AT, ME))
+        expect([view, key, h.d, h.n, h.x]).toEqual([view, key, base.d, base.n, base.x])
+      }
+      const all = header(layout(realModel(view), Object.fromEntries(keys.map(k => [k, true])), AT, ME))
+      expect([view, all.d, all.n, all.x]).toEqual([view, base.d, base.n, base.x])
+    }
+  })
+
+  test('cabeçalho: a resumida deixa de fora o pedido finalizado e o cartão dele; a completa conta os dois, recolhidos ou não', () => {
+    const kid = (id: string, name: string) =>
+      child(id, name, panel([task(`${name}1`, `${name} 1`, 'done', { plannedAt: T0 + 10, endedAt: T0 + 20 }), task(`${name}2`, `${name} 2`, 'done', { plannedAt: T0 + 10, endedAt: T0 + 30 })]), { anchor: name === 'velha' ? 'A' : 'B' })
+    const tasks = [task('A', 'Feita', 'done', { turn: 1, plannedAt: T0, endedAt: T0 + 5 }), task('B', 'Atual', 'open', { turn: 2, plannedAt: T0 + 50, started: 1, startedAt: T0 + 50 })]
+    const m = (view: 'full' | 'summary') => model([main(tasks, [turn(1, T0), turn(2, T0 + 50)])], [kid('local_v', 'velha'), kid('local_n', 'nova')], { view })
+    const full = header(layout(m('full'), {}, NOW, ME))
+    const summary = header(layout(m('summary'), {}, NOW, ME))
+    // Full: Feita and its card's 2 (done), Atual (open) and its card's 2 (done). Summary: Atual and what its card
+    // holds there (a card is cut to its own work too: with no requests, its last task).
+    expect([full.d, full.n]).toEqual([5, 6])
+    expect([summary.d, summary.n]).toEqual([1, 2])
+    for (const view of ['full', 'summary'] as const) {
+      const rows = layout(m(view), {}, NOW, ME)
+      const keys = rows.flatMap(r => (r.fold?.open ? [r.fold.key] : []))
+      expect(keys.some(k => k.startsWith('s:'))).toBe(true)
+      const folded = header(layout(m(view), Object.fromEntries(keys.map(k => [k, true])), NOW, ME))
+      expect([view, folded.d, folded.n]).toEqual([view, ...(view === 'full' ? [5, 6] : [1, 2])])
+    }
+  })
+
   test('visão resumida: o trabalho atual (pedidos 70 a 73), sem os cartões antigos; as mesmas linhas da completa', () => {
     const full = layout(realModel('full'), {}, AT, ME)
     const summary = layout(realModel('summary'), {}, AT, ME)
-    expect(summary.length).toBe(27)
+    expect(summary.length).toBe(26)
     expect(summary[0]).toMatchObject({ tone: 'section', title: '+1 pedidos anteriores' })
     expect(summary.some(r => r.title.includes('cartões antigos'))).toBe(false)
     expect(titles(summary).slice(1)).toEqual(titles(full).slice(1, -1))
@@ -169,16 +214,15 @@ describe('layout: regras, em modelos pequenos', () => {
     expect(cards(rows).every(r => r.depth === 1)).toBe(true)
   })
 
-  test('cadeia: a mensagem de uma irmã põe o cartão sob a tarefa de origem da irmã, não na raiz', () => {
+  test('cadeia: a mensagem de uma irmã põe o cartão dentro do cartão da irmã, sob a tarefa dela, não na raiz', () => {
     // impl, opened on task 15, sent docs a message in its turn 1; docs (no anchor of its own) took it
-    // up and opened its turn after it.
+    // up and opened its turn after it. With no send published, impl's task that sent it is the last
+    // one it started before the message came (the person: under the mother's task only the cards of
+    // her messages; it was drawn under task 15, beside impl's card).
     const impl = child('local_impl', 'impl', panel([task('1', 'Implementar', 'done', { turn: 1, startedAt: T0 + 10, endedAt: T0 + 50 })], [turn(1, T0 + 5)]), { anchor: '15' })
     const docs = child('local_docs', 'docs', panel([task('1', 'Documentar', 'open', { turn: 1, started: 1, startedAt: T0 + 110 })], [turn(1, T0 + 105)], { received: [{ from: 'local_impl', at: T0 + 100 }] }), { running: true })
     const rows = layout(model([main([task('15', 'Pedido 15', 'open', { started: 1, startedAt: T0 })])], [impl, docs]), {}, NOW, ME)
-    const cs = cards(rows)
-    expect(cs.map(r => r.title)).toEqual(['impl', 'docs'])
-    expect(cs.every(r => r.depth === 1)).toBe(true)
-    expect(rows[0].title).toBe('Pedido 15')
+    expect(titles(rows)).toEqual(['Pedido 15', '  ⑂ impl', '    Implementar', '      ⑂ docs', '        Documentar'])
     // The chain's card is at work: so is the task it hangs from.
     expect(rows[0].tone).toBe('current')
     expect(rows[0].kids).toBe(true)
@@ -198,7 +242,7 @@ describe('layout: regras, em modelos pequenos', () => {
     expect(rows.slice(0, 4).map(r => r.tone)).toEqual(['current', 'running', 'current', 'running'])
   })
 
-  test('↩ por turno: cada pedido fechado mostra sua resposta (o resumo do done, senão "resposta"); um pedido com cartão de filha não', () => {
+  test('↩ por turno: cada pedido fechado com resumo do done mostra o resumo; sem resumo, sem linha ↩; um pedido com cartão de filha não', () => {
     const tasks = [task('1', 'Um', 'done', { turn: 1 }), task('2', 'Dois', 'done', { turn: 2 }), task('3', 'Três', 'done', { turn: 3 })]
     const turns = [turn(1, T0, { reply: 'Primeira resposta inteira.', brief: 'Primeira' }), turn(2, T0 + 10, { reply: 'Segunda.' }), turn(3, T0 + 20, { reply: 'Terceira.' })]
     const kid = child('local_k', 'filha', panel([task('1', 'x', 'done')]), { anchor: '3' })
@@ -206,7 +250,6 @@ describe('layout: regras, em modelos pequenos', () => {
     const replies = rows.filter(r => r.tone === 'reply')
     expect(replies.map(r => [r.title, r.whole])).toEqual([
       ['Primeira', 'Primeira resposta inteira.'],
-      ['resposta', 'Segunda.'],
     ])
     // Under the third turn: its task, the card and the card's task; no ↩ of its own.
     expect(titles(under(rows, at(rows, '|T:3')))).toEqual(['  Três', '    ⑂ filha', '      x'])

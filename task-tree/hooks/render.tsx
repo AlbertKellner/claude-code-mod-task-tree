@@ -12,7 +12,7 @@ import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
-import { openSession } from './sessions'
+import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -191,6 +191,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   const brought = await ensureGroups($)
   const viewBrought = await ensureView($)
   const workBrought = await ensureWork($)
+  // After a hot reload of the mod (each saved edit of the clone reloads it in every session) the clocks
+  // were the old module's, gone with it, and they came back only with the next event (a tool call, a
+  // refresh, a start): with a task timing and no event, the pane stood still. The app draws the pane
+  // when the mod loads: that drawing starts them again (the 1 s clock only while something runs, and
+  // the reread of the sessions). Both do nothing while they run; the clock may be asked while drawing
+  // (only a state write is refused then).
+  await keepTime($).catch(() => {})
+  watchSessions($)
   const { value: heldState } = await $.state.get(groupsState)
   const held = heldState ?? brought
   const { value: waits = [] } = await $.state.get(waitsState)
@@ -219,11 +227,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
   // is in progress, waiting, interrupted and the sessions at work.
   const mainTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
-  // With none open, the level-1 task a session is still at work under. The lit task is computed
-  // once: current() walks the whole tree, and inside the find it ran once per level-1 task (quadratic
-  // in the requests of a long session).
-  const lit = current(mainTasks).lit[0]
-  const headTask = mainTasks.find(t => t.id === lit) ?? mainTasks.find(t => atWork(t, sessions, 0).busy)
+  // With none open, the level-1 task a session is still at work under. The task in progress now is the
+  // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
+  // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
+  // open and started won over the current one. current() is computed once (it walks the whole tree).
+  const { anchor: now0 } = current(mainTasks)
+  const headTask =
+    (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
+    mainTasks.find(t => atWork(t, sessions, 0).live)
   const head = headTask?.title ?? 'Tarefas'
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
