@@ -27,7 +27,8 @@ Quem recebe `$` (o engine) e quem não recebe:
     arquivo usa, `change`/`replace`/`persist`, os `ensure*` (volta do store sem `session.start`),
     `publishPanel`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, a visão (`setView`/`restoreView`),
     o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`; trabalho novo por turno, com `goingOn` de `draw/layout.ts`), as ligações
-    (`keptLinks`/`saveLinks`/`restoreLinks`/`restoreWork`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
+    (`keptLinks`/`saveLinks`/`restoreLinks`/`restoreWork`, e `renameAnchors`, que as renomeia junto
+    com uma tarefa fechada renomeada pelo `plan`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
     `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
   - `sessions.ts` (233): as sessões que esta abriu: `refreshChildren` (os quatro passos de
     `io/host.ts`), `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`,
@@ -61,7 +62,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     `fillStarts`/`fill`, `settle`, `begin`.
 - **Desenho** (`draw/`), puro, sem `$`:
   - `layout.ts` (932): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os hooks
-    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`, `goingOn`,
+    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `goingOn`,
     `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta".
@@ -95,7 +96,7 @@ Na ordem de `register.tsx`:
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
-| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui um nível 1 aberto com o mesmo id no lugar, renomeia um fechado que colide (`<tag>:id`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
+| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui um nível 1 aberto com o mesmo id no lugar, renomeia um fechado que colide (`<tag>:id`) e, com ele, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; tira os `sends` das tarefas fechadas |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
@@ -306,6 +307,29 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   atributos `class` na ordem em que aparecem, lidos numa passada; o `Map` é esvaziado ao passar de
   1 000 entradas); as linhas de um mesmo tipo compartilham a folha.
 
+Âncoras e ids reutilizados (correção depois da fase 6, branch `fix/cartoes-na-tarefa-errada`): os
+planos reutilizam ids de nível 1 ("1", "2", "3") a cada pedido, e o `plan` renomeia a tarefa fechada
+cujo id o plano novo toma (`<tag>:id`). As ligações das sessões guardavam o id curto e passavam a
+apontar para a tarefa nova: numa pergunta simples da orquestradora, sem envio de mensagem, os cartões
+das filhas de pedidos anteriores apareciam sob a tarefa do turno atual. Dois pontos:
+
+- Raiz, `renameAnchors($, ids, tag)` em `hooks/panel.ts`, chamada pelo `planTool` logo depois de
+  renomear: toda âncora `a` com `a === id` ou `a` começando por `id/` vira `tag:a`, em `children`
+  (`anchor`, `lastAnchor`, `rounds[].anchor`), `launches` (`anchor`), `sends` (`anchor`) e na cópia do
+  módulo `keptLinks` (para a próxima gravação das ligações levar os ids renomeados).
+- Dados antigos, `resolveAnchor(owner, anchor, at)` em `draw/layout.ts` (pura): para estados já
+  publicados ou guardados antes da regra, uma âncora é resolvida pela tarefa que tinha aquele id no
+  momento `at`: só quando a tarefa que hoje tem o id foi planejada depois do momento (`plannedAt > at`)
+  e existe uma renomeada (`*:id`, um só prefixo) planejada antes, a âncora passa a ser a última dessas;
+  em qualquer outro caso (tarefa do id planejada antes, sem `plannedAt`, sem renomeada) fica como está.
+  Usada em `breaks` (as rodadas da própria sessão pelo `at` de cada rodada; a âncora de uma irmã pelo
+  início do trabalho dela, `begins`) e em `split` (o `anchor` do cartão pelo início do trabalho da
+  sessão; o `lastAnchor` pela última rodada, senão pelo início).
+
+Teste: `tests/cartoes-ancora.test.ts` (3): dois de layout com tarefas renomeadas (`ab12:1`, `cd34:1`,
+uma e duas renomeações do mesmo id) e um pelas ferramentas (`plan` "1" → sessão aberta nela → `done`
+→ pedido novo com `plan` "1" → o cartão fica na tarefa velha). Goldens e orçamento iguais.
+
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
   o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
@@ -363,8 +387,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 329 testes em 14
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 4 na correção da visão resumida); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 332 testes em 15
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -384,6 +408,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
+| `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
 
 Fixtures e goldens:
 
@@ -1099,7 +1124,11 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   cartão com tarefas abertas é desenhado em andamento. Mensagem ainda não lida não tem turno, logo
   não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
   novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
-  `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`.
+  `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`. Id reutilizado (bug achado pelo usuário
+  no 0.7.4: os cartões de pedidos anteriores apareciam sob a tarefa do turno atual): quando o `plan`
+  renomeia a tarefa fechada que tinha o id, as âncoras (`anchor`, `lastAnchor`, `rounds[].anchor`,
+  `launches`, `sends`) são renomeadas junto, e, para dados de antes, o layout resolve a âncora pela
+  tarefa que tinha o id no momento da mensagem (ver "Âncoras e ids reutilizados" em "Como é hoje").
   Rodadas também vêm de mensagens de sessões irmãs (pedido do usuário: "as tarefas que estao
   aparecendo na sessao filha, nao aparecem na sessao orquestradora"): cada filha publica o que
   recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
