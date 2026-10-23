@@ -104,7 +104,7 @@ Na ordem de `register.tsx`:
 | `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
-| `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | ver "Desenho" |
+| `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
 
 Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
 elas (por isso cada uma marca `reminders.planned` por conta própria).
@@ -169,7 +169,13 @@ sem novidade, o de sempre a cada 3 s, não faz o valor inteiro cruzar para o hos
 
 **Relógios**: `ticker` (`$.clock.every(1000)`, `tick` invalida o `ui.render` enquanto `running`; cancela
 quando nada roda) e `poller` (3 s). Os dois são variáveis de módulo: uma recarga os perde e a próxima
-chamada, prompt ou `start` os recria.
+chamada, prompt, `start` ou desenho do pane os recria. O desenho (`ui.render`) chama `keepTime($)` e
+`watchSessions($)` logo depois dos `ensure*` (as notas de `ticker` e `poller` em
+`state/durability.ts` dizem o mesmo): o app desenha o pane quando o mod carrega, e cada
+edição salva do clone recarrega o mod em todas as sessões, então sem esse religamento uma tarefa
+cronometrando ficava com o pane parado até o próximo evento (trocar de visão redesenhava). Os dois
+não fazem nada se já estão ligados; o de 1 s só liga enquanto algo roda; o kit recusa só
+`$.state.set` durante o desenho, não `$.clock.every`.
 
 **Publicação** (`publishPanel` em `hooks/panel.ts` → `publishWait` em `io/publish.ts`): pedida a cada
 `persist`, aviso, `received`, `engine`, fim de turno, poll com filhas e `/task-tree`; o arquivo só é
@@ -420,8 +426,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 345 testes em 18
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 347 testes em 19
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -441,6 +447,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
+| `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
 | `cartoes-lugar.test.ts` | 5 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
@@ -1081,8 +1088,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   Interrompida mantém o tempo até a interrupção. A hora vem de `$.clock.now` (`stamp`); sem ela (kit sem `on('clock.now')`), nada de tempo.
 - Relógio de 1 s (`keepTime`/`tick`): um `$.clock.every(1000)` que chama
   `$.ui.invalidate('ui.render')` enquanto alguma tarefa roda (aqui ou numa filha viva) e se cancela
-  quando nada roda. Começa no `start`, no refresh das filhas e em toda chamada de ferramenta do loop
-  principal (a recarga do mod cancela os timers do módulo antigo).
+  quando nada roda. Começa no `start`, no refresh das filhas, em toda chamada de ferramenta do loop
+  principal e no desenho do pane (a recarga do mod cancela os timers do módulo antigo; o desenho que o
+  app faz ao carregar o mod os religa, bug do pane parado após edição do clone).
 - Nos testes: terminal por `ui.drawn()` (os filhos do `Box`; o `key` do JSX não chega ao
   `findAll`; o `Button` é lido pelo `label`), desktop pelo `alt` de cada `Svg` em
   `findAll({ type: 'Svg' })`. A seta se aperta com `ui.press({ key: 'fold:<chave>' })` (helper
