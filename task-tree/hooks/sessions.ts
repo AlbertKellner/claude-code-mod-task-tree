@@ -9,7 +9,8 @@ import type { Child, Group, Published, Send } from '../types'
 import { SESSION } from '../text/rules'
 import { MAIN, flat, current, running } from '../draw/layout'
 import { readPublished } from '../io/publish'
-import { deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
+import { debug } from '../io/log'
+import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { change, inDesktopApp, keptLink, openList, publishPanel, selfId, showStatus, stamp } from './panel'
 
@@ -50,7 +51,13 @@ export async function refreshChildren($: any) {
     if ((cur ?? []).length > 0) await $.state.set(childrenState, [])
     return
   }
-  const mine = mineOf(rows)
+  // By this session's own id; in the app, a read waits for it (after a reload it is asked again)
+  // rather than deduce, which a list read mid-change can point at another session.
+  const self = await selfId($)
+  if (self === undefined && (await inDesktopApp($))) return
+  const deduced = deducedOwn(rows)
+  if (self !== undefined && deduced !== undefined && deduced !== self) await debug($, `task-tree: mineOf deduziu ${deduced}, id próprio ${self}`)
+  const mine = mineOf(rows, self)
   if (mine === undefined) return
   // 2. Their files.
   const read = await readFiles($, mine)
