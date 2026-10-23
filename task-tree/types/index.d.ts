@@ -145,8 +145,10 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // with no entry keeps its default.
 // `turnEnded`: when this session's turn ended (its clock), until the next prompt (then null):
 // meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
+// `turnAborted`: the last turn of the main loop ended interrupted (turn.complete with isAborted), until
+// the next request; a message of another session that comes then gets a reminder to replan the panel.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string; turnEnded: number | null }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }

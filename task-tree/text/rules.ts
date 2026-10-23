@@ -111,6 +111,20 @@ export const PROMPT = {
     PANEL + 'uma tarefa em segundo plano (um subagente, um comando) terminou; ' +
     'atualize o painel: mcp__task-tree__done no que ela concluiu.',
   notice: PANEL + 'mantenha o painel em dia (done no que terminou, start no que começa).',
+  // The last turn was interrupted (stopped) and a message of another session came next (the
+  // person's rule): the model replans the panel, joining what the interrupted work left open with
+  // what the message asks, before going on. Only for a turn another session's message opens; the
+  // person's own prompt gets the usual reminders.
+  interrupted: (list: string) =>
+    PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
+    'chegou em seguida. Antes de seguir, replaneje o painel: chame mcp__task-tree__plan com o nível 1 ' +
+    `inteiro, juntando o que ficou do trabalho interrompido (tarefas abertas: ${list}) e o que esta ` +
+    'mensagem pede, na ordem em que vai executar. Remarque com mcp__task-tree__done o que já estava ' +
+    'concluído. Depois siga etapa por etapa com start e done.',
+  interruptedEmpty:
+    PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
+    'chegou em seguida. Antes de seguir, replaneje o painel com o que esta mensagem pede: chame ' +
+    'mcp__task-tree__plan e siga etapa por etapa com start e done.',
 }
 
 // A question (AskUserQuestion) or a plan to approve: refused with no open task; answered, by an
