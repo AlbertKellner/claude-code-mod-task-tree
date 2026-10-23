@@ -63,11 +63,18 @@ export const pop = (done: boolean) =>
   '.ic{animation:pop .25s ease-out both;transform-box:fill-box;transform-origin:center}' +
   (done ? '@keyframes draw{from{stroke-dashoffset:16}to{stroke-dashoffset:0}}.ic .gr{stroke-dasharray:16;animation:draw .3s ease-out both}' : '')
 
-// A chip new in the header fades in; a bar whose count changed grows from nothing to its value (an
-// Svg knows no drawing before it: the bar cannot slide from the old value).
+// A chip new in the header fades in; a bar whose count went up grows from its old width to the new.
 export const chipIn = (tone: string) => `@keyframes ci{from{opacity:0}to{opacity:1}}.ch-${tone}{animation:ci .2s ease-out both}`
-export const grow =
-  '@keyframes grow{from{transform:scaleX(0)}to{transform:none}}.bar{animation:grow .3s ease-out both;transform-box:fill-box;transform-origin:left}'
+// The bar goes on from where it was (`from`, its width before, as a share of the new one): only
+// forward; shorter (more tasks planned), it is drawn as it is.
+export const growFrom = (before: string | undefined, now: string): string[] => {
+  const was = Number(before || 0)
+  const to = Number(now)
+  if (!(to > was)) return []
+  return [
+    `@keyframes grow{from{transform:scaleX(${(was / to).toFixed(3)})}to{transform:none}}.bar{animation:grow .3s ease-out both;transform-box:fill-box;transform-origin:left}`,
+  ]
+}
 // What the motion reads off a drawing: its chips' tones and its bar's width (none without a bar).
 export const chipTones = (source: string) => [...source.matchAll(/class="ch-([a-z]+)"/g)].map(m => m[1])
 export const barOf = (source: string) => /class="grf bar"[^>]*?width="([^"]+)"/.exec(source)?.[1] ?? ''

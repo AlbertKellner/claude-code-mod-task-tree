@@ -10,7 +10,7 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { animate, barOf, chipIn, chipTones, fadeIn, grow, mark, pop } from '../draw/motion'
+import { animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -87,11 +87,11 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       ? [fadeIn(Math.min(150, 30 * entering++))]
       : [
           ...(popsAt(i) ? [pop(progress(lines[i]) === 'done')] : []),
-          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? [grow] : []),
+          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i])) : []),
         ]
   const headMotion = [
     ...tones.filter(t => marks.enter.has(`head#chip:${t}`)).map(chipIn),
-    ...(marks.changed.has('head#bar') && barOf(top.source) !== '' ? [grow] : []),
+    ...(marks.changed.has('head#bar') && barOf(top.source) !== '' ? growFrom(marks.before.get('head#bar'), barOf(top.source)) : []),
   ]
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
