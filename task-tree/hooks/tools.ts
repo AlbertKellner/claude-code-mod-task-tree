@@ -160,8 +160,9 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
         const t = main.find(t => t.id === s.anchor)
         if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
       }
-      // Closed, its send waits no more: no ✉ left behind on an id used again.
-      if (closed.length > 0) await update($, sendsState, cur => (cur ?? []).filter(s => !closed.includes(s.anchor ?? '')))
+      // The send stays with the closed task: its ✉ is drawn until the session takes the message up
+      // (watchSends), whatever the model did with the task. An id used again by a new plan renames the
+      // old task and its send with it (renameAnchors), or drops both (a replanned task).
       // The last step closed with no summary: the ↩ line would say only "resposta".
       if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
         notes.push(DONE.noSummary)
