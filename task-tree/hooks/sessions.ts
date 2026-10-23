@@ -257,6 +257,10 @@ export async function tick($: any) {
   ticker?.cancel()
   ticker = undefined
 }
+// The running times count their seconds in the Svg (liveClock, CLOCK_FRAMES of a second): the pane is
+// redrawn before the frames run out, not every second (every drawing makes all its Svgs again, which
+// restarted anything moving in them). A change of state redraws at once and starts the frames anew.
+const CLOCK_TICK = 55000
 // Every drawing asks for the clock: the check and the start must not be split by an await, or drawings
 // at the same time each start one, and only the last is kept to cancel (the others redrew the pane
 // every second for good, in bursts that replaced the Buttons under the pointer: clicks were lost).
@@ -267,7 +271,7 @@ export async function keepTime($: any) {
   try {
     if (!(await anyRunning($)) || (await stamp($)) === undefined || ticker) return
     try {
-      ticker = $.clock.every(1000, () => void tick($))
+      ticker = $.clock.every(CLOCK_TICK, () => void tick($))
     } catch {}
   } finally {
     starting = false

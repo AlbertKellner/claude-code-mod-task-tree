@@ -641,6 +641,8 @@ export type Row = {
   meta?: string
   // null: a closed task whose time is unknown (panels of earlier versions), drawn as "—".
   time?: number | null
+  // Drawn only (the render sets it): the time is running, so the Svg counts its seconds itself.
+  runs?: boolean
   // A session's or subagent's header: it and the lines below it are drawn in a card.
   card?: boolean
   // For the header's chips: a task in progress with nothing open below it; a session at work;
