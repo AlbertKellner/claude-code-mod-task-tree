@@ -26,7 +26,7 @@ Quem recebe `$` (o engine) e quem não recebe:
   - `panel.ts` (490): o estado do painel e como os hooks o mudam: as 14 chaves de `$.state` que este
     arquivo usa, `change`/`replace`/`persist`, os `ensure*` (volta do store sem `session.start`),
     `publishPanel`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, a visão (`setView`/`restoreView`),
-    o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`), as ligações
+    o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`; trabalho novo por turno, com `goingOn` de `draw/layout.ts`), as ligações
     (`keptLinks`/`saveLinks`/`restoreLinks`/`restoreWork`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
     `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
   - `sessions.ts` (233): as sessões que esta abriu: `refreshChildren` (os quatro passos de
@@ -61,7 +61,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     `fillStarts`/`fill`, `settle`, `begin`.
 - **Desenho** (`draw/`), puro, sem `$`:
   - `layout.ts` (932): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os hooks
-    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`,
+    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`, `goingOn`,
     `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta".
@@ -95,7 +95,7 @@ Na ordem de `register.tsx`:
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
-| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui um nível 1 aberto com o mesmo id no lugar, renomeia um fechado que colide (`<tag>:id`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual (`startsWork`/`joinWork`), abre o pane |
+| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui um nível 1 aberto com o mesmo id no lugar, renomeia um fechado que colide (`<tag>:id`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo só os níveis 1 anteriores ainda abertos (`startsWork`/`joinWork`/`goingOn`), abre o pane |
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; tira os `sends` das tarefas fechadas |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
@@ -363,8 +363,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 325 testes em 13
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 329 testes em 14
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 4 na correção da visão resumida); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -383,6 +383,7 @@ e tem 5 s.
 | `limite-linhas.test.ts` | 4 | `limitRows`: 400 linhas, blocos antigos contados, `rows`/`drawSize` publicados |
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
+| `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
 
 Fixtures e goldens:
 
@@ -1303,11 +1304,19 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   kit de testes, que não roda o `session.start`), o render usa a completa.
   Trabalho atual (pedido do usuário: "somente limpe os itens quando todos estiverem concluidos e quando
   iniciarem novas tarefas"): o estado `work` (e o store em `work:<session id>`, restaurado no
-  `session.start`) guarda os níveis 1 do grupo principal do trabalho atual. Um `plan` ou `start` do
-  loop principal começa trabalho novo (`startsWork`) só sem nenhuma folha aberta no painel
-  (`nothingOpen`, sessões incluídas) e numa mensagem do usuário (turno) diferente da do trabalho
-  atual; no mesmo turno, mesmo com tudo concluído antes, ou com algo aberto, os níveis 1 dele entram
-  no atual (um nível 1 concluído renomeado pelo plano continua); `/clear` zera.
+  `session.start`) guarda os níveis 1 do grupo principal do trabalho atual. Regra de hoje (correção
+  depois da fase 6, branch `fix/resumida-so-tarefas-do-turno`; pedido do usuário: "segundo a regra
+  antiga, na visão resumida, ficam somente as tarefas novas do turno"): um `plan` ou `start` do loop
+  principal começa trabalho novo (`startsWork`) numa mensagem do usuário (turno) diferente da do
+  trabalho atual, mesmo com folhas abertas no painel; o trabalho novo são os níveis 1 novos mais os
+  do trabalho anterior que ainda têm algo aberto embaixo (`goingOn`); os pedidos todos concluídos
+  saem. No mesmo turno, os níveis 1 dele entram no atual (um nível 1 concluído renomeado pelo plano
+  continua); `/clear` zera. Sem turnos registrados (painéis antigos), vale a regra antiga: só com
+  `nothingOpen` (nenhuma folha aberta no painel, sessões incluídas). Antes, só `nothingOpen` decidia:
+  uma filha parada com uma tarefa aberta (caso comum na orquestradora) fazia todo pedido novo entrar
+  no trabalho atual, e o `work` acumulou 11 níveis 1 de 6 pedidos ("+3 pedidos anteriores" e três
+  concluídos acima do novo). Um nível 1 concluído com sessão viva embaixo não fica: a resumida já
+  desenha a sessão viva sem tarefa no trabalho no fim da lista (`trimToWork`).
   A resumida é a visão completa de um recorte do painel (pedido do usuário: "a visao resumida deve
   usar a mesma base de logica da visao completa, com o diferencial que ela somente mostra as tarefas
   em andamento e elas somente sao ocultas dessa visao quando todas estao completas"): mesmas linhas,

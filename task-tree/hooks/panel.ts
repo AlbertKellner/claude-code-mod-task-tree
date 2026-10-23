@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, goingOn } from '../draw/layout'
 import { debug } from '../io/log'
 import { publishWait } from '../io/publish'
 
@@ -409,10 +409,15 @@ export async function restoreView($: any) {
   await $.state.set(viewState, keepCurrent(cur, saved === 'full' || saved === 'summary' ? saved : 'summary'))
 }
 
-// The current work (the summary view's list): the main group's level-1 tasks opened since all was
-// last closed. A plan or start that opens tasks with no open leaf left anywhere (here or in a
-// session) starts new work; otherwise its level-1 tasks join the current one. Kept in the state
-// and in the store under the session, like the view.
+// The current work (the summary view's list): the main group's level-1 tasks of the person's
+// current request, with those of earlier requests still going on. A plan or start of the main loop
+// in a new request (another message of the person) starts new work: the new level-1 tasks, plus the
+// ones of the work before that still have something open (goingOn);
+// the requests all done leave it (the person's words: "segundo a regra antiga, na visão resumida,
+// ficam somente as tarefas novas do turno"). Within the request of the current work its level-1
+// tasks join it. With no requests recorded (panels from before turns), new work starts only with
+// no open leaf anywhere, as before. Kept in the state and in the store under the session, like the
+// view.
 export async function nothingOpen($: any): Promise<boolean> {
   await ensureGroups($)
   await ensureWork($)
@@ -420,14 +425,17 @@ export async function nothingOpen($: any): Promise<boolean> {
   const { value: children = [] } = await $.state.get(childrenState)
   return activeLeaves({ groups: withMain(groups), waits: [], children }, 0) === 0
 }
-// New work starts with nothing open and another message of the person: within the turn of the
-// current work, a plan after all was closed joins it.
+// New work starts with another message of the person: within the turn of the current work, a plan
+// (even after all was closed) joins it. A session left with an open task no longer holds every later
+// request in the current work (it did: the summary piled up the finished requests of the whole day).
 export async function startsWork($: any): Promise<boolean> {
-  if (!(await nothingOpen($))) return false
+  // After a reload with no session.start, the groups and the work come back from the store first.
+  await ensureGroups($)
+  await ensureWork($)
   const { value: groups = [] } = await $.state.get(groupsState)
   const main = withMain(groups as Group[]).find(g => g.agent === MAIN)
   const now = main?.turns?.[main.turns.length - 1]?.id
-  if (now === undefined) return true
+  if (now === undefined) return nothingOpen($)
   const { value: work = [] } = await $.state.get(workState)
   return !(main?.tasks ?? []).some(t => (work as string[]).includes(t.id) && t.turn === now)
 }
@@ -440,7 +448,12 @@ export async function setWork($: any, ids: string[]) {
 export async function joinWork($: any, ids: string[], fresh: boolean) {
   if (ids.length === 0) return
   const { value: cur = [] } = await $.state.get(workState)
-  await setWork($, fresh ? [...new Set(ids)] : [...new Set([...(cur as string[]), ...ids])])
+  if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
+  // New work: what of the work before is still going on stays (goingOn).
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const { value: children = [] } = await $.state.get(childrenState)
+  const kept = goingOn({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[])
+  await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
 // rounds of their messages; the sends still waiting; the messages received; the subagents'
