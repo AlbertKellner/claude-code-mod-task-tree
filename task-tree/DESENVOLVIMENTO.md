@@ -319,6 +319,21 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   por turno.
 - `atWork` roda uma vez por tarefa e passada: dentro de `body`, um `WeakMap` por tarefa guarda o
   `Work` que `turnRows` (soma do pedido) e `rows` (a linha da tarefa) pedem.
+- Tarefa da mãe concluída com `done` (decisão do usuário: "um done explícito da mãe deve valer como
+  concluído; o progresso das filhas fica no cartão delas"): `atWork(t, sessions, level)` só soma ao d/n,
+  ao tempo e ao `busy` (que deixa a tarefa em andamento) as sessões abertas numa tarefa não concluída; a
+  subárvore de uma tarefa `done` fica de fora (`open(k)` = `[]` se `k.status === 'done'`, senão `[k.id,
+  ...filhos]`). Antes, uma tarefa concluída com uma filha ainda trabalhando aparecia ◉ "3/4", com o
+  tempo correndo; agora aparece ✓ com a contagem própria (ex.: "✓ Investigar ⑂ 2/2 0:05"), e o cartão da
+  filha mostra o estado e a contagem dela. Uma tarefa aberta continua em andamento e somando as tarefas
+  da sessão. O pedido (`turnRows`) com todas as tarefas concluídas com `done` fica concluído e não soma
+  as sessões. `Work` ganhou dois campos: `live` (há sessão viva em qualquer ponto abaixo; `trimToWork` o
+  usa para manter na resumida o nível 1 com sessão trabalhando, o corte da completa em `layout()` mantém
+  o pedido com sessão viva, e o título do cabeçalho sem tarefa acesa usa o primeiro nível 1 com sessão
+  viva abaixo) e `cards` (todas as tarefas das sessões abaixo, inclusive as de baixo de tarefa
+  concluída: é o que o `Row.nodes` de uma linha recolhida, tarefa ou pedido, soma, então recolher não
+  muda o cabeçalho). `any` continua marcando o ⑂. O cabeçalho segue somando os nós das linhas
+  desenhadas, os cartões inclusive. Testes: `tests/mae-concluida.test.ts` (2).
 - `fit` (`svg.ts`) é linear no título: acumula a largura do que fica com os mesmos termos e na
   mesma ordem de `textW` (mesma soma em ponto flutuante, mesmo corte) em vez de medir o prefixo
   inteiro a cada caractere; `em(ch)` lembra a largura de cada caractere num `Map` do módulo.
@@ -359,7 +374,7 @@ mantida), em `draw/layout.ts`:
   rodada: as rodadas ficam nas últimas 20 e, no teto, cada mensagem nova descarta a mais antiga e
   desloca todos os índices, e o recolhimento passava para outro cartão (um cartão novo vinha
   recolhido). As escolhas antigas com `#<índice>` deixam de valer uma vez.
-- Resumida (`trimToWork`): um nível 1 com sessão trabalhando embaixo (`atWork(t, children, level).busy`)
+- Resumida (`trimToWork`): um nível 1 com sessão trabalhando embaixo (`atWork(t, children, level).live`)
   fica no recorte, com o seu pedido. O `cut()` não realoca mais a âncora de cartão nenhum: só divide
   as sessões em cartões (`split`) e passa a `trimToWork`, e cada cartão fica sob a tarefa que mandou
   a mensagem, como na completa (antes, um cartão sem parte ia para a tarefa da última mensagem,
@@ -370,7 +385,7 @@ mantida), em `draw/layout.ts`:
   o cartão de uma sessão viva, que sumia da completa (pedido de origem fora dos 3 últimos) e ia para
   o fim da resumida, aparece sob a tarefa de origem nas duas visões.
 - Completa: o corte dos 3 últimos pedidos (`SHOWN_TURNS`) mantém também o pedido cujo nível 1 tem
-  sessão trabalhando embaixo (`work(t).busy`), como já mantinha o que tem algo aberto.
+  sessão trabalhando embaixo (`work(t).live`), como já mantinha o que tem algo aberto.
 - Turno em lote (regra do usuário: "cada mensagem cria seu próprio cartão sob a tarefa que a enviou,
   na ordem de execução"): mensagens enfileiradas para uma sessão ocupada são entregues de uma vez e
   abrem um único turno dela; o cartão desse turno ia para a última mensagem e a tarefa da primeira
@@ -465,8 +480,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 355 testes em 21
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 357 testes em 22
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -487,6 +502,7 @@ e tem 5 s.
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
 | `relogio-recarga.test.ts` | 2 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede |
+| `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
 | `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
 | `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
@@ -1277,13 +1293,15 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   painel e o `$.ui.status`. As interrompidas ficam fora. Os resultados de `plan`/`done` contam só o
   grupo de quem chama.
   O `d/n` de cada tarefa da principal (`atWork`) soma, além das próprias folhas (a própria tarefa,
-  se for folha com sessão), as tarefas das sessões ancoradas nela ou abaixo (arquivadas inclusive). Com uma
-  dessas sessões viva, a tarefa é desenhada em andamento e o relógio corre, mesmo com `done`
-  gravado (só o desenho; o status não muda). O chip "● em andamento" conta só o andamento próprio
+  se for folha com sessão), as tarefas das sessões ancoradas nela ou abaixo (arquivadas inclusive), só
+  enquanto a tarefa não está concluída com `done`. Com uma dessas sessões viva, a tarefa aberta é
+  desenhada em andamento e o relógio corre; uma tarefa concluída com `done` fica concluída (regra
+  substituída: antes ela era desenhada em andamento "mesmo com `done` gravado"; o progresso das
+  filhas fica no cartão delas; ver o bullet "Tarefa da mãe concluída" em "Como é hoje"). O chip "● em andamento" conta só o andamento próprio
   (`active`); a sessão já conta no chip ⑂. Sem nível 1 aberto, o cabeçalho mostra o que tem sessão
-  viva embaixo. O tempo (`timeOf`) vai do primeiro início ao último fim da tarefa, das subtarefas e
-  das tarefas dessas sessões (`allTasks`, até `DEEP`), ou até agora enquanto alguma roda ou uma
-  sessão embaixo está viva; vale para linha, terminal e `alt`. O tempo do cabeçalho é o da sessão
+  viva embaixo (`atWork(...).live`). O tempo (`timeOf`) vai do primeiro início ao último fim da
+  tarefa, das subtarefas e das tarefas dessas sessões (`allTasks`, até `DEEP`; só as de tarefa não
+  concluída), ou até agora enquanto alguma roda ou uma sessão embaixo de tarefa não concluída está viva; vale para linha, terminal e `alt`. O tempo do cabeçalho é o da sessão
   inteira (`sessionTime`), nas duas visões: do primeiro início (ou `plannedAt`) de qualquer tarefa
   do painel (todos os turnos, níveis 1 soltos, subagentes e sessões, arquivadas inclusive, até `DEEP`) ao
   último fim, ou até agora enquanto houver tarefa aberta ou sessão viva. O "N de M" vem do `total`. O relógio de 1 s
@@ -1340,7 +1358,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   tarefas); turno com um só nível 1 continua sem cabeçalho, para o cartão não ganhar uma linha por
   turno:
   `turnRows` faz a linha do pedido (d/n, barra e tempo somando as tarefas e as sessões abertas
-  nelas, como no `atWork`), em andamento enquanto algo dele está, aberta também quando tudo fechou
+  nas tarefas não concluídas, como no `atWork`), em andamento enquanto algo dele está (um pedido com
+  todas as tarefas concluídas com `done` fica concluído), aberta também quando tudo fechou
   (chave `|T:<id>`), e os níveis 1 um nível abaixo. O limite de 3 níveis do `plan` não muda.
 - Ícone de sessão filha: toda linha mantém o ícone de progresso (○/◉/✓/✕/✉; no cartão da sessão,
   ◉ rodando ou aguardando, ✓ concluída, ✕ arquivada). O cartão de uma sessão (`Row.session`) e a
