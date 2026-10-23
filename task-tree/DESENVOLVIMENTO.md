@@ -309,6 +309,18 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   aberta e iniciada ganhava da atual. Os números do cabeçalho não mudam: seguem a soma das linhas
   desenhadas na visão (ver "Cabeçalho por visão" no histórico). Teste:
   `tests/cabecalho-tarefa-atual.test.ts` (2).
+  Regra dos números, confirmada por testes sem mudança de código (nas palavras do usuário: "deve somar
+  as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa
+  visao" e "as colapsada, mas que estao nessa visao, tambem entram"): cada visão conta as tarefas que
+  ela inclui, inclusive as recolhidas (cartão, tarefa ou pedido recolhido pela pessoa), porque o
+  `Row.nodes` da linha recolhida leva o que está embaixo, cartões inclusive, via `Work.cards`. Fica de
+  fora o que a visão não inclui: na resumida, os pedidos finalizados de turnos anteriores e, dentro de
+  um cartão, o que o corte do cartão para o trabalho atual dele tira (`trimToWork` recursivo); na
+  completa, o que o limite corta ("+N pedidos anteriores", "+N cartões antigos"). Testes, em
+  `layout.test.ts`: "recolher cartões e tarefas não muda os números, nas duas visões" (estado real, cada
+  dobra de uma vez e depois todas) e "a resumida deixa de fora o pedido finalizado e o cartão dele; a
+  completa conta os dois" (modelo pequeno: completa 5/6, resumida 1/2, e com tudo recolhido os números
+  se mantêm).
 - `split()` devolve um cartão já cortado (`c.part` definido, os da visão resumida) antes de calcular
   `breaks`; dentro, a parte de cada turno (`partOfTurn`), as tarefas e o `flat` de cada parte
   (`tasksByPart`, `flatIn`) e a parte de cada tarefa (`partOfTask`, usada por `holder`) ficam em mapas
@@ -480,8 +492,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 357 testes em 22
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 359 testes em 22
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -489,7 +501,7 @@ e tem 5 s.
 |---|---|---|
 | `task-tree.test.ts` | 168 | o painel desenhado e os resultados das ferramentas: ids, replanejar, visão, dobras, tempos, cartões, avisos, sessões, mensagens, turnos, ↩; o cabeçalho com 300 níveis 1 (fase 6) |
 | `durabilidade.test.ts` | 63 | a tabela: 4 cenários por chave de state (plantar; reinício com `session.start`; sem; recarga a quente), `sessions`, sanidade, "chave sem linha" |
-| `layout.test.ts` | 16 | `layout()` direto, com o fixture real e modelos pequenos: pedidos desenhados, cartões, ↩, cabeçalho, resumida, ordem, cadeias, ✉, corte; os cartões e as linhas de uma filha funda fixados (fase 6) |
+| `layout.test.ts` | 18 | `layout()` direto, com o fixture real e modelos pequenos: pedidos desenhados, cartões, ↩, cabeçalho, resumida, ordem, cadeias, ✉, corte; os cartões e as linhas de uma filha funda fixados (fase 6); o cabeçalho com cartões e tarefas recolhidos, nas duas visões, e a resumida sem o pedido finalizado e o cartão dele |
 | `host.test.ts` | 13 | os passos de `io/host.ts` com `$` falso ou entradas puras, inclusive a lista parcial |
 | `reinicio.test.ts` | 11 | reinício do processo (com e sem `session.start`) e recarga a quente, com o fixture real; `KNOWN` (vazio) para bugs futuros |
 | `hooks-puros.test.ts` | 11 | `said`, `brief` e as edições de `state/tasks.ts`; `fit` contra a regra antiga, em todos os títulos, tamanhos e larguras (fase 6) |
@@ -1138,7 +1150,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   desenhados pelo limite de 3, com a linha "+N pedidos anteriores". O total da sessão inteira vai
   discreto, só quando difere do mostrado: no terminal, "(sessão inteira: D de N)" depois do
   cabeçalho; no desktop, no `alt` do cabeçalho. A barra e o % seguem a lista visível. Recolher uma
-  linha não muda os números.
+  linha (cartão, tarefa ou pedido) não muda os números: o `Row.nodes` da linha recolhida leva o que está
+  embaixo, cartões inclusive (`Work.cards`). Cada visão conta o que inclui, recolhido ou não; fora ficam
+  os pedidos finalizados de turnos anteriores na resumida (e o que o corte do cartão tira) e, na
+  completa, o que o limite corta (ver o bullet do Cabeçalho em "Como é hoje" › Desenho).
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
