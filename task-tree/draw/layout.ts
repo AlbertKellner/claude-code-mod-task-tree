@@ -434,9 +434,9 @@ export function timeSpan(list: TaskNode[], busy: boolean, now?: number): number 
   return starts.length === 0 || now === undefined ? undefined : now - Math.min(...starts)
 }
 
-// The header's "em andamento": every open task with no subtasks (◉ or ○ leaves), in every group of
-// the panel and in its sessions not archived (as deep as the count goes), so it is M − N of the
-// "N de M" (interrupted ones are out of both). The ones waiting on a session (`sent`, main group
+// Every open task with no subtasks (◉ or ○ leaves), in every group of the panel and in its
+// sessions not archived (as deep as the count goes), so it is M − N of the "N de M" (interrupted
+// ones are out of both); none means nothing is open (nothingOpen). The ones waiting on a session (`sent`, main group
 // here) have their own chip and are left out of this one.
 export function activeLeaves(p: Panel, level: number, sent: string[] = []): number {
   let k = 0
