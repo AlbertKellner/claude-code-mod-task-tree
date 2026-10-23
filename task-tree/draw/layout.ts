@@ -579,6 +579,9 @@ export function trimToWork(p: Panel, level: number): Panel {
   // The requests of the work, whole. A session still at work under a request out of the work does not
   // pull the request back (the person's decision; it did, and a day-old request came back with its
   // old cards while a session worked), nor is its card drawn loose: a card is drawn where its task is.
+  // A card with no task to go under is left out of the summary too (it was drawn loose at the root:
+  // with few requests in sight every old session's card counted as recent, and days-old cards of
+  // archived and stopped sessions piled up after the last request).
   const wanted = work
   const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
@@ -593,7 +596,7 @@ export function trimToWork(p: Panel, level: number): Panel {
       level >= DEEP
         ? (p.children ?? [])
         : (p.children ?? [])
-            .filter(c => under(c.anchor) || c.anchor === undefined)
+            .filter(c => under(c.anchor))
             .map(c => ({ ...c, panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
   }
 }
