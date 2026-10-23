@@ -9,7 +9,7 @@ import { MAIN, flat, tasksOf, hasOpen, count } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { PANE, reminders, change, ensureGroup, joinWork, lastBrief, stamp, startsWork } from './panel'
+import { PANE, reminders, renameAnchors, change, ensureGroup, joinWork, lastBrief, stamp, startsWork } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -88,6 +88,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       })
     })
     if (agent === MAIN) {
+      // The sessions' ties to a renamed task go with it (see renameAnchors).
+      await renameAnchors($, renamed, tag)
       // A closed level-1 task of the current work renamed by this plan stays in it.
       const { value: cur = [] } = await $.state.get(workState)
       const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)

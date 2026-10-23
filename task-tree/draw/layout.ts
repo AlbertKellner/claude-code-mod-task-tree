@@ -118,6 +118,26 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
   return out
 }
 
+// The task an anchor names, as of a moment: the plans reuse level-1 ids between requests, and a
+// closed task whose id a new plan takes is renamed (`tag:id`, see planTool), so a tie recorded before
+// the rename (a published file from an earlier version, a store from before this rule) still holds
+// the bare id, which now names the new task. Only that case is touched: when the task holding the
+// id was planned after the moment and a renamed one (`*:id`) planned before it exists, the anchor
+// is the last of those planned before the moment (the one that held the id then). Everything else
+// (the id's task planned before the moment, no plan times, no renamed holder) stays as it is.
+export function resolveAnchor(owner: TaskNode[], anchor: string | undefined, at: number | undefined): string | undefined {
+  if (anchor === undefined || at === undefined) return anchor
+  const all = flat(owner)
+  const exact = all.find(t => t.id === anchor)
+  if (exact === undefined || exact.plannedAt === undefined || exact.plannedAt <= at) return anchor
+  const suffix = ':' + anchor
+  const held = all
+    .filter(t => t.id.endsWith(suffix) && t.id.length > suffix.length && !t.id.slice(0, -suffix.length).includes(':') && t.plannedAt !== undefined && t.plannedAt <= at)
+    .sort((a, b) => (a.plannedAt as number) - (b.plannedAt as number))
+  const last = held[held.length - 1]
+  return last?.id ?? anchor
+}
+
 // Each session's breaks once per list of sisters (one drawing): the chain follows a sister's own
 // breaks for every message it sent, and sisters message each other in a ring (implementation →
 // docs → SVG → governance → implementation). Recomputed per message, with up to 20 kept each, that
@@ -134,7 +154,7 @@ export function breaks(c: Child, sisters: Child[], me: string | undefined, seen:
   const key = `${list}|${me ?? ''}|${seen.join(',')}|${c.id}|${c.part ?? ''}`
   const hit = memo.hits.get(key)
   if (hit !== undefined) return hit
-  const own: Break[] = [...(c.rounds ?? []).map(r => ({ at: r.at, anchor: r.anchor })), ...unsent(c, me, owner)]
+  const own: Break[] = [...(c.rounds ?? []).map(r => ({ at: r.at, anchor: resolveAnchor(owner, r.anchor, r.at) })), ...unsent(c, me, owner)]
   if (seen.includes(c.id) || seen.length > 4) return own
   const path = [...seen, c.id]
   const sisterBreaks = new Map<string, Break[]>()
@@ -157,7 +177,7 @@ export function breaks(c: Child, sisters: Child[], me: string | undefined, seen:
           const when = viaSend ?? sent?.at
           const before = when === undefined ? [] : fb.filter(b => b.at <= when)
           const last = before[before.length - 1]
-          return [{ at: x.at, anchor: last ? last.anchor : from.anchor, peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined) }]
+          return [{ at: x.at, anchor: last ? last.anchor : resolveAnchor(owner, from.anchor, begins(from)), peer: true, known: when !== undefined && (last !== undefined || from.anchor !== undefined) }]
         })
   const out = [...own, ...peer].sort((a, b) => a.at - b.at)
   memo.hits.set(key, out)
@@ -186,10 +206,19 @@ export const inOrder = (list: Child[]) =>
 // not drawn, for up to WAIT_ORIGIN ms: it would show at the root and jump into place on the next read.
 export const WAIT_ORIGIN = 10000
 // `now`: the drawing's clock (undefined where it cannot be read); `memo`: the drawing's cache of breaks.
-export function split(c: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
+export function split(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
   // A card already cut to one round (the summary view's cut() splits the sessions before the pass
   // that draws them) is kept as it is, with no breaks computed for it.
-  if (c.part !== undefined) return [c]
+  if (c0.part !== undefined) return [c0]
+  // The session's ties, as of when they were made: where it was opened (by when its work began)
+  // and where its last message came from (by that message), see resolveAnchor.
+  const lastRound = [...(c0.rounds ?? [])].sort((a, b) => a.at - b.at).pop()
+  const opened = begins(c0)
+  const c: Child = {
+    ...c0,
+    anchor: resolveAnchor(owner, c0.anchor, Number.isFinite(opened) ? opened : undefined),
+    lastAnchor: resolveAnchor(owner, c0.lastAnchor, lastRound?.at ?? (Number.isFinite(opened) ? opened : undefined)),
+  }
   const rounds = breaks(c, sisters, me, [], owner, memo)
   const p = c.panel
   if (rounds.length === 0 || p === undefined) return [c]
