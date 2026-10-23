@@ -10,15 +10,16 @@ export const DUR = 400
 
 // What a key looked like when last drawn: its state (a tone, a count), when it last came in or
 // changed, and which of the two it was.
-type Seen = { state: string; at: number; kind: 'enter' | 'changed' | 'none' }
+type Seen = { state: string; at: number; kind: 'enter' | 'changed' | 'none'; before?: string }
 const seen = new Map<string, Seen>()
 let primed = false
 
 // Each key drawn now, with its state: `enter` the ones not drawn before, `changed` the ones whose
-// state differs, both until DUR after it happened. Keys not drawn now are forgotten.
-export type Marks = { enter: Set<string>; changed: Set<string> }
+// state differs (`before`: the state it had), both until DUR after it happened. Keys not drawn now
+// are forgotten.
+export type Marks = { enter: Set<string>; changed: Set<string>; before: Map<string, string> }
 export function mark(drawnNow: [string, string][], now: number | undefined): Marks {
-  const marks: Marks = { enter: new Set(), changed: new Set() }
+  const marks: Marks = { enter: new Set(), changed: new Set(), before: new Map() }
   if (now === undefined) return marks
   const keep = new Set<string>()
   for (const [key, state] of drawnNow) {
@@ -28,10 +29,13 @@ export function mark(drawnNow: [string, string][], now: number | undefined): Mar
       was = { state, at: now, kind: primed ? 'enter' : 'none' }
       seen.set(key, was)
     } else if (was.state !== state) {
-      was = { state, at: now, kind: 'changed' }
+      was = { state, at: now, kind: 'changed', before: was.state }
       seen.set(key, was)
     }
-    if (was.kind !== 'none' && now - was.at < DUR) marks[was.kind].add(key)
+    if (was.kind !== 'none' && now - was.at < DUR) {
+      marks[was.kind].add(key)
+      if (was.before !== undefined) marks.before.set(key, was.before)
+    }
   }
   for (const key of [...seen.keys()]) if (!keep.has(key)) seen.delete(key)
   primed = true
