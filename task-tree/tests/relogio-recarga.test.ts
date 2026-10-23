@@ -63,6 +63,23 @@ describe('relógio depois de uma recarga do mod', () => {
     expect(h.every).toContain(1000)
   })
 
+  // The person: "preciso clicar algumas vezes no icone para a acao acontecer" ("qualquer icone"). Every
+  // drawing asks for the clock (keepTime), and keepTime looked at the clock before an await and made it
+  // after: drawings at the same time each made one. Only the last was kept to cancel; the others redrew
+  // the pane every second for good, in bursts that replaced the Buttons under the pointer.
+  test('desenhos ao mesmo tempo ligam um relógio de 1 s só', async ($, on) => {
+    seedState(on, JSON.parse(JSON.stringify(RUNNING)))
+    const h = host(on)
+    // Two drawings at once: the pane on the terminal and on the desktop.
+    const draw = async (surface: 'terminal' | 'desktop') => {
+      const ui = await $.ui.mount({ plugin: 'task-tree', surface, component: 'Pane', props: PROPS, requestId: 'task-tree' })
+      await ui.drawn()
+      await ui.unmount()
+    }
+    await Promise.all([draw('terminal'), draw('desktop')])
+    expect(h.every.filter(ms => ms === 1000).length).toBe(1)
+  })
+
   test('sem nada cronometrando, o desenho não liga o relógio de 1 s', async ($, on) => {
     seedState(on, JSON.parse(JSON.stringify(IDLE)))
     const h = host(on)

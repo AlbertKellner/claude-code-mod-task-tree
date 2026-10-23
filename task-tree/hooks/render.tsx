@@ -7,7 +7,7 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, layout, guides, labelCols, frames } from '../draw/layout'
+import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
@@ -28,6 +28,7 @@ const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 
@@ -221,7 +222,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const work = heldWork ?? workBrought ?? []
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
-  const lines = layout({ groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[] }, chosen, now, knownId())
+  const { value: ended } = await $.state.get(turnEndedState)
+  const lines = layout({ groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }, chosen, now, knownId())
   drawn.rows = lines.length
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
@@ -231,10 +233,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
-  const { anchor: now0 } = current(mainTasks)
+  // With nothing in progress: the task started last (done or not; the person: "o título é o do passo
+  // iniciado por último"), then the LAST level-1 task with a session still at work under it (the first
+  // one named a task from many requests before), then the first open task.
+  const now0 = current(mainTasks).anchor ?? startedLast(mainTasks)?.id
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
-    mainTasks.find(t => atWork(t, sessions, 0).live)
+    [...mainTasks].reverse().find(t => atWork(t, sessions, 0).live) ??
+    mainTasks.find(t => t.status === 'open')
   const head = headTask?.title ?? 'Tarefas'
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its

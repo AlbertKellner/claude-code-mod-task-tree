@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-// The summary view follows the person's requests: a new message that plans new tasks shows only
-// them, plus what is still going on from earlier requests (a level-1 task with something open, or
-// with a session at work under it). Requests all done leave the summary (the full view keeps the
-// history). The rule was "new work starts only with no open leaf anywhere, sessions included", and a
-// session that stopped with a task left open (an idle child, the usual case in an orchestrator) kept
-// every later request joining the current work: the summary piled up the finished requests of the
-// whole day ("+3 pedidos anteriores" and three done requests above the new one).
+// The summary view follows the person's requests. The person's rule (after the visual test): "as
+// tarefas concluídas deveriam ficar do jeito que estão até todas as tarefas estarem concluídas, só
+// então o painel seria resetado com um novo turno; senão, as tarefas vão sendo adicionadas no painel".
+// A new message with anything open in sight (a task of a request in sight, or a card under one with
+// an open task, the session stopped or not) keeps everything in sight, done requests included, and
+// is added below; with nothing open in sight, it clears the summary. A live session under a request
+// out of sight does not pull it back (see resumida-tudo-aberto.test.ts).
 
 const KID = 'local_11111111-1111-1111-1111-111111111111'
 const PROPS = { title: 'Tarefas', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { top: 0, bodyRows: 60 }, view: {} } as any
@@ -51,7 +51,7 @@ const STALE = [{ id: 'X', short: 'X', title: 'Esquecida pela filha', status: 'op
 const has = (lines: string[], s: string) => lines.some(l => l.includes(s))
 
 describe('visão resumida: só as tarefas do pedido atual e o que ainda corre', () => {
-  test('dois pedidos concluídos e uma filha parada com folha aberta: o pedido novo aparece sozinho', async ($, on) => {
+  test('dois pedidos concluídos e uma filha parada com folha aberta: a folha aberta segura os dois, e o novo entra embaixo', async ($, on) => {
     host(on, STALE)
     await ask($, 'primeiro pedido')
     await call($, 'plan', { tasks: [{ id: 'A', title: 'Abrir a filha' }], request: 'primeiro pedido' })
@@ -68,12 +68,13 @@ describe('visão resumida: só as tarefas do pedido atual e o que ainda corre', 
     await call($, 'start', { ids: ['C'] })
     const lines = await summary($)
     expect(has(lines, 'Terceiro pedido novo')).toBe(true)
-    expect(has(lines, 'Segundo pedido feito')).toBe(false)
-    expect(has(lines, 'Abrir a filha')).toBe(false)
+    expect(has(lines, 'Segundo pedido feito')).toBe(true)
+    expect(has(lines, 'Abrir a filha')).toBe(true)
+    expect(has(lines, 'Esquecida pela filha')).toBe(true)
     expect(has(lines, 'pedidos anteriores')).toBe(false)
   })
 
-  test('um pedido anterior com tarefa ainda aberta continua; o concluído sai', async ($, on) => {
+  test('um pedido anterior com tarefa ainda aberta continua, e o concluído também (nada sai)', async ($, on) => {
     host(on, STALE)
     await ask($, 'primeiro pedido')
     await call($, 'plan', { tasks: [{ id: 'A', title: 'Abrir a filha' }], request: 'primeiro pedido' })
@@ -92,12 +93,12 @@ describe('visão resumida: só as tarefas do pedido atual e o que ainda corre', 
     expect(has(lines, 'Terceiro pedido novo')).toBe(true)
     expect(has(lines, 'Ainda aberto')).toBe(true)
     expect(has(lines, 'Passo pendente')).toBe(true)
-    expect(has(lines, 'Abrir a filha')).toBe(false)
+    expect(has(lines, 'Abrir a filha')).toBe(true)
   })
 
-  // A live session under a done task of an earlier request: the task is still going on (a session at
-  // work under it), so it stays with its request and the card under it; the other done requests leave.
-  test('uma sessão ainda trabalhando sob uma tarefa concluída mantém essa tarefa, com o cartão; os outros concluídos saem', async ($, on) => {
+  // A live session with an open task under a done task of an earlier request: its card holds
+  // everything in sight (the other done requests too), with the card under the task that opened it.
+  test('uma sessão trabalhando com tarefa aberta sob uma tarefa concluída segura tudo à vista, com o cartão no lugar', async ($, on) => {
     const h = host(on, [{ id: 'X', short: 'X', title: 'Trabalho da filha', status: 'open', started: 1, children: [] }], true)
     await ask($, 'primeiro pedido')
     await call($, 'plan', { tasks: [{ id: 'A', title: 'Abrir a filha' }], request: 'primeiro pedido' })
@@ -115,7 +116,7 @@ describe('visão resumida: só as tarefas do pedido atual e o que ainda corre', 
     expect(h.running).toBe(true)
     const lines = await summary($)
     expect(has(lines, 'Terceiro pedido novo')).toBe(true)
-    expect(has(lines, 'Segundo pedido feito')).toBe(false)
+    expect(has(lines, 'Segundo pedido feito')).toBe(true)
     // The card right under the task that opened the session, in its request.
     const origin = lines.findIndex(l => l.includes('Abrir a filha'))
     expect(origin).toBeGreaterThanOrEqual(0)

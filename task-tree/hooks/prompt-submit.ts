@@ -6,7 +6,7 @@
 
 import { MAIN, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, openList, openTurn, showPane } from './panel'
+import { reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -46,6 +46,8 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // Another session's messages are kept (from, when) and published, whatever this prompt turns out
   // to be: the sender confirms its queued SendMessage by them (watchSends).
   await noteReceived($, text)
+  // A prompt starts a turn: what the last one left open is in progress again.
+  await wake($)
   watchSessions($)
   // The person's own prompt: the panel comes back if it is not on screen (see showPane).
   if (!it.peer && !it.notice && !it.handback && !NO_TURN.includes(kind)) await showPane($)

@@ -7,11 +7,11 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, flat, current, running } from '../draw/layout'
+import { MAIN, flat, running } from '../draw/layout'
 import { readPublished } from '../io/publish'
 import { deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, inDesktopApp, keptLink, openList, publishPanel, selfId, showStatus, stamp } from './panel'
+import { change, inDesktopApp, keptLink, openList, publishPanel, selfId, sendAnchor, showStatus, stamp } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -19,6 +19,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 
@@ -188,7 +189,8 @@ export async function recordStart($: any, resultText: string) {
   const id = /local_[0-9a-f-]{36}/.exec(resultText)?.[0]
   if (!id) return
   const { value = [] } = await $.state.get(groupsState)
-  const { anchor } = current((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+  // The task the session is opened on: the one in progress, else as a message is anchored (sendAnchor).
+  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
   await update($, childrenState, cur => {
     const list = cur ?? []
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
@@ -234,7 +236,9 @@ export function watchSessions($: any) {
 export async function anyRunning($: any): Promise<boolean> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
-  return running({ groups, waits: [], children })
+  // With this session's turn ended, its own tasks run no clock (see turnEnded).
+  const { value: ended } = await $.state.get(turnEndedState)
+  return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
 }
 export async function tick($: any) {
   if (await anyRunning($)) {
@@ -246,11 +250,21 @@ export async function tick($: any) {
   ticker?.cancel()
   ticker = undefined
 }
+// Every drawing asks for the clock: the check and the start must not be split by an await, or drawings
+// at the same time each start one, and only the last is kept to cancel (the others redrew the pane
+// every second for good, in bursts that replaced the Buttons under the pointer: clicks were lost).
+let starting = false
 export async function keepTime($: any) {
-  if (ticker || !(await anyRunning($)) || (await stamp($)) === undefined) return
+  if (ticker || starting) return
+  starting = true
   try {
-    ticker = $.clock.every(1000, () => void tick($))
-  } catch {}
+    if (!(await anyRunning($)) || (await stamp($)) === undefined || ticker) return
+    try {
+      ticker = $.clock.every(1000, () => void tick($))
+    } catch {}
+  } finally {
+    starting = false
+  }
 }
 
 // Opens a session in this window's main pane, as a click on its sidebar row (the app's

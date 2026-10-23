@@ -66,7 +66,7 @@ describe('limite de linhas do desenho', () => {
     await call($, 'plan', { tasks: [{ id: 'B', title: 'Enorme', children: Array.from({ length: 700 }, (_, i) => ({ id: `s${i}`, title: `Etapa ${i}` })) }] })
     const lines = body(await terminal($))
     expect(lines.length).toBe(400)
-    expect(lines[0]).toMatch(/^◉ Enorme/)
+    expect(lines[0]).toMatch(/^○ Enorme/)
     expect(lines[1]).toContain('Etapa 0')
     expect(lines[398]).toContain('Etapa 397')
     expect(lines[399]).toMatch(/\+302 linhas$/)

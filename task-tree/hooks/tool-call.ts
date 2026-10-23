@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Group } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp } from './panel'
+import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -181,6 +181,8 @@ import type { EngineInterface } from 'claude-code'
 
 export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
+  // A call of the main loop: its turn is running, what the last one left open is in progress again.
+  if (c.agent === MAIN) await wake($)
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered
