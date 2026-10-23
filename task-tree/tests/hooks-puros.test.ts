@@ -110,3 +110,66 @@ describe('as edições da árvore (state/tasks), puras', () => {
     expect(late[0].children[0].startedAt).toBe(50)
   })
 })
+
+// The cut of a title with "…" (draw/svg fit): pinned against the rule it had before phase 6 (the
+// width recomputed for every prefix), over many titles, sizes and widths, so a faster fit must give
+// the same string, character for character, including the trailing spaces trimmed before the "…".
+import { em, fit, textW } from '../draw/svg'
+
+describe('fit: o corte de títulos com … é o mesmo da regra original', () => {
+  // The rule as it was: every prefix measured whole.
+  function fitRef(s: string, size: number, max: number): string {
+    if (textW(s, size) <= max) return s
+    let out = ''
+    for (const ch of Array.from(s)) {
+      if (textW(out + ch + '…', size) > max) break
+      out += ch
+    }
+    return out.trimEnd() + '…'
+  }
+  const TITLES = [
+    'Um título bem comprido que não cabe na largura estreita do painel <b>',
+    'Corrigir o bug 3 da fase 4: teste instável no orçamento, duas suítes ao mesmo tempo',
+    'Orquestração de alteração do plugin',
+    'WWW MMM iii lll 111 ... ,,, ::: ;;; !!! ||| ((( ))) [[[ ]]] fff ttt rrr jjj',
+    '한국어 제목이 길어서 잘려야 합니다 — 넓은 글자',
+    '日本語のタイトルも長いので切られる必要があります',
+    'Emoji 🎉🚀🔥 no título e texto depois dele que continua por um bom tempo',
+    'a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p',
+    'palavra   com   espaços   largos   no   meio   e   no   fim   ',
+    'curto',
+    '',
+    'x',
+    'Trailing spaces before the cut point should be trimmed      and then more text here',
+  ]
+  test('igual à regra original em todos os títulos, tamanhos e larguras', () => {
+    let cut = 0
+    let compared = 0
+    for (const s of TITLES) {
+      for (const size of [12, 14]) {
+        for (let max = 0; max <= 600; max += 7) {
+          const got = fit(s, size, max)
+          expect(got).toBe(fitRef(s, size, max))
+          compared++
+          if (got !== s) {
+            cut++
+            // What is kept, plus the "…", fits (or nothing is kept).
+            expect(got.endsWith('…')).toBe(true)
+            expect(got === '…' || textW(got, size) <= max).toBe(true)
+          }
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(2000)
+    expect(cut).toBeGreaterThan(500)
+  })
+  test('casos fixos: cabe inteiro, corta numa palavra com espaços aparados, corta tudo', () => {
+    expect(fit('Orquestração de alteração do plugin', 12, 600)).toBe('Orquestração de alteração do plugin')
+    expect(fit('Um título bem comprido que não cabe na largura estreita do painel', 12, 100)).toBe('Um título bem c…')
+    expect(fit('Um título bem comprido que não cabe na largura estreita do painel', 14, 60)).toBe('Um títu…')
+    expect(fit('palavra   com   espaços', 12, 50)).toBe('palavra…')
+    expect(fit('abc', 12, 1)).toBe('…')
+    // The "…" is measured as an ordinary 0.56 em glyph.
+    expect(em('…')).toBe(0.56)
+  })
+})

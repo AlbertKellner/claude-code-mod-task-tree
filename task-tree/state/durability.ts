@@ -89,6 +89,8 @@ export const TABLE: readonly Row[] = [
   { key: 'engineSeen', lives: 'module', merge: 'none', restoredAt: [], note: 'the host\'s model per session, a minute each' },
   { key: 'breaksMemo', lives: 'module', merge: 'none', restoredAt: [], note: 'a drawing\'s cache of the cards\' splits' },
   { key: 'unplanned, planned, answeredInChat', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message' },
+  { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
+  { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
 ]
 
 // The keys of `$.state`: every key the hooks module reads or writes has a row (durabilidade.test.ts

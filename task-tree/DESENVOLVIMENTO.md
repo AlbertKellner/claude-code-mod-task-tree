@@ -8,9 +8,10 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 
 ## Como é hoje
 
-Esta parte descreve o mod como o código está (branch `docs/fase-5-desenvolvimento`, sobre a `main`
-`152da41`, fim da fase 4). Cada afirmação foi conferida contra os arquivos citados; os números de
-linhas são os de `wc -l` nesse commit, para dar a ordem de grandeza. As notas de cada fase, com os
+Esta parte descreve o mod como o código está: escrita na fase 5 sobre a `main` `152da41` (fim da
+fase 4) e atualizada na fase 6, parte A (branch `perf/fase-6-desempenho`, dez commits de desempenho
+sem mudança de desenho; ver "Desempenho (fase 6, parte A)"). Cada afirmação foi conferida contra os
+arquivos citados; os números de linhas são os de `wc -l` em `152da41`, para dar a ordem de grandeza. As notas de cada fase, com os
 pedidos do usuário e os motivos de cada decisão, estão em "Decisões (histórico)", no fim.
 
 ### Módulos
@@ -112,8 +113,9 @@ elas (por isso cada uma marca `reminders.planned` por conta própria).
 **Toda escrita do painel passa por `change($, fn)`** (`hooks/panel.ts`): `ensureGroups`, `ensureView`,
 `ensureWork` (volta do store se o módulo ainda não a fez), `adopt` (a lista legada `tasks` entra no
 grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `persist`: `showStatus`
-(`$.ui.status` "Tarefas d/n"), `saveGroups` (store `session:<uuid>` e a lista `sessions`, as
-`KEEP` = 30 mais novas) e `publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
+(`$.ui.status` "Tarefas d/n", chamado só quando o texto muda: `lastStatus`, variável do módulo),
+`saveGroups` (store `session:<uuid>` e a lista `sessions`, as `KEEP` = 30 mais novas) e
+`publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
 
 **O `tool.call` genérico** (`hooks/tool-call.ts`), em torno de `Call = { agent, e, sentAt, r }`:
 
@@ -140,7 +142,8 @@ das mensagens de outras sessões (os últimos 20) e publica. Um prompt de origem
 ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete curto (`PROMPT.handback`,
 `.background` ou `.notice`). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
 principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: título com até 60
-caracteres da mensagem sem tags; turnos sem tarefa são descartados), releem a lista se está velha e
+caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
+tarefas), releem a lista se está velha e
 levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensagem é a resposta") e
 `PROMPT.request`.
 
@@ -149,21 +152,26 @@ levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensa
 principal porque a recarga do mod cancela o intervalo), depois de um `start_session`, num aviso do
 app e quando a lista está velha (`refreshStale`). Passos: (1) `listSessions` (`list_sessions` com
 `linked: true, include_archived: true, limit: 100`; falha vai para `childrenError`, mostrada só no app
-desktop, `inDesktopApp`); `watchSends` antes de qualquer retorno (confirma os envios pelo `received`
-do destino com `at` ≥ envio, senão por um turno dele depois do envio, senão parada-depois-rodando; um
-envio confirmado fecha a tarefa de origem se ela está aberta sem subtarefa aberta); lista vazia zera
-`children`; `mineOf` (as linhas cujo `startedBy` é um id que a lista não traz, o desta sessão);
-(2) `readFiles` (cada arquivo publicado por `readPublished`; o modelo por `engineOf` quando o arquivo
-não o traz, cache de 60 s); (3) `deriveChildren` (as filhas no state a partir das linhas, dos
-arquivos, das conhecidas antes e das ligações do store por `keptLink`; `ended` = as que corriam ou
-esperavam e pararam, exceto `starting`); (4) `showStatus` e `publishPanel`; `keepTime`.
+desktop, `inDesktopApp`, e gravada só quando o texto muda); `watchSends` antes de qualquer retorno
+(confirma os envios pelo `received` do destino com `at` ≥ envio, senão por um turno dele depois do
+envio, senão parada-depois-rodando; um envio confirmado fecha a tarefa de origem se ela está aberta
+sem subtarefa aberta); lista vazia zera `children` (uma vez, não a cada poll); `mineOf` (as linhas
+cujo `startedBy` é um id que a lista não traz, o desta sessão); (2) `readFiles` (cada arquivo
+publicado por `readPublished`; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
+(3) `deriveChildren` (as filhas a partir das linhas, dos arquivos, das conhecidas antes e das
+ligações do store por `keptLink`; `ended` = as que corriam ou esperavam e pararam, exceto
+`starting`); `children` só é gravado no state quando a lista derivada difere da atual (JSON): o poll
+sem novidade, o de sempre a cada 3 s, não faz o valor inteiro cruzar para o host nem redesenha;
+(4) `showStatus` e `publishPanel`; `keepTime`.
 
 **Relógios**: `ticker` (`$.clock.every(1000)`, `tick` invalida o `ui.render` enquanto `running`; cancela
 quando nada roda) e `poller` (3 s). Os dois são variáveis de módulo: uma recarga os perde e a próxima
 chamada, prompt ou `start` os recria.
 
-**Publicação** (`publishPanel` em `hooks/panel.ts` → `publishWait` em `io/publish.ts`): a cada
-`persist`, aviso, `received`, `engine`, fim de turno e `/task-tree`. Ver "Arquivo publicado".
+**Publicação** (`publishPanel` em `hooks/panel.ts` → `publishWait` em `io/publish.ts`): pedida a cada
+`persist`, aviso, `received`, `engine`, fim de turno, poll com filhas e `/task-tree`; o arquivo só é
+gravado quando o corpo muda, e o registro de ligações (`saveLinks`, antes de cada publicação) só vai
+ao store quando muda (`lastLinks`). Ver "Arquivo publicado".
 
 ### Estado e durabilidade
 
@@ -207,8 +215,12 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
 `refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
 `actions`, `ticker`, `poller`, `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
-(hoje `reminders` em `hooks/panel.ts`). Duas linhas sobraram da fase 2 e não têm mais variável no
-código: `drawNow` e `breaksMemo` (o `layout()` recebe `now` e cria um `BreaksMemo` por desenho).
+(hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
+arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
+último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
+vez a mais, sem dano) e `home` (a pasta do usuário, pedida ao host uma vez por módulo). Duas linhas
+sobraram da fase 2 e não têm mais variável no código: `drawNow` e `breaksMemo` (o `layout()` recebe
+`now` e cria um `BreaksMemo` por desenho).
 
 Quem traz do store e quando: `session.start` (`restore` se o state não tem grupos, `restoreView`,
 `restoreWork`, `restoreLinks`); `resume` (`restore`, que substitui); primeiro uso (`ensureGroups`,
@@ -219,8 +231,9 @@ não pode gravar e usa o valor devolvido); primeira gravação das ligações (`
 ### Arquivo publicado (versão 1)
 
 Cada sessão escreve `~/.claude/task-tree-waits/<id local_…>.json` (`waitFile`: `USERPROFILE`, senão
-`HOME`; fora do app desktop não há id e nada é publicado). A sessão que a abriu lê o arquivo para
-desenhar o cartão dela. É o contrato entre sessões, que podem rodar versões diferentes do mod.
+`HOME`, pedidos ao host uma vez por módulo e guardados em `home`; fora do app desktop não há id e nada
+é publicado). A sessão que a abriu lê o arquivo para desenhar o cartão dela. É o contrato entre
+sessões, que podem rodar versões diferentes do mod.
 
 O que `publishWait($, id, publicação)` escreve, nesta ordem de chaves (`satisfies Published`):
 `version` (= `PUBLISHED_VERSION` = 1), `waiting` (há aviso), `at`, `tasks` (o grupo principal, para
@@ -228,6 +241,13 @@ leitores antigos), `groups`, `waits`, `children`, `context` (`{ percent, at }` d
 `engine`, `panes` (`$.ui.panes()`: id, `isPlaced`, `isShown`), `renderError`, `drawSize`, `rows`,
 `work`, `received`, `sends` (só os não tomados). `JSON.stringify` omite o que está `undefined`.
 `publishPanel` junta tudo do state (sete `$.state.get`) e de `drawn`, e qualquer falha vai só ao log.
+
+Gravado só quando muda (fase 6): `publishWait` monta o corpo sem `at`, `context.at` e `panes`, compara
+o JSON dele mais o `percent` do contexto com o último publicado para o caminho (`lastPublished`,
+`Map` do módulo) e volta sem gravar quando é igual; `$.ui.panes()` e `$.clock.now()` só são pedidos
+quando vai gravar. Ninguém lê o `at` do arquivo (os `at` que importam, dos turnos e das mensagens,
+estão dentro do painel); o relógio ou os painéis sozinhos não contam como mudança, uma espera nova
+conta. O formato não mudou: os mesmos campos, na mesma ordem, `PUBLISHED_VERSION` 1.
 
 Leitura: `parsePublished(texto)` (pura) devolve `{ ok }` normalizado ou `{ error }`: JSON inválido,
 não-objeto, ou `version` presente e ≠ 1. Normaliza: listas só se são listas (`waits` e `children`
@@ -262,6 +282,30 @@ subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `li
 cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
 (`count` dos `nodes`, `sessionTime`, `chips`); o total da sessão inteira vai no `alt`.
 
+O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do desenho:
+
+- `layout()` monta as linhas numa passada só, com as escolhas da pessoa desde o início; a passada
+  sem escolhas com resultado descartado (herança do render antigo, que tirava dela os chips) saiu:
+  os chips vêm dos `nodes` das linhas desenhadas, e o memo dos `breaks` que ela preenchia era o mesmo.
+- Cabeçalho (`render.tsx`): o id da tarefa acesa (`current(mainTasks).lit[0]`) é calculado uma vez,
+  fora do `find` (dentro dele, `current` percorria a árvore inteira uma vez por nível 1).
+- `split()` devolve um cartão já cortado (`c.part` definido, os da visão resumida) antes de calcular
+  `breaks`; dentro, a parte de cada turno (`partOfTurn`), as tarefas e o `flat` de cada parte
+  (`tasksByPart`, `flatIn`) e a parte de cada tarefa (`partOfTask`, usada por `holder`) ficam em mapas
+  montados uma vez por chamada; o dono de cada agente (`ownerOf`) é lembrado; `turns` e `work` dos
+  cartões são filtrados por `Set`.
+- Os pedidos (turnos) com tarefa de nível 1 são achados por um `Set` dos turnos das tarefas (no
+  `panel()`, para os cartões antigos, e em `openTurn`): uma passada por lista, não uma pelas tarefas
+  por turno.
+- `atWork` roda uma vez por tarefa e passada: dentro de `body`, um `WeakMap` por tarefa guarda o
+  `Work` que `turnRows` (soma do pedido) e `rows` (a linha da tarefa) pedem.
+- `fit` (`svg.ts`) é linear no título: acumula a largura do que fica com os mesmos termos e na
+  mesma ordem de `textW` (mesma soma em ponto flutuante, mesmo corte) em vez de medir o prefixo
+  inteiro a cada caractere; `em(ch)` lembra a largura de cada caractere num `Map` do módulo.
+- `slim` (`svg.ts`) guarda a folha `<style>` por conjunto de classes num `Map` do módulo (chave: os
+  atributos `class` na ordem em que aparecem, lidos numa passada; o `Map` é esvaziado ao passar de
+  1 000 entradas); as linhas de um mesmo tipo compartilham a folha.
+
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
   o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
@@ -275,6 +319,39 @@ cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render
 - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
   último desenho registrou em `actions` (`act`).
 
+### Desempenho (fase 6, parte A)
+
+Dez commits, um por item, na branch `perf/fase-6-desempenho` (`4038e45` … `d1916f2`), com a regra de
+que nenhuma linha, byte ou texto do desenho muda: goldens do SVG e dos textos, orçamento e
+`layout.test.ts` idênticos em todos. O que cada um mudou está nas seções "Fluxo de dados" (poll,
+status, ligações), "Estado e durabilidade" (as variáveis de módulo novas), "Arquivo publicado"
+(gravado só quando muda) e "Desenho" (layout, cabeçalho, `split`, `atWork`, `fit`, `slim`). As
+medidas abaixo são da bancada `docs/analises/medicoes/fase6/run6.sh` (mesma máquina, medianas; a
+cópia oficial do `patch6.mjs` em `docs/analises/` ainda ancora no texto antigo em 6 trechos e precisa
+ser atualizada para rodar sobre este código); as metas vêm do relatório de desempenho
+`docs/analises/06-performance-fase-6.md`. Nenhum número deve ser alterado sem remedir.
+
+| Medida | Antes | Depois | Meta |
+|---|---|---|---|
+| Cabeçalho, caso real / 1 000 níveis 1 / 3 000 | 2,2 ms / 185 / 2 200 | 0,1 / 1,2 / 3,0 | ≤ 2 ms a 1 000, ≤ 6 a 3 000 ✓ |
+| `layout()` real completa / resumida | 8,9 / 7,8 ms | 4,2–5,8 / 2,8–3,9 | real ≤ 5 ✓ (mín 3,0) |
+| `layout()` O2500 completa | 57,7 ms | 17,6 | ≤ 20 ✓ (na última rodada; 26 numa rodada carregada) |
+| `breaks` por desenho, resumida real | 323 (310 recálculos) | 154 (= completa) | ≤ completa + cartões ✓ |
+| Poll real sem mudança: parede | 45–60 ms (24,5 sem o hook) | 9–12 ms | ≤ 25 ✓ |
+| Poll real sem mudança: bytes gravados / `store.set` / idas ao host | 220 KB / 1 / 20 | 0 KB / 0 / 8 | 0 / 0 / ≤ 12 ✓ |
+| `state.set` de `children` por poll sem mudança | 1 | 0 | 0 ✓ |
+| `layout()` T3000 completa (3 000 pedidos) | 64,8 ms | 10,4 | ≤ 16 ✓ |
+| `fit`, 400 linhas a 40 colunas | 10,2 ms | 0,8 | ≤ 1,5 ✓ |
+| `slim`, 400 linhas | 2,7 ms | 0,5 | ≤ 0,5 ✓ |
+| `rowSvg`, 400 linhas a 40 colunas / real | 18,1 / 1,5 ms | 2,9 / 0,5 | |
+| `split`, filha com 500 pedidos e 20 rodadas / 200 e 20 / reais | 18,2 / 6,8 / 0,5–0,7 ms | 1,1 / 0,4 / 0,2–0,5 | ≤ 2 ✓ / ≲ 1 ✓ / ≤ 0,3 (4 de 5) |
+| `atWork` por passada, 3 000 níveis 1 | 12 000 (6 000 após a passada única) | 3 000 | ≤ 1 por nível 1 ✓ |
+| Desenho real inteiro no kit, completa / resumida (terminal) | 17 / 17 ms | 11 / 8 | |
+
+Artefato pré-existente, deixado para a parte B (relógio): o host do `orcamento.test.ts` devolve
+`t += 1000` a cada `clock.now`, então em 2 de 14 rodadas os tamanhos saíram ±14/16 bytes (tempo
+decorrido desenhado), dentro da folga de 1,5×.
+
 ### Testes e como rodá-los
 
 Use o binário da mesma versão do Claude Code que roda a sessão (o app desktop traz o dele; no
@@ -286,19 +363,20 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 316 testes em 13
-arquivos (contagem da fase 4, etapa 3); rode-a sozinha, sem outra ao mesmo tempo, e, numa falha,
-guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio e tem 5 s.
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 325 testes em 13
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A); rode-a sozinha, sem outra ao mesmo
+tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
+e tem 5 s.
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
-| `task-tree.test.ts` | 166 | o painel desenhado e os resultados das ferramentas: ids, replanejar, visão, dobras, tempos, cartões, avisos, sessões, mensagens, turnos, ↩ |
+| `task-tree.test.ts` | 168 | o painel desenhado e os resultados das ferramentas: ids, replanejar, visão, dobras, tempos, cartões, avisos, sessões, mensagens, turnos, ↩; o cabeçalho com 300 níveis 1 (fase 6) |
 | `durabilidade.test.ts` | 63 | a tabela: 4 cenários por chave de state (plantar; reinício com `session.start`; sem; recarga a quente), `sessions`, sanidade, "chave sem linha" |
-| `layout.test.ts` | 14 | `layout()` direto, com o fixture real e modelos pequenos: pedidos desenhados, cartões, ↩, cabeçalho, resumida, ordem, cadeias, ✉, corte |
+| `layout.test.ts` | 16 | `layout()` direto, com o fixture real e modelos pequenos: pedidos desenhados, cartões, ↩, cabeçalho, resumida, ordem, cadeias, ✉, corte; os cartões e as linhas de uma filha funda fixados (fase 6) |
 | `host.test.ts` | 13 | os passos de `io/host.ts` com `$` falso ou entradas puras, inclusive a lista parcial |
 | `reinicio.test.ts` | 11 | reinício do processo (com e sem `session.start`) e recarga a quente, com o fixture real; `KNOWN` (vazio) para bugs futuros |
-| `hooks-puros.test.ts` | 9 | `said`, `brief` e as edições de `state/tasks.ts` |
-| `publicado.test.ts` | 8 | escrita e leitura do arquivo publicado: válido, parcial, vazio, antigo, outra versão, corrompido, `watchSends` |
+| `hooks-puros.test.ts` | 11 | `said`, `brief` e as edições de `state/tasks.ts`; `fit` contra a regra antiga, em todos os títulos, tamanhos e larguras (fase 6) |
+| `publicado.test.ts` | 11 | escrita e leitura do arquivo publicado: válido, parcial, vazio, antigo, outra versão, corrompido, `watchSends`; publicar só quando muda: dois polls sem mudança não gravam arquivo, store nem status, o relógio e os painéis não contam, uma espera nova conta (fase 6) |
 | `svg-golden.test.ts` | 7 | 12 cenários de SVG contra `golden/svg.ts` |
 | `textos.test.ts` | 7 | os textos contra `golden/textos.ts`, e o limite 120 |
 | `sobreposicao.test.ts` | 6 | nenhum par de `Box` se cruza numa linha (`overlays`, `crossings`) |
@@ -815,8 +893,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
-- O render monta as linhas duas vezes: sem escolhas (`plain`, para os chips, que não mudam ao
-  recolher) e com as escolhas (`lines`, o desenho).
+- O layout monta as linhas uma vez só, com as escolhas da pessoa (fase 6). Os chips do cabeçalho
+  vêm dos nós das linhas desenhadas (`Row.nodes`), por isso não mudam ao recolher; a passada sem
+  escolhas que existia para eles, com resultado descartado, saiu.
 - Concluídas e interrompidas ficam no lugar delas na lista, na ordem do plano (pedido do usuário:
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
   concluída vem aberta, como as outras, e recolhe pelo clique. O tom
@@ -1329,8 +1408,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ### Pendências
 
-- Sobras da etapa 1 do layout: `panel(all, …)` roda uma vez sem escolhas com resultado descartado
-  (mantido para o comportamento idêntico, inclusive o aquecimento do cache) e `elapsed` não é usado.
+- Sobra da etapa 1 do layout: `elapsed` não é usado. (A passada de `panel(all, …)` sem escolhas, com
+  resultado descartado, saiu na fase 6: a medida mostrou que ela só preenchia o memo que a passada
+  seguinte preenchia igual, e as linhas ficaram idênticas.)
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
   rolável própria. O único caminho é o padrão do `ui.scroll` do `Pane`: não chamar `next`, guardar o
   próprio offset (`e.by`), invalidar e redesenhar o cabeçalho mais a fatia das linhas
