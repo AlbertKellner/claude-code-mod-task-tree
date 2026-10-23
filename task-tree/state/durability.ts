@@ -73,6 +73,7 @@ export const TABLE: readonly Row[] = [
   { key: 'recap', lives: 'state', merge: 'none', restoredAt: [], note: 'wrap_up\'s recap until the turn ends (the turn\'s answer for the card); in the state so a reload between the wrap_up and the end of the turn keeps it' },
   { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
   { key: 'turnEnded', lives: 'state', merge: 'none', restoredAt: [], note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock' },
+  { key: 'turnAborted', lives: 'state', merge: 'none', restoredAt: [], note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan' },
   // The store alone.
   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
   // Variables of the module: a hot reload starts them over.
