@@ -7,7 +7,7 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, layout, guides, labelCols, frames } from '../draw/layout'
+import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
@@ -233,10 +233,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
-  const { anchor: now0 } = current(mainTasks)
+  // With nothing in progress: the task started last (done or not; the person: "o título é o do passo
+  // iniciado por último"), then the LAST level-1 task with a session still at work under it (the first
+  // one named a task from many requests before), then the first open task.
+  const now0 = current(mainTasks).anchor ?? startedLast(mainTasks)?.id
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
-    mainTasks.find(t => atWork(t, sessions, 0).live)
+    [...mainTasks].reverse().find(t => atWork(t, sessions, 0).live) ??
+    mainTasks.find(t => t.status === 'open')
   const head = headTask?.title ?? 'Tarefas'
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its

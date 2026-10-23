@@ -429,6 +429,17 @@ export function firstOpen(items: TaskNode[]): string[] {
   }
   return []
 }
+// The task started last (its startedAt the latest; done or not): where a message sent with nothing
+// in progress is anchored, and what names the header with nothing in progress. On a tie (a parent
+// starts with its child) the later one in the tree wins, the child.
+export function startedLast(list: TaskNode[]): TaskNode | undefined {
+  let pick: TaskNode | undefined
+  for (const t of flat(list)) {
+    if (typeof t.startedAt !== 'number') continue
+    if (pick === undefined || t.startedAt >= (pick.startedAt as number)) pick = t
+  }
+  return pick
+}
 export function pathTo(items: TaskNode[], id: string): string[] {
   for (const t of items) {
     if (t.id === id) return [t.id]
@@ -440,15 +451,15 @@ export function pathTo(items: TaskNode[], id: string): string[] {
 
 // The tasks drawn in yellow, with their parents, and the one a waiting notice goes
 // under: the tasks in progress (the last one started for the notice; a parent's first
-// open task); with none, the first open task.
+// open task). With none started, nothing: a task is in progress only once the model calls start
+// (the person's decision after the visual test: "sem start, nada aceso"). The first open task used
+// to light up by default, and a message sent between two tasks was anchored to the next pending
+// one, which then closed on delivery; a never-started step ran a clock.
 export function current(list: TaskNode[]): { lit: string[]; anchor?: string } {
   const started = flat(list)
     .filter(t => t.status === 'open' && t.started !== undefined)
     .sort((a, b) => (a.started ?? 0) - (b.started ?? 0))
-  if (started.length === 0) {
-    const path = firstOpen(list)
-    return { lit: path, anchor: path[path.length - 1] }
-  }
+  if (started.length === 0) return { lit: [], anchor: undefined }
   let lit: string[] = []
   let anchor: string | undefined
   for (const s of started) {

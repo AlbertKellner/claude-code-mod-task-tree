@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, goingOn } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, goingOn, startedLast } from '../draw/layout'
 import { debug } from '../io/log'
 import { publishWait } from '../io/publish'
 
@@ -96,9 +96,19 @@ export async function openTurn($: any, text: string) {
 
 
 // The task a message is sent from: the task in progress, unless an open task was planned after
-// it was started (planned to send, sent with no start): that newest one.
+// it was started (planned to send, sent with no start): that newest one. With nothing in progress
+// (the person's decision: "envio feito sem tarefa em andamento ancora na última iniciada do pedido
+// atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
+// current request (the last turn with tasks), else that request's last level-1 task. It was the first
+// open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
 export function sendAnchor(list: TaskNode[]): string | undefined {
   const { anchor } = current(list)
+  if (anchor === undefined) {
+    const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+    const last = turns.length > 0 ? Math.max(...turns) : undefined
+    const mine = list.filter(t => last === undefined || t.turn === last)
+    return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
+  }
   const leaves = flat(list).filter(t => t.status === 'open' && t.children.length === 0)
   const since = (t?: TaskNode) => (t === undefined ? undefined : t.started !== undefined ? t.startedAt : t.plannedAt)
   const base = since(flat(list).find(t => t.id === anchor))

@@ -313,9 +313,10 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
 - Cabeçalho (`render.tsx`): o id da tarefa acesa (`current(mainTasks).lit[0]`) é calculado uma vez,
   fora do `find` (dentro dele, `current` percorria a árvore inteira uma vez por nível 1). Correção
   seguinte (título do cabeçalho): o título é o nível 1 que contém a tarefa iniciada por último, a
-  âncora de `current()` (a mesma tarefa sob a qual vai um aviso de espera); sem nenhuma iniciada, a
-  âncora é a primeira aberta, como antes; sem nenhuma aberta, o nível 1 com sessão ainda trabalhando
-  embaixo, como antes. O título vinha de `current(mainTasks).lit[0]`, o primeiro das tarefas acesas,
+  âncora de `current()` (a mesma tarefa sob a qual vai um aviso de espera); sem nenhuma em andamento, o
+  nível 1 da tarefa iniciada por último (`startedLast`, concluída ou não; o título é o do passo
+  iniciado por último); senão o ÚLTIMO nível 1 com sessão viva embaixo (era o primeiro: nomeava uma
+  tarefa de muitos pedidos antes); senão a primeira aberta. O título vinha de `current(mainTasks).lit[0]`, o primeiro das tarefas acesas,
   ordenadas da iniciada há mais tempo para a mais recente, e uma tarefa que um pedido antigo deixou
   aberta e iniciada ganhava da atual. Os números do cabeçalho não mudam: seguem a soma das linhas
   desenhadas na visão (ver "Cabeçalho por visão" no histórico). Teste:
@@ -467,6 +468,40 @@ Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
 - Testes: `tests/envio-e-resposta.test.ts` (4); `layout.test.ts` (contagens do estado real 28 → 27 e
   27 → 26, ↩ do pedido 71, ↩ por turno), `cartoes-ancora.test.ts` e `task-tree.test.ts` atualizados.
 
+Sem start, nada aceso (decisão do usuário depois do teste visual: "sem start, nada aceso; envio feito
+sem tarefa em andamento ancora na ÚLTIMA INICIADA do pedido atual (mesmo concluída); sem nenhuma
+iniciada, no fim do pedido"): uma tarefa só está em andamento depois que o modelo chama `start`.
+Sintomas do teste visual: o cartão da mensagem mandada antes do `start` do Passo 2 ficava sob "Passo 2";
+o cartão "Passo 2 filha" (mandado pelo Passo 2, já concluído) ficava sob "Passo 3"; "Passo 3" aparecia ✓
+1/1 sem `start` (a entrega fechava a tarefa errada); "Passo 4" ficava ◉ com relógio sem `start`; o
+título do cabeçalho era "Passo 2"/"Passo 4", nunca iniciados. Causa comum: `current()` acendia a
+primeira tarefa aberta quando nada estava iniciado, e `sendAnchor`, `recordStart`, o título e o tom das
+linhas herdavam isso.
+- `draw/layout.ts`: `current(list)`, com nenhuma iniciada, devolve `{ lit: [], anchor: undefined }`
+  (antes, o caminho de `firstOpen`). `startedLast(list)` (nova, exportada) devolve a tarefa com
+  `startedAt` mais recente, concluída ou não; num empate (pai e filha começam juntos) vence a que vem
+  depois na árvore, a filha.
+- `hooks/panel.ts`, `sendAnchor(list)`: sem tarefa em andamento, devolve `startedLast` das tarefas do
+  pedido atual (o último turno com tarefas, `t.turn` máximo), senão o último nível 1 desse pedido; a
+  regra "planejada depois da em andamento e sem `start`" continua quando há tarefa em andamento.
+  `recordStart` (`hooks/sessions.ts`) usa `sendAnchor` para a âncora da sessão aberta (era
+  `current().anchor`).
+- `hooks/render.tsx`, título: ver o bullet do cabeçalho acima. O texto da ferramenta `start`
+  (`text/rules.ts`, golden `textos.ts`) deixou de dizer que o painel destaca a primeira aberta: "sem
+  nenhuma marcada, nenhuma tarefa aparece em andamento".
+- Efeitos no desenho: sem `start` nada fica ◉; uma folha pendente é ○ sem relógio; um pai aberto com
+  algo concluído embaixo e nada aceso fica ◷ ("Aguardando"); um pedido sem nada aceso fica "Pedido
+  aberto" (○) ou ◷. O chip "● N em andamento" continua contando as folhas abertas (◉ e ○).
+- Testes: `tests/sem-start.test.ts` (6: plano sem `start` não acende nada e o chip conta as folhas;
+  entre duas tarefas a seguinte não acende nem cronometra e o título é o da iniciada por último;
+  mensagem depois de concluir A e antes de iniciar B sai de A, cartão sob A; sessão aberta nesse
+  intervalo fica sob A; sem nenhuma iniciada, a mensagem sai da última tarefa do pedido, cartões no fim
+  dele; a última iniciada é a do pedido atual, não a de pedido anterior). Atualizados: ~30 expectativas
+  ◉ → ○/◷ em `task-tree.test.ts` (títulos "sem start, nada fica em andamento…" e "com a marcada
+  concluída, nada volta a acender…") e `limite-linhas.test.ts`; goldens regravados: `basico`,
+  `basico-concluido` (o título do cabeçalho passa a ser o da última iniciada, com tooltip), `retomada`,
+  `real-completa` e `real-resumida` (título do cabeçalho).
+
 Tarefas abertas de uma sessão que terminou o turno (série 3; regra: o painel independe de quem o usa):
 quando a sessão termina o turno, as tarefas que ela deixou abertas deixam de contar como em andamento:
 aparecem interrompidas (não concluídas, sem fechamento), sem relógio correndo, e saem de "N em
@@ -550,8 +585,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 371 testes em 25
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas; 3 na sessão parada; 4 do `turnEnded` na tabela de durabilidade); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 377 testes em 26
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 2 nas conversas entre irmãs em sequência; 1 nos cartões abertos sem escolha; 1 no relógio único; 1 no lote de mensagens entregues juntas; 3 na sessão parada; 4 do `turnEnded` na tabela de durabilidade; 6 em sem start, nada aceso); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -574,6 +609,7 @@ e tem 5 s.
 | `sessao-parada.test.ts` | 3 | sessão que terminou o turno: a tarefa e a subtarefa abertas aparecem interrompidas, sem relógio e fora do "em andamento" (a filha parada e a própria sessão); trabalhando, seguem em andamento; o próximo pedido as volta |
 | `relogio-recarga.test.ts` | 3 | recarga com tarefa cronometrando: o desenho pede `clock.every(1000)` sem outro evento; sem nada cronometrando, não pede; desenhos ao mesmo tempo (terminal e desktop juntos) ligam um relógio de 1 s só |
 | `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
+| `sem-start.test.ts` | 6 | sem `start`, nada aceso (plano, entre tarefas, título do cabeçalho pela iniciada por último); a mensagem sai da última iniciada do pedido atual, mesmo concluída, e sem nenhuma iniciada, do fim do pedido; a sessão aberta nesse intervalo fica sob a mesma tarefa |
 | `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
 | `cadeia-irmas.test.ts` | 2 | cadeia de sessões: mãe → correção → governança → correção, os três cartões sob a tarefa da mãe, no mesmo nível, na ordem em que rodaram (nas duas visões); a ordem é a da execução, não a das sessões na lista |
@@ -1352,7 +1388,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
   tarefa folha aberta sem `start`; aí é a mais nova dessas. Tarefas planejadas junto, antes do
   início, não mudam nada. Vale para o lugar do cartão (`rounds`), para o `lastAnchor` (que a visão
-  resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`).
+  resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`). Sem
+  tarefa em andamento (decisão do usuário depois do teste visual), é a iniciada por último no pedido
+  atual, mesmo concluída, senão a última do pedido (ver "Sem start, nada aceso" em "Como é hoje").
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo
@@ -1379,7 +1417,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   substituída: antes ela era desenhada em andamento "mesmo com `done` gravado"; o progresso das
   filhas fica no cartão delas; ver o bullet "Tarefa da mãe concluída" em "Como é hoje"). O chip "● em andamento" conta só o andamento próprio
   (`active`); a sessão já conta no chip ⑂. Sem nível 1 aberto, o cabeçalho mostra o que tem sessão
-  viva embaixo (`atWork(...).live`). O tempo (`timeOf`) vai do primeiro início ao último fim da
+  viva embaixo (`atWork(...).live`; o último nível 1 com sessão viva, não o primeiro). O tempo (`timeOf`) vai do primeiro início ao último fim da
   tarefa, das subtarefas e das tarefas dessas sessões (`allTasks`, até `DEEP`; só as de tarefa não
   concluída), ou até agora enquanto alguma roda ou uma sessão embaixo de tarefa não concluída está viva; vale para linha, terminal e `alt`. O tempo do cabeçalho é o da sessão
   inteira (`sessionTime`), nas duas visões: do primeiro início (ou `plannedAt`) de qualquer tarefa
@@ -1632,8 +1670,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   concluida, marque os pais como aguardando"): uma tarefa ou turno aberto, com algo concluído abaixo e
   nada em andamento (não acesa pelo `current`, sem ✉ nem sessão viva), tem o tom `paused`: ◷ âmbar
   no lugar do ○, `alt` "Aguardando: …", tempo parado no último fim abaixo (`stillSpan`). Não entra em
-  chip. Como o `current` acende a primeira aberta quando nada foi iniciado, isso aparece quando outra
-  tarefa está em andamento.
+  chip. (Hoje o `current` não acende nada sem `start`, então um pai aberto com algo concluído embaixo
+  e nada aceso aparece ◷ sempre que não há tarefa em andamento; ver "Sem start, nada aceso" em "Como é
+  hoje".)
 - Avisos do app (`<system-reminder>` com `<side-sessions-event>`, quando uma sessão filha termina) não
   chegam como `unclassified`: são reconhecidos pelo texto e tratados como `NO_TURN` (sem turno, sem
   título, sem pedido de request).

@@ -142,9 +142,9 @@ describe('plan', () => {
     await done($, ['A'])
     await plan($, [{ id: 'A', title: 'Nova' }])
     const lines = await view($)
-    expect(line(lines, 'Nova')?.glyph).toBe('◉')
+    expect(line(lines, 'Nova')?.glyph).toBe('○')
     // Done, it stays in its place in the list.
-    expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Velha  —', '◉ Nova'])
+    expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Velha  —', '○ Nova'])
   })
 })
 
@@ -194,10 +194,12 @@ describe('start', () => {
     expect(lines[1].text).toBe('░░░░░░░░░░░░░░░░░░░░  ● 3')
   })
 
-  test('sem start, a primeira aberta fica em andamento', async $ => {
+  // Nothing is in progress until start (the person: "sem start, nada aceso"); the first open task
+  // used to light up by default.
+  test('sem start, nada fica em andamento: a primeira aberta também fica ○', async $ => {
     await plan($, PLAN)
     const lines = await view($)
-    expect(line(lines, 'Sub 1.1')?.glyph).toBe('◉')
+    expect(line(lines, 'Sub 1.1')?.glyph).toBe('○')
     expect(line(lines, 'Item 2')?.glyph).toBe('○')
   })
 
@@ -218,11 +220,11 @@ describe('start', () => {
     expect(line(await view($), 'Sessão A')?.glyph).toBe('✓')
   })
 
-  test('com a marcada concluída, volta para a primeira aberta', async $ => {
+  test('com a marcada concluída, nada volta a acender: a primeira aberta fica ○', async $ => {
     await plan($, PLAN)
     await start($, ['2'])
     await done($, ['2'])
-    expect(line(await view($), 'Sub 1.1')?.glyph).toBe('◉')
+    expect(line(await view($), 'Sub 1.1')?.glyph).toBe('○')
   })
 })
 
@@ -231,7 +233,7 @@ describe('terminal', () => {
     await plan($, [
       { id: 'A', title: 'Raiz', children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Fundo' }] }, { id: '2', title: 'Dois' }] },
     ])
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ Raiz  0/2', '├─ ◉ Um  0/1', '│  └─ ◉ Fundo', '└─ ○ Dois'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['○ Raiz  0/2', '├─ ○ Um  0/1', '│  └─ ○ Fundo', '└─ ○ Dois'])
   })
 
   test('interrompida: ✕ cinza, texto apagado e a palavra à direita; fora da porcentagem', async ($, on) => {
@@ -241,7 +243,7 @@ describe('terminal', () => {
     const lines = await view($)
     expect(lines[0].text).toBe('Retomada  1 de 2 · 50%')
     expect(lines[1].text).toBe('██████████░░░░░░░░░░  ● 1  ✕ 1')
-    expect(rowsOf(lines).map(l => l.text)).toEqual(['◉ Retomada  1/2', '├─ ✓ Feita  —', '├─ ✕ Rodar build  interrompida  —', '└─ ◉ Seguir'])
+    expect(rowsOf(lines).map(l => l.text)).toEqual(['◷ Retomada  1/2', '├─ ✓ Feita  —', '├─ ✕ Rodar build  interrompida  —', '└─ ○ Seguir'])
     expect(line(lines, 'Rodar build')?.color).toBe('inactive')
   })
 })
@@ -278,10 +280,10 @@ describe('desktop', () => {
     await $.tool.call({ tool: 'AskUserQuestion', questions: [] } as any)
     expect(during).toEqual([
       'Retomada: 1 de 2 (50%), 1 em andamento, 1 aguardando, 1 interrompida. Visão: completa, selecionada (≡ resumida, ▤ completa)',
-      'Em andamento: Retomada, 1 de 2',
+      'Aguardando: Retomada, 1 de 2',
       'Concluída: Feita',
       'Interrompida: Rodar build, interrompida',
-      'Em andamento: Seguir',
+      'Aberta: Seguir',
       'Aguardando sua resposta',
     ])
   })
@@ -297,7 +299,7 @@ describe('desktop', () => {
     const [head, row] = await desktop($, 30)
     expect(head.width).toBe(240)
     expect(row.width).toBe(240)
-    expect(row.alt).toBe(`Em andamento: ${long}`)
+    expect(row.alt).toBe(`Aberta: ${long}`)
     expect(row.source).toContain('…')
     expect(row.source).not.toContain('<b>')
     expect(head.source).toContain('…')
@@ -335,12 +337,12 @@ describe('abrir e recolher', () => {
     expect(line(lines, 'Item 2')?.fold).toBeUndefined()
     await fold($, '|t:A')
     lines = await view($)
-    expect(rowsOf(lines).map(l => l.text)).toEqual(['◉ Sessão A ⋯  0/2'])
+    expect(rowsOf(lines).map(l => l.text)).toEqual(['○ Sessão A ⋯  0/2'])
     await fold($, '|t:A')
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ Sessão A  0/2',
-      '├─ ◉ Item 1  0/1',
-      '│  └─ ◉ Sub 1.1',
+      '○ Sessão A  0/2',
+      '├─ ○ Item 1  0/1',
+      '│  └─ ○ Sub 1.1',
       '└─ ○ Item 2',
     ])
   })
@@ -370,12 +372,12 @@ describe('abrir e recolher', () => {
     await plan($, [{ id: 'B', title: 'Segunda' }])
     await done($, ['A'])
     let lines = await view($)
-    expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Primeira  1/1  —', '└─ ✓ Passo  —', '◉ Segunda'])
+    expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Primeira  1/1  —', '└─ ✓ Passo  —', '○ Segunda'])
     expect(line(lines, 'Primeira')).toMatchObject({ glyph: '✓', fold: '▾' })
     expect(lines.some(l => l.text.includes('Concluídas ·'))).toBe(false)
     await fold($, '|t:A')
     lines = await view($)
-    expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Primeira ⋯  1/1  —', '◉ Segunda'])
+    expect(rowsOf(lines).map(l => l.text)).toEqual(['✓ Primeira ⋯  1/1  —', '○ Segunda'])
   })
 
   test('no desktop, sem ▾/▸: só o ícone recolhe: um Button sem texto centrado nele', async $ => {
@@ -401,7 +403,7 @@ describe('abrir e recolher', () => {
     await ui.press({ key: 'fold:|t:A/1' })
     const svgs = (await ui.findAll({ type: 'Svg' })).map((s: any) => ({ alt: String(s.props.alt), source: String(s.props.source) }))
     await ui.unmount()
-    expect(svgs.slice(1).map(s => s.alt).filter(Boolean)).toEqual(['Em andamento: Sessão A, 1 de 2', 'Concluída: Item 1, 1 de 1, recolhida', 'Em andamento: Item 2'])
+    expect(svgs.slice(1).map(s => s.alt).filter(Boolean)).toEqual(['Aguardando: Sessão A, 1 de 2', 'Concluída: Item 1, 1 de 1, recolhida', 'Aberta: Item 2'])
     // Folded: " ⋯" after the name.
     expect(svgs.find(s => s.alt.startsWith('Concluída: Item 1'))?.source).toContain('Item 1 ⋯')
   })
@@ -409,12 +411,12 @@ describe('abrir e recolher', () => {
   test('no terminal, o ícone é o botão: aperta e recolhe, com " ⋯" depois do nome', async $ => {
     await plan($, PLAN)
     let lines = await view($)
-    expect(line(lines, 'Item 1')).toMatchObject({ glyph: '◉', fold: '▾' })
+    expect(line(lines, 'Item 1')).toMatchObject({ glyph: '○', fold: '▾' })
     expect(line(lines, 'Sub 1.1')?.fold).toBeUndefined()
     expect(lines.some(l => /[▾▸] /.test(l.text))).toBe(false)
     await fold($, '|t:A/1')
     lines = await view($)
-    expect(line(lines, 'Item 1')?.text).toBe('├─ ◉ Item 1 ⋯  0/1')
+    expect(line(lines, 'Item 1')?.text).toBe('├─ ○ Item 1 ⋯  0/1')
     expect(line(lines, 'Sub 1.1')).toBeUndefined()
   })
 
@@ -422,7 +424,7 @@ describe('abrir e recolher', () => {
     await plan($, [{ id: 'A', title: 'Feita' }])
     await done($, ['A'])
     await plan($, [{ id: 'B', title: 'Aberta' }])
-    expect((await desktop($)).map(s => s.alt).slice(1)).toEqual(['Concluída: Feita', 'Em andamento: Aberta'])
+    expect((await desktop($)).map(s => s.alt).slice(1)).toEqual(['Concluída: Feita', 'Aberta: Aberta'])
   })
 })
 
@@ -598,7 +600,7 @@ describe('cartões', () => {
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     const svgs = (await desktop($)).slice(1)
     const last = svgs[svgs.length - 1]
-    expect(last.alt).toBe('Em andamento: Coisa da neta')
+    expect(last.alt).toBe('Aberta: Coisa da neta')
     // Two cards end here: two fills, and 6 px more for each edge.
     expect(last.source.split('class="cd"').length - 1).toBe(2)
     expect(last.source).toMatch(/height="40"/)
@@ -973,11 +975,11 @@ describe('sessões abertas', () => {
     await done($, ['A'])
     // Closed with done: done, with the session still at work below it (its progress is in its card).
     expect((await view($)).map(l => l.text)).toEqual([
-      'Depois  1 de 2 · 50%',
+      'Orquestrar  1 de 2 · 50%',
       '██████████░░░░░░░░░░  ● 1  ⑂ 1',
       '✓ Orquestrar  ⑂  1/1  —',
       '   ⑂ filha',
-      '◉ Depois',
+      '○ Depois',
     ])
     running = false
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
@@ -986,7 +988,7 @@ describe('sessões abertas', () => {
       '██████████░░░░░░░░░░  ● 1',
       '✓ Orquestrar  ⑂  1/1  —',
       '   ⑂ filha  concluída',
-      '◉ Depois',
+      '○ Depois',
     ])
   })
 
@@ -1090,14 +1092,14 @@ describe('sessões abertas', () => {
       'Orquestrar  2 de 4 · 50%',
       '██████████░░░░░░░░░░  ● 2  ◷ 1  ⑂ 1',
       // The session's tasks count in the header (drawn), not in the tasks closed with done above them.
-      '◉ Orquestrar  ⑂  1/2',
+      '◷ Orquestrar  ⑂  1/2',
       '├─ ✓ Abrir filha  ⑂  1/1  —',
       '│     ⑂ filha  aguardando',
       '│     ◉ Trabalho da filha  1/2',
       '│     ├─ ✓ Passo feito  —',
       '│     └─ ◉ Passo atual',
       '│        └─ ◷ Aguardando sua resposta',
-      '└─ ◉ Conferir',
+      '└─ ○ Conferir',
     ])
     expect(line(lines, 'Passo atual')?.color).toBe('warning')
     expect(line(lines, 'Passo feito')?.color).toBe('success')
@@ -1307,18 +1309,18 @@ describe('turnos', () => {
       '└─ ✓ Corrigir  2/2  —',
       '   ├─ ✓ Achar  —',
       '   └─ ✓ Testar  —',
-      '◉ agora some os tempos  0/2',
-      '├─ ◉ Somar',
+      '○ agora some os tempos  0/2',
+      '├─ ○ Somar',
       '└─ ○ Conferir',
     ])
     await fold($, '|T:1')
     expect(rowsOf(await view($)).slice(0, 2).map(l => l.text)).toEqual([
       '✓ corrija o erro do topo do painel ⋯  2/2  —',
-      '◉ agora some os tempos  0/2',
+      '○ agora some os tempos  0/2',
     ])
     expect((await desktop($)).map(s => s.alt).slice(1, 3)).toEqual([
       'Pedido concluído: corrija o erro do topo do painel, 2 de 2, recolhida',
-      'Pedido em andamento: agora some os tempos, 0 de 2',
+      'Pedido aberto: agora some os tempos, 0 de 2',
     ])
   })
 
@@ -1329,7 +1331,7 @@ describe('turnos', () => {
     await planAs($, [{ id: 'A', title: 'Agrupar' }], 'Agrupar por turno')
     await planAs($, [{ id: 'B', title: 'Testar' }])
     const rows = rowsOf(await view($)).map(l => l.text)
-    expect(rows).toEqual(['◉ Agrupar por turno  0/2', '├─ ◉ Agrupar', '└─ ○ Testar'])
+    expect(rows).toEqual(['○ Agrupar por turno  0/2', '├─ ○ Agrupar', '└─ ○ Testar'])
     // Planned again in a later message, an id of an open level-1 task of the earlier request goes to
     // the new request; the old one, abandoned, stays in its request, interrupted (replacing in place
     // is only within the same request: the person's panel had a new "1" under the request before).
@@ -1337,9 +1339,9 @@ describe('turnos', () => {
     await planAs($, [{ id: 'A', title: 'Agrupar de novo' }], 'Outra coisa')
     await planAs($, [{ id: 'Z', title: 'Nova' }])
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ Agrupar por turno  0/1',
+      '○ Agrupar por turno  0/1',
       '├─ ✕ Agrupar  interrompida  —',
-      '└─ ◉ Testar',
+      '└─ ○ Testar',
       '○ Outra coisa  0/2',
       '├─ ○ Agrupar de novo',
       '└─ ○ Nova',
@@ -1352,7 +1354,7 @@ describe('turnos', () => {
     await done($, ['V'])
     await ask($, 'pedido novo')
     await plan($, [{ id: 'N', title: 'Nova' }])
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['✓ Velha  —', '◉ pedido novo  0/1', '└─ ◉ Nova'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['✓ Velha  —', '○ pedido novo  0/1', '└─ ○ Nova'])
   })
 
   test('o turno de tarefas concluídas com done fica concluído, sem somar as sessões abertas nelas', async ($, on) => {
@@ -1803,11 +1805,11 @@ describe('visão resumida', () => {
     })
     await pick($, 'summary')
     t = 65_000
-    // Nothing started: the first open subtask is in progress; times run from the plan.
+    // Nothing started: nothing in progress, no clock (the first open subtask used to light up).
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ Toggle segmentado  0/4  1:05',
-      '└─ ◉ Toggle segmentado  0/4  1:05',
-      '   ├─ ◉ Ver API  1:05',
+      '○ Toggle segmentado  0/4',
+      '└─ ○ Toggle segmentado  0/4',
+      '   ├─ ○ Ver API',
       '   ├─ ○ Pílula',
       '   ├─ ○ Padrão',
       '   └─ ○ Testes',
@@ -1847,10 +1849,10 @@ describe('visão resumida', () => {
     })
     await plan($, [{ id: 'A', title: 'Uma' }, { id: 'B', title: 'Outra' }])
     await pick($, 'summary')
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ Uma', '○ Outra'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['○ Uma', '○ Outra'])
     // During the work a closed task stays.
     await done($, ['A'])
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['✓ Uma  —', '◉ Outra'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['✓ Uma  —', '○ Outra'])
     // All closed: the list stays, all ✓, and the bar is full.
     await done($, ['B'])
     let lines = await view($)
@@ -1862,12 +1864,12 @@ describe('visão resumida', () => {
     // New work: only it is drawn; the header stays the session's.
     await plan($, [{ id: 'C', title: 'Nova' }])
     lines = await view($)
-    expect(rowsOf(lines).map(l => l.text)).toEqual(['◉ Nova'])
+    expect(rowsOf(lines).map(l => l.text)).toEqual(['○ Nova'])
     expect(lines[0].text).toBe('Nova  0 de 1 · 0%  (sessão inteira: 2 de 3)')
     expect(saved['work:sessao-1']).toEqual(['C'])
     // A plan while it is open joins it.
     await plan($, [{ id: 'D', title: 'Junto' }])
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ Nova', '○ Junto'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['○ Nova', '○ Junto'])
   })
 
   test('no resume, o trabalho atual guardado volta', async ($, on) => {
@@ -2096,13 +2098,13 @@ describe('trabalho atual por turno', () => {
     await ui.press({ key: 'view:summary' })
     await ui.unmount()
     // The turn shows both its level-1 tasks: its 1/2 matches the lines.
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ primeiro pedido  1/2', '├─ ✓ Ver se dá  —', '└─ ◉ Fazer'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◷ primeiro pedido  1/2', '├─ ✓ Ver se dá  —', '└─ ○ Fazer'])
     // The same message: B joined A's work rather than starting another.
     expect(saved['work:sessao-1']).toEqual(['A', 'B'])
     await done($, ['B'])
     await $.prompt.submit({ text: 'segundo pedido' } as any)
     await plan($, [{ id: 'C', title: 'Outra coisa' }])
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ segundo pedido  0/1', '└─ ◉ Outra coisa'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['○ segundo pedido  0/1', '└─ ○ Outra coisa'])
     expect(saved['work:sessao-1']).toEqual(['C'])
   })
 })
@@ -2269,7 +2271,7 @@ describe('rodadas de mensagens de outra sessão', () => {
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
     await ui.press({ key: 'view:summary' })
     await ui.unmount()
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ segundo pedido  0/1', '└─ ◉ Dois'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['○ segundo pedido  0/1', '└─ ○ Dois'])
   })
 
   const KID = 'local_11111111-1111-1111-1111-111111111111'
@@ -2353,7 +2355,7 @@ describe('respostas por grupo e origem das mensagens', () => {
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
     await ui.press({ key: 'view:summary' })
     await ui.unmount()
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ pedido do usuário  1/2', '├─ ✓ Com subagente  —', '└─ ◉ Depois do subagente'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◷ pedido do usuário  1/2', '├─ ✓ Com subagente  —', '└─ ○ Depois do subagente'])
   })
 
   test('a mensagem de outra sessão (peer) abre turno', async ($, on) => {
@@ -2367,7 +2369,7 @@ describe('respostas por grupo e origem das mensagens', () => {
     const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'task-tree' })
     await ui.press({ key: 'view:summary' })
     await ui.unmount()
-    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['◉ outro pedido  0/1', '└─ ◉ Dois'])
+    expect(rowsOf(await view($)).map(l => l.text)).toEqual(['○ outro pedido  0/1', '└─ ○ Dois'])
   })
 })
 
@@ -2449,9 +2451,9 @@ describe('pais aguardando e avisos do app', () => {
     expect((await desktop($)).map(s => s.alt)).toContain('Aguardando: Testar a sessão arquivada, 1 de 4, 0:30')
     // Not in the "em andamento" chip beyond its open leaves, no chip of its own.
     expect((await view($))[1].text).not.toContain('◷')
-    // With nothing started anywhere, the first open task lights up (◉), as always: not waiting.
+    // With nothing started anywhere, nothing lights up: the parent waits (◷) with its done child.
     await done($, ['B'])
-    expect(rowsOf(await view($))[0]?.glyph).toBe('◉')
+    expect(rowsOf(await view($))[0]?.glyph).toBe('◷')
   })
 
   test('o aviso do app (system-reminder / side-sessions-event) não abre turno nem dá título', async ($, on) => {
@@ -2472,7 +2474,7 @@ describe('pais aguardando e avisos do app', () => {
     await ui.press({ key: 'view:summary' })
     await ui.unmount()
     const rows = rowsOf(await view($)).map(l => l.text)
-    expect(rows[0]).toBe('◉ pedido do usuário  1/2')
+    expect(rows[0]).toBe('◷ pedido do usuário  1/2')
     expect(rows.some(l => l.includes('The session'))).toBe(false)
   })
 })
@@ -2506,7 +2508,7 @@ describe('textos reais do host (0.7.3)', () => {
     const r = JSON.stringify(await $.prompt.submit({ text: peer('Segundo pedido: faça o B'), isMeta: true, origin: { kind: 'peer' } } as any))
     expect(r).toContain('No primeiro plan desta mensagem')
     await plan($, [{ id: 'B', title: 'Dois' }])
-    expect(await summary($)).toEqual(['◉ Segundo pedido: faça o B  0/1', '└─ ◉ Dois'])
+    expect(await summary($)).toEqual(['○ Segundo pedido: faça o B  0/1', '└─ ○ Dois'])
   })
 
   test('volta de subagente no meio do pedido (agent-message + task-notification) não abre turno nem troca o trabalho', async ($, on) => {
@@ -2519,7 +2521,7 @@ describe('textos reais do host (0.7.3)', () => {
     expect(r).not.toContain('No primeiro plan desta mensagem')
     await plan($, [{ id: 'B', title: 'Depois' }])
     const rows = await summary($)
-    expect(rows[0]).toBe('◉ pedido do usuário  1/2')
+    expect(rows[0]).toBe('◷ pedido do usuário  1/2')
     expect(rows.some(l => l.includes('Subagent hand-back'))).toBe(false)
   })
 
@@ -2530,7 +2532,7 @@ describe('textos reais do host (0.7.3)', () => {
     const r = JSON.stringify(await $.prompt.submit({ text: SIDE, isMeta: true, origin: { kind: 'plugin', name: 'app' } } as any))
     expect(r).not.toContain('No primeiro plan desta mensagem')
     await plan($, [{ id: 'B', title: 'Dois' }])
-    expect((await summary($))[0]).toBe('◉ pedido do usuário  0/2')
+    expect((await summary($))[0]).toBe('○ pedido do usuário  0/2')
   })
 
   test('quem recebe publica o received com o remetente e a hora', async ($, on) => {
