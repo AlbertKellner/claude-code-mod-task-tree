@@ -62,7 +62,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     `fillStarts`/`fill`, `settle`, `begin`.
 - **Desenho** (`draw/`), puro, sem `$`:
   - `layout.ts` (932): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os hooks
-    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `goingOn`,
+    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `goingOn`, `nest`, `alive`,
     `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
@@ -416,6 +416,29 @@ mantida), em `draw/layout.ts`:
   `resumida-turno.test.ts` foram atualizados (e, em `task-tree.test.ts`, "mensagem à filha numa
   tarefa do trabalho atual: a resumida não muda o cartão de lugar") para a regra nova. O orçamento cresceu 84 bytes nas
   quatro medidas (chaves dos botões mais longas), dentro da folga.
+- Conversas entre irmãs (regra do usuário: "sob a tarefa da mãe, só os cartões das mensagens dela. A
+  mensagem de uma irmã S para C fica dentro do cartão de S, sob a tarefa de S que a enviou"): antes, a
+  regra das cadeias punha o cartão de C sob a tarefa da mãe da qual pendia o cartão de S, e os cartões
+  das conversas entre filhas ficavam empilhados sob a tarefa da mãe (no estado real, uns 14 cartões
+  "nome ⋯"). Em `draw/layout.ts`: `Break` ganhou `from` e `task`; em `breaks()`, para a mensagem de uma
+  irmã, `task` é a tarefa de S que a mandou: a âncora do envio publicado dela (`sends`), senão a tarefa
+  em andamento quando a mensagem chegou, senão a última que ela iniciou antes. `split()` dá à parte
+  aberta pela mensagem de uma irmã `via: { from, task }` (campo novo de `Child`, só de desenho, em
+  `types/index.d.ts`). `nest(list)`, aplicada nas duas listas de cartões (em `panel()`, sobre os cartões
+  de cada painel, e em `cut()`, na resumida), põe a parte com `via` dentro do cartão da irmã que tem
+  essa tarefa, como sessão aberta nela (`anchor` = `task`); sem esse cartão na lista, ou se a mudança
+  fizesse um laço, a parte fica onde o `split` a pôs. `alive(c)` (sessão viva, ou viva dentro do cartão
+  dela, até `DEEP`) é o que `atWork` usa para `busy` e `live`, então a tarefa da mãe segue em andamento
+  com a conversa trabalhando dentro do cartão da irmã. Efeito no estado real: "+41 cartões antigos de
+  sessões" passou a "+4" (os cartões das conversas agora estão dentro dos cartões antigos das irmãs
+  remetentes); o golden `real-completa` mudou só nessa linha. Cartões que apareciam recolhidos sem
+  clique eram essas partes empilhadas: o código só fecha uma dobra com escolha gravada, e um
+  teste-guarda falha se algum cartão aparecer recolhido ou sem linhas sem escolha do usuário. Testes:
+  `cadeia-irmas.test.ts` (3: a mensagem de impl para docs fica dentro do cartão de impl, sob a tarefa
+  que a mandou, nas duas visões; sob a tarefa da mãe ficam só os cartões das mensagens dela; sem o envio
+  publicado vale a tarefa da irmã em andamento quando a mensagem chegou) e `cartoes-resumida.test.ts`
+  (1: sem escolha do usuário, nenhum cartão aparece recolhido ou vazio, no estado real e nas duas
+  visões); `layout.test.ts` passa a esperar o cartão da irmã dentro do cartão de impl e "+4".
 
 Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
 
@@ -492,8 +515,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 359 testes em 22
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 363 testes em 24
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo; 2 no relógio religado pelo desenho; 2 no turno em lote; 4 no pai de ✉ e na linha ↩; 2 no título do cabeçalho; 2 na tarefa da mãe concluída; 2 na regra do cabeçalho com recolhidos; 3 nas conversas entre irmãs; 1 nos cartões abertos sem escolha); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -517,6 +540,8 @@ e tem 5 s.
 | `mae-concluida.test.ts` | 2 | tarefa da mãe concluída com `done` com filha ainda trabalhando: a tarefa e o pedido aparecem concluídos, sem somar as tarefas da sessão, e o cartão mostra o progresso dela; tarefa aberta com a sessão trabalhando continua em andamento e somando |
 | `cabecalho-tarefa-atual.test.ts` | 2 | o título do cabeçalho é a tarefa iniciada por último: uma iniciada e deixada aberta num pedido antigo não o toma (nas duas visões); sem nenhuma iniciada, é a primeira aberta |
 | `envio-e-resposta.test.ts` | 4 | pai de tarefa ✉ em andamento (e, sem envio, ainda aberto); pedido e cartão sem `summary` sem linha ↩, com `summary` a linha traz o resumo |
+| `cadeia-irmas.test.ts` | 3 | conversa entre irmãs: a mensagem de impl para docs fica dentro do cartão de impl, sob a tarefa que a mandou, nas duas visões; sob a tarefa da mãe ficam só os cartões das mensagens dela; sem o envio publicado vale a tarefa da irmã em andamento quando a mensagem chegou |
+| `cartoes-resumida.test.ts` | 1 | sem escolha do usuário, nenhum cartão aparece recolhido ou sem linhas embaixo, no estado real e nas duas visões |
 | `cartoes-lugar.test.ts` | 7 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa; quatro mensagens na fila entregues juntas: o cartão do turno vai para a tarefa da primeira; uma mensagem por turno: cada cartão sob a tarefa da sua |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
@@ -761,7 +786,7 @@ camada do nome (a camada vai da coluna do nome até a borda ou, com anel, até o
 #### Testes de layout
 
 `tests/layout.test.ts` (14 testes) chama `layout()` direto. Fixture real (5): visão completa com 27 linhas (28 antes de a linha ↩ exigir resumo)
-("+67 pedidos anteriores" no topo, "+41 cartões antigos de sessões" no fim, só os pedidos 71–73
+("+67 pedidos anteriores" no topo, "+4 cartões antigos de sessões" no fim (+41 antes de as conversas entre irmãs irem para dentro do cartão da remetente), só os pedidos 71–73
 desenhados, 2 cartões sob as tarefas 97 e 98, nenhum na raiz), o ↩ (o pedido 71 não tem resumo e não tem linha ↩; suprimido nos
 pedidos com cartão), o cabeçalho (conta só os nós desenhados, 8/14; chips 6 em andamento, 1 sessão
 ativa, 0 aguardando, 0 ✉), a visão resumida (26 linhas, "+1 pedidos anteriores", sem cartões antigos) e o
@@ -1256,15 +1281,17 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   recebeu (`Panel.received`) e `breaks()` junta as mensagens da principal com as das irmãs. A mensagem
   de uma irmã pertence à rodada do turno em que a irmã a mandou (não à última rodada dela antes de
   a mensagem chegar; pedido do usuário: "as tarefas de governança, svg e documentação, não são da
-  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia.
+  tarefa de envio decha sozinha?"), e a rodada vai sob a tarefa onde estava esse cartão, seguindo a cadeia, agora dentro do cartão da irmã remetente (`via`/`nest`).
   A origem vem primeiro do ✉ da irmã: o envio pendente dela para esta sessão (`sends` publicado)
   aponta a tarefa que enviou, e o turno dessa tarefa dá a âncora na principal; sem ✉, o último turno
   da irmã antes da chegada. Sem origem conhecida, o cartão da mensagem não é desenhado por até 10 s
   (`WAIT_ORIGIN`) e depois vai para onde der (raiz, se nada). Motivo (pedido do usuário: "ela
   deveria abrir direto no lugar correto"): as leituras de 3 s e os arquivos gravados em momentos
-  diferentes faziam o cartão nascer na raiz e pular depois. Na mesma cadeia
-  (ex.: docs → SVG → governança ficam, cada grupo novo no seu cartão, sob a tarefa da principal que
-  abriu a cadeia), sem aninhar no cartão da irmã, para não duplicar a sessão. Sob uma mesma
+  diferentes faziam o cartão nascer na raiz e pular depois. (Regra substituída: a cadeia, ex.: docs →
+  SVG → governança, punha cada grupo novo no seu cartão sob a tarefa da principal que abriu a cadeia,
+  sem aninhar no cartão da irmã; hoje a mensagem de uma irmã S para C fica dentro do cartão de S, sob
+  a tarefa de S que a enviou, e sob a tarefa da principal ficam só os cartões das mensagens dela; ver
+  "Conversas entre irmãs" em "Cartões no lugar certo", em "Como é hoje".) Sob uma mesma
   tarefa (e soltos no fim da lista), os cartões vão na ordem em que o trabalho de cada um começou
   (`begins(c)` + `inOrder()`; ex.: implementação → documentação → SVG → governança), não na ordem da
   lista do host (pedido do usuário: "e rodou, ficando tudo junto").

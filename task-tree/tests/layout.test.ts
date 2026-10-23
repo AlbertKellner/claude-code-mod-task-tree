@@ -79,7 +79,9 @@ describe('layout: estado real da orquestradora', () => {
     // Turn 71 has no summary: no ↩ line (it was "resposta").
     expect(rows.length).toBe(27)
     expect(rows[0]).toMatchObject({ depth: 0, tone: 'section', title: '+67 pedidos anteriores' })
-    expect(rows[rows.length - 1]).toMatchObject({ depth: 0, tone: 'section', title: '+41 cartões antigos de sessões' })
+    // The cards of the sisters' talk go inside the sender's card (nest): of the old ones, only the
+    // senders' are counted (it was +41, each message between sisters a card of its own).
+    expect(rows[rows.length - 1]).toMatchObject({ depth: 0, tone: 'section', title: '+4 cartões antigos de sessões' })
     // The turns drawn: 71, 72, 73 (SHOWN_TURNS); 70, with a brief, is in the count line.
     expect(rows.filter(r => r.depth === 0 && r.fold).map(r => r.fold?.key)).toEqual(['|T:71', '|T:72', '|T:73'])
     // Every card hangs under a task: none at depth 0, each right under the task of its round.
@@ -212,16 +214,15 @@ describe('layout: regras, em modelos pequenos', () => {
     expect(cards(rows).every(r => r.depth === 1)).toBe(true)
   })
 
-  test('cadeia: a mensagem de uma irmã põe o cartão sob a tarefa de origem da irmã, não na raiz', () => {
+  test('cadeia: a mensagem de uma irmã põe o cartão dentro do cartão da irmã, sob a tarefa dela, não na raiz', () => {
     // impl, opened on task 15, sent docs a message in its turn 1; docs (no anchor of its own) took it
-    // up and opened its turn after it.
+    // up and opened its turn after it. With no send published, impl's task that sent it is the last
+    // one it started before the message came (the person: under the mother's task only the cards of
+    // her messages; it was drawn under task 15, beside impl's card).
     const impl = child('local_impl', 'impl', panel([task('1', 'Implementar', 'done', { turn: 1, startedAt: T0 + 10, endedAt: T0 + 50 })], [turn(1, T0 + 5)]), { anchor: '15' })
     const docs = child('local_docs', 'docs', panel([task('1', 'Documentar', 'open', { turn: 1, started: 1, startedAt: T0 + 110 })], [turn(1, T0 + 105)], { received: [{ from: 'local_impl', at: T0 + 100 }] }), { running: true })
     const rows = layout(model([main([task('15', 'Pedido 15', 'open', { started: 1, startedAt: T0 })])], [impl, docs]), {}, NOW, ME)
-    const cs = cards(rows)
-    expect(cs.map(r => r.title)).toEqual(['impl', 'docs'])
-    expect(cs.every(r => r.depth === 1)).toBe(true)
-    expect(rows[0].title).toBe('Pedido 15')
+    expect(titles(rows)).toEqual(['Pedido 15', '  ⑂ impl', '    Implementar', '      ⑂ docs', '        Documentar'])
     // The chain's card is at work: so is the task it hangs from.
     expect(rows[0].tone).toBe('current')
     expect(rows[0].kids).toBe(true)
