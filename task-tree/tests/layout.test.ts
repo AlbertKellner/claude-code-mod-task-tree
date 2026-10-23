@@ -177,13 +177,16 @@ describe('layout: estado real da orquestradora', () => {
     }
   })
 
-  test('visão resumida: o trabalho atual (pedidos 70 a 73), sem os cartões antigos; as mesmas linhas da completa', () => {
+  // The summary is the full view without the finished requests of earlier turns: the same lines,
+  // the cards with no task to go under included (counted as old cards, as in the full view; they
+  // were left out of the summary unless the session was live).
+  test('visão resumida: o trabalho atual (pedidos 70 a 73); as mesmas linhas da completa, cartões antigos contados', () => {
     const full = layout(realModel('full'), {}, AT, ME)
     const summary = layout(realModel('summary'), {}, AT, ME)
-    expect(summary.length).toBe(26)
+    expect(summary.length).toBe(27)
     expect(summary[0]).toMatchObject({ tone: 'section', title: '+1 pedidos anteriores' })
-    expect(summary.some(r => r.title.includes('cartões antigos'))).toBe(false)
-    expect(titles(summary).slice(1)).toEqual(titles(full).slice(1, -1))
+    expect(summary[summary.length - 1]).toMatchObject({ tone: 'section', title: '+41 cartões antigos de sessões' })
+    expect(titles(summary).slice(1)).toEqual(titles(full).slice(1))
     expect([header(summary).d, header(summary).n]).toEqual([8, 14])
   })
 

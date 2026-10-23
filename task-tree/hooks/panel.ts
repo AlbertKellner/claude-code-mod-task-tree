@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, goingOn, startedLast } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
 import { debug } from '../io/log'
 import { publishWait } from '../io/publish'
 
@@ -466,10 +466,12 @@ export async function joinWork($: any, ids: string[], fresh: boolean) {
   if (ids.length === 0) return
   const { value: cur = [] } = await $.state.get(workState)
   if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
-  // New work: what of the work before is still going on stays (goingOn).
+  // New work: with anything still open in sight (a task, a ✉, a card with an open task), the work
+  // before stays whole, the new request below it; with nothing open, the new request alone (openInSight).
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
-  const kept = goingOn({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[])
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[], sends as Send[]) ? (cur as string[]) : []
   await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
