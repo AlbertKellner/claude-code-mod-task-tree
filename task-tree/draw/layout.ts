@@ -367,11 +367,12 @@ export function total(p: Panel, level = 0): [number, number, number] {
   return [d, n, x]
 }
 
-// The sessions opened on a task or below it (archived ones as history): their tasks add to its count and
-// its time, and while one is still at work the task is drawn in progress, its clock running,
-// whatever its own status says. A task closed with done is done: the sessions opened on it or on a
-// task inside it add nothing and keep nothing in progress (their progress stays in their cards; it was
-// drawn ◉ "45/46" after the done); `any` still marks the ⑂, `live` that one is still at work there, and
+// The sessions opened on a task or below it (archived ones as history): their leaves add to its
+// count, closed task or not (the session is a link, not a task: the header counts them the same).
+// The open ones add to its time, and while one is still at work the task is drawn in progress, its
+// clock running, whatever its own status says. A task closed with done is done: the sessions opened
+// on it or on a task inside it keep nothing in progress and add no time (it was drawn ◉ after the
+// done); `any` still marks the ⑂, `live` that one is still at work there, and
 // `cards` holds all their tasks, for a folded line (it stands for what is drawn below it, the cards too).
 // `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
@@ -386,22 +387,34 @@ export function allTasks(p: Panel, level: number): TaskNode[] {
   if (level >= DEEP) return own
   return own.concat(...(p.children ?? []).map(c => allTasks(panelOf(c), level + 1)))
 }
+// Where a session's current round is (see atWork): none for a card of an earlier round.
+export const roundAt = (c: Child) => (c.part === undefined ? (c.lastAnchor ?? c.anchor) : c.lastAnchor)
 export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const ids = flat([t]).map(k => k.id)
   const below = sessions.filter(c => c.anchor !== undefined && ids.includes(c.anchor))
   const open = (k: TaskNode): string[] => (k.status === 'done' ? [] : [k.id, ...k.children.flatMap(open)])
   const counted = open(t)
   const mine = below.filter(c => counted.includes(c.anchor as string))
+  // At work, a session is where its current round is: its last message's task (lastAnchor), not
+  // where it was opened nor where an earlier round was. A card cut to one round counts only if it is
+  // the session's leading one (the one that keeps lastAnchor); an earlier round's card never does.
+  // Else every task it ever worked under came back as in progress while it ran (the summary view
+  // pulled old requests in, and the header took the first one's title).
+  const here = sessions.filter(c => {
+    const a = roundAt(c)
+    return a !== undefined && ids.includes(a)
+  })
+  const hereOpen = here.filter(c => counted.includes(roundAt(c) as string))
   let d = 0
   let n = 0
-  for (const c of mine) {
+  for (const c of below) {
     const [cd, cn] = total(panelOf(c), level + 1)
     d += cd
     n += cn
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
   const cards = below.flatMap(c => allTasks(panelOf(c), level + 1))
-  return { busy: mine.some(live), any: below.length > 0, live: below.some(live), d, n, tasks, cards }
+  return { busy: hereOpen.some(live), any: below.length > 0 || here.length > 0, live: here.some(live), d, n, tasks, cards }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
@@ -426,9 +439,9 @@ export function timeSpan(list: TaskNode[], busy: boolean, now?: number): number 
   return starts.length === 0 || now === undefined ? undefined : now - Math.min(...starts)
 }
 
-// The header's "em andamento": every open task with no subtasks (◉ or ○ leaves), in every group of
-// the panel and in its sessions not archived (as deep as the count goes), so it is M − N of the
-// "N de M" (interrupted ones are out of both). The ones waiting on a session (`sent`, main group
+// Every open task with no subtasks (◉ or ○ leaves), in every group of the panel and in its
+// sessions not archived (as deep as the count goes), so it is M − N of the "N de M" (interrupted
+// ones are out of both); none means nothing is open (nothingOpen). The ones waiting on a session (`sent`, main group
 // here) have their own chip and are left out of this one.
 export function activeLeaves(p: Panel, level: number, sent: string[] = []): number {
   let k = 0

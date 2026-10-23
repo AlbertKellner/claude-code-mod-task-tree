@@ -61,7 +61,8 @@ export const finish =
     children: t.children.map(finish(now)),
   })
 // A task closed with no start (done without start) gets one, so its time shows: the end of the
-// closed sibling before it, else its parent's start, else when it was planned (never after now).
+// closed sibling before it, else its parent's start, else when it was planned (never before it was
+// planned, never after now).
 // What it closes below it with no start starts the same way, from it.
 export function fillStarts(list: TaskNode[], id: string, now?: number, parentStart?: number): TaskNode[] {
   return list.map((t, i) => {
@@ -77,7 +78,9 @@ export function fill(items: TaskNode[], before: TaskNode[], parentStart: number 
       prev = t.endedAt ?? prev
       return t
     }
-    const from = t.startedAt ?? prev ?? parentStart ?? t.plannedAt
+    // Never before it was planned: the sibling before it may be of an earlier request.
+    const after = prev ?? parentStart
+    const from = t.startedAt ?? (after !== undefined && t.plannedAt !== undefined ? Math.max(after, t.plannedAt) : after ?? t.plannedAt)
     const startedAt = from === undefined || now === undefined ? from : Math.min(from, now)
     return { ...t, startedAt, children: fill(t.children, [], startedAt, now) }
   })
