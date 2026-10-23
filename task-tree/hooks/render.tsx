@@ -52,7 +52,7 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // the last one drawn is on top.
 function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number }) {
   const { Box, Svg, Button } = ui
-  const keys = lines.map(rowKey)
+  const keys = rowKeys(lines)
   const lanes = guides(lines)
   const hides = labelCols(lines)
   const cards = frames(lines)
@@ -134,8 +134,17 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   )
 }
 
-// A line's name across drawings, for its motion: its fold's key, else where it is and what it stands for.
-const rowKey = (r: Row) => (r.fold as any)?.key ?? [r.depth, r.sid ?? '', r.title, (r.nodes ?? []).map(t => t.id).join(',')].join('|')
+// A line's name across drawings, for its motion: what the layout says it is (Row.key), the same in
+// every state; a second line of the same name gets a number.
+const rowKeys = (lines: Row[]) => {
+  const n = new Map<string, number>()
+  return lines.map(r => {
+    const k = r.key ?? `${r.depth}|${r.tone}|${r.title}`
+    const i = n.get(k) ?? 0
+    n.set(k, i + 1)
+    return i === 0 ? k : `${k}~${i}`
+  })
+}
 
 // Terminal: the same lines as text, the guides in box-drawing characters, color only on the icon
 // (the Button that folds, on a line with something below).
