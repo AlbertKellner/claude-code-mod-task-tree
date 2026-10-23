@@ -10,7 +10,7 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { animate, fadeIn, mark } from '../draw/motion'
+import { animate, fadeIn, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -52,11 +52,17 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // the last one drawn is on top.
 function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number }) {
   const { Box, Svg, Button } = ui
-  // What came in since the drawing before (../draw/motion): those lines fade in, one after another.
   const keys = lines.map(rowKey)
-  const marks = mark(keys.map(k => [k, '']), chrome.now)
+  // What came in since the drawing before (../draw/motion): those lines fade in, one after another;
+  // a line whose state changed pops its icon.
+  const marks = mark([...keys.map(k => [k, ''] as [string, string]), ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string])], chrome.now)
   let entering = 0
-  const motion = (i: number) => (marks.enter.has(keys[i]) ? [fadeIn(Math.min(150, 30 * entering++))] : [])
+  const motion = (i: number) =>
+    marks.enter.has(keys[i])
+      ? [fadeIn(Math.min(150, 30 * entering++))]
+      : marks.changed.has(`${keys[i]}#tone`)
+        ? [pop(progress(lines[i]) === 'done')]
+        : []
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">

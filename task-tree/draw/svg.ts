@@ -383,7 +383,8 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
       edge -= textW(words, 12)
     }
   }
-  const lead = section ? '' : icon(progress(r), x, cy)
+  // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
+  const lead = section ? '' : `<g class="ic">${icon(progress(r), x, cy)}</g>`
   const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
