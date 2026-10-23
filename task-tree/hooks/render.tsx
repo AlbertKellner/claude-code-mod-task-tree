@@ -248,9 +248,12 @@ export async function render($: EngineInterface, e: any, next: any) {
   // A task waiting on a session is not in progress: this session's (the queued sends' tasks) and
   // the ones the lines show waiting (a card's ✉ task too), by the tasks the lines stand for.
   const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
-  const active = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t)).length
+  // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t))
+  const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
+  const pending = open.length - active
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
-  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'))
+  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   const { Button } = ui
