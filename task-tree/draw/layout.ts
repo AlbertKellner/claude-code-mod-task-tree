@@ -31,6 +31,21 @@ export const interrupt =
       ? { ...t, status: 'interrupted', started: undefined, endedAt: stop(t, now), children: t.children.map(interrupt(now)) }
       : t
 
+// A turn that ended (or a session that ended its turn) touches only what was in progress: a task
+// started and not closed reads as interrupted, its clock stopped at `at`; a task never started stays
+// pending, the plan goes on in the next turn (the person's panel: four steps never started came out
+// "✕ interrompida"). An open parent keeps its pending subtasks, its clock stopped; with nothing open
+// left below it, it is interrupted too. Nothing lights up without start (current), so a halted
+// panel needs no other mark.
+export const halt =
+  (at?: number) =>
+  (t: TaskNode): TaskNode => {
+    if (t.status !== 'open') return t
+    if (t.children.length === 0) return t.started !== undefined || t.startedAt !== undefined ? interrupt(at)(t) : t
+    const children = t.children.map(halt(at))
+    return hasOpen(children) ? { ...t, started: undefined, endedAt: stop(t, at), children } : interrupt(at)({ ...t, children })
+  }
+
 // A task whose clock runs: started and not closed.
 export const timing = (list: TaskNode[]) => flat(list).some(t => t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
 // From the first start to the last close, or to now while any task runs; undefined when no
@@ -78,7 +93,8 @@ export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN
 export const panelOf = (c: Child): Panel => {
   const p = rawPanel(c)
   if (!c.archived && (live(c) || c.starting)) return p
-  return { ...p, ...(c.archived ? { waits: [] } : {}), groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
+  if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
+  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(undefined)) })) }
 }
 // A session in one card per message the main loop sent it (`rounds`): the card of a message holds
 // the turns the session opened after it (its tasks in plan order, the subagents, notices and
@@ -698,7 +714,7 @@ export type Choices = Record<string, boolean>
 // `ownId` (this session's id, for the sisters' messages). Pure: it reads nothing but its arguments.
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
   const ended = model.ended
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(interrupt(ended)) } : g))
+  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended)) } : g))
   const waits = model.waits
   const sessions = model.children
   const queued = model.sends
