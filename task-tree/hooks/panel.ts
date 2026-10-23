@@ -83,7 +83,7 @@ export const migrate = (t: LegacyNode): TaskNode => ({
 
 // A message of the person opens a turn of the main group, titled with its start; turns no plan
 // used are dropped then, so only turns with tasks are kept.
-export async function openTurn($: any, text: string) {
+export async function openTurn($: any, text: string, own = false) {
   // A message from another session comes wrapped in tags: its words are the title.
   const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
   const title = line.length > 60 ? `${line.slice(0, 59)}…` : line
@@ -96,7 +96,9 @@ export async function openTurn($: any, text: string) {
       const withTasks = new Set(g.tasks.map(t => t.turn))
       const used = turns.filter(u => withTasks.has(u.id))
       const id = turns.reduce((top, u) => Math.max(top, u.id), 0) + 1
-      return { ...g, turns: [...used, { id, title, at }] }
+      // The person's own prompt in this session is marked (`own`): the card of this turn, in the
+      // session that opened this one, goes at the end of the request that opened it.
+      return { ...g, turns: [...used, { id, title, at, ...(own ? { own: true } : {}) }] }
     }),
   )
 }
