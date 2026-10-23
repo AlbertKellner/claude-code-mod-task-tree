@@ -19,6 +19,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 
@@ -234,7 +235,9 @@ export function watchSessions($: any) {
 export async function anyRunning($: any): Promise<boolean> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
-  return running({ groups, waits: [], children })
+  // With this session's turn ended, its own tasks run no clock (see turnEnded).
+  const { value: ended } = await $.state.get(turnEndedState)
+  return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
 }
 export async function tick($: any) {
   if (await anyRunning($)) {

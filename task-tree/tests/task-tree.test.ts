@@ -1011,11 +1011,11 @@ describe('sessões abertas', () => {
     expect(texts[0]).toBe('Investigar  3 de 4 · 75%')
     expect(texts).toContain('✓ Investigar  ⑂  2/2  —')
     expect(texts).toContain('└─ ✓ Encaminhar  ⑂  1/1  —')
-    // Stopped: the same.
+    // Stopped: the same; what the session left open reads as interrupted (out of M, no clock).
     state = 'stopped'
     await $.tool.call({ tool: 'mcp__ccd_session__start_session', title: 'x' } as any)
     texts = (await view($)).map(l => l.text)
-    expect(texts[0]).toBe('Tarefas  3 de 4 · 75%')
+    expect(texts[0]).toBe('Tarefas  3 de 3 · 100%')
     expect(texts).toContain('✓ Investigar  ⑂  2/2  —')
     // Archived: still counted, as history; what it left open reads as interrupted (out of M).
     state = 'archived'

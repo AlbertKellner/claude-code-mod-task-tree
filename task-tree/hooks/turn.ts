@@ -15,6 +15,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
 // The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
 // that names the limit): the summary the session gave, else the first sentence of the answer;
@@ -70,6 +71,9 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
       )
     }
   }
+  // The turn ended: what it left open is not in progress until the next prompt (the person: a session
+  // that ended its turn shows no task running), drawn with no close and its clock stopped here.
+  if (!agent) await $.state.set(turnEndedState, (await stamp($)) ?? 0)
   // The turn's answer grew the context: publish its share for the session that opened this one.
   if (!agent) await publishPanel($)
   if (agent) {

@@ -28,6 +28,7 @@ const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 
@@ -221,7 +222,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const work = heldWork ?? workBrought ?? []
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
-  const lines = layout({ groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[] }, chosen, now, knownId())
+  const { value: ended } = await $.state.get(turnEndedState)
+  const lines = layout({ groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }, chosen, now, knownId())
   drawn.rows = lines.length
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
