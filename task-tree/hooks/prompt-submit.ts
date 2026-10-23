@@ -12,6 +12,7 @@ import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watc
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 
 // The main loop's group; a subagent's is keyed by its agentId.
 // Prompt origins (`prompt.submit`'s `e.origin.kind`) that continue the request in progress rather
@@ -48,6 +49,9 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   await noteReceived($, text)
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)
+  // The last turn of this session was interrupted (stopped): a message of another session that comes
+  // next gets the reminder to replan the panel (the person's rule); any request clears the mark.
+  const aborted = (await $.state.get(turnAbortedState)).value === true
   watchSessions($)
   // The person's own prompt: the panel comes back if it is not on screen (see showPane).
   if (!it.peer && !it.notice && !it.handback && !NO_TURN.includes(kind)) await showPane($)
@@ -76,7 +80,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   reminders.planned = false
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
-  await openTurn($, it.title)
+  await openTurn($, it.title, !it.peer)
   // A stale list first: a session that ended its turn is reminded of now, not later.
   await refreshStale($).catch(() => {})
   const note = await endedNote($)
@@ -85,7 +89,12 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
-  const left = hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
+  if (aborted) await $.state.set(turnAbortedState, false)
+  // After an interrupted turn, a message of another session asks for a replan of the panel instead
+  // of the list of what was left open (the replan covers it); the person's own prompt as before.
+  const left = aborted && it.peer
+    ? hasOpen(tasks) ? PROMPT.interrupted(openList(tasks)) : PROMPT.interruptedEmpty
+    : hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
   reminders.answeredInChat = false
   return next({
     ...e,

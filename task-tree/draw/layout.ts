@@ -113,13 +113,15 @@ export type Break = { at: number; anchor?: string; peer?: boolean; known?: boole
 // `received`), matched in order against the rounds, opens a round all the same, or its turns would
 // join the round before it, under a task of an earlier request, drawn above requests between them
 // (the person's words: "layout quebrou novamente"). Its task is the main task of `me` that was open
-// when the message came (the one that sent it, waiting on it); with none, no task: the card goes
-// to the end of the panel, never between other requests.
+// when the message came (the one that sent it, waiting on it), else the one started last before it
+// (as a message sent between tasks is anchored); with none, no task: the card goes to the end of the
+// panel, never between other requests. A session with no round at all is matched the same way (it
+// returned nothing: the svg's turns from a message sent before the host listed it had no card).
 export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Break[] {
   const rounds = [...(c.rounds ?? [])].sort((a, b) => a.at - b.at)
-  if (me === undefined || rounds.length === 0) return []
+  if (me === undefined) return []
   const got = (c.panel?.received ?? [])
-    .filter(x => x.from === me && typeof x.at === 'number' && x.at > rounds[0].at)
+    .filter(x => x.from === me && typeof x.at === 'number' && (rounds.length === 0 || x.at > rounds[0].at))
     .map(x => x.at as number)
     .sort((a, b) => a - b)
   const out: Break[] = []
@@ -130,9 +132,10 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
       i++
       continue
     }
-    const open = flat(owner)
-      .filter(t => typeof t.startedAt === 'number' && t.startedAt <= at && (t.endedAt === undefined || t.endedAt >= at))
-      .sort((a, b) => (b.startedAt as number) - (a.startedAt as number))[0]
+    const before = flat(owner)
+      .filter(t => typeof t.startedAt === 'number' && t.startedAt <= at)
+      .sort((a, b) => (b.startedAt as number) - (a.startedAt as number))
+    const open = before.find(t => t.endedAt === undefined || t.endedAt >= at) ?? before[0]
     out.push({ at, anchor: open?.id, orphan: true })
   }
   return out
@@ -241,9 +244,17 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   }
   const rounds = breaks(c, sisters, me, [], owner, memo)
   const p = c.panel
-  if (rounds.length === 0 || p === undefined) return [c]
+  if (p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
+  // The turns the person opened by typing in that session (`own`): each one a card of its own, at
+  // the end of the request that opened the session (the person: "turno aberto direto pelo usuário
+  // na filha vira cartão próprio, sem âncora, no fim do pedido de origem"), not under the task of
+  // the last message this session sent (work it did not ask for hung from "Reverter o commit…").
+  const ownTurns = (main.turns ?? []).filter(u => u.own === true)
+  if (rounds.length === 0 && ownTurns.length === 0) return [c]
+  const openedIn = owner.find(t => t.id === c.anchor || flat(t.children).some(k => k.id === c.anchor))
+  const originEnd = openedIn?.turn === undefined ? undefined : [...owner].reverse().find(t => t.turn === openedIn.turn)?.id
   const turns = main.turns ?? []
   const roundOf = (u: Turn) => rounds.reduce((k, r, i) => (u.at !== undefined && u.at >= r.at ? i + 1 : k), 0)
   // The part (round) of each turn, once per turn; a task with no turn, or with a turn not listed, is
@@ -259,6 +270,12 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   let before = -Infinity
   for (const u of [...turns].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
     if (partOfTurn.has(u.id)) continue
+    if (u.own === true) {
+      // Its own part, keyed below zero (one per turn), apart from the rounds.
+      partOfTurn.set(u.id, -1 - ownTurns.findIndex(o => o.id === u.id))
+      if (u.at !== undefined) before = u.at
+      continue
+    }
     let k = roundOf(u)
     if (u.at !== undefined && got.some(x => x > before && x <= (u.at as number))) {
       let last = -1
@@ -313,8 +330,8 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     return {
       ...c,
       part: k,
-      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : {}),
-      anchor: k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
+      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k].at } : {}),
+      anchor: k < 0 ? originEnd : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),
@@ -562,6 +579,9 @@ export function trimToWork(p: Panel, level: number): Panel {
   // The requests of the work, whole. A session still at work under a request out of the work does not
   // pull the request back (the person's decision; it did, and a day-old request came back with its
   // old cards while a session worked), nor is its card drawn loose: a card is drawn where its task is.
+  // A card with no task to go under is left out of the summary too (it was drawn loose at the root:
+  // with few requests in sight every old session's card counted as recent, and days-old cards of
+  // archived and stopped sessions piled up after the last request).
   const wanted = work
   const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
@@ -576,7 +596,7 @@ export function trimToWork(p: Panel, level: number): Panel {
       level >= DEEP
         ? (p.children ?? [])
         : (p.children ?? [])
-            .filter(c => under(c.anchor) || c.anchor === undefined)
+            .filter(c => under(c.anchor))
             .map(c => ({ ...c, panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
   }
 }
