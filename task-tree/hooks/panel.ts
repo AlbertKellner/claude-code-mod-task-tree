@@ -470,6 +470,27 @@ export async function joinWork($: any, ids: string[], fresh: boolean) {
 // here: a session shows only while the host lists it.
 export let keptLinks = new Map<string, Link>()
 export const keptLink = (id: string): Link | undefined => keptLinks.get(id)
+// A plan that reuses the id of a closed task renames the closed one (`tag:id`, its subtasks with
+// it, see planTool): the sessions' ties to it (the task they were opened on, the task of their last
+// message, each message's task), the launches' and the sends' are renamed with it, or they would
+// point at the new task with that id, and every card of every earlier request would fall under it
+// (the person's panel: a request that sent nothing showed the cards of the whole day). The module's
+// copy of the links (keptLinks) is renamed too, so a later save keeps the renamed ties.
+export async function renameAnchors($: any, ids: string[], tag: string) {
+  if (ids.length === 0) return
+  const fix = (a?: string) => (a !== undefined && ids.some(id => a === id || a.startsWith(id + '/')) ? tag + ':' + a : a)
+  const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[] }>(c: T): T => {
+    const out = { ...c }
+    if (c.anchor !== undefined) out.anchor = fix(c.anchor)
+    if (c.lastAnchor !== undefined) out.lastAnchor = fix(c.lastAnchor)
+    if (c.rounds !== undefined) out.rounds = c.rounds.map(r => (r.anchor === undefined ? r : { ...r, anchor: fix(r.anchor) }))
+    return out
+  }
+  await update($, childrenState, cur => (cur ?? []).map(link))
+  await update($, launchesState, cur => (cur ?? []).map(l => (l.anchor === undefined ? l : { ...l, anchor: fix(l.anchor) })))
+  await update($, sendsState, cur => (cur ?? []).map(s => (s.anchor === undefined ? s : { ...s, anchor: fix(s.anchor) })))
+  for (const [id, k] of keptLinks) keptLinks.set(id, link(k))
+}
 // The record as it was last written to the store (a variable of the module: a reload writes once
 // more): the poll publishes every few seconds, and the store is written only when the record changed.
 let lastLinks: string | undefined
