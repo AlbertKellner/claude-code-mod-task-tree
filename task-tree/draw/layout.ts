@@ -401,6 +401,15 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const open = (k: TaskNode): string[] => (k.status === 'done' ? [] : [k.id, ...k.children.flatMap(open)])
   const counted = open(t)
   const mine = below.filter(c => counted.includes(c.anchor as string))
+  // At work, a session is where its current round is: a card cut to one round, at its round's
+  // anchor; a whole session, at its last message's (lastAnchor), not where it was opened. Else every
+  // task it ever worked under came back as in progress while it ran (the summary view pulled old
+  // requests in, and the header took the first one's title).
+  const here = sessions.filter(c => {
+    const a = c.part !== undefined ? c.anchor : (c.lastAnchor ?? c.anchor)
+    return a !== undefined && ids.includes(a)
+  })
+  const hereOpen = here.filter(c => counted.includes((c.part !== undefined ? c.anchor : (c.lastAnchor ?? c.anchor)) as string))
   // The count is every session opened in the subtree, its task closed or not (as the header counts
   // them): opening one is a link, its leaves count. State and time stay with the open ones (mine).
   let d = 0
@@ -412,7 +421,7 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
   const cards = below.flatMap(c => allTasks(panelOf(c), level + 1))
-  return { busy: mine.some(c => alive(c, level + 1)), any: below.length > 0, live: below.some(c => alive(c, level + 1)), d, n, tasks, cards }
+  return { busy: hereOpen.some(c => alive(c, level + 1)), any: below.length > 0 || here.length > 0, live: here.some(c => alive(c, level + 1)), d, n, tasks, cards }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
