@@ -72,6 +72,8 @@ const under = (rows: Row[], i: number) => {
 const at = (rows: Row[], key: string) => rows.findIndex(r => r.fold?.key === key)
 
 describe('layout: estado real da orquestradora', () => {
+  // A card's fold key carries when its message was sent (the round's `at`), not its index.
+  const sentAt = (anchor: string) => (realKids().find(c => c.id === ANALISE)?.rounds ?? []).find(r => r.anchor === anchor)?.at
   test('visão completa: os 3 últimos pedidos, o resto contado; cartões só sob as tarefas de origem; nenhum na raiz', () => {
     const rows = layout(realModel('full'), {}, AT, ME)
     expect(rows.length).toBe(28)
@@ -84,7 +86,7 @@ describe('layout: estado real da orquestradora', () => {
     expect(cs.length).toBe(2)
     expect(cs.every(r => r.depth > 0)).toBe(true)
     expect(cs.map(r => r.sid)).toEqual([ANALISE, ANALISE])
-    expect(cs.map(r => r.fold?.key)).toEqual([`s:${ANALISE}#2`, `s:${ANALISE}#7`])
+    expect(cs.map(r => r.fold?.key)).toEqual([`s:${ANALISE}#${sentAt('97')}`, `s:${ANALISE}#${sentAt('98')}`])
     expect(rows[at(rows, '|t:97') + 1]).toBe(cs[0])
     expect(rows[at(rows, '|t:98') + 1]).toBe(cs[1])
     // The analysis session is at work: its last card runs, the one before is done.
@@ -99,8 +101,8 @@ describe('layout: estado real da orquestradora', () => {
     expect(replies(at(rows, '|T:71')).map(r => r.title)).toEqual(['resposta'])
     expect(replies(at(rows, '|T:72'))).toEqual([])
     expect(replies(at(rows, '|T:73'))).toEqual([])
-    // The card of round #2: its turn's answer, with the child's brief, below its tasks.
-    const card = at(rows, `s:${ANALISE}#2`)
+    // The card of the round sent from 97: its turn's answer, with the child's brief, below its tasks.
+    const card = at(rows, `s:${ANALISE}#${sentAt('97')}`)
     const inCard = under(rows, card)
     const reply = inCard.filter(r => r.tone === 'reply')
     expect(reply.length).toBe(1)

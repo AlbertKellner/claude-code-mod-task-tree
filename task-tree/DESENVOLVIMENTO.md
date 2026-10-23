@@ -334,6 +334,35 @@ Teste: `tests/cartoes-ancora.test.ts` (3): dois de layout com tarefas renomeadas
 uma e duas renomeações do mesmo id) e um pelas ferramentas (`plan` "1" → sessão aberta nela → `done`
 → pedido novo com `plan` "1" → o cartão fica na tarefa velha). Goldens e orçamento iguais.
 
+Cartões no lugar certo (série de correções seguinte; regra do usuário: "se existirem tarefas em
+andamento, essas tarefas devem continuar sendo mostradas"; todo cartão aparece desde o primeiro
+desenho sob a tarefa que mandou a mensagem, aberto, e só o clique da pessoa o recolhe, com a escolha
+mantida), em `draw/layout.ts`:
+
+- A chave de recolher do cartão k > 0 é `s:<id>#<partAt>`, com `partAt` o `at` da rodada (campo novo
+  `Child.partAt`, "Drawn only", gravado por `split`); a parte 0 segue `s:<id>`. Antes era o índice da
+  rodada: as rodadas ficam nas últimas 20 e, no teto, cada mensagem nova descarta a mais antiga e
+  desloca todos os índices, e o recolhimento passava para outro cartão (um cartão novo vinha
+  recolhido). As escolhas antigas com `#<índice>` deixam de valer uma vez.
+- Resumida (`trimToWork`): um nível 1 com sessão trabalhando embaixo (`atWork(t, children, level).busy`)
+  fica no recorte, com o seu pedido. O `cut()` não realoca mais a âncora de cartão nenhum: só divide
+  as sessões em cartões (`split`) e passa a `trimToWork`, e cada cartão fica sob a tarefa que mandou
+  a mensagem, como na completa (antes, um cartão sem parte ia para a tarefa da última mensagem,
+  `lastAnchor`, se ela estivesse no trabalho, ou solto no fim da lista se a sessão estava viva).
+  Princípio, nas palavras do usuário: "a visão completa parece mais correta que a resumida"; a
+  resumida é a completa sem os pedidos finalizados de turnos anteriores e nunca reposiciona cartão.
+  `lastAnchor` continua gravado e publicado, mas o desenho não o usa mais para posicionar. Com isso
+  o cartão de uma sessão viva, que sumia da completa (pedido de origem fora dos 3 últimos) e ia para
+  o fim da resumida, aparece sob a tarefa de origem nas duas visões.
+- Completa: o corte dos 3 últimos pedidos (`SHOWN_TURNS`) mantém também o pedido cujo nível 1 tem
+  sessão trabalhando embaixo (`work(t).busy`), como já mantinha o que tem algo aberto.
+- Teste: `tests/cartoes-lugar.test.ts` (5, incluindo "sessão sem rodadas: o cartão não muda de lugar
+  na resumida" e "estado real: cada cartão da resumida está sob a mesma linha que na completa");
+  `layout.test.ts`, `task-tree.test.ts` e
+  `resumida-turno.test.ts` foram atualizados (e, em `task-tree.test.ts`, "mensagem à filha numa
+  tarefa do trabalho atual: a resumida não muda o cartão de lugar") para a regra nova. O orçamento cresceu 84 bytes nas
+  quatro medidas (chaves dos botões mais longas), dentro da folga.
+
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
   o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
@@ -391,8 +420,8 @@ claude plugin validate task-tree
 claude plugin test task-tree
 ```
 
-O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 340 testes em 17
-arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios); rode-a sozinha, sem outra ao mesmo
+O primeiro confere o `marketplace.json` da raiz; os outros, o mod. A suíte tem 345 testes em 18
+arquivos (316 na fase 4, etapa 3; 9 novos na fase 6, parte A; 3 na correção das âncoras; 4 na correção da visão resumida; 4 na do plano em pedido novo; 4 na de limpeza da resumida e do casamento dos envios; 5 nos cartões no lugar certo); rode-a sozinha, sem outra ao mesmo
 tempo, e, numa falha, guarde a saída inteira. Cada teste do kit é um módulo novo com `$.state` vazio
 e tem 5 s.
 
@@ -412,6 +441,7 @@ e tem 5 s.
 | `orcamento.test.ts` | 4 | tamanho do desenho com o fixture real, terminal/desktop × resumida/completa, até 1,5 × a `BASELINE` |
 | `publicado-versoes.test.ts` | 4 | um arquivo de cada formato já publicado (`fixtures/publicados.ts`) |
 | `resumida-turno.test.ts` | 4 | visão resumida: o pedido novo aparece sozinho apesar de filha parada com folha aberta; pedido anterior aberto continua e o concluído sai; sessão viva sob tarefa concluída aparece no fim; no mesmo pedido o plano soma |
+| `cartoes-lugar.test.ts` | 5 | o recolhimento fica com o cartão no teto de 20 rodadas (chave por `partAt`); resumida com o cartão sob a tarefa de origem; completa com o pedido da sessão trabalhando à vista além dos 3 últimos; sessão sem rodadas não muda de lugar na resumida; estado real: cada cartão da resumida sob a mesma linha que na completa |
 | `resumida-limpeza.test.ts` | 4 | a visão resumida só limpa com tudo finalizado (tarefa em andamento e tarefa com ✉ pendente continuam à vista); duas mensagens na fila para a mesma sessão, ela recebe uma: só a primeira tarefa fecha |
 | `plano-pedido-novo.test.ts` | 4 | plano em pedido novo: o "1" novo fica sob o pedido novo (completa, resumida, estado publicado) e o aberto do pedido antigo é interrompido e renomeado; no mesmo pedido, replanejar continua substituindo no lugar |
 | `cartoes-ancora.test.ts` | 3 | cartões ficam na tarefa que mandou a mensagem quando o `plan` reutiliza o id dela (`renameAnchors`, `resolveAnchor`) |
@@ -922,7 +952,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   se eu quiser, eu mesmo colapso"): tarefa concluída mostra todas as subtarefas, pedido (turno)
   concluído, cartão de sessão filha em qualquer estado e grupo de subagente fechado vêm abertos.
   Só o clique do usuário recolhe. Chaves: `<escopo><agente>|t:<id>`
-  (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão), `<escopo>g:<agentId>`
+  (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão; cartão k>0: `s:<id local>#<at da mensagem>`), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
 - O layout monta as linhas uma vez só, com as escolhas da pessoa (fase 6). Os chips do cabeçalho
@@ -1130,7 +1160,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   cartão com tarefas abertas é desenhado em andamento. Mensagem ainda não lida não tem turno, logo
   não tem cartão: a tarefa que a mandou fica com o ✉ até a filha a pegar; aí o ✉ some e o cartão
   novo aparece. Na visão resumida a divisão vem antes do recorte. Chaves de dobra do cartão k>0:
-  `<escopo>s:<id>#k`, com escopo interno `<escopo><id>#k>`. Id reutilizado (bug achado pelo usuário
+  `<escopo>s:<id>#<partAt>`, com escopo interno `<escopo><id>#<partAt>>`, onde `partAt` é o `at` da
+  rodada (campo `Child.partAt`) e não o índice dela: no teto de 20 rodadas o índice se deslocava e o
+  recolhimento ia para outro cartão (ver "Cartões no lugar certo" em "Como é hoje"). Id reutilizado (bug achado pelo usuário
   no 0.7.4: os cartões de pedidos anteriores apareciam sob a tarefa do turno atual): quando o `plan`
   renomeia a tarefa fechada que tinha o id, as âncoras (`anchor`, `lastAnchor`, `rounds[].anchor`,
   `launches`, `sends`) são renomeadas junto, e, para dados de antes, o layout resolve a âncora pela
@@ -1171,8 +1203,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
   de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
   tarefa folha aberta sem `start`; aí é a mais nova dessas. Tarefas planejadas junto, antes do
-  início, não mudam nada. Vale para o lugar do cartão (`rounds`), para a visão resumida
-  (`lastAnchor`) e para o ✉ (`sends`).
+  início, não mudam nada. Vale para o lugar do cartão (`rounds`), para o `lastAnchor` (que a visão
+  resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`).
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo
@@ -1359,8 +1391,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `nothingOpen` (nenhuma folha aberta no painel, sessões incluídas). Antes, só `nothingOpen` decidia:
   uma filha parada com uma tarefa aberta (caso comum na orquestradora) fazia todo pedido novo entrar
   no trabalho atual, e o `work` acumulou 11 níveis 1 de 6 pedidos ("+3 pedidos anteriores" e três
-  concluídos acima do novo). Um nível 1 concluído com sessão viva embaixo não fica: a resumida já
-  desenha a sessão viva sem tarefa no trabalho no fim da lista (`trimToWork`).
+  concluídos acima do novo). (Regra substituída depois: um nível 1 concluído com sessão viva embaixo agora fica no
+  recorte, com o seu pedido, e o cartão fica sob a tarefa que mandou a mensagem; ver "Cartões no
+  lugar certo" em "Como é hoje".)
   Regra do usuário fixada em teste (`resumida-limpeza.test.ts`): "quando eu enviar novas mensagens,
   em novos turnos, se existirem tarefas em andamento, essas tarefas devem continuar sendo mostradas.
   o painel só deve ser limpo quando enviar uma mensagem em um novo turno e todas as tarefas estiverem
@@ -1376,7 +1409,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   Sessões filhas no recorte (pedido: "nao esta aparecendo a sessao filha no resumo"): cada
   `SendMessage` do loop principal a uma sessão grava em `Child.lastAnchor` a tarefa em andamento; o
   recorte põe a sessão sob essa tarefa se ela estiver no trabalho, senão sob a de origem (se
-  estiver), senão, viva, solta no fim da lista; a completa não muda. Dentro do cartão, só a rodada
+  estiver), senão, viva, solta no fim da lista (regra substituída: hoje o recorte não realoca
+  cartão nenhum, cada um fica sob a tarefa que mandou a mensagem, como na completa, e o nível 1 com
+  sessão trabalhando embaixo fica no recorte; ver "Cartões no lugar certo" em "Como é hoje"); a completa não muda, salvo que o pedido com sessão trabalhando embaixo não sai do corte
+  dos 3 últimos. Dentro do cartão, só a rodada
   atual da sessão ("so devem aparecer as novas dessa rodada"): cada sessão publica o seu `work`
   (`Panel.work`) e o mesmo `trimToWork` corta o painel dela e o das netas. No recorte, d/n, barra,
   tempo e as somas dos pais seguem a rodada; o cabeçalho segue a sessão inteira. Tarefa em

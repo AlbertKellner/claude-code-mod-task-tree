@@ -2137,15 +2137,18 @@ describe('sessão filha na resumida', () => {
     await start($, ['C'])
   }
 
-  test('mensagem à filha numa tarefa do trabalho atual: a resumida a mostra ali; a completa não muda', async ($, on) => {
+  // The summary is the full view without the finished requests: it never moves a card. The session
+  // was opened on "Abrir a filha" (a finished request); its message from "Pedir à filha" has no turn of
+  // the session yet (no card of its own): the summary shows the current request with the ✉, and the
+  // card stays where the full view draws it (it used to move under "Pedir à filha" in the summary).
+  test('mensagem à filha numa tarefa do trabalho atual: a resumida não muda o cartão de lugar; a completa não muda', async ($, on) => {
     setup(on, () => false)
     await story($)
     await $.tool.call({ tool: 'SendMessage', to: KID, message: 'faça' } as any)
     await summary($)
     expect(rowsOf(await view($)).map(l => l.text)).toEqual([
-      '◉ terceiro  ⑂  0/1',
-      '└─ ✉ Pedir à filha  ⑂  0/1',
-      '      ⑂ filha  concluída',
+      '◉ terceiro  0/1',
+      '└─ ✉ Pedir à filha',
     ])
     await full($)
     // Full view (the old turn stays open): still under the task it was opened on.
@@ -2155,13 +2158,19 @@ describe('sessão filha na resumida', () => {
     expect(texts.find(t => t.includes('Pedir à filha'))).not.toContain('⑂')
   })
 
-  test('sessão viva sem tarefa no trabalho atual: aparece no fim da resumida', async ($, on) => {
+  // A live session whose task is not in the current work: its task is still going on (a session at
+  // work under it), so the summary keeps it, with its request, and the card under it (it was drawn
+  // loose at the end of the list; the person's rule now: every card under the task that sent it).
+  test('sessão viva sem tarefa no trabalho atual: a resumida a mostra sob a tarefa que a abriu, no pedido dela', async ($, on) => {
     setup(on, () => true)
     await story($)
     await summary($)
     const texts = rowsOf(await view($)).map(l => l.text)
-    expect(texts[0]).toBe('◉ terceiro  0/1')
-    expect(texts[texts.length - 1]).toContain('⑂ filha')
+    const origin = texts.findIndex(t => t.includes('Abrir a filha'))
+    expect(texts[0]).toContain('primeiro')
+    expect(origin).toBeGreaterThan(0)
+    expect(texts[origin + 1]).toContain('⑂ filha')
+    expect(texts.some(t => t.includes('terceiro'))).toBe(true)
   })
 })
 
