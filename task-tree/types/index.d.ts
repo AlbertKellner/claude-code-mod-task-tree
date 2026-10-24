@@ -61,7 +61,9 @@ export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: 
 export type Rate = { toks: number; at: number; live: boolean }
 // Where a session's git is (io/git.ts): the repository's folder name and the branch (a detached
 // head's short hash, `detached`), read `at`.
-export type GitInfo = { repo: string; branch: string; detached?: boolean; at?: number }
+// `kind: 'folder'`: no repository there, `repo` is the session's folder (its path shortened) and
+// there is no branch; absent, a repository (files published before it carry none).
+export type GitInfo = { kind?: 'git' | 'folder'; repo: string; branch?: string; detached?: boolean; at?: number }
 
 // The whole file a session publishes (publishWait writes it, the session that opened it reads it;
 // see waitFile): the contract between sessions, which may run different versions of the mod.

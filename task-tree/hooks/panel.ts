@@ -344,14 +344,19 @@ export async function selfId($: any): Promise<string | undefined> {
   return ownId
 }
 
-// This session's repository and branch (io/git.ts), read again at every publication and at the
-// clock's tick (a checkout or a worktree changes the branch mid-session; it is a 40-byte file):
-// kept in the state for the header, published for the card. Returns what it read.
+// This session's repository and branch, or its folder with no repository (io/git.ts), read again at
+// every publication and at the clock's tick (a checkout or a worktree changes the branch
+// mid-session; it is a 40-byte file): kept in the state for the header, published for the card.
+// Returns what it read.
 export async function refreshGit($: any): Promise<GitInfo | undefined> {
   const now = await readGit($)
   const { value: cur } = await $.state.get(gitState)
   const same = cur
-    ? now !== undefined && cur.repo === now.repo && cur.branch === now.branch && (cur.detached ?? false) === (now.detached ?? false)
+    ? now !== undefined &&
+      (cur.kind ?? 'git') === (now.kind ?? 'git') &&
+      cur.repo === now.repo &&
+      cur.branch === now.branch &&
+      (cur.detached ?? false) === (now.detached ?? false)
     : now === undefined
   if (!same) await $.state.set(gitState, now ? { ...now, at: (await stamp($)) ?? 0 } : null)
   return now
