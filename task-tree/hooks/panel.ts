@@ -6,7 +6,7 @@
 import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
-import type { Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
+import type { Ask, Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
@@ -40,6 +40,7 @@ const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
+const asksState = { plugin: 'task-tree', key: 'asks' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
@@ -316,6 +317,47 @@ export async function ensureView($: any): Promise<'full' | 'summary' | undefined
     return undefined
   }
 }
+// The questions asked (Ask), kept with their answers: after a restart without session.start, the
+// first use brings them back from the store, as the work.
+export async function ensureAsks($: any): Promise<Ask[] | undefined> {
+  if (loaded.has('asks') || !restoredAt('asks', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(asksState)).value !== undefined) {
+      loaded.add('asks')
+      return undefined
+    }
+    const saved = await loadStore($, 'asks')
+    if (!Array.isArray(saved)) {
+      loaded.add('asks')
+      return undefined
+    }
+    try {
+      await $.state.set(asksState, saved as Ask[])
+      loaded.add('asks')
+    } catch {}
+    return saved as Ask[]
+  } catch {
+    return undefined
+  }
+}
+// Changes the questions asked (the last ASKS kept), in the state and the store, and publishes them.
+const ASKS = 50
+export async function changeAsks($: any, fn: (asks: Ask[]) => Ask[]): Promise<Ask[]> {
+  await ensureAsks($)
+  const asks = await update($, asksState, cur => fn(cur ?? []).slice(-ASKS))
+  try {
+    await saveStore($, 'asks', asks)
+  } catch {}
+  await publishPanel($)
+  return asks
+}
+// A question or an answer in a few words: its first sentence, cut at `max` characters.
+export function gist(text: string, max = 80): string {
+  const one = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const first = one.split(/(?<=[.?!])\s/)[0] ?? one
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first
+}
+
 export async function ensureWork($: any): Promise<string[] | undefined> {
   if (loaded.has('work') || !restoredAt('work', 'first-use')) return undefined
   try {
@@ -404,8 +446,10 @@ export async function publishPanel($: any) {
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
     // session that opened this one reads the round it left open as discarded.
     const { value: aborted } = await $.state.get(turnAbortedState)
+    // The questions asked, with their answers, for the card upstream to draw them too.
+    const { value: asks = [] } = await $.state.get(asksState)
     const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, git, aborted: aborted === true, asks: asks as Ask[], sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }
