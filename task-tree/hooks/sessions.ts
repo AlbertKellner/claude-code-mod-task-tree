@@ -12,7 +12,7 @@ import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, inDesktopApp, keptLink, openList, publishPanel, selfId, sendAnchor, showStatus, stamp } from './panel'
+import { change, inDesktopApp, keptLink, openList, publishPanel, refreshGit, selfId, sendAnchor, showStatus, stamp } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -252,6 +252,9 @@ export async function anyRunning($: any): Promise<boolean> {
 }
 export async function tick($: any) {
   if (await anyRunning($)) {
+    // While the clock runs, the branch is read again too (a 40-byte file): a checkout mid-session
+    // shows in the header within a second, and in the card at the next publication.
+    void refreshGit($).catch(() => {})
     try {
       $.ui.invalidate('ui.render')
     } catch {}

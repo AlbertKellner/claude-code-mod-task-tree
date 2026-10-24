@@ -31,6 +31,8 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
   if (f.version !== undefined && f.version !== PUBLISHED_VERSION) return { error: `versão ${String(f.version)}, esta é ${PUBLISHED_VERSION}` }
   const list = <T,>(v: unknown): T[] | undefined => (Array.isArray(v) ? (v as T[]) : undefined)
   const context = f.context as Record<string, unknown> | undefined
+  const rate = f.rate as Record<string, unknown> | undefined
+  const git = f.git as Record<string, unknown> | undefined
   const out: Published = {
     ...(typeof f.version === 'number' ? { version: f.version } : {}),
     waiting: f.waiting === true,
@@ -41,6 +43,12 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     children: list<Child>(f.children) ?? [],
     ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
     ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
+    ...(rate && typeof rate === 'object' && typeof rate.toks === 'number' && typeof rate.at === 'number' && typeof rate.live === 'boolean'
+      ? { rate: { toks: rate.toks, at: rate.at, live: rate.live } }
+      : {}),
+    ...(git && typeof git === 'object' && typeof git.repo === 'string' && git.repo !== '' && typeof git.branch === 'string' && git.branch !== ''
+      ? { git: { repo: git.repo, branch: git.branch, ...(git.detached === true ? { detached: true } : {}), ...(typeof git.at === 'number' ? { at: git.at } : {}) } }
+      : {}),
     ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
     ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
     ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
@@ -87,7 +95,7 @@ export async function readPublished($: any, id: string): Promise<Published | und
 // What the hooks module hands over for one publication: the panel as the state holds it (`tasks`,
 // the main group's, is for earlier versions; `sends` as queued, the taken ones are dropped here) and
 // what the last drawing left (its error, size and lines).
-export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
+export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'rate' | 'git' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the
 // app) waits on the person, and its whole panel, with the share of the context window used (for the
@@ -95,7 +103,8 @@ export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'childr
 // that does not show up, read in the file from outside or with /task-tree). A failure is said in
 // the debug log and never breaks the hook.
 // Written only when something in it changed: the panel, the waits, the share of context, the model,
-// the last drawing. The clocks (`at`, `context.at`) and the panes are left out of the comparison,
+// the output rate, the repository and branch, the last drawing. The clocks (`at`, `context.at`,
+// `rate.at`, `git.at`) and the panes are left out of the comparison,
 // else every publication would differ; nobody reads `file.at` (the turns' and messages' `at` are
 // inside the panel). The last publication is kept per path in a variable of the module: a reload
 // forgets it and publishes once more, without harm.
@@ -129,7 +138,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       received: p.received,
       sends: p.sends.filter(x => !x.taken),
     }
-    const key = JSON.stringify({ ...body, percent })
+    const key = JSON.stringify({ ...body, percent, rate: p.rate ? [p.rate.toks, p.rate.live] : undefined, git: p.git ? [p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
     if (lastPublished.get(path) === key) return
     // The panes as the app holds them for this session (placed, shown or a tab behind another).
     let panes: unknown
@@ -150,6 +159,8 @@ export async function publishWait($: any, id: string | undefined, p: Publication
         children: body.children,
         context,
         engine: body.engine,
+        rate: p.rate,
+        git: p.git,
         panes,
         renderError: body.renderError,
         drawSize: body.drawSize,
