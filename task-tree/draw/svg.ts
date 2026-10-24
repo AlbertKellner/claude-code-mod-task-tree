@@ -211,14 +211,16 @@ export function branch(x: number, y: number, cls: string): string {
     `<path d="M${x - 3} ${y - 3.2}V${y + 3.2}M${x + 4} ${y - 1.2}C${x + 4} ${y + 2} ${x - 3} ${y + 1} ${x - 3} ${y + 3.2}"/></g>`
   )
 }
-// The repository icon, 14 px across, centered on (x, y): a cat's head, the GitHub mark drawn simply
-// (the person asked for the GitHub icon; the Octocat itself is GitHub's mark, so only its outline
-// is suggested here). `repoIcon` holds the path alone, to swap at the visual check.
+// The repository icon, 14 px across, centered on (x, y): the Git logo in strokes, the diamond with
+// the commit graph inside (a node in the middle, two branches up, the trunk down), in the class's
+// color like the ⑂ beside it (the person's words: "mude esse ícone para ficar com o ícone do git";
+// it was a cat's head for GitHub). `repoIcon` holds the path alone, to swap at a visual check.
 export function repoIcon(x: number, y: number, cls: string): string {
   return (
     `<g class="${cls}" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" transform="translate(${x} ${y})">` +
-    '<path d="M-4.4 -2.6C-4.4 -4 -4.6 -5.6 -4.2 -6.2 -3.4 -6 -2.4 -5.2 -1.6 -4.4 -0.5 -4.7 0.5 -4.7 1.6 -4.4 2.4 -5.2 3.4 -6 4.2 -6.2 4.6 -5.6 4.4 -4 4.4 -2.6 5.2 -1.4 5.4 0 5.2 1.4 4.6 4.2 2.4 5.8 0 5.8 -2.4 5.8 -4.6 4.2 -5.2 1.4 -5.4 0 -5.2 -1.4 -4.4 -2.6Z"/>' +
-    '<path d="M-1.8 1.2H-1.2M1.2 1.2H1.8"/></g>'
+    '<path d="M0 -6.5L6.5 0L0 6.5L-6.5 0Z"/>' +
+    '<path d="M-2.6 -2.6L0 0V3.6M0 0L2.6 -2.6"/>' +
+    '<circle cx="-2.6" cy="-2.6" r="1.1"/><circle cx="2.6" cy="-2.6" r="1.1"/><circle cx="0" cy="0" r="1.1"/></g>'
   )
 }
 // A session's repository and branch side by side, `size` px text starting at x: the repository icon
