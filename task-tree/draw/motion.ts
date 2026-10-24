@@ -81,12 +81,16 @@ const lerp = (a: number, b: number, p: number) => (a + (b - a) * p).toFixed(3)
 const piece = (name: string, sel: string, from: string, to: string, fixed = '') =>
   `@keyframes ${name}{from{${from}}to{${to}}}${sel}{${from};${fixed}animation:${name} ${FRAME}ms linear both}`
 
-// A line coming in: fades in from 30% and slides 6 px down. Nothing starts from nothing: an Svg made
-// again on the way shows a state near the one before, not a blank.
+// A line coming in: its content is revealed from left to right (each element opens in its own box,
+// clip-path inset from the right, 100% to 0), with no fade and no move. The card's slice (`cd` fill,
+// `cs` border), the tree's guides (`g`) and the progress icon (`ic`) stay where they are, whole: the
+// whole line faded and slid 6 px before, the card's fill went see-through and its edge left the
+// line's box, and the lines looked cut until it ended (the person's words: "as animações ficam
+// cortadas até a animação acabar"; their choice, "revelar", with the icon still).
 export const fadeIn = (ago: number) => {
   const [p, q] = phase(ago)
-  const at = (k: number) => `opacity:${lerp(0.3, 1, k)};transform:translateY(${lerp(-6, 0, k)}px)`
-  return piece('in', '.mv', at(p), at(q))
+  const at = (k: number) => `clip-path:inset(0 ${lerp(100, 0, k)}% 0 0)`
+  return piece('in', '.mv>:not(.cd):not(.cs):not(.g):not(.ic)', at(p), at(q))
 }
 
 // An icon whose state changed: it grows from 50% (the drawing's `ic` group), and a ✓ draws its whole
