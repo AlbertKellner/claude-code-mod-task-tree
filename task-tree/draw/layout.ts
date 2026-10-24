@@ -396,10 +396,10 @@ export function total(p: Panel, level = 0, splitter?: (c: Child) => Child[]): [n
 
 // The sessions opened on a task or below it (archived ones as history): their leaves add to its
 // count, closed task or not (the session is a link, not a task: the header counts them the same).
-// The open ones add to its time, and while one is still at work the task is drawn in progress, its
-// clock running, whatever its own status says. A task closed with done is done: the sessions opened
-// on it or on a task inside it keep nothing in progress and add no time (it was drawn ◉ after the
-// done); `any` says one hangs there or below (`direct`: from this very task, where the icon goes), `live` that one is still at work there, and
+// The open ones add to its time, and while one is still at work on its current round there (`busy`)
+// the task is drawn in progress, its clock running, whatever its own status says: a task closed with
+// done (the send's, closed on delivery) stays ◉ with its parents and request until the session
+// stops, then reads ✓ again (the person's rule). A session opened on a closed task adds no time; `any` says one hangs there or below (`direct`: from this very task, where the icon goes), `live` that one is still at work there, and
 // `cards` holds all their tasks, for a folded line (it stands for what is drawn below it, the cards too).
 // `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
@@ -435,7 +435,12 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
     const a = roundAt(c)
     return a !== undefined && ids.includes(a)
   })
-  const hereOpen = here.filter(c => counted.includes(roundAt(c) as string))
+  // In progress while a session works on its current round anywhere in the subtree, the task closed
+  // or not (the person's words: "as linhas pai anteriores somente deveriam ficar como concluídas,
+  // quando as filhas fossem concluídas"): the send's task is closed on delivery and by the main
+  // loop's done, and its line, its parents and its request came out ✓ (or ◷) with the session still
+  // at work below. Once it stops, the line shows its own status again.
+  const hereOpen = here
   // A discarded round (discarded) adds nothing to the count nor to what the line stands for; it
   // still marks the line (`any`) and its card is drawn.
   const kept = below.filter(c => !discarded(c))
