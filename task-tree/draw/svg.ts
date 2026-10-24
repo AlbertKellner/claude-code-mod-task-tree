@@ -58,7 +58,9 @@ export const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 1
 // surfaces, past the page (`--page`: #151515 dark, #fcfcfb light) and the pane it sits on (`--bg`:
 // #1a1a19, #fff): dark, the app's own `--surf`, #20201f; light, where `--surf` is white again, the
 // same step taken down from the page, #f9f9f7 (the person's choice: "calcule qual seria a terceira
-// cor"). A tone apart from the pane, with the border (`cs`) setting the card off.
+// cor"). A tone apart from the pane, with the border (`cs`) setting the card off: the app's `--line`
+// (white or black at 10%) as it lands on the card's fill, #373736 dark and #e1e1df light, the same
+// border the app's text box has (the person's words: "use a mesma cor da borda").
 export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 // `svg,text{cursor:default}`: in an interactive Svg (a cut name with its tooltip) the pointer stays
 // the arrow over the text, not the text cursor.
@@ -69,12 +71,12 @@ export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 export const LIGHT: [string, string][] = [
   ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
-  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#b4b2a9'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
-  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
