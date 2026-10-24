@@ -8,36 +8,95 @@ on:
 permissions:
   contents: write
 
+# Um release de cada vez: dois merges seguidos não brigam pela mesma versão.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     # Só PR mergeado: PR fechado sem merge não gera release.
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      # A main atual (não o merge commit, que pode estar atrás de outro release), com o histórico
+      # inteiro, para o commit da versão nova ir em cima dela.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: main
+          fetch-depth: 0
 
-      - name: Ler versão do plugin
+      # A versão sobe sozinha pelo PR mesclado (ninguém edita o plugin.json à mão): "!" depois do
+      # tipo no título, ou "BREAKING CHANGE" no corpo → major; título "feat…" → minor; qualquer
+      # outro → patch. Título e corpo entram por env, nunca interpolados no script.
+      - name: Calcular a versão nova
         id: version
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
         run: |
-          v=$(jq -r .version task-tree/.claude-plugin/plugin.json)
-          if [ -z "$v" ] || [ "$v" = "null" ]; then
-            echo "::error::Campo version ausente em task-tree/.claude-plugin/plugin.json"
+          current=$(jq -r .version task-tree/.claude-plugin/plugin.json)
+          if ! printf '%s' "$current" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Campo version ausente ou fora do formato X.Y.Z em task-tree/.claude-plugin/plugin.json: '$current'"
             exit 1
           fi
-          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          if printf '%s' "$TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' || printf '%s' "$BODY" | grep -q 'BREAKING CHANGE'; then
+            level=major
+          elif printf '%s' "$TITLE" | grep -Eq '^feat(\([^)]*\))?:'; then
+            level=minor
+          else
+            level=patch
+          fi
+          IFS=. read -r major minor patch <<< "$current"
+          case "$level" in
+            major) new="$((major + 1)).0.0" ;;
+            minor) new="$major.$((minor + 1)).0" ;;
+            patch) new="$major.$minor.$((patch + 1))" ;;
+          esac
+          echo "::notice::Versão $current → $new ($level, pelo PR: $TITLE)"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          echo "tag=v$new" >> "$GITHUB_OUTPUT"
 
-      - name: Criar release
+      # A checagem de antes: release já existente não é criada de novo, e então nem a versão é
+      # gravada (nada de commit de versão sem release).
+      - name: Conferir se a release já existe
+        id: exists
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
-          SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::notice::Release $TAG já existe; a versão não mudou neste PR."
-            exit 0
+            echo "::notice::Release $TAG já existe; nada a gravar nem a criar."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Gravar a versão e enviar para a main
+        id: commit
+        if: steps.exists.outputs.exists != 'true'
+        env:
+          NEW: ${{ steps.version.outputs.new }}
+        run: |
+          file=task-tree/.claude-plugin/plugin.json
+          tmp=$(mktemp)
+          jq --arg v "$NEW" '.version = $v' "$file" > "$tmp"
+          mv "$tmp" "$file"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(release): task-tree v$NEW" -- "$file"
+          # O push do GITHUB_TOKEN não dispara outros workflows, e o gatilho aqui é só PR fechado:
+          # o commit de release não roda este workflow de novo.
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Criar release
+        if: steps.exists.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
           gh release create "$TAG" \
             --target "$SHA" \
             --title "task-tree $TAG" \
