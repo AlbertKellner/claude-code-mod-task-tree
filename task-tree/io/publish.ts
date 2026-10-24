@@ -7,7 +7,7 @@
 // keeps one file of every shape ever written). The hooks module gathers what to publish from the
 // state (the kit wants the state keys literal there) and hands it over.
 
-import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
+import type { Ask, Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { debug } from './log'
 
 export type { Published }
@@ -46,10 +46,14 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     ...(rate && typeof rate === 'object' && typeof rate.toks === 'number' && typeof rate.at === 'number' && typeof rate.live === 'boolean'
       ? { rate: { toks: rate.toks, at: rate.at, live: rate.live } }
       : {}),
-    ...(git && typeof git === 'object' && typeof git.repo === 'string' && git.repo !== '' && typeof git.branch === 'string' && git.branch !== ''
-      ? { git: { repo: git.repo, branch: git.branch, ...(git.detached === true ? { detached: true } : {}), ...(typeof git.at === 'number' ? { at: git.at } : {}) } }
-      : {}),
+    // A repository with its branch, or a folder (`kind: 'folder'`) with none.
+    ...(git && typeof git === 'object' && typeof git.repo === 'string' && git.repo !== '' && git.kind === 'folder'
+      ? { git: { kind: 'folder' as const, repo: git.repo, ...(typeof git.at === 'number' ? { at: git.at } : {}) } }
+      : git && typeof git === 'object' && typeof git.repo === 'string' && git.repo !== '' && typeof git.branch === 'string' && git.branch !== ''
+        ? { git: { repo: git.repo, branch: git.branch, ...(git.detached === true ? { detached: true } : {}), ...(typeof git.at === 'number' ? { at: git.at } : {}) } }
+        : {}),
     ...(f.aborted === true ? { aborted: true } : {}),
+    ...(list<Ask>(f.asks) ? { asks: list<Ask>(f.asks) } : {}),
     ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
     ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
     ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
@@ -96,7 +100,7 @@ export async function readPublished($: any, id: string): Promise<Published | und
 // What the hooks module hands over for one publication: the panel as the state holds it (`tasks`,
 // the main group's, is for earlier versions; `sends` as queued, the taken ones are dropped here) and
 // what the last drawing left (its error, size and lines).
-export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
+export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'rate' | 'git' | 'aborted' | 'asks' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the
 // app) waits on the person, and its whole panel, with the share of the context window used (for the
@@ -133,6 +137,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       children: p.children,
       engine: p.engine,
       aborted: p.aborted === true ? true : undefined,
+      asks: p.asks && p.asks.length > 0 ? p.asks : undefined,
       renderError: p.renderError,
       drawSize: p.drawSize,
       rows: p.rows,
@@ -140,7 +145,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       received: p.received,
       sends: p.sends.filter(x => !x.taken),
     }
-    const key = JSON.stringify({ ...body, percent, rate: p.rate ? [p.rate.toks, p.rate.live] : undefined, git: p.git ? [p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
+    const key = JSON.stringify({ ...body, percent, rate: p.rate ? [p.rate.toks, p.rate.live] : undefined, git: p.git ? [p.git.kind ?? 'git', p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
     if (lastPublished.get(path) === key) return
     // The panes as the app holds them for this session (placed, shown or a tab behind another).
     let panes: unknown
@@ -164,6 +169,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
         rate: p.rate,
         git: p.git,
         aborted: body.aborted,
+        asks: body.asks,
         panes,
         renderError: body.renderError,
         drawSize: body.drawSize,

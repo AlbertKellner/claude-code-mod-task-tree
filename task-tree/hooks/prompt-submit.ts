@@ -6,7 +6,8 @@
 
 import { MAIN, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
+import { changeAsks, gist, reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
+import { pick } from './tool-call'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -23,14 +24,19 @@ const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-con
 // What a prompt is, with the app's status blocks (`<system-reminder>…</system-reminder>`, put in
 // front of a session's first message and of queued deliveries) taken out: another session's message,
 // a subagent handing back, the app's own notice, or a request.
-export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string }
+export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string } }
 export function said(text: string): Said {
   const body = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
   const peer = /<cross-session-message\b/.test(body)
   const handback = !peer && (/^<agent-message from="(?!local_)/.test(body) || /\[Subagent hand-back\]/.test(body))
   const notice = !peer && !handback && (body === '' || body.startsWith('<side-sessions-event>'))
   const inner = /<cross-session-message[^>]*>([\s\S]*?)(<\/cross-session-message>|$)/.exec(body)?.[1]
-  return { body, peer, handback, notice, title: peer && inner !== undefined ? inner : body }
+  // Who sent it (the first message's tag): its id and the name the tag gives.
+  const tag = /<cross-session-message\b[^>]*>/.exec(body)?.[0] ?? ''
+  const id = /\bfrom="([^"]+)"/.exec(tag)?.[1]
+  const name = /\bname="([^"]*)"/.exec(tag)?.[1]
+  const from = peer && id ? { id, ...(name ? { name } : {}) } : undefined
+  return { body, peer, handback, notice, title: peer && inner !== undefined ? inner : body, ...(from ? { from } : {}) }
 }
 
 // Reminds the model, with every prompt, that every request opens a task in the panel.
@@ -73,14 +79,30 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       ],
     })
   }
+  // The person's own message answers what the main loop left asked: the end-of-turn box's question
+  // (its buttons' words pick an option, else the message is the answer, in a few words) and a
+  // question answered by a chat message instead of an option (`chat`).
+  if (!it.peer) {
+    await changeAsks($, cur =>
+      cur.map(a => {
+        if (a.agent !== MAIN) return a
+        if (a.tool === 'wrap_up' && a.state === 'open') return { ...a, items: a.items.map(x => pick(x, it.title)), state: 'answered' }
+        if (a.state === 'chat' && a.items.every(x => x.text === undefined && (x.chosen ?? []).length === 0))
+          return { ...a, items: a.items.map((x, i) => (i === 0 ? { ...x, chosen: [], text: gist(it.title) } : x)) }
+        return a
+      }),
+    )
+  }
   // Safety net: a new message means the main loop has no question open.
   await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission')
+  // Any question of the main loop still open is over with it.
+  await changeAsks($, cur => cur.map(a => (a.agent === MAIN && a.state === 'open' && a.tool !== 'wrap_up' ? { ...a, state: 'dropped' } : a)))
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
   reminders.planned = false
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
-  await openTurn($, it.title, !it.peer)
+  await openTurn($, it.title, !it.peer, it.from)
   // A stale list first: a session that ended its turn is reminded of now, not later.
   await refreshStale($).catch(() => {})
   const note = await endedNote($)

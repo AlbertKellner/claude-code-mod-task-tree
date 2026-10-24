@@ -9,10 +9,10 @@
 
 import { update } from 'claude-code'
 
-import type { Group } from '../types'
+import type { Ask, AskItem, Child, Group, Send, TaskNode } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
-import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, wake } from './panel'
+import { MAIN, flat, hasOpen, current, startedLast } from '../draw/layout'
+import { reminders, addWait, change, askingAnchors, changeAsks, dropWaits, gist, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -21,6 +21,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const asksState = { plugin: 'task-tree', key: 'asks' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 
 // What the handlers share about one call: the loop that made it (`agent`), the event, when a
@@ -58,17 +59,82 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
   }
   const key = e.tool_use_id
   await addWait($, { agent, kind, tool: e.tool, key })
+  // The question is kept, drawn under the task in progress with its options as subtasks, and kept
+  // after the answer: the option picked ✓, the others ✕ (the person's words: "envie o resumo da
+  // pergunta como texto de tarefa, e abra as sub tarefas com as alternativas disponíveis").
+  const input = (e.input ?? e) as { questions?: { question?: unknown; header?: unknown; options?: { label?: unknown }[]; multiSelect?: unknown }[] }
+  const items: AskItem[] =
+    kind === 'plan'
+      ? [{ title: 'Aprovar o plano', options: ['Aprovar', 'Continuar planejando'] }]
+      : (input.questions ?? []).map(q => ({
+          title: gist(String(q.question ?? '')),
+          whole: [q.header, q.question].filter(x => typeof x === 'string' && x !== '').join(': '),
+          options: (q.options ?? []).map(o => String(o.label ?? '')).filter(x => x !== ''),
+          ...(q.multiSelect === true ? { multi: true } : {}),
+        }))
+  const at = await stamp($)
+  const anchor = await askAnchor($, agent)
+  await changeAsks($, cur => [...cur, { key, wait: key, agent, tool: String(e.tool), at, anchor, items, state: 'open' }])
+  let settled = false
   try {
     const r = await next(e)
+    const text = resultText(r)
     // Answered by a chat message instead of an option: that message is still to come.
-    const inChat = /did not answer|sent a message instead/i.test(JSON.stringify(r.result ?? r))
+    const inChat = /did not answer|sent a message instead/i.test(text)
     if (inChat && agent === MAIN) reminders.answeredInChat = true
+    await changeAsks($, cur => cur.map(a => (a.key !== key ? a : inChat ? { ...a, state: 'chat' } : { ...a, items: answer(a, text), state: 'answered' })))
+    settled = true
     const { value = [] } = await $.state.get(groupsState)
     if (!hasOpen(value.find((g: Group) => g.agent === agent)?.tasks ?? [])) return r
     return { ...r, context: [...(r.context ?? []), inChat ? ASK.inChat : ASK.answered] }
   } finally {
     await dropWaits($, w => w.key !== key)
+    if (!settled) await changeAsks($, cur => cur.map(a => (a.key === key && a.state === 'open' ? { ...a, state: 'dropped' } : a)))
   }
+}
+
+// Where a question is drawn: the task in progress of the loop that asks, else (a wrap_up at the end
+// of a turn, nothing open) the task started last.
+async function askAnchor($: any, agent: string): Promise<string | undefined> {
+  const { value = [] } = await $.state.get(groupsState)
+  const tasks = (value as Group[]).find(g => g.agent === agent)?.tasks ?? []
+  return current(tasks).anchor ?? startedLast(tasks)?.id
+}
+// The text of a tool's result, whatever shape it came in.
+function resultText(r: any): string {
+  const v = r?.result ?? r
+  if (typeof v === 'string') return v
+  if (Array.isArray(v)) return v.map(x => (typeof x === 'string' ? x : (x?.text ?? ''))).join('\n')
+  if (v && typeof v.text === 'string') return v.text
+  return JSON.stringify(v ?? '')
+}
+// The answers a result gives ("question"="answer", in order), each matched to its item's options: an
+// option's label picks it (several, comma-separated, for a multiple choice); what matches none is the
+// answer typed, in a few words. ExitPlanMode: approved or not.
+export function answer(a: Ask, text: string): AskItem[] {
+  if (a.tool === 'ExitPlanMode') {
+    const ok = /approved/i.test(text) && !/not approved|rejected|doesn't want|does not want/i.test(text)
+    return a.items.map(it => ({ ...it, chosen: [ok ? 'Aprovar' : 'Continuar planejando'] }))
+  }
+  const pairs = [...text.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)].map(m => ({ q: m[1], v: m[2] }))
+  return a.items.map((it, i) => {
+    const hit = pairs.find(p => it.whole !== undefined && it.whole.endsWith(p.q)) ?? pairs.find(p => gist(p.q) === it.title) ?? pairs[i]
+    return hit ? pick(it, hit.v) : it
+  })
+}
+// An item answered with `value`: the options it names (by their labels), else the text, shortened.
+export function pick(it: AskItem, value: string): AskItem {
+  const norm = (s: string) => s.trim().toLowerCase()
+  const exact = it.options.filter(o => norm(o) === norm(value))
+  if (exact.length > 0) return { ...it, chosen: exact }
+  const byMsg = (it.messages ?? []).findIndex(m => norm(m) === norm(value))
+  if (byMsg >= 0 && it.options[byMsg] !== undefined) return { ...it, chosen: [it.options[byMsg]] }
+  if (it.multi) {
+    const parts = value.split(/\s*,\s*/).filter(Boolean)
+    const chosen = it.options.filter(o => parts.some(p => norm(p) === norm(o)))
+    if (chosen.length > 0 && chosen.length === parts.length) return { ...it, chosen }
+  }
+  return { ...it, chosen: [], text: gist(value) }
 }
 
 // The desktop app's end-of-turn box with a question and buttons (wrap_up with `ask`): the call
@@ -80,8 +146,19 @@ async function wrapUpAsk($: any, c: Call) {
   if (c.agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
   const key = `${c.agent}:wrap_up:ask`
   await dropWaits($, w => w.key !== key)
-  if (typeof input.ask === 'string' && input.ask.trim() !== '') {
+  // An earlier question of the box left with no answer is over: this wrap_up replaces it.
+  const asked = typeof input.ask === 'string' && input.ask.trim() !== ''
+  await changeAsks($, cur => cur.map(a => (a.wait === key && a.state === 'open' ? { ...a, state: 'dropped' } : a)))
+  if (asked) {
     await addWait($, { agent: c.agent, kind: 'choice', tool: 'wrap_up', key })
+    // Kept as a question with the buttons as its options; the answer comes with the next prompt.
+    const actions = Array.isArray((input as any).actions) ? ((input as any).actions as { label?: unknown; message?: unknown }[]) : []
+    const options = actions.map(x => String(x.label ?? x.message ?? '')).filter(x => x !== '')
+    const messages = actions.map(x => String(x.message ?? x.label ?? ''))
+    const item: AskItem = { title: gist(String(input.ask)), whole: String(input.ask), options, messages }
+    const anchor = await askAnchor($, c.agent)
+    const at = await stamp($)
+    await changeAsks($, cur => [...cur, { key: String(c.e.tool_use_id ?? `${key}:${at ?? 0}`), wait: key, agent: c.agent, tool: 'wrap_up', at, anchor, items: [item], state: 'open' }])
   }
 }
 
@@ -94,10 +171,16 @@ const sentMessage: Notes = async ($, c, notes) => {
   if (String(e.tool) !== 'SendMessage') return
   const out = JSON.stringify(r.result ?? r)
   const to = String(e.to ?? e.input?.to ?? '')
+  // The task the message is sent from, once, before this send is recorded anywhere (a round, a send):
+  // with several tasks in progress it is the first one with no message yet (sendAnchor), and the
+  // records below must not move it to the next.
+  const { value: groups0 = [] } = await $.state.get(groupsState)
+  const { value: kids0 = [] } = await $.state.get(childrenState)
+  const { value: sends0 = [] } = await $.state.get(sendsState)
+  const { value: asks0 = [] } = await $.state.get(asksState)
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(asks0 as Ask[]))
   // The session is used for the task in progress: the summary view draws it there.
   {
-    const { value = [] } = await $.state.get(groupsState)
-    const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     // Each message opens a round of the session, drawn in a card of its own under the task it was
     // sent from once the session takes it up (see split). A session the host's list does not hold
     // yet (just opened, or listed late) gets its entry here, with the round, as recordStart does:
@@ -124,19 +207,22 @@ const sentMessage: Notes = async ($, c, notes) => {
   // sinalizar que essa etapa esta em andamento"). A failed send keeps none.
   const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   if (to !== '' && !failed) {
-    const { value = [] } = await $.state.get(groupsState)
-    const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const at = sentAt ?? (await stamp($))
     await update($, sendsState, cur => [
       ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
       { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true }) },
     ])
+    // The task it went from is a message task from now on (TaskNode.msg): kept on the task itself,
+    // since the send is dropped once taken up, and published with the panel for the card upstream.
+    if (anchor !== undefined) {
+      const mark = (list: TaskNode[]): TaskNode[] =>
+        list.map(t => (t.id === anchor ? (t.msg ? t : { ...t, msg: true }) : t.children.length > 0 ? { ...t, children: mark(t.children) } : t))
+      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: mark(g.tasks) } : g)))
+    }
     await publishPanel($)
   }
   if (waitsDelivery && to !== '') {
-    const { value = [] } = await $.state.get(groupsState)
-    const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
-    const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+    const all = flat((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const t = all.find(t => t.id === anchor)
     notes.push(SEND.queued(to, t ? `"${t.id}" ${t.title}` : undefined))
   }
