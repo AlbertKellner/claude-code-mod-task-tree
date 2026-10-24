@@ -10,7 +10,7 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { DUR, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
+import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -50,7 +50,7 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
 // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
 // the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number }) {
+function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number; view?: string }) {
   const { Box, Svg, Button } = ui
   const keys = rowKeys(lines)
   const lanes = guides(lines)
@@ -58,6 +58,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   const cards = frames(lines)
   // What changed since the drawing before (../draw/motion): new lines fade in (together); a
   // line whose state changed pops its icon; a bar whose count changed grows; a new chip fades in.
+  // The header's keys carry the view: each view's header has its own bar and chips.
+  const headKey = `head@${chrome.view ?? ''}`
   const sources = lines.map((r, i) => rowSvg(r, lanes[i], cards[i], W, hides[i]))
   const tones = chipTones(top.source)
   const marks = mark(
@@ -65,8 +67,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       ...keys.map(k => [k, ''] as [string, string]),
       ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string]),
       ...sources.map((s, i) => [`${keys[i]}#bar`, barOf(s)] as [string, string]),
-      ...tones.map(t => [`head#chip:${t}`, ''] as [string, string]),
-      ['head#bar', barOf(top.source)],
+      ...tones.map(t => [`${headKey}#chip:${t}`, ''] as [string, string]),
+      [`${headKey}#bar`, barOf(top.source)],
     ],
     chrome.now,
   )
@@ -81,9 +83,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     if (r.leaf) return to === 'done' || to === 'interrupted' || (to === 'current' && marks.before.get(k) === 'open')
     return to === 'done' && (r.key?.includes('t:') || r.key?.includes('T:'))
   }
-  // A drawing with motion is drawn again once it has played (DUR), plain: the app mounts the Svgs
-  // again on its own, and an animation left in the drawing played again at each mount, in a loop.
-  // That drawing marks nothing new (past DUR, nothing changed), so it ends the motion.
+  // A drawing with motion asks for the next frame (nextFrame): the mod draws the frames itself, since
+  // the app makes the Svgs again when it likes and an animation in them starts over each time.
   let animated = false
   const moving = (source: string, rules: string[]) => {
     if (rules.length > 0) animated = true
@@ -98,8 +99,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
           ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]), ago(`${keys[i]}#bar`)) : []),
         ]
   const headMotion = [
-    ...tones.filter(t => marks.enter.has(`head#chip:${t}`)).map(t => chipIn(t, ago(`head#chip:${t}`))),
-    ...(marks.changed.has('head#bar') && barOf(top.source) !== '' ? growFrom(marks.before.get('head#bar'), barOf(top.source), ago('head#bar')) : []),
+    ...tones.filter(t => marks.enter.has(`${headKey}#chip:${t}`)).map(t => chipIn(t, ago(`${headKey}#chip:${t}`))),
+    ...(marks.changed.has(`${headKey}#bar`) && barOf(top.source) !== '' ? growFrom(marks.before.get(`${headKey}#bar`), barOf(top.source), ago(`${headKey}#bar`)) : []),
   ]
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
@@ -151,24 +152,26 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       ))}
     </Box>
   )
-  if (animated) settleMotion($)
+  if (animated) nextFrame($)
   return drawing
 }
 
-// The drawing again once its motion played (see drawDesktop): one wait at a time.
-let settling = false
-function settleMotion($: any) {
-  if (settling) return
-  settling = true
+// The next frame of a drawing with motion (see drawDesktop and ../draw/motion), FRAME ms on: one
+// wait at a time. A drawing past DUR has no motion and asks for none, which ends the frames; the
+// clock's tick (keepTime) is another invalidate and lives beside these.
+let framing = false
+function nextFrame($: any) {
+  if (framing) return
+  framing = true
   try {
-    $.clock.after(DUR + 50, () => {
-      settling = false
+    $.clock.after(FRAME, () => {
+      framing = false
       try {
         $.ui.invalidate('ui.render')
       } catch {}
     })
   } catch {
-    settling = false
+    framing = false
   }
 }
 
@@ -303,17 +306,6 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { value: ended } = await $.state.get(turnEndedState)
   const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
   const lines = layout(model, chosen, now, knownId())
-  // Which times are running: the same lines a second later show them a second further (the pane is
-  // drawn for a change or about once a minute, so the second layout costs little). Those Svgs count
-  // their seconds themselves (liveClock).
-  if (now !== undefined && e.surface === 'desktop') {
-    const later = layout(model, chosen, now + 1000, knownId())
-    if (later.length === lines.length)
-      lines.forEach((r, i) => {
-        const l = later[i]
-        if (typeof r.time === 'number' && l.depth === r.depth && l.title === r.title && l.time === r.time + 1000) r.runs = true
-      })
-  }
   drawn.rows = lines.length
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
@@ -339,9 +331,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
   const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
-  const busyNow = tally(r => r.live) > 0 || hasOpen(shown)
-  const headTime = sessionTime(shown, busyNow, now)
-  const headRuns = headTime !== undefined && now !== undefined && sessionTime(shown, busyNow, now + 1000) === headTime + 1000
+  const headTime = sessionTime(shown, tally(r => r.live) > 0 || hasOpen(shown), now)
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
   const sentIds = queued.map(q => q.anchor ?? '')
   // A task waiting on a session is not in progress: this session's (the queued sends' tasks) and
@@ -383,7 +373,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const { Svg } = ui
     const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime, headRuns)
+    const top = headerSvg(head, d, n, list, W, headTime)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
@@ -392,7 +382,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headTime !== undefined ? [clockText(headTime)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
-    return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now })
+    return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on

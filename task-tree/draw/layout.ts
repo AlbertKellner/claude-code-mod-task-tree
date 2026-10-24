@@ -646,8 +646,6 @@ export type Row = {
   key?: string
   // A task with no subtasks.
   leaf?: boolean
-  // Drawn only (the render sets it): the time is running, so the Svg counts its seconds itself.
-  runs?: boolean
   // A session's or subagent's header: it and the lines below it are drawn in a card.
   card?: boolean
   // For the header's chips: a task in progress with nothing open below it; a session at work;
