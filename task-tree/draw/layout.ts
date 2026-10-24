@@ -36,13 +36,19 @@ export const interrupt =
 // pending, the plan goes on in the next turn (the person's panel: four steps never started came out
 // "✕ interrompida"). An open parent keeps its pending subtasks, its clock stopped; with nothing open
 // left below it, it is interrupted too. Nothing lights up without start (current), so a halted
-// panel needs no other mark.
+// panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
+// not taken up) is left as it is, open and started: it waits on that session, not on this turn,
+// and shows ✉ until the delivery (the person: "não mostre como interrompida, deixe como mensagem
+// até ela ser entregue"; it came out ✕ once the turn ended with the send still queued).
 export const halt =
-  (at?: number) =>
+  (at?: number, sent: string[] = []) =>
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
-    if (t.children.length === 0) return t.started !== undefined || t.startedAt !== undefined ? interrupt(at)(t) : t
-    const children = t.children.map(halt(at))
+    if (t.children.length === 0) {
+      if (sent.includes(t.id)) return t
+      return t.started !== undefined || t.startedAt !== undefined ? interrupt(at)(t) : t
+    }
+    const children = t.children.map(halt(at, sent))
     return hasOpen(children) ? { ...t, started: undefined, endedAt: stop(t, at), children } : interrupt(at)({ ...t, children })
   }
 
@@ -770,7 +776,9 @@ export type Choices = Record<string, boolean>
 // `ownId` (this session's id, for the sisters' messages). Pure: it reads nothing but its arguments.
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
   const ended = model.ended
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended)) } : g))
+  // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
+  const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom)) } : g))
   const waits = model.waits
   const sessions = model.children
   const queued = model.sends
@@ -809,14 +817,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // A message sent from it is still queued: it waits on that session (its own icon), also once
       // the model closed it with done right after sending (the person: the ✉ stays until the delivery,
       // whatever the model does with the task; it was dropped by the done, and the task came out ✓).
-      const waitsOn = t.status !== 'interrupted' ? pending.filter(s => s.anchor === t.id).map(s => s.to) : []
+      // The ✉ comes first, whatever the task's status says (a queued send outlives the turn: halt).
+      const waitsOn = pending.filter(s => s.anchor === t.id).map(s => s.to)
       // A task below it waits on a session (✉): the work is going on (it was drawn not started).
       const waitsBelow = t.status === 'open' && t.children.length > 0 && waitingBelow(t, pending)
       const tone: Tone =
-        t.status === 'interrupted'
-          ? 'interrupted'
-          : waitsOn.length > 0
-            ? 'sent'
+        waitsOn.length > 0
+          ? 'sent'
+          : t.status === 'interrupted'
+            ? 'interrupted'
             : w.busy || waitsBelow
               ? 'current'
               : t.status === 'done'
