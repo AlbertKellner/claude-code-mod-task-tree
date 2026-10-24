@@ -54,10 +54,11 @@ export const plural = (k: number, one: string, many: string) => `${k} ${k === 1 
 export const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0)
 
 // Desktop: each SVG is an image that does not follow the app's theme, so it carries its
-// own colors for light and dark. A session's card (`cd`) is filled with the app's page color (its
-// `--page`: #fcfcfb light, #151515 dark), the person's choice out of the app's two backgrounds
-// ("quero que a cor de fundo do painel de sessões seja a cor da esquerda"); the pane itself sits
-// on the other one (`--bg`: #fff, #1a1a19), so the border (`cs`) is what sets the card apart.
+// own colors for light and dark. A session's card (`cd`) is filled with the third step of the app's
+// surfaces, past the page (`--page`: #151515 dark, #fcfcfb light) and the pane it sits on (`--bg`:
+// #1a1a19, #fff): dark, the app's own `--surf`, #20201f; light, where `--surf` is white again, the
+// same step taken down from the page, #f9f9f7 (the person's choice: "calcule qual seria a terceira
+// cor"). A tone apart from the pane, with the border (`cs`) setting the card off.
 export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 // `svg,text{cursor:default}`: in an interactive Svg (a cut name with its tooltip) the pointer stays
 // the arrow over the text, not the text cursor.
@@ -68,12 +69,12 @@ export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 export const LIGHT: [string, string][] = [
   ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
-  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#fcfcfb'], ['cs', 'stroke:#b4b2a9'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#b4b2a9'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
-  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#151515'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
