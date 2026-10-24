@@ -3,7 +3,7 @@
 // puts them in the pane's Svg elements and lays the Buttons over them (../draw/geometry says where).
 
 import {
-  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_H_CHIPS, HEADER_H_EMPTY, HEADER_PAD,
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
 import type { Tone, Row, Frame, Guide } from './layout'
@@ -54,7 +54,13 @@ export const plural = (k: number, one: string, many: string) => `${k} ${k === 1 
 export const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0)
 
 // Desktop: each SVG is an image that does not follow the app's theme, so it carries its
-// own colors for light and dark.
+// own colors for light and dark. A session's card (`cd`) is filled with the third step of the app's
+// surfaces, past the page (`--page`: #151515 dark, #fcfcfb light) and the pane it sits on (`--bg`:
+// #1a1a19, #fff): dark, the app's own `--surf`, #20201f; light, where `--surf` is white again, the
+// same step taken down from the page, #f9f9f7 (the person's choice: "calcule qual seria a terceira
+// cor"). A tone apart from the pane, with the border (`cs`) setting the card off: the app's `--line`
+// (white or black at 10%) as it lands on the card's fill, #373736 dark and #e1e1df light, the same
+// border the app's text box has (the person's words: "use a mesma cor da borda").
 export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 // `svg,text{cursor:default}`: in an interactive Svg (a cut name with its tooltip) the pointer stays
 // the arrow over the text, not the text cursor.
@@ -65,12 +71,12 @@ export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 export const LIGHT: [string, string][] = [
   ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
-  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f1efe8'], ['cs', 'stroke:#b4b2a9'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
-  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#444441'], ['cs', 'stroke:#888780'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
@@ -309,11 +315,17 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
   })
   const paths: string[] = g.bars.flatMap((on, k) => (on && !hide.includes(k) ? [`M${col(k)} 0V${H}`] : []))
-  // A session's label: the branch from its task comes into the card, ending at its left edge at the
-  // label's height (the person's words: "conecte ela no painel"); the roots of the card have no
-  // branch to the label.
+  // The connector from the parent's guide: down to the line's middle and out to the icon (a └, the
+  // last child) or, with siblings below, the guide straight on to the bottom and the branch leaving
+  // it (a ├), the corner an arc of BRANCH_RADIUS. A session's label: the branch from its task comes
+  // into the card, ending at its left edge at the label's height (the person's words: "conecte ela
+  // no painel"); the roots of the card have no branch to the label.
   if (r.depth > 0 && !hide.includes(r.depth - 1)) {
-    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - CARD_IN : x - BRANCH_GAP}`)
+    const px = col(r.depth - 1)
+    const xe = r.card ? x - CARD_IN : x - BRANCH_GAP
+    const rad = Math.min(BRANCH_RADIUS, xe - px, cy)
+    const bend = `M${px} ${cy - rad}A${rad} ${rad} 0 0 0 ${px + rad} ${cy}H${xe}`
+    paths.push(g.last ? `M${px} 0V${cy - rad}${bend.slice(bend.indexOf('A'))}` : `M${px} 0V${H}${bend}`)
   }
   if (g.down && !r.session) paths.push(`M${x} ${cy + GUIDE_FROM}V${H}`)
   if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
@@ -331,8 +343,9 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   let edge = R
   let mark = ''
   if (tabular) {
+    const clock = `class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"`
     const t = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
-    if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
+    if (t) right.push(`<text ${clock}>${t}</text>`)
     const countX = R - TIME_W - RIGHT_GAP
     if (r.sub) {
       const quiet = r.tone === 'interrupted' || r.tone === 'archived'
@@ -345,7 +358,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
       const [d, n] = r.sub
       right.push(
         `<rect class="tr" x="${bx}" y="${cy - 2}" width="${BAR_W}" height="4" rx="2"/>`,
-        n > 0 && d > 0 ? `<rect class="grf" x="${bx}" y="${cy - 2}" width="${Math.max(4, (BAR_W * d) / n)}" height="4" rx="2"/>` : '',
+        n > 0 && d > 0 ? `<rect class="grf bar" x="${bx}" y="${cy - 2}" width="${Math.max(4, (BAR_W * d) / n)}" height="4" rx="2"/>` : '',
       )
     }
     const ix = bx - BRANCH_IN
@@ -365,7 +378,8 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
       edge -= textW(words, 12)
     }
   }
-  const lead = section ? '' : icon(progress(r), x, cy)
+  // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
+  const lead = section ? '' : `<g class="ic">${icon(progress(r), x, cy)}</g>`
   const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
@@ -404,7 +418,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
   const L = HEADER_PAD
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
-  const H = empty ? HEADER_H_EMPTY : list.length > 0 ? HEADER_H_CHIPS : HEADER_H
+  const H = HEADER_H
   const parts: string[] = []
   if (empty) {
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
@@ -415,7 +429,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
     parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
     parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
-    if (n > 0 && d > 0) parts.push(`<rect class="grf" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
     const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
     let cx = L
@@ -423,12 +437,13 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
       const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0] }
       const w = 16 + textW(c.text, 12)
       if (cx + w > R) break
+      // Each chip in a group named by its tone (`ch-<tone>`), and the bars' filled part (`bar`): what
+      // the motion of a new chip and of a new count animates (../draw/motion).
       parts.push(
-        c.tone === 'current'
-          ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>`
-          : icon(c.tone, cx + 5, 68),
+        `<g class="ch-${c.tone}">` +
+          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>` : icon(c.tone, cx + 5, 68)) +
+          `<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text></g>`,
       )
-      parts.push(`<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text>`)
       cx += w + 16
     }
   }

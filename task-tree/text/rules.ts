@@ -46,6 +46,9 @@ export const RULES = [
   '- Depois que o usuário responder uma pergunta ou aprovar um plano, atualize o painel (done, start ou ' +
     'plan) antes de seguir. Se ele responder por mensagem no chat em vez de escolher uma opção, a mensagem ' +
     'é a resposta.',
+  '- Respondido um AskUserQuestion, além do done da tarefa da pergunta, planeje as próximas tarefas: chame ' +
+    'mcp__task-tree__plan com o que a resposta definiu (o rumo escolhido, os itens confirmados), na ordem ' +
+    'em que vai executar, e só então siga com start e done.',
   '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
     'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
   '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) fica com o ícone de mensagem (✉) do ' +
@@ -137,11 +140,11 @@ export const ASK = {
   inChat:
     PANEL + 'o usuário vai responder por mensagem no chat, e a mensagem ' +
     'dele é a resposta. Ao recebê-la, antes de seguir, feche com mcp__task-tree__done a tarefa ' +
-    'desta pergunta e atualize o painel (start no que começa, plan se o plano mudou).',
+    'desta pergunta e planeje as próximas tarefas: mcp__task-tree__plan com o que a resposta definir.',
   answered:
     PANEL + 'o usuário respondeu. Antes de seguir, atualize o painel: ' +
-    'mcp__task-tree__done no que a resposta concluiu, mcp__task-tree__start no que começa agora, ' +
-    'ou mcp__task-tree__plan se ela mudou o plano.',
+    'mcp__task-tree__done no que a resposta concluiu e mcp__task-tree__plan com as próximas tarefas ' +
+    'que ela definiu, na ordem em que vai executar; depois start no que começa agora.',
 }
 
 // Warnings in done's result (joined after "Avisos:").
