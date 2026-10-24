@@ -68,6 +68,7 @@ export const TABLE: readonly Row[] = [
   { key: 'waits', lives: 'state', merge: 'none', restoredAt: [], note: 'what waits on the person (a question, a plan, a permission, a wrap_up with ask)' },
   { key: 'engine', lives: 'state', merge: 'none', restoredAt: [], note: 'the model and effort of the main loop, published for the card' },
   { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last model calls, live or the last turn\'s mean, published for the card' },
+  { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },

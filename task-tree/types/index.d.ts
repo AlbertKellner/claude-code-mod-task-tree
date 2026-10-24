@@ -59,6 +59,9 @@ export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: 
 // A session's output rate: `toks` tokens a second (rounded), measured `at`, `live` while the turn
 // it measures is in course (else the last turn's mean, drawn dim).
 export type Rate = { toks: number; at: number; live: boolean }
+// Where a session's git is (io/git.ts): the repository's folder name and the branch (a detached
+// head's short hash, `detached`), read `at`.
+export type GitInfo = { repo: string; branch: string; detached?: boolean; at?: number }
 
 // The whole file a session publishes (publishWait writes it, the session that opened it reads it;
 // see waitFile): the contract between sessions, which may run different versions of the mod.
@@ -80,6 +83,9 @@ export type Published = {
   // course (`live`), or of the whole last turn once it ended; absent until its first model call,
   // or from earlier versions.
   rate?: Rate
+  // Its repository and branch, as it reads them off its own .git; absent outside a repository, or
+  // from earlier versions.
+  git?: GitInfo
   panes?: unknown
   renderError?: string
   // The last drawing: its serialized size and its lines (after the line limit), for the session
@@ -113,6 +119,8 @@ export type Child = {
   engine?: string
   // Its output rate as it publishes it (see Published.rate); absent likewise.
   rate?: Rate
+  // Its repository and branch as it publishes them (see Published.git); absent likewise.
+  git?: GitInfo
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
@@ -159,8 +167,10 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // the next request; a message of another session that comes then gets a reminder to replan the panel.
 // `rate`: this session's output rate (turn.step measures it), for its own header and published for
 // its card; in the state so a reload mid-turn keeps the last value.
+// `git`: this session's repository and branch (refreshGit reads them), for its own header and
+// published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }

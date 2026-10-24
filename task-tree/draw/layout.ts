@@ -701,6 +701,9 @@ export type Row = {
   // output rate ("n toks/s"), drawn left of that, dim when it is the last turn's mean (not live).
   engine?: string
   rate?: { toks: number; live: boolean }
+  // A session's card: its repository (folder name) and branch, drawn right of its name with their
+  // icons (the repository goes first when the line is short).
+  git?: { repo: string; branch: string; detached?: boolean }
 }
 
 // With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
@@ -1000,6 +1003,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       sid: c.id,
       engine: c.engine,
       rate: c.rate ? { toks: c.rate.toks, live: c.rate.live } : undefined,
+      git: c.git ? { repo: c.git.repo, branch: c.git.branch, ...(c.git.detached ? { detached: true } : {}) } : undefined,
       ring: ringOf(c),
       live: live(c),
       pending,
