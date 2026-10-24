@@ -17,9 +17,10 @@ let primed = false
 // Each key drawn now, with its state: `enter` the ones not drawn before, `changed` the ones whose
 // state differs (`before`: the state it had), both until DUR after it happened. Keys not drawn now
 // are forgotten.
-export type Marks = { enter: Set<string>; changed: Set<string>; before: Map<string, string> }
+// `ago`: how long ago each marked key came in or changed, in ms.
+export type Marks = { enter: Set<string>; changed: Set<string>; before: Map<string, string>; ago: Map<string, number> }
 export function mark(drawnNow: [string, string][], now: number | undefined): Marks {
-  const marks: Marks = { enter: new Set(), changed: new Set(), before: new Map() }
+  const marks: Marks = { enter: new Set(), changed: new Set(), before: new Map(), ago: new Map() }
   if (now === undefined) return marks
   const keep = new Set<string>()
   for (const [key, state] of drawnNow) {
@@ -34,6 +35,7 @@ export function mark(drawnNow: [string, string][], now: number | undefined): Mar
     }
     if (was.kind !== 'none' && now - was.at < DUR) {
       marks[was.kind].add(key)
+      marks.ago.set(key, now - was.at)
       if (was.before !== undefined) marks.before.set(key, was.before)
     }
   }
@@ -52,28 +54,31 @@ export function animate(source: string, rules: string[]): string {
   return `${source.slice(0, open)}<style>${rules.join('')}${REDUCE}</style><g class="mv">${source.slice(open, end)}</g></svg>`
 }
 
-// A line coming in: fades in and slides 3 px down, `delay` ms after the drawing. Nothing starts
-// unseen (from 60%, 85%, a half-drawn ✓), so a mount that plays it again does not flash.
-export const fadeIn = (delay: number) =>
-  `@keyframes in{from{opacity:.6;transform:translateY(-3px)}to{opacity:1;transform:none}}.mv{animation:in .2s ease-out ${delay}ms both}`
+// Each animation starts `ago` ms in (a negative delay: the time since the change): the app makes the
+// Svgs again several times in a burst, and each one goes on from where the one before was instead of
+// starting over. Nothing starts unseen (from 60%, 85%, a half-drawn ✓).
+const at = (ago: number) => `-${Math.max(0, Math.round(ago))}ms`
+// A line coming in: fades in and slides 3 px down.
+export const fadeIn = (ago: number) =>
+  `@keyframes in{from{opacity:.6;transform:translateY(-3px)}to{opacity:1;transform:none}}.mv{animation:in .3s ease-out ${at(ago)} both}`
 
 // An icon whose state changed: it grows from 85% (the drawing's `ic` group), and a ✓ draws the
 // rest of its stroke.
-export const pop = (done: boolean) =>
+export const pop = (done: boolean, ago: number) =>
   '@keyframes pop{from{transform:scale(.85)}to{transform:none}}' +
-  '.ic{animation:pop .25s ease-out both;transform-box:fill-box;transform-origin:center}' +
-  (done ? '@keyframes draw{from{stroke-dashoffset:8}to{stroke-dashoffset:0}}.ic .gr{stroke-dasharray:16;animation:draw .3s ease-out both}' : '')
+  `.ic{animation:pop .3s ease-out ${at(ago)} both;transform-box:fill-box;transform-origin:center}` +
+  (done ? `@keyframes draw{from{stroke-dashoffset:8}to{stroke-dashoffset:0}}.ic .gr{stroke-dasharray:16;animation:draw .3s ease-out ${at(ago)} both}` : '')
 
 // A chip new in the header fades in; a bar whose count went up grows from its old width to the new.
-export const chipIn = (tone: string) => `@keyframes ci{from{opacity:.6}to{opacity:1}}.ch-${tone}{animation:ci .2s ease-out both}`
+export const chipIn = (tone: string, ago: number) => `@keyframes ci{from{opacity:.6}to{opacity:1}}.ch-${tone}{animation:ci .3s ease-out ${at(ago)} both}`
 // The bar goes on from where it was (`from`, its width before, as a share of the new one): only
 // forward; shorter (more tasks planned), it is drawn as it is.
-export const growFrom = (before: string | undefined, now: string): string[] => {
+export const growFrom = (before: string | undefined, now: string, ago: number): string[] => {
   const was = Number(before || 0)
   const to = Number(now)
   if (!(to > was)) return []
   return [
-    `@keyframes grow{from{transform:scaleX(${(was / to).toFixed(3)})}to{transform:none}}.bar{animation:grow .3s ease-out both;transform-box:fill-box;transform-origin:left}`,
+    `@keyframes grow{from{transform:scaleX(${(was / to).toFixed(3)})}to{transform:none}}.bar{animation:grow .3s ease-out ${at(ago)} both;transform-box:fill-box;transform-origin:left}`,
   ]
 }
 // What the motion reads off a drawing: its chips' tones and its bar's width (none without a bar).
