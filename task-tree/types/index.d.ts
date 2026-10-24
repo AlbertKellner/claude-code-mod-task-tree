@@ -56,6 +56,10 @@ export type Wait = {
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
 export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
+// A session's output rate: `toks` tokens a second (rounded), measured `at`, `live` while the turn
+// it measures is in course (else the last turn's mean, drawn dim).
+export type Rate = { toks: number; at: number; live: boolean }
+
 // The whole file a session publishes (publishWait writes it, the session that opened it reads it;
 // see waitFile): the contract between sessions, which may run different versions of the mod.
 // `version` names the shape (absent from versions before it); a file of another version, or one
@@ -72,6 +76,10 @@ export type Published = {
   children: Child[]
   context?: { percent: number; at: number }
   engine?: string
+  // Its output rate, "n toks/s": the mean over the model calls of the last ~10 s of the turn in
+  // course (`live`), or of the whole last turn once it ended; absent until its first model call,
+  // or from earlier versions.
+  rate?: Rate
   panes?: unknown
   renderError?: string
   // The last drawing: its serialized size and its lines (after the line limit), for the session
@@ -103,6 +111,8 @@ export type Child = {
   // Its model and effort in a few words ("Opus 5.5 · high"), as it publishes them; absent until its
   // first model request, or from earlier versions.
   engine?: string
+  // Its output rate as it publishes it (see Published.rate); absent likewise.
+  rate?: Rate
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
@@ -147,8 +157,10 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
 // `turnAborted`: the last turn of the main loop ended interrupted (turn.complete with isAborted), until
 // the next request; a message of another session that comes then gets a reminder to replan the panel.
+// `rate`: this session's output rate (turn.step measures it), for its own header and published for
+// its card; in the state so a reload mid-turn keeps the last value.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }

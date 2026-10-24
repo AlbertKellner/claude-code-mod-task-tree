@@ -52,6 +52,8 @@ export const ratioBar = (d: number, n: number, cells: number) => {
 }
 
 export const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+// A session's output rate, as the person asked it written: "n toks/s", n whole.
+export const rateText = (toks: number) => `${Math.round(toks)} toks/s`
 export const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0)
 
 // Desktop: each SVG is an image that does not follow the app's theme, so it carries its
@@ -274,11 +276,19 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
   // The model and effort, dim, ending just left of the ring (else at the card's right edge); left
-  // out when it would run into the name.
-  if (r.engine) {
-    const end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
-    if (end - textW(r.engine, 11) > at + (r.meta ? textW(r.meta, 11) + 8 : 0))
-      parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
+  // out when it would run into the name. Left of it, the session's output rate, "n toks/s" (the
+  // person's words: "ao lado esquerdo do modelo rodando"), dimmer when it is the last turn's mean
+  // (the session stopped); left out likewise when it would run into the name.
+  const left = at + (r.meta ? textW(r.meta, 11) + 8 : 0)
+  let end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
+  if (r.engine && end - textW(r.engine, 11) > left) {
+    parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
+    end -= textW(r.engine, 11) + 10
+  }
+  if (r.rate) {
+    const words = rateText(r.rate.toks)
+    if (end - textW(words, 11) > left)
+      parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity="${r.rate.live ? '.75' : '.45'}">${words}</text>`)
   }
   // Waiting on the person: the word in amber (the label has no icon to color).
   if (r.meta) {
@@ -443,7 +453,7 @@ export function chips(active: number, waiting: number, cut: number, live: number
 
 // The header: the title alone on the first line (its right end is left to the view icons, drawn
 // over it), the count and time below it, the bar, then the chips.
-export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number): { source: string; height: number } {
+export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, rate?: { toks: number; live: boolean }): { source: string; height: number } {
   const L = HEADER_PAD
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
@@ -457,6 +467,8 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
     parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
     parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
+    // This session's own output rate after the count, dim when it is the last turn's mean.
+    if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="36" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
     parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
     if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
@@ -492,6 +504,7 @@ export const rowAlt = (r: Row) =>
   (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
+  (r.rate ? `, ${rateText(r.rate.toks)}${r.rate.live ? '' : ' (último turno)'}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
   (r.fold && !r.fold.open ? ', recolhida' : '')
 // The right-hand words: "3/5", "1/2 · concluída", "interrompida".

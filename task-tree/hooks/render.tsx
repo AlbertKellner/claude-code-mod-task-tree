@@ -9,7 +9,7 @@ import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
@@ -32,6 +32,7 @@ const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
+const rateState = { plugin: 'task-tree', key: 'rate' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
@@ -220,7 +221,8 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
           r.meta ? (
             <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
           ) : null,
-          // The context ring last, on its own.
+          // The output rate, then the context ring last, on its own.
+          r.rate ? <Text key="rate" dimColor>{`  ${rateText(r.rate.toks)}`}</Text> : null,
           r.ring ? <Text key="ring" color={ringTerm(r.ring.percent)}>{`  ${r.ring.percent}%`}</Text> : null,
         ] : [
           glyph ? r.fold ? iconButton(r, glyph, color) : <Text key="icon" color={color}>{glyph}</Text> : null,
@@ -304,6 +306,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
   const { value: ended } = await $.state.get(turnEndedState)
+  // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
+  const { value: rate } = await $.state.get(rateState)
+  const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
   const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
@@ -373,13 +378,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const { Svg } = ui
     const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime)
+    const top = headerSvg(head, d, n, list, W, headTime, headRate)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
         : [
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
+            ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
             ...list.map(c => c.text),
           ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
     return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
@@ -402,6 +408,7 @@ export async function render($: EngineInterface, e: any, next: any) {
               <Text bold>{head}</Text>
               {`  ${d} de ${n} · ${percent(d, n)}%`}
               {headTime !== undefined ? <Text dimColor>{`  ${clockText(headTime)}`}</Text> : null}
+              {headRate ? <Text dimColor>{`  ${rateText(headRate.toks)}`}</Text> : null}
               {whole ? <Text dimColor>{`  (${whole})`}</Text> : null}
             </Text>
             <Text>{'  '}</Text>
