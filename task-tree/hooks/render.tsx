@@ -33,6 +33,7 @@ const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
+const gitState = { plugin: 'task-tree', key: 'git' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
@@ -217,6 +218,8 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
           r.fold ? iconButton(r, GLYPH.running[0], 'inactive') : <Text key="icon" color="inactive">{GLYPH.running[0]}</Text>,
           <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
           r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
+          // The repository and branch right of the name.
+          r.git ? <Text key="git" dimColor>{`  ${r.git.repo} ⑂ ${r.git.branch}`}</Text> : null,
           // Waiting on the person: the word in amber (the label has no icon to color).
           r.meta ? (
             <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
@@ -309,6 +312,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
+  // Its repository and branch (refreshGit keeps them), for the header's count line.
+  const { value: git } = await $.state.get(gitState)
+  const headGit = git ? { repo: git.repo, branch: git.branch } : undefined
   const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
@@ -378,7 +384,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const { Svg } = ui
     const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime, headRate)
+    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
@@ -386,6 +392,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
             ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
+            ...(headGit ? [`repositório ${headGit.repo}, branch ${headGit.branch}`] : []),
             ...list.map(c => c.text),
           ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
     return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
@@ -409,6 +416,7 @@ export async function render($: EngineInterface, e: any, next: any) {
               {`  ${d} de ${n} · ${percent(d, n)}%`}
               {headTime !== undefined ? <Text dimColor>{`  ${clockText(headTime)}`}</Text> : null}
               {headRate ? <Text dimColor>{`  ${rateText(headRate.toks)}`}</Text> : null}
+              {headGit ? <Text dimColor>{`  ${headGit.repo} ⑂ ${headGit.branch}`}</Text> : null}
               {whole ? <Text dimColor>{`  (${whole})`}</Text> : null}
             </Text>
             <Text>{'  '}</Text>

@@ -202,8 +202,8 @@ export function sessionIcon(kind: SessionKind, state: SessionState, x: number, y
 export const sessionState = (tone: Tone): SessionState =>
   tone === 'running' || tone === 'wait' ? 'ativa' : tone === 'archived' ? 'arquivada' : tone === 'paused' ? 'parada' : 'concluida'
 
-// The branch, 14 px across, centered on (x, y), in the stroke class `cls`. Not drawn today: it was
-// the session's icon, and is kept for the branch icon the person means to use later.
+// The branch icon, 14 px across, centered on (x, y), in the stroke class `cls`: it was the
+// session's icon, and now marks the git branch beside a session's name and in the header (gitSvg).
 export function branch(x: number, y: number, cls: string): string {
   return (
     `<g class="${cls}" fill="none" stroke-width="1.3"><circle cx="${x - 3}" cy="${y - 5}" r="1.8"/>` +
@@ -211,6 +211,35 @@ export function branch(x: number, y: number, cls: string): string {
     `<path d="M${x - 3} ${y - 3.2}V${y + 3.2}M${x + 4} ${y - 1.2}C${x + 4} ${y + 2} ${x - 3} ${y + 1} ${x - 3} ${y + 3.2}"/></g>`
   )
 }
+// The repository icon, 14 px across, centered on (x, y): a cat's head, the GitHub mark drawn simply
+// (the person asked for the GitHub icon; the Octocat itself is GitHub's mark, so only its outline
+// is suggested here). `repoIcon` holds the path alone, to swap at the visual check.
+export function repoIcon(x: number, y: number, cls: string): string {
+  return (
+    `<g class="${cls}" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" transform="translate(${x} ${y})">` +
+    '<path d="M-4.4 -2.6C-4.4 -4 -4.6 -5.6 -4.2 -6.2 -3.4 -6 -2.4 -5.2 -1.6 -4.4 -0.5 -4.7 0.5 -4.7 1.6 -4.4 2.4 -5.2 3.4 -6 4.2 -6.2 4.6 -5.6 4.4 -4 4.4 -2.6 5.2 -1.4 5.4 0 5.2 1.4 4.6 4.2 2.4 5.8 0 5.8 -2.4 5.8 -4.6 4.2 -5.2 1.4 -5.4 0 -5.2 -1.4 -4.4 -2.6Z"/>' +
+    '<path d="M-1.8 1.2H-1.2M1.2 1.2H1.8"/></g>'
+  )
+}
+// A session's repository and branch side by side, `size` px text starting at x: the repository icon
+// and name (left out with `repo` false: the first to go when the line is short), then the branch
+// icon and name, the name cut to what fits in `max` px. Returns the markup and its width.
+export function gitSvg(git: { repo: string; branch: string }, x: number, cy: number, size: number, repo: boolean, max: number): { svg: string; width: number } {
+  const ICON = 17
+  let svg = ''
+  let w = 0
+  if (repo) {
+    svg += repoIcon(x + 7, cy, 'gy') + `<text class="s" x="${x + ICON}" y="${cy + 4}" font-size="${size}" opacity=".75">${xml(git.repo)}</text>`
+    w += ICON + textW(git.repo, size) + 10
+  }
+  const name = fit(git.branch, size, Math.max(24, max - w - ICON))
+  svg += branch(x + w + 7, cy, 'gy') + `<text class="s" x="${x + w + ICON}" y="${cy + 4}" font-size="${size}" opacity=".75">${xml(name)}</text>`
+  w += ICON + textW(name, size)
+  return { svg, width: w }
+}
+// The width gitSvg takes with these names whole.
+export const gitW = (git: { repo: string; branch: string }, size: number, repo: boolean) => (repo ? 17 + textW(git.repo, size) + 10 : 0) + 17 + textW(git.branch, size)
+
 // Every line keeps its progress icon; a session's card, and a task or turn with a session
 // below it, add the session's icon beside it. A card's progress: in progress while it runs or waits.
 export const PROGRESS: Partial<Record<Tone, Tone>> = { running: 'current', wait: 'current' }
@@ -275,21 +304,33 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
     const ring = contextRing(r.ring.percent, W - ringFromRight(Math.max(0, cards.length - 1)), H / 2)
     parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
-  // The model and effort, dim, ending just left of the ring (else at the card's right edge); left
-  // out when it would run into the name. Left of it, the session's output rate, "n toks/s" (the
-  // person's words: "ao lado esquerdo do modelo rodando"), dimmer when it is the last turn's mean
-  // (the session stopped); left out likewise when it would run into the name.
+  // Right of the name (and the state word): the repository and branch, each with its icon (gitSvg;
+  // the person's words: "ao lado direito do nome da sessão, qual repositório e qual branch"). At
+  // the right end: the model and effort, dim, ending just left of the ring (else at the card's
+  // right edge), and left of it the output rate, "n toks/s" ("ao lado esquerdo do modelo rodando"),
+  // dimmer when it is the last turn's mean. Short of room, the repository goes first, then the
+  // model, then the rate; the branch is cut last, and the name never is (the person's order).
   const left = at + (r.meta ? textW(r.meta, 11) + 8 : 0)
   let end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
-  if (r.engine && end - textW(r.engine, 11) > left) {
-    parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
-    end -= textW(r.engine, 11) + 10
+  const engW = r.engine ? textW(r.engine, 11) + 10 : 0
+  const rateW = r.rate ? textW(rateText(r.rate.toks), 11) + 10 : 0
+  const room = end - left
+  const need = (repo: boolean, eng: boolean, rate: boolean) => (r.git ? gitW(r.git, 11, repo) + 10 : 0) + (eng ? engW : 0) + (rate ? rateW : 0)
+  let repo = r.git !== undefined
+  let eng = r.engine !== undefined
+  let rate = r.rate !== undefined
+  if (need(repo, eng, rate) > room) repo = false
+  if (need(repo, eng, rate) > room) eng = false
+  if (need(repo, eng, rate) > room) rate = false
+  if (eng) {
+    parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine as string)}</text>`)
+    end -= engW
   }
-  if (r.rate) {
-    const words = rateText(r.rate.toks)
-    if (end - textW(words, 11) > left)
-      parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity="${r.rate.live ? '.75' : '.45'}">${words}</text>`)
+  if (rate) {
+    parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity="${(r.rate as { live: boolean }).live ? '.75' : '.45'}">${rateText((r.rate as { toks: number }).toks)}</text>`)
+    end -= rateW
   }
+  if (r.git) parts.push(gitSvg(r.git, left, cy, 11, repo, end - left).svg)
   // Waiting on the person: the word in amber (the label has no icon to color).
   if (r.meta) {
     const waiting = r.meta === 'aguardando'
@@ -453,7 +494,7 @@ export function chips(active: number, waiting: number, cut: number, live: number
 
 // The header: the title alone on the first line (its right end is left to the view icons, drawn
 // over it), the count and time below it, the bar, then the chips.
-export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, rate?: { toks: number; live: boolean }): { source: string; height: number } {
+export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, rate?: { toks: number; live: boolean }, git?: { repo: string; branch: string }): { source: string; height: number } {
   const L = HEADER_PAD
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
@@ -469,6 +510,13 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
     // This session's own output rate after the count, dim when it is the last turn's mean.
     if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="36" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
+    // This session's repository and branch after the count, with their icons (the person: "coloque
+    // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
+    if (git) {
+      const gx = L + textW(`${score} ${rate ? `· ${rateText(rate.toks)} ` : ''}`, 12) + 14
+      if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 32, 12, true, R - gx).svg)
+      else if (gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 32, 12, false, R - gx).svg)
+    }
     parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
     if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
@@ -505,6 +553,7 @@ export const rowAlt = (r: Row) =>
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
   (r.rate ? `, ${rateText(r.rate.toks)}${r.rate.live ? '' : ' (último turno)'}` : '') +
+  (r.git ? `, repositório ${r.git.repo}, branch ${r.git.branch}${r.git.detached ? ' (detached)' : ''}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
   (r.fold && !r.fold.open ? ', recolhida' : '')
 // The right-hand words: "3/5", "1/2 · concluída", "interrompida".
