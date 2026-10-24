@@ -6,7 +6,7 @@ import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
-import type { Tone, Row, Frame, Guide } from './layout'
+import type { Tone, Row, Frame, Guide, SessionState } from './layout'
 
 // "0:04", "6:12", "1:02:09".
 export function clockText(ms: number): string {
@@ -22,7 +22,8 @@ export const GLYPH: Record<Tone, [string, string]> = {
   done: ['✓', 'success'],
   interrupted: ['✕', 'inactive'],
   wait: ['◷', 'warning'],
-  running: ['⑂', 'inactive'],
+  // A session (the desktop draws a bust): one glyph the terminal has, in the dim color.
+  running: ['◍', 'inactive'],
   archived: ['✕', 'inactive'],
   agent: ['▸', 'text'],
   section: ['', 'inactive'],
@@ -173,7 +174,34 @@ export function contextRing(percent: number, x: number, y: number): string {
 }
 export const ringTerm = (p: number) => (p >= 85 ? 'error' : p >= 70 ? 'warning' : 'permission')
 
-// The branch of a session, 14 px across, centered on (x, y), in the stroke class `cls`.
+// A session's icon, 14 px across, centered on (x, y): a bust (the person's choice, the "Agente"
+// family), in the state's color of the tasks (amber at work, green done, gray stopped, and faded
+// when archived). `kind`: a session of this one's (`filha`); one handed down (`herdada`), a smaller
+// bust behind; a chain (`cadeia`), the bust with an arrow on. Only `filha` is drawn today: the
+// others wait for the model to carry the kind.
+export type SessionKind = 'filha' | 'herdada' | 'cadeia'
+export function sessionIcon(kind: SessionKind, state: SessionState, x: number, y: number): string {
+  const cls = state === 'ativa' ? 'am' : state === 'concluida' ? 'gr' : 'gy'
+  const bust = (dx: number, dy: number, k = 1) =>
+    `<g transform="translate(${dx} ${dy})${k !== 1 ? ` scale(${k})` : ''}"><circle cx="0" cy="-3" r="2.6"/>` +
+    '<path d="M-5.5 5.5C-5.5 1.5 -3 .2 0 .2S5.5 1.5 5.5 5.5"/></g>'
+  const body =
+    kind === 'herdada'
+      ? bust(4, -1, 0.55) + bust(-2, 1)
+      : kind === 'cadeia'
+        ? bust(-2.5, 0) + '<path d="M4 0H7M5.5 -1.6L7.2 0L5.5 1.6"/>'
+        : bust(0, 0)
+  return (
+    `<g class="${cls}" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" ` +
+    `transform="translate(${x} ${y})"${state === 'arquivada' ? ' opacity=".4"' : ''}>${body}</g>`
+  )
+}
+// The state of a session's card for its icon, from the card's tone.
+export const sessionState = (tone: Tone): SessionState =>
+  tone === 'running' || tone === 'wait' ? 'ativa' : tone === 'archived' ? 'arquivada' : tone === 'paused' ? 'parada' : 'concluida'
+
+// The branch, 14 px across, centered on (x, y), in the stroke class `cls`. Not drawn today: it was
+// the session's icon, and is kept for the branch icon the person means to use later.
 export function branch(x: number, y: number, cls: string): string {
   return (
     `<g class="${cls}" fill="none" stroke-width="1.3"><circle cx="${x - 3}" cy="${y - 5}" r="1.8"/>` +
@@ -182,7 +210,7 @@ export function branch(x: number, y: number, cls: string): string {
   )
 }
 // Every line keeps its progress icon; a session's card, and a task or turn with a session
-// below it, add the branch beside it. A card's progress: in progress while it runs or waits.
+// below it, add the session's icon beside it. A card's progress: in progress while it runs or waits.
 export const PROGRESS: Partial<Record<Tone, Tone>> = { running: 'current', wait: 'current' }
 export const progress = (r: Row): Tone => (r.session ? (PROGRESS[r.tone] ?? r.tone) : r.tone)
 
@@ -200,7 +228,7 @@ export function icon(tone: Tone, x: number, y: number): string {
     case 'paused':
       return `<circle class="am" cx="${x}" cy="${y}" r="5.5" fill="none" stroke-width="1.5"/><path class="am" d="M${x} ${y - 3}V${y}H${x + 2.5}" fill="none" stroke-width="1.2" stroke-linecap="round"/>`
     case 'running':
-      return branch(x, y, 'gy')
+      return sessionIcon('filha', 'ativa', x, y)
     case 'agent':
       return `<path class="gyf" d="M${x - 2.5} ${y - 4}L${x + 3} ${y}L${x - 2.5} ${y + 4}Z"/>`
     case 'sent':
@@ -230,10 +258,11 @@ export function labelName(r: Row, W: number, depth: number, inner: number): { na
 }
 export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number, cards: { L: number; Rc: number; svg: string }[], paths: string[]): string {
   const { name, whole, tx } = labelName(r, W, r.depth, Math.max(0, cards.length - 1))
-  // The ⑂ left of the name, where a task's icon is (it folds the card, see foldOver); the state
-  // word after the name; the context ring on its own at the card's right end, in the column the
-  // lines below end their time in (the person's words: "deve estar solto e na direita da mesma linha").
-  const parts: string[] = [branch(x, cy, 'gy')]
+  // The session's icon left of the name, where a task's icon is (it folds the card, see foldOver),
+  // in the color of the card's state; the state word after the name; the context ring on its own at
+  // the card's right end, in the column the lines below end their time in (the person's words: "deve
+  // estar solto e na direita da mesma linha").
+  const parts: string[] = [sessionIcon('filha', sessionState(r.tone), x, cy)]
   const at = tx + textW(name, 12) + 10
   if (r.ring) {
     const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
@@ -362,7 +391,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
       )
     }
     const ix = bx - BRANCH_IN
-    if (forked) mark = branch(ix, cy, 'gy')
+    if (forked) mark = sessionIcon('filha', r.kidsState ?? 'parada', ix, cy)
     edge = ix - RIGHT_GAP
     if (r.meta) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)

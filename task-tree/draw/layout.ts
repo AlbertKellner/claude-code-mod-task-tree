@@ -636,6 +636,11 @@ export function running(p: Panel, level = 0): boolean {
 // The panel as drawn: one line per task, notice, session or subagent, with its depth in
 // the tree. The desktop draws each line as an Svg, the terminal as a Text.
 export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused' | 'reply'
+// The state a session's icon shows (sessionIcon): at work, done, stopped with something open, archived.
+export type SessionState = 'ativa' | 'concluida' | 'parada' | 'arquivada'
+// The state of the sessions under a task or turn, from their work (atWork).
+export const kidsState = (w: { any: boolean; live: boolean; cards: TaskNode[] }): SessionState | undefined =>
+  !w.any ? undefined : w.live ? 'ativa' : hasOpen(w.cards) ? 'parada' : 'concluida'
 export type Row = {
   depth: number
   tone: Tone
@@ -671,9 +676,11 @@ export type Row = {
   fold?: { key: string; open: boolean }
   // A session's card: its icon is the branch in every state (the tone colors it).
   session?: boolean
-  // A task (or turn) with a session opened on it or below it: a small branch beside it,
-  // drawn even while the task is closed.
+  // A task (or turn) with a session opened on it or below it: the session icon beside it, drawn
+  // even while the task is closed, in the state of the sessions there (`kidsState`: at work while
+  // one is alive; done once all ended with nothing open; stopped otherwise).
   kids?: boolean
+  kidsState?: SessionState
   // The context ring of a session: on its card, and on the highest line above it (its turn, else
   // its level-1 task) with the largest share among the sessions there.
   ring?: Ring
@@ -861,6 +868,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
               ? now - t.plannedAt
               : undefined),
         kids: w.any || undefined,
+        kidsState: kidsState(w),
         // The context ring is each session's own, on its card only (the person's words: "nao precisa
         // colocar esse icone na tarefa pai que originou essas sessoes"); the ⑂ still marks a task
         // with sessions below.
@@ -931,6 +939,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             : undefined),
       fold: { key, open },
       kids: ws.some(w => w.any) || undefined,
+      kidsState: kidsState({ any: ws.some(w => w.any), live: ws.some(w => w.live), cards: ws.flatMap(w => w.cards) }),
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
     const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending) : []
