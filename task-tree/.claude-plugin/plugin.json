@@ -1,6 +1,6 @@
 {
   "name": "task-tree",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "Painel lateral com a árvore de tarefas planejadas (até 3 níveis), marcando e colapsando as concluídas",
   "author": {
     "name": "AlbertKellner"
