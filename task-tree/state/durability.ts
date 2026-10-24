@@ -67,6 +67,7 @@ export const TABLE: readonly Row[] = [
   // The turn's own: they survive a reload, not the process.
   { key: 'waits', lives: 'state', merge: 'none', restoredAt: [], note: 'what waits on the person (a question, a plan, a permission, a wrap_up with ask)' },
   { key: 'engine', lives: 'state', merge: 'none', restoredAt: [], note: 'the model and effort of the main loop, published for the card' },
+  { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last model calls, live or the last turn\'s mean, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
@@ -89,6 +90,7 @@ export const TABLE: readonly Row[] = [
   { key: 'ticker', lives: 'module', merge: 'none', restoredAt: [], note: 'the 1 s clock, started again by the pane\'s drawing (the app draws it when the mod loads) and by the next start, refresh or tool call' },
   { key: 'poller', lives: 'module', merge: 'none', restoredAt: [], note: 'the 3 s reread of the sessions, started again likewise (the pane\'s drawing too)' },
   { key: 'engineSeen', lives: 'module', merge: 'none', restoredAt: [], note: 'the host\'s model per session, a minute each' },
+  { key: 'samples', lives: 'module', merge: 'none', restoredAt: [], note: 'the turn\'s model calls so far (tokens out, duration), the last 20, for the output rate; a reload mid-turn starts them over (the state keeps the last rate)' },
   { key: 'breaksMemo', lives: 'module', merge: 'none', restoredAt: [], note: 'a drawing\'s cache of the cards\' splits' },
   { key: 'unplanned, planned, answeredInChat', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message' },
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },

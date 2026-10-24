@@ -697,8 +697,10 @@ export type Row = {
   // header says what that view shows (the person's words: "cada visao deve refletir os dados do
   // seu tipo de vizualizacao").
   nodes?: TaskNode[]
-  // A session's card: its model and effort ("Opus 5.5 · high"), drawn left of the ring.
+  // A session's card: its model and effort ("Opus 5.5 · high"), drawn left of the ring, and its
+  // output rate ("n toks/s"), drawn left of that, dim when it is the last turn's mean (not live).
   engine?: string
+  rate?: { toks: number; live: boolean }
 }
 
 // With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
@@ -997,6 +999,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       session: true,
       sid: c.id,
       engine: c.engine,
+      rate: c.rate ? { toks: c.rate.toks, live: c.rate.live } : undefined,
       ring: ringOf(c),
       live: live(c),
       pending,

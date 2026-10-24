@@ -37,6 +37,7 @@ const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
+const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -354,9 +355,10 @@ export async function publishPanel($: any) {
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
+    const { value: rate } = await $.state.get(rateState)
     const { value: sends = [] } = await $.state.get(sendsState)
     const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }
