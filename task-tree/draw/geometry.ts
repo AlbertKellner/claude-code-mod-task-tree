@@ -35,6 +35,10 @@ export const SECTION_TEXT_OUT = 6
 // CARD_IN px before a card's column and BRANCH_GAP px before a task's.
 export const CARD_IN = 12
 export const BRANCH_GAP = 9
+// The connector from a parent's guide to its task turns its corner in an arc of BRANCH_RADIUS px
+// (the card's radius; the person: "a linha que liga as tarefas aos pais é quadrada, dá pra deixar
+// redonda?"), cut down where the branch is shorter than that.
+export const BRANCH_RADIUS = 6
 // Cards on the right: the outermost ends CARD_RIGHT px before the line's right edge, each nested one
 // CARD_NEST px inside the one around it; the text on the right keeps EDGE_PAD px inside the
 // innermost card (or the line's edge, with no card).
