@@ -3,7 +3,7 @@
 // puts them in the pane's Svg elements and lays the Buttons over them (../draw/geometry says where).
 
 import {
-  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, CARD_RIGHT, EDGE_PAD, GUIDE_FROM, HEADER_GAP, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
 import type { Tone, Row, Frame, Guide, SessionState } from './layout'
@@ -74,12 +74,12 @@ export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 export const LIGHT: [string, string][] = [
   ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
-  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
-  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
@@ -211,14 +211,20 @@ export function branch(x: number, y: number, cls: string): string {
     `<path d="M${x - 3} ${y - 3.2}V${y + 3.2}M${x + 4} ${y - 1.2}C${x + 4} ${y + 2} ${x - 3} ${y + 1} ${x - 3} ${y + 3.2}"/></g>`
   )
 }
-// The repository icon, 14 px across, centered on (x, y): a cat's head, the GitHub mark drawn simply
-// (the person asked for the GitHub icon; the Octocat itself is GitHub's mark, so only its outline
-// is suggested here). `repoIcon` holds the path alone, to swap at the visual check.
-export function repoIcon(x: number, y: number, cls: string): string {
+// The repository icon, 14 px across, centered on (x, y): the Git logo's own shape (its proportions
+// measured off the official mark) in the pane's colors, no orange (the person's words: "o ícone
+// deve ser igual a esse" and "ele deve seguir a identidade visual do painel"). The diamond, a 9.9 px
+// square turned 45° with rounded corners, is filled in the icons' dim gray (`gyf`, the ⑂'s family);
+// the commit graph inside, the diagonal in from the upper-left edge to the middle node, the trunk
+// down to the base node and the branch to the right node, is drawn in the card's own color (`cds`
+// stroke, `cd` fill), which cuts it out of the diamond as the logo does. `cls` is not used: the
+// classes are the logo's. It was a cat's head for GitHub, then the diamond in strokes.
+export function repoIcon(x: number, y: number, _cls: string): string {
   return (
-    `<g class="${cls}" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" transform="translate(${x} ${y})">` +
-    '<path d="M-4.4 -2.6C-4.4 -4 -4.6 -5.6 -4.2 -6.2 -3.4 -6 -2.4 -5.2 -1.6 -4.4 -0.5 -4.7 0.5 -4.7 1.6 -4.4 2.4 -5.2 3.4 -6 4.2 -6.2 4.6 -5.6 4.4 -4 4.4 -2.6 5.2 -1.4 5.4 0 5.2 1.4 4.6 4.2 2.4 5.8 0 5.8 -2.4 5.8 -4.6 4.2 -5.2 1.4 -5.4 0 -5.2 -1.4 -4.4 -2.6Z"/>' +
-    '<path d="M-1.8 1.2H-1.2M1.2 1.2H1.8"/></g>'
+    `<g transform="translate(${x} ${y})">` +
+    '<rect class="gyf" x="-4.95" y="-4.95" width="9.9" height="9.9" rx="0.9" transform="rotate(45)"/>' +
+    '<path class="cds" d="M-2.2 -5.3L0 -2.8V3M0 -2.8L2.9 0.1" fill="none" stroke-width="1"/>' +
+    '<g class="cd"><circle cx="0" cy="-2.8" r="1.05"/><circle cx="0" cy="3" r="1.05"/><circle cx="2.9" cy="0.1" r="1.05"/></g></g>'
   )
 }
 // A session's repository and branch side by side, `size` px text starting at x: the repository icon
@@ -499,26 +505,29 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
   const H = HEADER_H
-  const parts: string[] = []
+  // The card first, under everything: a session's card's fill, border and corners (cardSlice), from
+  // CARD_RIGHT in on each side and HEADER_GAP short of the bottom; no dividing line below it (the
+  // person: "remova a barra horizontal de divisão").
+  const parts: string[] = [cardSlice(CARD_RIGHT, W - CARD_RIGHT, CARD_RIGHT, H - HEADER_GAP - CARD_RIGHT, true, true)]
   if (empty) {
-    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
-    parts.push(`<text class="s" x="${L}" y="34" font-size="12">Nenhuma tarefa planejada.</text>`)
+    parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">Tarefas</text>`)
+    parts.push(`<text class="s" x="${L}" y="38" font-size="12">Nenhuma tarefa planejada.</text>`)
   } else {
     const score = `${d} de ${n} · ${percent(d, n)}%` + (time !== undefined ? ` · ${clockText(time)}` : '')
     const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
-    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
-    parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
+    parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
+    parts.push(`<text class="s" x="${L}" y="40" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
     // This session's own output rate after the count, dim when it is the last turn's mean.
-    if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="36" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
+    if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="40" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
     // This session's repository and branch after the count, with their icons (the person: "coloque
     // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
     if (git) {
       const gx = L + textW(`${score} ${rate ? `· ${rateText(rate.toks)} ` : ''}`, 12) + 14
-      if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 32, 12, true, R - gx).svg)
-      else if (gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 32, 12, false, R - gx).svg)
+      if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 36, 12, true, R - gx).svg)
+      else if (gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 36, 12, false, R - gx).svg)
     }
-    parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
-    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
+    parts.push(`<rect class="tr" x="${L}" y="50" width="${R - L}" height="4" rx="2"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="50" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
     const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
     let cx = L
@@ -530,13 +539,12 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
       // the motion of a new chip and of a new count animates (../draw/motion).
       parts.push(
         `<g class="ch-${c.tone}">` +
-          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>` : icon(c.tone, cx + 5, 68)) +
-          `<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text></g>`,
+          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="72" r="4"/>` : icon(c.tone, cx + 5, 72)) +
+          `<text class="s" x="${cx + 15}" y="76" font-size="12">${xml(c.text)}</text></g>`,
       )
       cx += w + 16
     }
   }
-  parts.push(`<path class="ln" d="M${L} ${H - 0.5}H${R}" stroke-width="1"/>`)
   return {
     source: slim(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}${parts.join('')}</svg>`),
     height: H,
