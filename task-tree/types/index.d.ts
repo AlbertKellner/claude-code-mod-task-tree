@@ -18,6 +18,10 @@ export type TaskNode = {
   plannedAt?: number
   // A level-1 task of the main group: the turn (the person's message) it was planned in.
   turn?: number
+  // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in
+  // every state, only its color changing, and counts in no x/y (the person's words: "quero
+  // diferenciar as tarefas de execução, das tarefas de mensagem").
+  msg?: boolean
   children: TaskNode[]
 }
 
