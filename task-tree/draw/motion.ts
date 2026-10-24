@@ -9,9 +9,10 @@
 // on a module's first drawing, on a drawing where most keys are new or back (a change of view, a
 // reload), nor with reduced motion. Disappearing is not animated (the line leaves the drawing at once).
 
-// How long a change moves, in ms, and how long each frame is (the kit draws at most 10 a second): 7
-// frames. 300 ms with small amplitudes went unseen; 700 ms with the ones below the person found smooth.
-export const DUR = 700
+// How long a change moves, in ms, and how long each frame is (the kit draws at most 10 a second): 5
+// frames. 300 ms with small amplitudes went unseen; 700 ms with the ones below the person found
+// smooth, then a little slow.
+export const DUR = 500
 export const FRAME = 100
 // How long a key not drawn (a folded line, the other view's) is kept in the map, so its state is
 // known when it comes back.
