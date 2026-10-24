@@ -5,14 +5,14 @@
 
 import { update } from 'claude-code'
 
-import type { Child, Group, Published, Send } from '../types'
+import type { Ask, Child, Group, Published, Send } from '../types'
 import { SESSION } from '../text/rules'
 import { MAIN, flat, running } from '../draw/layout'
 import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, inDesktopApp, keptLink, openList, publishPanel, refreshGit, selfId, sendAnchor, showStatus, stamp } from './panel'
+import { change, inDesktopApp, keptLink, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -22,6 +22,7 @@ const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as cons
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const asksState = { plugin: 'task-tree', key: 'asks' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 
 // The sessions this one opened, read in the four steps of io/host.ts: the host's list, their
@@ -196,8 +197,12 @@ export async function recordStart($: any, resultText: string) {
   const id = /local_[0-9a-f-]{36}/.exec(resultText)?.[0]
   if (!id) return
   const { value = [] } = await $.state.get(groupsState)
-  // The task the session is opened on: the one in progress, else as a message is anchored (sendAnchor).
-  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+  const { value: kids0 = [] } = await $.state.get(childrenState)
+  const { value: sends0 = [] } = await $.state.get(sendsState)
+  // The task the session is opened on: the one in progress, else as a message is anchored (sendAnchor;
+  // with several in progress, the first with no message yet).
+  const { value: asks0 = [] } = await $.state.get(asksState)
+  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(asks0 as Ask[]))
   await update($, childrenState, cur => {
     const list = cur ?? []
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))

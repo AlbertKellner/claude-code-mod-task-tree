@@ -6,7 +6,7 @@
 import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
-import type { Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
+import type { Ask, Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
@@ -40,6 +40,7 @@ const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
+const asksState = { plugin: 'task-tree', key: 'asks' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
@@ -87,7 +88,9 @@ export const migrate = (t: LegacyNode): TaskNode => ({
 
 // A message of the person opens a turn of the main group, titled with its start; turns no plan
 // used are dropped then, so only turns with tasks are kept.
-export async function openTurn($: any, text: string, own = false) {
+// A turn opened by another session's message (`from`) is marked `msg`, with who sent it: its level-1
+// tasks show the ✉ of a message received (see layout's rows).
+export async function openTurn($: any, text: string, own = false, from?: { id: string; name?: string }) {
   // A message from another session comes wrapped in tags: its words are the title.
   const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
   const title = line.length > 60 ? `${line.slice(0, 59)}…` : line
@@ -102,7 +105,7 @@ export async function openTurn($: any, text: string, own = false) {
       const id = turns.reduce((top, u) => Math.max(top, u.id), 0) + 1
       // The person's own prompt in this session is marked (`own`): the card of this turn, in the
       // session that opened this one, goes at the end of the request that opened it.
-      return { ...g, turns: [...used, { id, title, at, ...(own ? { own: true } : {}) }] }
+      return { ...g, turns: [...used, { id, title, at, ...(own ? { own: true } : {}), ...(from ? { msg: true, from } : {}) }] }
     }),
   )
 }
@@ -114,12 +117,36 @@ export async function openTurn($: any, text: string, own = false) {
 // atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
 // current request (the last turn with tasks), else that request's last level-1 task. It was the first
 // open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
-export function sendAnchor(list: TaskNode[]): string | undefined {
+// With several tasks in progress, a message goes to the latest batch of starts (the tasks started
+// within BATCH ms of the newest of them that has no message yet: one answer's starts), to the first
+// of it in the order they were started, that has no message of this session's yet since it started
+// (`used`: where the messages sent and the sessions' rounds went, and when); all of them with one,
+// the rule above (the person's decision: "pela ordem", each send to the next task in progress). A
+// task left in progress from before only gets it once the batch is done; a task with a question open
+// under it (`asking`) never does. With two sends started together both went to the task started
+// last; then a task opened before and still in progress took a later send, its card under it.
+export type Used = { anchor?: string; at?: number }
+const BATCH = 3000
+export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in the current request (the person's decisions): its pending task with no
   // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
   // pending, the rule above. It took the task started last even with one pending, planned to send:
   // the card went under the closed task before it.
+  const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
+  const going = started.filter(t => !asking.includes(t.id))
+  // Two in progress, one of them asking: the other one.
+  if (going.length === 1 && started.length > 1) return going[0].id
+  if (going.length > 1) {
+    const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
+    const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
+    const free = order.filter(x => !has(x.t))
+    if (free.length > 0) {
+      const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
+      const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
+      return (batch[0] ?? free[0]).t.id
+    }
+  }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
   if (anchor === undefined) {
@@ -145,6 +172,16 @@ export function sendAnchor(list: TaskNode[]): string | undefined {
   }
   return pick
 }
+
+// The tasks of the main loop with a question still open under them (sendAnchor's `asking`).
+export const askingAnchors = (asks: Ask[]): string[] =>
+  asks.filter(a => a.agent === MAIN && a.state === 'open').flatMap(a => (a.anchor === undefined ? [] : [a.anchor]))
+// Where this session's messages went (sendAnchor's `used`), with when: the sends kept, and the
+// rounds of the sessions (a send already taken up is dropped from the sends, its round stays).
+export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[]): Used[] => [
+  ...sends.map(s => ({ anchor: s.anchor, at: s.at })),
+  ...children.flatMap(c => (c.rounds ?? []).map(r => ({ anchor: r.anchor, at: r.at }))),
+]
 
 // The open tasks with nothing open below them, for a reminder: '"1/1.2" Title; …'.
 export function openList(list: TaskNode[]): string {
@@ -294,6 +331,47 @@ export async function ensureView($: any): Promise<'full' | 'summary' | undefined
     return undefined
   }
 }
+// The questions asked (Ask), kept with their answers: after a restart without session.start, the
+// first use brings them back from the store, as the work.
+export async function ensureAsks($: any): Promise<Ask[] | undefined> {
+  if (loaded.has('asks') || !restoredAt('asks', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(asksState)).value !== undefined) {
+      loaded.add('asks')
+      return undefined
+    }
+    const saved = await loadStore($, 'asks')
+    if (!Array.isArray(saved)) {
+      loaded.add('asks')
+      return undefined
+    }
+    try {
+      await $.state.set(asksState, saved as Ask[])
+      loaded.add('asks')
+    } catch {}
+    return saved as Ask[]
+  } catch {
+    return undefined
+  }
+}
+// Changes the questions asked (the last ASKS kept), in the state and the store, and publishes them.
+const ASKS = 50
+export async function changeAsks($: any, fn: (asks: Ask[]) => Ask[]): Promise<Ask[]> {
+  await ensureAsks($)
+  const asks = await update($, asksState, cur => fn(cur ?? []).slice(-ASKS))
+  try {
+    await saveStore($, 'asks', asks)
+  } catch {}
+  await publishPanel($)
+  return asks
+}
+// A question or an answer in a few words: its first sentence, cut at `max` characters.
+export function gist(text: string, max = 80): string {
+  const one = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const first = one.split(/(?<=[.?!])\s/)[0] ?? one
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first
+}
+
 export async function ensureWork($: any): Promise<string[] | undefined> {
   if (loaded.has('work') || !restoredAt('work', 'first-use')) return undefined
   try {
@@ -344,14 +422,19 @@ export async function selfId($: any): Promise<string | undefined> {
   return ownId
 }
 
-// This session's repository and branch (io/git.ts), read again at every publication and at the
-// clock's tick (a checkout or a worktree changes the branch mid-session; it is a 40-byte file):
-// kept in the state for the header, published for the card. Returns what it read.
+// This session's repository and branch, or its folder with no repository (io/git.ts), read again at
+// every publication and at the clock's tick (a checkout or a worktree changes the branch
+// mid-session; it is a 40-byte file): kept in the state for the header, published for the card.
+// Returns what it read.
 export async function refreshGit($: any): Promise<GitInfo | undefined> {
   const now = await readGit($)
   const { value: cur } = await $.state.get(gitState)
   const same = cur
-    ? now !== undefined && cur.repo === now.repo && cur.branch === now.branch && (cur.detached ?? false) === (now.detached ?? false)
+    ? now !== undefined &&
+      (cur.kind ?? 'git') === (now.kind ?? 'git') &&
+      cur.repo === now.repo &&
+      cur.branch === now.branch &&
+      (cur.detached ?? false) === (now.detached ?? false)
     : now === undefined
   if (!same) await $.state.set(gitState, now ? { ...now, at: (await stamp($)) ?? 0 } : null)
   return now
@@ -377,8 +460,10 @@ export async function publishPanel($: any) {
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
     // session that opened this one reads the round it left open as discarded.
     const { value: aborted } = await $.state.get(turnAbortedState)
+    // The questions asked, with their answers, for the card upstream to draw them too.
+    const { value: asks = [] } = await $.state.get(asksState)
     const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, git, aborted: aborted === true, asks: asks as Ask[], sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }

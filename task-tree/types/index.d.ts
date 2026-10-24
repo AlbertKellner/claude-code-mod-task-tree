@@ -18,6 +18,16 @@ export type TaskNode = {
   plannedAt?: number
   // A level-1 task of the main group: the turn (the person's message) it was planned in.
   turn?: number
+  // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in
+  // every state, only its color changing, and counts in no x/y (the person's words: "quero
+  // diferenciar as tarefas de execução, das tarefas de mensagem").
+  msg?: boolean
+  // Drawn only (layout's withAsks): a question asked under this task (`askState`, its state), drawn
+  // with its options as subtasks (`opt`); a question counts as one task, its options as none.
+  askState?: Ask['state']
+  opt?: boolean
+  // Drawn only: the whole question, for the tooltip.
+  whole?: string
   children: TaskNode[]
 }
 
@@ -28,7 +38,10 @@ export type TaskNode = {
 // reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
 // `own`: a turn the person opened by typing in that session (not a message of another session): its
 // card goes at the end of the request that opened the session, not under the last message's task.
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean }
+// `msg` and `from`: a turn opened by another session's message (its first, when several came
+// together), and who sent it (its id and name as the message's tag says them). Its level-1 tasks
+// derive from that message: they show the ✉ of a message received, in their own state's color.
+export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string } }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
@@ -54,14 +67,24 @@ export type Wait = {
 // `received`: the messages of other sessions it got (see the state's `received`): a sister's
 // message opens a card of its own, as one from the session drawing it does.
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
-export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
+export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[]; asks?: Ask[] }
+
+// A question the person was asked (AskUserQuestion, ExitPlanMode, a wrap_up with `ask`), kept after
+// the answer: one item per question, each with its options; `chosen` the options picked, `text` the
+// answer typed instead, in a few words. `anchor` is the task in progress of the loop that asked,
+// where it is drawn; `wait` the key of the wait it stands for while open. `state`: still open,
+// answered by an option, answered by a chat message (`chat`), or left with no answer (`dropped`).
+export type AskItem = { title: string; whole?: string; options: string[]; messages?: string[]; multi?: boolean; chosen?: string[]; text?: string }
+export type Ask = { key: string; wait?: string; agent: string; tool: string; at?: number; anchor?: string; items: AskItem[]; state: 'open' | 'answered' | 'chat' | 'dropped' }
 
 // A session's output rate: `toks` tokens a second (rounded), measured `at`, `live` while the turn
 // it measures is in course (else the last turn's mean, drawn dim).
 export type Rate = { toks: number; at: number; live: boolean }
 // Where a session's git is (io/git.ts): the repository's folder name and the branch (a detached
 // head's short hash, `detached`), read `at`.
-export type GitInfo = { repo: string; branch: string; detached?: boolean; at?: number }
+// `kind: 'folder'`: no repository there, `repo` is the session's folder (its path shortened) and
+// there is no branch; absent, a repository (files published before it carry none).
+export type GitInfo = { kind?: 'git' | 'folder'; repo: string; branch?: string; detached?: boolean; at?: number }
 
 // The whole file a session publishes (publishWait writes it, the session that opened it reads it;
 // see waitFile): the contract between sessions, which may run different versions of the mod.
@@ -98,6 +121,8 @@ export type Published = {
   work?: string[]
   received?: { from: string; at: number }[]
   sends?: Send[]
+  // The questions this session asked (see Ask), for its card upstream.
+  asks?: Ask[]
 }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
@@ -179,6 +204,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; asks: Ask[] }
   }
 }

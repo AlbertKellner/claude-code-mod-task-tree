@@ -7,12 +7,12 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo } from '../draw/layout'
+import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureAsks, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
@@ -34,6 +34,7 @@ const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
+const asksState = { plugin: 'task-tree', key: 'asks' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
@@ -68,6 +69,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     [
       ...keys.map(k => [k, ''] as [string, string]),
       ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string]),
+      ...lines.flatMap((r, i) => (r.msg || r.recv ? [[`${keys[i]}#msg`, (r.msg ?? r.recv) as string] as [string, string]] : [])),
       ...sources.map((s, i) => [`${keys[i]}#bar`, barOf(s)] as [string, string]),
       ...tones.map(t => [`${headKey}#chip:${t}`, ''] as [string, string]),
       [`${headKey}#bar`, barOf(top.source)],
@@ -79,6 +81,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   // between in progress and waiting as its subtasks go; a session's card never.
   const popsAt = (i: number) => {
     const r = lines[i]
+    // A message task's ✉ pops when its color changes (queued → delivered → cut), as the icons do.
+    if (r.msg || r.recv) return marks.changed.has(`${keys[i]}#msg`)
     const k = `${keys[i]}#tone`
     if (!marks.changed.has(k) || r.card || r.session) return false
     const to = progress(r)
@@ -97,7 +101,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     marks.enter.has(keys[i])
       ? [fadeIn(ago(keys[i]))]
       : [
-          ...(popsAt(i) ? [pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
+          ...(popsAt(i) ? [lines[i].msg || lines[i].recv ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
           ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]), ago(`${keys[i]}#bar`)) : []),
         ]
   const headMotion = [
@@ -205,7 +209,10 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {errorLine}
       {header}
       {lines.map((r, i) => {
-        const [glyph, color] = GLYPH[progress(r)]
+        // A message task: the ✉ in every state, in the color of where the message is.
+        const env = r.msg ?? r.recv
+        // A question waiting: a dotted circle in amber (the terminal has no balloon).
+        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : r.balloon ? ['◌', 'warning'] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)
@@ -219,7 +226,7 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
           <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
           r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
           // The repository and branch right of the name.
-          r.git ? <Text key="git" dimColor>{`  ${r.git.repo} ⑂ ${r.git.branch}`}</Text> : null,
+          r.git ? <Text key="git" dimColor>{`  ${gitTerm(r.git)}`}</Text> : null,
           // Waiting on the person: the word in amber (the label has no icon to color).
           r.meta ? (
             <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
@@ -278,6 +285,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const brought = await ensureGroups($)
   const viewBrought = await ensureView($)
   const workBrought = await ensureWork($)
+  const asksBrought = await ensureAsks($)
   // After a hot reload of the mod (each saved edit of the clone reloads it in every session) the clocks
   // were the old module's, gone with it, and they came back only with the next event (a tool call, a
   // refresh, a start): with a task timing and no event, the pane stood still. The app draws the pane
@@ -317,8 +325,11 @@ export async function render($: EngineInterface, e: any, next: any) {
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
-  const headGit = git ? { repo: git.repo, branch: git.branch } : undefined
-  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
+  const headGit = git ? gitLabel(git) : undefined
+  // The questions asked, drawn under their tasks with their options.
+  const { value: heldAsks } = await $.state.get(asksState)
+  const asks = heldAsks ?? asksBrought ?? []
+  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], asks, ...(typeof ended === 'number' ? { ended } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
 
@@ -352,7 +363,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   // the ones the lines show waiting (a card's ✉ task too), by the tasks the lines stand for.
   const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
-  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t))
+  // Message tasks are not work (they count in no x/y), and are left out of these chips too.
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !t.askState && !t.opt && !sentIds.includes(t.id) && !sentTasks.has(t))
   const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
   const pending = open.length - active
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
@@ -395,7 +407,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
             ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
-            ...(headGit ? [`repositório ${headGit.repo}, branch ${headGit.branch}`] : []),
+            ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
     return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
@@ -419,7 +431,7 @@ export async function render($: EngineInterface, e: any, next: any) {
               {`  ${d} de ${n} · ${percent(d, n)}%`}
               {headTime !== undefined ? <Text dimColor>{`  ${clockText(headTime)}`}</Text> : null}
               {headRate ? <Text dimColor>{`  ${rateText(headRate.toks)}`}</Text> : null}
-              {headGit ? <Text dimColor>{`  ${headGit.repo} ⑂ ${headGit.branch}`}</Text> : null}
+              {headGit ? <Text dimColor>{`  ${gitTerm(headGit)}`}</Text> : null}
               {whole ? <Text dimColor>{`  (${whole})`}</Text> : null}
             </Text>
             <Text>{'  '}</Text>
