@@ -74,12 +74,12 @@ export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 export const LIGHT: [string, string][] = [
   ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
-  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
-  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
@@ -211,16 +211,20 @@ export function branch(x: number, y: number, cls: string): string {
     `<path d="M${x - 3} ${y - 3.2}V${y + 3.2}M${x + 4} ${y - 1.2}C${x + 4} ${y + 2} ${x - 3} ${y + 1} ${x - 3} ${y + 3.2}"/></g>`
   )
 }
-// The repository icon, 14 px across, centered on (x, y): the Git logo in strokes, the diamond with
-// the commit graph inside (a node in the middle, two branches up, the trunk down), in the class's
-// color like the ⑂ beside it (the person's words: "mude esse ícone para ficar com o ícone do git";
-// it was a cat's head for GitHub). `repoIcon` holds the path alone, to swap at a visual check.
-export function repoIcon(x: number, y: number, cls: string): string {
+// The repository icon, 14 px across, centered on (x, y): the Git logo's own shape (its proportions
+// measured off the official mark) in the pane's colors, no orange (the person's words: "o ícone
+// deve ser igual a esse" and "ele deve seguir a identidade visual do painel"). The diamond, a 9.9 px
+// square turned 45° with rounded corners, is filled in the icons' dim gray (`gyf`, the ⑂'s family);
+// the commit graph inside, the diagonal in from the upper-left edge to the middle node, the trunk
+// down to the base node and the branch to the right node, is drawn in the card's own color (`cds`
+// stroke, `cd` fill), which cuts it out of the diamond as the logo does. `cls` is not used: the
+// classes are the logo's. It was a cat's head for GitHub, then the diamond in strokes.
+export function repoIcon(x: number, y: number, _cls: string): string {
   return (
-    `<g class="${cls}" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" transform="translate(${x} ${y})">` +
-    '<path d="M0 -6.5L6.5 0L0 6.5L-6.5 0Z"/>' +
-    '<path d="M-2.6 -2.6L0 0V3.6M0 0L2.6 -2.6"/>' +
-    '<circle cx="-2.6" cy="-2.6" r="1.1"/><circle cx="2.6" cy="-2.6" r="1.1"/><circle cx="0" cy="0" r="1.1"/></g>'
+    `<g transform="translate(${x} ${y})">` +
+    '<rect class="gyf" x="-4.95" y="-4.95" width="9.9" height="9.9" rx="0.9" transform="rotate(45)"/>' +
+    '<path class="cds" d="M-2.2 -5.3L0 -2.8V3M0 -2.8L2.9 0.1" fill="none" stroke-width="1"/>' +
+    '<g class="cd"><circle cx="0" cy="-2.8" r="1.05"/><circle cx="0" cy="3" r="1.05"/><circle cx="2.9" cy="0.1" r="1.05"/></g></g>'
   )
 }
 // A session's repository and branch side by side, `size` px text starting at x: the repository icon
