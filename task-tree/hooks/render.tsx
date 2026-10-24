@@ -208,12 +208,12 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)
         const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
-        const tail = (forked ? '  ⑂' : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
+        const tail = (forked ? `  ${GLYPH.running[0]}` : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
         const lead = prefix(r, lanes[i], hides[i])
-        // A session's label: the ⑂ (the Button that folds the card) left of its name, then its tags,
-        // no count or time.
+        // A session's label: the session glyph (the Button that folds the card) left of its name, then
+        // its tags, no count or time.
         const parts = r.session ? [
-          r.fold ? iconButton(r, '⑂', 'inactive') : <Text key="icon" color="inactive">{'⑂'}</Text>,
+          r.fold ? iconButton(r, GLYPH.running[0], 'inactive') : <Text key="icon" color="inactive">{GLYPH.running[0]}</Text>,
           <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
           r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
           // Waiting on the person: the word in amber (the label has no icon to color).
