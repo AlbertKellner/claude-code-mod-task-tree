@@ -73,13 +73,14 @@ export const elapsed = (t: TaskNode, now?: number) => {
   return to === undefined || to < t.startedAt ? undefined : to - t.startedAt
 }
 
-// Leaves done, leaves counted, leaves interrupted (kept out of the count).
+// Leaves done, leaves counted, leaves interrupted (kept out of the count). A message task counts for
+// nothing (only the work does; the leaves of the session it sent to still count, in its card).
 export function count(list: TaskNode[]): [number, number, number] {
   let d = 0
   let n = 0
   let x = 0
   for (const t of flat(list)) {
-    if (t.children.length > 0) continue
+    if (t.children.length > 0 || t.msg) continue
     if (t.status === 'interrupted') x++
     else {
       n++
@@ -671,6 +672,11 @@ export function running(p: Panel, level = 0): boolean {
 // The panel as drawn: one line per task, notice, session or subagent, with its depth in
 // the tree. The desktop draws each line as an Svg, the terminal as a Text.
 export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused' | 'reply'
+// A message task's state, as its ✉ is colored and its word on the right says: still queued for the
+// session (blue), taken up by it (green, the session may still be at work), interrupted or
+// discarded (gray).
+export type MsgState = 'queued' | 'delivered' | 'cut'
+export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida' }
 // Where a session works, as its card and the header draw it: a repository with its branch (the
 // branch a detached head's short hash), or a folder with no repository (`folder`, `repo` its path).
 export type GitLabel = { repo: string; branch?: string; detached?: boolean; folder?: boolean }
@@ -707,6 +713,8 @@ export type Row = {
   key?: string
   // A task with no subtasks.
   leaf?: boolean
+  // A message task (TaskNode.msg): its icon is always the ✉, in the color of this state.
+  msg?: MsgState
   // A session's or subagent's header: it and the lines below it are drawn in a card.
   card?: boolean
   // For the header's chips: a task in progress with nothing open below it; a session at work;
@@ -899,6 +907,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                     : 'open'
       const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
+      // A message task (a send went out from it): its ✉ in the color of where the message is, the
+      // word on the right saying it (the person: "mantenha o ícone e troque somente a cor").
+      const msg: Row['msg'] =
+        t.children.length > 0 || !t.msg ? undefined : waitsOn.length > 0 ? 'queued' : t.status === 'interrupted' ? 'cut' : 'delivered'
       const row: Row = {
         key: `${scope}t:${t.id}`,
         leaf: t.children.length === 0,
@@ -908,11 +920,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         label:
           tone === 'sent'
             ? `Aguardando confirmação de ${waitsOn.join(', ')}`
-            : ({ open: 'Aberta', current: 'Em andamento', done: 'Concluída', interrupted: 'Interrompida', paused: 'Aguardando' }[tone as string] ?? ''),
+            : msg !== undefined
+              ? `Mensagem ${MSG_WORD[msg]}`
+              : ({ open: 'Aberta', current: 'Em andamento', done: 'Concluída', interrupted: 'Interrompida', paused: 'Aguardando' }[tone as string] ?? ''),
         strong: tone === 'current' || tone === 'sent' || (depth === top && t.status === 'open'),
         sub: (t.children.length > 0 || w.any) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
         bar: true,
-        meta: tone === 'interrupted' ? 'interrompida' : undefined,
+        meta: msg !== undefined ? MSG_WORD[msg] : tone === 'interrupted' ? 'interrompida' : undefined,
+        ...(msg !== undefined ? { msg } : {}),
         time:
           (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
           (tone === 'done' || tone === 'interrupted'

@@ -6,7 +6,7 @@ import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, CARD_RIGHT, EDGE_PAD, GUIDE_FROM, HEADER_GAP, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
-import type { Tone, Row, Frame, Guide, SessionState, GitLabel } from './layout'
+import type { Tone, Row, Frame, Guide, SessionState, GitLabel, MsgState } from './layout'
 
 // "0:04", "6:12", "1:02:09".
 export function clockText(ms: number): string {
@@ -296,6 +296,19 @@ export const gitTerm = (git: GitLabel) => (git.folder ? `▭ ${git.repo}` : `${g
 export const PROGRESS: Partial<Record<Tone, Tone>> = { running: 'current', wait: 'current' }
 export const progress = (r: Row): Tone => (r.session ? (PROGRESS[r.tone] ?? r.tone) : r.tone)
 
+// The envelope, 14 px across, centered on (x, y), in the stroke class `cls`: a message task's icon in
+// every state, its color saying where the message is (MSG_CLASS); the ✉ of a send still queued.
+export function envelope(x: number, y: number, cls: string): string {
+  return (
+    `<g class="${cls}" fill="none" stroke-width="1.4" stroke-linejoin="round"><rect x="${x - 6}" y="${y - 4.5}" width="12" height="9" rx="1.5"/>` +
+    `<path d="M${x - 6} ${y - 3.5}L${x} ${y + 1}L${x + 6} ${y - 3.5}"/></g>`
+  )
+}
+// A message task's ✉ by state: blue while queued, green once taken up, gray interrupted; in the
+// terminal, the same glyph in the theme's color for each.
+export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy' }
+export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive' }
+
 // One icon, 14 px across, centered on (x, y).
 export function icon(tone: Tone, x: number, y: number): string {
   switch (tone) {
@@ -314,10 +327,7 @@ export function icon(tone: Tone, x: number, y: number): string {
     case 'agent':
       return `<path class="gyf" d="M${x - 2.5} ${y - 4}L${x + 3} ${y}L${x - 2.5} ${y + 4}Z"/>`
     case 'sent':
-      return (
-        `<g class="bl" fill="none" stroke-width="1.4" stroke-linejoin="round"><rect x="${x - 6}" y="${y - 4.5}" width="12" height="9" rx="1.5"/>` +
-        `<path d="M${x - 6} ${y - 3.5}L${x} ${y + 1}L${x + 6} ${y - 3.5}"/></g>`
-      )
+      return envelope(x, y, 'bl')
     case 'reply':
       return `<path class="gy" d="M${x + 4.5} ${y - 4}V${y - 1}Q${x + 4.5} ${y + 2.5} ${x + 1} ${y + 2.5}H${x - 4.5}M${x - 1.5} ${y - 0.5}L${x - 4.5} ${y + 2.5}L${x - 1.5} ${y + 5.5}" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`
     case 'section':
@@ -510,7 +520,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     }
   }
   // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
-  const lead = section ? '' : `<g class="ic">${icon(progress(r), x, cy)}</g>`
+  const lead = section ? '' : `<g class="ic">${r.msg ? envelope(x, cy, MSG_CLASS[r.msg]) : icon(progress(r), x, cy)}</g>`
   const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title

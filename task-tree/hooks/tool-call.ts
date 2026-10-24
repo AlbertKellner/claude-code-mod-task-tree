@@ -9,10 +9,10 @@
 
 import { update } from 'claude-code'
 
-import type { Child, Group, Send } from '../types'
+import type { Child, Group, Send, TaskNode } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, addWait, change, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -134,6 +134,13 @@ const sentMessage: Notes = async ($, c, notes) => {
       ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
       { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true }) },
     ])
+    // The task it went from is a message task from now on (TaskNode.msg): kept on the task itself,
+    // since the send is dropped once taken up, and published with the panel for the card upstream.
+    if (anchor !== undefined) {
+      const mark = (list: TaskNode[]): TaskNode[] =>
+        list.map(t => (t.id === anchor ? (t.msg ? t : { ...t, msg: true }) : t.children.length > 0 ? { ...t, children: mark(t.children) } : t))
+      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: mark(g.tasks) } : g)))
+    }
     await publishPanel($)
   }
   if (waitsDelivery && to !== '') {

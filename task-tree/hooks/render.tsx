@@ -9,7 +9,7 @@ import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
@@ -68,6 +68,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     [
       ...keys.map(k => [k, ''] as [string, string]),
       ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string]),
+      ...lines.flatMap((r, i) => (r.msg ? [[`${keys[i]}#msg`, r.msg] as [string, string]] : [])),
       ...sources.map((s, i) => [`${keys[i]}#bar`, barOf(s)] as [string, string]),
       ...tones.map(t => [`${headKey}#chip:${t}`, ''] as [string, string]),
       [`${headKey}#bar`, barOf(top.source)],
@@ -79,6 +80,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   // between in progress and waiting as its subtasks go; a session's card never.
   const popsAt = (i: number) => {
     const r = lines[i]
+    // A message task's ✉ pops when its color changes (queued → delivered → cut), as the icons do.
+    if (r.msg) return marks.changed.has(`${keys[i]}#msg`)
     const k = `${keys[i]}#tone`
     if (!marks.changed.has(k) || r.card || r.session) return false
     const to = progress(r)
@@ -97,7 +100,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     marks.enter.has(keys[i])
       ? [fadeIn(ago(keys[i]))]
       : [
-          ...(popsAt(i) ? [pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
+          ...(popsAt(i) ? [lines[i].msg ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
           ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]), ago(`${keys[i]}#bar`)) : []),
         ]
   const headMotion = [
@@ -205,7 +208,8 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {errorLine}
       {header}
       {lines.map((r, i) => {
-        const [glyph, color] = GLYPH[progress(r)]
+        // A message task: the ✉ in every state, in the color of where the message is.
+        const [glyph, color] = r.msg ? [GLYPH.sent[0], MSG_TERM[r.msg]] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)
@@ -352,7 +356,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   // the ones the lines show waiting (a card's ✉ task too), by the tasks the lines stand for.
   const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
-  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !sentIds.includes(t.id) && !sentTasks.has(t))
+  // Message tasks are not work (they count in no x/y), and are left out of these chips too.
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !sentIds.includes(t.id) && !sentTasks.has(t))
   const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
   const pending = open.length - active
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
