@@ -10,7 +10,7 @@
 // The first three run without the app: a fake `$` with `mcp.call`, `fs.read` and `env.get`, or
 // plain inputs (tests/host.test.ts).
 
-import type { Child, Panel, Published } from '../types'
+import type { Child, GitInfo, Panel, Published, Rate } from '../types'
 import type { Link } from '../state/durability'
 import { MAIN } from '../draw/layout'
 import { readPublished } from './publish'
@@ -54,8 +54,8 @@ export function deducedOwn(rows: HostRow[]): string | undefined {
 // ---- 2. The files
 
 // What the sessions' published files say, by session id: which wait on the person, their panels,
-// the share of context used and their model and effort.
-export type Read = { waiting: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string> }
+// the share of context used, their model and effort, their output rate, and their repository and branch.
+export type Read = { waiting: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; rates: Record<string, Rate>; gits: Record<string, GitInfo> }
 // A published file's panel: its groups (and the rest the file has), or, from before groups, its
 // `tasks` as the main group; none when the file has neither.
 export function panelOf(file: Published): Panel | undefined {
@@ -76,12 +76,14 @@ export function panelOf(file: Published): Panel | undefined {
 // waits on the person, its own task-tree publishes. No file, or one this version cannot read: the
 // session shows by the host's row alone. A file without the model asks the app for it (engineOf).
 export async function readFiles($: any, mine: HostRow[]): Promise<Read> {
-  const read: Read = { waiting: [], panels: {}, contexts: {}, engines: {} }
+  const read: Read = { waiting: [], panels: {}, contexts: {}, engines: {}, rates: {}, gits: {} }
   for (const r of mine) {
     try {
       const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
       if (file.waiting) read.waiting.push(r.sessionId)
       if (file.context) read.contexts[r.sessionId] = file.context.percent
+      if (file.rate) read.rates[r.sessionId] = file.rate
+      if (file.git) read.gits[r.sessionId] = file.git
       if (file.engine) read.engines[r.sessionId] = file.engine
       else {
         const known = await engineOf($, r.sessionId)
@@ -150,6 +152,8 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       waiting: r.isArchived !== true && read.waiting.includes(r.sessionId),
       context: read.contexts[r.sessionId] ?? before?.context,
       engine: read.engines[r.sessionId] ?? before?.engine,
+      rate: read.rates[r.sessionId] ?? before?.rate,
+      git: read.gits[r.sessionId] ?? before?.git,
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,
       rounds: before?.rounds ?? kept(r.sessionId)?.rounds,
       anchor: before?.anchor ?? kept(r.sessionId)?.anchor,

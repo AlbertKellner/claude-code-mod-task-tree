@@ -13,6 +13,7 @@ import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, stamp
 // file that calls $.state (../state/durability has a row for every one).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
+const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
@@ -29,19 +30,53 @@ export function brief(text: string): string {
   return `${(at > BRIEF / 2 ? cut.slice(0, at) : cut).replace(/[\s,.;:–—-]+$/, '')}…`
 }
 
+// The output rate of the main loop, "n toks/s" (the person's words: "a contagem de tokens por
+// segundo de cada sessão, usando o padrão 'n toks/s'"): each model call of the turn is a sample,
+// its output tokens (the step's usage) over its duration (this hook sees the call begin and end).
+// The rate is the samples of the last RATE_WINDOW ms summed, tokens over time spent in the calls
+// (not over the wall clock: between calls the model writes nothing, and the tools' time would drag
+// the number down); with none that recent in a turn still going, the last three. The kit gives no
+// rate of its own ($.session.usage has context, cost and limits), so each session measures its own
+// and publishes it for its card.
+export const RATE_WINDOW = 10000
+type Sample = { at: number; tokens: number; ms: number }
+let samples: Sample[] = []
+export function rateOf(list: Sample[], now: number): number | undefined {
+  const recent = list.filter(s => now - s.at <= RATE_WINDOW)
+  const used = recent.length > 0 ? recent : list.slice(-3)
+  const ms = used.reduce((a, s) => a + s.ms, 0)
+  return ms > 0 ? Math.round((used.reduce((a, s) => a + s.tokens, 0) * 1000) / ms) : undefined
+}
+
 // A subagent's turn ending is the subagent ending: what it left open is interrupted.
 // A teammate ends a turn per message and is left alone.
 // The model and effort of the main loop's requests, published for the card in the session that
-// opened this one (the person's words: "mostre o nome do modelo e o esforco de cada sessao").
+// opened this one (the person's words: "mostre o nome do modelo e o esforco de cada sessao"); and
+// the call's output rate (above), published when it changes.
 export async function* turnStep($: EngineInterface, e: any, next: any) {
-  if (!e.agentId && typeof e.model === 'string') {
+  const main = !e.agentId
+  if (main && typeof e.model === 'string') {
     const text = engineText(e.model, e.effort)
     if ((await $.state.get(engineState)).value !== text) {
       await $.state.set(engineState, text)
       void publishPanel($).catch(() => {})
     }
   }
-  return yield* next(e)
+  const t0 = main ? await stamp($) : undefined
+  const r = yield* next(e)
+  const tokens = r?.usage?.output_tokens
+  if (t0 !== undefined && typeof tokens === 'number') {
+    const t1 = await stamp($)
+    if (t1 !== undefined && t1 > t0) {
+      samples = [...samples, { at: t1, tokens, ms: t1 - t0 }].slice(-20)
+      const toks = rateOf(samples, t1)
+      if (toks !== undefined && (await $.state.get(rateState)).value?.toks !== toks) {
+        await $.state.set(rateState, { toks, at: t1, live: true })
+        void publishPanel($).catch(() => {})
+      }
+    }
+  }
+  return r
 }
 
 export async function turnComplete($: EngineInterface, e: any, next: any) {
@@ -75,6 +110,16 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
   if (!agent) await $.state.set(turnEndedState, (await stamp($)) ?? 0)
+  // The turn's output rate closes into its mean over the whole turn, shown dim until the next turn
+  // (the person's choice for a stopped session); the samples start over with the next turn.
+  if (!agent) {
+    const ms = samples.reduce((a, s) => a + s.ms, 0)
+    const mean = ms > 0 ? Math.round((samples.reduce((a, s) => a + s.tokens, 0) * 1000) / ms) : undefined
+    samples = []
+    const cur = (await $.state.get(rateState)).value
+    if (mean !== undefined) await $.state.set(rateState, { toks: mean, at: (await stamp($)) ?? 0, live: false })
+    else if (cur && cur.live) await $.state.set(rateState, { ...cur, live: false })
+  }
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.
   if (!agent) await $.state.set(turnAbortedState, e.isAborted === true)

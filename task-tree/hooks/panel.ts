@@ -6,11 +6,12 @@
 import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
-import type { Child, Group, LegacyNode, TaskNode, Wait } from '../types'
+import type { Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
 import { debug } from '../io/log'
+import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
 
 export const PANE = 'task-tree'
@@ -37,6 +38,8 @@ const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
+const rateState = { plugin: 'task-tree', key: 'rate' } as const
+const gitState = { plugin: 'task-tree', key: 'git' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -340,6 +343,19 @@ export async function selfId($: any): Promise<string | undefined> {
   return ownId
 }
 
+// This session's repository and branch (io/git.ts), read again at every publication and at the
+// clock's tick (a checkout or a worktree changes the branch mid-session; it is a 40-byte file):
+// kept in the state for the header, published for the card. Returns what it read.
+export async function refreshGit($: any): Promise<GitInfo | undefined> {
+  const now = await readGit($)
+  const { value: cur } = await $.state.get(gitState)
+  const same = cur
+    ? now !== undefined && cur.repo === now.repo && cur.branch === now.branch && (cur.detached ?? false) === (now.detached ?? false)
+    : now === undefined
+  if (!same) await $.state.set(gitState, now ? { ...now, at: (await stamp($)) ?? 0 } : null)
+  return now
+}
+
 // Publishes this session's panel (io/publish.ts): gathers it from the state here, where the kit
 // wants the state keys literal, and what the last drawing left; `tasks` is for earlier versions.
 export async function publishPanel($: any) {
@@ -348,15 +364,17 @@ export async function publishPanel($: any) {
   await saveLinks($)
   try {
     const id = await selfId($)
+    const git = await refreshGit($)
     const { value: waits = [] } = await $.state.get(waitsState)
     const { value: groups = [] } = await $.state.get(groupsState)
     const { value: children = [] } = await $.state.get(childrenState)
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
+    const { value: rate } = await $.state.get(rateState)
     const { value: sends = [] } = await $.state.get(sendsState)
     const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, git, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }
