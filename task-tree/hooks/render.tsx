@@ -7,9 +7,9 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo } from '../draw/layout'
+import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, RING_LABEL, chips, clockText, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
@@ -219,7 +219,7 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
           <Text key="title" bold dimColor>{` ${r.title}`}</Text>,
           r.fold && !r.fold.open ? <Text key="more" dimColor>{' ⋯'}</Text> : null,
           // The repository and branch right of the name.
-          r.git ? <Text key="git" dimColor>{`  ${r.git.repo} ⑂ ${r.git.branch}`}</Text> : null,
+          r.git ? <Text key="git" dimColor>{`  ${gitTerm(r.git)}`}</Text> : null,
           // Waiting on the person: the word in amber (the label has no icon to color).
           r.meta ? (
             <Text key="meta" color={r.tone === 'wait' || r.meta === 'aguardando' ? 'warning' : undefined} dimColor={r.meta !== 'aguardando'}>{`  ${r.meta}`}</Text>
@@ -317,7 +317,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
-  const headGit = git ? { repo: git.repo, branch: git.branch } : undefined
+  const headGit = git ? gitLabel(git) : undefined
   const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
@@ -395,7 +395,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
             ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
-            ...(headGit ? [`repositório ${headGit.repo}, branch ${headGit.branch}`] : []),
+            ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
     return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
@@ -419,7 +419,7 @@ export async function render($: EngineInterface, e: any, next: any) {
               {`  ${d} de ${n} · ${percent(d, n)}%`}
               {headTime !== undefined ? <Text dimColor>{`  ${clockText(headTime)}`}</Text> : null}
               {headRate ? <Text dimColor>{`  ${rateText(headRate.toks)}`}</Text> : null}
-              {headGit ? <Text dimColor>{`  ${headGit.repo} ⑂ ${headGit.branch}`}</Text> : null}
+              {headGit ? <Text dimColor>{`  ${gitTerm(headGit)}`}</Text> : null}
               {whole ? <Text dimColor>{`  (${whole})`}</Text> : null}
             </Text>
             <Text>{'  '}</Text>

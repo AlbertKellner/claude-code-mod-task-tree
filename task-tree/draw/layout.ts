@@ -666,6 +666,13 @@ export function running(p: Panel, level = 0): boolean {
 // The panel as drawn: one line per task, notice, session or subagent, with its depth in
 // the tree. The desktop draws each line as an Svg, the terminal as a Text.
 export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused' | 'reply'
+// Where a session works, as its card and the header draw it: a repository with its branch (the
+// branch a detached head's short hash), or a folder with no repository (`folder`, `repo` its path).
+export type GitLabel = { repo: string; branch?: string; detached?: boolean; folder?: boolean }
+export const gitLabel = (g: { kind?: 'git' | 'folder'; repo: string; branch?: string; detached?: boolean }): GitLabel =>
+  g.kind === 'folder'
+    ? { repo: g.repo, folder: true }
+    : { repo: g.repo, branch: g.branch ?? '', ...(g.detached ? { detached: true } : {}) }
 // The state a session's icon shows (sessionIcon): at work, done, stopped with something open, archived.
 export type SessionState = 'ativa' | 'concluida' | 'parada' | 'arquivada'
 // The state of the sessions hanging from a task, from their work (atWork): drawn only on the task a
@@ -730,7 +737,7 @@ export type Row = {
   rate?: { toks: number; live: boolean }
   // A session's card: its repository (folder name) and branch, drawn right of its name with their
   // icons (the repository goes first when the line is short).
-  git?: { repo: string; branch: string; detached?: boolean }
+  git?: GitLabel
 }
 
 // With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
@@ -1029,7 +1036,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       sid: c.id,
       engine: c.engine,
       rate: c.rate ? { toks: c.rate.toks, live: c.rate.live } : undefined,
-      git: c.git ? { repo: c.git.repo, branch: c.git.branch, ...(c.git.detached ? { detached: true } : {}) } : undefined,
+      git: c.git ? gitLabel(c.git) : undefined,
       ring: ringOf(c),
       live: live(c),
       pending,

@@ -6,7 +6,7 @@ import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, CARD_RIGHT, EDGE_PAD, GUIDE_FROM, HEADER_GAP, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
-import type { Tone, Row, Frame, Guide, SessionState } from './layout'
+import type { Tone, Row, Frame, Guide, SessionState, GitLabel } from './layout'
 
 // "0:04", "6:12", "1:02:09".
 export function clockText(ms: number): string {
@@ -227,24 +227,69 @@ export function repoIcon(x: number, y: number, _cls: string): string {
     '<g class="cd"><circle cx="0" cy="-2.8" r="1.05"/><circle cx="0" cy="3" r="1.05"/><circle cx="2.9" cy="0.1" r="1.05"/></g></g>'
   )
 }
+// The folder icon, 14 px across, centered on (x, y), in the repository icon's style: a folder (a tab
+// up on the left and its body, rounded corners) filled in the icons' dim gray (`gyf`), the front
+// flap's edge in the card's color (`cds`), as the Git logo's graph. Drawn where the session's folder
+// has no repository (the person's words: "o ícone GIT deve ser trocado para uma pasta").
+export function folderIcon(x: number, y: number): string {
+  return (
+    `<g transform="translate(${x} ${y})">` +
+    '<path class="gyf" d="M-6 -4.2Q-6 -5.5 -4.8 -5.5H-1.6L-0.3 -4H4.8Q6 -4 6 -2.8V4.3Q6 5.5 4.8 5.5H-4.8Q-6 5.5 -6 4.3Z"/>' +
+    '<path class="cds" d="M-6 -1.8H6" fill="none" stroke-width="1"/></g>'
+  )
+}
+// A path cut to `max` px from its start ("…\notas-do-projeto"): its end says the most.
+export function fitStart(s: string, size: number, max: number): string {
+  if (textW(s, size) <= max) return s
+  const room = max - em('…') * size
+  let out = ''
+  let w = 0
+  for (const ch of Array.from(s).reverse()) {
+    const next = w + em(ch) * size
+    if (next > room) break
+    out = ch + out
+    w = next
+  }
+  return '…' + out.trimStart()
+}
+// The most a folder's path takes on its line before its start is cut.
+const FOLDER_MAX = 160
 // A session's repository and branch side by side, `size` px text starting at x: the repository icon
 // and name (left out with `repo` false: the first to go when the line is short), then the branch
-// icon and name, the name cut to what fits in `max` px. Returns the markup and its width.
-export function gitSvg(git: { repo: string; branch: string }, x: number, cy: number, size: number, repo: boolean, max: number): { svg: string; width: number } {
+// icon and name, the name cut to what fits in `max` px. A folder with no repository: the folder icon
+// and its path, cut from the start, and no branch (left out whole with `repo` false). Returns the
+// markup and its width.
+export function gitSvg(git: GitLabel, x: number, cy: number, size: number, repo: boolean, max: number): { svg: string; width: number } {
   const ICON = 17
+  if (git.folder) {
+    if (!repo) return { svg: '', width: 0 }
+    const path = fitStart(git.repo, size, Math.max(24, Math.min(FOLDER_MAX, max - ICON)))
+    return {
+      svg: folderIcon(x + 7, cy) + `<text class="s" x="${x + ICON}" y="${cy + 4}" font-size="${size}" opacity=".75">${xml(path)}</text>`,
+      width: ICON + textW(path, size),
+    }
+  }
   let svg = ''
   let w = 0
   if (repo) {
     svg += repoIcon(x + 7, cy, 'gy') + `<text class="s" x="${x + ICON}" y="${cy + 4}" font-size="${size}" opacity=".75">${xml(git.repo)}</text>`
     w += ICON + textW(git.repo, size) + 10
   }
-  const name = fit(git.branch, size, Math.max(24, max - w - ICON))
+  const name = fit(git.branch ?? '', size, Math.max(24, max - w - ICON))
   svg += branch(x + w + 7, cy, 'gy') + `<text class="s" x="${x + w + ICON}" y="${cy + 4}" font-size="${size}" opacity=".75">${xml(name)}</text>`
   w += ICON + textW(name, size)
   return { svg, width: w }
 }
-// The width gitSvg takes with these names whole.
-export const gitW = (git: { repo: string; branch: string }, size: number, repo: boolean) => (repo ? 17 + textW(git.repo, size) + 10 : 0) + 17 + textW(git.branch, size)
+// The width gitSvg takes with these names whole (a folder's path at most FOLDER_MAX).
+export const gitW = (git: GitLabel, size: number, repo: boolean) =>
+  git.folder
+    ? repo ? 17 + Math.min(FOLDER_MAX, textW(git.repo, size)) : 0
+    : (repo ? 17 + textW(git.repo, size) + 10 : 0) + 17 + textW(git.branch ?? '', size)
+// The words for a reader that cannot see the drawing (the alt texts).
+export const gitAlt = (git: GitLabel) =>
+  git.folder ? `pasta ${git.repo}, sem repositório` : `repositório ${git.repo}, branch ${git.branch ?? ''}${git.detached ? ' (detached)' : ''}`
+// The same in the terminal: the repository and the branch, or the folder alone.
+export const gitTerm = (git: GitLabel) => (git.folder ? `▭ ${git.repo}` : `${git.repo} ⑂ ${git.branch ?? ''}`)
 
 // Every line keeps its progress icon; a session's card, and a task or turn with a session
 // below it, add the session's icon beside it. A card's progress: in progress while it runs or waits.
@@ -500,7 +545,7 @@ export function chips(active: number, waiting: number, cut: number, live: number
 
 // The header: the title alone on the first line (its right end is left to the view icons, drawn
 // over it), the count and time below it, the bar, then the chips.
-export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, rate?: { toks: number; live: boolean }, git?: { repo: string; branch: string }): { source: string; height: number } {
+export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, rate?: { toks: number; live: boolean }, git?: GitLabel): { source: string; height: number } {
   const L = HEADER_PAD
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
@@ -523,8 +568,9 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
     if (git) {
       const gx = L + textW(`${score} ${rate ? `· ${rateText(rate.toks)} ` : ''}`, 12) + 14
+      // A folder has no branch to fall back to: short of room, nothing.
       if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 36, 12, true, R - gx).svg)
-      else if (gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 36, 12, false, R - gx).svg)
+      else if (!git.folder && gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 36, 12, false, R - gx).svg)
     }
     parts.push(`<rect class="tr" x="${L}" y="50" width="${R - L}" height="4" rx="2"/>`)
     if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="50" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
@@ -561,7 +607,7 @@ export const rowAlt = (r: Row) =>
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
   (r.rate ? `, ${rateText(r.rate.toks)}${r.rate.live ? '' : ' (último turno)'}` : '') +
-  (r.git ? `, repositório ${r.git.repo}, branch ${r.git.branch}${r.git.detached ? ' (detached)' : ''}` : '') +
+  (r.git ? `, ${gitAlt(r.git)}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
   (r.fold && !r.fold.open ? ', recolhida' : '')
 // The right-hand words: "3/5", "1/2 · concluída", "interrompida".
