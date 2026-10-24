@@ -86,6 +86,9 @@ export type Published = {
   // Its repository and branch, as it reads them off its own .git; absent outside a repository, or
   // from earlier versions.
   git?: GitInfo
+  // Its last turn ended interrupted (stopped, aborted) and no prompt came since: what it left open
+  // was discarded, not merely paused (see discarded in draw/layout); absent from earlier versions.
+  aborted?: boolean
   panes?: unknown
   renderError?: string
   // The last drawing: its serialized size and its lines (after the line limit), for the session
@@ -121,6 +124,11 @@ export type Child = {
   rate?: Rate
   // Its repository and branch as it publishes them (see Published.git); absent likewise.
   git?: GitInfo
+  // Its last turn was stopped (see Published.aborted): with tasks left open, that round is discarded.
+  aborted?: boolean
+  // Drawn only: this card is the session's leading round (the one its state and last message
+  // belong to); an earlier round's card left with open tasks is a discarded round.
+  lead?: boolean
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // summary view draws it when that task is in the current work.
   lastAnchor?: string
