@@ -125,7 +125,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={moving(top.source, headMotion)} alt={alt} width={W} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
-            <Svg source={hoverLayer(top.source, W - 64, 24)} alt="" width={W - 64} height={24} isInteractive />
+            <Svg source={hoverLayer(top.source, W - 64, 28)} alt="" width={W - 64} height={28} isInteractive />
           </Box>
         ) : null}
         <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">

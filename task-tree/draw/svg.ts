@@ -3,7 +3,7 @@
 // puts them in the pane's Svg elements and lays the Buttons over them (../draw/geometry says where).
 
 import {
-  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, CARD_RIGHT, EDGE_PAD, GUIDE_FROM, HEADER_GAP, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
 import type { Tone, Row, Frame, Guide, SessionState } from './layout'
@@ -499,26 +499,29 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
   const H = HEADER_H
-  const parts: string[] = []
+  // The card first, under everything: a session's card's fill, border and corners (cardSlice), from
+  // CARD_RIGHT in on each side and HEADER_GAP short of the bottom; no dividing line below it (the
+  // person: "remova a barra horizontal de divisão").
+  const parts: string[] = [cardSlice(CARD_RIGHT, W - CARD_RIGHT, CARD_RIGHT, H - HEADER_GAP - CARD_RIGHT, true, true)]
   if (empty) {
-    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">Tarefas</text>`)
-    parts.push(`<text class="s" x="${L}" y="34" font-size="12">Nenhuma tarefa planejada.</text>`)
+    parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">Tarefas</text>`)
+    parts.push(`<text class="s" x="${L}" y="38" font-size="12">Nenhuma tarefa planejada.</text>`)
   } else {
     const score = `${d} de ${n} · ${percent(d, n)}%` + (time !== undefined ? ` · ${clockText(time)}` : '')
     const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
-    parts.push(`<text class="p" x="${L}" y="18" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
-    parts.push(`<text class="s" x="${L}" y="36" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
+    parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
+    parts.push(`<text class="s" x="${L}" y="40" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
     // This session's own output rate after the count, dim when it is the last turn's mean.
-    if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="36" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
+    if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="40" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
     // This session's repository and branch after the count, with their icons (the person: "coloque
     // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
     if (git) {
       const gx = L + textW(`${score} ${rate ? `· ${rateText(rate.toks)} ` : ''}`, 12) + 14
-      if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 32, 12, true, R - gx).svg)
-      else if (gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 32, 12, false, R - gx).svg)
+      if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 36, 12, true, R - gx).svg)
+      else if (gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 36, 12, false, R - gx).svg)
     }
-    parts.push(`<rect class="tr" x="${L}" y="46" width="${R - L}" height="4" rx="2"/>`)
-    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="46" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
+    parts.push(`<rect class="tr" x="${L}" y="50" width="${R - L}" height="4" rx="2"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="50" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
     const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
     let cx = L
@@ -530,13 +533,12 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
       // the motion of a new chip and of a new count animates (../draw/motion).
       parts.push(
         `<g class="ch-${c.tone}">` +
-          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="68" r="4"/>` : icon(c.tone, cx + 5, 68)) +
-          `<text class="s" x="${cx + 15}" y="72" font-size="12">${xml(c.text)}</text></g>`,
+          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="72" r="4"/>` : icon(c.tone, cx + 5, 72)) +
+          `<text class="s" x="${cx + 15}" y="76" font-size="12">${xml(c.text)}</text></g>`,
       )
       cx += w + 16
     }
   }
-  parts.push(`<path class="ln" d="M${L} ${H - 0.5}H${R}" stroke-width="1"/>`)
   return {
     source: slim(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}${parts.join('')}</svg>`),
     height: H,
