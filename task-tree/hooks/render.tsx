@@ -68,7 +68,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     [
       ...keys.map(k => [k, ''] as [string, string]),
       ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string]),
-      ...lines.flatMap((r, i) => (r.msg ? [[`${keys[i]}#msg`, r.msg] as [string, string]] : [])),
+      ...lines.flatMap((r, i) => (r.msg || r.recv ? [[`${keys[i]}#msg`, (r.msg ?? r.recv) as string] as [string, string]] : [])),
       ...sources.map((s, i) => [`${keys[i]}#bar`, barOf(s)] as [string, string]),
       ...tones.map(t => [`${headKey}#chip:${t}`, ''] as [string, string]),
       [`${headKey}#bar`, barOf(top.source)],
@@ -81,7 +81,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   const popsAt = (i: number) => {
     const r = lines[i]
     // A message task's ✉ pops when its color changes (queued → delivered → cut), as the icons do.
-    if (r.msg) return marks.changed.has(`${keys[i]}#msg`)
+    if (r.msg || r.recv) return marks.changed.has(`${keys[i]}#msg`)
     const k = `${keys[i]}#tone`
     if (!marks.changed.has(k) || r.card || r.session) return false
     const to = progress(r)
@@ -100,7 +100,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     marks.enter.has(keys[i])
       ? [fadeIn(ago(keys[i]))]
       : [
-          ...(popsAt(i) ? [lines[i].msg ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
+          ...(popsAt(i) ? [lines[i].msg || lines[i].recv ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
           ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]), ago(`${keys[i]}#bar`)) : []),
         ]
   const headMotion = [
@@ -209,7 +209,8 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {header}
       {lines.map((r, i) => {
         // A message task: the ✉ in every state, in the color of where the message is.
-        const [glyph, color] = r.msg ? [GLYPH.sent[0], MSG_TERM[r.msg]] : GLYPH[progress(r)]
+        const env = r.msg ?? r.recv
+        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)

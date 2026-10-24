@@ -32,7 +32,10 @@ export type TaskNode = {
 // reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
 // `own`: a turn the person opened by typing in that session (not a message of another session): its
 // card goes at the end of the request that opened the session, not under the last message's task.
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean }
+// `msg` and `from`: a turn opened by another session's message (its first, when several came
+// together), and who sent it (its id and name as the message's tag says them). Its level-1 tasks
+// derive from that message: they show the ✉ of a message received, in their own state's color.
+export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string } }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
