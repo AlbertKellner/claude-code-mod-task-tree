@@ -8,7 +8,7 @@
 // the sessions' breaks is a BreaksMemo made by layout() for one drawing and passed down; the sends
 // still queued reach the task lines as `pending`, from the panel that holds them.
 
-import type { Child, Group, Panel, Send, TaskNode, Turn, Wait } from '../types'
+import type { Ask, Child, Group, Panel, Send, TaskNode, Turn, Wait } from '../types'
 import { PAD } from './geometry'
 
 // The main loop's agent id in the groups.
@@ -73,6 +73,52 @@ export const elapsed = (t: TaskNode, now?: number) => {
   return to === undefined || to < t.startedAt ? undefined : to - t.startedAt
 }
 
+// A task's own subtasks, leaving out what is drawn under it but is not its work: a question asked
+// there (askState) and a question's options (opt). A task with nothing else below it is a leaf.
+export const ownKids = (t: TaskNode) => (t.children.length === 0 ? t.children : t.children.filter(c => !c.askState && !c.opt))
+// The questions asked (Ask) drawn under the task they were asked from, as tasks of the drawing only:
+// one per question (`askState`; open, done once answered, interrupted with no answer), its options
+// below it (`opt`: picked ✓, the others ✕ once answered, ○ while open), and the answer typed
+// instead, "Resposta: …" ✓. A question whose task is not in these tasks is not drawn.
+export function withAsks(tasks: TaskNode[], asks: Ask[]): TaskNode[] {
+  if (asks.length === 0) return tasks
+  const nodes = (a: Ask): TaskNode[] =>
+    a.items.map((it, i) => {
+      const id = `?${a.key}:${i}`
+      const answered = a.state === 'answered' || (a.state === 'chat' && (it.text !== undefined || (it.chosen ?? []).length > 0))
+      const status = a.state === 'dropped' ? 'interrupted' : answered ? 'done' : 'open'
+      const chosen = it.chosen ?? []
+      const opts: TaskNode[] = it.options.map((o, j) => ({
+        id: `${id}:${j}`,
+        short: String(j + 1),
+        title: o,
+        status: status === 'open' ? 'open' : chosen.includes(o) ? 'done' : 'interrupted',
+        opt: true,
+        children: [],
+      }))
+      const said: TaskNode[] = it.text !== undefined ? [{ id: `${id}:r`, short: 'r', title: `Resposta: ${it.text}`, status: 'done', opt: true, children: [] }] : []
+      return { id, short: '?', title: it.title, status, askState: a.state, ...(it.whole ? { whole: it.whole } : {}), children: [...opts, ...said] } as TaskNode
+    })
+  const hang = (list: TaskNode[]): TaskNode[] =>
+    list.map(t => {
+      const mine = asks.filter(a => a.anchor === t.id)
+      const children = t.children.length > 0 ? hang(t.children) : t.children
+      return mine.length > 0 || children !== t.children ? { ...t, children: [...children, ...mine.flatMap(nodes)] } : t
+    })
+  return hang(tasks)
+}
+// A panel with its questions hung under their tasks, each group's own (by the agent that asked);
+// the wait a question stands for while open is not drawn apart.
+export function panelAsks(p: Panel, asks: Ask[] = p.asks ?? []): Panel {
+  if (asks.length === 0) return p
+  const open = new Set(asks.filter(a => a.state === 'open').flatMap(a => [a.key, a.wait ?? a.key]))
+  return {
+    ...p,
+    groups: (p.groups ?? []).map(g => ({ ...g, tasks: withAsks(g.tasks, asks.filter(a => a.agent === g.agent)) })),
+    waits: (p.waits ?? []).filter(w => !open.has(w.key)),
+  }
+}
+
 // Leaves done, leaves counted, leaves interrupted (kept out of the count). A message task counts for
 // nothing (only the work does; the leaves of the session it sent to still count, in its card).
 export function count(list: TaskNode[]): [number, number, number] {
@@ -80,7 +126,7 @@ export function count(list: TaskNode[]): [number, number, number] {
   let n = 0
   let x = 0
   for (const t of flat(list)) {
-    if (t.children.length > 0 || t.msg) continue
+    if (t.msg || t.opt || ownKids(t).length > 0) continue
     if (t.status === 'interrupted') x++
     else {
       n++
@@ -460,7 +506,7 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
-export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done')
+export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done' && !k.askState && !k.opt)
 export function stillSpan(list: TaskNode[]): number | undefined {
   const all = flat(list)
   const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
@@ -510,8 +556,9 @@ export function sessionTime(list: TaskNode[], running: boolean, now?: number): n
 
 export function firstOpen(items: TaskNode[]): string[] {
   for (const t of items) {
-    if (t.status !== 'open') continue
-    if (t.children.length === 0) return [t.id]
+    // A question asked under a task, and its options, are not the work in progress.
+    if (t.status !== 'open' || t.askState || t.opt) continue
+    if (ownKids(t).length === 0) return [t.id]
     const rest = firstOpen(t.children)
     if (rest.length > 0) return [t.id, ...rest]
   }
@@ -676,6 +723,8 @@ export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'runni
 // session (blue), taken up by it (green, the session may still be at work), interrupted or
 // discarded (gray).
 export type MsgState = 'queued' | 'delivered' | 'cut'
+// A question's word on the right: waiting, answered by an option, answered by a message, no answer.
+export const ASK_WORD: Record<Ask['state'], string> = { open: 'aguardando', answered: 'respondida', chat: 'por mensagem', dropped: 'interrompida' }
 export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida' }
 // Where a session works, as its card and the header draw it: a repository with its branch (the
 // branch a detached head's short hash), or a folder with no repository (`folder`, `repo` its path).
@@ -715,6 +764,10 @@ export type Row = {
   leaf?: boolean
   // A message task (TaskNode.msg): its icon is always the ✉, in the color of this state.
   msg?: MsgState
+  // A question asked (TaskNode.askState) still open: the balloon in its icon's place; `opt`: one of
+  // its options.
+  balloon?: boolean
+  opt?: boolean
   // A level-1 task derived from a message received (Turn.msg): the ✉ in its icon's place, in its
   // own state's color (`queued` open, `delivered` done, `cut` interrupted); no word on the right.
   recv?: MsgState
@@ -835,6 +888,8 @@ export type Model = {
   // When this session's turn ended, until the next prompt: what its main loop left open is drawn
   // with no close and its clock stopped then (a session that ended its turn shows no task running).
   ended?: number
+  // The questions asked, drawn under their tasks (withAsks).
+  asks?: Ask[]
 }
 // The lines the person opened or closed (the folds atom): true closed, false open.
 export type Choices = Record<string, boolean>
@@ -849,8 +904,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
   const mainTasks = model.groups.find(g => g.agent === MAIN)?.tasks ?? []
   const goingOn = sentFrom.length > 0 || flat(mainTasks).some(t => t.children.length === 0 && t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, !goingOn)) } : g))
-  const waits = model.waits
+  const halted = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, !goingOn)) } : g))
+  // The questions asked, hung under their tasks after the halt (one still open waits on the person).
+  const asked = panelAsks({ groups: halted, waits: model.waits, children: [] }, model.asks ?? [])
+  const held = asked.groups
+  const waits = asked.waits
   const sessions = model.children
   const queued = model.sends
   const chosen = choices
@@ -907,15 +965,17 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                   : 'done'
                 : lit.includes(t.id)
                   ? 'current'
-                  : t.children.length > 0 && resting(t.children)
+                  : ownKids(t).length > 0 && resting(ownKids(t))
                     ? 'paused'
                     : 'open'
-      const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
+      // Its own subtasks: a question asked under it (and the question's options) are not its work.
+      const own = ownKids(t)
+      const [ld, ln] = own.length > 0 ? count(own) : w.any ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
       // A message task (a send went out from it): its ✉ in the color of where the message is, the
       // word on the right saying it (the person: "mantenha o ícone e troque somente a cor").
       const msg: Row['msg'] =
-        t.children.length > 0 || !t.msg ? undefined : waitsOn.length > 0 ? 'queued' : t.status === 'interrupted' ? 'cut' : 'delivered'
+        own.length > 0 || !t.msg ? undefined : waitsOn.length > 0 ? 'queued' : t.status === 'interrupted' ? 'cut' : 'delivered'
       // A level-1 task derived from a message received: the ✉ in its icon's place, blue while open,
       // green done, gray interrupted (the person's words: "o ícone do 'analisar a tarefa' deveria ser
       // uma carta também"); who sent it and the message in its tooltip. It counts as work.
@@ -923,9 +983,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const recv: Row['recv'] =
         from === undefined ? undefined : t.status === 'done' ? 'delivered' : t.status === 'interrupted' ? 'cut' : 'queued'
       const said = from === undefined ? undefined : `Mensagem de ${from.from?.name || from.from?.id || 'outra sessão'}: ${from.title}`
+      // A question asked (askState) and its options (opt): the question with the balloon while it waits,
+      // ✓ answered, ✕ with no answer, its word on the right; the options ○, then ✓ picked and ✕ the
+      // others; no count, bar or time of their own (the person's words: "mantenha somente a sub
+      // tarefa selecionada com um check verde, e as descartadas com o X cinza").
+      const asking = t.askState !== undefined
+      const askWord = asking ? ASK_WORD[t.status === 'open' && t.askState === 'chat' ? 'chat' : t.status === 'open' ? 'open' : t.status === 'interrupted' ? 'dropped' : t.askState === 'chat' ? 'chat' : 'answered'] : undefined
       const row: Row = {
         key: `${scope}t:${t.id}`,
-        leaf: t.children.length === 0,
+        leaf: own.length === 0,
         depth,
         tone,
         title: t.title,
@@ -938,9 +1004,12 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         strong: tone === 'current' || tone === 'sent' || (depth === top && t.status === 'open'),
         sub: (t.children.length > 0 || w.any) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
         bar: true,
-        meta: msg !== undefined ? MSG_WORD[msg] : tone === 'interrupted' ? 'interrompida' : undefined,
+        meta: msg !== undefined ? MSG_WORD[msg] : askWord !== undefined ? askWord : t.opt ? undefined : tone === 'interrupted' ? 'interrompida' : undefined,
         ...(msg !== undefined ? { msg } : {}),
         ...(recv !== undefined ? { recv, hint: said, whole: said } : {}),
+        ...(asking && t.status === 'open' ? { balloon: true, pending: true } : {}),
+        ...(asking && t.whole ? { whole: t.whole } : {}),
+        ...(t.opt ? { opt: true } : {}),
         time:
           (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
           (tone === 'done' || tone === 'interrupted'
@@ -954,7 +1023,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         // colocar esse icone na tarefa pai que originou essas sessoes"); the ⑂ still marks a task
         // with sessions below.
         // In progress of its own (the chip); a session at work below it counts as a session.
-        active: tone !== 'sent' && t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
+        active: tone !== 'sent' && !asking && !t.opt && t.status === 'open' && lit.includes(t.id) && !own.some(c => c.status === 'open'),
+      }
+      if (asking || t.opt) {
+        row.sub = undefined
+        row.time = undefined
       }
       const under = below(t, depth)
       if (t.children.length === 0 && under.length === 0) return [{ ...row, nodes: [t] }]
@@ -963,7 +1036,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const kids = t.children
       const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work, pending)] : []
       row.fold = { key, open: rest.length > 0 }
-      row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.cards]
+      row.nodes = rest.length > 0 ? (own.length === 0 ? [t] : []) : [t, ...w.cards]
       return [row, ...rest]
     })
 
@@ -1100,7 +1173,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // it opened. A session goes under the main task it was opened on, open or closed (a closed
   // one shows only it); at the end of the list when it has no such task. Archived ones are
   // left out. Done tasks stay in their place in the plan, closed.
-  const panel = (p: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
+  const panel = (p0: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
+    // A session's card draws the questions it asked under their tasks too (the top panel's are hung
+    // above, from the model).
+    const p = level > 0 ? panelAsks(p0) : p0
     // The sends of this panel's main group still waiting to be taken up: this session's at the top,
     // what each session publishes in its card (its task shows ✉ too).
     const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken) : queued
