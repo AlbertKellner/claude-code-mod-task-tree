@@ -3,7 +3,7 @@
 // puts them in the pane's Svg elements and lays the Buttons over them (../draw/geometry says where).
 
 import {
-  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
+  BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, EDGE_PAD, GUIDE_FROM, HEADER_H, HEADER_PAD,
   ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
 import type { Tone, Row, Frame, Guide } from './layout'
@@ -315,11 +315,17 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
   })
   const paths: string[] = g.bars.flatMap((on, k) => (on && !hide.includes(k) ? [`M${col(k)} 0V${H}`] : []))
-  // A session's label: the branch from its task comes into the card, ending at its left edge at the
-  // label's height (the person's words: "conecte ela no painel"); the roots of the card have no
-  // branch to the label.
+  // The connector from the parent's guide: down to the line's middle and out to the icon (a └, the
+  // last child) or, with siblings below, the guide straight on to the bottom and the branch leaving
+  // it (a ├), the corner an arc of BRANCH_RADIUS. A session's label: the branch from its task comes
+  // into the card, ending at its left edge at the label's height (the person's words: "conecte ela
+  // no painel"); the roots of the card have no branch to the label.
   if (r.depth > 0 && !hide.includes(r.depth - 1)) {
-    paths.push(`M${col(r.depth - 1)} 0V${g.last ? cy : H}M${col(r.depth - 1)} ${cy}H${r.card ? x - CARD_IN : x - BRANCH_GAP}`)
+    const px = col(r.depth - 1)
+    const xe = r.card ? x - CARD_IN : x - BRANCH_GAP
+    const rad = Math.min(BRANCH_RADIUS, xe - px, cy)
+    const bend = `M${px} ${cy - rad}A${rad} ${rad} 0 0 0 ${px + rad} ${cy}H${xe}`
+    paths.push(g.last ? `M${px} 0V${cy - rad}${bend.slice(bend.indexOf('A'))}` : `M${px} 0V${H}${bend}`)
   }
   if (g.down && !r.session) paths.push(`M${x} ${cy + GUIDE_FROM}V${H}`)
   if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
