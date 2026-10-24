@@ -93,6 +93,18 @@ export function count(list: TaskNode[]): [number, number, number] {
 export const DEEP = 3
 // A session still at work: running, or waiting on the person.
 export const live = (c: Child) => !c.archived && (c.running || c.waiting === true)
+// A round of a session that was discarded (the person's words: "as tarefas dessa sessão foram
+// descartadas"): an earlier round's card (not the session's leading one, see split) left with a
+// task open when the next message began the round after it, or the leading round of a session whose
+// turn was stopped (aborted) with a task open. Its leaves, the ✓ ones too, count for nothing in the
+// lines above it and in the header; the card itself is drawn as it is. A session that merely ended
+// its turn with pending tasks is not discarded (its 3/5 reads 3/3, as before), nor an archived one
+// (history, its interrupted ones out of the total as before).
+export const discarded = (c: Child): boolean => {
+  if (c.archived || !hasOpen(tasksOf(rawPanel(c).groups ?? []))) return false
+  if (c.part !== undefined && !c.lead) return true
+  return !live(c) && c.aborted === true
+}
 // A session's panel; earlier versions published only its main group's tasks. An archived session
 // stays in the tree as history (its last published panel): what it left open will not be done,
 // so it reads as interrupted (out of the count's total, drawn gray). A session that ended its turn
@@ -341,6 +353,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     return {
       ...c,
       part: k,
+      lead: at,
       ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k].at } : {}),
       anchor: k < 0 ? originEnd : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
@@ -365,11 +378,14 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
 }
 
 // The count of a panel with its sessions' tasks: they are part of the tree, under the task
-// they were opened on (an archived one too, as history).
-export function total(p: Panel, level = 0): [number, number, number] {
+// they were opened on (an archived one too, as history); a discarded round counts for nothing.
+// `splitter` cuts a raw session into its rounds' cards first (split), so an abandoned round is told
+// apart; without it, only a stopped session's own abort is.
+export function total(p: Panel, level = 0, splitter?: (c: Child) => Child[]): [number, number, number] {
   let [d, n, x] = count(tasksOf(p.groups ?? []))
   if (level >= DEEP) return [d, n, x]
-  for (const c of p.children ?? []) {
+  for (const c of (p.children ?? []).flatMap(c => (splitter ? splitter(c) : [c]))) {
+    if (discarded(c)) continue
     const [cd, cn, cx] = total(panelOf(c), level + 1)
     d += cd
     n += cn
@@ -383,15 +399,19 @@ export function total(p: Panel, level = 0): [number, number, number] {
 // The open ones add to its time, and while one is still at work the task is drawn in progress, its
 // clock running, whatever its own status says. A task closed with done is done: the sessions opened
 // on it or on a task inside it keep nothing in progress and add no time (it was drawn ◉ after the
-// done); `any` still marks the ⑂, `live` that one is still at work there, and
+// done); `any` says one hangs there or below (`direct`: from this very task, where the icon goes), `live` that one is still at work there, and
 // `cards` holds all their tasks, for a folded line (it stands for what is drawn below it, the cards too).
 // `Ring`: a session's share of its context used (see contextRing), on its card's label.
 // `faded`: an archived session's last share, drawn dim.
 export type Ring = { percent: number; name: string; faded?: boolean }
 export const ringOf = (c: Child): Ring | undefined =>
   typeof c.context === 'number' ? { percent: c.context, name: c.name || c.title, ...(c.archived ? { faded: true } : {}) } : undefined
-export type Work = { busy: boolean; any: boolean; live: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[] }
-export const idle: Work = { busy: false, any: false, live: false, d: 0, n: 0, tasks: [], cards: [] }
+// `direct`: a session's card hangs from this very task (opened on it, or its current round there),
+// not from one below it: only that line gets the session icon (the person's words: "somente a
+// tarefa que agrupa imediatamente acima deve mostrar o ícone de sessão"). `open`: a session below
+// has a task still open (for the icon's state).
+export type Work = { busy: boolean; any: boolean; direct: boolean; live: boolean; open: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[] }
+export const idle: Work = { busy: false, any: false, direct: false, live: false, open: false, d: 0, n: 0, tasks: [], cards: [] }
 // A panel's tasks with its sessions' (archived ones too), as deep as the count follows them.
 export function allTasks(p: Panel, level: number): TaskNode[] {
   const own = tasksOf(p.groups ?? [])
@@ -416,16 +436,21 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
     return a !== undefined && ids.includes(a)
   })
   const hereOpen = here.filter(c => counted.includes(roundAt(c) as string))
+  // A discarded round (discarded) adds nothing to the count nor to what the line stands for; it
+  // still marks the line (`any`) and its card is drawn.
+  const kept = below.filter(c => !discarded(c))
   let d = 0
   let n = 0
-  for (const c of below) {
+  for (const c of kept) {
     const [cd, cn] = total(panelOf(c), level + 1)
     d += cd
     n += cn
   }
   const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
-  const cards = below.flatMap(c => allTasks(panelOf(c), level + 1))
-  return { busy: hereOpen.some(live), any: below.length > 0 || here.length > 0, live: here.some(live), d, n, tasks, cards }
+  const cards = kept.flatMap(c => allTasks(panelOf(c), level + 1))
+  const direct = sessions.some(c => c.anchor === t.id || roundAt(c) === t.id)
+  const left = [...below, ...here].some(c => hasOpen(tasksOf(rawPanel(c).groups ?? [])))
+  return { busy: hereOpen.some(live), any: below.length > 0 || here.length > 0, direct, live: here.some(live), open: left, d, n, tasks, cards }
 }
 // An open parent with something done below it and nothing in progress: drawn waiting (◷), its
 // time stopped at the last close below it.
@@ -643,9 +668,10 @@ export function running(p: Panel, level = 0): boolean {
 export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused' | 'reply'
 // The state a session's icon shows (sessionIcon): at work, done, stopped with something open, archived.
 export type SessionState = 'ativa' | 'concluida' | 'parada' | 'arquivada'
-// The state of the sessions under a task or turn, from their work (atWork).
-export const kidsState = (w: { any: boolean; live: boolean; cards: TaskNode[] }): SessionState | undefined =>
-  !w.any ? undefined : w.live ? 'ativa' : hasOpen(w.cards) ? 'parada' : 'concluida'
+// The state of the sessions hanging from a task, from their work (atWork): drawn only on the task a
+// card hangs from directly.
+export const kidsState = (w: { direct: boolean; live: boolean; open: boolean }): SessionState | undefined =>
+  !w.direct ? undefined : w.live ? 'ativa' : w.open ? 'parada' : 'concluida'
 export type Row = {
   depth: number
   tone: Tone
@@ -681,9 +707,10 @@ export type Row = {
   fold?: { key: string; open: boolean }
   // A session's card: its icon is the branch in every state (the tone colors it).
   session?: boolean
-  // A task (or turn) with a session opened on it or below it: the session icon beside it, drawn
-  // even while the task is closed, in the state of the sessions there (`kidsState`: at work while
-  // one is alive; done once all ended with nothing open; stopped otherwise).
+  // A task a session's card hangs from directly (opened on it, or its current round there): the
+  // session icon beside it, drawn even while the task is closed, in the state of the sessions there
+  // (`kidsState`: at work while one is alive; done once all ended with nothing open; stopped
+  // otherwise). The lines above it (its parents, the request) show only the count and bar.
   kids?: boolean
   kidsState?: SessionState
   // The context ring of a session: on its card, and on the highest line above it (its turn, else
@@ -881,7 +908,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             : tone === 'current' && t.plannedAt !== undefined && now !== undefined
               ? now - t.plannedAt
               : undefined),
-        kids: w.any || undefined,
+        kids: w.direct || undefined,
         kidsState: kidsState(w),
         // The context ring is each session's own, on its card only (the person's words: "nao precisa
         // colocar esse icone na tarefa pai que originou essas sessoes"); the ⑂ still marks a task
@@ -952,8 +979,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             ? now - Math.min(...list.flatMap(t => (t.plannedAt === undefined ? [] : [t.plannedAt])))
             : undefined),
       fold: { key, open },
-      kids: ws.some(w => w.any) || undefined,
-      kidsState: kidsState({ any: ws.some(w => w.any), live: ws.some(w => w.live), cards: ws.flatMap(w => w.cards) }),
+      // No session icon on a request: a card never hangs from it directly (see Work.direct).
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
     const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending) : []
@@ -1024,8 +1050,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
     // Whether a closed one has anything to open: its panel, drawn as it would be.
     if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
-    header.nodes = inner.length > 0 ? [] : allTasks(p, level + 1)
-    return [header, ...inner]
+    // A discarded round's lines stand for nothing in the header's count (discarded), ✓ ones included.
+    const out = discarded(c)
+    header.nodes = out || inner.length > 0 ? [] : allTasks(p, level + 1)
+    return [header, ...(out ? inner.map(r => ({ ...r, nodes: [] })) : inner)]
   }
 
   // One session's panel from `base`: its main group, its subagents' groups and the sessions

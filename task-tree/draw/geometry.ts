@@ -69,11 +69,16 @@ export const BRANCH_IN = 12
 // The guide below an icon starts GUIDE_FROM px under the line's middle.
 export const GUIDE_FROM = 8
 
-// The header: its text and bar start HEADER_PAD px in from each edge; its height is always HEADER_H,
-// the line of chips kept even with no chip (or nothing planned), so the tasks below never jump when
-// a chip comes or goes; the view icons at its right end take ICONS_W px of the title's line.
-export const HEADER_PAD = 8
-export const HEADER_H = 88
+// The header, drawn in a card like a session's (the person's words: "coloque todo esse cabeçalho
+// dentro de um painel com as mesmas cores do painel de sessão"): the card runs from CARD_RIGHT px
+// in from each edge, as the lines' cards do, and its text and bar start HEADER_PAD px in from the
+// Svg's edge (12 px inside the card's border). Its height is always HEADER_H: the card, then
+// HEADER_GAP px of air before the first line; the line of chips is kept even with no chip (or
+// nothing planned), so the tasks below never jump when a chip comes or goes. The view icons at its
+// right end take ICONS_W px of the title's line, inside the card.
+export const HEADER_PAD = CARD_RIGHT + 12
+export const HEADER_GAP = 8
+export const HEADER_H = 100
 export const ICONS_W = 72
 
 // The context ring: RING_D px across (radius 5.5, stroke 2), drawn RING_D px inside the innermost
