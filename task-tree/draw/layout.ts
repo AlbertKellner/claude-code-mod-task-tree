@@ -715,6 +715,9 @@ export type Row = {
   leaf?: boolean
   // A message task (TaskNode.msg): its icon is always the ✉, in the color of this state.
   msg?: MsgState
+  // A level-1 task derived from a message received (Turn.msg): the ✉ in its icon's place, in its
+  // own state's color (`queued` open, `delivered` done, `cut` interrupted); no word on the right.
+  recv?: MsgState
   // A session's or subagent's header: it and the lines below it are drawn in a card.
   card?: boolean
   // For the header's chips: a task in progress with nothing open below it; a session at work;
@@ -878,6 +881,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     scope: string,
     work: (t: TaskNode) => Work,
     pending: Send[],
+    // The turn a level-1 task was planned in, when another session's message opened it (Turn.msg).
+    recvOf: (t: TaskNode) => Turn | undefined = () => undefined,
   ): Row[] =>
     items.flatMap(t => {
       // Sessions opened on it or below add to its count and keep it in progress (atWork).
@@ -911,6 +916,13 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // word on the right saying it (the person: "mantenha o ícone e troque somente a cor").
       const msg: Row['msg'] =
         t.children.length > 0 || !t.msg ? undefined : waitsOn.length > 0 ? 'queued' : t.status === 'interrupted' ? 'cut' : 'delivered'
+      // A level-1 task derived from a message received: the ✉ in its icon's place, blue while open,
+      // green done, gray interrupted (the person's words: "o ícone do 'analisar a tarefa' deveria ser
+      // uma carta também"); who sent it and the message in its tooltip. It counts as work.
+      const from = recvOf(t)
+      const recv: Row['recv'] =
+        from === undefined ? undefined : t.status === 'done' ? 'delivered' : t.status === 'interrupted' ? 'cut' : 'queued'
+      const said = from === undefined ? undefined : `Mensagem de ${from.from?.name || from.from?.id || 'outra sessão'}: ${from.title}`
       const row: Row = {
         key: `${scope}t:${t.id}`,
         leaf: t.children.length === 0,
@@ -928,6 +940,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         bar: true,
         meta: msg !== undefined ? MSG_WORD[msg] : tone === 'interrupted' ? 'interrompida' : undefined,
         ...(msg !== undefined ? { msg } : {}),
+        ...(recv !== undefined ? { recv, hint: said, whole: said } : {}),
         time:
           (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
           (tone === 'done' || tone === 'interrupted'
@@ -1009,7 +1022,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // No session icon on a request: a card never hangs from it directly (see Work.direct).
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-    const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending) : []
+    const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending, () => (u.msg ? u : undefined)) : []
     row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.cards)]
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -1167,7 +1180,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
       // Only the main group's tasks send messages: a subagent's lines have none pending.
       const sent = g.agent === MAIN ? pending : []
-      lines.push(...rows(loose, top, top, lit, below, inScope, work ?? (() => idle), sent))
+      // A level-1 task of a turn a message opened shows the ✉ received (rows' recvOf).
+      const byTurn = new Map((g.turns ?? []).filter(u => u.msg).map(u => [u.id, u] as const))
+      const recvOf = (t: TaskNode) => (g.agent === MAIN && t.turn !== undefined ? byTurn.get(t.turn) : undefined)
+      lines.push(...rows(loose, top, top, lit, below, inScope, work ?? (() => idle), sent, recvOf))
       for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), sent, level === 0))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
