@@ -56,7 +56,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   const lanes = guides(lines)
   const hides = labelCols(lines)
   const cards = frames(lines)
-  // What changed since the drawing before (../draw/motion): new lines fade in, one after another; a
+  // What changed since the drawing before (../draw/motion): new lines fade in (together); a
   // line whose state changed pops its icon; a bar whose count changed grows; a new chip fades in.
   const sources = lines.map((r, i) => rowSvg(r, lanes[i], cards[i], W, hides[i]))
   const tones = chipTones(top.source)
@@ -89,17 +89,17 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     if (rules.length > 0) animated = true
     return animate(source, rules)
   }
-  let entering = 0
+  const ago = (k: string) => marks.ago.get(k) ?? 0
   const motion = (i: number) =>
     marks.enter.has(keys[i])
-      ? [fadeIn(Math.min(150, 30 * entering++))]
+      ? [fadeIn(ago(keys[i]))]
       : [
-          ...(popsAt(i) ? [pop(progress(lines[i]) === 'done')] : []),
-          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i])) : []),
+          ...(popsAt(i) ? [pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
+          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]), ago(`${keys[i]}#bar`)) : []),
         ]
   const headMotion = [
-    ...tones.filter(t => marks.enter.has(`head#chip:${t}`)).map(chipIn),
-    ...(marks.changed.has('head#bar') && barOf(top.source) !== '' ? growFrom(marks.before.get('head#bar'), barOf(top.source)) : []),
+    ...tones.filter(t => marks.enter.has(`head#chip:${t}`)).map(t => chipIn(t, ago(`head#chip:${t}`))),
+    ...(marks.changed.has('head#bar') && barOf(top.source) !== '' ? growFrom(marks.before.get('head#bar'), barOf(top.source), ago('head#bar')) : []),
   ]
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
