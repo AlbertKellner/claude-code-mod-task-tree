@@ -111,11 +111,20 @@ export async function openTurn($: any, text: string, own = false) {
 // current request (the last turn with tasks), else that request's last level-1 task. It was the first
 // open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
 export function sendAnchor(list: TaskNode[]): string | undefined {
-  const { anchor } = current(list)
+  // Nothing open and started is nothing in progress (current() would light the first open task, of
+  // any request). Then, in the current request (the person's decisions): its pending task with no
+  // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
+  // pending, the rule above. It took the task started last even with one pending, planned to send:
+  // the card went under the closed task before it.
+  const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
+  const { anchor } = inProgress ? current(list) : { anchor: undefined }
   if (anchor === undefined) {
     const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
     const last = turns.length > 0 ? Math.max(...turns) : undefined
     const mine = list.filter(t => last === undefined || t.turn === last)
+    const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined)
+    const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
+    if (newest) return newest.id
     return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
   }
   const leaves = flat(list).filter(t => t.status === 'open' && t.children.length === 0)

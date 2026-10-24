@@ -243,8 +243,11 @@ export function watchSessions($: any) {
 export async function anyRunning($: any): Promise<boolean> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
-  // With this session's turn ended, its own tasks run no clock (see turnEnded).
+  // With this session's turn ended, its own tasks run no clock (see turnEnded), except the task of a
+  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait.
   const { value: ended } = await $.state.get(turnEndedState)
+  const { value: sends = [] } = await $.state.get(sendsState)
+  if ((sends as Send[]).some(s => !s.taken)) return true
   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
 }
 export async function tick($: any) {
@@ -257,6 +260,9 @@ export async function tick($: any) {
   ticker?.cancel()
   ticker = undefined
 }
+// The running times are redrawn every second (the app makes the Svgs again when it likes, so a clock
+// counting inside the Svg went back to its first second at each of those: the drawing has to carry the
+// time itself).
 // Every drawing asks for the clock: the check and the start must not be split by an await, or drawings
 // at the same time each start one, and only the last is kept to cancel (the others redrew the pane
 // every second for good, in bursts that replaced the Buttons under the pointer: clicks were lost).
