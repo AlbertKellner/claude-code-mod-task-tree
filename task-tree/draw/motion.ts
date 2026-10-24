@@ -5,14 +5,16 @@
 // change is within DUR ms, the pane is drawn again every FRAME ms (nextFrame in the hooks), each
 // drawing with the state of that moment, eased and static, plus a FRAME-long CSS piece on to the
 // next frame's state, so the step between frames is smooth; an Svg made again on the way loses at
-// most that piece. Nothing animates on a module's first drawing, on a drawing where most keys are new
-// (a change of view, a reload), on a key the drawing before did not show, nor with reduced motion.
-// Disappearing is not animated (the line leaves the drawing at once).
+// most that piece. A line back in sight (a fold opened again) comes in as a new one. Nothing animates
+// on a module's first drawing, on a drawing where most keys are new or back (a change of view, a
+// reload), nor with reduced motion. Disappearing is not animated (the line leaves the drawing at once).
 
-// How long a change moves, in ms, and how long each frame is (the kit draws at most 10 a second).
-export const DUR = 300
+// How long a change moves, in ms, and how long each frame is (the kit draws at most 10 a second): 7
+// frames. 300 ms with small amplitudes went unseen; 700 ms with the ones below the person found smooth.
+export const DUR = 700
 export const FRAME = 100
-// How long a key not drawn (the other view's lines) is kept: coming back to it is no entrance.
+// How long a key not drawn (a folded line, the other view's) is kept in the map, so its state is
+// known when it comes back.
 const KEEP = 10000
 
 // What a key looked like when last drawn: its state (a tone, a count), when it last came in or
@@ -22,30 +24,34 @@ const seen = new Map<string, Seen>()
 let primed = false
 let lastDrawn = -Infinity
 
-// Each key drawn now, with its state: `enter` the ones not drawn before, `changed` the ones whose
-// state differs (`before`: the state it had), both until DUR after it happened; `ago`: how long ago.
+// Each key drawn now, with its state: `enter` the ones not in the drawing before (new, or back from
+// a fold), `changed` the ones whose state differs (`before`: the state it had), both until DUR after
+// it happened; `ago`: how long ago.
 export type Marks = { enter: Set<string>; changed: Set<string>; before: Map<string, string>; ago: Map<string, number> }
 export function mark(drawnNow: [string, string][], now: number | undefined): Marks {
   const marks: Marks = { enter: new Set(), changed: new Set(), before: new Map(), ago: new Map() }
   if (now === undefined) return marks
-  // More than half the keys new: a change of view or a reload, not lines coming in.
-  const fresh = drawnNow.filter(([k]) => !seen.has(k)).length
+  // Not in the drawing before: never drawn, or drawn earlier and out of sight since.
+  const back = (key: string) => {
+    const w = seen.get(key)
+    return w === undefined || w.drawn < lastDrawn
+  }
+  // More than half the keys new or back: a change of view or a reload, not lines coming in.
+  const fresh = drawnNow.filter(([k]) => back(k)).length
   const entering = primed && fresh * 2 <= drawnNow.length
   for (const [key, state] of drawnNow) {
-    let was = seen.get(key)
-    if (was === undefined) {
-      was = { state, at: now, kind: entering ? 'enter' : 'none', drawn: now }
-      seen.set(key, was)
-    } else if (was.state !== state) {
-      // A change while the key was out of sight (the other view) is no motion either.
-      const shown = was.drawn >= lastDrawn
-      was = { state, at: now, kind: shown ? 'changed' : 'none', before: shown ? was.state : undefined, drawn: now }
-      seen.set(key, was)
-    } else was.drawn = now
-    if (was.kind !== 'none' && now - was.at < DUR) {
-      marks[was.kind].add(key)
-      marks.ago.set(key, now - was.at)
-      if (was.before !== undefined) marks.before.set(key, was.before)
+    const was = seen.get(key)
+    const cur: Seen =
+      was === undefined || back(key)
+        ? { state, at: now, kind: entering ? 'enter' : 'none', drawn: now }
+        : was.state !== state
+          ? { state, at: now, kind: 'changed', before: was.state, drawn: now }
+          : { ...was, drawn: now }
+    seen.set(key, cur)
+    if (cur.kind !== 'none' && now - cur.at < DUR) {
+      marks[cur.kind].add(key)
+      marks.ago.set(key, now - cur.at)
+      if (cur.before !== undefined) marks.before.set(key, cur.before)
     }
   }
   for (const [key, w] of seen) if (now - w.drawn > KEEP) seen.delete(key)
@@ -74,20 +80,20 @@ const lerp = (a: number, b: number, p: number) => (a + (b - a) * p).toFixed(3)
 const piece = (name: string, sel: string, from: string, to: string, fixed = '') =>
   `@keyframes ${name}{from{${from}}to{${to}}}${sel}{${from};${fixed}animation:${name} ${FRAME}ms linear both}`
 
-// A line coming in: fades in and slides 3 px down. Nothing starts unseen (from 60%, 85%, a half-drawn
-// ✓): an Svg made again on the way shows a state near the one before, not a blank.
+// A line coming in: fades in from 30% and slides 6 px down. Nothing starts from nothing: an Svg made
+// again on the way shows a state near the one before, not a blank.
 export const fadeIn = (ago: number) => {
   const [p, q] = phase(ago)
-  const at = (k: number) => `opacity:${lerp(0.6, 1, k)};transform:translateY(${lerp(-3, 0, k)}px)`
+  const at = (k: number) => `opacity:${lerp(0.3, 1, k)};transform:translateY(${lerp(-6, 0, k)}px)`
   return piece('in', '.mv', at(p), at(q))
 }
 
-// An icon whose state changed: it grows from 85% (the drawing's `ic` group), and a ✓ draws the rest
-// of its stroke.
+// An icon whose state changed: it grows from 50% (the drawing's `ic` group), and a ✓ draws its whole
+// stroke.
 export const pop = (done: boolean, ago: number) => {
   const [p, q] = phase(ago)
-  const size = (k: number) => `transform:scale(${lerp(0.85, 1, k)})`
-  const dash = (k: number) => `stroke-dashoffset:${lerp(8, 0, k)}`
+  const size = (k: number) => `transform:scale(${lerp(0.5, 1, k)})`
+  const dash = (k: number) => `stroke-dashoffset:${lerp(16, 0, k)}`
   return (
     piece('pop', '.ic', size(p), size(q), 'transform-box:fill-box;transform-origin:center;') +
     (done ? piece('draw', '.ic .gr', dash(p), dash(q), 'stroke-dasharray:16;') : '')
@@ -97,7 +103,7 @@ export const pop = (done: boolean, ago: number) => {
 // A chip new in the header fades in; a bar whose count went up grows from its old width to the new.
 export const chipIn = (tone: string, ago: number) => {
   const [p, q] = phase(ago)
-  return piece('ci', `.ch-${tone}`, `opacity:${lerp(0.6, 1, p)}`, `opacity:${lerp(0.6, 1, q)}`)
+  return piece('ci', `.ch-${tone}`, `opacity:${lerp(0.3, 1, p)}`, `opacity:${lerp(0.3, 1, q)}`)
 }
 // The bar goes on from where it was (`before`, its width before, as a share of the new one): only
 // forward; shorter (more tasks planned), it is drawn as it is.
