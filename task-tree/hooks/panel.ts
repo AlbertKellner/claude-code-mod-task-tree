@@ -117,24 +117,35 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
 // atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
 // current request (the last turn with tasks), else that request's last level-1 task. It was the first
 // open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
-// With several tasks in progress, a message goes to the first of them, in the order they were
-// started, that has no message of this session's yet since it started (`used`: where the messages
-// sent and the sessions' rounds went, and when); all of them with one, the rule above (the person's
-// decision: "pela ordem", each send to the next task in progress). With two sends started together
-// both went to the task started last, and their cards hung under each other's task.
+// With several tasks in progress, a message goes to the latest batch of starts (the tasks started
+// within BATCH ms of the newest of them that has no message yet: one answer's starts), to the first
+// of it in the order they were started, that has no message of this session's yet since it started
+// (`used`: where the messages sent and the sessions' rounds went, and when); all of them with one,
+// the rule above (the person's decision: "pela ordem", each send to the next task in progress). A
+// task left in progress from before only gets it once the batch is done; a task with a question open
+// under it (`asking`) never does. With two sends started together both went to the task started
+// last; then a task opened before and still in progress took a later send, its card under it.
 export type Used = { anchor?: string; at?: number }
-export function sendAnchor(list: TaskNode[], used: Used[] = []): string | undefined {
+const BATCH = 3000
+export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in the current request (the person's decisions): its pending task with no
   // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
   // pending, the rule above. It took the task started last even with one pending, planned to send:
   // the card went under the closed task before it.
-  const going = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
+  const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
+  const going = started.filter(t => !asking.includes(t.id))
+  // Two in progress, one of them asking: the other one.
+  if (going.length === 1 && started.length > 1) return going[0].id
   if (going.length > 1) {
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
-    const free = order.find(x => !has(x.t))
-    if (free) return free.t.id
+    const free = order.filter(x => !has(x.t))
+    if (free.length > 0) {
+      const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
+      const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
+      return (batch[0] ?? free[0]).t.id
+    }
   }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
@@ -162,6 +173,9 @@ export function sendAnchor(list: TaskNode[], used: Used[] = []): string | undefi
   return pick
 }
 
+// The tasks of the main loop with a question still open under them (sendAnchor's `asking`).
+export const askingAnchors = (asks: Ask[]): string[] =>
+  asks.filter(a => a.agent === MAIN && a.state === 'open').flatMap(a => (a.anchor === undefined ? [] : [a.anchor]))
 // Where this session's messages went (sendAnchor's `used`), with when: the sends kept, and the
 // rounds of the sessions (a send already taken up is dropped from the sends, its round stays).
 export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[]): Used[] => [

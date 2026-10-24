@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Ask, AskItem, Child, Group, Send, TaskNode } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current, startedLast } from '../draw/layout'
-import { reminders, addWait, change, changeAsks, dropWaits, gist, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, addWait, change, askingAnchors, changeAsks, dropWaits, gist, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -21,6 +21,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const asksState = { plugin: 'task-tree', key: 'asks' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 
 // What the handlers share about one call: the loop that made it (`agent`), the event, when a
@@ -176,7 +177,8 @@ const sentMessage: Notes = async ($, c, notes) => {
   const { value: groups0 = [] } = await $.state.get(groupsState)
   const { value: kids0 = [] } = await $.state.get(childrenState)
   const { value: sends0 = [] } = await $.state.get(sendsState)
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]))
+  const { value: asks0 = [] } = await $.state.get(asksState)
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(asks0 as Ask[]))
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
