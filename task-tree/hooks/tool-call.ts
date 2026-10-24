@@ -9,10 +9,10 @@
 
 import { update } from 'claude-code'
 
-import type { Group } from '../types'
+import type { Child, Group, Send } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, wake } from './panel'
+import { reminders, addWait, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -94,10 +94,15 @@ const sentMessage: Notes = async ($, c, notes) => {
   if (String(e.tool) !== 'SendMessage') return
   const out = JSON.stringify(r.result ?? r)
   const to = String(e.to ?? e.input?.to ?? '')
+  // The task the message is sent from, once, before this send is recorded anywhere (a round, a send):
+  // with several tasks in progress it is the first one with no message yet (sendAnchor), and the
+  // records below must not move it to the next.
+  const { value: groups0 = [] } = await $.state.get(groupsState)
+  const { value: kids0 = [] } = await $.state.get(childrenState)
+  const { value: sends0 = [] } = await $.state.get(sendsState)
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]))
   // The session is used for the task in progress: the summary view draws it there.
   {
-    const { value = [] } = await $.state.get(groupsState)
-    const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     // Each message opens a round of the session, drawn in a card of its own under the task it was
     // sent from once the session takes it up (see split). A session the host's list does not hold
     // yet (just opened, or listed late) gets its entry here, with the round, as recordStart does:
@@ -124,8 +129,6 @@ const sentMessage: Notes = async ($, c, notes) => {
   // sinalizar que essa etapa esta em andamento"). A failed send keeps none.
   const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   if (to !== '' && !failed) {
-    const { value = [] } = await $.state.get(groupsState)
-    const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const at = sentAt ?? (await stamp($))
     await update($, sendsState, cur => [
       ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
@@ -134,9 +137,7 @@ const sentMessage: Notes = async ($, c, notes) => {
     await publishPanel($)
   }
   if (waitsDelivery && to !== '') {
-    const { value = [] } = await $.state.get(groupsState)
-    const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
-    const all = flat((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+    const all = flat((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const t = all.find(t => t.id === anchor)
     notes.push(SEND.queued(to, t ? `"${t.id}" ${t.title}` : undefined))
   }

@@ -114,12 +114,25 @@ export async function openTurn($: any, text: string, own = false) {
 // atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
 // current request (the last turn with tasks), else that request's last level-1 task. It was the first
 // open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
-export function sendAnchor(list: TaskNode[]): string | undefined {
+// With several tasks in progress, a message goes to the first of them, in the order they were
+// started, that has no message of this session's yet since it started (`used`: where the messages
+// sent and the sessions' rounds went, and when); all of them with one, the rule above (the person's
+// decision: "pela ordem", each send to the next task in progress). With two sends started together
+// both went to the task started last, and their cards hung under each other's task.
+export type Used = { anchor?: string; at?: number }
+export function sendAnchor(list: TaskNode[], used: Used[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in the current request (the person's decisions): its pending task with no
   // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
   // pending, the rule above. It took the task started last even with one pending, planned to send:
   // the card went under the closed task before it.
+  const going = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
+  if (going.length > 1) {
+    const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
+    const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
+    const free = order.find(x => !has(x.t))
+    if (free) return free.t.id
+  }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
   if (anchor === undefined) {
@@ -145,6 +158,13 @@ export function sendAnchor(list: TaskNode[]): string | undefined {
   }
   return pick
 }
+
+// Where this session's messages went (sendAnchor's `used`), with when: the sends kept, and the
+// rounds of the sessions (a send already taken up is dropped from the sends, its round stays).
+export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[]): Used[] => [
+  ...sends.map(s => ({ anchor: s.anchor, at: s.at })),
+  ...children.flatMap(c => (c.rounds ?? []).map(r => ({ anchor: r.anchor, at: r.at }))),
+]
 
 // The open tasks with nothing open below them, for a reminder: '"1/1.2" Title; …'.
 export function openList(list: TaskNode[]): string {
