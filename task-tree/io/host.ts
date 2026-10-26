@@ -67,7 +67,6 @@ export function panelOf(file: Published): Panel | undefined {
       ...(file.work ? { work: file.work } : {}),
       ...(file.received ? { received: file.received } : {}),
       ...(file.sends ? { sends: file.sends } : {}),
-      ...(file.asks ? { asks: file.asks } : {}),
     }
   }
   if (file.tasks) return { groups: [{ agent: MAIN, label: '', tasks: file.tasks }], waits: [], children: [] }

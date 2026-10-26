@@ -12,7 +12,7 @@ import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureAsks, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
@@ -34,7 +34,6 @@ const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
-const asksState = { plugin: 'task-tree', key: 'asks' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
@@ -211,8 +210,7 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {lines.map((r, i) => {
         // A message task: the ✉ in every state, in the color of where the message is.
         const env = r.msg ?? r.recv
-        // A question waiting: a dotted circle in amber (the terminal has no balloon).
-        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : r.balloon ? ['◌', 'warning'] : GLYPH[progress(r)]
+        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)
@@ -285,7 +283,6 @@ export async function render($: EngineInterface, e: any, next: any) {
   const brought = await ensureGroups($)
   const viewBrought = await ensureView($)
   const workBrought = await ensureWork($)
-  const asksBrought = await ensureAsks($)
   // After a hot reload of the mod (each saved edit of the clone reloads it in every session) the clocks
   // were the old module's, gone with it, and they came back only with the next event (a tool call, a
   // refresh, a start): with a task timing and no event, the pane stood still. The app draws the pane
@@ -326,10 +323,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  // The questions asked, drawn under their tasks with their options.
-  const { value: heldAsks } = await $.state.get(asksState)
-  const asks = heldAsks ?? asksBrought ?? []
-  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], asks, ...(typeof ended === 'number' ? { ended } : {}) }
+  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
 
@@ -364,7 +358,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.
-  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !t.askState && !t.opt && !sentIds.includes(t.id) && !sentTasks.has(t))
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !sentIds.includes(t.id) && !sentTasks.has(t))
   const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
   const pending = open.length - active
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
