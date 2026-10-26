@@ -6,8 +6,7 @@
 
 import { MAIN, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { changeAsks, gist, reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
-import { pick } from './tool-call'
+import { reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -79,24 +78,8 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       ],
     })
   }
-  // The person's own message answers what the main loop left asked: the end-of-turn box's question
-  // (its buttons' words pick an option, else the message is the answer, in a few words) and a
-  // question answered by a chat message instead of an option (`chat`).
-  if (!it.peer) {
-    await changeAsks($, cur =>
-      cur.map(a => {
-        if (a.agent !== MAIN) return a
-        if (a.tool === 'wrap_up' && a.state === 'open') return { ...a, items: a.items.map(x => pick(x, it.title)), state: 'answered' }
-        if (a.state === 'chat' && a.items.every(x => x.text === undefined && (x.chosen ?? []).length === 0))
-          return { ...a, items: a.items.map((x, i) => (i === 0 ? { ...x, chosen: [], text: gist(it.title) } : x)) }
-        return a
-      }),
-    )
-  }
   // Safety net: a new message means the main loop has no question open.
   await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission')
-  // Any question of the main loop still open is over with it.
-  await changeAsks($, cur => cur.map(a => (a.agent === MAIN && a.state === 'open' && a.tool !== 'wrap_up' ? { ...a, state: 'dropped' } : a)))
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
   reminders.planned = false

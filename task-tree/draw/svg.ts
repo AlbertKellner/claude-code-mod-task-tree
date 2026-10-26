@@ -309,15 +309,6 @@ export function envelope(x: number, y: number, cls: string): string {
 export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy' }
 export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive' }
 
-// A question waiting for the person's answer, 14 px across, centered on (x, y): a speech balloon with
-// an ellipsis, in amber (the person's choice, "D. Balão com reticências").
-export function balloon(x: number, y: number): string {
-  return (
-    `<g transform="translate(${x} ${y})"><path class="am" d="M-6 -5.5H6V3H-1.5L-4.5 6V3H-6Z" fill="none" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>` +
-    '<g class="amf"><circle cx="-2.8" cy="-1.2" r="0.95"/><circle cx="0" cy="-1.2" r="0.95"/><circle cx="2.8" cy="-1.2" r="0.95"/></g></g>'
-  )
-}
-
 // One icon, 14 px across, centered on (x, y).
 export function icon(tone: Tone, x: number, y: number): string {
   switch (tone) {
@@ -530,7 +521,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   }
   // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
   const env = r.msg ?? r.recv
-  const lead = section ? '' : `<g class="ic">${env ? envelope(x, cy, MSG_CLASS[env]) : r.balloon ? balloon(x, cy) : icon(progress(r), x, cy)}</g>`
+  const lead = section ? '' : `<g class="ic">${env ? envelope(x, cy, MSG_CLASS[env]) : icon(progress(r), x, cy)}</g>`
   const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
