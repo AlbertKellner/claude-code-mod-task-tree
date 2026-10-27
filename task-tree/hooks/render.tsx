@@ -7,7 +7,7 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
@@ -30,6 +30,7 @@ const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
+const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
@@ -320,13 +321,15 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
   const { value: ended } = await $.state.get(turnEndedState)
+  // Whether that turn was stopped by the person: what it left in progress is interrupted, not waiting.
+  const { value: aborted } = await $.state.get(turnAbortedState)
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended } : {}) }
+  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
 
@@ -363,9 +366,11 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.
   const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !sentIds.includes(t.id) && !sentTasks.has(t))
   const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
-  const pending = open.length - active
+  // Left open waiting when the turn ended (◷): in the chip of what waits, not pending.
+  const resting = open.filter(leftWaiting).length
+  const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
-  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
+  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting, x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   const { Button } = ui

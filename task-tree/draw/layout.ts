@@ -32,11 +32,14 @@ export const interrupt =
       : t
 
 // A turn that ended (or a session that ended its turn) touches only what was in progress: a task
-// started and not closed reads as interrupted, its clock stopped at `at`; a task never started stays
-// pending, the plan goes on in the next turn (the person's panel: four steps never started came out
-// "✕ interrompida"). An open parent keeps its pending subtasks, its clock stopped; with nothing open
-// left below it, it is interrupted too. Nothing lights up without start (current), so a halted
-// panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
+// started and not closed is left open waiting (◷ "Aguardando", see leftWaiting), its clock stopped at `at`
+// (the person: the model left it open on purpose, waiting on them); only a turn the person stopped
+// (`aborted`: Esc, stop) reads it as interrupted. A task never started stays pending, the plan goes
+// on in the next turn (the person's panel: four steps never started came out "✕ interrompida"). An
+// open parent keeps its pending subtasks, its clock stopped; with nothing open left below it, it is
+// kept open too when something below it was done (the person: "se existem tarefas concluidas como
+// filhas, o pai nunca pode ficar como interrompido"), and is interrupted only with nothing done
+// below. Nothing lights up without start (current), so a halted panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
 // not taken up) is left as it is, open and started: it waits on that session, not on this turn,
 // and shows ✉ until the delivery (the person: "não mostre como interrompida, deixe como mensagem
 // até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). With `all`,
@@ -45,16 +48,23 @@ export const interrupt =
 // task started and open and no send queued; with something going on, the pending ones stay ○, the
 // work is not over. Only the ✉ is never interrupted.
 export const halt =
-  (at?: number, sent: string[] = [], all = false) =>
+  (at?: number, sent: string[] = [], all = false, aborted = true) =>
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
     if (t.children.length === 0) {
       if (sent.includes(t.id)) return t
-      return all || t.started !== undefined || t.startedAt !== undefined ? interrupt(at)(t) : t
+      const begun = t.started !== undefined || t.startedAt !== undefined
+      if (begun && !aborted) return { ...t, started: undefined, endedAt: stop(t, at) }
+      return all || begun ? interrupt(at)(t) : t
     }
-    const children = t.children.map(halt(at, sent, all))
-    return hasOpen(children) ? { ...t, started: undefined, endedAt: stop(t, at), children } : interrupt(at)({ ...t, children })
+    const children = t.children.map(halt(at, sent, all, aborted))
+    return hasOpen(children) || flat(children).some(k => k.status === 'done')
+      ? { ...t, started: undefined, endedAt: stop(t, at), children }
+      : interrupt(at)({ ...t, children })
   }
+// A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
+// the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
+export const leftWaiting = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt !== undefined
 
 // A task whose clock runs: started and not closed.
 export const timing = (list: TaskNode[]) => flat(list).some(t => t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
@@ -114,11 +124,15 @@ export const discarded = (c: Child): boolean => {
 // panel: a card "parada" with its tasks ◉ and the clock running, then with ○ pending ones and "3/5");
 // once it works again, they are its open tasks again, and a start or done there undoes the ✕.
 export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN, label: '', tasks: c.tasks ?? [] }], waits: [], children: [] }
+// A session that ended its turn normally: what it started and left open waits (◷, as in its own
+// panel), stopped at the last time its panel knows (its clock does not reach here); one the person
+// stopped (`aborted`) reads it as interrupted.
 export const panelOf = (c: Child): Panel => {
   const p = rawPanel(c)
   if (!c.archived && (live(c) || c.starting)) return p
   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
-  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(undefined, [], true)) })) }
+  const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
+  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], true, c.aborted === true)) })) }
 }
 // A session in one card per message the main loop sent it (`rounds`): the card of a message holds
 // the turns the session opened after it (its tasks in plan order, the subagents, notices and
@@ -458,9 +472,9 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const left = [...below, ...here].some(c => hasOpen(tasksOf(rawPanel(c).groups ?? [])))
   return { busy: hereOpen.some(live), any: below.length > 0 || here.length > 0, direct, live: here.some(live), open: left, d, n, tasks, cards }
 }
-// An open parent with something done below it and nothing in progress: drawn waiting (◷), its
-// time stopped at the last close below it.
-export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done')
+// An open parent with something done (or left waiting, see leftWaiting) below it and nothing in progress:
+// drawn waiting (◷), its time stopped at the last close below it.
+export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done' || leftWaiting(k))
 export function stillSpan(list: TaskNode[]): number | undefined {
   const all = flat(list)
   const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
@@ -835,6 +849,9 @@ export type Model = {
   // When this session's turn ended, until the next prompt: what its main loop left open is drawn
   // with no close and its clock stopped then (a session that ended its turn shows no task running).
   ended?: number
+  // That turn was stopped by the person (Esc, stop): what was in progress reads as interrupted, not
+  // waiting (see halt).
+  aborted?: boolean
 }
 // The lines the person opened or closed (the folds atom): true closed, false open.
 export type Choices = Record<string, boolean>
@@ -849,7 +866,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
   const mainTasks = model.groups.find(g => g.agent === MAIN)?.tasks ?? []
   const goingOn = sentFrom.length > 0 || flat(mainTasks).some(t => t.children.length === 0 && t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, !goingOn)) } : g))
+  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, !goingOn, model.aborted === true)) } : g))
   const waits = model.waits
   const sessions = model.children
   const queued = model.sends
@@ -894,22 +911,30 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const waitsOn = pending.filter(s => s.anchor === t.id).map(s => s.to)
       // A task below it waits on a session (✉): the work is going on (it was drawn not started).
       const waitsBelow = t.status === 'open' && t.children.length > 0 && waitingBelow(t, pending)
+      // A parent with something done below it is never ✕ (the person: "se existem tarefas concluidas
+      // como filhas, o pai nunca pode ficar como interrompido"): interrupted or done with an interrupted
+      // one below, it is drawn waiting (◷); a task left open waiting at the turn's end too (leftWaiting).
+      const doneBelow = flat(t.children).some(k => k.status === 'done')
       const tone: Tone =
         waitsOn.length > 0
           ? 'sent'
           : t.status === 'interrupted'
-            ? 'interrupted'
+            ? t.children.length > 0 && doneBelow
+              ? 'paused'
+              : 'interrupted'
             : w.busy || waitsBelow
               ? 'current'
               : t.status === 'done'
                 ? flat(t.children).some(k => k.status === 'interrupted')
-                  ? 'interrupted'
+                  ? 'paused'
                   : 'done'
-                : lit.includes(t.id)
-                  ? 'current'
-                  : t.children.length > 0 && resting(t.children)
-                    ? 'paused'
-                    : 'open'
+                : leftWaiting(t)
+                  ? 'paused'
+                  : lit.includes(t.id)
+                    ? 'current'
+                    : t.children.length > 0 && resting(t.children)
+                      ? 'paused'
+                      : 'open'
       const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
       // A message task (a send went out from it): its ✉ in the color of where the message is, the
@@ -995,7 +1020,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             ? 'paused'
             : 'open'
           : flat(list).some(t => t.status === 'interrupted')
-            ? 'interrupted'
+            ? flat(list).some(t => t.status === 'done')
+              ? 'paused'
+              : 'interrupted'
             : 'done'
     const key = `${scope}T:${u.id}`
     const open = opened(key, true)
