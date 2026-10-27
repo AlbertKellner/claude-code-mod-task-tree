@@ -125,7 +125,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     <Box flexDirection="column">
       {chrome.errorLine}
       <Box key="head" position="relative">
-        <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
+        <Svg source={moving(top.source, headMotion)} alt={alt} width={W} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
             <Svg source={hoverLayer(top.source, W - 64, 28)} alt="" width={W - 64} height={28} isInteractive />
@@ -145,8 +145,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
               return p ? over(r, p, source, H) : null
             }
             return (
-              <Box position="relative" flexGrow={1}>
-                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} height={H} />
+              <Box position="relative">
+                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} width={W} height={H} />
                 {one('icon')}
                 {one('ring')}
                 {one('name')}

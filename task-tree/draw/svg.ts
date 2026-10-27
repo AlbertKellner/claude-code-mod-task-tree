@@ -74,12 +74,12 @@ export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
 export const LIGHT: [string, string][] = [
   ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
-  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['lnf', 'fill:#888780;fill-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['csf', 'fill:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
+  ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
-  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['csf', 'fill:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
@@ -104,16 +104,6 @@ export function slim(svg: string): string {
   }
   return svg.replace(STYLE, sheet)
 }
-
-// The Svgs of the lines and the header take the slot's real width (width 100%, no viewBox: the
-// person's choice, "largura pelo slot"). Inside, everything is counted in px from W, the estimate of
-// geometry's lineWidth; what is counted from W's right end goes in a group moved right by what the
-// slot has over W (toRight), and what stretches between the two takes its width by CSS from the
-// slot (`slot(W)`: never under W, so a slot narrower than the estimate is cut at its edge, as before).
-export const slot = (W: number) => `max(100%, ${W}px)`
-export const toRight = (W: number, inner: string, cls = '') =>
-  inner === '' ? '' : `<g${cls ? ` class="${cls}"` : ''} style="transform-box:view-box;transform:translateX(calc(${slot(W)} - ${W}px))">${inner}</g>`
-const svgOpen = (H: number) => `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${H}" font-family="${FONT}">${STYLE}`
 
 export const xml = (s: string) =>
   s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
@@ -365,8 +355,6 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
   // the card's right end, in the column the lines below end their time in (the person's words: "deve
   // estar solto e na direita da mesma linha").
   const parts: string[] = [sessionIcon('filha', sessionState(r.tone), x, cy)]
-  // What is counted from the right end (the ring, the model, the rate): moved to the slot's edge.
-  const rightParts: string[] = []
   const at = tx + textW(name, 12) + 10
   if (r.ring) {
     const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
@@ -375,7 +363,7 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
     // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
     // last line up to half the card's edge off the name's middle.
     const ring = contextRing(r.ring.percent, W - ringFromRight(Math.max(0, cards.length - 1)), H / 2)
-    rightParts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
+    parts.push(r.ring.faded ? `<g opacity=".45">${ring}</g>` : ring)
   }
   // Right of the name (and the state word): the repository and branch, each with its icon (gitSvg;
   // the person's words: "ao lado direito do nome da sessão, qual repositório e qual branch"). At
@@ -396,11 +384,11 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
   if (need(repo, eng, rate) > room) eng = false
   if (need(repo, eng, rate) > room) rate = false
   if (eng) {
-    rightParts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine as string)}</text>`)
+    parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine as string)}</text>`)
     end -= engW
   }
   if (rate) {
-    rightParts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity="${(r.rate as { live: boolean }).live ? '.75' : '.45'}">${rateText((r.rate as { toks: number }).toks)}</text>`)
+    parts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity="${(r.rate as { live: boolean }).live ? '.75' : '.45'}">${rateText((r.rate as { toks: number }).toks)}</text>`)
     end -= rateW
   }
   if (r.git) parts.push(gitSvg(r.git, left, cy, 11, repo, end - left).svg)
@@ -410,12 +398,11 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
     parts.push(`<text class="${waiting ? 'amf' : 's'}" x="${at}" y="${cy + 4}" font-size="11"${waiting ? '' : ' opacity=".75"'}>${xml(r.meta)}</text>`)
   }
   return slim(
-    svgOpen(H) +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
     `<text class="s" x="${tx}" y="${cy + 4}" font-size="12" font-weight="600">${tip(whole, name)}${xml(name)}</text>` +
     parts.join('') +
-    toRight(W, rightParts.join('')) +
     '</svg>'
   )
 }
@@ -434,33 +421,24 @@ export const NO_FRAME: Frame = { cards: [], top: 0, bottom: 0 }
 export const rowHeight = (r: Row, f: Frame = NO_FRAME) => (r.depth === 0 && r.tone !== 'wait' ? ROW_H_TOP : ROW_H) + f.top + f.bottom
 
 // One card's slice on a line, from y0 to y1: its fill, then its border (the top edge on its
-// first line, the bottom one on its last, the sides on all). In three pieces, as the Svg takes the
-// slot's width (see slot): the left one (its corners and side) where it is, the right one moved to
-// the slot's edge (toRight, in a group `cr`), and between them the fill and the top and bottom edges
-// as rects whose width is the slot's less what the two ends take; each piece runs 1 px into the
-// middle, so the joins do not show (the colors are opaque).
-export function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, bottom: boolean, W: number): string {
+// first line, the bottom one on its last, the sides on all).
+export function cardSlice(L: number, R: number, y0: number, y1: number, top: boolean, bottom: boolean): string {
   const r = CARD_RADIUS
   const a = (x: number, y: number) => `A${r} ${r} 0 0 1 ${x} ${y}`
   const yt = top ? y0 + r : y0
   const yb = bottom ? y1 - r : y1
-  const xl = L + r + 1
-  const xr = R - r - 1
-  const fillL = `M${L} ${yt}` + (top ? `${a(L + r, y0)}H${xl}` : `V${y0}H${xl}`) + `V${y1}` + (bottom ? `H${L + r}${a(L, yb)}` : `H${L}`) + 'Z'
-  const edgeL = (bottom ? `M${xl} ${y1}H${L + r}${a(L, yb)}` : `M${L} ${yb}`) + `V${yt}` + (top ? `${a(L + r, y0)}H${xl}` : '')
-  const fillR = `M${xr} ${y0}` + (top ? `H${R - r}${a(R, yt)}` : `H${R}`) + `V${yb}` + (bottom ? `${a(R - r, y1)}H${xr}` : `V${y1}H${xr}`) + 'Z'
-  const edgeR = (top ? `M${xr} ${y0}H${R - r}${a(R, yt)}` : `M${R} ${y0}`) + `V${yb}` + (bottom ? `${a(R - r, y1)}H${xr}` : '')
-  const piece = (fill: string, edge: string) => `<path class="cd" d="${fill}"/><path class="cs" d="${edge}" fill="none" stroke-width="1"/>`
-  // The middle, from L + r to R − r moved: the slot's width less L + r and what is right of R − r.
-  const mid = `style="width:calc(${slot(W)} - ${L + r + (W - R) + r}px)"`
-  const line = (y: number) => `<rect class="csf" x="${L + r}" y="${y - 0.5}" height="1" ${mid}/>`
-  return (
-    piece(fillL, edgeL) +
-    `<rect class="cd" x="${L + r}" y="${y0}" height="${y1 - y0}" ${mid}/>` +
-    (top ? line(y0) : '') +
-    (bottom ? line(y1) : '') +
-    toRight(W, piece(fillR, edgeR), 'cr')
-  )
+  const fill =
+    `M${L} ${yt}` +
+    (top ? `${a(L + r, y0)}H${R - r}${a(R, yt)}` : `H${R}`) +
+    `V${yb}` +
+    (bottom ? `${a(R - r, y1)}H${L + r}${a(L, yb)}` : `H${L}`) +
+    'Z'
+  const edge =
+    `M${L} ${yb}V${yt}` +
+    (top ? `${a(L + r, y0)}H${R - r}${a(R, yt)}` : `M${R} ${y0}`) +
+    `V${yb}` +
+    (bottom ? `${a(R - r, y1)}H${L + r}${a(L, yb)}` : '')
+  return `<path class="cd" d="${fill}"/><path class="cs" d="${edge}" fill="none" stroke-width="1"/>`
 }
 
 export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = []): string {
@@ -475,7 +453,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     const Rc = cardRight(W, m)
     const y0 = c.first ? f.top - CARD_EDGE : 0
     const y1 = c.last ? H - f.bottom + CARD_EDGE + PAD * (ends.length - 1 - ends.indexOf(c)) : H
-    return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last, W) }
+    return { L, Rc, svg: cardSlice(L, Rc, y0, y1, c.first, c.last) }
   })
   const paths: string[] = g.bars.flatMap((on, k) => (on && !hide.includes(k) ? [`M${col(k)} 0V${H}`] : []))
   // The connector from the parent's guide: down to the line's middle and out to the icon (a └, the
@@ -550,16 +528,15 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
   const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || r.tone === 'reply' || section
   const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
-  // A section's line runs to the slot's edge, less what is right of R; the time, count, bar, bust and
-  // words on the right are moved to the slot's edge (toRight).
   return slim(
-    svgOpen(H) +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}` +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
-    (section ? `<rect class="lnf" x="0" y="0" height="1" style="width:calc(${slot(W)} - ${W - R}px)"/>` : '') +
+    (section ? `<path class="ln" d="M0 0.5H${R}" stroke-width="1"/>` : '') +
     lead +
     `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(r.whole ?? whole, title)}${xml(title)}</text>` +
-    toRight(W, mark + right.join('')) +
+    mark +
+    right.join('') +
     '</svg>'
   )
 }
@@ -587,7 +564,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
   // The card first, under everything: a session's card's fill, border and corners (cardSlice), from
   // CARD_RIGHT in on each side and HEADER_GAP short of the bottom; no dividing line below it (the
   // person: "remova a barra horizontal de divisão").
-  const parts: string[] = [cardSlice(CARD_RIGHT, W - CARD_RIGHT, CARD_RIGHT, H - HEADER_GAP - CARD_RIGHT, true, true, W)]
+  const parts: string[] = [cardSlice(CARD_RIGHT, W - CARD_RIGHT, CARD_RIGHT, H - HEADER_GAP - CARD_RIGHT, true, true)]
   if (empty) {
     parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">Tarefas</text>`)
     parts.push(`<text class="s" x="${L}" y="38" font-size="12">Nenhuma tarefa planejada.</text>`)
@@ -606,11 +583,8 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
       if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 36, 12, true, R - gx).svg)
       else if (!git.folder && gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 36, 12, false, R - gx).svg)
     }
-    // The bar runs from edge to edge of the slot (its CSS width); the width attribute, in px of W, is
-    // what the motion reads (barOf), and its share of the track is the same.
-    const track = `calc(${slot(W)} - ${2 * HEADER_PAD}px)`
-    parts.push(`<rect class="tr" x="${L}" y="50" width="${R - L}" height="4" rx="2" style="width:${track}"/>`)
-    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="50" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2" style="width:max(4px, calc(${track} * ${d / n}))"/>`)
+    parts.push(`<rect class="tr" x="${L}" y="50" width="${R - L}" height="4" rx="2"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="50" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2"/>`)
     // Too narrow for the words: the numbers alone, after their icons.
     const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
     let cx = L
@@ -629,7 +603,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     }
   }
   return {
-    source: slim(`${svgOpen(H)}${parts.join('')}</svg>`),
+    source: slim(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">${STYLE}${parts.join('')}</svg>`),
     height: H,
   }
 }
