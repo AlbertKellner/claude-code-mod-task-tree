@@ -53,6 +53,25 @@ test('respondida por opção, a espera some e a tarefa segue em andamento', asyn
   esperarEstado(p, 'Um', 'andamento')
 })
 
+// Origem: decisão do usuário de 2026-10-27, a resposta pelo chat tira a espera na hora, antes de
+// a mensagem dele chegar. O texto é o que o app devolve nesse caso.
+test('respondida pelo chat, a espera some na hora e a tarefa segue em andamento', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'User did not answer this question — they sent a message instead.')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  await relogio.advance(1000)
+  await resp
+  p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Um', 'andamento')
+})
+
 // Origem: ExitPlanMode espera a aprovação do plano, como a pergunta.
 test('ExitPlanMode mostra a espera da aprovação do plano até a resposta', async ($: any, on: any) => {
   const { relogio } = fixar(on)
