@@ -86,12 +86,11 @@ const piece = (name: string, sel: string, from: string, to: string, fixed = '') 
 // `cs` border), the tree's guides (`g`) and the progress icon (`ic`) stay where they are, whole: the
 // whole line faded and slid 6 px before, the card's fill went see-through and its edge left the
 // line's box, and the lines looked cut until it ended (the person's words: "as animações ficam
-// cortadas até a animação acabar"; their choice, "revelar", with the icon still). The card's middle
-// edges (`csf`) and its right end (`cr`, moved to the slot's edge) stay whole too.
+// cortadas até a animação acabar"; their choice, "revelar", with the icon still).
 export const fadeIn = (ago: number) => {
   const [p, q] = phase(ago)
   const at = (k: number) => `clip-path:inset(0 ${lerp(100, 0, k)}% 0 0)`
-  return piece('in', '.mv>:not(.cd):not(.cs):not(.csf):not(.cr):not(.g):not(.ic)', at(p), at(q))
+  return piece('in', '.mv>:not(.cd):not(.cs):not(.g):not(.ic)', at(p), at(q))
 }
 
 // An icon whose state changed: it grows from 50% (the drawing's `ic` group), and a ✓ draws its whole

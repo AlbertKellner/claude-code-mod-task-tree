@@ -13,14 +13,12 @@
 
 // The desktop's cell, in px, as it declares it (the real one ≈7.87; see above).
 export const CELL = 8
-// The pane's body in px per column, as measured once: with 77 columns the slot spanned ≈670 px. The
-// real px per column changes with the app's code font, its size and the screen (on another screen
-// the line ended some 40 px short of the slot, the gap growing with the pane), so it is only an
-// estimate now: the Svgs take the slot's real width (width 100%) and what is on the right is moved
-// to its right edge by CSS (see toRight in ../draw/svg).
+// The pane's body in px per column, measured: with 77 columns the slot spans ≈670 px (≈8.7 per
+// column, wider than the cell, since the slot is not a whole number of cells). COL_PX errs a little
+// under it, so the line ends a few px short of the slot instead of overflowing it.
 export const COL_PX = 8.6
-// The line's estimated width from the pane's columns, within bounds: the px everything is counted
-// in, and what the cuts of the titles with "…" and the choices of what fits are made against.
+// The line's width from the pane's columns, within bounds: it reaches the slot's right edge, where
+// the ≡/▤ buttons are anchored.
 export const MIN_W = 240
 export const MAX_W = 1400
 export const lineWidth = (columns: number) => Math.max(MIN_W, Math.min(MAX_W, Math.floor(columns * COL_PX)))
