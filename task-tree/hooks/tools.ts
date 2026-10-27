@@ -7,7 +7,7 @@ import type { Group, Send, TaskNode, Turn } from '../types'
 import { DONE } from '../text/rules'
 import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
-import { begin, build, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
+import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
 import { PANE, reminders, renameAnchors, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
 import { keepTime } from './sessions'
@@ -45,7 +45,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     }
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
-    // (replaced in its place) when it is of the request open now; a closed one stays as history,
+    // (replaced in its place, the tasks that keep their id keeping their state: carry) when it is of
+    // the request open now; a closed one stays as history,
     // renamed if its id collides. An open one of an earlier request (the person sent another
     // message since) is not replanned: the new plan's task goes to the new request, and the old one,
     // abandoned, stays in its request interrupted and renamed (the person's panel: a new "1" took
@@ -61,9 +62,9 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const sameRequest = (t: TaskNode) => agent !== MAIN || nowTurn === undefined || t.turn === undefined || t.turn === nowTurn
     const replanned = (t: TaskNode) => t.status === 'open' && ids.includes(t.id) && sameRequest(t)
     const replannedIds = agent === MAIN ? (beforeMain?.tasks ?? []).filter(replanned).map(t => t.id) : ids
-    // A replanned task starts over: the sends from it (or below it) go with it. A renamed one keeps
-    // them, renamed with it (renameAnchors).
-    if (agent === MAIN) await update($, sendsState, cur => (cur ?? []).filter(s => !replannedIds.includes(String(s.anchor ?? '').split('/')[0] as string)))
+    // The sends still queued: a message task a replan leaves out stays until delivered (carry).
+    const { value: sendsNow = [] } = await $.state.get(sendsState)
+    const queued = (sendsNow as Send[]).filter(s => !s.taken).map(s => String(s.anchor ?? ''))
     const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
     const now = await stamp($)
     const groups = await change($, all => {
@@ -75,7 +76,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         // Abandoned by a new request: interrupted (what was left open), then renamed.
         const away = (t: TaskNode) => rename(t.status === 'open' ? interrupt(now)(t) : t)
         const inPlace = (list: TaskNode[]) => {
-          const out = g.tasks.map(t => (reused(t) ? (list.find(f => f.id === t.id) as TaskNode) : ids.includes(t.id) ? away(t) : t))
+          const out = g.tasks.map(t => (reused(t) ? carry(t, list.find(f => f.id === t.id) as TaskNode, queued, now) : ids.includes(t.id) ? away(t) : t))
           return [...out, ...list.filter(f => !g.tasks.some(t => reused(t) && t.id === f.id))]
         }
         if (agent !== MAIN) return { ...g, tasks: inPlace(fresh) }
@@ -103,6 +104,9 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     if (agent === MAIN) {
       // The sessions' ties to a renamed task go with it (see renameAnchors).
       await renameAnchors($, renamed, tag)
+      // The sends from tasks the replan left out (already delivered: a queued one is kept) go.
+      const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
+      await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor)))
       // A closed level-1 task of the current work renamed by this plan stays in it.
       const { value: cur = [] } = await $.state.get(workState)
       const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)

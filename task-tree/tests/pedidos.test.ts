@@ -85,3 +85,64 @@ test('no Esc, pai com filha concluída fica aguardando, nunca interrompido', asy
   esperarEstado(p, 'Plano C', 'aguardando')
   esperarEstado(p, 'Pedido um', 'aguardando')
 })
+
+// Replano no mesmo pedido. Origem: decisão do usuário de 2026-10-27, replano preserva o estado.
+const A2: No[] = [
+  { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] },
+]
+const comTres = (title = 'Plano A'): No[] => [{ ...A2[0]!, title, children: [...A2[0]!.children!, { id: '3', title: 'Três' }] }]
+
+test('replano no mesmo pedido mantém a tarefa em andamento', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await plan($, [{ ...A2[0]!, title: 'Plano A revisto' }])
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Plano A revisto', 'andamento')
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(false)
+})
+
+test('replano mantém o concluído e acrescenta a nova pendente', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await done($, ['1'])
+  await plan($, comTres())
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(emTexto(p)).toContain('1 de 4')
+})
+
+test('replano sem uma tarefa a tira do painel e mantém o resto', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await plan($, [{ ...A2[0]!, children: [A2[0]!.children![0]!] }])
+  const p = await painel($)
+  for (const t of ['Dois', 'Dois.um', 'Dois.dois']) expect(p.some(l => l.titulo === t), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Um', 'andamento')
+})
+
+// PENDENTE: um nível 1 já concluído não é replanejado (fica como histórico, regra do plan):
+// o replano cria outro "Plano A" ao lado do concluído. Aguardando decisão: o caso vale para um nível 1
+// concluído ou para um pai abaixo dele?
+// test('pai concluído que ganha filha nova no replano volta a aberto', async ($: any, on: any) => {
+//   fixar(on)
+//   await pedido($, 'Pedido um')
+//   await plan($, A2)
+//   for (const id of ['1', '2.1', '2.2']) {
+//     await start($, [id])
+//     await done($, [id])
+//   }
+//   esperarEstado(await painel($), 'Plano A', 'concluida')
+//   await plan($, comTres())
+//   const p = await painel($)
+//   expect(['andamento', 'aguardando'], emTexto(p)).toContain(linha(p, 'Plano A').estado)
+//   esperarEstado(p, 'Três', 'pendente')
+//   esperarEstado(p, 'Um', 'concluida')
+// })
