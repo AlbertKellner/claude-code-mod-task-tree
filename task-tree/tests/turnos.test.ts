@@ -11,6 +11,7 @@ const A: No[] = [
 ]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }, { id: 'b2', title: 'Bê dois' }] }]
 
+// Regra: arvore.sem-start-nada-acende
 test('sem start, plano novo fica todo pendente', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -19,6 +20,7 @@ test('sem start, plano novo fica todo pendente', async ($: any, on: any) => {
   for (const t of ['Pedido um', 'Plano A', 'Um', 'Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
 })
 
+// Regra: turnos.pai-e-pedido-aguardam-no-fim, turnos.pendentes-seguem-pendentes
 test('no fim do turno o pai aberto e o pedido ficam aguardando', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -36,6 +38,7 @@ test('no fim do turno o pai aberto e o pedido ficam aguardando', async ($: any, 
   expect(emTexto(p)).not.toContain('interrompida')
 })
 
+// Regra: turnos.iniciada-aguarda-no-fim
 test('no fim do turno a tarefa iniciada e aberta fica aguardando, e o pai também', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -48,6 +51,7 @@ test('no fim do turno a tarefa iniciada e aberta fica aguardando, e o pai també
   esperarEstado(p, 'Plano A', 'aguardando')
 })
 
+// Regra: turnos.pedido-anterior-parado-aguarda
 test('pedido anterior parado segue aguardando enquanto o pedido novo está em andamento', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
@@ -66,6 +70,7 @@ test('pedido anterior parado segue aguardando enquanto o pedido novo está em an
   esperarEstado(p, 'Pedido um', 'aguardando')
 })
 
+// Regra: turnos.continuacao-sem-start-aguarda
 test('prompt novo que continua o plano, antes do start, deixa o pai aguardando', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
@@ -83,6 +88,7 @@ test('prompt novo que continua o plano, antes do start, deixa o pai aguardando',
 // Pendentes nunca ✕ no fim do turno. Origem: decisão do usuário de 2026-10-27, que desfaz
 // "reaproveitar o interrompida" (2026-10-24).
 
+// Regra: turnos.pendentes-seguem-pendentes
 test('fim do turno sem nenhum start deixa tudo pendente, sem nada interrompido', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -92,6 +98,7 @@ test('fim do turno sem nenhum start deixa tudo pendente, sem nada interrompido',
   for (const t of ['Pedido um', 'Plano A', 'Um', 'Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
 })
 
+// Regra: turnos.iniciada-aguarda-no-fim, turnos.pendentes-seguem-pendentes
 test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -105,6 +112,7 @@ test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pende
   esperarEstado(p, 'Pedido um', 'aguardando')
 })
 
+// Regra: turnos.esc-interrompe-so-a-iniciada
 test('Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -119,6 +127,7 @@ test('Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes', asyn
   esperarEstado(p, 'Pedido um', 'pendente')
 })
 
+// Regra: turnos.prompt-seguinte-retoma
 test('o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')

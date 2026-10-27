@@ -14,7 +14,7 @@ const ARVORE: No[] = [
   },
 ]
 
-// Origem: regra do painel "um pai fica concluído quando todos os filhos estão".
+// Regra: arvore.pai-fecha-com-os-filhos, arvore.pai-em-andamento-no-caminho-da-ultima-iniciada
 test('pai fecha sozinho quando todos os filhos fecham', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido de teste')
@@ -43,7 +43,7 @@ test('pai fecha sozinho quando todos os filhos fecham', async ($: any, on: any) 
   esperarEstado(p, 'Pedido', 'concluida')
 })
 
-// Origem: start reabre os pais da tarefa; aviso "já foi concluída e tem subtarefas".
+// Regra: arvore.start-reabre-pais, arvore.start-recusa-pai-concluido
 test('start reabre os pais de uma tarefa concluída e recusa tarefa concluída com subtarefas', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido de teste')

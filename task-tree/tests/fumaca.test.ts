@@ -14,6 +14,7 @@ const PANE_PROPS = {
 const texto = (el: any): string =>
   typeof el === 'string' ? el : el?.props?.label !== undefined ? String(el.props.label) : (el?.children ?? []).map(texto).join('')
 
+// Regra: fumaca.plan-mostra-tarefa
 test('plan mostra a tarefa no painel', async ($: any) => {
   const r = await $.tool.call({ tool: 'mcp__task-tree__plan', tasks: [{ id: '1', title: 'Tarefa de fumaça' }] })
   expect(String(r?.result ?? r?.text ?? '')).toContain('Plano exibido')
