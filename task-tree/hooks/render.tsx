@@ -121,11 +121,14 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={hoverLayer(source, p.width, H)} alt="" width={p.width} height={H} isInteractive />
       </Box>
     )
+  // Each Svg sits in a Box in a column, as its parent's is: the Svg takes the slot's width (100%), and
+  // only a column's stretch draws the image that wide; in a row, or centered, it keeps the 300 px an
+  // SVG image has with no width of its own (the person's words: "está cortando o panel").
   const drawing = (
     <Box flexDirection="column">
       {chrome.errorLine}
-      <Box key="head" position="relative">
-        <Svg source={moving(top.source, headMotion)} alt={alt} width={W} height={top.height} />
+      <Box key="head" position="relative" flexDirection="column">
+        <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
             <Svg source={hoverLayer(top.source, W - 64, 28)} alt="" width={W - 64} height={28} isInteractive />
@@ -136,7 +139,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         </Box>
       </Box>
       {lines.map((r, i) => (
-        <Box key={`r${i}`} flexDirection="row" alignItems="center">
+        <Box key={`r${i}`} flexDirection="column">
           {(source => {
             const H = rowHeight(r, cards[i])
             const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring), hover: hovers(source) }, Math.max(0, cards[i].cards.length - 1), W)
@@ -145,8 +148,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
               return p ? over(r, p, source, H) : null
             }
             return (
-              <Box position="relative">
-                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} width={W} height={H} />
+              <Box position="relative" flexDirection="column">
+                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} height={H} />
                 {one('icon')}
                 {one('ring')}
                 {one('name')}
