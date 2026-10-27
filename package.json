@@ -1,0 +1,11 @@
+{
+  "name": "claude-code-mod-task-tree",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/testes.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
