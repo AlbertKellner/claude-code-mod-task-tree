@@ -107,12 +107,14 @@ export function slim(svg: string): string {
 
 // The Svgs of the lines and the header take the slot's real width (width 100%, no viewBox: the
 // person's choice, "largura pelo slot"). Inside, everything is counted in px from W, the estimate of
-// geometry's lineWidth; what is counted from W's right end goes in a group moved right by what the
-// slot has over W (toRight), and what stretches between the two takes its width by CSS from the
-// slot (`slot(W)`: never under W, so a slot narrower than the estimate is cut at its edge, as before).
-export const slot = (W: number) => `max(100%, ${W}px)`
+// geometry's lineWidth; what is counted from W's right end goes in a group moved by the difference
+// between the slot and W (toRight), and what stretches between the two takes its width by CSS from
+// the slot (`slot`). Both ways: right when the slot is wider than W, left when it is narrower (no
+// floor at W: with one, a slot narrower than the estimate cut the right of the drawing, the dev's
+// panel at ~427 px). Nothing final depends on W, only what fits.
+export const slot = (_W: number) => '100%'
 export const toRight = (W: number, inner: string, cls = '') =>
-  inner === '' ? '' : `<g${cls ? ` class="${cls}"` : ''} style="transform-box:view-box;transform:translateX(calc(${slot(W)} - ${W}px))">${inner}</g>`
+  inner === '' ? '' : `<g${cls ? ` class="${cls}"` : ''} style="transform-box:view-box;transform:translateX(calc(100% - ${W}px))">${inner}</g>`
 const svgOpen = (H: number) => `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${H}" font-family="${FONT}">${STYLE}`
 
 export const xml = (s: string) =>
@@ -551,14 +553,19 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || r.tone === 'reply' || section
   const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
   // A section's line runs to the slot's edge, less what is right of R; the time, count, bar, bust and
-  // words on the right are moved to the slot's edge (toRight).
+  // words on the right are moved to the slot's edge (toRight). The title is cut with "…" against W
+  // (an estimate under the slot) and, should the estimate fail, clipped where the words on the right
+  // begin in the slot (its clip, `tc`, a rect as wide as the slot less them): never under them, if
+  // without its "…" then. The clip is on the text inside a group, so the reveal of a new line (its
+  // clip-path on the group, ../draw/motion) leaves it be.
+  const clip = `<clipPath id="tc"><rect x="0" y="0" height="${H}" style="width:calc(100% - ${W - edge + 10}px)"/></clipPath>`
   return slim(
     svgOpen(H) +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
     (section ? `<rect class="lnf" x="0" y="0" height="1" style="width:calc(${slot(W)} - ${W - R}px)"/>` : '') +
     lead +
-    `<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}">${tip(r.whole ?? whole, title)}${xml(title)}</text>` +
+    `<g>${clip}<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}" clip-path="url(#tc)">${tip(r.whole ?? whole, title)}${xml(title)}</text></g>` +
     toRight(W, mark + right.join('')) +
     '</svg>'
   )

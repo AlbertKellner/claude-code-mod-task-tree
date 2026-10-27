@@ -5,7 +5,7 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Send } from '../types'
-import { lineWidth, overlays } from '../draw/geometry'
+import { ICONS_W, lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
@@ -132,7 +132,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
-            <Svg source={hoverLayer(top.source, W - 64, 28)} alt="" width={W - 64} height={28} isInteractive />
+            <Svg source={hoverLayer(top.source, W - ICONS_W, 28)} alt="" width={W - ICONS_W} height={28} isInteractive />
           </Box>
         ) : null}
         <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
