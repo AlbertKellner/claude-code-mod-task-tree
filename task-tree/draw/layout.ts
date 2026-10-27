@@ -542,6 +542,19 @@ export function startedLast(list: TaskNode[]): TaskNode | undefined {
   }
   return pick
 }
+// The open path to the task started last, when it was started in the turn going on (since its `at`):
+// a parent there reads in progress between a done and the next start (the person: ◉ only on the
+// path of the last task started in this turn; a stopped plan of an earlier request stays ◷).
+// With no `since` (no turn's time), none.
+export function trail(list: TaskNode[], since?: number): string[] {
+  const s = since === undefined ? undefined : startedLast(list)
+  if (s === undefined || (s.startedAt as number) < (since as number)) return []
+  const open = new Set(flat(list).filter(t => t.status === 'open').map(t => t.id))
+  return pathTo(list, s.id).filter(id => open.has(id))
+}
+// When the main group's last turn began (the turn going on), from all its turns: the drawn ones
+// leave out a turn with no task yet (a prompt that continues a plan).
+export const lastTurnAt = (groups: Group[]) => [...(groups.find(g => g.agent === MAIN)?.turns ?? [])].reverse().find(u => typeof u.at === 'number')?.at
 export function pathTo(items: TaskNode[], id: string): string[] {
   for (const t of items) {
     if (t.id === id) return [t.id]
@@ -894,6 +907,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     depth: number,
     top: number,
     lit: string[],
+    // The trail of the turn going on (trail): in progress in the tone only, not in the chip.
+    trailIds: string[],
     below: (t: TaskNode, depth: number) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
@@ -930,7 +945,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                   : 'done'
                 : leftWaiting(t)
                   ? 'paused'
-                  : lit.includes(t.id)
+                  : lit.includes(t.id) || trailIds.includes(t.id)
                     ? 'current'
                     : t.children.length > 0 && resting(t.children)
                       ? 'paused'
@@ -986,7 +1001,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const key = `${scope}t:${t.id}`
       // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
       const kids = t.children
-      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work, pending)] : []
+      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, trailIds, below, scope, work, pending)] : []
       row.fold = { key, open: rest.length > 0 }
       row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.cards]
       return [row, ...rest]
@@ -1001,6 +1016,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     list: TaskNode[],
     top: number,
     lit: string[],
+    trailIds: string[],
     below: (t: TaskNode, depth: number) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
@@ -1013,7 +1029,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const [ld, ln] = count(list)
     const [d, n] = [ws.reduce((a, w) => a + w.d, ld), ws.reduce((a, w) => a + w.n, ln)]
     const tone: Tone =
-      busy || list.some(t => t.status === 'open' && (lit.includes(t.id) || waitingBelow(t, pending)))
+      busy || list.some(t => t.status === 'open' && (lit.includes(t.id) || trailIds.includes(t.id) || waitingBelow(t, pending)))
         ? 'current'
         : list.some(t => t.status === 'open')
           ? resting(list)
@@ -1049,7 +1065,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // No session icon on a request: a card never hangs from it directly (see Work.direct).
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-    const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending, () => (u.msg ? u : undefined)) : []
+    const inner = open ? rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending, () => (u.msg ? u : undefined)) : []
     row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.cards)]
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -1114,9 +1130,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
       .filter(hasBrief)
       .map(u => ({ key: `${scope}${c.id}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
-    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
+    // Its turn goes on while it runs (or is starting): the trail lights in its card then.
+    const going = !c.archived && (live(c) || c.starting === true) ? lastTurnAt(rawPanel(c).groups ?? []) : undefined
+    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id, going), ...replies] : []
     // Whether a closed one has anything to open: its panel, drawn as it would be.
-    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
+    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id, going).length > 0) header.fold = { key, open: inner.length > 0 }
     // A discarded round's lines stand for nothing in the header's count (discarded), ✓ ones included.
     const out = discarded(c)
     header.nodes = out || inner.length > 0 ? [] : allTasks(p, level + 1)
@@ -1127,7 +1145,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // it opened. A session goes under the main task it was opened on, open or closed (a closed
   // one shows only it); at the end of the list when it has no such task. Archived ones are
   // left out. Done tasks stay in their place in the plan, closed.
-  const panel = (p: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
+  // `turnAt`: when the panel's turn going on began (this session's own: no model.ended; a card:
+  // alive); none once it ended.
+  const panel = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number): Row[] => {
     // The sends of this panel's main group still waiting to be taken up: this session's at the top,
     // what each session publishes in its card (its task shows ✉ too).
     const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken) : queued
@@ -1155,6 +1175,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const kids = kidsOf(g.agent)
       const lines: Row[] = []
       const { lit, anchor } = current(g.tasks)
+      const trailIds = g.agent === MAIN ? trail(g.tasks, turnAt) : []
       const ids = flat(g.tasks).map(t => t.id)
       const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor))
       const below = (t: TaskNode, depth: number) => [
@@ -1210,8 +1231,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // A level-1 task of a turn a message opened shows the ✉ received (rows' recvOf).
       const byTurn = new Map((g.turns ?? []).filter(u => u.msg).map(u => [u.id, u] as const))
       const recvOf = (t: TaskNode) => (g.agent === MAIN && t.turn !== undefined ? byTurn.get(t.turn) : undefined)
-      lines.push(...rows(loose, top, top, lit, below, inScope, work ?? (() => idle), sent, recvOf))
-      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), sent, level === 0))
+      lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent, recvOf))
+      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
     }
@@ -1277,5 +1298,5 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const cards = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
     return trimToWork({ ...base, children: cards }, 0)
   }
-  return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId))
+  return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined))
 }
