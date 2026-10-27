@@ -20,3 +20,7 @@ export const pedido = ($: any, texto: string) => $.prompt.submit({ text: texto }
 // O fim normal do turno do modelo.
 export const fimDoTurno = ($: any) =>
   $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: false, turnId: 't' })
+
+// O turno parado pela pessoa (Esc, stop).
+export const esc = ($: any) =>
+  $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: true, turnId: 't' })

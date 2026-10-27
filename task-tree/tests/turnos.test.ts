@@ -1,7 +1,7 @@
-import { test } from 'claude-code/testing'
+import { expect, test } from 'claude-code/testing'
 import { fixar } from './kit/ambiente'
-import { done, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { esperarEstado, painel } from './kit/leitura'
+import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { emTexto, esperarEstado, painel } from './kit/leitura'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
 // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
@@ -19,20 +19,22 @@ test('sem start, plano novo fica todo pendente', async ($: any, on: any) => {
   for (const t of ['Pedido um', 'Plano A', 'Um', 'Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
 })
 
-// PENDENTE: halt marca pendentes como ✕; aguardando correção (decisão do usuário de 2026-10-27:
-// as pendentes seguem ○ no fim do turno). O kit não tem test.skip/todo.
-// test('no fim do turno o pai aberto e o pedido ficam aguardando', async ($: any, on: any) => {
-//   fixar(on)
-//   await pedido($, 'Pedido um')
-//   await plan($, A)
-//   await start($, ['1'])
-//   await done($, ['1'])
-//   await fimDoTurno($)
-//   const p = await painel($)
-//   esperarEstado(p, 'Pedido um', 'aguardando')
-//   esperarEstado(p, 'Plano A', 'aguardando')
-//   esperarEstado(p, 'Dois', 'pendente')
-// })
+test('no fim do turno o pai aberto e o pedido ficam aguardando', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  const p = await painel($)
+  esperarEstado(p, 'Pedido um', 'aguardando')
+  esperarEstado(p, 'Plano A', 'aguardando')
+  esperarEstado(p, 'Dois', 'pendente')
+  esperarEstado(p, 'Dois.um', 'pendente')
+  esperarEstado(p, 'Dois.dois', 'pendente')
+  expect(emTexto(p)).toContain('1 de 3')
+  expect(emTexto(p)).not.toContain('interrompida')
+})
 
 test('no fim do turno a tarefa iniciada e aberta fica aguardando, e o pai também', async ($: any, on: any) => {
   fixar(on)
@@ -76,4 +78,57 @@ test('prompt novo que continua o plano, antes do start, deixa o pai aguardando',
   const p = await painel($)
   esperarEstado(p, 'Plano A', 'aguardando')
   esperarEstado(p, 'Pedido um', 'aguardando')
+})
+
+// Pendentes nunca ✕ no fim do turno. Origem: decisão do usuário de 2026-10-27, que desfaz
+// "reaproveitar o interrompida" (2026-10-24).
+
+test('fim do turno sem nenhum start deixa tudo pendente, sem nada interrompido', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await fimDoTurno($)
+  const p = await painel($)
+  for (const t of ['Pedido um', 'Plano A', 'Um', 'Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
+})
+
+test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  for (const t of ['Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
+  esperarEstado(p, 'Plano A', 'aguardando')
+  esperarEstado(p, 'Pedido um', 'aguardando')
+})
+
+test('Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await esc($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  for (const t of ['Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
+  // Sem nada feito nem aguardando embaixo, o pai e o pedido ficam abertos (○).
+  esperarEstado(p, 'Plano A', 'pendente')
+  esperarEstado(p, 'Pedido um', 'pendente')
+})
+
+test('o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await esc($)
+  await relogio.advance(1000)
+  await pedido($, 'segue')
+  await start($, ['2.1'])
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  expect(emTexto(p)).not.toContain('✕')
 })

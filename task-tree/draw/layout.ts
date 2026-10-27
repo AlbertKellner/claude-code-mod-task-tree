@@ -42,22 +42,21 @@ export const interrupt =
 // below. Nothing lights up without start (current), so a halted panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
 // not taken up) is left as it is, open and started: it waits on that session, not on this turn,
 // and shows ✉ until the delivery (the person: "não mostre como interrompida, deixe como mensagem
-// até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). With `all`,
-// the pending tasks read as interrupted too (the person: "reaproveitar o interrompida"): a session
-// that ended its turn (its card), and this session's own panel when nothing of it is going on, no
-// task started and open and no send queued; with something going on, the pending ones stay ○, the
-// work is not over. Only the ✉ is never interrupted.
+// até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). The pending
+// tasks stay ○ at every turn's end, this session's and a card's alike, normal or stopped (the
+// person, 2026-10-27, undoing "reaproveitar o interrompida": "pendentes nunca ✕"). Only an archived
+// session, a subagent that ended and a plan replaced read their pending tasks as interrupted.
 export const halt =
-  (at?: number, sent: string[] = [], all = false, aborted = true) =>
+  (at?: number, sent: string[] = [], aborted = true) =>
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
     if (t.children.length === 0) {
       if (sent.includes(t.id)) return t
       const begun = t.started !== undefined || t.startedAt !== undefined
       if (begun && !aborted) return { ...t, started: undefined, endedAt: stop(t, at) }
-      return all || begun ? interrupt(at)(t) : t
+      return begun ? interrupt(at)(t) : t
     }
-    const children = t.children.map(halt(at, sent, all, aborted))
+    const children = t.children.map(halt(at, sent, aborted))
     return hasOpen(children) || flat(children).some(k => k.status === 'done')
       ? { ...t, started: undefined, endedAt: stop(t, at), children }
       : interrupt(at)({ ...t, children })
@@ -119,10 +118,8 @@ export const discarded = (c: Child): boolean => {
 // A session's panel; earlier versions published only its main group's tasks. An archived session
 // stays in the tree as history (its last published panel): what it left open will not be done,
 // so it reads as interrupted (out of the count's total, drawn gray). A session that ended its turn
-// (not at work, not just opened) is not working either: what it left open reads as interrupted too,
-// started or still pending, with no clock and out of "em andamento" and of "pendentes" (the person's
-// panel: a card "parada" with its tasks ◉ and the clock running, then with ○ pending ones and "3/5");
-// once it works again, they are its open tasks again, and a start or done there undoes the ✕.
+// (not at work, not just opened) is halted as this session's own panel is (halt): what it started
+// waits ◷ with its clock stopped (✕ when the person stopped it), its pending tasks stay ○.
 export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN, label: '', tasks: c.tasks ?? [] }], waits: [], children: [] }
 // A session that ended its turn normally: what it started and left open waits (◷, as in its own
 // panel), stopped at the last time its panel knows (its clock does not reach here); one the person
@@ -132,7 +129,7 @@ export const panelOf = (c: Child): Panel => {
   if (!c.archived && (live(c) || c.starting)) return p
   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
   const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
-  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], true, c.aborted === true)) })) }
+  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], c.aborted === true)) })) }
 }
 // A session in one card per message the main loop sent it (`rounds`): the card of a message holds
 // the turns the session opened after it (its tasks in plan order, the subagents, notices and
@@ -874,12 +871,9 @@ export type Choices = Record<string, boolean>
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
-  // With nothing going on in the main group (no task started and open, no send queued), its pending
-  // tasks read as interrupted too; with something going on, they stay pending (see halt).
   const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
   const mainTasks = model.groups.find(g => g.agent === MAIN)?.tasks ?? []
-  const goingOn = sentFrom.length > 0 || flat(mainTasks).some(t => t.children.length === 0 && t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, !goingOn, model.aborted === true)) } : g))
+  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
   const waits = model.waits
   const sessions = model.children
   const queued = model.sends
