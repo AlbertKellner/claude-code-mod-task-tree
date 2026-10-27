@@ -53,8 +53,6 @@ export const TABLE: readonly Row[] = [
     note: 'legacy: the one list before groups, moved into the main group once (adopt) at session.start or the first write' },
   { key: 'view', lives: 'state+store', store: 'view', merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'the pane\'s view (summary or full); a new session starts with the summary; after a restart without session.start the first drawing or write brings it back (ensureView), else the pane would fall to the default view' },
-  { key: 'asks', lives: 'state+store', store: 'asks', merge: 'current', restoredAt: ['first-use'],
-    note: 'the questions asked (AskUserQuestion, ExitPlanMode, a wrap_up with ask), open or answered, the last 50: drawn under the task they were asked from, with their options; after a restart the first use brings them back (ensureAsks)' },
   { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'the current work (the summary view\'s level-1 tasks); after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
   // The ties to other sessions: one store record (`links`), four state keys.

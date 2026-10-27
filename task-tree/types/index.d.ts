@@ -22,12 +22,6 @@ export type TaskNode = {
   // every state, only its color changing, and counts in no x/y (the person's words: "quero
   // diferenciar as tarefas de execução, das tarefas de mensagem").
   msg?: boolean
-  // Drawn only (layout's withAsks): a question asked under this task (`askState`, its state), drawn
-  // with its options as subtasks (`opt`); a question counts as one task, its options as none.
-  askState?: Ask['state']
-  opt?: boolean
-  // Drawn only: the whole question, for the tooltip.
-  whole?: string
   children: TaskNode[]
 }
 
@@ -59,6 +53,9 @@ export type Wait = {
   kind: 'question' | 'choice' | 'plan' | 'permission'
   tool: string
   key: string
+  // The task in progress of the loop when it was opened (a question, a plan, a choice): no message
+  // is anchored there while it waits (sendAnchor). Absent from earlier versions and for a permission.
+  anchor?: string
 }
 
 // A session's whole panel, as it publishes it for the session that opened it (see waitFile):
@@ -67,15 +64,7 @@ export type Wait = {
 // `received`: the messages of other sessions it got (see the state's `received`): a sister's
 // message opens a card of its own, as one from the session drawing it does.
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
-export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[]; asks?: Ask[] }
-
-// A question the person was asked (AskUserQuestion, ExitPlanMode, a wrap_up with `ask`), kept after
-// the answer: one item per question, each with its options; `chosen` the options picked, `text` the
-// answer typed instead, in a few words. `anchor` is the task in progress of the loop that asked,
-// where it is drawn; `wait` the key of the wait it stands for while open. `state`: still open,
-// answered by an option, answered by a chat message (`chat`), or left with no answer (`dropped`).
-export type AskItem = { title: string; whole?: string; options: string[]; messages?: string[]; multi?: boolean; chosen?: string[]; text?: string }
-export type Ask = { key: string; wait?: string; agent: string; tool: string; at?: number; anchor?: string; items: AskItem[]; state: 'open' | 'answered' | 'chat' | 'dropped' }
+export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
 // A session's output rate: `toks` tokens a second (rounded), measured `at`, `live` while the turn
 // it measures is in course (else the last turn's mean, drawn dim).
@@ -121,8 +110,6 @@ export type Published = {
   work?: string[]
   received?: { from: string; at: number }[]
   sends?: Send[]
-  // The questions this session asked (see Ask), for its card upstream.
-  asks?: Ask[]
 }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
@@ -204,6 +191,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; asks: Ask[] }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }

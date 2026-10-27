@@ -7,12 +7,12 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureAsks, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
@@ -30,11 +30,11 @@ const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
+const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
-const asksState = { plugin: 'task-tree', key: 'asks' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
@@ -122,11 +122,14 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={hoverLayer(source, p.width, H)} alt="" width={p.width} height={H} isInteractive />
       </Box>
     )
+  // Each Svg sits in a Box in a column, as its parent's is: the Svg takes the slot's width (100%), and
+  // only a column's stretch draws the image that wide; in a row, or centered, it keeps the 300 px an
+  // SVG image has with no width of its own (the person's words: "está cortando o panel").
   const drawing = (
     <Box flexDirection="column">
       {chrome.errorLine}
-      <Box key="head" position="relative">
-        <Svg source={moving(top.source, headMotion)} alt={alt} width={W} height={top.height} />
+      <Box key="head" position="relative" flexDirection="column">
+        <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
             <Svg source={hoverLayer(top.source, W - 64, 28)} alt="" width={W - 64} height={28} isInteractive />
@@ -137,7 +140,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         </Box>
       </Box>
       {lines.map((r, i) => (
-        <Box key={`r${i}`} flexDirection="row" alignItems="center">
+        <Box key={`r${i}`} flexDirection="column">
           {(source => {
             const H = rowHeight(r, cards[i])
             const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring), hover: hovers(source) }, Math.max(0, cards[i].cards.length - 1), W)
@@ -146,8 +149,8 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
               return p ? over(r, p, source, H) : null
             }
             return (
-              <Box position="relative">
-                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} width={W} height={H} />
+              <Box position="relative" flexDirection="column">
+                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} height={H} />
                 {one('icon')}
                 {one('ring')}
                 {one('name')}
@@ -211,8 +214,7 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {lines.map((r, i) => {
         // A message task: the ✉ in every state, in the color of where the message is.
         const env = r.msg ?? r.recv
-        // A question waiting: a dotted circle in amber (the terminal has no balloon).
-        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : r.balloon ? ['◌', 'warning'] : GLYPH[progress(r)]
+        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)
@@ -285,7 +287,6 @@ export async function render($: EngineInterface, e: any, next: any) {
   const brought = await ensureGroups($)
   const viewBrought = await ensureView($)
   const workBrought = await ensureWork($)
-  const asksBrought = await ensureAsks($)
   // After a hot reload of the mod (each saved edit of the clone reloads it in every session) the clocks
   // were the old module's, gone with it, and they came back only with the next event (a tool call, a
   // refresh, a start): with a task timing and no event, the pane stood still. The app draws the pane
@@ -320,16 +321,15 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
   const { value: ended } = await $.state.get(turnEndedState)
+  // Whether that turn was stopped by the person: what it left in progress is interrupted, not waiting.
+  const { value: aborted } = await $.state.get(turnAbortedState)
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  // The questions asked, drawn under their tasks with their options.
-  const { value: heldAsks } = await $.state.get(asksState)
-  const asks = heldAsks ?? asksBrought ?? []
-  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], asks, ...(typeof ended === 'number' ? { ended } : {}) }
+  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
 
@@ -364,11 +364,13 @@ export async function render($: EngineInterface, e: any, next: any) {
   const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.
-  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !t.askState && !t.opt && !sentIds.includes(t.id) && !sentTasks.has(t))
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !sentIds.includes(t.id) && !sentTasks.has(t))
   const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
-  const pending = open.length - active
+  // Left open waiting when the turn ended (◷): in the chip of what waits, not pending.
+  const resting = open.filter(leftWaiting).length
+  const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
-  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending), x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
+  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting, x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   const { Button } = ui
