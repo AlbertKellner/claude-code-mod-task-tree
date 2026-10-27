@@ -19,3 +19,12 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   on('turn.complete', () => ({ text: '' }))
   return { relogio }
 }
+
+// O host responde a ferramenta depois de `ms` no relógio do teste (o diálogo aberto até um advance).
+// Chamar antes da primeira chamada a $.
+export function responderDepois(on: any, relogio: { sleep(ms: number): Promise<void> }, tool: string, resultado: string, ms = 1000) {
+  on('tool.call', { tool }, async () => {
+    if (ms > 0) await relogio.sleep(ms)
+    return { result: resultado }
+  })
+}
