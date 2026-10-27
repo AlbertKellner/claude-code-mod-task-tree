@@ -8,7 +8,7 @@ const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê
 
 const indice = (p: Linha[], titulo: string) => p.indexOf(linha(p, titulo))
 
-// Origem: o request do plan dá o título do pedido.
+// Regra: pedidos.titulo-vem-do-request
 test('o título do pedido vem do request do plan', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'uma mensagem bem comprida da pessoa')
@@ -18,7 +18,7 @@ test('o título do pedido vem do request do plan', async ($: any, on: any) => {
   expect(p.some(l => l.titulo === 'uma mensagem bem comprida da pessoa'), emTexto(p)).toBe(false)
 })
 
-// Origem: o painel agrupa as tarefas pela mensagem do usuário em que foram planejadas.
+// Regra: pedidos.uma-mensagem-um-pedido
 test('cada mensagem abre o seu pedido, com o seu plano embaixo', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
@@ -33,7 +33,7 @@ test('cada mensagem abre o seu pedido, com o seu plano embaixo', async ($: any, 
   expect(linha(p, 'Plano B').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Pedido dois').nivel)
 })
 
-// Origem: avisos do app não abrem pedido (prompts sem turno).
+// Regra: pedidos.aviso-do-app-nao-abre-pedido
 test('um aviso do app não abre pedido', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -48,7 +48,7 @@ test('um aviso do app não abre pedido', async ($: any, on: any) => {
   expect(linha(p, 'Plano B').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Pedido um').nivel)
 })
 
-// Origem: plan com o mesmo id; o usuário confirmou que o plano substituído por pedido novo segue ✕.
+// Regra: pedidos.replano-no-lugar, pedidos.plano-anterior-vira-historico
 test('plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o anterior em pedido novo', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
@@ -71,7 +71,7 @@ test('plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o ante
   expect(indice(p, 'Plano A novo'), emTexto(p)).toBeGreaterThan(indice(p, 'Pedido dois'))
 })
 
-// Origem: "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido".
+// Regra: turnos.pai-com-filha-concluida-nunca-interrompido
 test('no Esc, pai com filha concluída fica aguardando, nunca interrompido', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -92,6 +92,7 @@ const A2: No[] = [
 ]
 const comTres = (title = 'Plano A'): No[] => [{ ...A2[0]!, title, children: [...A2[0]!.children!, { id: '3', title: 'Três' }] }]
 
+// Regra: pedidos.replano-preserva-estado
 test('replano no mesmo pedido mantém a tarefa em andamento', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -104,6 +105,7 @@ test('replano no mesmo pedido mantém a tarefa em andamento', async ($: any, on:
   expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(false)
 })
 
+// Regra: pedidos.replano-preserva-estado
 test('replano mantém o concluído e acrescenta a nova pendente', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -117,6 +119,7 @@ test('replano mantém o concluído e acrescenta a nova pendente', async ($: any,
   expect(emTexto(p)).toContain('1 de 4')
 })
 
+// Regra: pedidos.replano-preserva-estado
 test('replano sem uma tarefa a tira do painel e mantém o resto', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -128,6 +131,7 @@ test('replano sem uma tarefa a tira do painel e mantém o resto', async ($: any,
   esperarEstado(p, 'Um', 'andamento')
 })
 
+// Regra: pedidos.replano-preserva-estado
 test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a aberto', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
@@ -147,7 +151,7 @@ test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a 
   esperarEstado(p, 'Um', 'pendente')
 })
 
-// Origem: regra do plan, um nível 1 já concluído fica como histórico e não é replanejado.
+// Regra: pedidos.nivel1-concluido-e-historico
 test('plan com o id de um nível 1 concluído deixa o concluído como histórico e põe um plano novo ao lado', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')

@@ -9,7 +9,7 @@ const PERGUNTA = {
 }
 const RESPOSTA = 'Aguardando sua resposta'
 
-// Origem: regra do painel, AskUserQuestion sem tarefa aberta é recusado.
+// Regra: perguntas.sem-tarefa-recusada
 test('sem tarefa aberta, a pergunta é recusada', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
@@ -19,7 +19,7 @@ test('sem tarefa aberta, a pergunta é recusada', async ($: any, on: any) => {
   expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
 })
 
-// Origem: a pergunta aberta aparece numa linha ◷ sob a tarefa, que segue em andamento.
+// Regra: perguntas.espera-sob-a-tarefa
 test('com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamento', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
@@ -37,7 +37,7 @@ test('com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamen
   await resp
 })
 
-// Origem: a pergunta respondida por opção não deixa espera no painel.
+// Regra: perguntas.resposta-por-opcao-tira-espera
 test('respondida por opção, a espera some e a tarefa segue em andamento', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
@@ -53,8 +53,7 @@ test('respondida por opção, a espera some e a tarefa segue em andamento', asyn
   esperarEstado(p, 'Um', 'andamento')
 })
 
-// Origem: decisão do usuário de 2026-10-27, a resposta pelo chat tira a espera na hora, antes de
-// a mensagem dele chegar. O texto é o que o app devolve nesse caso.
+// Regra: perguntas.resposta-pelo-chat-tira-espera
 test('respondida pelo chat, a espera some na hora e a tarefa segue em andamento', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   responderDepois(on, relogio, 'AskUserQuestion', 'User did not answer this question — they sent a message instead.')
@@ -72,7 +71,7 @@ test('respondida pelo chat, a espera some na hora e a tarefa segue em andamento'
   esperarEstado(p, 'Um', 'andamento')
 })
 
-// Origem: ExitPlanMode espera a aprovação do plano, como a pergunta.
+// Regra: perguntas.exitplanmode-espera
 test('ExitPlanMode mostra a espera da aprovação do plano até a resposta', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   responderDepois(on, relogio, 'ExitPlanMode', 'aprovado')
@@ -89,7 +88,7 @@ test('ExitPlanMode mostra a espera da aprovação do plano até a resposta', asy
   expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
 })
 
-// Origem: a escolha do wrap_up com ask espera a próxima mensagem do usuário.
+// Regra: perguntas.escolha-do-wrapup-ate-proxima-mensagem
 test('a escolha do wrap_up fica até a próxima mensagem', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)

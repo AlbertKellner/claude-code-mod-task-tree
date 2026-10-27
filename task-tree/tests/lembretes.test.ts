@@ -19,6 +19,7 @@ async function iniciar($: any, on: any) {
   await start($, ['1'])
 }
 
+// Regra: lembretes.replanejar-apos-esc-pessoa
 test('depois do Esc, a mensagem da pessoa pede para replanejar o painel', async ($: any, on: any) => {
   await iniciar($, on)
   await esc($)
@@ -31,6 +32,7 @@ test('depois do Esc, a mensagem da pessoa pede para replanejar o painel', async 
   expect(ctx).not.toContain(ABERTAS)
 })
 
+// Regra: lembretes.fim-normal-lista-abertas
 test('depois do fim normal do turno, a mensagem da pessoa só lista o que ficou aberto', async ($: any, on: any) => {
   await iniciar($, on)
   await fimDoTurno($)
@@ -39,6 +41,7 @@ test('depois do fim normal do turno, a mensagem da pessoa só lista o que ficou 
   expect(ctx).not.toContain(REPLANEJAR)
 })
 
+// Regra: lembretes.outra-sessao-apos-esc
 test('depois do Esc, a mensagem de outra sessão segue com o lembrete dela', async ($: any, on: any) => {
   await iniciar($, on)
   await esc($)
@@ -47,6 +50,7 @@ test('depois do Esc, a mensagem de outra sessão segue com o lembrete dela', asy
   expect(ctx).toContain(REPLANEJAR)
 })
 
+// Regra: lembretes.esc-sem-abertas
 test('depois do Esc sem nada aberto, não há o que replanejar', async ($: any, on: any) => {
   await iniciar($, on)
   await done($, ['1'])
@@ -57,6 +61,7 @@ test('depois do Esc sem nada aberto, não há o que replanejar', async ($: any, 
   expect(ctx).not.toContain(REPLANEJAR)
 })
 
+// Regra: lembretes.replanejar-vale-uma-vez
 test('o lembrete de replanejar vale uma vez só', async ($: any, on: any) => {
   await iniciar($, on)
   await esc($)

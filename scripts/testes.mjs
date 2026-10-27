@@ -46,6 +46,8 @@ console.log(`Claude Code: ${claude} (${versao.stdout.trim()})`)
 // O tsc ainda não bloqueia: o código tem erros de tipo antigos (strict + noUncheckedIndexedAccess
 // do tsconfig gerado). Passa a bloquear quando eles forem corrigidos.
 const etapas = [
+  // O catálogo regras/ contra os testes (ids, estados, ligações); node puro, em milissegundos.
+  ['regras', process.execPath, ['scripts/regras.mjs'], true],
   ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true],
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true],
   ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false],
