@@ -95,10 +95,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
   if (aborted) await $.state.set(turnAbortedState, false)
-  // After an interrupted turn, a message of another session asks for a replan of the panel instead
-  // of the list of what was left open (the replan covers it); the person's own prompt as before.
-  const left = aborted && it.peer
-    ? hasOpen(tasks) ? PROMPT.interrupted(openList(tasks)) : PROMPT.interruptedEmpty
+  // After an interrupted turn, the message that comes next, the person's or another session's, asks
+  // for a replan of the panel instead of the list of what was left open (the replan covers it).
+  const left = aborted && hasOpen(tasks)
+    ? it.peer ? PROMPT.interrupted(openList(tasks)) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
+    : aborted && it.peer ? PROMPT.interruptedEmpty
     : hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
   reminders.answeredInChat = false
   return next({
