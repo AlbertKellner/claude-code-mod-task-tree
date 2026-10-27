@@ -128,21 +128,36 @@ test('replano sem uma tarefa a tira do painel e mantém o resto', async ($: any,
   esperarEstado(p, 'Um', 'andamento')
 })
 
-// PENDENTE: um nível 1 já concluído não é replanejado (fica como histórico, regra do plan):
-// o replano cria outro "Plano A" ao lado do concluído. Aguardando decisão: o caso vale para um nível 1
-// concluído ou para um pai abaixo dele?
-// test('pai concluído que ganha filha nova no replano volta a aberto', async ($: any, on: any) => {
-//   fixar(on)
-//   await pedido($, 'Pedido um')
-//   await plan($, A2)
-//   for (const id of ['1', '2.1', '2.2']) {
-//     await start($, [id])
-//     await done($, [id])
-//   }
-//   esperarEstado(await painel($), 'Plano A', 'concluida')
-//   await plan($, comTres())
-//   const p = await painel($)
-//   expect(['andamento', 'aguardando'], emTexto(p)).toContain(linha(p, 'Plano A').estado)
-//   esperarEstado(p, 'Três', 'pendente')
-//   esperarEstado(p, 'Um', 'concluida')
-// })
+test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a aberto', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  for (const id of ['2.1', '2.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  esperarEstado(await painel($), 'Dois', 'concluida')
+  const dois = A2[0]!.children![1]!
+  await plan($, [{ ...A2[0]!, children: [A2[0]!.children![0]!, { ...dois, children: [...dois.children!, { id: '2.3', title: 'Dois.três' }] }] }])
+  const p = await painel($)
+  expect(['andamento', 'aguardando'], emTexto(p)).toContain(linha(p, 'Dois').estado)
+  esperarEstado(p, 'Dois.três', 'pendente')
+  esperarEstado(p, 'Dois.um', 'concluida')
+  esperarEstado(p, 'Dois.dois', 'concluida')
+  esperarEstado(p, 'Um', 'pendente')
+})
+
+// Origem: regra do plan, um nível 1 já concluído fica como histórico e não é replanejado.
+test('plan com o id de um nível 1 concluído deixa o concluído como histórico e põe um plano novo ao lado', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  for (const id of ['1', '2.1', '2.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  await plan($, A2)
+  const p = await painel($)
+  const planos = p.filter(l => l.titulo === 'Plano A')
+  expect(planos.map(l => l.estado), emTexto(p)).toEqual(['concluida', 'pendente'])
+})
