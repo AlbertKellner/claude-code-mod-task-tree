@@ -22,6 +22,8 @@ export type TaskNode = {
   // every state, only its color changing, and counts in no x/y (the person's words: "quero
   // diferenciar as tarefas de execução, das tarefas de mensagem").
   msg?: boolean
+  // A message task left out of a replan while its message is still queued: kept, drawn until delivered.
+  kept?: boolean
   children: TaskNode[]
 }
 

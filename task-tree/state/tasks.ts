@@ -108,3 +108,41 @@ export function begin(list: TaskNode[], id: string, seq: number, now?: number): 
     return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now) }
   })
 }
+
+// A replan of an open level-1 task (same id, same request): the new plan's order and titles, with the
+// state of every task that keeps its id; a message task left out while its message is queued
+// (`queued`: anchors of sends not taken up) stays, marked kept; parents follow their children (the
+// person, 2026-10-27: "◉ segue ◉, ✓ segue ✓, ✉ segue até a entrega; só tarefas novas nascem ○").
+export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: number): TaskNode {
+  const byId = new Map(flat([old]).map(t => [t.id, t] as const))
+  const merge = (n: TaskNode): TaskNode => {
+    const o = byId.get(n.id)
+    const kept = o ? { status: o.status, started: o.started, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg } : {}
+    return { ...n, ...kept, children: n.children.map(merge) }
+  }
+  let out = merge(fresh)
+  const ids = new Set(flat([out]).map(t => t.id))
+  const parentOf = (list: TaskNode[], id: string, p?: TaskNode): TaskNode | undefined => {
+    for (const t of list) {
+      if (t.id === id) return p
+      const found = parentOf(t.children, id, t)
+      if (found !== undefined) return found
+    }
+    return undefined
+  }
+  const left = flat([old]).filter(t => t.children.length === 0 && t.msg === true && queued.includes(t.id) && !ids.has(t.id))
+  for (const o of left) {
+    const p = parentOf([old], o.id)
+    const host = p !== undefined && ids.has(p.id) ? p.id : out.id
+    const add = (t: TaskNode): TaskNode => (t.id === host ? { ...t, children: [...t.children, { ...o, kept: true }] } : { ...t, children: t.children.map(add) })
+    out = add(out)
+  }
+  // A parent with something open below it is open again; settle closes the ones left all done.
+  const reopen = (t: TaskNode): TaskNode => {
+    const children = t.children.map(reopen)
+    return children.length > 0 && flat(children).some(k => k.status === 'open')
+      ? { ...t, status: 'open' as Status, started: undefined, endedAt: undefined, children }
+      : { ...t, children }
+  }
+  return settle([reopen(out)], now)[0] as TaskNode
+}

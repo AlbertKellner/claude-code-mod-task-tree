@@ -911,6 +911,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     recvOf: (t: TaskNode) => Turn | undefined = () => undefined,
   ): Row[] =>
     items.flatMap(t => {
+      // A message task a replan left out shows only while its message is queued (carry).
+      if (t.kept && !pending.some(s => s.anchor === t.id)) return []
       // Sessions opened on it or below add to its count and keep it in progress (atWork).
       const w = work(t)
       // A message sent from it is still queued: it waits on that session (its own icon), also once

@@ -36,9 +36,10 @@ export const RULES = [
     '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
     'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
   '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
-    'substituído do zero no mesmo lugar da lista: remarque com done o que já estava concluído. Um nível 1 ' +
-    'já concluído fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai ' +
-    'concluído, replaneje o nível 1.',
+    'substituído no mesmo lugar da lista, e as tarefas que mantêm o id guardam o estado (concluída segue ' +
+    'concluída, em andamento segue em andamento); só as novas entram pendentes. Um nível 1 já concluído ' +
+    'fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
+    'replaneje o nível 1 com ids novos para o que deve ser refeito.',
   '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
   '- Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a tarefa a ' +
     'que a pergunta pertence e feche-a só depois da resposta; se a resposta vier pelo chat, feche-a no ' +
@@ -64,7 +65,8 @@ export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele;
 export const TOOLS = {
   plan:
     'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +
-    'uma aberta com o mesmo id é substituída (replanejamento, que recomeça tudo dentro dela). ' +
+    'uma aberta com o mesmo id é substituída no mesmo lugar (replanejamento): as tarefas que mantêm o id ' +
+    'guardam o estado, e só as novas entram pendentes. ' +
     'Até 3 níveis: nível 1 genérico, nível 3 mais granular. Ids únicos dentro do plano (ex.: "1", "1.2", "1.2.3"); ' +
     'abaixo do nível 1 eles ganham o id dele como prefixo ("D/1.2"), então planos diferentes podem repetir ids. ' +
     'Use no início de todo pedido (uma tarefa basta para um pedido simples) e ao replanejar. ' +
@@ -121,8 +123,8 @@ export const PROMPT = {
     PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
     'chegou em seguida. Antes de seguir, replaneje o painel: chame mcp__task-tree__plan com o nível 1 ' +
     `inteiro, juntando o que ficou do trabalho interrompido (tarefas abertas: ${list}) e o que esta ` +
-    'mensagem pede, na ordem em que vai executar. Remarque com mcp__task-tree__done o que já estava ' +
-    'concluído. Depois siga etapa por etapa com start e done.',
+    'mensagem pede, na ordem em que vai executar; mantenha os ids das tarefas que continuam, que guardam ' +
+    'o estado. Depois siga etapa por etapa com start e done.',
   interruptedEmpty:
     PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
     'chegou em seguida. Antes de seguir, replaneje o painel com o que esta mensagem pede: chame ' +
@@ -135,7 +137,7 @@ export const PROMPT = {
     PANEL + 'o usuário interrompeu o turno anterior antes de terminar, e esta é a mensagem seguinte dele. ' +
     'Antes de seguir, replaneje o painel: chame mcp__task-tree__plan com o nível 1 inteiro, na ordem em ' +
     `que vai executar. Se esta mensagem continua o trabalho interrompido (tarefas abertas: ${list}), junte ` +
-    'o que ficou com o que ela pede e remarque com mcp__task-tree__done o que já estava concluído; se ela ' +
+    'o que ficou com o que ela pede, mantendo os ids das tarefas que continuam, que guardam o estado; se ela ' +
     'muda de rumo, feche com mcp__task-tree__done o que ela substitui e planeje só o pedido novo. Depois ' +
     'siga etapa por etapa com start e done.',
 }
