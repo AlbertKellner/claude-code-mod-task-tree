@@ -7,7 +7,7 @@
 // keeps one file of every shape ever written). The hooks module gathers what to publish from the
 // state (the kit wants the state keys literal there) and hands it over.
 
-import type { Ask, Child, Group, Published, Send, TaskNode, Wait } from '../types'
+import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { debug } from './log'
 
 export type { Published }
@@ -53,7 +53,6 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
         ? { git: { repo: git.repo, branch: git.branch, ...(git.detached === true ? { detached: true } : {}), ...(typeof git.at === 'number' ? { at: git.at } : {}) } }
         : {}),
     ...(f.aborted === true ? { aborted: true } : {}),
-    ...(list<Ask>(f.asks) ? { asks: list<Ask>(f.asks) } : {}),
     ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
     ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
     ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
@@ -100,7 +99,7 @@ export async function readPublished($: any, id: string): Promise<Published | und
 // What the hooks module hands over for one publication: the panel as the state holds it (`tasks`,
 // the main group's, is for earlier versions; `sends` as queued, the taken ones are dropped here) and
 // what the last drawing left (its error, size and lines).
-export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'rate' | 'git' | 'aborted' | 'asks' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
+export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the
 // app) waits on the person, and its whole panel, with the share of the context window used (for the
@@ -137,7 +136,6 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       children: p.children,
       engine: p.engine,
       aborted: p.aborted === true ? true : undefined,
-      asks: p.asks && p.asks.length > 0 ? p.asks : undefined,
       renderError: p.renderError,
       drawSize: p.drawSize,
       rows: p.rows,
@@ -169,7 +167,6 @@ export async function publishWait($: any, id: string | undefined, p: Publication
         rate: p.rate,
         git: p.git,
         aborted: body.aborted,
-        asks: body.asks,
         panes,
         renderError: body.renderError,
         drawSize: body.drawSize,
