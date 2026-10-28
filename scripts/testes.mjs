@@ -71,9 +71,11 @@ const etapas = [
   ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true, hook.validate],
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true, hook.validate],
   ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false, hook.tsc],
-  ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true, indice],
+  // Em série: em paralelo com a regressão, na máquina carregada, testes estouravam os 5 s do kit
+  // (1 falha em 5 execuções do hook), e um hook que falha à toa empurra para o --no-verify.
+  ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true],
   // Os testes de HEAD contra o código novo; só com diferença em task-tree/ (ela mesma decide).
-  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : [])], true, true, indice],
+  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : [])], true, true],
 ]
 
 const resumo = []
