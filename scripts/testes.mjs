@@ -1,35 +1,11 @@
 // Comando único de validação do task-tree: validate, tsc e plugin test, nessa ordem.
 // Uso: npm run check (ou node scripts/testes.mjs). CLAUDE_BIN escolhe o binário do Claude Code.
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { acharBinario } from './binario.mjs'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
-
-// Ordena versões "2.1.308" numericamente.
-const comparar = (a, b) => {
-  const pa = a.split('.').map(Number)
-  const pb = b.split('.').map(Number)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) - (pb[i] ?? 0)
-  return 0
-}
-
-function acharBinario() {
-  if (process.env.CLAUDE_BIN) return process.env.CLAUDE_BIN
-  const base = process.env.APPDATA && join(process.env.APPDATA, 'Claude', 'claude-code')
-  if (base && existsSync(base)) {
-    const versoes = readdirSync(base).filter(v => /^\d+(\.\d+)*$/.test(v)).sort(comparar).reverse()
-    for (const v of versoes) {
-      const pasta = join(base, v)
-      for (const sub of readdirSync(pasta)) {
-        const exe = join(pasta, sub, 'claude.exe')
-        if (statSync(join(pasta, sub)).isDirectory() && existsSync(exe)) return exe
-      }
-    }
-  }
-  return 'claude'
-}
 
 const claude = acharBinario()
 const rodar = (cmd, args) => spawnSync(cmd, args, { cwd: raiz, stdio: 'inherit', shell: cmd === 'claude' || cmd === 'npx' })
@@ -56,6 +32,8 @@ const etapas = [
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true],
   ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false],
   ['plugin test', claude, ['plugin', 'test', 'task-tree'], true],
+  // Os testes de HEAD contra o código novo; só com diferença em task-tree/.
+  ['regressao', process.execPath, ['scripts/regressao.mjs'], true],
 ]
 
 const resumo = []
