@@ -9,8 +9,28 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 - Quando o painel é desenhado
 - Então o cartão fica sob essa tarefa, ou sob a da última rodada
 
-Origem: regra do painel; a confirmar.
-Estado: pendente (sessoes)
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
+Estado: coberto
+
+### sessoes.palavra-de-estado-do-cartao
+O cartão diz em uma palavra o estado da filha, quando ela não está só trabalhando.
+
+- Dado uma filha
+- Quando ela trabalha, espera a pessoa, para com tarefas abertas, termina ou é arquivada
+- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "concluída" ou "arquivada"
+
+Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
+Estado: coberto
+
+### sessoes.um-cartao-por-mensagem
+Cada mensagem à filha, em turnos diferentes, tem o seu cartão.
+
+- Dado duas mensagens à mesma filha, tratadas em turnos diferentes dela
+- Quando o painel é desenhado
+- Então há dois cartões, cada um sob a tarefa da sua mensagem
+
+Origem: commit 4af1b92.
+Estado: pendente (sessoes, rodadas)
 
 ### sessoes.cadeia-sem-cartao-dentro-de-cartao
 Uma cadeia de filhas não põe cartão dentro de cartão.
@@ -20,7 +40,7 @@ Uma cadeia de filhas não põe cartão dentro de cartão.
 - Então os cartões ficam em sequência, sem cartão dentro de cartão
 
 Origem: commit fddd473, 2026-10-23.
-Estado: pendente (sessoes)
+Estado: pendente (sessoes, rodadas)
 
 ### sessoes.mensagem-entre-filhas-no-cartao-da-remetente
 A mensagem entre filhas fica no cartão da remetente.
@@ -30,7 +50,7 @@ A mensagem entre filhas fica no cartão da remetente.
 - Então a mensagem fica no cartão da remetente, sob a tarefa que a mandou
 
 Origem: commit 28ae764, 2026-10-23.
-Estado: pendente (sessoes)
+Estado: pendente (sessoes, rodadas)
 
 ### sessoes.filha-trabalhando-mantem-pais-em-andamento
 A filha trabalhando mantém a tarefa e os pais em andamento.
@@ -40,17 +60,17 @@ A filha trabalhando mantém a tarefa e os pais em andamento.
 - Então a tarefa e os pais seguem ◉ enquanto a filha trabalha
 
 Origem: commit d956e11, 2026-10-24.
-Estado: pendente (sessoes)
+Estado: coberto
 
 ### sessoes.filha-parada-pendentes-seguem-pendentes
 Na filha parada, as pendentes seguem pendentes.
 
 - Dado uma filha que terminou o turno com pendentes
 - Quando o cartão é desenhado
-- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷
+- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido)
 
-Origem: decisão do usuário, 2026-10-27; commit d57807e.
-Estado: checklist (até o kit ter stub do host)
+Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit d57807e.
+Estado: coberto
 
 ### sessoes.filha-arquivada-interrompe
 A filha arquivada deixa interrompido o que ficou aberto.
@@ -59,8 +79,8 @@ A filha arquivada deixa interrompido o que ficou aberto.
 - Quando o cartão é desenhado
 - Então o que ficou aberto fica ✕, e o pai com filha ✓ fica ◷
 
-Origem: regra do painel; a confirmar.
-Estado: checklist (até o kit ter stub do host)
+Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit 95b1a21.
+Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem
 A rodada descartada sai da contagem.
@@ -70,7 +90,7 @@ A rodada descartada sai da contagem.
 - Então ela sai das contagens dos pais e do cabeçalho
 
 Origem: commit bf77359, 2026-10-24.
-Estado: pendente (sessoes)
+Estado: pendente (sessoes, rodadas)
 
 ### sessoes.busto-so-no-pai
 O busto da sessão só na tarefa de que o cartão pende.
@@ -80,7 +100,7 @@ O busto da sessão só na tarefa de que o cartão pende.
 - Então o busto aparece só nela, não no pedido nem nos ancestrais
 
 Origem: commit e570baa, 2026-10-24.
-Estado: pendente (sessoes)
+Estado: coberto
 
 ### sessoes.pasta-sem-git
 A sessão numa pasta sem git mostra a pasta.
@@ -90,17 +110,17 @@ A sessão numa pasta sem git mostra a pasta.
 - Então mostra o ícone de pasta e o caminho, sem branch
 
 Origem: commit 17f1140, 2026-10-24.
-Estado: pendente (sessoes)
+Estado: coberto
 
-### sessoes.toks-por-segundo-e-repo-branch
+### sessoes.toks-e-repo-branch-no-cartao
 O cartão mostra toks/s, repositório e branch.
 
 - Dado uma filha trabalhando num repositório
 - Quando o cartão é desenhado
-- Então mostra "n toks/s" à esquerda do modelo e o repositório e a branch à direita do nome
+- Então mostra "n toks/s", o repositório e a branch (a posição no app desktop: visual.cartao-posicao-de-toks-e-repo)
 
-Origem: commits 1987482 e 689d569, 2026-10-24.
-Estado: checklist (valores reais do host)
+Origem: commits 1987482 e 689d569, 2026-10-24; dividida em conteúdo e posição por decisão do usuário, 2026-10-28.
+Estado: coberto
 
 ### sessoes.mensagens-juntas-vao-a-ultima
 Mensagens entregues juntas: o cartão vai à tarefa da última.
@@ -110,4 +130,4 @@ Mensagens entregues juntas: o cartão vai à tarefa da última.
 - Então o cartão do turno fica na tarefa da última mensagem
 
 Origem: commit 8b67366, 2026-10-23.
-Estado: pendente (sessoes)
+Estado: pendente (sessoes, rodadas)
