@@ -105,3 +105,18 @@ test('a escolha do wrap_up fica até a próxima mensagem', async ($: any, on: an
   p = await painel($)
   expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
 })
+
+// Regra: perguntas.permissao-espera
+test('o pedido de permissão aparece como espera; o de pergunta, não', async ($: any, on: any) => {
+  fixar(on)
+  on('classic.PermissionRequest', () => ({}))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.classic.PermissionRequest({ tool_name: 'AskUserQuestion' })
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão')), emTexto(p)).toBe(false)
+  await $.classic.PermissionRequest({ tool_name: 'Bash' })
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
+})

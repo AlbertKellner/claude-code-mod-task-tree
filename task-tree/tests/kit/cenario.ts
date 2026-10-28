@@ -7,15 +7,16 @@ export type Resposta = { texto: string; erro: boolean }
 const resposta = (r: any): Resposta =>
   typeof r?.deny === 'string' ? { texto: r.deny, erro: true } : { texto: String(r?.result ?? r?.text ?? ''), erro: r?.isError === true }
 
-async function chamar($: any, nome: string, args: object): Promise<Resposta> {
-  return resposta(await $.tool.call({ tool: `mcp__task-tree__${nome}`, ...args }))
+// `agente`: a chamada de um subagente (o agentId dele); sem ela, a do loop principal.
+async function chamar($: any, nome: string, args: object, agente?: string): Promise<Resposta> {
+  return resposta(await $.tool.call({ tool: `mcp__task-tree__${nome}`, ...args, ...(agente === undefined ? {} : { agentId: agente }) }))
 }
 
-export const plan = ($: any, tarefas: No[], request?: string) =>
-  chamar($, 'plan', request === undefined ? { tasks: tarefas } : { tasks: tarefas, request })
-export const start = ($: any, ids: string[]) => chamar($, 'start', { ids })
-export const done = ($: any, ids: string[], summary?: string) =>
-  chamar($, 'done', summary === undefined ? { ids } : { ids, summary })
+export const plan = ($: any, tarefas: No[], request?: string, agente?: string) =>
+  chamar($, 'plan', request === undefined ? { tasks: tarefas } : { tasks: tarefas, request }, agente)
+export const start = ($: any, ids: string[], agente?: string) => chamar($, 'start', { ids }, agente)
+export const done = ($: any, ids: string[], summary?: string, agente?: string) =>
+  chamar($, 'done', summary === undefined ? { ids } : { ids, summary }, agente)
 
 // Uma ferramenta qualquer chamada pelo modelo (pergunta, plano, wrap_up), já com o stub registrado.
 export const ferramenta = async ($: any, tool: string, args: object = {}): Promise<Resposta> =>
@@ -52,6 +53,10 @@ export const aviso = ($: any) => $.prompt.submit({ text: '<side-sessions-event>s
 // O fim normal do turno do modelo.
 export const fimDoTurno = ($: any) =>
   $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: false, turnId: 't' })
+
+// O fim do turno de um subagente (ele termina).
+export const fimDoSubagente = ($: any, agente: string) =>
+  $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: agente })
 
 // O turno parado pela pessoa (Esc, stop).
 export const esc = ($: any) =>

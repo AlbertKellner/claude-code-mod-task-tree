@@ -25,6 +25,12 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   return { relogio }
 }
 
+// Os subagentes que o host lista (agent.list), para as chamadas com agentId. Chamar antes da
+// primeira chamada a $.
+export function subagente(on: any, ...ids: string[]) {
+  on('agent.list', () => ({ value: ids.map(id => ({ id, type: 'general-purpose', description: `subagente ${id}` })) }))
+}
+
 // O id desta sessão no store (`<chave>:<id>`), fixo para que um teste ache o que o anterior gravou.
 export const SESSAO = 'uuid-eu'
 

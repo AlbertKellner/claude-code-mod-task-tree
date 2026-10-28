@@ -1,4 +1,5 @@
 import { expect, test } from 'claude-code/testing'
+import { painel as desenho } from './kit/leitura'
 import { fixar } from './kit/ambiente'
 import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 
@@ -70,4 +71,34 @@ test('o lembrete de replanejar vale uma vez só', async ($: any, on: any) => {
   const ctx = contexto(await pedido($, 'Mais uma'))
   expect(ctx).toContain(ABERTAS)
   expect(ctx).not.toContain(REPLANEJAR)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  const lembrou: boolean[] = []
+  for (let i = 1; i <= 11; i++) {
+    const r = await $.tool.call({ tool: 'Bash', tool_use_id: `b${i}`, command: 'ls' })
+    lembrou.push(JSON.stringify(r?.context ?? []).includes('sem plano aberto'))
+  }
+  expect(lembrou).toEqual([true, false, false, false, false, false, false, false, false, false, true])
+  // Com um plano aberto, nada.
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  const r = await $.tool.call({ tool: 'Bash', tool_use_id: 'b12', command: 'ls' })
+  expect(JSON.stringify(r?.context ?? [])).not.toContain('sem plano aberto')
+  await desenho($)
+})
+
+// Regra: lembretes.regras-no-prompt-de-sistema
+test('as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  // O que o motor resolve antes de montar o prompt de sistema.
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan', 'Bash'] })
+  expect((com?.sections ?? []).map((s: any) => s.id)).toContain('task-tree:regras')
+  const sem = await $.prompt.compose({ ...COMPOR, tools: ['Bash'] })
+  expect((sem?.sections ?? []).map((s: any) => s.id)).not.toContain('task-tree:regras')
 })

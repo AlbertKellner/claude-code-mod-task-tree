@@ -60,7 +60,7 @@ Ids curtos e os avisos de id ambíguo, inexistente ou de outro agente.
 - Então a resposta avisa cada caso, e o id completo ("D/1.2") resolve
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
-Estado: pendente (arvore)
+Estado: coberto
 
 ### arvore.done-sem-summary-e-varias-sem-start
 Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
@@ -70,7 +70,7 @@ Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
 - Então a resposta traz o aviso correspondente
 
 Origem: commit 9c054f8, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit 3f06a32, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão").
-Estado: pendente (arvore)
+Estado: coberto
 
 ### arvore.plan-recusa-ids-repetidos
 plan com ids repetidos é recusado.
@@ -80,4 +80,4 @@ plan com ids repetidos é recusado.
 - Então a resposta é um erro com os ids repetidos, e nada muda no painel
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
-Estado: pendente (arvore)
+Estado: coberto
