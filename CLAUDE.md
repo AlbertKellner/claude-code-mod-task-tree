@@ -30,16 +30,24 @@ Regras de comportamento, uma por cenário: [regras/](regras/).
 
 ## Como executar
 
-    npm install      # uma vez: typescript para o tsc
+    npm install      # uma vez: typescript para o tsc e o hook de pré-commit
     npm run check
 
 Etapas, nessa ordem; a primeira que falha para:
 1. `regras`: confere o catálogo `regras/` contra os testes (ids, estados, ligações).
-2. `claude plugin validate . --strict` e `claude plugin validate task-tree --strict`: manifesto do
+2. `travas`: testa as regras do selo num repositório temporário.
+3. `selos`: confere os testes e o kit contra `regras/selos.json`.
+4. `claude plugin validate . --strict` e `claude plugin validate task-tree --strict`: manifesto do
    marketplace e do mod; também gera `task-tree/.claude-plugin/types/` (ignorado pelo git).
-3. `tsc --noEmit`: só aviso por enquanto (erros de tipo antigos). Passa a bloquear quando zerar:
+5. `tsc --noEmit`: só aviso por enquanto (erros de tipo antigos). Passa a bloquear quando zerar:
    corrigir aos poucos, junto com mudanças nos mesmos arquivos.
-4. `claude plugin test task-tree`: todos os testes.
+6. `claude plugin test task-tree`: todos os testes.
+7. `regressao`: os testes de `HEAD` contra o código novo, numa pasta temporária; só com diferença em
+   `task-tree/`.
+
+Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motivo "…"` (selar um
+teste) e `npm run testes:alterados` (os testes existentes que mudaram, para o relato; `-- --pr`
+contra a base do PR).
 
 O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude-code\<versão>\`;
 `CLAUDE_BIN` escolhe outro. Use a mesma versão que roda a sessão.
@@ -55,6 +63,27 @@ O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude
   `coberto` no mesmo commit.
 - O `npm run check` falha se um cenário `coberto` não tem teste, se um teste cita id inexistente,
   se um teste não cita regra, ou se um teste cita um cenário ainda `pendente`/`checklist`.
+
+## Travas contra regressão
+
+O que já funcionava continua funcionando: um teste existente só muda quando o usuário decide mudar
+a regra que ele protege.
+
+- Teste existente coberto por regra só muda com decisão do usuário registrada no catálogo: o
+  cenário ganha `Reescrito: AAAA-MM-DD, <palavras dele>`, e o teste é selado como decisão
+  (`npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao --motivo "…"`).
+- Mudar a forma de um teste sem mudar o que ele afirma é refatoração (`--tipo refatoracao`): as
+  asserções não podem diminuir e o teste antigo precisa continuar passando.
+- Teste novo é selado à mão (`--tipo novo`), e fica protegido a partir do commit seguinte.
+- Regressão se corrige no código, nunca no teste. Se a mudança precisa alterar um comportamento
+  protegido e não há decisão do usuário, pare e pergunte.
+- O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
+  asserções; um arquivo do kit mudou sem selo; ou um teste de `HEAD` falha contra o código novo
+  sem decisão registrada ("testes antigos, código novo").
+- O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
+  commit. Não use `--no-verify`.
+- O relato da implementação cola a saída de `npm run testes:alterados` e o resumo do check
+  (modelos em [regras/README.md](regras/README.md)).
 
 ## Editar o mod sem quebrar a recarga
 
