@@ -89,5 +89,5 @@ A resumida mantém os pedidos anteriores enquanto há algo aberto.
 - Quando um pedido novo começa
 - Então a visão resumida mantém os dois; com tudo fechado, só o novo
 
-Origem: decisão do usuário, 2026-10-23; commit 897c0d7.
-Estado: pendente (cabecalho)
+Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Estado: coberto

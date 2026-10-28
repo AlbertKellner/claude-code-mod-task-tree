@@ -27,6 +27,9 @@ export const envio = ($: any, para: string, texto = 'oi') => ferramenta($, 'Send
 // O modelo abre uma sessão filha (start_session); o stub do host devolve o id da próxima filha dele.
 export const abrirSessao = ($: any) => ferramenta($, 'mcp__ccd_session__start_session', { title: 'filha' })
 
+// Troca a visão, como /task-tree resumida | completa.
+export const visao = ($: any, v: 'resumida' | 'completa') => $.command.run({ command: 'task-tree', args: v })
+
 // Uma mensagem de outra sessão: abre um pedido marcado como recebido.
 export const mensagemDe = ($: any, de: string, texto: string) =>
   $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">${texto}</cross-session-message>` })
