@@ -63,7 +63,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   // line whose state changed pops its icon; a bar whose count changed grows; a new chip fades in.
   // The header's keys carry the view: each view's header has its own bar and chips.
   const headKey = `head@${chrome.view ?? ''}`
-  const sources = lines.map((r, i) => rowSvg(r, lanes[i], cards[i], W, hides[i]))
+  const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
   const tones = chipTones(top.source)
   const marks = mark(
     [
@@ -80,10 +80,10 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   // subtasks when it starts or closes; a parent or a request only when it closes (✓), not on its way
   // between in progress and waiting as its subtasks go; a session's card never.
   const popsAt = (i: number) => {
-    const r = lines[i]
+    const r = lines[i]!
     // A message task's ✉ pops when its color changes (queued → delivered → cut), as the icons do.
-    if (r.msg || r.recv) return marks.changed.has(`${keys[i]}#msg`)
-    const k = `${keys[i]}#tone`
+    if (r.msg || r.recv) return marks.changed.has(`${keys[i]!}#msg`)
+    const k = `${keys[i]!}#tone`
     if (!marks.changed.has(k) || r.card || r.session) return false
     const to = progress(r)
     if (r.leaf) return to === 'done' || to === 'interrupted' || (to === 'current' && marks.before.get(k) === 'open')
@@ -98,14 +98,14 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   }
   const ago = (k: string) => marks.ago.get(k) ?? 0
   const motion = (i: number) =>
-    marks.enter.has(keys[i])
-      ? [fadeIn(ago(keys[i]))]
+    marks.enter.has(keys[i]!)
+      ? [fadeIn(ago(keys[i]!))]
       : [
-          ...(popsAt(i) ? [lines[i].msg || lines[i].recv ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]) === 'done', ago(`${keys[i]}#tone`))] : []),
-          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]), ago(`${keys[i]}#bar`)) : []),
+          ...(popsAt(i) ? [lines[i]!.msg || lines[i]!.recv ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]!) === 'done', ago(`${keys[i]}#tone`))] : []),
+          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]!) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]!), ago(`${keys[i]}#bar`)) : []),
         ]
   const headMotion = [
-    ...tones.filter(t => marks.enter.has(`${headKey}#chip:${t}`)).map(t => chipIn(t, ago(`${headKey}#chip:${t}`))),
+    ...tones.filter(t => marks.enter.has(`${headKey}#chip:${t}`)).map(t => chipIn(t!, ago(`${headKey}#chip:${t}`))),
     ...(marks.changed.has(`${headKey}#bar`) && barOf(top.source) !== '' ? growFrom(marks.before.get(`${headKey}#bar`), barOf(top.source), ago(`${headKey}#bar`)) : []),
   ]
   const over = (r: Row, p: Placed, source: string, H: number) =>
@@ -143,7 +143,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Box key={`r${i}`} flexDirection="column">
           {(source => {
             const H = rowHeight(r, cards[i])
-            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring), hover: hovers(source) }, Math.max(0, cards[i].cards.length - 1), W)
+            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring), hover: hovers(source) }, Math.max(0, cards[i]!.cards.length - 1), W)
             const one = (kind: Placed['kind']) => {
               const p = placed.find(x => x.kind === kind)
               return p ? over(r, p, source, H) : null
@@ -156,7 +156,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
                 {one('name')}
               </Box>
             )
-          })(sources[i])}
+          })(sources[i]!)}
         </Box>
       ))}
     </Box>
@@ -220,7 +220,7 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
         const words = rightText(r)
         const time = typeof r.time === 'number' ? clockText(r.time) : r.time === null ? '—' : ''
         const tail = (forked ? `  ${GLYPH.running[0]}` : '') + (words ? `  ${words}` : '') + (time ? `  ${time}` : '')
-        const lead = prefix(r, lanes[i], hides[i])
+        const lead = prefix(r, lanes[i]!, hides[i])
         // A session's label: the session glyph (the Button that folds the card) left of its name, then
         // its tags, no count or time.
         const parts = r.session ? [

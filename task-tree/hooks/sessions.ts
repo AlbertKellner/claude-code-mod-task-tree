@@ -108,7 +108,7 @@ export async function watchSends($: any, rows: any[]) {
   const files: Record<string, Published> = {}
   const fileOf = async (id: string): Promise<Published> => {
     if (!(id in files)) files[id] = (await readPublished($, id)) ?? { waiting: false, waits: [], children: [] }
-    return files[id]
+    return files[id]!
   }
   const marks: Record<number, Partial<Send>> = {}
   // The sends still waiting, by the session they went to.
@@ -130,7 +130,7 @@ export async function watchSends($: any, rows: any[]) {
       let j = 0
       for (const { i, s } of [...list].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))) {
         const since = s.at ?? 0
-        while (j < got.length && got[j] < since) j++
+        while (j < got.length && got[j]! < since) j++
         if (j >= got.length) break
         marks[i] = { taken: true }
         usedReceipts.add(`${id}|${got[j]}`)

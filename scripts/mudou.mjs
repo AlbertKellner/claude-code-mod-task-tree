@@ -10,9 +10,12 @@ export const mudaTravas = p => p.startsWith('scripts/')
 // marketplace, o resultado é o mesmo.
 export const mudaValidate = p => (p.startsWith('task-tree/') && !p.startsWith('task-tree/tests/')) || p.startsWith('.claude-plugin/')
 
-// As etapas que o hook roda, pelos caminhos alterados. O tsc fica de fora enquanto não bloqueia.
+// O tsc lê o código do mod e os testes (task-tree/, com o tsconfig dele).
+export const mudaTsc = p => p.startsWith('task-tree/')
+
+// As etapas que o hook roda, pelos caminhos alterados.
 export function etapasDoHook(alterados) {
-  return { travas: alterados.some(mudaTravas), validate: alterados.some(mudaValidate), tsc: false }
+  return { travas: alterados.some(mudaTravas), validate: alterados.some(mudaValidate), tsc: alterados.some(mudaTsc) }
 }
 
 // Os caminhos que o índice muda em relação a HEAD (o que vai no commit). Sem HEAD (repositório novo),

@@ -157,9 +157,11 @@ test('mudar uma constante de topo usada pelo teste falha; uma não usada, não',
 }))
 
 // O que o hook pula: só etapas cujos arquivos não mudaram; uma condição errada pularia uma trava.
-test('o hook roda as travas só com scripts/ mudado, e o validate só com o mod ou o marketplace mudados', () => {
+test('o hook roda as travas só com scripts/ mudado, o validate só com o mod ou o marketplace mudados, e o tsc com task-tree/ mudado', () => {
   assert.deepEqual(etapasDoHook([]), { travas: false, validate: false, tsc: false })
-  assert.deepEqual(etapasDoHook(['regras/sessoes.md', 'task-tree/tests/sessoes.test.ts', 'task-tree/tests/kit/leitura.ts']), { travas: false, validate: false, tsc: false })
+  assert.deepEqual(etapasDoHook(['regras/sessoes.md']), { travas: false, validate: false, tsc: false })
+  assert.deepEqual(etapasDoHook(['task-tree/tests/sessoes.test.ts', 'task-tree/tests/kit/leitura.ts']), { travas: false, validate: false, tsc: true })
+  assert.equal(etapasDoHook(['task-tree/draw/layout.ts']).tsc, true)
   assert.equal(etapasDoHook(['scripts/selos.mjs']).travas, true)
   assert.equal(etapasDoHook(['scripts/travas.test.mjs']).travas, true)
   for (const p of ['task-tree/draw/layout.ts', 'task-tree/.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'task-tree/register.tsx'])
