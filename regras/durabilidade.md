@@ -22,6 +22,16 @@ Num processo novo sem session.start, o painel volta no primeiro uso, e o store n
 Origem: commits 59eb558 e fba6171, 2026-10-22.
 Estado: coberto
 
+### durabilidade.fim-do-turno-sobrevive-ao-reinicio
+O fim do turno sobrevive ao reinício.
+
+- Dado um turno que terminou (normal ou com Esc) com uma tarefa iniciada e aberta
+- Quando um processo novo desenha o painel (session.start, respawn sem ele, ou retomada)
+- Então nada fica ◉: a iniciada fica ◷ (✕ se o turno foi parado), o pai fica ◷, e o relógio não anda até o próximo pedido
+
+Origem: decisões do usuário de 2026-10-27 (◉ só no caminho da última iniciada no turno atual; no fim do turno, a iniciada aguarda) aplicadas ao reinício; achado da tarefa 7, 2026-10-28.
+Estado: coberto
+
 ### durabilidade.clear-esvazia
 O /clear esvazia o painel.
 

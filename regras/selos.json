@@ -123,6 +123,66 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::fim do turno com Esc no reinício, 1/2: o turno é parado com uma tarefa iniciada": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "ef1c12dd22f51a16",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::fim do turno com Esc no reinício, 2/2: a iniciada segue interrompida": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "f0a1b9ccc7bcd643",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::fim do turno no reinício, 1/2: o turno termina com uma tarefa iniciada": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "dc18d783f4c01fca",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::fim do turno no reinício, 2/2: o processo novo desenha o turno parado, e o pedido seguinte volta ao trabalho": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "8dd62a248473dc11",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::fim do turno no respawn, 1/2: o turno termina com uma tarefa iniciada": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "7a49d26f0933370c",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::fim do turno no respawn, 2/2: sem session.start, o primeiro desenho já mostra o turno parado": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "19504e1c5c185b8d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "fim do turno no reinício"
+    },
     "task-tree/tests/durabilidade.test.ts::os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato": {
       "regras": [
         "durabilidade.formatos-antigos-do-publicado"

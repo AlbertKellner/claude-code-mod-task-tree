@@ -12,7 +12,7 @@ import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, inDesktopApp, keptLink, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureTurn, inDesktopApp, keptLink, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -249,8 +249,11 @@ export async function anyRunning($: any): Promise<boolean> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   // With this session's turn ended, its own tasks run no clock (see turnEnded), except the task of a
-  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait.
-  const { value: ended } = await $.state.get(turnEndedState)
+  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait. After a
+  // restart the end comes back from the store first (ensureTurn): no clock for what had stopped.
+  const brought = await ensureTurn($)
+  const { value: heldEnded } = await $.state.get(turnEndedState)
+  const ended = heldEnded !== undefined ? heldEnded : brought?.ended
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).some(s => !s.taken)) return true
   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })

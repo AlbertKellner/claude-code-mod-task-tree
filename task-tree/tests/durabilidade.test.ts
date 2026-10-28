@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
 import { armazem, estado, fixar, host, SESSAO } from './kit/ambiente'
-import { abrirSessao, aviso, done, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, visao, type No } from './kit/cenario'
+import { abrirSessao, aviso, done, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, visao, type No } from './kit/cenario'
 import { cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
@@ -249,4 +249,79 @@ test('os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do 
     const primeira = (doc.groups?.find((g: any) => g.agent === '')?.tasks ?? doc.tasks ?? [])[0]
     if (primeira) expect(tem(p, primeira.title), `${f.label}:\n${emTexto(p)}`).toBe(true)
   })
+})
+
+// O fim do turno nos três casos: reinício com session.start, respawn sem ele, e o turno parado com Esc.
+const FIM: Record<string, unknown> = {}
+const FIM_RESPAWN: Record<string, unknown> = {}
+const FIM_ESC: Record<string, unknown> = {}
+async function terminarTurno($: any, on: any, store: Record<string, unknown>, parar = false) {
+  fixar(on)
+  armazem(on, store)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2.1'])
+  if (parar) await esc($)
+  else await fimDoTurno($)
+  expect(temPainel(store), JSON.stringify(Object.keys(store))).toBe(true)
+}
+const semAndamento = (p: Linha[]) => {
+  expect(p.filter(l => !l.cabecalho && l.estado === 'andamento').map(l => l.titulo), emTexto(p)).toEqual([])
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(0)
+}
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('fim do turno no reinício, 1/2: o turno termina com uma tarefa iniciada', async ($: any, on: any) => {
+  await terminarTurno($, on, FIM)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('fim do turno no reinício, 2/2: o processo novo desenha o turno parado, e o pedido seguinte volta ao trabalho', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FIM)
+  exigir(temPainel(FIM))
+  await iniciarSessao($)
+  let p = await painel($)
+  esperarEstado(p, 'Plano A', 'aguardando')
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  semAndamento(p)
+  await pedido($, 'Pedido dois')
+  await start($, ['2.2'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.dois', 'andamento')
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('fim do turno no respawn, 1/2: o turno termina com uma tarefa iniciada', async ($: any, on: any) => {
+  await terminarTurno($, on, FIM_RESPAWN)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('fim do turno no respawn, 2/2: sem session.start, o primeiro desenho já mostra o turno parado', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FIM_RESPAWN)
+  exigir(temPainel(FIM_RESPAWN))
+  const p = await painel($)
+  esperarEstado(p, 'Plano A', 'aguardando')
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  semAndamento(p)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('fim do turno com Esc no reinício, 1/2: o turno é parado com uma tarefa iniciada', async ($: any, on: any) => {
+  await terminarTurno($, on, FIM_ESC, true)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('fim do turno com Esc no reinício, 2/2: a iniciada segue interrompida', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FIM_ESC)
+  exigir(temPainel(FIM_ESC))
+  await iniciarSessao($)
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  esperarEstado(p, 'Dois.dois', 'pendente')
+  semAndamento(p)
 })

@@ -36,7 +36,7 @@ export type Row = {
   lives: Lives
   // The store's key prefix (`<store>:<session uuid>`); `field`: this key is one field of that
   // store record (the links record holds four).
-  store?: 'session' | 'view' | 'work' | 'links' | 'sessions'
+  store?: 'session' | 'view' | 'work' | 'links' | 'sessions' | 'turn'
   field?: boolean
   merge: Merge
   // `union`: how many of the merged entries are kept (the last ones).
@@ -74,8 +74,12 @@ export const TABLE: readonly Row[] = [
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
   { key: 'recap', lives: 'state', merge: 'none', restoredAt: [], note: 'wrap_up\'s recap until the turn ends (the turn\'s answer for the card); in the state so a reload between the wrap_up and the end of the turn keeps it' },
   { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
-  { key: 'turnEnded', lives: 'state', merge: 'none', restoredAt: [], note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock' },
-  { key: 'turnAborted', lives: 'state', merge: 'none', restoredAt: [], note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan' },
+  // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a
+  // restart) does not draw as in progress what had already stopped.
+  { key: 'turnEnded', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock; in the store so a new process does not draw as in progress what had already stopped (saveTurn, ensureTurn, restoreTurn)' },
+  { key: 'turnAborted', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan; what it left in progress is drawn interrupted, after a restart too' },
   // The store alone.
   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
   // Variables of the module: a hot reload starts them over.
