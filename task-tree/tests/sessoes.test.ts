@@ -200,10 +200,10 @@ test('mensagens entregues juntas: o cartão do turno vai à tarefa da última', 
 
 // Regra: sessoes.rodada-descartada-fora-da-contagem
 test('a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada', async ($: any, on: any) => {
-  // A rodada 1 com uma ✓ e uma aberta; a rodada 2 com f2. Contam Um, Dois, Três e f2.
+  // A rodada 1 com uma ✓ e uma aberta; a rodada 2 com f2. Contam Um, Três e f2 (Dois é tarefa de mensagem).
   const p = await duasRodadas($, on, [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')])
   const c = cabecalho(p)
-  expect(c.total, emTexto(p)).toBe(4)
+  expect(c.total, emTexto(p)).toBe(3)
   expect(cartoes(p, 'filha-um')[0]?.tarefas, emTexto(p)).toEqual(expect.arrayContaining(['f1', 'f1b']))
 })
 
@@ -273,4 +273,13 @@ test('a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega
   const { p } = await cadeia($, on, false)
   expect(cartoes(p, 'filha-um')[0]?.tarefas, emTexto(p)).toContain('Avisar K2')
   esperarCarta(p, 'Avisar K2', 'fila')
+})
+
+// Regra: sessoes.rodada-descartada-fora-da-contagem-do-pai
+test('com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rodada nova segue em andamento', async ($: any, on: any) => {
+  const p = await duasRodadas($, on, [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')])
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([0, 3])
+  esperarEstado(p, 'f2', 'andamento')
 })
