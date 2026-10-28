@@ -385,7 +385,7 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
   // dimmer when it is the last turn's mean. Short of room, the repository goes first, then the
   // model, then the rate; the branch is cut last, and the name never is (the person's order).
   const left = at + (r.meta ? textW(r.meta, 11) + 8 : 0)
-  let end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1].Rc : W) - 10
+  let end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1]!.Rc : W) - 10
   const engW = r.engine ? textW(r.engine, 11) + 10 : 0
   const rateW = r.rate ? textW(rateText(r.rate.toks), 11) + 10 : 0
   const room = end - left
@@ -494,10 +494,11 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   if (g.down && !r.session) paths.push(`M${x} ${cy + GUIDE_FROM}V${H}`)
   if (r.session) return labelSvg(r, f, W, H, cy, x, cards, paths)
   const right: string[] = []
-  const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
+  const R = (cards.length > 0 ? cards[cards.length - 1]!.Rc : W) - EDGE_PAD
   const section = r.tone === 'section'
   const size = section ? 13 : r.depth === 0 && r.tone !== 'wait' ? 14 : 13
-  const forked = r.session === true || r.kids === true
+  // A session line returned above: only a task or turn with a session below forks here.
+  const forked = r.kids === true
   // Task, turn and card lines are drawn in columns from the right, the same on every one of them,
   // open or closed: the time, the count, the bar and, left of the bar, the branch of a line with a
   // session (a card, or a task or turn with one below it), its column kept empty on the others. A
@@ -621,7 +622,7 @@ export function headerSvg(title: string, d: number, n: number, list: Chip[], W: 
     const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
     let cx = L
     for (const chip of list) {
-      const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0] }
+      const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0]! }
       const w = 16 + textW(c.text, 12)
       if (cx + w > R) break
       // Each chip in a group named by its tone (`ch-<tone>`), and the bars' filled part (`bar`): what
