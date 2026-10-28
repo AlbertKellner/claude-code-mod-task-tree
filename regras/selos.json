@@ -133,6 +133,16 @@
       "data": "2026-10-28",
       "motivo": "cabeçalho e visão resumida (tarefa 6)"
     },
+    "task-tree/tests/cabecalho.test.ts::pedidos antigos saem inteiros do começo, contados em \"+N linhas anteriores\"": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "af2f7fa9a67076c6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "limite de 400 linhas do desenho"
+    },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.limites-de-linhas"
@@ -142,6 +152,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
+    "task-tree/tests/cabecalho.test.ts::um pedido grande demais é desenhado até o limite e fecha com \"+N linhas\"": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "045124ea29f2a74a",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "limite de 400 linhas do desenho"
     },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [

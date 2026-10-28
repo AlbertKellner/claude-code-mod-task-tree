@@ -192,3 +192,46 @@ test('o cartão parado, sem tarefa de origem e de antes dos três últimos pedid
   expect(p.some(l => l.texto.includes('+1 cartões antigos de sessões')), emTexto(p)).toBe(true)
   expect(p.some(l => l.titulo === 'filha-antiga'), emTexto(p)).toBe(false)
 })
+
+// Um plano de a × b × c tarefas (níveis 1, 2 e 3), com títulos `${prefixo}a.b.c`.
+const grande = (prefixo: string, a: number, b: number, c: number): No[] =>
+  Array.from({ length: a }, (_, i) => ({
+    id: `${i}`,
+    title: `${prefixo}${i}`,
+    children: Array.from({ length: b }, (_, j) => ({ id: `${i}.${j}`, title: `${prefixo}${i}.${j}`, children: Array.from({ length: c }, (_, k) => ({ id: `${i}.${j}.${k}`, title: `${prefixo}${i}.${j}.${k}` })) })),
+  }))
+
+// Regra: cabecalho.limite-de-linhas-do-desenho
+test('um pedido grande demais é desenhado até o limite e fecha com "+N linhas"', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido grande')
+  await plan($, grande('T', 8, 8, 7))
+  await visao($, 'completa')
+  const p = await painel($)
+  const desenho = p.filter(l => !l.cabecalho)
+  expect(desenho.length, emTexto(p).slice(-500)).toBeLessThanOrEqual(400)
+  // O pedido tem 1 + 8 + 64 + 448 = 521 linhas; as que não couberam viram a última.
+  expect(desenho[desenho.length - 1]?.texto, emTexto(p).slice(-500)).toMatch(new RegExp(`\\+${521 - (desenho.length - 1)} linhas$`))
+  expect(p.some(l => l.texto.includes('linhas anteriores')), emTexto(p).slice(0, 500)).toBe(false)
+  expect(p.some(l => l.titulo === 'T0.0.0'), emTexto(p).slice(0, 500)).toBe(true)
+})
+
+// Regra: cabecalho.limite-de-linhas-do-desenho
+test('pedidos antigos saem inteiros do começo, contados em "+N linhas anteriores"', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, grande('U', 8, 8, 4))
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, grande('D', 8, 8, 4))
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, [{ id: 'P', title: 'Plano pequeno', children: [{ id: 'p1', title: 'Pequeno um' }, { id: 'p2', title: 'Pequeno dois' }] }])
+  await visao($, 'completa')
+  const p = await painel($)
+  const desenho = p.filter(l => !l.cabecalho)
+  expect(desenho.length, emTexto(p).slice(0, 500)).toBeLessThanOrEqual(400)
+  expect(desenho[0]?.texto, emTexto(p).slice(0, 500)).toMatch(/^\+\d+ linhas anteriores$/)
+  for (const titulo of ['Pedido três', 'Plano pequeno', 'Pequeno um', 'Pequeno dois']) expect(p.some(l => l.titulo === titulo), titulo).toBe(true)
+  expect(p.some(l => /\+\d+ linhas$/.test(l.texto.trim())), emTexto(p).slice(-500)).toBe(false)
+})

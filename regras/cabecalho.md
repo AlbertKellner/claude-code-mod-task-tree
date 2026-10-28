@@ -73,14 +73,15 @@ Origem: commit 4edb3f2, 2026-10-21.
 Estado: coberto
 
 ### cabecalho.limite-de-linhas-do-desenho
-Mais de 400 linhas viram "+N linhas anteriores/seguintes".
+O desenho tem no máximo 400 linhas; o que passa vira uma linha de contagem.
 
 - Dado um painel com mais de 400 linhas
 - Quando é desenhado
-- Então as linhas além do limite viram "+N linhas anteriores" ou "+N linhas seguintes"
+- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas
 
-Origem: commit 4edb3f2, 2026-10-21.
-Estado: pendente (cabecalho; diverge: um plano de 8 × 8 × 7 tarefas desenha 402 linhas e corta numa linha "└─ +122 linhas" dentro da árvore, sem "+N linhas anteriores/seguintes"; o teste roda em 2,5 s)
+Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
+Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
+Estado: coberto
 
 ### cabecalho.titulo-e-a-ultima-iniciada
 O título do cabeçalho é o nível 1 da tarefa iniciada por último.
