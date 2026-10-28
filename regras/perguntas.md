@@ -9,7 +9,7 @@ A pergunta sem tarefa aberta é recusada.
 - Quando o modelo chama AskUserQuestion
 - Então a chamada é recusada e o painel não mostra espera
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### perguntas.espera-sob-a-tarefa
@@ -29,7 +29,7 @@ A resposta por opção tira a espera.
 - Quando a pessoa escolhe uma opção
 - Então a espera some e a tarefa segue ◉
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### perguntas.resposta-pelo-chat-tira-espera
@@ -49,7 +49,7 @@ O ExitPlanMode mostra a espera da aprovação do plano.
 - Quando ExitPlanMode está aberto
 - Então aparece "Aguardando aprovação do plano" até a resposta
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### perguntas.escolha-do-wrapup-ate-proxima-mensagem
@@ -59,7 +59,7 @@ A escolha do wrap_up fica até a próxima mensagem.
 - Quando o turno termina
 - Então "Aguardando sua escolha" fica até a próxima mensagem da pessoa
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### perguntas.permissao-espera
@@ -69,5 +69,5 @@ O pedido de permissão aparece como espera.
 - Quando o app pede a permissão
 - Então aparece "Aguardando permissão: <ferramenta>"
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o hook passou para hooks/permission.ts no commit c442523, 2026-10-22 ("hooks em arquivos próprios").
 Estado: pendente (perguntas)
