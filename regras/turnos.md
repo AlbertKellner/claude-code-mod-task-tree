@@ -90,14 +90,24 @@ O subagente que termina deixa interrompido o que ficou aberto.
 - Então o que ele deixou aberto fica ✕
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
-Estado: pendente (sessoes, se o kit aceitar agentId no fim do turno; senão checklist)
+Estado: coberto
 
 ### turnos.prompt-sem-turno
-Hand-back de subagente e notificação de tarefa não abrem pedido.
+O hand-back de subagente não abre pedido.
 
-- Dado um hand-back de subagente ou uma notificação de tarefa em segundo plano
+- Dado um hand-back de subagente (<agent-message> com "[Subagent hand-back]")
 - Quando o prompt chega
-- Então não abre pedido nem zera os lembretes
+- Então não abre pedido, e o plano seguinte entra no pedido atual
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
-Estado: checklist (o kit não simula a origem do prompt)
+Estado: coberto
+
+### turnos.notificacao-de-tarefa-sem-turno
+A notificação de tarefa em segundo plano não abre pedido.
+
+- Dado uma notificação de tarefa em segundo plano (origem task-notification)
+- Quando o prompt chega
+- Então não abre pedido, e o plano seguinte entra no pedido atual
+
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Estado: coberto

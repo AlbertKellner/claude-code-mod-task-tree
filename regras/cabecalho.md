@@ -70,7 +70,7 @@ Os cartões antigos sem tarefa de origem viram "+N cartões antigos de sessões"
 - Então eles viram uma linha "+N cartões antigos de sessões"
 
 Origem: commit 4edb3f2, 2026-10-21.
-Estado: pendente (cabecalho; o arranjo de 4 pedidos e um cartão sem âncora ainda não foi escrito)
+Estado: coberto
 
 ### cabecalho.limite-de-linhas-do-desenho
 Mais de 400 linhas viram "+N linhas anteriores/seguintes".
@@ -80,7 +80,7 @@ Mais de 400 linhas viram "+N linhas anteriores/seguintes".
 - Então as linhas além do limite viram "+N linhas anteriores" ou "+N linhas seguintes"
 
 Origem: commit 4edb3f2, 2026-10-21.
-Estado: pendente (cabecalho; não tentado: um plano de 400 linhas pode passar dos 5 s do teste)
+Estado: pendente (cabecalho; diverge: um plano de 8 × 8 × 7 tarefas desenha 402 linhas e corta numa linha "└─ +122 linhas" dentro da árvore, sem "+N linhas anteriores/seguintes"; o teste roda em 2,5 s)
 
 ### cabecalho.titulo-e-a-ultima-iniciada
 O título do cabeçalho é o nível 1 da tarefa iniciada por último.

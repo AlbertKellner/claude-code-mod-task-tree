@@ -1,4 +1,7 @@
 import { expect, test } from 'claude-code/testing'
+import { subagente } from './kit/ambiente'
+import { fimDoSubagente } from './kit/cenario'
+import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
 import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, painel } from './kit/leitura'
@@ -140,4 +143,47 @@ test('o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tar
   const p = await painel($)
   esperarEstado(p, 'Dois.um', 'andamento')
   expect(emTexto(p)).not.toContain('✕')
+})
+
+// Regra: turnos.subagente-que-termina-interrompe
+test('o subagente que termina deixa interrompido o que ficou aberto, e o pai com filha concluída aguarda', async ($: any, on: any) => {
+  fixar(on)
+  subagente(on, 'sub-1')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await plan($, [{ id: 'S', title: 'Plano do sub', children: [{ id: 's1', title: 'Sub um' }, { id: 's2', title: 'Sub dois' }, { id: 's3', title: 'Sub três' }] }], undefined, 'sub-1')
+  await start($, ['s1'], 'sub-1')
+  await done($, ['s1'], undefined, 'sub-1')
+  await start($, ['s2'], 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Sub um', 'concluida')
+  esperarEstado(p, 'Sub dois', 'interrompida')
+  esperarEstado(p, 'Sub três', 'interrompida')
+  esperarEstado(p, 'Plano do sub', 'aguardando')
+  esperarEstado(p, 'Um', 'andamento')
+})
+
+// Regra: turnos.prompt-sem-turno
+test('o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await $.prompt.submit({ text: '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>' })
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }])
+  const p = await painel($)
+  expect(p.filter(l => l.nivel === 0 && l.estado !== undefined).map(l => l.titulo), emTexto(p)).toEqual(['Pedido um'])
+  expect(umaLinha(p, 'Plano B').nivel, emTexto(p)).toBe(umaLinha(p, 'Plano A').nivel)
+})
+
+// Regra: turnos.notificacao-de-tarefa-sem-turno
+test('a notificação de uma tarefa em segundo plano não abre pedido', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } })
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }])
+  const p = await painel($)
+  expect(p.filter(l => l.nivel === 0 && l.estado !== undefined).map(l => l.titulo), emTexto(p)).toEqual(['Pedido um'])
 })
