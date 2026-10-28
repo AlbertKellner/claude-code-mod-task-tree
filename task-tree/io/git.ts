@@ -17,7 +17,7 @@ import type { GitInfo } from '../types'
 export function parseHead(text: string): { branch: string; detached?: boolean } | undefined {
   const line = (text.trim().split('\n')[0] ?? '').trim()
   const ref = /^ref:\s*refs\/heads\/(.+)$/.exec(line)
-  if (ref) return { branch: ref[1].trim() }
+  if (ref) return { branch: ref[1]!.trim() }
   if (/^[0-9a-f]{7,64}$/i.test(line)) return { branch: line.slice(0, 7), detached: true }
   return undefined
 }
@@ -78,7 +78,7 @@ export async function readGit($: any): Promise<GitInfo | undefined> {
         const dot = String(await $.fs.read(`${dir}/.git`))
         const m = /^gitdir:\s*(.+)$/m.exec(dot)
         if (!m) return await folder()
-        const gd = m[1].trim()
+        const gd = m[1]!.trim()
         const abs = /^([a-zA-Z]:[\\/]|[\\/])/.test(gd) ? gd : `${dir}/${gd}`
         head = String(await $.fs.read(`${abs}/HEAD`))
       }

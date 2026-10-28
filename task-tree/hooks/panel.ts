@@ -6,7 +6,7 @@
 import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
-import type { Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
+import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
@@ -204,7 +204,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
   const going = started.filter(t => !asking.includes(t.id))
   // Two in progress, one of them asking: the other one.
-  if (going.length === 1 && started.length > 1) return going[0].id
+  if (going.length === 1 && started.length > 1) return going[0]!.id
   if (going.length > 1) {
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
@@ -212,7 +212,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     if (free.length > 0) {
       const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
       const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
-      return (batch[0] ?? free[0]).t.id
+      return (batch[0] ?? free[0])!.t.id
     }
   }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
@@ -273,7 +273,7 @@ export async function identify($: any, agent: string): Promise<Omit<Group, 'agen
   await update($, launchesState, cur => {
     const list = cur ?? []
     const i = list.findIndex(l => l.parent === parent && l.description === info.description)
-    anchor = i >= 0 ? list[i].anchor : undefined
+    anchor = i >= 0 ? list[i]!.anchor : undefined
     return i >= 0 ? list.filter((_, j) => j !== i) : list
   })
   return { label: `${info.type}: ${info.description}`, parent, anchor }
@@ -282,7 +282,7 @@ export async function identify($: any, agent: string): Promise<Omit<Group, 'agen
 // A subagent's group exists from its first plan or wait on the person.
 export async function ensureGroup($: any, agent: string) {
   if (agent === MAIN) return
-  if ((await $.state.get(groupsState)).value?.some(g => g.agent === agent)) return
+  if ((await $.state.get(groupsState)).value?.some((g: Group) => g.agent === agent)) return
   const meta = await identify($, agent)
   await change($, all => (all.some(g => g.agent === agent) ? all : [...all, { agent, tasks: [], ...meta }]))
 }

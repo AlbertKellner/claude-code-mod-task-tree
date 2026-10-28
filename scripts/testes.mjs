@@ -5,7 +5,7 @@
 // pasta temporária com git checkout-index, não sobre a pasta de trabalho (onde outra sessão pode
 // estar editando).
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -25,6 +25,10 @@ if (indice) {
     process.exit(1)
   }
   if (existsSync(join(repo, 'node_modules'))) symlinkSync(join(repo, 'node_modules'), join(raiz, 'node_modules'), 'junction')
+  // Os tipos do kit (gerados pelo validate do mesmo binário, ignorados pelo git): o tsc lê deles, e o
+  // validate pode ser pulado no hook.
+  const tipos = join(repo, 'task-tree', '.claude-plugin', 'types')
+  if (existsSync(tipos)) cpSync(tipos, join(raiz, 'task-tree', '.claude-plugin', 'types'), { recursive: true })
   console.log(`Verificando o índice (o que vai no commit), copiado em ${raiz}`)
 }
 
@@ -57,8 +61,8 @@ console.log(`Claude Code: ${claude} (${versao.stdout.trim()})`)
 
 // O validate gera .claude-plugin/types/ do mod (ignorado pelo git), de que o tsc depende;
 // por isso vem antes do tsc.
-// O tsc ainda não bloqueia: o código tem erros de tipo antigos (strict + noUncheckedIndexedAccess
-// do tsconfig gerado). Passa a bloquear quando eles forem corrigidos.
+// O tsc bloqueia: strict + noUncheckedIndexedAccess do tsconfig gerado, e noUnusedLocals do
+// task-tree/tsconfig.json (decisão do usuário, 2026-10-28).
 // [nome, comando, argumentos, bloqueia, roda (no hook: os arquivos dela mudaram), junto (no hook: em
 // paralelo com as seguintes marcadas junto)]
 const etapas = [
@@ -70,7 +74,7 @@ const etapas = [
   ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo], true, true],
   ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true, hook.validate],
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true, hook.validate],
-  ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false, hook.tsc],
+  ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], true, hook.tsc],
   // Em série: em paralelo com a regressão, na máquina carregada, testes estouravam os 5 s do kit
   // (1 falha em 5 execuções do hook), e um hook que falha à toa empurra para o --no-verify.
   ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true],

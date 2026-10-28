@@ -39,8 +39,9 @@ Etapas, nessa ordem; a primeira que falha para:
 3. `selos`: confere os testes e o kit contra `regras/selos.json`.
 4. `claude plugin validate . --strict` e `claude plugin validate task-tree --strict`: manifesto do
    marketplace e do mod; também gera `task-tree/.claude-plugin/types/` (ignorado pelo git).
-5. `tsc --noEmit`: só aviso por enquanto (erros de tipo antigos). Passa a bloquear quando zerar:
-   corrigir aos poucos, junto com mudanças nos mesmos arquivos.
+5. `tsc --noEmit`: bloqueia. Usa o tsconfig gerado (strict, noUncheckedIndexedAccess) e o
+   `task-tree/tsconfig.json`, que liga `noUnusedLocals` (sem `noUnusedParameters`: os hooks têm
+   `($, e, next)` na assinatura).
 6. `claude plugin test task-tree`: todos os testes.
 7. `regressao`: os testes de `HEAD` contra o código novo, numa pasta temporária; só com diferença em
    `task-tree/`.
@@ -50,7 +51,7 @@ O hook de pré-commit roda o mesmo check sobre o índice, mas pula o que não po
 (`scripts/mudou.mjs`, testado nas `travas`):
 - `travas`, se nada mudou em `scripts/`;
 - os dois `validate`, se nada mudou em `task-tree/` fora de `tests/` nem em `.claude-plugin/`;
-- `tsc`, enquanto não bloqueia.
+- `tsc`, se nada mudou em `task-tree/` (no hook ele lê os tipos gerados do repositório).
 
 `plugin test` e `regressao` rodam em série: em paralelo, com a máquina carregada, testes estouravam
 os 5 s do kit.

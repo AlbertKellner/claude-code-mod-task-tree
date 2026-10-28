@@ -41,7 +41,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const request = typeof input.request === 'string' ? input.request.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
     const dup = duplicates(fresh)
     if (dup.length > 0) {
-      return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true }
+      return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true as const }
     }
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
@@ -118,7 +118,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const sent = plural(flat(fresh).length, 'tarefa', 'tarefas')
     return { result: `Plano exibido no painel: ${sent} neste plano (${plural(gn - gd, 'aberta', 'abertas')} no seu grupo).` }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true }
+    return { result: 'erro: ' + String(err), isError: true as const }
   }
 }
 
@@ -177,7 +177,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
     return { result: `Concluídas: ${d}/${n} no seu grupo.` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true }
+    return { result: 'erro: ' + String(err), isError: true as const }
   }
 }
 
@@ -225,6 +225,6 @@ export async function startTool($: EngineInterface, e: any, next: any) {
         (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : ''),
     }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true }
+    return { result: 'erro: ' + String(err), isError: true as const }
   }
 }
