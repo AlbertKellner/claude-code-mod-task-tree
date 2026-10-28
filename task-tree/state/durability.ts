@@ -57,7 +57,7 @@ export const TABLE: readonly Row[] = [
     note: 'the current work (the summary view\'s level-1 tasks); after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'fill', restoredAt: ['start', 'first-save'],
-    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds), and a session the host leaves out keeps its ties in the store (keptLinks)' },
+    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks)' },
   { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'union', restoredAt: ['start', 'first-save'],
     note: 'messages to other sessions not yet taken up' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'union', keep: 20, restoredAt: ['start', 'first-save'],
@@ -128,8 +128,8 @@ export const KEEP = 30
 export const loaded = new Set<string>()
 
 // What the store keeps of a session this one linked to: its ties to the tasks, not its state.
-export type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds'>
-export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds })
+export type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds' | 'openedAt'>
+export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds, openedAt: c.openedAt })
 
 // The store's copy meeting the state's, by the row's `merge` (see Merge).
 export function merge<T>(key: string, cur: T[] | undefined, old: T[]): T[] {
@@ -145,7 +145,7 @@ export function merge<T>(key: string, cur: T[] | undefined, old: T[]): T[] {
       if (cur === undefined || cur.length === 0) return old
       return (cur as unknown as Child[]).map(c => {
         const o = (old as unknown as Link[]).find(k => k.id === c.id)
-        return (o ? { ...c, anchor: c.anchor ?? o.anchor, lastAnchor: c.lastAnchor ?? o.lastAnchor, rounds: c.rounds ?? o.rounds } : c) as unknown as T
+        return (o ? { ...c, anchor: c.anchor ?? o.anchor, lastAnchor: c.lastAnchor ?? o.lastAnchor, rounds: c.rounds ?? o.rounds, openedAt: c.openedAt ?? o.openedAt } : c) as unknown as T
       })
     }
     case 'replace':

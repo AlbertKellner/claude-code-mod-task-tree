@@ -159,6 +159,7 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,
       rounds: before?.rounds ?? kept(r.sessionId)?.rounds,
       anchor: before?.anchor ?? kept(r.sessionId)?.anchor,
+      openedAt: before?.openedAt ?? kept(r.sessionId)?.openedAt,
       panel: read.panels[r.sessionId] ?? before?.panel,
       tasks: read.panels[r.sessionId] ? undefined : before?.tasks,
     } as Child

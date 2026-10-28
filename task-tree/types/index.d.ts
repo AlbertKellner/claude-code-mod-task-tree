@@ -158,6 +158,9 @@ export type Child = {
   // the index moves when the oldest round is dropped (the last 20 are kept), the time does not.
   partAt?: number
   anchor?: string
+  // When this session opened it (start_session): its task of origin counts as used since then, as a
+  // message sent from it does (sendAnchor); absent from earlier versions.
+  openedAt?: number
   panel?: Panel
   tasks?: TaskNode[]
 }

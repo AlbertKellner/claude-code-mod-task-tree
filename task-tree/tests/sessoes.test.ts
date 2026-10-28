@@ -109,3 +109,23 @@ test('o cartão mostra toks/s e repositório com branch', async ($: any, on: any
   esperarPalavra(p, 'filha-um', '42 toks/s')
   esperarPalavra(p, 'filha-um', 'meu-repo ⑂ minha-branch')
 })
+
+// Regra: sessoes.cartao-sob-a-tarefa-de-origem
+test('com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente', async ($: any, on: any) => {
+  fixar(on)
+  const K2 = 'local_22222222-2222-2222-2222-222222222222'
+  host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } },
+    { id: K2, nome: 'filha-dois', painel: { tasks: [tarefa('1', 'Tarefa da filha dois', 'iniciada')] } },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await start($, ['2.1'])
+  await abrirSessao($)
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(p.indexOf(linha(p, 'filha-um')), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
+  expect(p.indexOf(linha(p, 'filha-dois')), emTexto(p)).toBe(p.indexOf(linha(p, 'Dois.um')) + 1)
+})
