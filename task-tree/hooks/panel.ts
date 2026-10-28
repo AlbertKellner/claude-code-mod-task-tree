@@ -102,8 +102,6 @@ export async function clearTurn($: any) {
   await saveTurn($)
 }
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
-const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
-const endedState = { plugin: 'task-tree', key: 'ended' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const

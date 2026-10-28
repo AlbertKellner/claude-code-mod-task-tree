@@ -371,7 +371,6 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
   const rightParts: string[] = []
   const at = tx + textW(name, 12) + 10
   if (r.ring) {
-    const R = (cards.length > 0 ? cards[cards.length - 1].Rc : W) - EDGE_PAD
     // Drawn at the middle of its Button's Box (ringOver: overlay 'ring', whole cells, the line's
     // whole height), so the highlight has the same room on all four sides (the person's words:
     // "quase, ainda esta desalinhado"): up to half a cell off its column, and on a card's first or
