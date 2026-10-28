@@ -19,7 +19,7 @@ Os cliques no ícone e no anel funcionam.
 - Quando a pessoa clica no ícone ou no anel
 - Então a ação correspondente acontece
 
-Origem: regra do painel; a confirmar.
+Origem: commit 4edb3f2, 2026-10-21 ("cliques por chave, painel na tela e desenho menor").
 Estado: checklist (cliques reais)
 
 ### visual.tooltip
@@ -29,7 +29,7 @@ O tooltip mostra o texto inteiro.
 - Quando a pessoa passa o mouse
 - Então o tooltip mostra o texto inteiro
 
-Origem: regra do painel; a confirmar.
+Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
 Estado: checklist (tooltip do app)
 
 ### visual.animacao-de-linha-nova
@@ -39,7 +39,7 @@ A linha nova anima uma vez e nada pisca à toa.
 - Quando ela aparece
 - Então anima uma vez, e as outras não piscam
 
-Origem: regra do painel; a confirmar.
+Origem: commit f19a4ad, 2026-10-23 ("linhas e cartões novos entram com fade-in").
 Estado: checklist (animação real)
 
 ### visual.cores-dos-temas
@@ -49,7 +49,7 @@ As cores seguem o tema.
 - Quando o painel é desenhado
 - Então as cores seguem o tema
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: checklist (pintura real)
 
 ### visual.cabecalho-em-cartao
@@ -59,7 +59,7 @@ O cabeçalho aparece em cartão.
 - Quando o cabeçalho é desenhado
 - Então ele aparece em cartão, com repositório e branch
 
-Origem: regra do painel; a confirmar.
+Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
 Estado: checklist (pintura real)
 
 ### visual.status-embaixo-da-caixa
@@ -69,7 +69,7 @@ O status aparece embaixo da caixa de mensagem.
 - Quando o app desenha a caixa de mensagem
 - Então o status do painel aparece embaixo dela
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: checklist (status do app)
 
 ### visual.cartao-modelo-e-esforco

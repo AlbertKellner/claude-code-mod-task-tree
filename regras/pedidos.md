@@ -9,7 +9,7 @@ O título do pedido vem do request do plan.
 - Quando o modelo chama plan com request
 - Então a linha do pedido mostra o request, não o texto da mensagem
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### pedidos.uma-mensagem-um-pedido
@@ -19,7 +19,7 @@ Cada mensagem abre o seu pedido.
 - Quando o painel é desenhado
 - Então cada plano fica sob o seu pedido, na ordem das mensagens
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### pedidos.aviso-do-app-nao-abre-pedido
@@ -29,7 +29,7 @@ Um aviso do app não abre pedido.
 - Quando ele chega
 - Então não abre pedido, e o plano seguinte entra no pedido atual
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### pedidos.replano-no-lugar
@@ -79,7 +79,7 @@ Um nível 1 concluído fica como histórico.
 - Quando o modelo chama plan com o mesmo id
 - Então o ✓ fica como histórico e o plano novo entra ○ ao lado
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### pedidos.resumida-mantem-anteriores-com-algo-aberto

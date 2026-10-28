@@ -99,5 +99,5 @@ Hand-back de subagente e notificação de tarefa não abrem pedido.
 - Quando o prompt chega
 - Então não abre pedido nem zera os lembretes
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: checklist (o kit não simula a origem do prompt)

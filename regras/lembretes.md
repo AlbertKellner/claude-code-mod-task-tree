@@ -19,7 +19,7 @@ Depois do fim normal, a mensagem da pessoa lista o que ficou aberto.
 - Quando chega a mensagem da pessoa
 - Então o modelo recebe a lista para fechar ou manter, sem pedido de replanejar
 
-Origem: regra do painel, anterior a 2026-10-27; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### lembretes.outra-sessao-apos-esc
@@ -29,7 +29,7 @@ Depois do Esc, a mensagem de outra sessão pede para replanejar.
 - Quando a mensagem seguinte é de outra sessão
 - Então o modelo recebe o pedido de replanejar dessa origem
 
-Origem: regra do painel, anterior a 2026-10-27; a confirmar.
+Origem: commit 2326900, 2026-10-23 ("lembrete de replanejar quando uma mensagem de outra sessão chega depois de um turno interrompido").
 Estado: coberto
 
 ### lembretes.esc-sem-abertas
@@ -59,7 +59,7 @@ O lembrete de planejar na primeira ferramenta sem plano.
 - Quando o modelo chama a primeira ferramenta e, depois, a cada 10
 - Então ele recebe o lembrete de planejar
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden").
 Estado: pendente (lembretes)
 
 ### lembretes.regras-no-prompt-de-sistema
@@ -69,5 +69,5 @@ As regras do painel entram no prompt de sistema.
 - Quando o prompt de sistema é montado
 - Então a seção de regras do painel entra
 
-Origem: regra do painel; a confirmar.
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: pendente (lembretes)
