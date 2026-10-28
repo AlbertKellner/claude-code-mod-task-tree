@@ -4,12 +4,13 @@
 // --indice (o hook de pré-commit): o check roda sobre o que vai no commit, o índice copiado para uma
 // pasta temporária com git checkout-index, não sobre a pasta de trabalho (onde outra sessão pode
 // estar editando).
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
+import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const indice = process.argv.includes('--indice')
@@ -27,8 +28,24 @@ if (indice) {
   console.log(`Verificando o índice (o que vai no commit), copiado em ${raiz}`)
 }
 
+// No hook, as etapas cujos arquivos não mudaram no índice ficam de fora (scripts/mudou.mjs); o check
+// manual roda tudo. Sem como saber o que mudou, roda tudo.
+const alterados = indice ? alteradosNoIndice(repo) : null
+const hook = alterados === null ? { travas: true, validate: true, tsc: true } : etapasDoHook(alterados)
+
 const claude = acharBinario()
-const rodar = (cmd, args) => spawnSync(cmd, args, { cwd: raiz, stdio: 'inherit', shell: cmd === 'claude' || cmd === 'npx' })
+const opcoes = cmd => ({ cwd: raiz, shell: cmd === 'claude' || cmd === 'npx' })
+const rodar = (cmd, args) => spawnSync(cmd, args, { ...opcoes(cmd), stdio: 'inherit' })
+// Em paralelo (o plugin test e a regressão no hook): cada saída é mostrada inteira ao terminar.
+const rodarJunto = (cmd, args) =>
+  new Promise(fim => {
+    const p = spawn(cmd, args, { ...opcoes(cmd), stdio: ['ignore', 'pipe', 'pipe'] })
+    let saida = ''
+    p.stdout.on('data', d => (saida += d))
+    p.stderr.on('data', d => (saida += d))
+    p.on('close', status => fim({ status, saida }))
+    p.on('error', e => fim({ status: 1, saida: String(e) }))
+  })
 
 const versao = spawnSync(claude, ['--version'], { cwd: raiz, encoding: 'utf8', shell: claude === 'claude' })
 if (versao.status !== 0) {
@@ -42,33 +59,49 @@ console.log(`Claude Code: ${claude} (${versao.stdout.trim()})`)
 // por isso vem antes do tsc.
 // O tsc ainda não bloqueia: o código tem erros de tipo antigos (strict + noUncheckedIndexedAccess
 // do tsconfig gerado). Passa a bloquear quando eles forem corrigidos.
+// [nome, comando, argumentos, bloqueia, roda (no hook: os arquivos dela mudaram), junto (no hook: em
+// paralelo com as seguintes marcadas junto)]
 const etapas = [
   // O catálogo regras/ contra os testes (ids, estados, ligações); node puro, em milissegundos.
-  ['regras', process.execPath, ['scripts/regras.mjs'], true],
+  ['regras', process.execPath, ['scripts/regras.mjs'], true, true],
   // As travas do selo (scripts/selos.mjs), testadas num repositório temporário.
-  ['travas', process.execPath, ['--test', 'scripts/travas.test.mjs'], true],
+  ['travas', process.execPath, ['--test', 'scripts/travas.test.mjs'], true, hook.travas],
   // Os testes e o kit contra regras/selos.json: teste existente só muda com selo novo.
-  ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo], true],
-  ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true],
-  ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true],
-  ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false],
-  ['plugin test', claude, ['plugin', 'test', 'task-tree'], true],
-  // Os testes de HEAD contra o código novo; só com diferença em task-tree/.
-  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : [])], true],
+  ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo], true, true],
+  ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true, hook.validate],
+  ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true, hook.validate],
+  ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false, hook.tsc],
+  ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true, indice],
+  // Os testes de HEAD contra o código novo; só com diferença em task-tree/ (ela mesma decide).
+  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : [])], true, true, indice],
 ]
 
 const resumo = []
 let codigo = 0
-for (const [nome, cmd, args, bloqueia] of etapas) {
-  console.log(`\n== ${nome}`)
-  const r = rodar(cmd, args)
-  const status = r.status ?? 1
+const marcar = (nome, status, bloqueia) => {
   const marca = status === 0 ? 'ok   ' : bloqueia ? 'FALHA' : 'AVISO'
   resumo.push(`${marca} ${nome}${status === 0 ? '' : ` (exit ${status}${bloqueia ? '' : ', não bloqueia'})`}`)
-  if (status !== 0 && bloqueia) {
-    codigo = status
-    break
+  if (status !== 0 && bloqueia && codigo === 0) codigo = status
+}
+for (let i = 0; i < etapas.length && codigo === 0; i++) {
+  const [nome, cmd, args, bloqueia, roda, junto] = etapas[i]
+  if (!roda) {
+    resumo.push(`--    ${nome} (pulada no hook: os arquivos dela não mudaram)`)
+    continue
   }
+  if (junto) {
+    const grupo = etapas.slice(i).filter(e => e[5])
+    console.log(`\n== ${grupo.map(e => e[0]).join(' + ')} (em paralelo)`)
+    const rs = await Promise.all(grupo.map(([, c, a]) => rodarJunto(c, a)))
+    grupo.forEach(([n, , , b], k) => {
+      console.log(`\n== ${n}\n${rs[k].saida}`)
+      marcar(n, rs[k].status ?? 1, b)
+    })
+    i += grupo.length - 1
+    continue
+  }
+  console.log(`\n== ${nome}`)
+  marcar(nome, rodar(cmd, args).status ?? 1, bloqueia)
 }
 for (const [nome] of etapas.slice(resumo.length)) resumo.push(`--    ${nome} (não rodou)`)
 

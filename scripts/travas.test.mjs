@@ -1,10 +1,11 @@
 // Testes das próprias travas do selo (scripts/selos.mjs), num repositório git temporário com um
 // catálogo mínimo, dois testes e um arquivo de kit. Uso: node --test scripts/travas.test.mjs.
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { test } from 'node:test'
+import { after, test } from 'node:test'
+import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
@@ -57,9 +58,18 @@ const ARQ = 'task-tree/tests/exemplo.test.ts'
 const UM = `${ARQ}::um`
 const DOIS = `${ARQ}::dois`
 
-// Um repositório novo, com tudo selado como "novo" e commitado.
+// Um repositório novo, com tudo selado como "novo" e commitado: montado uma vez (o modelo) e copiado
+// para cada caso, que o muda à vontade.
+let modelo
+after(() => modelo && rmSync(modelo, { recursive: true, force: true }))
 function montar() {
+  if (!modelo) modelo = criar()
   const dir = mkdtempSync(join(tmpdir(), 'travas-'))
+  cpSync(modelo, dir, { recursive: true })
+  return dir
+}
+function criar() {
+  const dir = mkdtempSync(join(tmpdir(), 'travas-modelo-'))
   mkdirSync(join(dir, 'regras'))
   mkdirSync(join(dir, 'task-tree', 'tests', 'kit'), { recursive: true })
   writeFileSync(join(dir, 'regras', 'exemplo.md'), CATALOGO)
@@ -144,4 +154,25 @@ test('mudar uma constante de topo usada pelo teste falha; uma não usada, não',
   assert.equal(r.status, 1)
   assert.match(r.stderr, /o teste mudou sem selo novo: .*::um/)
   unlinkSync(join(dir, ARQ))
+}))
+
+// O que o hook pula: só etapas cujos arquivos não mudaram; uma condição errada pularia uma trava.
+test('o hook roda as travas só com scripts/ mudado, e o validate só com o mod ou o marketplace mudados', () => {
+  assert.deepEqual(etapasDoHook([]), { travas: false, validate: false, tsc: false })
+  assert.deepEqual(etapasDoHook(['regras/sessoes.md', 'task-tree/tests/sessoes.test.ts', 'task-tree/tests/kit/leitura.ts']), { travas: false, validate: false, tsc: false })
+  assert.equal(etapasDoHook(['scripts/selos.mjs']).travas, true)
+  assert.equal(etapasDoHook(['scripts/travas.test.mjs']).travas, true)
+  for (const p of ['task-tree/draw/layout.ts', 'task-tree/.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'task-tree/register.tsx'])
+    assert.equal(etapasDoHook([p]).validate, true, p)
+  assert.equal(etapasDoHook(['task-tree/tests/arvore.test.ts']).validate, false)
+})
+
+test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  assert.deepEqual(alteradosNoIndice(dir, env), [])
+  // Mudado só na pasta de trabalho: não vai no commit.
+  writeFileSync(join(dir, 'task-tree', 'tests', 'kit', 'leitura.ts'), 'export const x = 3\n')
+  assert.deepEqual(alteradosNoIndice(dir, env), [])
+  git('add', 'task-tree/tests/kit/leitura.ts')
+  assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
 }))

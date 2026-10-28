@@ -45,6 +45,17 @@ Etapas, nessa ordem; a primeira que falha para:
 7. `regressao`: os testes de `HEAD` contra o código novo, numa pasta temporária; só com diferença em
    `task-tree/`.
 
+O hook de pré-commit roda o mesmo check sobre o índice, mas pula o que não pode mudar o resultado
+(decisão do usuário, 2026-10-28: "Sim, pular (Recomendado)"), pelo que o índice muda contra `HEAD`
+(`scripts/mudou.mjs`, testado nas `travas`):
+- `travas`, se nada mudou em `scripts/`;
+- os dois `validate`, se nada mudou em `task-tree/` fora de `tests/` nem em `.claude-plugin/`;
+- `tsc`, enquanto não bloqueia;
+- `plugin test` e `regressao` rodam em paralelo.
+
+`regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
+mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
+
 Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motivo "…"` (selar um
 teste) e `npm run testes:alterados` (os testes existentes que mudaram, para o relato; `-- --pr`
 contra a base do PR).
