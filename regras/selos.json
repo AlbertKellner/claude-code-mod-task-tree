@@ -1,5 +1,25 @@
 {
   "testes": {
+    "task-tree/tests/arvore.test.ts::id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve": {
+      "regras": [
+        "arvore.ids-curtos-e-avisos"
+      ],
+      "hash": "2dcd4ef04cff085f",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/arvore.test.ts::o done avisa a falta do summary no fim e as etapas fechadas juntas sem start": {
+      "regras": [
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "11fb79663b8f4e6e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "pendentes da árvore, lembretes e permissão"
+    },
     "task-tree/tests/arvore.test.ts::pai fecha sozinho quando todos os filhos fecham": {
       "regras": [
         "arvore.pai-fecha-com-os-filhos",
@@ -10,6 +30,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/arvore.test.ts::plan com ids repetidos é recusado e nada muda no painel": {
+      "regras": [
+        "arvore.plan-recusa-ids-repetidos"
+      ],
+      "hash": "1f7d3902481e2d82",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "pendentes da árvore, lembretes e permissão"
     },
     "task-tree/tests/arvore.test.ts::start reabre os pais de uma tarefa concluída e recusa tarefa concluída com subtarefas": {
       "regras": [
@@ -455,6 +485,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
+      "regras": [
+        "lembretes.regras-no-prompt-de-sistema"
+      ],
+      "hash": "3b891d1e52c89b2b",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "pendentes da árvore, lembretes e permissão"
+    },
     "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
       "regras": [
         "lembretes.esc-sem-abertas"
@@ -504,6 +544,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "1fa38bd16ce14918",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "pendentes da árvore, lembretes e permissão"
     },
     "task-tree/tests/pedidos.test.ts::cada mensagem abre o seu pedido, com o seu plano embaixo": {
       "regras": [
@@ -635,6 +685,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::o pedido de permissão aparece como espera; o de pergunta, não": {
+      "regras": [
+        "perguntas.permissao-espera"
+      ],
+      "hash": "2b45887a48bd3044",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "pendentes da árvore, lembretes e permissão"
     },
     "task-tree/tests/perguntas.test.ts::respondida pelo chat, a espera some na hora e a tarefa segue em andamento": {
       "regras": [
@@ -914,16 +974,16 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "fb7412dc7cc11159",
+      "hash": "498a4f75947d6bcd",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "rodadas: turnos, recebidas e envios da filha"
+      "motivo": "agentId opcional e subagente no host"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "d0882a971c3f172f",
+      "hash": "f72d57e8ba36ee86",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "durabilidade: store e state compartilhados"
+      "motivo": "agentId opcional e subagente no host"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "1f4acea8638e0eee",

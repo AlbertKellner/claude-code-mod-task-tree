@@ -60,7 +60,7 @@ O lembrete de planejar na primeira ferramenta sem plano.
 - Então ele recebe o lembrete de planejar
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden").
-Estado: pendente (lembretes)
+Estado: coberto
 
 ### lembretes.regras-no-prompt-de-sistema
 As regras do painel entram no prompt de sistema.
@@ -70,4 +70,4 @@ As regras do painel entram no prompt de sistema.
 - Então a seção de regras do painel entra
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
-Estado: pendente (lembretes)
+Estado: coberto

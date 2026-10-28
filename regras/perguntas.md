@@ -70,4 +70,4 @@ O pedido de permissão aparece como espera.
 - Então aparece "Aguardando permissão: <ferramenta>"
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o hook passou para hooks/permission.ts no commit c442523, 2026-10-22 ("hooks em arquivos próprios").
-Estado: pendente (perguntas)
+Estado: coberto

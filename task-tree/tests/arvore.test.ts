@@ -1,4 +1,6 @@
 import { expect, test } from 'claude-code/testing'
+import { cabecalho, emTexto as noTexto, painel as desenho } from './kit/leitura'
+import { subagente } from './kit/ambiente'
 import { fixar } from './kit/ambiente'
 import { done, pedido, plan, start, type No } from './kit/cenario'
 import { esperarEstado, painel } from './kit/leitura'
@@ -67,4 +69,43 @@ test('start reabre os pais de uma tarefa concluída e recusa tarefa concluída c
   esperarEstado(p, 'Pedido', 'andamento')
   esperarEstado(p, 'Validar', 'concluida')
   esperarEstado(p, 'Analisar', 'concluida')
+})
+
+// Regra: arvore.ids-curtos-e-avisos
+test('id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve', async ($: any, on: any) => {
+  fixar(on)
+  subagente(on, 'sub-1')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um de A' }] }, { id: 'B', title: 'Plano B', children: [{ id: '1', title: 'Um de B' }] }])
+  expect((await start($, ['1'])).texto).toContain('"1" é ambíguo')
+  expect((await start($, ['zz'])).texto).toContain('"zz" não existe')
+  // Um subagente com o seu plano chama start com o id do loop principal.
+  await plan($, [{ id: 'S', title: 'Plano do sub', children: [{ id: 's1', title: 'Passo do sub' }] }], undefined, 'sub-1')
+  expect((await start($, ['A/1'], 'sub-1')).texto).toContain('"A/1" é de outro agente')
+  await start($, ['A/1'])
+  const p = await desenho($)
+  esperarEstado(p, 'Um de A', 'andamento')
+  esperarEstado(p, 'Um de B', 'pendente')
+})
+
+// Regra: arvore.done-sem-summary-e-varias-sem-start
+test('o done avisa a falta do summary no fim e as etapas fechadas juntas sem start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  const r = await done($, ['1', '2'])
+  expect(r.texto).toContain('2 etapas fecharam juntas sem start')
+  expect(r.texto).toContain('falta o summary')
+  expect((await done($, [], 'Resumo')).texto).not.toContain('falta o summary')
+})
+
+// Regra: arvore.plan-recusa-ids-repetidos
+test('plan com ids repetidos é recusado e nada muda no painel', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  const r = await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '1', title: 'Outro um' }] }])
+  expect(r.erro).toBe(true)
+  expect(r.texto).toContain('ids repetidos')
+  const p = await desenho($)
+  expect(cabecalho(p).vazio, noTexto(p)).toBe(true)
 })
