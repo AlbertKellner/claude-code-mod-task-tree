@@ -90,4 +90,4 @@ O título do cabeçalho é o nível 1 da tarefa iniciada por último.
 - Então o título é o nível 1 que contém essa tarefa
 
 Origem: decisão do usuário ("o título é o do passo iniciado por último", 2026-10-23); commit 16062cc.
-Estado: pendente (cabecalho; diverge: com os planos A e B no mesmo pedido, start e done em b1 e depois em Um, o título fica "Plano B" e não "Plano A", e o Plano B segue ◉ sem nada iniciado)
+Estado: coberto
