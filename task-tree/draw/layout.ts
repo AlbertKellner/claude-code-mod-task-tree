@@ -160,14 +160,14 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
   const rounds = [...(c.rounds ?? [])].sort((a, b) => a.at - b.at)
   if (me === undefined) return []
   const got = (c.panel?.received ?? [])
-    .filter(x => x.from === me && typeof x.at === 'number' && (rounds.length === 0 || x.at > rounds[0].at))
+    .filter(x => x.from === me && typeof x.at === 'number' && (rounds.length === 0 || x.at > rounds[0]!.at))
     .map(x => x.at as number)
     .sort((a, b) => a - b)
   const out: Break[] = []
   let i = 0
   for (const at of got) {
     // The earliest round not matched yet, sent before the message came: that send's message.
-    if (i < rounds.length && rounds[i].at <= at) {
+    if (i < rounds.length && rounds[i]!.at <= at) {
       i++
       continue
     }
@@ -355,7 +355,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     let k = owners.get(agent)
     if (k === undefined) {
       k = agent === MAIN ? holder(current(main.tasks).anchor) : holder(groups.find(g => g.agent === agent)?.anchor)
-      owners.set(agent, k)
+      owners.set(agent, k!)
     }
     return k
   }
@@ -372,7 +372,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
       ...c,
       part: k,
       lead: at,
-      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k].at } : {}),
+      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1]!.at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k]!.at } : {}),
       anchor: k < 0 ? originEnd : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
@@ -625,7 +625,7 @@ export function limitRows(rows: Row[]): Row[] {
   // to the limit, the rest counted at its end.
   let last = 0
   for (let i = rows.length - 1; i > 0; i--) {
-    if (rows[i].depth === 0) {
+    if (rows[i]!.depth === 0) {
       last = i
       break
     }
@@ -815,8 +815,8 @@ export function guides(rows: Row[]): Guide[] {
   // Whether a row at `level` comes later, before the tree climbs above it.
   const later = (i: number, level: number) => {
     for (let j = i + 1; j < rows.length; j++) {
-      if (rows[j].depth < level) return false
-      if (rows[j].depth === level) return true
+      if (rows[j]!.depth < level) return false
+      if (rows[j]!.depth === level) return true
     }
     return false
   }
@@ -839,7 +839,7 @@ export type Frame = { cards: Card[]; top: number; bottom: number }
 export function labelCols(rows: Row[]): number[][] {
   const open: number[] = []
   return rows.map(r => {
-    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    while (open.length > 0 && open[open.length - 1]! >= r.depth) open.pop()
     const mine = open.slice()
     if (r.session) open.push(r.depth)
     return mine
@@ -848,7 +848,7 @@ export function labelCols(rows: Row[]): number[][] {
 export function frames(rows: Row[]): Frame[] {
   const open: number[] = []
   return rows.map((r, i) => {
-    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    while (open.length > 0 && open[open.length - 1]! >= r.depth) open.pop()
     if (r.card) open.push(r.depth)
     const next = rows[i + 1]
     const cards = open.map(depth => ({
@@ -1288,7 +1288,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const withTasks = new Set(main.tasks.map(t => t.turn))
     const ats = (main.turns ?? []).filter(u => withTasks.has(u.id)).flatMap(u => (typeof u.at === 'number' ? [u.at] : []))
     const since = ats.length > SHOWN_TURNS ? [...ats].sort((a, b) => a - b)[ats.length - SHOWN_TURNS] : -Infinity
-    const busy = (c: Child) => begins(c) >= since || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
+    const busy = (c: Child) => begins(c) >= (since as number) || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
     const old = level === 0 ? loose.filter(c => !busy(c)) : []
     const ends = level === 0 ? loose.filter(busy) : loose
     return draw(main, base)
