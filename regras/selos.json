@@ -42,6 +42,16 @@
       "data": "2026-10-28",
       "motivo": "cabeçalho e visão resumida (tarefa 6)"
     },
+    "task-tree/tests/cabecalho.test.ts::dois starts no mesmo instante: o título é o do último da lista do start": {
+      "regras": [
+        "cabecalho.titulo-desempata-pela-ordem-do-start"
+      ],
+      "hash": "e52851a6d5f8c107",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "empate de starts"
+    },
     "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém": {
       "regras": [
         "cabecalho.resumida-exclui-pedido-finalizado",

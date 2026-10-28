@@ -91,3 +91,13 @@ O título do cabeçalho é o nível 1 da tarefa iniciada por último.
 
 Origem: decisão do usuário ("o título é o do passo iniciado por último", 2026-10-23); commit 16062cc.
 Estado: coberto
+
+### cabecalho.titulo-desempata-pela-ordem-do-start
+Duas tarefas iniciadas no mesmo instante: vale a ordem do start.
+
+- Dado um start com duas tarefas de planos diferentes, as duas concluídas depois
+- Quando o cabeçalho é desenhado, sem nada em andamento
+- Então o título é o nível 1 da última da lista do start, e só ele fica ◉
+
+Origem: regra do painel; correção do empate achada no teste da tarefa 6, 2026-10-28.
+Estado: coberto

@@ -534,12 +534,20 @@ export function firstOpen(items: TaskNode[]): string[] {
 }
 // The task started last (its startedAt the latest; done or not): where a message sent with nothing
 // in progress is anchored, and what names the header with nothing in progress. On a tie (a parent
-// starts with its child) the later one in the tree wins, the child.
+// starts with its child, or one start names two tasks) the one started later by the start's order
+// (startedSeq) wins; one with no order of its own (a parent) never beats one with it; with neither,
+// the later one in the tree.
 export function startedLast(list: TaskNode[]): TaskNode | undefined {
   let pick: TaskNode | undefined
   for (const t of flat(list)) {
     if (typeof t.startedAt !== 'number') continue
-    if (pick === undefined || t.startedAt >= (pick.startedAt as number)) pick = t
+    if (pick === undefined || t.startedAt > (pick.startedAt as number)) {
+      pick = t
+      continue
+    }
+    if (t.startedAt < (pick.startedAt as number)) continue
+    const [a, b] = [t.startedSeq ?? -1, pick.startedSeq ?? -1]
+    if (a > b || (a === b && a === -1)) pick = t
   }
   return pick
 }

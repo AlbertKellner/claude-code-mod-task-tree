@@ -135,6 +135,20 @@ test('o título é o nível 1 da tarefa iniciada por último', async ($: any, on
   expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano B')
 })
 
+// Regra: cabecalho.titulo-desempata-pela-ordem-do-start
+test('dois starts no mesmo instante: o título é o do último da lista do start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await plan($, B)
+  await start($, ['b1', '1'])
+  await done($, ['b1'])
+  await done($, ['1'])
+  const p = await painel($)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
+  esperarEstado(p, 'Plano A', 'andamento')
+})
+
 // Regra: cabecalho.limites-de-linhas
 test('só os três últimos pedidos aparecem na completa; os outros viram "+N pedidos anteriores"', async ($: any, on: any) => {
   const { relogio } = fixar(on)
