@@ -515,6 +515,36 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/golden.test.ts::golden: envios": {
+      "regras": [
+        "visual.golden-gera-desenho"
+      ],
+      "hash": "1f9c7d2b3ef9ca73",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "golden do SVG (infraestrutura, sem referência)"
+    },
+    "task-tree/tests/golden.test.ts::golden: filha": {
+      "regras": [
+        "visual.golden-gera-desenho"
+      ],
+      "hash": "31bf770a0ae2ee58",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "golden do SVG (infraestrutura, sem referência)"
+    },
+    "task-tree/tests/golden.test.ts::golden: principal": {
+      "regras": [
+        "visual.golden-gera-desenho"
+      ],
+      "hash": "1614d93ab8218741",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "golden do SVG (infraestrutura, sem referência)"
+    },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
         "lembretes.regras-no-prompt-de-sistema"
@@ -1046,10 +1076,11 @@
       "motivo": "agentId opcional e subagente no host"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "1f4acea8638e0eee",
+      "hash": "b43727a46600e3b5",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "rodadas: turnos, recebidas e envios da filha"
+      "motivo": "svgs: o desenho do desktop para o golden"
     }
-  }
+  },
+  "golden": {}
 }

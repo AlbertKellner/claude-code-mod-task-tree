@@ -3,3 +3,6 @@
 
 # Dependências de desenvolvimento (npm install)
 node_modules/
+
+# Página de comparação do golden (npm run golden:pagina, sob pedido)
+golden-recebido/

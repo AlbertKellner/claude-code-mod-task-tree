@@ -99,6 +99,22 @@ a regra que ele protege.
 - O relato da implementação cola a saída de `npm run testes:alterados` e o resumo do check
   (modelos em [regras/README.md](regras/README.md)).
 
+## Golden do SVG
+
+O desenho do app desktop em 3 cenários (principal, filha trabalhando, envios; 60 colunas) fica
+travado em `task-tree/tests/golden/svg.ts`, conferido por `tests/golden.test.ts` e selado em
+`regras/selos.json` (`golden`). Decisão do usuário, 2026-10-28: "Sim, validar antes do commit
+(Recomendado)".
+- O aceite é do usuário, no app. Ele não olha SVG nem página.
+- Mudança que altera o desenho: o check falha ("o desenho de <cenário> mudou") e bloqueia o commit.
+  A mudança fica sem commit até ele validar o painel no app; com o "funcionou" dele,
+  `npm run golden:aprovar -- <cenário…|--todos> --motivo "\"<palavras dele>\", AAAA-MM-DD"` regrava o
+  golden e o selo, e o commit segue com o código, `svg.ts` e `selos.json`. Para o resto, nada muda
+  (commit local e depois validação).
+- Nunca aprovar sem as palavras dele: o `golden:aprovar` recusa motivo sem aspas e sem data, e a
+  etapa `regressao` só aceita a falha do teste de golden de `HEAD` com o desenho aprovado hoje.
+- `npm run golden:pagina` (o aprovado e o atual lado a lado, em `golden-recebido/`) só sob pedido dele.
+
 ## Editar o mod sem quebrar a recarga
 
 - O mod costuma ser carregado deste clone e recarrega a cada arquivo salvo, em todas as sessões. Um

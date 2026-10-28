@@ -123,14 +123,45 @@ export function extrair(raiz) {
   return { testes, kit, regras }
 }
 
-const lerSelos = raiz => (existsSync(join(raiz, SELOS)) ? JSON.parse(readFileSync(join(raiz, SELOS), 'utf8')) : { testes: {}, kit: {} })
+const vazio = () => ({ testes: {}, kit: {}, golden: {} })
+const lerSelos = raiz => ({ ...vazio(), ...(existsSync(join(raiz, SELOS)) ? JSON.parse(readFileSync(join(raiz, SELOS), 'utf8')) : {}) })
 export function selosDeHead(repo) {
   const r = spawnSync('git', ['-C', repo, 'show', `HEAD:${SELOS}`], { encoding: 'utf8' })
-  return r.status === 0 ? JSON.parse(r.stdout) : { testes: {}, kit: {} }
+  return { ...vazio(), ...(r.status === 0 ? JSON.parse(r.stdout) : {}) }
 }
 const gravar = (raiz, selos) => {
-  const ordenado = o => Object.fromEntries(Object.keys(o).sort().map(k => [k, o[k]]))
-  writeFileSync(join(raiz, SELOS), `${JSON.stringify({ testes: ordenado(selos.testes), kit: ordenado(selos.kit) }, null, 2)}\n`)
+  const ordenado = o => Object.fromEntries(Object.keys(o ?? {}).sort().map(k => [k, o[k]]))
+  writeFileSync(join(raiz, SELOS), `${JSON.stringify({ testes: ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden) }, null, 2)}\n`)
+}
+
+// ---- Golden do SVG: o desenho de cada cenário, aprovado pelo usuário no app (tests/golden/svg.ts).
+export const GOLDEN = 'task-tree/tests/golden/svg.ts'
+const CABECA_GOLDEN = '// Gerado por npm run golden:aprovar, com a aprovação do usuário no app; não editar à mão.\nexport const GOLDEN: Record<string, unknown> = '
+// Os cenários gravados: o JSON depois de "GOLDEN ... = ".
+export function lerGolden(raiz) {
+  const p = join(raiz, GOLDEN)
+  if (!existsSync(p)) return {}
+  const t = readFileSync(p, 'utf8')
+  return JSON.parse(t.slice(t.indexOf('= ', t.indexOf('GOLDEN')) + 2))
+}
+export const hashGolden = valor => hash(JSON.stringify(valor))
+// O motivo de uma aprovação traz a data (AAAA-MM-DD) e as palavras do usuário entre aspas.
+export const motivoValido = m => typeof m === 'string' && /\d{4}-\d{2}-\d{2}/.test(m) && /["“][^"”]+["”]/.test(m)
+// Grava os cenários aprovados e o selo de cada um.
+export function aprovarGolden(raiz, novos, motivo) {
+  if (!motivoValido(motivo)) throw new Error('--motivo precisa das palavras do usuário entre aspas e da data (AAAA-MM-DD) da validação no app')
+  const golden = { ...lerGolden(raiz), ...novos }
+  const ordenado = Object.fromEntries(Object.keys(golden).sort().map(k => [k, golden[k]]))
+  writeFileSync(join(raiz, GOLDEN), `${CABECA_GOLDEN}${JSON.stringify(ordenado)}\n`)
+  const selos = lerSelos(raiz)
+  for (const [cen, valor] of Object.entries(novos)) selos.golden[cen] = { hash: hashGolden(valor), data: hoje(), motivo }
+  gravar(raiz, selos)
+  return Object.keys(novos)
+}
+// A etapa regressao aceita a falha do teste de golden de HEAD só com o desenho aprovado hoje (hash novo).
+export function liberaGolden(selos, head, cenario, data) {
+  const s = selos.golden?.[cenario]
+  return s !== undefined && s.data === data && s.hash !== head.golden?.[cenario]?.hash
 }
 
 // A conferência: devolve a lista de problemas.
@@ -156,6 +187,13 @@ export function conferir(raiz, repo = raiz) {
     if (antes && (s.tipo === 'refatoracao' || s.tipo === 'novo') && s.assercoes < antes.assercoes)
       problemas.push(`menos asserções sem decisão: ${chave} (${antes.assercoes} → ${s.assercoes})`)
   }
+  const golden = lerGolden(raiz)
+  for (const [cen, valor] of Object.entries(golden)) {
+    const s = selos.golden[cen]
+    if (!s) problemas.push(`desenho do golden sem selo: ${cen} (npm run golden:aprovar, só com a validação do usuário no app)`)
+    else if (s.hash !== hashGolden(valor)) problemas.push(`o desenho do golden mudou sem aprovação: ${cen}`)
+  }
+  for (const cen of Object.keys(selos.golden)) if (!(cen in golden)) problemas.push(`selo de golden sem cenário: ${cen}`)
   return problemas
 }
 
@@ -231,7 +269,7 @@ if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.a
       const problemas = conferir(raiz, repo)
       for (const p of problemas) console.error(`- ${p}`)
       const s = lerSelos(raiz)
-      console.log(`selos: ${Object.keys(s.testes).length} testes, ${Object.keys(s.kit).length} arquivos do kit${problemas.length ? `, ${problemas.length} problema(s)` : ''}`)
+      console.log(`selos: ${Object.keys(s.testes).length} testes, ${Object.keys(s.kit).length} arquivos do kit, ${Object.keys(s.golden).length} desenhos${problemas.length ? `, ${problemas.length} problema(s)` : ''}`)
       process.exit(problemas.length > 0 ? 1 : 0)
     }
   } catch (err) {
