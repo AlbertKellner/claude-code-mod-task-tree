@@ -92,6 +92,16 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 Origem: commits 1987482 e 689d569, 2026-10-24.
 Estado: checklist (posição na imagem)
 
+### visual.recarga-real-e-respawn
+A recarga real e o respawn do worker não perdem nada.
+
+- Dado o painel aberto, com cartões e resumos
+- Quando um arquivo do mod é salvo, o worker é refeito (/model) ou a sessão é retomada no app
+- Então nada some, os relógios voltam a correr e o primeiro clique funciona
+
+Origem: tabela de durabilidade, commit 9fb1c51, 2026-10-22.
+Estado: checklist (recarga e processo reais)
+
 ### visual.cabecalho-barra-e-chips-desenhados
 A barra e os chips do cabeçalho aparecem desenhados no app desktop.
 

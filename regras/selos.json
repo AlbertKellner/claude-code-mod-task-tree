@@ -103,6 +103,156 @@
       "data": "2026-10-28",
       "motivo": "cabeçalho e visão resumida (tarefa 6)"
     },
+    "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
+      "regras": [
+        "durabilidade.clear-esvazia"
+      ],
+      "hash": "5382f5e3df3ecf0d",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::a lista do host deixa uma filha de fora e depois a lista de novo: o cartão volta sob a mesma tarefa": {
+      "regras": [
+        "durabilidade.ligacoes-com-lista-parcial-do-host"
+      ],
+      "hash": "f5cdbe079594ecb8",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato": {
+      "regras": [
+        "durabilidade.formatos-antigos-do-publicado"
+      ],
+      "hash": "724e546ce35f0e9a",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "hash": "b4d18df3dd38e88e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o painel no state": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "hash": "fb707b03807917a0",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o recap do wrap_up no state": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "hash": "3f971ccbf9b8e329",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: módulo novo com o state mantido desenha o painel": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "hash": "dfd5f8c166232c65",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o cartão da filha segue sob a mesma tarefa": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "hash": "c9192dd061eebcd7",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da recarga": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "hash": "e762b21f9e70918d",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::reinício com session.start, 1/2: o painel vai ao store": {
+      "regras": [
+        "durabilidade.reinicio-restaura-do-store"
+      ],
+      "hash": "2d3585b476cf6dc8",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::reinício com session.start, 2/2: outro processo desenha o mesmo painel e segue dele": {
+      "regras": [
+        "durabilidade.reinicio-restaura-do-store"
+      ],
+      "hash": "19fc5a0d8aba02de",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos e a visão resumida no store": {
+      "regras": [
+        "durabilidade.respawn-sem-session-start"
+      ],
+      "hash": "50702c0a7fb9299c",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no primeiro uso, e o store não encolhe": {
+      "regras": [
+        "durabilidade.respawn-sem-session-start"
+      ],
+      "hash": "dd8a4b300a5d0e8a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada, 1/2: um painel diferente no state (o plano B)": {
+      "regras": [
+        "durabilidade.reinicio-restaura-do-store"
+      ],
+      "hash": "c9503dda79bdcb0a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada, 2/2: o state passa a ser o painel do store da sessão retomada": {
+      "regras": [
+        "durabilidade.reinicio-restaura-do-store"
+      ],
+      "hash": "aabb7df36dbb13c9",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "durabilidade (tarefa 7)"
+    },
     "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
       "regras": [
         "envios.entrega-imediata-fica-verde"
@@ -624,16 +774,16 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "7d253cdff09f5070",
+      "hash": "df6d3c20d4ccb677",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "helpers de sessão"
+      "motivo": "durabilidade: store e state compartilhados"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "9135a6a6ef3c0913",
+      "hash": "d0882a971c3f172f",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "leitura do cabeçalho e visões"
+      "motivo": "durabilidade: store e state compartilhados"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "56ae4eab0fe94f7e",

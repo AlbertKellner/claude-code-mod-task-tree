@@ -27,6 +27,15 @@ export const envio = ($: any, para: string, texto = 'oi') => ferramenta($, 'Send
 // O modelo abre uma sessão filha (start_session); o stub do host devolve o id da próxima filha dele.
 export const abrirSessao = ($: any) => ferramenta($, 'mcp__ccd_session__start_session', { title: 'filha' })
 
+// Um processo novo: o session.start, com a lista do host e os arquivos lidos em segundo plano.
+export const iniciarSessao = async ($: any) => {
+  await $.session.start({ cwd: '.' })
+  await new Promise(r => (globalThis as any).setTimeout(r, 150))
+}
+// A retomada de uma sessão (o state passa a ser o do store dela) e o /clear.
+export const retomar = ($: any, id: string) => $.classic.SessionStart({ source: 'resume', session_id: id })
+export const limpar = ($: any) => $.classic.SessionStart({ source: 'clear' })
+
 // Troca a visão, como /task-tree resumida | completa.
 export const visao = ($: any, v: 'resumida' | 'completa') => $.command.run({ command: 'task-tree', args: v })
 
