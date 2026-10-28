@@ -10,6 +10,9 @@ import { fileURLToPath } from 'node:url'
 
 const SELOS = join(dirname(fileURLToPath(import.meta.url)), 'selos.mjs')
 const hoje = new Date().toLocaleDateString('sv-SE')
+// Sem as variáveis GIT_* do processo: dentro do hook de pré-commit elas apontam para o índice do
+// commit em curso, e o git do repositório temporário escreveria nele.
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')))
 
 const CATALOGO = `# Exemplo
 
@@ -62,14 +65,14 @@ function montar() {
   writeFileSync(join(dir, 'regras', 'exemplo.md'), CATALOGO)
   writeFileSync(join(dir, ARQ), TESTES)
   writeFileSync(join(dir, 'task-tree', 'tests', 'kit', 'leitura.ts'), KIT)
-  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' })
+  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
   git('init', '-q')
   assert.equal(selos(dir, '--novos', '--motivo', 'linha de base').status, 0)
   git('add', '-A')
   git('commit', '-q', '-m', 'base')
   return dir
 }
-const selos = (dir, ...a) => spawnSync(process.execPath, [SELOS, '--raiz', dir, ...a], { encoding: 'utf8' })
+const selos = (dir, ...a) => spawnSync(process.execPath, [SELOS, '--raiz', dir, ...a], { encoding: 'utf8', env })
 const conferir = dir => selos(dir)
 const trocar = (dir, arq, de, para) => {
   const p = join(dir, arq)

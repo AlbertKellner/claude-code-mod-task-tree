@@ -86,3 +86,29 @@ A etapa `selos` do `npm run check` falha quando: um teste selado mudou sem selo 
 coberto não tem selo; um teste selado sumiu; um arquivo do kit mudou sem selo; ou um selo
 `refatoracao`/`novo` tem menos asserções que o de `HEAD`. A etapa `travas` testa essas regras num
 repositório temporário.
+
+## Modelos
+
+Brief da análise:
+
+```markdown
+### Brief para a Implementação
+- Pedido e decisão do usuário (palavras dele, data).
+- Cenários: novos / reescritos (com `Reescrito:`) / sem mudança que protegem a área.
+- Impacto: arquivos → cenários → testes; itens do checklist do app.
+- Testes existentes que vão mudar, e por quê (decisão de quem, quando). Nenhum outro pode mudar.
+- Arquivos a escrever, de uma vez; commit sugerido.
+- O que o usuário valida no app.
+```
+
+Relato da implementação:
+
+```markdown
+### Relato
+- Commit: <hash> <título>.
+- `npm run check`: <resumo das etapas>.
+- `npm run testes:alterados`: <saída colada; "nenhum" se nenhum teste existente mudou>.
+- Selos regravados: <chave, tipo, motivo>.
+- Regressão (testes antigos × código novo): <ok | lista com a decisão de cada um>.
+- Não verificado / para o checklist do app: <itens>.
+```
