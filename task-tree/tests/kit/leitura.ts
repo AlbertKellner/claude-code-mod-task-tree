@@ -126,6 +126,22 @@ export function esperarEstado(linhas: Linha[], titulo: string, estado: Estado) {
   expect(linha(linhas, titulo).estado, `${titulo} no painel:\n${emTexto(linhas)}`).toBe(estado)
 }
 
+// Os cartões de uma filha, na ordem do painel: a tarefa sob a qual cada um está (a linha anterior de
+// nível menor que não é cartão), as tarefas dentro dele (as linhas seguintes até a próxima de nível
+// menor ou o próximo cartão do mesmo nível) e o nível.
+export function cartoes(linhas: Linha[], nome: string): { sob: string; tarefas: string[]; nivel: number }[] {
+  return linhas.flatMap((l, i) => {
+    if (!l.sessao || l.titulo !== nome) return []
+    const antes = linhas.slice(0, i).reverse().find(x => !x.sessao && !x.cabecalho && x.nivel < l.nivel)
+    const tarefas: string[] = []
+    for (const x of linhas.slice(i + 1)) {
+      if (x.nivel < l.nivel || (x.sessao && x.nivel === l.nivel)) break
+      if (!x.sessao && x.titulo !== '') tarefas.push(x.titulo)
+    }
+    return [{ sob: antes?.titulo ?? '', tarefas, nivel: l.nivel }]
+  })
+}
+
 // A linha de tarefa tem o ícone de sessão depois do título.
 export function temBusto(linhas: Linha[], titulo: string): boolean {
   const l = linha(linhas, titulo)

@@ -30,28 +30,28 @@ Cada mensagem à filha, em turnos diferentes, tem o seu cartão.
 - Quando o painel é desenhado
 - Então há dois cartões, cada um sob a tarefa da sua mensagem
 
-Origem: commit 4af1b92.
-Estado: pendente (sessoes, rodadas)
+Origem: decisão do usuário, 2026-10-21 ("filha ocupada que recebe mensagem nova tem o painel duplicado; o cartão antigo fica onde estava e o novo vai sob a tarefa da principal que mandou a mensagem", DESENVOLVIMENTO); commits 4af1b92 e 5508b25.
+Estado: coberto
 
 ### sessoes.cadeia-sem-cartao-dentro-de-cartao
 Uma cadeia de filhas não põe cartão dentro de cartão.
 
 - Dado filhas em sequência, uma aberta depois da outra
 - Quando o painel é desenhado
-- Então os cartões ficam em sequência, sem cartão dentro de cartão
+- Então os cartões ficam em sequência, sem cartão dentro de cartão: sob a tarefa da mãe que iniciou a cadeia, no mesmo nível, na ordem de execução
 
-Origem: commit fddd473, 2026-10-23.
-Estado: pendente (sessoes, rodadas)
+Origem: decisão do usuário, 2026-10-23 ("quando uma tarefa chama uma sessão, o painel não deve ficar dentro de outro; deve ficar na sequência em que será executado"); commit fddd473.
+Estado: coberto
 
 ### sessoes.mensagem-entre-filhas-no-cartao-da-remetente
 A mensagem entre filhas fica no cartão da remetente.
 
-- Dado uma filha que manda mensagem a outra
+- Dado uma filha que manda mensagem a uma irmã
 - Quando o painel é desenhado
-- Então a mensagem fica no cartão da remetente, sob a tarefa que a mandou
+- Então a tarefa da mensagem, com o ✉, fica no cartão da remetente, e o cartão da destinatária fica na sequência sob a tarefa da mãe, não dentro do cartão da remetente
 
-Origem: commit 28ae764, 2026-10-23.
-Estado: pendente (sessoes, rodadas)
+Origem: commit 28ae764, 2026-10-23; o cartão dentro do cartão foi desfeito por fddd473 no mesmo dia ("o painel não deve ficar dentro de outro").
+Estado: coberto
 
 ### sessoes.filha-trabalhando-mantem-pais-em-andamento
 A filha trabalhando mantém a tarefa e os pais em andamento.
@@ -86,12 +86,22 @@ Estado: coberto
 ### sessoes.rodada-descartada-fora-da-contagem
 A rodada descartada sai da contagem.
 
-- Dado uma rodada de filha abandonada ou abortada
+- Dado uma rodada anterior deixada com tarefa aberta quando a seguinte começa, ou a sessão parada com Esc com tarefa aberta
 - Quando o painel conta as tarefas
-- Então ela sai das contagens dos pais e do cabeçalho
+- Então as tarefas dela, ✓ inclusive, saem do cabeçalho e do chip "interrompidas"; o cartão continua desenhado
 
-Origem: commit bf77359, 2026-10-24.
-Estado: pendente (sessoes, rodadas)
+Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Estado: coberto
+
+### sessoes.rodada-descartada-fora-da-contagem-do-pai
+A rodada descartada sai também do x/y da tarefa da mãe.
+
+- Dado uma rodada anterior da filha deixada com uma tarefa ✓ e outra aberta, sob "Um"
+- Quando o painel conta as tarefas da linha "Um"
+- Então o x/y de "Um" não conta as tarefas dessa rodada
+
+Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Estado: pendente (sessoes; diverge: o cabeçalho exclui a rodada, mas "Um" mostra 1/3, contando a ✓ e a aberta da rodada descartada)
 
 ### sessoes.busto-so-no-pai
 O busto da sessão só na tarefa de que o cartão pende.
@@ -130,5 +140,5 @@ Mensagens entregues juntas: o cartão vai à tarefa da última.
 - Quando o turno dela começa
 - Então o cartão do turno fica na tarefa da última mensagem
 
-Origem: commit 8b67366, 2026-10-23.
-Estado: pendente (sessoes, rodadas)
+Origem: decisão do usuário, 2026-10-23 ("quero ver as tarefas lineares andando de cima para baixo; as paralelas andam fora de ordem, normal, mas as lineares precisam seguir uma linha do tempo"); commit 8b67366.
+Estado: coberto
