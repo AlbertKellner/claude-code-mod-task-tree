@@ -182,3 +182,68 @@ test('a tarefa de mensagem que o replano tira fica visível até a entrega', asy
   p = await painel($)
   expect(p.some(l => l.titulo === 'Um'), emTexto(p)).toBe(false)
 })
+
+// Regra: envios.entrega-imediata-fica-verde
+test('a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done', async ($: any, on: any) => {
+  fixar(on)
+  // A sessão destino já terminou o turno: uma filha trabalhando manteria os pais em andamento.
+  host(on, [{ id: 'local_x', rodando: false }])
+  const env = responderEnvio(on)
+  env.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await envio($, 'local_x')
+  let p = await painel($)
+  esperarCarta(p, 'Um', 'entregue')
+  expect(linha(p, 'Um').texto).toContain('entregue')
+  expect(emTexto(p)).not.toContain('na fila')
+  esperarEstado(p, 'Plano C', 'andamento')
+  await done($, ['1'])
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Plano C', 'concluida')
+})
+
+// PENDENTE: depois de uma entrega imediata, o Esc deixa o ✉ da tarefa aberta cinza "interrompida"
+// (o fim do turno parado interrompe a tarefa, e o envio tomado não a poupa). Aguardando decisão do
+// usuário sobre como a tarefa de mensagem em andamento fica no Esc.
+// test('depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem', async ($: any, on: any) => {
+//   fixar(on)
+//   host(on, [{ id: 'local_x' }])
+//   const env = responderEnvio(on)
+//   env.modo = 'entregue'
+//   await pedido($, 'Pedido um')
+//   await plan($, A)
+//   await start($, ['1'])
+//   await envio($, 'local_x')
+//   await fimDoTurno($)
+//   esperarCarta(await painel($), 'Um', 'entregue')
+//   await esc($)
+//   const p = await painel($)
+//   esperarCarta(p, 'Um', 'entregue')
+//   expect(emTexto(p)).not.toContain('interrompida')
+// })
+
+// Regra: envios.fica-ate-entrega, envios.entrega-imediata-fica-verde
+test('a entrega imediata e depois uma mensagem na fila à mesma sessão: cada uma no seu estado', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x' }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  env.modo = 'entregue'
+  await envio($, 'local_x')
+  await start($, ['2'])
+  env.modo = 'fila'
+  await envio($, 'local_x')
+  let p = await painel($)
+  esperarCarta(p, 'Um', 'entregue')
+  esperarCarta(p, 'Dois', 'fila')
+  h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  p = await painel($)
+  esperarCarta(p, 'Um', 'entregue')
+  esperarCarta(p, 'Dois', 'entregue')
+})

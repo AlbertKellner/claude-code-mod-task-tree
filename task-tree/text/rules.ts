@@ -53,9 +53,10 @@ export const RULES = [
   '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
     'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
   '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) fica com o ícone de mensagem (✉) do ' +
-    'envio até a sessão destino começar a tratar a mensagem, mesmo quando a entrega é imediata ' +
-    '("delivered; its turn has started on it"). Não chame done nela: quando o recebimento é confirmado, ' +
-    'o painel a conclui sozinho (mesmo com esta sessão parada). Com "queued", o painel também avisa.',
+    'envio. Na entrega imediata ("delivered; its turn has started on it"), a mensagem já conta como ' +
+    'recebida: o ✉ fica verde na hora e a tarefa segue em andamento até você chamar done nela. Com ' +
+    '"queued", o ✉ fica azul até a sessão destino começar a tratar a mensagem; não chame done nela: ' +
+    'quando o recebimento é confirmado, o painel a conclui sozinho (mesmo com esta sessão parada) e avisa.',
   '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
     'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
 ].join('\n')
