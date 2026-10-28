@@ -91,3 +91,13 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 
 Origem: commits 1987482 e 689d569, 2026-10-24.
 Estado: checklist (posição na imagem)
+
+### visual.cabecalho-barra-e-chips-desenhados
+A barra e os chips do cabeçalho aparecem desenhados no app desktop.
+
+- Dado o painel aberto no app desktop
+- Quando o cabeçalho é desenhado
+- Então a barra de progresso, os chips em ícone e cor e o tooltip "sessão inteira" aparecem
+
+Origem: regra do painel.
+Estado: checklist (pintura real)

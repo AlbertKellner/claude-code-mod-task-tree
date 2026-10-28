@@ -22,6 +22,67 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/cabecalho.test.ts::a interrompida sai do total e entra no chip": {
+      "regras": [
+        "cabecalho.interrompida-fora-do-total"
+      ],
+      "hash": "044adfe5e064828b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
+    "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
+      "regras": [
+        "pedidos.resumida-mantem-anteriores-com-algo-aberto"
+      ],
+      "hash": "3ffbf463778fd5a3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
+    "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém": {
+      "regras": [
+        "cabecalho.resumida-exclui-pedido-finalizado",
+        "cabecalho.resumida-limpa-so-com-tudo-concluido"
+      ],
+      "hash": "aa24f59564c56e0a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
+    "task-tree/tests/cabecalho.test.ts::os chips contam só folhas, nunca pais nem tarefas de mensagem": {
+      "regras": [
+        "cabecalho.chips-contam-folhas"
+      ],
+      "hash": "f8abd5461bb0b574",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
+    "task-tree/tests/cabecalho.test.ts::os números somam o que a visão desenha, e recolher não muda nada": {
+      "regras": [
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "1a3b596db70583a8",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
+    "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
+      "regras": [
+        "cabecalho.limites-de-linhas"
+      ],
+      "hash": "f4178d978f8069c7",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+    },
     "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
       "regras": [
         "envios.entrega-imediata-fica-verde"
@@ -549,16 +610,16 @@
       "motivo": "helpers de sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "2d28e1deae1b60ee",
+      "hash": "9135a6a6ef3c0913",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "helpers de sessão"
+      "motivo": "leitura do cabeçalho e visões"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "5c53c42843d77872",
+      "hash": "56ae4eab0fe94f7e",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "helpers de sessão"
+      "motivo": "leitura do cabeçalho e visões"
     }
   }
 }
