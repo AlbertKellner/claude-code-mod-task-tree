@@ -1,4 +1,6 @@
 import { expect, test } from 'claude-code/testing'
+import { AGORA } from './kit/ambiente'
+import { aviso } from './kit/cenario'
 import { fixar, host, responderEnvio } from './kit/ambiente'
 import { done, envio, fimDoTurno, pedido, plan, start, visao, type No } from './kit/cenario'
 import { cabecalho, emTexto, esperarEstado, montar, painel } from './kit/leitura'
@@ -169,4 +171,24 @@ test('só os três últimos pedidos aparecem na completa; os outros viram "+N pe
   const c = cabecalho(p)
   expect([c.feitas, c.total], emTexto(p)).toEqual([3, 3])
   expect(c.inteira, emTexto(p)).toEqual({ feitas: 5, total: 5 })
+})
+
+// Regra: cabecalho.limite-de-cartoes-antigos
+test('o cartão parado, sem tarefa de origem e de antes dos três últimos pedidos vira "+1 cartões antigos de sessões"', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const antiga = { id: '1', short: '1', title: 'Tarefa antiga', status: 'done', startedAt: AGORA - 5000, endedAt: AGORA - 4000, turn: 1, children: [] }
+  host(on, [{ id: 'local_33333333-3333-3333-3333-333333333333', nome: 'filha-antiga', rodando: false, painel: { tasks: [antiga], turns: [{ id: 1, title: 't', at: AGORA - 5000 }] } }])
+  for (let i = 1; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await aviso($)
+  await visao($, 'completa')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('+1 cartões antigos de sessões')), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'filha-antiga'), emTexto(p)).toBe(false)
 })

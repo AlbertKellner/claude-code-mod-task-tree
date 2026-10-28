@@ -82,6 +82,16 @@
       "data": "2026-10-28",
       "motivo": "empate de starts"
     },
+    "task-tree/tests/cabecalho.test.ts::o cartão parado, sem tarefa de origem e de antes dos três últimos pedidos vira \"+1 cartões antigos de sessões\"": {
+      "regras": [
+        "cabecalho.limite-de-cartoes-antigos"
+      ],
+      "hash": "04b4f5280d2984b7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "subagente, hand-back e limites do desenho"
+    },
     "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém": {
       "regras": [
         "cabecalho.resumida-exclui-pedido-finalizado",
@@ -889,6 +899,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::a notificação de uma tarefa em segundo plano não abre pedido": {
+      "regras": [
+        "turnos.notificacao-de-tarefa-sem-turno"
+      ],
+      "hash": "0103ecec2bfd081f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "subagente, hand-back e limites do desenho"
+    },
     "task-tree/tests/turnos.test.ts::fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes": {
       "regras": [
         "turnos.iniciada-aguarda-no-fim",
@@ -931,6 +951,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual": {
+      "regras": [
+        "turnos.prompt-sem-turno"
+      ],
+      "hash": "7e24207d339ce7ac",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "subagente, hand-back e limites do desenho"
+    },
     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
       "regras": [
         "turnos.prompt-seguinte-retoma"
@@ -940,6 +970,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::o subagente que termina deixa interrompido o que ficou aberto, e o pai com filha concluída aguarda": {
+      "regras": [
+        "turnos.subagente-que-termina-interrompe"
+      ],
+      "hash": "a05f0b02458719d1",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "subagente, hand-back e limites do desenho"
     },
     "task-tree/tests/turnos.test.ts::pedido anterior parado segue aguardando enquanto o pedido novo está em andamento": {
       "regras": [
