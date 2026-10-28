@@ -53,6 +53,16 @@
       "data": "2026-10-28",
       "motivo": "cabeçalho e visão resumida (tarefa 6)"
     },
+    "task-tree/tests/cabecalho.test.ts::o título é o nível 1 da tarefa iniciada por último": {
+      "regras": [
+        "cabecalho.titulo-e-a-ultima-iniciada"
+      ],
+      "hash": "6503053e909ba609",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "título do cabeçalho"
+    },
     "task-tree/tests/cabecalho.test.ts::os chips contam só folhas, nunca pais nem tarefas de mensagem": {
       "regras": [
         "cabecalho.chips-contam-folhas"
