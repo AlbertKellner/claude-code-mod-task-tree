@@ -21,6 +21,13 @@ export const done = ($: any, ids: string[], summary?: string) =>
 export const ferramenta = async ($: any, tool: string, args: object = {}): Promise<Resposta> =>
   resposta(await $.tool.call({ tool, tool_use_id: `${tool}-1`, ...args }))
 
+// O modelo manda uma mensagem a outra sessão (SendMessage); o stub está em responderEnvio.
+export const envio = ($: any, para: string, texto = 'oi') => ferramenta($, 'SendMessage', { to: para, message: texto })
+
+// Uma mensagem de outra sessão: abre um pedido marcado como recebido.
+export const mensagemDe = ($: any, de: string, texto: string) =>
+  $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">${texto}</cross-session-message>` })
+
 // Uma mensagem da pessoa: abre um pedido (turno) novo.
 export const pedido = ($: any, texto: string) => $.prompt.submit({ text: texto })
 

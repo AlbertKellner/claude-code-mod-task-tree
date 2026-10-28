@@ -101,3 +101,13 @@ O cartão mostra toks/s, repositório e branch.
 
 Origem: commits 1987482 e 689d569, 2026-10-24.
 Estado: checklist (valores reais do host)
+
+### sessoes.mensagens-juntas-vao-a-ultima
+Mensagens entregues juntas: o cartão vai à tarefa da última.
+
+- Dado várias mensagens à mesma sessão entregues juntas
+- Quando o turno dela começa
+- Então o cartão do turno fica na tarefa da última mensagem
+
+Origem: commit 8b67366, 2026-10-23.
+Estado: pendente (sessoes)
