@@ -71,3 +71,23 @@ O status aparece embaixo da caixa de mensagem.
 
 Origem: regra do painel; a confirmar.
 Estado: checklist (status do app)
+
+### visual.cartao-modelo-e-esforco
+O cartão da filha mostra o modelo e o esforço dela.
+
+- Dado uma filha que publicou o modelo e o esforço
+- Quando o cartão é desenhado no app desktop
+- Então mostra o modelo e o esforço ("Opus 5.5 · high") à esquerda do anel
+
+Origem: regra do painel.
+Estado: checklist (o terminal não desenha o modelo)
+
+### visual.cartao-posicao-de-toks-e-repo
+No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e branch à direita do nome.
+
+- Dado uma filha trabalhando num repositório
+- Quando o cartão é desenhado no app desktop
+- Então "n toks/s" fica à esquerda do modelo, e o repositório e a branch à direita do nome
+
+Origem: commits 1987482 e 689d569, 2026-10-24.
+Estado: checklist (posição na imagem)

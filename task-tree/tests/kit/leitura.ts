@@ -7,10 +7,13 @@ import { PROPS } from './ambiente'
 export type Estado = 'pendente' | 'andamento' | 'concluida' | 'interrompida' | 'aguardando'
 // A carta (✉) de uma tarefa de mensagem: onde a mensagem está, pela cor do ícone.
 export type Carta = 'fila' | 'entregue' | 'interrompida'
-export type Linha = { texto: string; titulo: string; estado?: Estado; carta?: Carta; nivel: number }
+// `sessao`: a linha de cartão de uma sessão filha (o ◍ no começo, o nome como título).
+export type Linha = { texto: string; titulo: string; estado?: Estado; carta?: Carta; sessao?: true; nivel: number }
 
 const ESTADOS: Record<string, Estado> = { '○': 'pendente', '◉': 'andamento', '✓': 'concluida', '✕': 'interrompida', '◷': 'aguardando' }
 const CARTAS: Record<string, Carta> = { permission: 'fila', success: 'entregue', inactive: 'interrompida' }
+// O ícone de sessão: no começo da linha de cartão; no fim da linha da tarefa de que o cartão pende (o busto).
+const SESSAO = '◍'
 
 // Texto mostrado por um elemento, com o rótulo dos Button.
 const mostrado = (el: any): string =>
@@ -28,7 +31,7 @@ export async function painel($: any, opcoes: { colunas?: number } = {}): Promise
     .filter(c => typeof c === 'object')
     .map(l => {
       const partes = ((l.children ?? []) as any[]).filter(c => typeof c === 'object')
-      const icone = partes.find(p => mostrado(p) in ESTADOS || mostrado(p) === '✉')
+      const icone = partes.find(p => mostrado(p) in ESTADOS || mostrado(p) === '✉' || mostrado(p) === SESSAO)
       const titulo = icone ? partes[partes.indexOf(icone) + 1] : undefined
       // O seletor de visão no fim da linha de título fica de fora.
       const texto = mostrado(l).replace(/\s+\[?≡\]? \[?▤\]?$/, '').trimEnd()
@@ -39,6 +42,7 @@ export async function painel($: any, opcoes: { colunas?: number } = {}): Promise
         titulo: titulo ? mostrado(titulo).trim() : '',
         estado: ESTADOS[glifo],
         ...(glifo === '✉' ? { carta: CARTAS[cor(icone) ?? ''] } : {}),
+        ...(glifo === SESSAO ? { sessao: true as const } : {}),
         nivel: Math.round(guias.length / 2),
       }
     })
@@ -55,6 +59,17 @@ export function linha(linhas: Linha[], titulo: string): Linha {
 
 export function esperarEstado(linhas: Linha[], titulo: string, estado: Estado) {
   expect(linha(linhas, titulo).estado, `${titulo} no painel:\n${emTexto(linhas)}`).toBe(estado)
+}
+
+// A linha de tarefa tem o ícone de sessão depois do título.
+export function temBusto(linhas: Linha[], titulo: string): boolean {
+  const l = linha(linhas, titulo)
+  return !l.sessao && l.texto.slice(l.texto.indexOf(titulo) + titulo.length).includes(SESSAO)
+}
+
+// A linha (de tarefa ou de cartão) mostra a palavra.
+export function esperarPalavra(linhas: Linha[], titulo: string, palavra: string) {
+  expect(linha(linhas, titulo).texto, `${titulo} no painel:\n${emTexto(linhas)}`).toContain(palavra)
 }
 
 export function esperarCarta(linhas: Linha[], titulo: string, carta: Carta) {

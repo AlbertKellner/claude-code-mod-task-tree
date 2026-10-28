@@ -375,6 +375,79 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/sessoes.test.ts::a filha trabalhando mantém a tarefa e os pais em andamento": {
+      "regras": [
+        "sessoes.filha-trabalhando-mantem-pais-em-andamento",
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "66466e5ea24a6212",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
+      "regras": [
+        "sessoes.filha-arquivada-interrompe",
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "8498f7e50e57ac9f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::filha parada: a iniciada aguarda e as pendentes seguem pendentes": {
+      "regras": [
+        "sessoes.filha-parada-pendentes-seguem-pendentes",
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "a6daa2ae418d2a4a",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::o busto da sessão só na tarefa de que o cartão pende": {
+      "regras": [
+        "sessoes.busto-so-no-pai"
+      ],
+      "hash": "8cffdff8a700e8ce",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::o cartão da filha fica sob a tarefa de onde foi aberta": {
+      "regras": [
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "93c76a1cb0134009",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::o cartão mostra toks/s e repositório com branch": {
+      "regras": [
+        "sessoes.toks-e-repo-branch-no-cartao"
+      ],
+      "hash": "12b4ee175c622db6",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
+      "regras": [
+        "sessoes.pasta-sem-git"
+      ],
+      "hash": "f56b7836e2f1d360",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
     "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
       "regras": [
         "turnos.esc-interrompe-so-a-iniciada"
@@ -470,22 +543,22 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "ad7bf5e9a04480af",
-      "tipo": "novo",
+      "hash": "7d253cdff09f5070",
+      "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "linha de base"
+      "motivo": "helpers de sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "6aa4466256c2a87b",
-      "tipo": "novo",
+      "hash": "2d28e1deae1b60ee",
+      "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "linha de base"
+      "motivo": "helpers de sessão"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "58d80e59c4f48cd5",
-      "tipo": "novo",
+      "hash": "5c53c42843d77872",
+      "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "linha de base"
+      "motivo": "helpers de sessão"
     }
   }
 }

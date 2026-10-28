@@ -24,6 +24,9 @@ export const ferramenta = async ($: any, tool: string, args: object = {}): Promi
 // O modelo manda uma mensagem a outra sessão (SendMessage); o stub está em responderEnvio.
 export const envio = ($: any, para: string, texto = 'oi') => ferramenta($, 'SendMessage', { to: para, message: texto })
 
+// O modelo abre uma sessão filha (start_session); o stub do host devolve o id da próxima filha dele.
+export const abrirSessao = ($: any) => ferramenta($, 'mcp__ccd_session__start_session', { title: 'filha' })
+
 // Uma mensagem de outra sessão: abre um pedido marcado como recebido.
 export const mensagemDe = ($: any, de: string, texto: string) =>
   $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">${texto}</cross-session-message>` })
