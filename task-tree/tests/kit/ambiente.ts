@@ -17,7 +17,52 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   // Abaixo do mod, o prompt e o fim do turno só ecoam (o mod já fez a parte dele).
   on('prompt.submit', (_$: any, e: any) => e)
   on('turn.complete', () => ({ text: '' }))
+  // O início da sessão (processo novo) e o SessionStart (retomada, /clear): o mod já fez a parte dele.
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('tool.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
   return { relogio }
+}
+
+// O id desta sessão no store (`<chave>:<id>`), fixo para que um teste ache o que o anterior gravou.
+export const SESSAO = 'uuid-eu'
+
+// Um store que passa de um teste ao outro do mesmo arquivo (o objeto é do arquivo): um teste grava,
+// o seguinte (módulo novo, state vazio: outro processo) lê. Chamar antes da primeira chamada a $.
+export function armazem(on: any, dados: Record<string, unknown>) {
+  on('session.id', () => ({ value: SESSAO }))
+  on('store.get', (_$: any, e: any) => ({ value: dados[e.key] }))
+  on('store.set', (_$: any, e: any) => {
+    dados[e.key] = e.value === undefined ? undefined : JSON.parse(JSON.stringify(e.value))
+    return { value: undefined }
+  })
+  on('store.delete', (_$: any, e: any) => {
+    delete dados[e.key]
+    return { value: undefined }
+  })
+  on('store.keys', () => ({ value: Object.keys(dados) }))
+}
+
+// O $.state de um teste anterior. 'captura': cada state.set fica também em `guardado`. 'semear': o
+// state.get devolve o de `guardado` enquanto a chave não foi escrita neste teste (módulo novo, state
+// mantido: a recarga a quente), e as escritas também ficam nele. O kit segue guardando por baixo (next).
+// Chamar antes da primeira chamada a $.
+export function estado(on: any, guardado: Record<string, unknown>, modo: 'captura' | 'semear') {
+  const escritas = new Set<string>()
+  if (modo === 'semear') {
+    on('state.get', async (_$: any, e: any, next: any) => {
+      const r = await next(e)
+      if (r?.value?.value === undefined && !escritas.has(e.key) && guardado[e.key] !== undefined) return { value: { ...r.value, value: guardado[e.key] } }
+      return r
+    })
+  }
+  on('state.set', async (_$: any, e: any, next: any) => {
+    escritas.add(e.key)
+    const r = await next(e)
+    guardado[e.key] = e.value === undefined ? undefined : JSON.parse(JSON.stringify(e.value))
+    return r
+  })
 }
 
 // O host do app desktop: esta sessão, as sessões que ela abriu e o arquivo que cada uma publica.
@@ -25,7 +70,8 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
 // Chamar antes da primeira chamada a $.
 export const EU = 'local_00000000-0000-0000-0000-00000000e0e0'
 const CASA = 'C:/u'
-export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha }
+// `proprio()`: o último arquivo que esta sessão publicou (o que a sessão mãe lê e desenha no cartão).
+export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -38,6 +84,8 @@ export type Filha = {
   painel?: { tasks: any[]; turns?: any[] } // o grupo principal publicado
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
+  publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
+  listada?: boolean // padrão true; false: a lista do host a deixa de fora
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
 export function host(on: any, sessoes: Filha[]): Host {
@@ -49,7 +97,7 @@ export function host(on: any, sessoes: Filha[]): Host {
     if (e.tool === 'list_sessions')
       return texto(
         JSON.stringify(
-          sessoes.map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: EU })),
+          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: EU })),
         ),
       )
     return texto('')
@@ -60,6 +108,7 @@ export function host(on: any, sessoes: Filha[]): Host {
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
+    if (s.publicado !== undefined) return { value: s.publicado }
     return {
       value: JSON.stringify({
         version: 1,
@@ -74,7 +123,11 @@ export function host(on: any, sessoes: Filha[]): Host {
       }),
     }
   })
-  on('fs.write', () => ({ value: undefined }))
+  let meu: any
+  on('fs.write', (_$: any, e: any) => {
+    if (/task-tree-waits[\\/]/.test(String(e.path)) && String(e.path).includes(EU)) meu = JSON.parse(String(e.text ?? e.content ?? 'null'))
+    return { value: undefined }
+  })
   on('tool.call', { tool: 'mcp__ccd_session__start_session' }, () => {
     const proxima = sessoes.find(s => !abertas.includes(s.id))
     if (proxima) abertas.push(proxima.id)
@@ -87,6 +140,7 @@ export function host(on: any, sessoes: Filha[]): Host {
       if (!s) throw new Error(`filha ${id} não está no host`)
       return s
     },
+    proprio: () => meu,
   }
 }
 
