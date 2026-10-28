@@ -102,7 +102,7 @@ export function begin(list: TaskNode[], id: string, seq: number, now?: number): 
   return list.map(t => {
     if (t.id === id) {
       const startedAt = t.status === 'open' ? (t.startedAt ?? now) : now
-      return { ...t, status: 'open' as Status, started: seq, startedAt, endedAt: undefined }
+      return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt, endedAt: undefined }
     }
     if (!flat(t.children).some(c => c.id === id)) return t
     return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now) }
@@ -117,7 +117,7 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
   const byId = new Map(flat([old]).map(t => [t.id, t] as const))
   const merge = (n: TaskNode): TaskNode => {
     const o = byId.get(n.id)
-    const kept = o ? { status: o.status, started: o.started, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg } : {}
+    const kept = o ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg } : {}
     return { ...n, ...kept, children: n.children.map(merge) }
   }
   let out = merge(fresh)

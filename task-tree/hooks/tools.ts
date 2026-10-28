@@ -197,7 +197,8 @@ export async function startTool($: EngineInterface, e: any, next: any) {
       notes = []
       begun = []
       roots = []
-      let seq = flat(tasksOf(all)).reduce((top, t) => Math.max(top, t.started ?? 0), 0) + 1
+      // Past every start so far, done ones too (startedSeq outlives the done), so the order holds.
+      let seq = flat(tasksOf(all)).reduce((top, t) => Math.max(top, t.started ?? 0, t.startedSeq ?? 0), 0) + 1
       const others = tasksOf(all.filter(g => g.agent !== agent))
       return all.map(g => {
         if (g.agent !== agent) return g

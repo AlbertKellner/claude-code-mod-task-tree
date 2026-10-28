@@ -12,6 +12,8 @@ export type TaskNode = {
   title: string
   status: Status
   started?: number
+  // The order of the start, kept after the done: breaks a tie of startedAt (two starts in one ms).
+  startedSeq?: number
   startedAt?: number
   endedAt?: number
   // When the task was planned: where a task closed with no start starts, at the latest.
