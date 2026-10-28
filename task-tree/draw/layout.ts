@@ -339,7 +339,9 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   if (parts.length < 2 && (parts[0] ?? 0) === 0) return [c]
   const tasksIn = (k: number) => tasksByPart.get(k) ?? []
   const flatIn = new Map(parts.map(k => [k, flat(tasksIn(k))] as const))
-  const busy = parts.find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
+  // The card at work: the latest round with a task in progress (an earlier one left with a task started
+  // is the abandoned one, discarded), else the last.
+  const busy = [...parts].reverse().find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
   const lead = busy ?? parts[parts.length - 1]
   // What hangs from a task goes to that task's card (the first part holding the task, in part order,
   // as the search was); with no such task, to the leading card.

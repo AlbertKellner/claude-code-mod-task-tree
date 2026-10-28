@@ -91,6 +91,7 @@ A rodada descartada sai da contagem.
 - Então as tarefas dela, ✓ inclusive, saem do cabeçalho e do chip "interrompidas"; o cartão continua desenhado
 
 Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Reescrito: 2026-10-28, decisão do usuário ("Sim, corrigir (Recomendado)... o teste esperava o valor do bug; decisão de 2026-10-24 mantida"): a rodada descartada é a anterior, não a que está trabalhando.
 Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem-do-pai
@@ -101,7 +102,7 @@ A rodada descartada sai também do x/y da tarefa da mãe.
 - Então o x/y de "Um" não conta as tarefas dessa rodada
 
 Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
-Estado: pendente (sessoes; diverge: o cabeçalho exclui a rodada, mas "Um" mostra 1/3, contando a ✓ e a aberta da rodada descartada)
+Estado: coberto
 
 ### sessoes.busto-so-no-pai
 O busto da sessão só na tarefa de que o cartão pende.

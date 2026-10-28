@@ -701,11 +701,11 @@
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
-      "hash": "16c24433fac7332c",
+      "hash": "292f9840d07f277a",
       "assercoes": 2,
-      "tipo": "novo",
+      "tipo": "decisao",
       "data": "2026-10-28",
-      "motivo": "rodadas das sessões (commit B)"
+      "motivo": "o teste afirmava o valor do bug; corrigido para a decisão de 2026-10-24 (usuário, 2026-10-28: Sim, corrigir)"
     },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
@@ -726,6 +726,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rodada nova segue em andamento": {
+      "regras": [
+        "sessoes.rodada-descartada-fora-da-contagem-do-pai"
+      ],
+      "hash": "78f231c2597cd475",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "x/y do pai sem a rodada descartada"
     },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
