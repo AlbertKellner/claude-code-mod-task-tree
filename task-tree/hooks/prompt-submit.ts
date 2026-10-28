@@ -6,7 +6,7 @@
 
 import { MAIN, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, openList, openTurn, showPane, wake } from './panel'
+import { reminders, dropWaits, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -94,7 +94,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
-  if (aborted) await $.state.set(turnAbortedState, false)
+  if (aborted) {
+    await $.state.set(turnAbortedState, false)
+    await saveTurn($)
+  }
   // After an interrupted turn, the message that comes next, the person's or another session's, asks
   // for a replan of the panel instead of the list of what was left open (the replan covers it).
   const left = aborted && hasOpen(tasks)

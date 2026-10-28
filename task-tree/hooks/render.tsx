@@ -12,7 +12,7 @@ import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureView, ensureWork, knownId, setView, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureView, ensureWork, knownId, setView, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
@@ -320,9 +320,13 @@ export async function render($: EngineInterface, e: any, next: any) {
   const work = heldWork ?? workBrought ?? []
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
   // below needs besides the width.
-  const { value: ended } = await $.state.get(turnEndedState)
+  // After a restart without session.start the turn's end comes from the store (ensureTurn).
+  const turnBrought = await ensureTurn($)
+  const { value: heldEnded } = await $.state.get(turnEndedState)
+  const ended = heldEnded !== undefined ? heldEnded : turnBrought?.ended
   // Whether that turn was stopped by the person: what it left in progress is interrupted, not waiting.
-  const { value: aborted } = await $.state.get(turnAbortedState)
+  const { value: heldAborted } = await $.state.get(turnAbortedState)
+  const aborted = heldEnded !== undefined ? heldAborted : turnBrought?.aborted
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
