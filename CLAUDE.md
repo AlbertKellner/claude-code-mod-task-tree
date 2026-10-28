@@ -50,8 +50,10 @@ O hook de pré-commit roda o mesmo check sobre o índice, mas pula o que não po
 (`scripts/mudou.mjs`, testado nas `travas`):
 - `travas`, se nada mudou em `scripts/`;
 - os dois `validate`, se nada mudou em `task-tree/` fora de `tests/` nem em `.claude-plugin/`;
-- `tsc`, enquanto não bloqueia;
-- `plugin test` e `regressao` rodam em paralelo.
+- `tsc`, enquanto não bloqueia.
+
+`plugin test` e `regressao` rodam em série: em paralelo, com a máquina carregada, testes estouravam
+os 5 s do kit.
 
 `regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
