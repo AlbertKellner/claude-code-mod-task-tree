@@ -48,6 +48,10 @@ console.log(`Claude Code: ${claude} (${versao.stdout.trim()})`)
 const etapas = [
   // O catálogo regras/ contra os testes (ids, estados, ligações); node puro, em milissegundos.
   ['regras', process.execPath, ['scripts/regras.mjs'], true],
+  // As travas do selo (scripts/selos.mjs), testadas num repositório temporário.
+  ['travas', process.execPath, ['--test', 'scripts/travas.test.mjs'], true],
+  // Os testes e o kit contra regras/selos.json: teste existente só muda com selo novo.
+  ['selos', process.execPath, ['scripts/selos.mjs'], true],
   ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true],
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true],
   ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], false],

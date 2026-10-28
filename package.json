@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node scripts/testes.mjs"
+    "check": "node scripts/testes.mjs",
+    "regras:selar": "node scripts/selos.mjs --selar"
   },
   "devDependencies": {
     "typescript": "5.9.3"
