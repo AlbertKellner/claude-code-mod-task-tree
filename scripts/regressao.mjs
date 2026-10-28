@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
-import { hoje, selosDeHead } from './selos.mjs'
+import { hoje, liberaGolden, selosDeHead } from './selos.mjs'
 
 const args = process.argv.slice(2)
 const valor = nome => {
@@ -75,7 +75,11 @@ try {
       const s = agora.testes[chave]
       const h = head.testes[chave]
       const regras = (h ?? s)?.regras?.join(', ') ?? 'sem regra'
-      if (s && s.tipo === 'decisao' && s.data === hoje() && (!h || s.hash !== h.hash)) {
+      // O teste de golden de HEAD falha quando o desenho muda: só passa com o desenho aprovado hoje.
+      const cenario = /golden\.test\.ts::golden: (\S+)$/.exec(chave)?.[1]
+      if (cenario && liberaGolden(agora, head, cenario, hoje())) {
+        console.log(`- desenho aprovado: ${chave} (${agora.golden[cenario].motivo})`)
+      } else if (s && s.tipo === 'decisao' && s.data === hoje() && (!h || s.hash !== h.hash)) {
         console.log(`- decisão: ${chave} — regras ${regras} (${s.motivo})`)
       } else {
         console.error(`- REGRESSÃO OU DECISÃO NÃO REGISTRADA: ${chave} — regras ${regras}`)

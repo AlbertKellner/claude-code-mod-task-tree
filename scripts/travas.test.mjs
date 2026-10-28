@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
 import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
+import { aprovarGolden, liberaGolden } from './selos.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
@@ -178,3 +179,35 @@ test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', co
   git('add', 'task-tree/tests/kit/leitura.ts')
   assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
 }))
+
+// O golden do SVG: só se grava com as palavras do usuário, e um desenho mudado sem aprovação falha.
+const GOLDEN_MJS = join(dirname(fileURLToPath(import.meta.url)), 'golden.mjs')
+test('aprovar o golden sem as palavras do usuário e a data é recusado antes de rodar qualquer coisa', () => {
+  for (const motivo of [undefined, 'ok', '2026-10-28 sem aspas', '"está certo" sem data']) {
+    const r = spawnSync(process.execPath, [GOLDEN_MJS, '--aprovar', '--todos', ...(motivo === undefined ? [] : ['--motivo', motivo])], { encoding: 'utf8', env })
+    assert.equal(r.status, 1, String(motivo))
+    assert.match(r.stderr, /palavras do usuário entre aspas e da data/)
+  }
+})
+
+test('desenho do golden sem selo, ou mudado depois da aprovação, falha', comMontagem(dir => {
+  mkdirSync(join(dir, 'task-tree', 'tests', 'golden'), { recursive: true })
+  writeFileSync(join(dir, 'task-tree', 'tests', 'golden', 'svg.ts'), 'export const GOLDEN: Record<string, unknown> = {"principal":[{"alt":"a","source":"<svg/>"}]}\n')
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /desenho do golden sem selo: principal/)
+  aprovarGolden(dir, { principal: [{ alt: 'a', source: '<svg/>' }] }, `"está certo", ${hoje}`)
+  assert.equal(conferir(dir).status, 0)
+  trocar(dir, 'task-tree/tests/golden/svg.ts', '<svg/>', '<svg></svg>')
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /o desenho do golden mudou sem aprovação: principal/)
+}))
+
+test('a regressão de desenho só passa com o desenho aprovado hoje, com hash novo', () => {
+  const head = { golden: { principal: { hash: 'a', data: '2026-10-01', motivo: 'x' } } }
+  assert.equal(liberaGolden({ golden: {} }, head, 'principal', hoje), false)
+  assert.equal(liberaGolden({ golden: { principal: { hash: 'b', data: '2026-10-01', motivo: 'x' } } }, head, 'principal', hoje), false)
+  assert.equal(liberaGolden({ golden: { principal: { hash: 'a', data: hoje, motivo: 'x' } } }, head, 'principal', hoje), false)
+  assert.equal(liberaGolden({ golden: { principal: { hash: 'b', data: hoje, motivo: 'x' } } }, head, 'principal', hoje), true)
+})

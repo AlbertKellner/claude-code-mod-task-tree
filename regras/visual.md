@@ -50,7 +50,7 @@ As cores seguem o tema.
 - Então as cores seguem o tema
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
-Estado: checklist (pintura real)
+Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.cabecalho-em-cartao
 O cabeçalho aparece em cartão.
@@ -60,7 +60,7 @@ O cabeçalho aparece em cartão.
 - Então ele aparece em cartão, com repositório e branch
 
 Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
-Estado: checklist (pintura real)
+Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.status-embaixo-da-caixa
 O status aparece embaixo da caixa de mensagem.
@@ -80,7 +80,7 @@ O cartão da filha mostra o modelo e o esforço dela.
 - Então mostra o modelo e o esforço ("Opus 5.5 · high") à esquerda do anel
 
 Origem: regra do painel.
-Estado: checklist (o terminal não desenha o modelo)
+Estado: checklist (o terminal não desenha o modelo; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.cartao-posicao-de-toks-e-repo
 No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e branch à direita do nome.
@@ -90,7 +90,7 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 - Então "n toks/s" fica à esquerda do modelo, e o repositório e a branch à direita do nome
 
 Origem: commits 1987482 e 689d569, 2026-10-24.
-Estado: checklist (posição na imagem)
+Estado: checklist (posição na imagem; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.cartoes-ordem-e-espera
 Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
@@ -121,3 +121,43 @@ A barra e os chips do cabeçalho aparecem desenhados no app desktop.
 
 Origem: regra do painel.
 Estado: checklist (pintura real)
+
+### visual.golden-gera-desenho
+Os cenários do golden geram o desenho do app desktop.
+
+- Dado os 3 cenários do golden (principal, filha trabalhando, envios), a 60 colunas
+- Quando o painel é desenhado no app desktop
+- Então cada cenário gera os SVGs do desenho, e o texto deles é o mesmo a cada vez
+
+Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)"): o desenho validado no app fica travado pelo golden.
+Estado: coberto
+
+### visual.desenho-principal
+O desenho do painel principal é o validado no app.
+
+- Dado uma árvore de 3 níveis com todos os estados, a linha ↩ e o cabeçalho em cartão com repositório e branch
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Estado: pendente (aguardando a validação do usuário no app)
+
+### visual.desenho-cartao-filha
+O desenho do cartão da filha trabalhando é o validado no app.
+
+- Dado uma filha trabalhando, com busto, toks/s, repositório e branch e anel
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Estado: pendente (aguardando a validação do usuário no app)
+
+### visual.desenho-envios
+O desenho do ✉ na fila, entregue e interrompido é o validado no app.
+
+- Dado tarefas de mensagem na fila, entregue e interrompida
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Estado: pendente (aguardando a validação do usuário no app)

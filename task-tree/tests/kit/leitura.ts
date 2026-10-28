@@ -75,6 +75,33 @@ export async function montar($: any, opcoes: { colunas?: number } = {}) {
   }
 }
 
+// Cada Svg do desenho do app desktop, como o golden o guarda: o texto normalizado (fins de linha LF,
+// números com no máximo 2 casas), o alt e a altura. Monta o desktop uma vez (sem aquecer as animações).
+export type DesenhoSvg = { alt: string; height?: number; width?: number | string; isInteractive?: boolean; source: string }
+const normalizar = (s: string) => s.replace(/\r\n/g, '\n').replace(/-?\d+\.\d{3,}/g, n => String(Math.round(Number(n) * 100) / 100))
+export async function svgs($: any, opcoes: { colunas?: number } = {}): Promise<DesenhoSvg[]> {
+  const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PROPS(opcoes.colunas ?? 60), requestId: 'task-tree' })
+  const raiz: any = await ui.drawn()
+  await ui.unmount()
+  const out: DesenhoSvg[] = []
+  const andar = (el: any) => {
+    if (typeof el !== 'object' || el === null) return
+    if (el.type === 'Svg') {
+      const p = el.props ?? {}
+      out.push({
+        alt: String(p.alt ?? ''),
+        ...(p.height !== undefined ? { height: p.height } : {}),
+        ...(p.width !== undefined ? { width: p.width } : {}),
+        ...(p.isInteractive !== undefined ? { isInteractive: p.isInteractive } : {}),
+        source: normalizar(String(p.source ?? '')),
+      })
+    }
+    for (const c of el.children ?? []) andar(c)
+  }
+  andar(raiz)
+  return out
+}
+
 export async function painel($: any, opcoes: { colunas?: number } = {}): Promise<Linha[]> {
   const m = await montar($, opcoes)
   const linhas = await m.linhas()

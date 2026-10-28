@@ -6,7 +6,9 @@
     "check": "node scripts/testes.mjs",
     "regras:selar": "node scripts/selos.mjs --selar",
     "prepare": "git config core.hooksPath .githooks",
-    "testes:alterados": "node scripts/alterados.mjs"
+    "testes:alterados": "node scripts/alterados.mjs",
+    "golden:aprovar": "node scripts/golden.mjs --aprovar",
+    "golden:pagina": "node scripts/golden.mjs --pagina"
   },
   "devDependencies": {
     "typescript": "5.9.3"
