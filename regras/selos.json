@@ -1,0 +1,491 @@
+{
+  "testes": {
+    "task-tree/tests/arvore.test.ts::pai fecha sozinho quando todos os filhos fecham": {
+      "regras": [
+        "arvore.pai-fecha-com-os-filhos",
+        "arvore.pai-em-andamento-no-caminho-da-ultima-iniciada"
+      ],
+      "hash": "f0901ac17336ff7f",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/arvore.test.ts::start reabre os pais de uma tarefa concluída e recusa tarefa concluída com subtarefas": {
+      "regras": [
+        "arvore.start-reabre-pais",
+        "arvore.start-recusa-pai-concluido"
+      ],
+      "hash": "45dfaddb5f6d9b80",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
+      "regras": [
+        "envios.entrega-imediata-fica-verde"
+      ],
+      "hash": "ad932dd7c79c9953",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::a entrega imediata e depois uma mensagem na fila à mesma sessão: cada uma no seu estado": {
+      "regras": [
+        "envios.fica-ate-entrega",
+        "envios.entrega-imediata-fica-verde"
+      ],
+      "hash": "3b234f3c814cbb69",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::a mensagem de um plano interrompido fica cinza depois da entrega": {
+      "regras": [
+        "envios.cor-por-estado"
+      ],
+      "hash": "bad18e660f3984e0",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
+      "regras": [
+        "pedidos.replano-mantem-envio-ate-entrega"
+      ],
+      "hash": "c11fd1d66ed3ac5f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::a tarefa iniciada antes do lote recente fica sem o envio": {
+      "regras": [
+        "envios.ancora-no-lote-recente"
+      ],
+      "hash": "10077c34bf07bb3f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::cada envio vai a uma tarefa do lote recente de starts ainda sem envio": {
+      "regras": [
+        "envios.ancora-no-lote-recente"
+      ],
+      "hash": "b897bafbc12133f7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem": {
+      "regras": [
+        "envios.esc-apos-entrega-imediata"
+      ],
+      "hash": "0a24d1861143a261",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
+      "regras": [
+        "envios.fila-nao-interrompe-no-fim-do-turno"
+      ],
+      "hash": "fa7370f002a0b8b3",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::o envio nunca vai à tarefa com pergunta aberta": {
+      "regras": [
+        "envios.ancora-no-lote-recente"
+      ],
+      "hash": "9b1d9a57aca447f6",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::o nível 1 aberto por mensagem recebida mostra a carta, na cor do seu estado": {
+      "regras": [
+        "envios.nivel1-recebido-mostra-carta"
+      ],
+      "hash": "dc72dd95560e6d8b",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::o ✉ na fila fica na tarefa, mesmo concluída, até a entrega": {
+      "regras": [
+        "envios.fica-ate-entrega",
+        "envios.cor-por-estado"
+      ],
+      "hash": "8bcd3fa10eff9800",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "0698f521a08131d1",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::sem tarefa em andamento, o envio vai à pendente planejada por último": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "f25ab0151eb4f456",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/fumaca.test.ts::plan mostra a tarefa no painel": {
+      "regras": [
+        "fumaca.plan-mostra-tarefa"
+      ],
+      "hash": "5acbb662615eecc4",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
+      "regras": [
+        "lembretes.esc-sem-abertas"
+      ],
+      "hash": "994d2a02b82e6754",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, a mensagem da pessoa pede para replanejar o painel": {
+      "regras": [
+        "lembretes.replanejar-apos-esc-pessoa"
+      ],
+      "hash": "09fc3997a94c1db1",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, a mensagem de outra sessão segue com o lembrete dela": {
+      "regras": [
+        "lembretes.outra-sessao-apos-esc"
+      ],
+      "hash": "93274a1ffdc71636",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do fim normal do turno, a mensagem da pessoa só lista o que ficou aberto": {
+      "regras": [
+        "lembretes.fim-normal-lista-abertas"
+      ],
+      "hash": "c3e3bd63b20e4a38",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::o lembrete de replanejar vale uma vez só": {
+      "regras": [
+        "lembretes.replanejar-vale-uma-vez"
+      ],
+      "hash": "daa5708ffe7cb9bb",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::cada mensagem abre o seu pedido, com o seu plano embaixo": {
+      "regras": [
+        "pedidos.uma-mensagem-um-pedido"
+      ],
+      "hash": "6e905cae820e7e06",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::no Esc, pai com filha concluída fica aguardando, nunca interrompido": {
+      "regras": [
+        "turnos.pai-com-filha-concluida-nunca-interrompido"
+      ],
+      "hash": "eb1923a11b37cfb3",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
+      "regras": [
+        "pedidos.titulo-vem-do-request"
+      ],
+      "hash": "e355416b2594adfc",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::pai abaixo do nível 1 concluído que ganha filha nova no replano volta a aberto": {
+      "regras": [
+        "pedidos.replano-preserva-estado"
+      ],
+      "hash": "69094a6cb5e1400c",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::plan com o id de um nível 1 concluído deixa o concluído como histórico e põe um plano novo ao lado": {
+      "regras": [
+        "pedidos.nivel1-concluido-e-historico"
+      ],
+      "hash": "9329fee4a72268c3",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o anterior em pedido novo": {
+      "regras": [
+        "pedidos.replano-no-lugar",
+        "pedidos.plano-anterior-vira-historico"
+      ],
+      "hash": "e74bad1f10e36675",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
+      "regras": [
+        "pedidos.replano-preserva-estado"
+      ],
+      "hash": "b92c2ba3e29c0169",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::replano no mesmo pedido mantém a tarefa em andamento": {
+      "regras": [
+        "pedidos.replano-preserva-estado"
+      ],
+      "hash": "1fddeaaa63b914e9",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::replano sem uma tarefa a tira do painel e mantém o resto": {
+      "regras": [
+        "pedidos.replano-preserva-estado"
+      ],
+      "hash": "07dd2b0153eb591f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::um aviso do app não abre pedido": {
+      "regras": [
+        "pedidos.aviso-do-app-nao-abre-pedido"
+      ],
+      "hash": "420c5ea0f6dcd083",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::ExitPlanMode mostra a espera da aprovação do plano até a resposta": {
+      "regras": [
+        "perguntas.exitplanmode-espera"
+      ],
+      "hash": "1bf6c70eb447495d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::a escolha do wrap_up fica até a próxima mensagem": {
+      "regras": [
+        "perguntas.escolha-do-wrapup-ate-proxima-mensagem"
+      ],
+      "hash": "019143912d3f4c2d",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamento": {
+      "regras": [
+        "perguntas.espera-sob-a-tarefa"
+      ],
+      "hash": "7a5d5d14f08a4e7e",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::respondida pelo chat, a espera some na hora e a tarefa segue em andamento": {
+      "regras": [
+        "perguntas.resposta-pelo-chat-tira-espera"
+      ],
+      "hash": "f03d124c133fa9d9",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::respondida por opção, a espera some e a tarefa segue em andamento": {
+      "regras": [
+        "perguntas.resposta-por-opcao-tira-espera"
+      ],
+      "hash": "7804b5692a59cfef",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::sem tarefa aberta, a pergunta é recusada": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "013e56eea4fa3b01",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
+      "regras": [
+        "turnos.esc-interrompe-so-a-iniciada"
+      ],
+      "hash": "4ed1b44aa04f94ad",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes": {
+      "regras": [
+        "turnos.iniciada-aguarda-no-fim",
+        "turnos.pendentes-seguem-pendentes"
+      ],
+      "hash": "7d1008254a635398",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::fim do turno sem nenhum start deixa tudo pendente, sem nada interrompido": {
+      "regras": [
+        "turnos.pendentes-seguem-pendentes"
+      ],
+      "hash": "38ee3444b8c39cc0",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::no fim do turno a tarefa iniciada e aberta fica aguardando, e o pai também": {
+      "regras": [
+        "turnos.iniciada-aguarda-no-fim"
+      ],
+      "hash": "2829bf536b08d911",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::no fim do turno o pai aberto e o pedido ficam aguardando": {
+      "regras": [
+        "turnos.pai-e-pedido-aguardam-no-fim",
+        "turnos.pendentes-seguem-pendentes"
+      ],
+      "hash": "052064125c409cc4",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
+      "regras": [
+        "turnos.prompt-seguinte-retoma"
+      ],
+      "hash": "51e1a0678150e269",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::pedido anterior parado segue aguardando enquanto o pedido novo está em andamento": {
+      "regras": [
+        "turnos.pedido-anterior-parado-aguarda"
+      ],
+      "hash": "5f743c78a95eeb04",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::prompt novo que continua o plano, antes do start, deixa o pai aguardando": {
+      "regras": [
+        "turnos.continuacao-sem-start-aguarda"
+      ],
+      "hash": "1f01f54f8c8ee7f8",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::sem start, plano novo fica todo pendente": {
+      "regras": [
+        "arvore.sem-start-nada-acende"
+      ],
+      "hash": "ce57e579281974b3",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    }
+  },
+  "kit": {
+    "task-tree/tests/kit/ambiente.ts": {
+      "hash": "ad7bf5e9a04480af",
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/kit/cenario.ts": {
+      "hash": "6aa4466256c2a87b",
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    },
+    "task-tree/tests/kit/leitura.ts": {
+      "hash": "58d80e59c4f48cd5",
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "linha de base"
+    }
+  }
+}

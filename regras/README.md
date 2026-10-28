@@ -28,7 +28,13 @@ Estado: coberto
   - `checklist (<motivo>)`: só o app mostra.
 
 Quando uma decisão nova muda a regra, o cenário é reescrito com a origem nova, citando o que ela
-desfaz. O histórico fica no git.
+desfaz, e ganha uma linha `Reescrito:` antes do `Estado:`:
+
+```markdown
+Reescrito: 2026-10-28, decisão do usuário ("palavras dele").
+```
+
+O histórico fica no git.
 
 ## Ligação com os testes
 
@@ -43,3 +49,40 @@ test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pende
 formato inválido; um cenário não tem `Estado:` válido; um cenário `coberto` não é citado por
 nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pendente` ou
 `checklist`; ou um `test(` não tem `// Regra:` acima.
+
+## Selo dos testes e do kit
+
+`regras/selos.json` guarda, para cada teste que cita uma regra `coberto`, o hash do corpo (sem
+comentários nem espaços, com as declarações de topo que ele usa) e o número de asserções (`expect`,
+`esperarEstado`, `esperarCarta`, `linha`, `antes`). Cada arquivo de `tests/kit/` tem o seu hash.
+
+```json
+"task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
+  "regras": ["turnos.esc-interrompe-so-a-iniciada"],
+  "hash": "3f9c0a1b2c3d4e5f",
+  "assercoes": 6,
+  "tipo": "decisao",
+  "data": "2026-10-27",
+  "motivo": "decisão do usuário: pendentes nunca ✕"
+}
+```
+
+Tipos:
+- `novo`: teste novo (só para chave que não existia em `HEAD`), ou a linha de base;
+- `decisao`: o comportamento esperado mudou por decisão do usuário; cada regra do teste precisa de
+  `Reescrito:` com data igual ou posterior à do selo anterior;
+- `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir.
+
+Selar é um passo explícito, que aparece no diff de `selos.json`:
+
+```bash
+npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao|refatoracao|novo --motivo "…"
+node scripts/selos.mjs --kit <arquivo> --tipo refatoracao --motivo "…"
+node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"
+node scripts/selos.mjs --novos --motivo "…"   # sela como "novo" os testes e o kit ainda sem selo
+```
+
+A etapa `selos` do `npm run check` falha quando: um teste selado mudou sem selo novo; um teste
+coberto não tem selo; um teste selado sumiu; um arquivo do kit mudou sem selo; ou um selo
+`refatoracao`/`novo` tem menos asserções que o de `HEAD`. A etapa `travas` testa essas regras num
+repositório temporário.
