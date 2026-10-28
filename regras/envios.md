@@ -23,14 +23,14 @@ Origem: decisão do usuário, 2026-10-28 (sobre "✉ até o destino começar a t
 Estado: coberto
 
 ### envios.esc-apos-entrega-imediata
-Como fica no Esc a tarefa de mensagem em andamento depois de uma entrega imediata.
+Depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem.
 
-- Dado uma tarefa em andamento com ✉ verde de uma entrega imediata
-- Quando a pessoa para o turno (Esc)
-- Então ela fica conforme a decisão do usuário (hoje o ✉ fica cinza "interrompida")
+- Dado uma tarefa de mensagem em andamento cuja mensagem foi entregue na hora
+- Quando o turno termina, normal ou com Esc
+- Então o ✉ segue verde "entregue", a tarefa não é interrompida e o pai não vira ✕
 
-Origem: dúvida em aberto com o usuário, 2026-10-28.
-Estado: pendente (envios: aguardando decisão do usuário)
+Origem: decisão do usuário, 2026-10-28 ("a mensagem foi entregue; não é interrompida"; o ✉ verde igual com a tarefa aberta ou concluída está bom).
+Estado: coberto
 
 ### envios.cor-por-estado
 O ✉ mantém o ícone e muda só a cor.

@@ -45,7 +45,9 @@ export const interrupt =
 // até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). The pending
 // tasks stay ○ at every turn's end, this session's and a card's alike, normal or stopped (the
 // person, 2026-10-27, undoing "reaproveitar o interrompida": "pendentes nunca ✕"). Only an archived
-// session, a subagent that ended and a plan replaced read their pending tasks as interrupted.
+// session, a subagent that ended and a plan replaced read their pending tasks as interrupted. A message
+// task (its message delivered) is not interrupted by a stopped turn: it is left as a normal end leaves
+// it, ✉ green (the person, 2026-10-28).
 export const halt =
   (at?: number, sent: string[] = [], aborted = true) =>
   (t: TaskNode): TaskNode => {
@@ -53,7 +55,9 @@ export const halt =
     if (t.children.length === 0) {
       if (sent.includes(t.id)) return t
       const begun = t.started !== undefined || t.startedAt !== undefined
-      if (begun && !aborted) return { ...t, started: undefined, endedAt: stop(t, at) }
+      // A message task (its message delivered, or queued: spared above) is not this turn's work to
+      // interrupt: a stop leaves it as a normal end does, ✉ green (the person, 2026-10-28).
+      if (begun && (!aborted || t.msg)) return { ...t, started: undefined, endedAt: stop(t, at) }
       return begun ? interrupt(at)(t) : t
     }
     const children = t.children.map(halt(at, sent, aborted))
