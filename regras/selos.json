@@ -666,6 +666,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/sessoes.test.ts::a cadeia de irmãs fica na sequência, sob a tarefa da mãe, sem cartão dentro de cartão": {
+      "regras": [
+        "sessoes.cadeia-sem-cartao-dentro-de-cartao"
+      ],
+      "hash": "7fd16f80721065c0",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "rodadas das sessões (commit B)"
+    },
     "task-tree/tests/sessoes.test.ts::a filha trabalhando mantém a tarefa e os pais em andamento": {
       "regras": [
         "sessoes.filha-trabalhando-mantem-pais-em-andamento",
@@ -676,6 +686,46 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega": {
+      "regras": [
+        "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
+      ],
+      "hash": "e625eec84b6c1314",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada": {
+      "regras": [
+        "sessoes.rodada-descartada-fora-da-contagem"
+      ],
+      "hash": "16c24433fac7332c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
+      "regras": [
+        "sessoes.rodada-descartada-fora-da-contagem"
+      ],
+      "hash": "f85f9c636dd02b2a",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::cada mensagem à filha, em turnos diferentes, tem o seu cartão sob a tarefa da mensagem": {
+      "regras": [
+        "sessoes.um-cartao-por-mensagem"
+      ],
+      "hash": "17ebedb172da51d8",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "rodadas das sessões (commit B)"
     },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
@@ -708,6 +758,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::mensagens entregues juntas: o cartão do turno vai à tarefa da última": {
+      "regras": [
+        "sessoes.mensagens-juntas-vao-a-ultima"
+      ],
+      "hash": "492c8a3f8fdd1674",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "rodadas das sessões (commit B)"
     },
     "task-tree/tests/sessoes.test.ts::o busto da sessão só na tarefa de que o cartão pende": {
       "regras": [
@@ -844,10 +904,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "df6d3c20d4ccb677",
+      "hash": "fb7412dc7cc11159",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "durabilidade: store e state compartilhados"
+      "motivo": "rodadas: turnos, recebidas e envios da filha"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "d0882a971c3f172f",
@@ -856,10 +916,10 @@
       "motivo": "durabilidade: store e state compartilhados"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "56ae4eab0fe94f7e",
+      "hash": "1f4acea8638e0eee",
       "tipo": "refatoracao",
       "data": "2026-10-28",
-      "motivo": "leitura do cabeçalho e visões"
+      "motivo": "rodadas: turnos, recebidas e envios da filha"
     }
   }
 }

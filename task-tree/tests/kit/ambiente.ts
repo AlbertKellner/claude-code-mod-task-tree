@@ -84,6 +84,8 @@ export type Filha = {
   painel?: { tasks: any[]; turns?: any[] } // o grupo principal publicado
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
+  recebidas?: { from: string; at: number }[] // received além do que recebeu() acrescenta (de irmãs)
+  envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
 }
@@ -119,7 +121,8 @@ export function host(on: any, sessoes: Filha[]): Host {
         groups: s.painel ? [{ agent: '', label: '', tasks: s.painel.tasks, ...(s.painel.turns ? { turns: s.painel.turns } : {}) }] : [],
         ...(s.git ? { git: { ...s.git, at: AGORA } } : {}),
         ...(s.rate ? { rate: { ...s.rate, at: AGORA } } : {}),
-        received: recebidas[s.id] ?? [],
+        received: [...(s.recebidas ?? []), ...(recebidas[s.id] ?? [])],
+        ...(s.envios ? { sends: s.envios } : {}),
       }),
     }
   })

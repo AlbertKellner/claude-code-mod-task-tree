@@ -92,6 +92,16 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 Origem: commits 1987482 e 689d569, 2026-10-24.
 Estado: checklist (posição na imagem)
 
+### visual.cartoes-ordem-e-espera
+Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
+
+- Dado várias sessões reais, com mensagens entre irmãs e mais de 20 rodadas
+- Quando o painel é desenhado
+- Então os cartões seguem a ordem de início do trabalho, o cartão de mensagem de irmã espera a origem (até 10 s) sem pular, e a espera e o anel ficam só no cartão líder
+
+Origem: commits fddd473 e 8b67366, 2026-10-23.
+Estado: checklist (sessões e tempos reais)
+
 ### visual.recarga-real-e-respawn
 A recarga real e o respawn do worker não perdem nada.
 
