@@ -133,16 +133,18 @@ const sentMessage: Notes = async ($, c, notes) => {
   // Waiting for delivery: queued (or held) and not taken up yet. Only "its turn has started"
   // confirms; a queued result may still say when it "will be delivered".
   const waitsDelivery = /queued|held|pending/i.test(out) && !/turn has started/i.test(out)
-  // Every send is kept until the other session is seen taking it up (its published `received` or a
-  // turn of it after the send, see watchSends): its task shows ✉ meanwhile, also when the delivery
-  // was at once (the person's words: "nao esta aparecendo as tarefas com o icone de mensagem, para
-  // sinalizar que essa etapa esta em andamento"). A failed send keeps none.
+  // A queued send is kept until the other session is seen taking it up (its published `received` or
+  // a turn of it after the send, see watchSends): its task shows the blue ✉ meanwhile, and is closed
+  // then. A delivery at once ("its turn has started") is that session taking it up already: the send
+  // is kept taken, the ✉ green at once, and the task stays in progress until the model's done (the
+  // person, 2026-10-28; the ✉ "para sinalizar que essa etapa esta em andamento", 2026-10-21). A failed
+  // send keeps none.
   const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   if (to !== '' && !failed) {
     const at = sentAt ?? (await stamp($))
     await update($, sendsState, cur => [
       ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
-      { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true }) },
+      { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
     ])
     // The task it went from is a message task from now on (TaskNode.msg): kept on the task itself,
     // since the send is dropped once taken up, and published with the panel for the card upstream.

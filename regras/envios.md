@@ -7,17 +7,27 @@ O ✉ fica na tarefa até a entrega.
 
 - Dado uma tarefa de onde saiu uma mensagem a outra sessão, ainda na fila
 - Quando a tarefa é concluída antes da entrega
-- Então o ✉ segue nela, no lugar do ✓, até a outra sessão receber
+- Então o ✉ segue nela, azul, no lugar do ✓, até a outra sessão receber (o arquivo publicado dela mostra a recepção); aí fica verde e a tarefa se conclui sozinha
 
 Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
 Estado: coberto
 
-### envios.entrega-imediata-aparece-como
-Como aparece a mensagem entregue na hora.
+### envios.entrega-imediata-fica-verde
+A entrega imediata aparece entregue na hora, e a tarefa segue em andamento até o done.
 
-- Dado uma mensagem que o app entrega na hora (a outra sessão "começou a tratar")
-- Quando o painel é desenhado antes de a outra sessão publicar que a recebeu
-- Então o ✉ aparece conforme a decisão do usuário: verde "entregue" ou azul "na fila" até a recepção
+- Dado uma tarefa em andamento de onde sai uma mensagem
+- Quando o app responde que a sessão destino já começou a tratá-la ("its turn has started")
+- Então o ✉ fica verde "entregue" na hora, sem esperar o arquivo publicado, e a tarefa segue em andamento até o modelo chamar done
+
+Origem: decisão do usuário, 2026-10-28 (sobre "✉ até o destino começar a tratar", 2026-10-21, commit 7c734de; o ✉ "para sinalizar que essa etapa esta em andamento").
+Estado: coberto
+
+### envios.esc-apos-entrega-imediata
+Como fica no Esc a tarefa de mensagem em andamento depois de uma entrega imediata.
+
+- Dado uma tarefa em andamento com ✉ verde de uma entrega imediata
+- Quando a pessoa para o turno (Esc)
+- Então ela fica conforme a decisão do usuário (hoje o ✉ fica cinza "interrompida")
 
 Origem: dúvida em aberto com o usuário, 2026-10-28.
 Estado: pendente (envios: aguardando decisão do usuário)
