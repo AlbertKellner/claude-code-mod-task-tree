@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/testes.mjs",
-    "regras:selar": "node scripts/selos.mjs --selar"
+    "regras:selar": "node scripts/selos.mjs --selar",
+    "prepare": "git config core.hooksPath .githooks",
+    "testes:alterados": "node scripts/alterados.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"
