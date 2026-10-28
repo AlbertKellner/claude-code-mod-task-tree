@@ -60,7 +60,7 @@ A tarefa de mensagem que sai do plano fica até a entrega.
 - Então ela segue visível com o ✉ até a entrega e depois some
 
 Origem: decisão do usuário, 2026-10-27; commit fbf3c5c.
-Estado: pendente (envios: falta o helper de envio)
+Estado: coberto
 
 ### pedidos.plano-anterior-vira-historico
 Um plano de pedido anterior com o mesmo id vira histórico.
