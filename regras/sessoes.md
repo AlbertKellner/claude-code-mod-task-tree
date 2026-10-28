@@ -7,9 +7,10 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 
 - Dado uma sessão filha aberta a partir de uma tarefa
 - Quando o painel é desenhado
-- Então o cartão fica sob essa tarefa, ou sob a da última rodada
+- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
+Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
 Estado: coberto
 
 ### sessoes.palavra-de-estado-do-cartao

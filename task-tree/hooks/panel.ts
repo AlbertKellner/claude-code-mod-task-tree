@@ -252,6 +252,9 @@ export const askingAnchors = (waits: Wait[]): string[] =>
 export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[]): Used[] => [
   ...sends.map(s => ({ anchor: s.anchor, at: s.at })),
   ...children.flatMap(c => (c.rounds ?? []).map(r => ({ anchor: r.anchor, at: r.at }))),
+  // A session opened from a task uses it as a message does (the person: "Abrir sessão conta como uso
+  // da tarefa", 2026-10-28).
+  ...children.flatMap(c => (c.anchor !== undefined && c.openedAt !== undefined ? [{ anchor: c.anchor, at: c.openedAt }] : [])),
 ]
 
 // The open tasks with nothing open below them, for a reminder: '"1/1.2" Title; …'.

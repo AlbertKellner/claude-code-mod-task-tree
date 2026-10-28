@@ -677,6 +677,16 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
+      "regras": [
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "a27fa26edde58d01",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-10-28",
+      "motivo": "sessão aberta conta como uso da tarefa"
+    },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",

@@ -203,10 +203,12 @@ export async function recordStart($: any, resultText: string) {
   // with several in progress, the first with no message yet).
   const { value: waits0 = [] } = await $.state.get(waitsState)
   const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(waits0 as Wait[]))
+  // When it was opened: its task counts as used from then on (usedAnchors).
+  const openedAt = await stamp($)
   await update($, childrenState, cur => {
     const list = cur ?? []
-    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
-    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor }]
+    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor, openedAt: c.openedAt ?? openedAt } : c))
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor, openedAt: openedAt ?? keptLink(id)?.openedAt }]
   })
   await refreshChildren($)
 }
