@@ -886,7 +886,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
   const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
-  const mainTasks = model.groups.find(g => g.agent === MAIN)?.tasks ?? []
   const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
   const waits = model.waits
   const sessions = model.children

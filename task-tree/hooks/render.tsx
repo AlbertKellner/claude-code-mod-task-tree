@@ -403,7 +403,6 @@ export async function render($: EngineInterface, e: any, next: any) {
         ])
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
-    const { Svg } = ui
     const W = lineWidth((e.props as any).bodyColumns || 40)
     const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit)
     const alt =

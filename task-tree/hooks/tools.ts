@@ -61,7 +61,6 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const nowTurn = beforeMain?.turns?.[beforeMain.turns.length - 1]?.id
     const sameRequest = (t: TaskNode) => agent !== MAIN || nowTurn === undefined || t.turn === undefined || t.turn === nowTurn
     const replanned = (t: TaskNode) => t.status === 'open' && ids.includes(t.id) && sameRequest(t)
-    const replannedIds = agent === MAIN ? (beforeMain?.tasks ?? []).filter(replanned).map(t => t.id) : ids
     // The sends still queued: a message task a replan leaves out stays until delivered (carry).
     const { value: sendsNow = [] } = await $.state.get(sendsState)
     const queued = (sendsNow as Send[]).filter(s => !s.taken).map(s => String(s.anchor ?? ''))
