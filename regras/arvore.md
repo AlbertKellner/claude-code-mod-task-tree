@@ -2,6 +2,8 @@
 
 Tarefas, pais e filhos: estados, start, done e ids.
 
+Código da área: state/tasks.ts, hooks/tools.ts
+
 ### arvore.pai-fecha-com-os-filhos
 Um pai fecha sozinho quando todas as filhas fecham.
 
@@ -40,6 +42,7 @@ Sem start, nada fica em andamento.
 - Então todas as tarefas, o pai e o pedido ficam ○
 
 Origem: decisão do usuário, 2026-10-23 ("sem start, nada aceso"); commit b742294.
+Código: draw/layout.ts
 Estado: coberto
 
 ### arvore.pai-em-andamento-no-caminho-da-ultima-iniciada
@@ -50,6 +53,7 @@ O pai aberto fica em andamento no caminho da última tarefa iniciada no turno.
 - Então o pai e o pedido aparecem ◉ (não ◷), e o chip "em andamento" não conta o pai; planos parados de pedidos anteriores seguem ◷
 
 Origem: decisão do usuário, 2026-10-27 ("pai aberto deve mostrar ◉ em andamento"), sobre "Pai aguardando" de 2026-10-20; commit a201198.
+Código: draw/layout.ts
 Estado: coberto
 
 ### arvore.ids-curtos-e-avisos
@@ -70,6 +74,7 @@ Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
 - Então a resposta traz o aviso correspondente
 
 Origem: commit 9c054f8, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit 3f06a32, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão").
+Código: text/rules.ts
 Estado: coberto
 
 ### arvore.plan-recusa-ids-repetidos

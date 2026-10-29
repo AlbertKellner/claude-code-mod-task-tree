@@ -2,6 +2,8 @@
 
 O fim do turno, normal ou com Esc, e a mensagem seguinte.
 
+Código da área: draw/layout.ts, hooks/turn.ts, hooks/panel.ts, hooks/prompt-submit.ts
+
 ### turnos.iniciada-aguarda-no-fim
 A tarefa iniciada e aberta aguarda no fim do turno.
 
@@ -90,6 +92,7 @@ O subagente que termina deixa interrompido o que ficou aberto.
 - Então o que ele deixou aberto fica ✕
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Código: hooks/tools.ts
 Estado: coberto
 
 ### turnos.prompt-sem-turno

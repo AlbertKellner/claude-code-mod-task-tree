@@ -2,6 +2,8 @@
 
 Os números, chips e limites do cabeçalho e das visões.
 
+Código da área: draw/layout.ts, draw/svg.ts
+
 ### cabecalho.numeros-somam-o-desenhado
 Os números do cabeçalho somam o que a visão desenha.
 
@@ -20,6 +22,7 @@ A resumida tira o pedido finalizado quando um pedido novo começa trabalho.
 - Então o finalizado sai da resumida e dos números dela; a completa o mantém e o conta
 
 Origem: decisão do usuário, 2026-10-22 ("segundo a regra antiga, na visão resumida, ficam somente as tarefas novas do turno"); commit 6599050.
+Código: hooks/panel.ts, hooks/command.ts
 Estado: coberto
 
 ### cabecalho.resumida-limpa-so-com-tudo-concluido
@@ -30,6 +33,7 @@ A resumida só é limpa quando tudo à vista está concluído.
 - Então a resumida mostra só o pedido novo (o par de pedidos.resumida-mantem-anteriores-com-algo-aberto)
 
 Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Código: hooks/panel.ts, hooks/command.ts
 Estado: coberto
 
 ### cabecalho.interrompida-fora-do-total
@@ -91,6 +95,7 @@ O título do cabeçalho é o nível 1 da tarefa iniciada por último.
 - Então o título é o nível 1 que contém essa tarefa
 
 Origem: decisão do usuário ("o título é o do passo iniciado por último", 2026-10-23); commit 16062cc.
+Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto
 
 ### cabecalho.titulo-desempata-pela-ordem-do-start
@@ -101,4 +106,5 @@ Duas tarefas iniciadas no mesmo instante: vale a ordem do start.
 - Então o título é o nível 1 da última da lista do start, e só ele fica ◉
 
 Origem: regra do painel; correção do empate achada no teste da tarefa 6, 2026-10-28.
+Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto

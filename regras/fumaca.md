@@ -2,6 +2,8 @@
 
 O mod carrega e responde.
 
+Código da área: hooks/tools.ts, io/log.ts
+
 ### fumaca.plan-mostra-tarefa
 O plan mostra a tarefa no painel.
 
