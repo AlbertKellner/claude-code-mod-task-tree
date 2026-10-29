@@ -28,7 +28,7 @@ function conferir(cenario: string, desenho: DesenhoSvg[]) {
   if (antes !== atual) throw new Error(`o desenho de ${cenario} mudou (valide no app antes de aprovar) ${trecho(antes, atual)}`)
 }
 
-// Regra: visual.golden-gera-desenho
+// Regra: visual.golden-gera-desenho, visual.desenho-principal
 test('golden: principal', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   host(on, [])
@@ -52,7 +52,7 @@ test('golden: principal', async ($: any, on: any) => {
   conferir('principal', await svgs($))
 })
 
-// Regra: visual.golden-gera-desenho
+// Regra: visual.golden-gera-desenho, visual.desenho-cartao-filha
 test('golden: filha', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   host(on, [
@@ -73,7 +73,7 @@ test('golden: filha', async ($: any, on: any) => {
   conferir('filha', await svgs($))
 })
 
-// Regra: visual.golden-gera-desenho
+// Regra: visual.golden-gera-desenho, visual.desenho-envios
 test('golden: envios', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   const h = host(on, [{ id: 'local_x', nome: 'outra' }])

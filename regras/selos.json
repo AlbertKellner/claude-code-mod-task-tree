@@ -517,33 +517,36 @@
     },
     "task-tree/tests/golden.test.ts::golden: envios": {
       "regras": [
-        "visual.golden-gera-desenho"
+        "visual.golden-gera-desenho",
+        "visual.desenho-envios"
       ],
       "hash": "1f9c7d2b3ef9ca73",
       "assercoes": 0,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "golden do SVG (infraestrutura, sem referência)"
+      "tipo": "refatoracao",
+      "data": "2026-10-29",
+      "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
     },
     "task-tree/tests/golden.test.ts::golden: filha": {
       "regras": [
-        "visual.golden-gera-desenho"
+        "visual.golden-gera-desenho",
+        "visual.desenho-cartao-filha"
       ],
       "hash": "31bf770a0ae2ee58",
       "assercoes": 0,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "golden do SVG (infraestrutura, sem referência)"
+      "tipo": "refatoracao",
+      "data": "2026-10-29",
+      "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
     },
     "task-tree/tests/golden.test.ts::golden: principal": {
       "regras": [
-        "visual.golden-gera-desenho"
+        "visual.golden-gera-desenho",
+        "visual.desenho-principal"
       ],
       "hash": "1614d93ab8218741",
       "assercoes": 0,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "golden do SVG (infraestrutura, sem referência)"
+      "tipo": "refatoracao",
+      "data": "2026-10-29",
+      "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
     },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
@@ -1082,5 +1085,21 @@
       "motivo": "svgs: o desenho do desktop para o golden"
     }
   },
-  "golden": {}
+  "golden": {
+    "envios": {
+      "hash": "1895347c21c49a9b",
+      "data": "2026-10-29",
+      "motivo": "\"sim, correto\", 2026-10-29"
+    },
+    "filha": {
+      "hash": "c83bf433d33a47fc",
+      "data": "2026-10-29",
+      "motivo": "\"sim, correto\", 2026-10-29"
+    },
+    "principal": {
+      "hash": "ba5c4e9e2e4e235e",
+      "data": "2026-10-29",
+      "motivo": "\"sim, correto\", 2026-10-29"
+    }
+  }
 }

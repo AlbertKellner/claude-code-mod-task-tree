@@ -139,8 +139,8 @@ O desenho do painel principal é o validado no app.
 - Quando o painel é desenhado no app desktop
 - Então o desenho é o que o usuário validou no app
 
-Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
-Estado: pendente (aguardando a validação do usuário no app)
+Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Estado: coberto
 
 ### visual.desenho-cartao-filha
 O desenho do cartão da filha trabalhando é o validado no app.
@@ -149,8 +149,8 @@ O desenho do cartão da filha trabalhando é o validado no app.
 - Quando o painel é desenhado no app desktop
 - Então o desenho é o que o usuário validou no app
 
-Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
-Estado: pendente (aguardando a validação do usuário no app)
+Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Estado: coberto
 
 ### visual.desenho-envios
 O desenho do ✉ na fila, entregue e interrompido é o validado no app.
@@ -159,5 +159,5 @@ O desenho do ✉ na fila, entregue e interrompido é o validado no app.
 - Quando o painel é desenhado no app desktop
 - Então o desenho é o que o usuário validou no app
 
-Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
-Estado: pendente (aguardando a validação do usuário no app)
+Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Estado: coberto
