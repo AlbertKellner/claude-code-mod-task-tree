@@ -79,5 +79,5 @@ O resumo do done chega à resposta do turno, mesmo com uma recarga no meio.
 - Quando o turno termina
 - Então o resumo aparece como ↩ no cartão desta sessão, na sessão que a abriu
 
-Origem: commit 946f653, 2026-10-21.
-Estado: checklist (no kit, o resumo do done não chega ao arquivo publicado nem sem recarga)
+Origem: commits 946f653, 2026-10-21, e 22650c9; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
+Estado: coberto

@@ -111,3 +111,13 @@ A notificação de tarefa em segundo plano não abre pedido.
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
+
+### turnos.resumo-sem-resposta-final
+O resumo do done vira a linha ↩ mesmo sem texto final no turno.
+
+- Dado um done com summary
+- Quando o turno termina sem texto final e sem wrap_up (o modelo para logo depois de uma ferramenta)
+- Então a linha ↩ mostra o resumo, e ele vai ao arquivo publicado
+
+Origem: regra do painel ("a linha ↩ só existe com resumo"; o summary "é a linha ↩", text/rules.ts; commit 3f06a32, 2026-10-21); bug achado na análise de 2026-10-29.
+Estado: coberto
