@@ -87,6 +87,27 @@ coberto não tem selo; um teste selado sumiu; um arquivo do kit mudou sem selo; 
 `refatoracao`/`novo` tem menos asserções que o de `HEAD`. A etapa `travas` testa essas regras num
 repositório temporário.
 
+## Mapa de código (matriz de impacto)
+
+No topo de cada arquivo, depois do título e da descrição, os arquivos do mod que implementam a área;
+num cenário, opcional, entre a `Origem:` e o `Estado:`, os que ele soma à área:
+
+```markdown
+Código da área: hooks/tool-call.ts, hooks/sessions.ts, hooks/panel.ts, state/tasks.ts
+
+Origem: …
+Código: draw/layout.ts, draw/svg.ts
+Estado: coberto
+```
+
+- Caminhos relativos a `task-tree/`, separados por vírgula; granularidade por arquivo.
+- O código efetivo de um cenário é o da área mais o próprio `Código:` (um só por cenário).
+- O núcleo (`hooks/register.tsx`, `hooks/render.tsx`, `types/index.d.ts`) vive em `scripts/regras.mjs`,
+  não no catálogo: tocá-lo afeta todos os cenários.
+- Manutenção: quem cria um cenário ou um arquivo do mod atualiza o mapa. A etapa `regras` falha com
+  caminho inexistente e avisa, sem falhar, com cenário coberto sem código ou arquivo fora do mapa.
+- `npm run impacto` lê o mapa: arquivos tocados → cenários → testes → checklist do app → golden.
+
 ## Modelos
 
 Brief da análise:
@@ -95,7 +116,7 @@ Brief da análise:
 ### Brief para a Implementação
 - Pedido e decisão do usuário (palavras dele, data).
 - Cenários: novos / reescritos (com `Reescrito:`) / sem mudança que protegem a área.
-- Impacto: arquivos → cenários → testes; itens do checklist do app.
+- Matriz de impacto: a saída de `npm run impacto -- <arquivos que a mudança vai tocar>`.
 - Testes existentes que vão mudar, e por quê (decisão de quem, quando). Nenhum outro pode mudar.
 - Arquivos a escrever, de uma vez; commit sugerido.
 - O que o usuário valida no app.
@@ -108,6 +129,7 @@ Relato da implementação:
 - Commit: <hash> <título>.
 - `npm run check`: <resumo das etapas>.
 - `npm run testes:alterados`: <saída colada; "nenhum" se nenhum teste existente mudou>.
+- `npm run impacto`: <saída sobre o diff real; divergência do previsto no brief, explicada>.
 - Selos regravados: <chave, tipo, motivo>.
 - Regressão (testes antigos × código novo): <ok | lista com a decisão de cada um>.
 - Não verificado / para o checklist do app: <itens>.
