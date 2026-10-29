@@ -2,6 +2,8 @@
 
 O que só o app mostra.
 
+Código da área: draw/svg.ts, draw/geometry.ts, draw/motion.ts
+
 ### visual.largura-real
 O desenho termina na borda real.
 
@@ -60,6 +62,7 @@ O cabeçalho aparece em cartão.
 - Então ele aparece em cartão, com repositório e branch
 
 Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
+Código: io/git.ts
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.status-embaixo-da-caixa
@@ -130,6 +133,7 @@ Os cenários do golden geram o desenho do app desktop.
 - Então cada cenário gera os SVGs do desenho, e o texto deles é o mesmo a cada vez
 
 Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)"): o desenho validado no app fica travado pelo golden.
+Código: draw/layout.ts
 Estado: coberto
 
 ### visual.desenho-principal
@@ -140,6 +144,7 @@ O desenho do painel principal é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Código: draw/layout.ts
 Estado: coberto
 
 ### visual.desenho-cartao-filha
@@ -150,6 +155,7 @@ O desenho do cartão da filha trabalhando é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Código: draw/layout.ts
 Estado: coberto
 
 ### visual.desenho-envios
@@ -160,4 +166,5 @@ O desenho do ✉ na fila, entregue e interrompido é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Código: draw/layout.ts
 Estado: coberto

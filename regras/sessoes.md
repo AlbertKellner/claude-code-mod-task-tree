@@ -2,6 +2,8 @@
 
 Os cartões das sessões filhas.
 
+Código da área: hooks/sessions.ts, io/host.ts, io/publish.ts, draw/layout.ts
+
 ### sessoes.cartao-sob-a-tarefa-de-origem
 O cartão da filha fica sob a tarefa de onde foi aberta.
 
@@ -11,6 +13,7 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
 Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
+Código: hooks/panel.ts
 Estado: coberto
 
 ### sessoes.palavra-de-estado-do-cartao
@@ -112,6 +115,7 @@ O busto da sessão só na tarefa de que o cartão pende.
 - Então o busto aparece só nela, não no pedido nem nos ancestrais
 
 Origem: commit e570baa, 2026-10-24.
+Código: draw/svg.ts
 Estado: coberto
 
 ### sessoes.pasta-sem-git
@@ -122,6 +126,7 @@ A sessão numa pasta sem git mostra a pasta.
 - Então mostra o ícone de pasta e o caminho, sem branch
 
 Origem: commit 17f1140, 2026-10-24.
+Código: draw/svg.ts, io/git.ts
 Estado: coberto
 
 ### sessoes.toks-e-repo-branch-no-cartao
@@ -132,6 +137,7 @@ O cartão mostra toks/s, repositório e branch.
 - Então mostra "n toks/s", o repositório e a branch (a posição no app desktop: visual.cartao-posicao-de-toks-e-repo)
 
 Origem: commits 1987482 e 689d569, 2026-10-24; dividida em conteúdo e posição por decisão do usuário, 2026-10-28.
+Código: draw/svg.ts, io/git.ts
 Estado: coberto
 
 ### sessoes.mensagens-juntas-vao-a-ultima
