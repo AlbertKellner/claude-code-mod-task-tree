@@ -99,6 +99,18 @@ a regra que ele protege.
 - O relato da implementação cola a saída de `npm run testes:alterados` e o resumo do check
   (modelos em [regras/README.md](regras/README.md)).
 
+## CI
+
+`.github/workflows/test.yml` roda o mesmo `npm run check`, todas as etapas, no Ubuntu, com o Claude
+Code do npm fixado na versão do app (`CLAUDE_CODE_VERSION`, hoje 2.1.308; subir junto com o app) e
+`--base <merge-base com o main>`: a regressão roda os testes da base do PR contra o código dele, e uma
+falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de segredo nem de login.
+- Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro";
+  o runner "ainda não está funcional"): só roda à mão (`workflow_dispatch`). Para ativar em cada PR
+  para o `main`, descomentar o `pull_request` no topo do arquivo.
+- Informativa: não é exigida para o merge. A proteção do `main` (branch protection) é do usuário.
+- Ensaio local: `npm run check -- --base <ref>` (ex.: `--base 9980131`, o começo da branch).
+
 ## Golden do SVG
 
 O desenho do app desktop em 3 cenários (principal, filha trabalhando, envios; 60 colunas) fica
