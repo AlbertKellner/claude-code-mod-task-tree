@@ -12,6 +12,8 @@ export type TaskNode = {
   title: string
   status: Status
   started?: number
+  // The order of the start, kept after the done: breaks a tie of startedAt (two starts in one ms).
+  startedSeq?: number
   startedAt?: number
   endedAt?: number
   // When the task was planned: where a task closed with no start starts, at the latest.
@@ -22,6 +24,8 @@ export type TaskNode = {
   // every state, only its color changing, and counts in no x/y (the person's words: "quero
   // diferenciar as tarefas de execução, das tarefas de mensagem").
   msg?: boolean
+  // A message task left out of a replan while its message is still queued: kept, drawn until delivered.
+  kept?: boolean
   children: TaskNode[]
 }
 
@@ -154,6 +158,9 @@ export type Child = {
   // the index moves when the oldest round is dropped (the last 20 are kept), the time does not.
   partAt?: number
   anchor?: string
+  // When this session opened it (start_session): its task of origin counts as used since then, as a
+  // message sent from it does (sendAnchor); absent from earlier versions.
+  openedAt?: number
   panel?: Panel
   tasks?: TaskNode[]
 }

@@ -1,0 +1,69 @@
+name: Testes
+
+# Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro"):
+# só roda à mão (workflow_dispatch). Para rodar em cada PR para o main, descomente o pull_request.
+# Informativa: não é exigida para o merge (a proteção do main é decisão do usuário).
+on:
+  # pull_request:
+  #   branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Um check por PR (ou por ref, à mão); um disparo novo cancela o anterior.
+concurrency:
+  group: testes-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # A mesma versão do app; subir junto com o app (CLAUDE.md, "CI").
+      CLAUDE_CODE_VERSION: 2.1.308
+      DISABLE_AUTOUPDATER: 1
+    steps:
+      # O histórico inteiro: a regressão roda os testes da base do PR contra o código dele.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Claude Code
+        run: |
+          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          echo "CLAUDE_BIN=$(command -v claude)" >> "$GITHUB_ENV"
+          claude --version
+
+      # As travas fazem commits num git temporário.
+      - name: Git
+        run: |
+          git config --global user.name "ci"
+          git config --global user.email "ci@localhost"
+
+      # A base de comparação: o merge-base com o main (o do PR, quando o gatilho for ativado).
+      - name: Base de comparação
+        id: base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            echo "ref=$(git merge-base "$BASE_SHA" HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$(git merge-base origin/main HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: npm run check
+        run: npm run check -- --base "${{ steps.base.outputs.ref }}"
+
+      - name: Testes alterados
+        if: always()
+        run: npm run testes:alterados -- --base "${{ steps.base.outputs.ref }}"

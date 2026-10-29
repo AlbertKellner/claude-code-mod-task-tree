@@ -1,2 +1,8 @@
 # Tipos gerados pelo engine do Claude Code em cada máquina
 .claude-plugin/types/
+
+# Dependências de desenvolvimento (npm install)
+node_modules/
+
+# Página de comparação do golden (npm run golden:pagina, sob pedido)
+golden-recebido/

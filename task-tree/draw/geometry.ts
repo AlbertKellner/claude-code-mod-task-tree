@@ -161,9 +161,9 @@ export function crossings(list: Placed[], W: number): [Placed, Placed][] {
   const out: [Placed, Placed][] = []
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
-      const [a0, a1] = spanOf(list[i], W)
-      const [b0, b1] = spanOf(list[j], W)
-      if (a0 < b1 && b0 < a1) out.push([list[i], list[j]])
+      const [a0, a1] = spanOf(list[i]!, W)
+      const [b0, b1] = spanOf(list[j]!, W)
+      if (a0 < b1 && b0 < a1) out.push([list[i]!, list[j]!])
     }
   }
   return out

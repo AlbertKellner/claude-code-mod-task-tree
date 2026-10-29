@@ -103,7 +103,7 @@ export async function readFiles($: any, mine: HostRow[]): Promise<Read> {
 export function engineText(model: string, effort?: string | number): string {
   const id = model.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
   const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(id)
-  const name = m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] !== undefined ? `.${m[3]}` : ''}` : id.slice(0, 24)
+  const name = m ? `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}${m[3] !== undefined ? `.${m[3]}` : ''}` : id.slice(0, 24)
   return effort === undefined || effort === '' ? name : `${name} · ${effort}`
 }
 // A session that has not published its model yet (no model request since it got this version):
@@ -159,6 +159,7 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,
       rounds: before?.rounds ?? kept(r.sessionId)?.rounds,
       anchor: before?.anchor ?? kept(r.sessionId)?.anchor,
+      openedAt: before?.openedAt ?? kept(r.sessionId)?.openedAt,
       panel: read.panels[r.sessionId] ?? before?.panel,
       tasks: read.panels[r.sessionId] ? undefined : before?.tasks,
     } as Child

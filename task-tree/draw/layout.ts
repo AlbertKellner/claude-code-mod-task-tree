@@ -42,22 +42,25 @@ export const interrupt =
 // below. Nothing lights up without start (current), so a halted panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
 // not taken up) is left as it is, open and started: it waits on that session, not on this turn,
 // and shows ✉ until the delivery (the person: "não mostre como interrompida, deixe como mensagem
-// até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). With `all`,
-// the pending tasks read as interrupted too (the person: "reaproveitar o interrompida"): a session
-// that ended its turn (its card), and this session's own panel when nothing of it is going on, no
-// task started and open and no send queued; with something going on, the pending ones stay ○, the
-// work is not over. Only the ✉ is never interrupted.
+// até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). The pending
+// tasks stay ○ at every turn's end, this session's and a card's alike, normal or stopped (the
+// person, 2026-10-27, undoing "reaproveitar o interrompida": "pendentes nunca ✕"). Only an archived
+// session, a subagent that ended and a plan replaced read their pending tasks as interrupted. A message
+// task (its message delivered) is not interrupted by a stopped turn: it is left as a normal end leaves
+// it, ✉ green (the person, 2026-10-28).
 export const halt =
-  (at?: number, sent: string[] = [], all = false, aborted = true) =>
+  (at?: number, sent: string[] = [], aborted = true) =>
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
     if (t.children.length === 0) {
       if (sent.includes(t.id)) return t
       const begun = t.started !== undefined || t.startedAt !== undefined
-      if (begun && !aborted) return { ...t, started: undefined, endedAt: stop(t, at) }
-      return all || begun ? interrupt(at)(t) : t
+      // A message task (its message delivered, or queued: spared above) is not this turn's work to
+      // interrupt: a stop leaves it as a normal end does, ✉ green (the person, 2026-10-28).
+      if (begun && (!aborted || t.msg)) return { ...t, started: undefined, endedAt: stop(t, at) }
+      return begun ? interrupt(at)(t) : t
     }
-    const children = t.children.map(halt(at, sent, all, aborted))
+    const children = t.children.map(halt(at, sent, aborted))
     return hasOpen(children) || flat(children).some(k => k.status === 'done')
       ? { ...t, started: undefined, endedAt: stop(t, at), children }
       : interrupt(at)({ ...t, children })
@@ -119,10 +122,8 @@ export const discarded = (c: Child): boolean => {
 // A session's panel; earlier versions published only its main group's tasks. An archived session
 // stays in the tree as history (its last published panel): what it left open will not be done,
 // so it reads as interrupted (out of the count's total, drawn gray). A session that ended its turn
-// (not at work, not just opened) is not working either: what it left open reads as interrupted too,
-// started or still pending, with no clock and out of "em andamento" and of "pendentes" (the person's
-// panel: a card "parada" with its tasks ◉ and the clock running, then with ○ pending ones and "3/5");
-// once it works again, they are its open tasks again, and a start or done there undoes the ✕.
+// (not at work, not just opened) is halted as this session's own panel is (halt): what it started
+// waits ◷ with its clock stopped (✕ when the person stopped it), its pending tasks stay ○.
 export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN, label: '', tasks: c.tasks ?? [] }], waits: [], children: [] }
 // A session that ended its turn normally: what it started and left open waits (◷, as in its own
 // panel), stopped at the last time its panel knows (its clock does not reach here); one the person
@@ -132,7 +133,7 @@ export const panelOf = (c: Child): Panel => {
   if (!c.archived && (live(c) || c.starting)) return p
   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
   const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
-  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], true, c.aborted === true)) })) }
+  return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], c.aborted === true)) })) }
 }
 // A session in one card per message the main loop sent it (`rounds`): the card of a message holds
 // the turns the session opened after it (its tasks in plan order, the subagents, notices and
@@ -159,14 +160,14 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
   const rounds = [...(c.rounds ?? [])].sort((a, b) => a.at - b.at)
   if (me === undefined) return []
   const got = (c.panel?.received ?? [])
-    .filter(x => x.from === me && typeof x.at === 'number' && (rounds.length === 0 || x.at > rounds[0].at))
+    .filter(x => x.from === me && typeof x.at === 'number' && (rounds.length === 0 || x.at > rounds[0]!.at))
     .map(x => x.at as number)
     .sort((a, b) => a - b)
   const out: Break[] = []
   let i = 0
   for (const at of got) {
     // The earliest round not matched yet, sent before the message came: that send's message.
-    if (i < rounds.length && rounds[i].at <= at) {
+    if (i < rounds.length && rounds[i]!.at <= at) {
       i++
       continue
     }
@@ -338,7 +339,9 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   if (parts.length < 2 && (parts[0] ?? 0) === 0) return [c]
   const tasksIn = (k: number) => tasksByPart.get(k) ?? []
   const flatIn = new Map(parts.map(k => [k, flat(tasksIn(k))] as const))
-  const busy = parts.find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
+  // The card at work: the latest round with a task in progress (an earlier one left with a task started
+  // is the abandoned one, discarded), else the last.
+  const busy = [...parts].reverse().find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
   const lead = busy ?? parts[parts.length - 1]
   // What hangs from a task goes to that task's card (the first part holding the task, in part order,
   // as the search was); with no such task, to the leading card.
@@ -352,7 +355,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     let k = owners.get(agent)
     if (k === undefined) {
       k = agent === MAIN ? holder(current(main.tasks).anchor) : holder(groups.find(g => g.agent === agent)?.anchor)
-      owners.set(agent, k)
+      owners.set(agent, k!)
     }
     return k
   }
@@ -369,7 +372,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
       ...c,
       part: k,
       lead: at,
-      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1].at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k].at } : {}),
+      ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1]!.at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k]!.at } : {}),
       anchor: k < 0 ? originEnd : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       lastAnchor: at ? c.lastAnchor : undefined,
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
@@ -533,15 +536,36 @@ export function firstOpen(items: TaskNode[]): string[] {
 }
 // The task started last (its startedAt the latest; done or not): where a message sent with nothing
 // in progress is anchored, and what names the header with nothing in progress. On a tie (a parent
-// starts with its child) the later one in the tree wins, the child.
+// starts with its child, or one start names two tasks) the one started later by the start's order
+// (startedSeq) wins; one with no order of its own (a parent) never beats one with it; with neither,
+// the later one in the tree.
 export function startedLast(list: TaskNode[]): TaskNode | undefined {
   let pick: TaskNode | undefined
   for (const t of flat(list)) {
     if (typeof t.startedAt !== 'number') continue
-    if (pick === undefined || t.startedAt >= (pick.startedAt as number)) pick = t
+    if (pick === undefined || t.startedAt > (pick.startedAt as number)) {
+      pick = t
+      continue
+    }
+    if (t.startedAt < (pick.startedAt as number)) continue
+    const [a, b] = [t.startedSeq ?? -1, pick.startedSeq ?? -1]
+    if (a > b || (a === b && a === -1)) pick = t
   }
   return pick
 }
+// The open path to the task started last, when it was started in the turn going on (since its `at`):
+// a parent there reads in progress between a done and the next start (the person: ◉ only on the
+// path of the last task started in this turn; a stopped plan of an earlier request stays ◷).
+// With no `since` (no turn's time), none.
+export function trail(list: TaskNode[], since?: number): string[] {
+  const s = since === undefined ? undefined : startedLast(list)
+  if (s === undefined || (s.startedAt as number) < (since as number)) return []
+  const open = new Set(flat(list).filter(t => t.status === 'open').map(t => t.id))
+  return pathTo(list, s.id).filter(id => open.has(id))
+}
+// When the main group's last turn began (the turn going on), from all its turns: the drawn ones
+// leave out a turn with no task yet (a prompt that continues a plan).
+export const lastTurnAt = (groups: Group[]) => [...(groups.find(g => g.agent === MAIN)?.turns ?? [])].reverse().find(u => typeof u.at === 'number')?.at
 export function pathTo(items: TaskNode[], id: string): string[] {
   for (const t of items) {
     if (t.id === id) return [t.id]
@@ -601,7 +625,7 @@ export function limitRows(rows: Row[]): Row[] {
   // to the limit, the rest counted at its end.
   let last = 0
   for (let i = rows.length - 1; i > 0; i--) {
-    if (rows[i].depth === 0) {
+    if (rows[i]!.depth === 0) {
       last = i
       break
     }
@@ -791,8 +815,8 @@ export function guides(rows: Row[]): Guide[] {
   // Whether a row at `level` comes later, before the tree climbs above it.
   const later = (i: number, level: number) => {
     for (let j = i + 1; j < rows.length; j++) {
-      if (rows[j].depth < level) return false
-      if (rows[j].depth === level) return true
+      if (rows[j]!.depth < level) return false
+      if (rows[j]!.depth === level) return true
     }
     return false
   }
@@ -815,7 +839,7 @@ export type Frame = { cards: Card[]; top: number; bottom: number }
 export function labelCols(rows: Row[]): number[][] {
   const open: number[] = []
   return rows.map(r => {
-    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    while (open.length > 0 && open[open.length - 1]! >= r.depth) open.pop()
     const mine = open.slice()
     if (r.session) open.push(r.depth)
     return mine
@@ -824,7 +848,7 @@ export function labelCols(rows: Row[]): number[][] {
 export function frames(rows: Row[]): Frame[] {
   const open: number[] = []
   return rows.map((r, i) => {
-    while (open.length > 0 && open[open.length - 1] >= r.depth) open.pop()
+    while (open.length > 0 && open[open.length - 1]! >= r.depth) open.pop()
     if (r.card) open.push(r.depth)
     const next = rows[i + 1]
     const cards = open.map(depth => ({
@@ -861,12 +885,8 @@ export type Choices = Record<string, boolean>
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
-  // With nothing going on in the main group (no task started and open, no send queued), its pending
-  // tasks read as interrupted too; with something going on, they stay pending (see halt).
   const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
-  const mainTasks = model.groups.find(g => g.agent === MAIN)?.tasks ?? []
-  const goingOn = sentFrom.length > 0 || flat(mainTasks).some(t => t.children.length === 0 && t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, !goingOn, model.aborted === true)) } : g))
+  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
   const waits = model.waits
   const sessions = model.children
   const queued = model.sends
@@ -894,6 +914,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     depth: number,
     top: number,
     lit: string[],
+    // The trail of the turn going on (trail): in progress in the tone only, not in the chip.
+    trailIds: string[],
     below: (t: TaskNode, depth: number) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
@@ -902,6 +924,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     recvOf: (t: TaskNode) => Turn | undefined = () => undefined,
   ): Row[] =>
     items.flatMap(t => {
+      // A message task a replan left out shows only while its message is queued (carry).
+      if (t.kept && !pending.some(s => s.anchor === t.id)) return []
       // Sessions opened on it or below add to its count and keep it in progress (atWork).
       const w = work(t)
       // A message sent from it is still queued: it waits on that session (its own icon), also once
@@ -930,7 +954,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                   : 'done'
                 : leftWaiting(t)
                   ? 'paused'
-                  : lit.includes(t.id)
+                  : lit.includes(t.id) || trailIds.includes(t.id)
                     ? 'current'
                     : t.children.length > 0 && resting(t.children)
                       ? 'paused'
@@ -986,7 +1010,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const key = `${scope}t:${t.id}`
       // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
       const kids = t.children
-      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, below, scope, work, pending)] : []
+      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, trailIds, below, scope, work, pending)] : []
       row.fold = { key, open: rest.length > 0 }
       row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.cards]
       return [row, ...rest]
@@ -1001,6 +1025,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     list: TaskNode[],
     top: number,
     lit: string[],
+    trailIds: string[],
     below: (t: TaskNode, depth: number) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
@@ -1013,7 +1038,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const [ld, ln] = count(list)
     const [d, n] = [ws.reduce((a, w) => a + w.d, ld), ws.reduce((a, w) => a + w.n, ln)]
     const tone: Tone =
-      busy || list.some(t => t.status === 'open' && (lit.includes(t.id) || waitingBelow(t, pending)))
+      busy || list.some(t => t.status === 'open' && (lit.includes(t.id) || trailIds.includes(t.id) || waitingBelow(t, pending)))
         ? 'current'
         : list.some(t => t.status === 'open')
           ? resting(list)
@@ -1049,7 +1074,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // No session icon on a request: a card never hangs from it directly (see Work.direct).
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-    const inner = open ? rows(list, top + 1, top + 1, lit, below, scope, work, pending, () => (u.msg ? u : undefined)) : []
+    const inner = open ? rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending, () => (u.msg ? u : undefined)) : []
     row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.cards)]
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -1114,9 +1139,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
       .filter(hasBrief)
       .map(u => ({ key: `${scope}${c.id}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
-    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id), ...replies] : []
+    // Its turn goes on while it runs (or is starting): the trail lights in its card then.
+    const going = !c.archived && (live(c) || c.starting === true) ? lastTurnAt(rawPanel(c).groups ?? []) : undefined
+    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id, going), ...replies] : []
     // Whether a closed one has anything to open: its panel, drawn as it would be.
-    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id).length > 0) header.fold = { key, open: inner.length > 0 }
+    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id, going).length > 0) header.fold = { key, open: inner.length > 0 }
     // A discarded round's lines stand for nothing in the header's count (discarded), ✓ ones included.
     const out = discarded(c)
     header.nodes = out || inner.length > 0 ? [] : allTasks(p, level + 1)
@@ -1127,7 +1154,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // it opened. A session goes under the main task it was opened on, open or closed (a closed
   // one shows only it); at the end of the list when it has no such task. Archived ones are
   // left out. Done tasks stay in their place in the plan, closed.
-  const panel = (p: Panel, base: number, level: number, scope: string, me?: string): Row[] => {
+  // `turnAt`: when the panel's turn going on began (this session's own: no model.ended; a card:
+  // alive); none once it ended.
+  const panel = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number): Row[] => {
     // The sends of this panel's main group still waiting to be taken up: this session's at the top,
     // what each session publishes in its card (its task shows ✉ too).
     const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken) : queued
@@ -1155,6 +1184,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const kids = kidsOf(g.agent)
       const lines: Row[] = []
       const { lit, anchor } = current(g.tasks)
+      const trailIds = g.agent === MAIN ? trail(g.tasks, turnAt) : []
       const ids = flat(g.tasks).map(t => t.id)
       const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor))
       const below = (t: TaskNode, depth: number) => [
@@ -1210,8 +1240,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // A level-1 task of a turn a message opened shows the ✉ received (rows' recvOf).
       const byTurn = new Map((g.turns ?? []).filter(u => u.msg).map(u => [u.id, u] as const))
       const recvOf = (t: TaskNode) => (g.agent === MAIN && t.turn !== undefined ? byTurn.get(t.turn) : undefined)
-      lines.push(...rows(loose, top, top, lit, below, inScope, work ?? (() => idle), sent, recvOf))
-      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, below, inScope, work ?? (() => idle), sent, level === 0))
+      lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent, recvOf))
+      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
     }
@@ -1258,7 +1288,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const withTasks = new Set(main.tasks.map(t => t.turn))
     const ats = (main.turns ?? []).filter(u => withTasks.has(u.id)).flatMap(u => (typeof u.at === 'number' ? [u.at] : []))
     const since = ats.length > SHOWN_TURNS ? [...ats].sort((a, b) => a - b)[ats.length - SHOWN_TURNS] : -Infinity
-    const busy = (c: Child) => begins(c) >= since || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
+    const busy = (c: Child) => begins(c) >= (since as number) || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
     const old = level === 0 ? loose.filter(c => !busy(c)) : []
     const ends = level === 0 ? loose.filter(busy) : loose
     return draw(main, base)
@@ -1277,5 +1307,5 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const cards = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
     return trimToWork({ ...base, children: cards }, 0)
   }
-  return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId))
+  return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined))
 }

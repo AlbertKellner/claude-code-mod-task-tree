@@ -2,7 +2,7 @@
 
 Notas para quem mantém o mod. Quem só usa não precisa disto: as regras de uso vão para o
 modelo pelo próprio mod (seção `task-tree:regras` do prompt de sistema, lembretes e descrições
-das ferramentas). Princípio do repositório (ver "Comportamento dos mods" no
+das ferramentas). Princípio do repositório (ver "Regras de uso do painel" no
 [CLAUDE.md](../CLAUDE.md)): regra nova de uso do painel entra no `RULES` e, onde couber, nos
 contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máquina.
 
@@ -588,17 +588,7 @@ status, ligações), "Estado e durabilidade" (as variáveis de módulo novas), "
 
 ### Validar
 
-Use o binário da mesma versão do Claude Code que roda a sessão (o app desktop traz o dele; no
-Windows, em `%APPDATA%\Claude\claude-code\<versão>\<hash>\claude.exe`). Da raiz do repositório:
-
-```
-claude plugin validate .
-claude plugin validate task-tree
-```
-
-O primeiro confere o `marketplace.json` da raiz; o segundo, o mod.
-
-A suíte de testes (`task-tree/tests/`) foi removida em 2026-10-23 por decisão do usuário, que vai seguir outra abordagem de teste; este documento não cita mais arquivos de teste.
+Como testar e validar (`npm run check`, testes, catálogo de regras): [CLAUDE.md](../CLAUDE.md).
 
 ### Limites do kit
 
