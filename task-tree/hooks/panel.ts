@@ -6,7 +6,7 @@
 import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
-import type { Child, GitInfo, Group, LegacyNode, TaskNode, Wait } from '../types'
+import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
@@ -26,13 +26,82 @@ const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
 // The main loop works again (a prompt, or a call of its own): what the last turn left open is in
-// progress again, no longer drawn as halted (see turnEnded).
+// progress again, no longer drawn as halted (see turnEnded). After a restart the end comes back from
+// the store first, so the store's copy is cleared too.
 export async function wake($: any) {
-  if (typeof (await $.state.get(turnEndedState)).value === 'number') await $.state.set(turnEndedState, null)
+  await ensureTurn($)
+  if (typeof (await $.state.get(turnEndedState)).value === 'number') {
+    await $.state.set(turnEndedState, null)
+    await saveTurn($)
+  }
+}
+
+// The turn's end (turnEnded, turnAborted) is kept in the store too, one record (`turn`): a new
+// process (the worker respawned, /model, a restart of the app) drew as in progress, with its clock
+// going, what the last turn had left stopped. Written only when it changes: wake runs at every prompt
+// and every call of the main loop.
+type TurnRecord = { ended: number | null; aborted: boolean }
+let lastTurn: string | undefined
+const turnRecord = (v: unknown): TurnRecord | undefined =>
+  v !== null && typeof v === 'object' && 'ended' in v
+    ? { ended: typeof (v as any).ended === 'number' ? (v as any).ended : null, aborted: (v as any).aborted === true }
+    : undefined
+export async function saveTurn($: any) {
+  try {
+    const ended = (await $.state.get(turnEndedState)).value
+    const aborted = (await $.state.get(turnAbortedState)).value
+    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true })
+    if (text === lastTurn) return
+    await saveStore($, 'turnEnded', JSON.parse(text))
+    lastTurn = text
+  } catch {}
+}
+// The turn's "first use" (the table's restoredAt), as ensureView: a restart without session.start
+// brings the end back before the first drawing or write. Answers what it brought, for a drawing that
+// cannot write the state.
+export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
+  if (loaded.has('turn') || !restoredAt('turnEnded', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(turnEndedState)).value !== undefined) {
+      loaded.add('turn')
+      return undefined
+    }
+    const saved = turnRecord(await loadStore($, 'turnEnded'))
+    if (saved === undefined) {
+      loaded.add('turn')
+      return undefined
+    }
+    lastTurn = JSON.stringify(saved)
+    try {
+      await $.state.set(turnEndedState, saved.ended)
+      await $.state.set(turnAbortedState, saved.aborted)
+      loaded.add('turn')
+    } catch {}
+    return saved
+  } catch {
+    return undefined
+  }
+}
+// At session.start, with nothing held (a new process), and at a resume (`id`, which replaces): the
+// session's turn end from the store.
+export async function restoreTurn($: any, id?: string, replaceHeld = false) {
+  loaded.add('turn')
+  try {
+    if (!replaceHeld && (await $.state.get(turnEndedState)).value !== undefined) return
+    const saved = turnRecord(await loadStore($, 'turnEnded', id))
+    if (saved === undefined) return
+    await $.state.set(turnEndedState, saved.ended)
+    await $.state.set(turnAbortedState, saved.aborted)
+    lastTurn = JSON.stringify(saved)
+  } catch {}
+}
+// /clear: no turn end, in the state and in the store.
+export async function clearTurn($: any) {
+  await $.state.set(turnEndedState, null)
+  await $.state.set(turnAbortedState, false)
+  await saveTurn($)
 }
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
-const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
-const endedState = { plugin: 'task-tree', key: 'ended' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
@@ -135,7 +204,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
   const going = started.filter(t => !asking.includes(t.id))
   // Two in progress, one of them asking: the other one.
-  if (going.length === 1 && started.length > 1) return going[0].id
+  if (going.length === 1 && started.length > 1) return going[0]!.id
   if (going.length > 1) {
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
@@ -143,7 +212,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     if (free.length > 0) {
       const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
       const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
-      return (batch[0] ?? free[0]).t.id
+      return (batch[0] ?? free[0])!.t.id
     }
   }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
@@ -181,6 +250,9 @@ export const askingAnchors = (waits: Wait[]): string[] =>
 export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[]): Used[] => [
   ...sends.map(s => ({ anchor: s.anchor, at: s.at })),
   ...children.flatMap(c => (c.rounds ?? []).map(r => ({ anchor: r.anchor, at: r.at }))),
+  // A session opened from a task uses it as a message does (the person: "Abrir sessão conta como uso
+  // da tarefa", 2026-10-28).
+  ...children.flatMap(c => (c.anchor !== undefined && c.openedAt !== undefined ? [{ anchor: c.anchor, at: c.openedAt }] : [])),
 ]
 
 // The open tasks with nothing open below them, for a reminder: '"1/1.2" Title; …'.
@@ -201,7 +273,7 @@ export async function identify($: any, agent: string): Promise<Omit<Group, 'agen
   await update($, launchesState, cur => {
     const list = cur ?? []
     const i = list.findIndex(l => l.parent === parent && l.description === info.description)
-    anchor = i >= 0 ? list[i].anchor : undefined
+    anchor = i >= 0 ? list[i]!.anchor : undefined
     return i >= 0 ? list.filter((_, j) => j !== i) : list
   })
   return { label: `${info.type}: ${info.description}`, parent, anchor }
@@ -210,7 +282,7 @@ export async function identify($: any, agent: string): Promise<Omit<Group, 'agen
 // A subagent's group exists from its first plan or wait on the person.
 export async function ensureGroup($: any, agent: string) {
   if (agent === MAIN) return
-  if ((await $.state.get(groupsState)).value?.some(g => g.agent === agent)) return
+  if ((await $.state.get(groupsState)).value?.some((g: Group) => g.agent === agent)) return
   const meta = await identify($, agent)
   await change($, all => (all.some(g => g.agent === agent) ? all : [...all, { agent, tasks: [], ...meta }]))
 }

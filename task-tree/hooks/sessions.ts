@@ -12,7 +12,7 @@ import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, inDesktopApp, keptLink, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureTurn, inDesktopApp, keptLink, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -108,7 +108,7 @@ export async function watchSends($: any, rows: any[]) {
   const files: Record<string, Published> = {}
   const fileOf = async (id: string): Promise<Published> => {
     if (!(id in files)) files[id] = (await readPublished($, id)) ?? { waiting: false, waits: [], children: [] }
-    return files[id]
+    return files[id]!
   }
   const marks: Record<number, Partial<Send>> = {}
   // The sends still waiting, by the session they went to.
@@ -130,7 +130,7 @@ export async function watchSends($: any, rows: any[]) {
       let j = 0
       for (const { i, s } of [...list].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))) {
         const since = s.at ?? 0
-        while (j < got.length && got[j] < since) j++
+        while (j < got.length && got[j]! < since) j++
         if (j >= got.length) break
         marks[i] = { taken: true }
         usedReceipts.add(`${id}|${got[j]}`)
@@ -203,10 +203,12 @@ export async function recordStart($: any, resultText: string) {
   // with several in progress, the first with no message yet).
   const { value: waits0 = [] } = await $.state.get(waitsState)
   const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(waits0 as Wait[]))
+  // When it was opened: its task counts as used from then on (usedAnchors).
+  const openedAt = await stamp($)
   await update($, childrenState, cur => {
     const list = cur ?? []
-    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor } : c))
-    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor }]
+    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor, openedAt: c.openedAt ?? openedAt } : c))
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor, openedAt: openedAt ?? keptLink(id)?.openedAt }]
   })
   await refreshChildren($)
 }
@@ -249,8 +251,11 @@ export async function anyRunning($: any): Promise<boolean> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   // With this session's turn ended, its own tasks run no clock (see turnEnded), except the task of a
-  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait.
-  const { value: ended } = await $.state.get(turnEndedState)
+  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait. After a
+  // restart the end comes back from the store first (ensureTurn): no clock for what had stopped.
+  const brought = await ensureTurn($)
+  const { value: heldEnded } = await $.state.get(turnEndedState)
+  const ended = heldEnded !== undefined ? heldEnded : brought?.ended
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).some(s => !s.taken)) return true
   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })

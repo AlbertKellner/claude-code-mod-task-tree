@@ -7,7 +7,7 @@ import type { AgentInfo, EngineInterface } from 'claude-code'
 import { BRIEF } from '../text/rules'
 import { MAIN, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
-import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, stamp } from './panel'
+import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -123,6 +123,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.
   if (!agent) await $.state.set(turnAbortedState, e.isAborted === true)
+  // The end in the store too: a new process draws it as stopped (see saveTurn).
+  if (!agent) await saveTurn($)
   // The turn's answer grew the context: publish its share for the session that opened this one.
   if (!agent) await publishPanel($)
   if (agent) {

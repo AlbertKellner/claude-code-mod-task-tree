@@ -1,0 +1,3 @@
+#!/bin/sh
+# Trava contra regressão: o check sobre o que vai no commit (o índice), não sobre a pasta de trabalho.
+exec node scripts/testes.mjs --indice

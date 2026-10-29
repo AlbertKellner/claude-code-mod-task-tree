@@ -5,7 +5,7 @@
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, replace, restore, restoreLinks, restoreView, restoreWork, setWork } from './panel'
+import { PANE, adopt, clearTurn, replace, restore, restoreLinks, restoreTurn, restoreView, restoreWork, setWork } from './panel'
 import { refreshChildren, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -58,6 +58,7 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   loaded.add('groups')
   await restoreView($)
   await restoreWork($)
+  await restoreTurn($)
   await restoreLinks($)
   const r = await next(e)
   // Opens the panel with the session, so nobody has to type /task-tree.
@@ -74,7 +75,11 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     await $.state.set(waitsState, [])
     await $.state.set(sendsState, [])
     await setWork($, [])
+    await clearTurn($)
   }
-  if (e.source === 'resume') await restore($, e.session_id)
+  if (e.source === 'resume') {
+    await restore($, e.session_id)
+    await restoreTurn($, e.session_id, true)
+  }
   return next(e)
 }

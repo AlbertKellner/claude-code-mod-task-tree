@@ -1,0 +1,158 @@
+# claude-code-mod-task-tree
+
+Mod do Claude Code (`task-tree/`) que desenha a árvore de tarefas da sessão num painel lateral.
+Arquitetura e histórico de decisões: [task-tree/DESENVOLVIMENTO.md](task-tree/DESENVOLVIMENTO.md).
+Regras de comportamento, uma por cenário: [regras/](regras/).
+
+## Fluxo de trabalho
+
+- Toda mudança passa por análise antes da implementação, mesmo as triviais.
+- A implementação faz um commit local por item. O usuário valida visualmente no app depois do
+  commit local e só então libera push e PR (palavras dele: "Entre cada tarefa implementada, crie um
+  commit local. Quando eu achar necessário, vou pedir para fazer push e criar o PR").
+- Painel errado é bug do plugin: corrige-se o plugin, nunca o jeito de usar.
+- Bug achado é corrigido e relatado depois, sem pedir permissão. Se a correção contradiz uma decisão
+  anterior do usuário (veja a origem no catálogo `regras/`), vira pergunta antes.
+- Correção de bug traz, no mesmo commit, o teste que reproduz o bug (não precisa estar vermelho antes)
+  e o cenário no catálogo.
+
+## Como testamos
+
+- Testes de comportamento em `task-tree/tests/*.test.ts`, um arquivo por área, rodando o mod de
+  verdade no harness oficial (`claude plugin test`, kit `claude-code/testing`).
+- `task-tree/tests/kit/` concentra o roteiro (`plan`, `start`, `done`, `pedido`, `fimDoTurno`, `esc`…),
+  o ambiente fixo (relógio parado) e a leitura do painel em comportamento (título e estado de cada
+  linha, pela superfície terminal). Os testes falam de títulos e estados, nunca de funções internas.
+- Limites do harness: 5 s por teste; um processo por arquivo; sem fs, rede ou processo dentro do
+  teste; não verifica a pintura (cores, largura, cliques); não simula a recarga a quente (cada teste
+  é um módulo novo com o estado vazio). Stubs `on(...)` vão antes da primeira chamada a `$`.
+- O que o harness não alcança vai ao checklist do app (abaixo) e fica marcado `checklist` no catálogo.
+
+## Como executar
+
+    npm install      # uma vez: typescript para o tsc e o hook de pré-commit
+    npm run check
+
+Etapas, nessa ordem; a primeira que falha para:
+1. `regras`: confere o catálogo `regras/` contra os testes (ids, estados, ligações).
+2. `travas`: testa as regras do selo num repositório temporário.
+3. `selos`: confere os testes e o kit contra `regras/selos.json`.
+4. `claude plugin validate . --strict` e `claude plugin validate task-tree --strict`: manifesto do
+   marketplace e do mod; também gera `task-tree/.claude-plugin/types/` (ignorado pelo git).
+5. `tsc --noEmit`: bloqueia. Usa o tsconfig gerado (strict, noUncheckedIndexedAccess) e o
+   `task-tree/tsconfig.json`, que liga `noUnusedLocals` (sem `noUnusedParameters`: os hooks têm
+   `($, e, next)` na assinatura).
+6. `claude plugin test task-tree`: todos os testes.
+7. `regressao`: os testes de `HEAD` contra o código novo, numa pasta temporária; só com diferença em
+   `task-tree/`.
+
+O hook de pré-commit roda o mesmo check sobre o índice, mas pula o que não pode mudar o resultado
+(decisão do usuário, 2026-10-28: "Sim, pular (Recomendado)"), pelo que o índice muda contra `HEAD`
+(`scripts/mudou.mjs`, testado nas `travas`):
+- `travas`, se nada mudou em `scripts/`;
+- os dois `validate`, se nada mudou em `task-tree/` fora de `tests/` nem em `.claude-plugin/`;
+- `tsc`, se nada mudou em `task-tree/` (no hook ele lê os tipos gerados do repositório).
+
+`plugin test` e `regressao` rodam em série: em paralelo, com a máquina carregada, testes estouravam
+os 5 s do kit.
+
+`regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
+mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
+
+Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motivo "…"` (selar um
+teste) e `npm run testes:alterados` (os testes existentes que mudaram, para o relato; `-- --pr`
+contra a base do PR).
+
+O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude-code\<versão>\`;
+`CLAUDE_BIN` escolhe outro. Use a mesma versão que roda a sessão.
+
+## BDD: o catálogo de regras
+
+- Cada regra do painel é um cenário em `regras/<área>.md`: id estável, título, Dado/Quando/Então
+  em comportamento observável, origem (decisão do usuário com data e as palavras dele, ou commit) e
+  estado (`coberto`, `pendente`, `checklist`). Formato em [regras/README.md](regras/README.md).
+- O teste cita a regra num comentário logo acima do `test(...)`: `// Regra: <id>[, <id>]`.
+- Quando escrever: na análise, antes de implementar. Toda decisão nova do usuário vira cenário
+  (novo ou reescrito, citando o que desfaz); a implementação liga o teste e muda o estado para
+  `coberto` no mesmo commit.
+- O `npm run check` falha se um cenário `coberto` não tem teste, se um teste cita id inexistente,
+  se um teste não cita regra, ou se um teste cita um cenário ainda `pendente`/`checklist`.
+
+## Travas contra regressão
+
+O que já funcionava continua funcionando: um teste existente só muda quando o usuário decide mudar
+a regra que ele protege.
+
+- Teste existente coberto por regra só muda com decisão do usuário registrada no catálogo: o
+  cenário ganha `Reescrito: AAAA-MM-DD, <palavras dele>`, e o teste é selado como decisão
+  (`npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao --motivo "…"`).
+- Mudar a forma de um teste sem mudar o que ele afirma é refatoração (`--tipo refatoracao`): as
+  asserções não podem diminuir e o teste antigo precisa continuar passando.
+- Teste novo é selado à mão (`--tipo novo`), e fica protegido a partir do commit seguinte.
+- Regressão se corrige no código, nunca no teste. Se a mudança precisa alterar um comportamento
+  protegido e não há decisão do usuário, pare e pergunte.
+- O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
+  asserções; um arquivo do kit mudou sem selo; ou um teste de `HEAD` falha contra o código novo
+  sem decisão registrada ("testes antigos, código novo").
+- O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
+  commit. Não use `--no-verify`.
+- O relato da implementação cola a saída de `npm run testes:alterados` e o resumo do check
+  (modelos em [regras/README.md](regras/README.md)).
+
+## CI
+
+`.github/workflows/test.yml` roda o mesmo `npm run check`, todas as etapas, no Ubuntu, com o Claude
+Code do npm fixado na versão do app (`CLAUDE_CODE_VERSION`, hoje 2.1.308; subir junto com o app) e
+`--base <merge-base com o main>`: a regressão roda os testes da base do PR contra o código dele, e uma
+falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de segredo nem de login.
+- Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro";
+  o runner "ainda não está funcional"): só roda à mão (`workflow_dispatch`). Para ativar em cada PR
+  para o `main`, descomentar o `pull_request` no topo do arquivo.
+- Informativa: não é exigida para o merge. A proteção do `main` (branch protection) é do usuário.
+- Ensaio local: `npm run check -- --base <ref>` (ex.: `--base 9980131`, o começo da branch).
+
+## Golden do SVG
+
+O desenho do app desktop em 3 cenários (principal, filha trabalhando, envios; 60 colunas) fica
+travado em `task-tree/tests/golden/svg.ts`, conferido por `tests/golden.test.ts` e selado em
+`regras/selos.json` (`golden`). Decisão do usuário, 2026-10-28: "Sim, validar antes do commit
+(Recomendado)".
+- O aceite é do usuário, no app. Ele não olha SVG nem página.
+- Mudança que altera o desenho: o check falha ("o desenho de <cenário> mudou") e bloqueia o commit.
+  A mudança fica sem commit até ele validar o painel no app; com o "funcionou" dele,
+  `npm run golden:aprovar -- <cenário…|--todos> --motivo "\"<palavras dele>\", AAAA-MM-DD"` regrava o
+  golden e o selo, e o commit segue com o código, `svg.ts` e `selos.json`. Para o resto, nada muda
+  (commit local e depois validação).
+- Nunca aprovar sem as palavras dele: o `golden:aprovar` recusa motivo sem aspas e sem data, e a
+  etapa `regressao` só aceita a falha do teste de golden de `HEAD` com o desenho aprovado hoje.
+- `npm run golden:pagina` (o aprovado e o atual lado a lado, em `golden-recebido/`) só sob pedido dele.
+
+## Editar o mod sem quebrar a recarga
+
+- O mod costuma ser carregado deste clone e recarrega a cada arquivo salvo, em todas as sessões. Um
+  estado intermediário que não compila aparece ao usuário como "reload failed" (a versão anterior
+  segue carregada).
+- Mudança em vários arquivos vai de uma vez: escreva numa cópia no scratchpad e copie tudo junto;
+  rode `npm run check` antes do passo seguinte.
+- Limites do validate que o código respeita (chave de `$.state` literal no arquivo que chama, `$`
+  só em função de topo etc.): DESENVOLVIMENTO.md, "Limites do kit".
+
+## Regras de uso do painel
+
+Regra nova de como o modelo usa o painel vai em `task-tree/text/rules.ts` (`RULES`, descrições das
+ferramentas, lembretes dos hooks), nunca na memória do Claude Code nem num CLAUDE.md da máquina.
+
+## Checklist do app (validação visual do usuário)
+
+Depois do commit local, o usuário valida no app, quando a mudança toca o que o harness não vê:
+- largura real e recorte na borda, nos dois temas;
+- cliques no ícone e no anel; tooltip; animação da linha nova; nada pisca à toa;
+- recarga a quente real (salvar um arquivo com o painel aberto);
+- sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); avisos do app;
+- modelo e esforço no cartão; status embaixo da caixa de mensagem.
+
+## Release e PR
+
+- A versão do plugin sobe sozinha no merge do PR, pelo título: `feat…` → minor; `!` depois do tipo
+  ou `BREAKING CHANGE` no corpo → major; o resto → patch. Não edite a versão do `plugin.json`.
+- Título no formato Conventional Commits; descrição e labels atualizadas a cada push.
