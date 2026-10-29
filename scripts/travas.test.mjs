@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
 import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
 import { aprovarGolden, liberaGolden, liberaTeste } from './selos.mjs'
+import { impacto } from './impacto.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
@@ -233,3 +234,76 @@ test('na CI, o golden mudado sem selo novo no PR falha; com selo trazido no PR, 
   assert.equal(liberaGolden({ golden: {} }, base, 'principal', undefined), false)
   assert.equal(liberaGolden({ golden: { principal: { hash: 'b', data: '2026-10-02', motivo: 'x' } } }, base, 'principal', undefined), true)
 })
+
+// A matriz de impacto: o mapa de código no catálogo (Código da área / Código) e o npm run impacto.
+const REGRAS_MJS = join(dirname(fileURLToPath(import.meta.url)), 'regras.mjs')
+function mapa(area, cenario) {
+  const dir = mkdtempSync(join(tmpdir(), 'travas-mapa-'))
+  mkdirSync(join(dir, 'regras'))
+  mkdirSync(join(dir, 'task-tree', 'tests'), { recursive: true })
+  mkdirSync(join(dir, 'task-tree', 'hooks'), { recursive: true })
+  mkdirSync(join(dir, 'task-tree', 'draw'), { recursive: true })
+  writeFileSync(join(dir, 'task-tree', 'hooks', 'turn.ts'), 'export const x = 1\n')
+  writeFileSync(join(dir, 'task-tree', 'draw', 'layout.ts'), 'export const y = 1\n')
+  writeFileSync(join(dir, 'task-tree', 'hooks', 'render.tsx'), 'export const z = 1\n')
+  const md = ['# Turnos', '', area, '', '### turnos.um', 'Um.', '', cenario, 'Estado: coberto', '', '### turnos.dois', 'Dois.', '', 'Estado: checklist (só no app)', '']
+  writeFileSync(join(dir, 'regras', 'turnos.md'), md.join('\n'))
+  writeFileSync(join(dir, 'task-tree', 'tests', 'turnos.test.ts'), "// Regra: turnos.um\ntest('um', async () => {})\n")
+  return dir
+}
+const regrasEm = dir => spawnSync(process.execPath, [REGRAS_MJS, '--raiz', dir], { encoding: 'utf8', env })
+
+test('um caminho inexistente em Código: ou Código da área: falha o check', () => {
+  for (const [area, cenario] of [['Código da área: hooks/turn.ts, hooks/sumiu.ts', ''], ['Código da área: hooks/turn.ts', 'Código: draw/sumiu.ts']]) {
+    const dir = mapa(area, cenario)
+    try {
+      const r = regrasEm(dir)
+      assert.equal(r.status, 1)
+      assert.match(r.stderr, /caminho inexistente em task-tree\/: (hooks|draw)\/sumiu\.ts/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+})
+
+test('cenário coberto sem código, ou arquivo do mod fora do mapa, só avisa', () => {
+  const dir = mapa('', '')
+  try {
+    const r = regrasEm(dir)
+    assert.equal(r.status, 0)
+    assert.match(r.stdout, /aviso: turnos\.md: turnos\.um está "coberto" sem código no mapa/)
+    assert.match(r.stdout, /aviso: fora do mapa: task-tree\/hooks\/turn\.ts/)
+    assert.doesNotMatch(r.stdout, /fora do mapa: task-tree\/hooks\/render\.tsx/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('o impacto lista os cenários de um arquivo tocado, com os testes que os cobrem', () => {
+  const dir = mapa('Código da área: hooks/turn.ts', 'Código: draw/layout.ts')
+  try {
+    const r = impacto(dir, ['draw/layout.ts'])
+    assert.deepEqual(r.cenarios.map(c => c.id), ['turnos.um'])
+    assert.deepEqual(r.cenarios[0].testes, ['task-tree/tests/turnos.test.ts: 1 teste'])
+    // O código da área vale para todos os cenários do arquivo (o checklist também).
+    assert.deepEqual(impacto(dir, ['hooks/turn.ts']).cenarios.map(c => c.id), ['turnos.um', 'turnos.dois'])
+    assert.deepEqual(impacto(dir, ['hooks/turn.ts']).checklist, ['turnos.dois'])
+    assert.deepEqual(impacto(dir, ['draw/outro.ts']).fora, ['draw/outro.ts'])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('o núcleo tocado afeta todos os cenários cobertos e o checklist inteiro', () => {
+  const dir = mapa('Código da área: hooks/turn.ts', '')
+  try {
+    const r = impacto(dir, ['hooks/render.tsx'])
+    assert.deepEqual(r.nucleo, ['hooks/render.tsx'])
+    assert.deepEqual(r.cenarios.map(c => c.id), ['turnos.um'])
+    assert.deepEqual(r.checklist, ['turnos.dois'])
+    assert.deepEqual(r.fora, [])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+

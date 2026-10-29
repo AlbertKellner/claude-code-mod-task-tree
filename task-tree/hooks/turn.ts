@@ -96,13 +96,17 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
     const short = given !== undefined ? brief(given) : undefined
     if (recap !== undefined) await $.state.set(recapState, '')
     if (given !== undefined) await $.state.set(briefState, '')
-    if (said !== '') {
+    // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
+    // (the model stopped right after a tool), the answer in its tooltip only when there is one.
+    if (said !== '' || short !== undefined) {
       await change($, all =>
         all.map(g => {
           if (g.agent !== MAIN) return g
           const turns = g.turns ?? []
           const last = [...turns].reverse().find(u => g.tasks.some(t => t.turn === u.id))
-          return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, reply: said, ...(short !== undefined ? { brief: short } : {}) } : u)) } : g
+          return last
+            ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, ...(said !== '' ? { reply: said } : {}), ...(short !== undefined ? { brief: short } : {}) } : u)) }
+            : g
         }),
       )
     }

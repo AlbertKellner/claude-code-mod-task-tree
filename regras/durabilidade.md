@@ -2,6 +2,8 @@
 
 O painel depois de reinício e recarga.
 
+Código da área: state/durability.ts, hooks/panel.ts, hooks/session-start.ts
+
 ### durabilidade.reinicio-restaura-do-store
 O reinício e a retomada restauram o painel do store.
 
@@ -30,6 +32,7 @@ O fim do turno sobrevive ao reinício.
 - Então nada fica ◉: a iniciada fica ◷ (✕ se o turno foi parado), o pai fica ◷, e o relógio não anda até o próximo pedido
 
 Origem: decisões do usuário de 2026-10-27 (◉ só no caminho da última iniciada no turno atual; no fim do turno, a iniciada aguarda) aplicadas ao reinício; achado da tarefa 7, 2026-10-28.
+Código: hooks/turn.ts, hooks/sessions.ts, hooks/render.tsx
 Estado: coberto
 
 ### durabilidade.clear-esvazia
@@ -50,6 +53,7 @@ Os formatos antigos do arquivo publicado são lidos.
 - Então o cartão aparece, sem erro, com as tarefas que o formato traz
 
 Origem: contrato do arquivo publicado, commit 04fcae7, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
+Código: io/publish.ts, io/host.ts
 Estado: coberto
 
 ### durabilidade.recarga-mantem-painel-ligacoes-e-resumo
@@ -70,6 +74,7 @@ A filha que a lista do host deixa de fora volta sob a mesma tarefa.
 - Então o cartão volta sob a mesma tarefa
 
 Origem: commit 13ef0ef, 2026-10-22.
+Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
 
 ### durabilidade.resumo-do-done-na-recarga
@@ -79,5 +84,6 @@ O resumo do done chega à resposta do turno, mesmo com uma recarga no meio.
 - Quando o turno termina
 - Então o resumo aparece como ↩ no cartão desta sessão, na sessão que a abriu
 
-Origem: commit 946f653, 2026-10-21.
-Estado: checklist (no kit, o resumo do done não chega ao arquivo publicado nem sem recarga)
+Origem: commits 946f653, 2026-10-21, e 22650c9; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
+Código: hooks/turn.ts, hooks/tools.ts
+Estado: coberto

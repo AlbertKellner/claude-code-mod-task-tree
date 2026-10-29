@@ -2,6 +2,8 @@
 
 As mensagens a outras sessões (✉).
 
+Código da área: hooks/tool-call.ts, hooks/sessions.ts, hooks/panel.ts, state/tasks.ts
+
 ### envios.fica-ate-entrega
 O ✉ fica na tarefa até a entrega.
 
@@ -30,6 +32,7 @@ Depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensag
 - Então o ✉ segue verde "entregue", a tarefa não é interrompida e o pai não vira ✕
 
 Origem: decisão do usuário, 2026-10-28 ("a mensagem foi entregue; não é interrompida"; o ✉ verde igual com a tarefa aberta ou concluída está bom).
+Código: draw/layout.ts, draw/svg.ts
 Estado: coberto
 
 ### envios.cor-por-estado
@@ -40,6 +43,7 @@ O ✉ mantém o ícone e muda só a cor.
 - Então o ✉ fica azul "na fila", verde "entregue" ou cinza "interrompida", sem trocar de ícone
 
 Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
+Código: draw/layout.ts, draw/svg.ts
 Estado: coberto
 
 ### envios.ancora-no-lote-recente
@@ -70,6 +74,7 @@ O envio na fila não vira interrompido no fim do turno.
 - Então a tarefa segue com o ✉ azul, não ✕
 
 Origem: decisão do usuário, 2026-10-24; commit b897cac.
+Código: draw/layout.ts, draw/svg.ts
 Estado: coberto
 
 ### envios.nivel1-recebido-mostra-carta
@@ -80,4 +85,5 @@ O nível 1 aberto por mensagem recebida mostra a carta.
 - Então o nível 1 mostra o ✉ de recebida, azul enquanto aberto e verde concluído
 
 Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' deveria ser uma carta também"); commit 83f715d.
+Código: hooks/prompt-submit.ts, draw/layout.ts
 Estado: coberto

@@ -2,6 +2,8 @@
 
 O agrupamento por mensagem e o replanejamento.
 
+Código da área: hooks/tools.ts, state/tasks.ts, hooks/prompt-submit.ts, hooks/panel.ts
+
 ### pedidos.titulo-vem-do-request
 O título do pedido vem do request do plan.
 
@@ -90,4 +92,5 @@ A resumida mantém os pedidos anteriores enquanto há algo aberto.
 - Então a visão resumida mantém os dois; com tudo fechado, só o novo
 
 Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Código: draw/layout.ts, hooks/command.ts
 Estado: coberto

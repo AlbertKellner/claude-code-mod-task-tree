@@ -283,6 +283,16 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o resumo do done no state": {
+      "regras": [
+        "durabilidade.resumo-do-done-na-recarga"
+      ],
+      "hash": "02f896a7f88054ba",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-10-29",
+      "motivo": "resumo do done na recarga e sem resposta final"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: módulo novo com o state mantido desenha o painel": {
       "regras": [
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
@@ -312,6 +322,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o resumo do done chega ao ↩ e ao publicado": {
+      "regras": [
+        "durabilidade.resumo-do-done-na-recarga"
+      ],
+      "hash": "32c3ad134a7782e5",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-29",
+      "motivo": "resumo do done na recarga e sem resposta final"
     },
     "task-tree/tests/durabilidade.test.ts::reinício com session.start, 1/2: o painel vai ao store": {
       "regras": [
@@ -1034,6 +1054,16 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::o ↩ aparece mesmo quando o turno termina sem texto final": {
+      "regras": [
+        "turnos.resumo-sem-resposta-final"
+      ],
+      "hash": "be77e012c32a114d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-10-29",
+      "motivo": "resumo do done na recarga e sem resposta final"
+    },
     "task-tree/tests/turnos.test.ts::pedido anterior parado segue aguardando enquanto o pedido novo está em andamento": {
       "regras": [
         "turnos.pedido-anterior-parado-aguarda"
@@ -1073,10 +1103,10 @@
       "motivo": "agentId opcional e subagente no host"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "f72d57e8ba36ee86",
+      "hash": "b4abba5bf93859d9",
       "tipo": "refatoracao",
-      "data": "2026-10-28",
-      "motivo": "agentId opcional e subagente no host"
+      "data": "2026-10-29",
+      "motivo": "fimDoTurno com resposta opcional"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "b43727a46600e3b5",
@@ -1097,9 +1127,9 @@
       "motivo": "\"sim, correto\", 2026-10-29"
     },
     "principal": {
-      "hash": "ba5c4e9e2e4e235e",
+      "hash": "ddb7a58745ecb35a",
       "data": "2026-10-29",
-      "motivo": "\"sim, correto\", 2026-10-29"
+      "motivo": "\"Funcionou\", 2026-10-29"
     }
   }
 }
