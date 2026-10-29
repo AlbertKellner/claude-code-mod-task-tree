@@ -60,8 +60,8 @@ os 5 s do kit.
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
 
 Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motivo "…"` (selar um
-teste) e `npm run testes:alterados` (os testes existentes que mudaram, para o relato; `-- --pr`
-contra a base do PR).
+teste), `npm run testes:alterados` (os testes existentes que mudaram, para o relato; `-- --pr`
+contra a base do PR) e `npm run impacto` (a matriz de impacto, abaixo).
 
 O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude-code\<versão>\`;
 `CLAUDE_BIN` escolhe outro. Use a mesma versão que roda a sessão.
@@ -96,6 +96,15 @@ a regra que ele protege.
   sem decisão registrada ("testes antigos, código novo").
 - O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
   commit. Não use `--no-verify`.
+- Matriz de impacto: cada arquivo do catálogo diz o código da área (`Código da área:`) e um cenário
+  pode somar o seu (`Código:`), por arquivo, relativo a `task-tree/`. `npm run impacto` (o diff contra
+  `HEAD`; `-- --base <ref>`; ou `-- <arquivos>`, antes de implementar) lista os cenários afetados, os
+  testes que os cobrem, o checklist do app e o golden. É orientação: sai sempre com 0, e o check roda
+  todos os testes. O check falha só com caminho inexistente no mapa; cenário coberto sem código ou
+  arquivo do mod fora do mapa só avisa (decisão do usuário, 2026-10-29: "Só avisar (Recomendado)").
+  O núcleo (`hooks/register.tsx`, `hooks/render.tsx`, `types/index.d.ts`) afeta tudo.
+- O brief da análise traz `npm run impacto -- <arquivos que a mudança vai tocar>`; o relato da
+  implementação traz `npm run impacto` sobre o diff real.
 - O relato da implementação cola a saída de `npm run testes:alterados` e o resumo do check
   (modelos em [regras/README.md](regras/README.md)).
 

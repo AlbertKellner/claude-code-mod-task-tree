@@ -67,3 +67,8 @@ jobs:
       - name: Testes alterados
         if: always()
         run: npm run testes:alterados -- --base "${{ steps.base.outputs.ref }}"
+
+      # Informativo, só no log: os cenários, testes, checklist e golden que o PR toca (sai sempre com 0).
+      - name: Matriz de impacto
+        if: always()
+        run: npm run impacto -- --base "${{ steps.base.outputs.ref }}"
