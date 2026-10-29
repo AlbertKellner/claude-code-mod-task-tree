@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { subagente } from './kit/ambiente'
+import { host, subagente } from './kit/ambiente'
 import { fimDoSubagente } from './kit/cenario'
 import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
@@ -187,3 +187,19 @@ test('a notificação de uma tarefa em segundo plano não abre pedido', async ($
   const p = await painel($)
   expect(p.filter(l => l.nivel === 0 && l.estado !== undefined).map(l => l.titulo), emTexto(p)).toEqual(['Pedido um'])
 })
+
+// Regra: turnos.resumo-sem-resposta-final
+test('o ↩ aparece mesmo quando o turno termina sem texto final', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo X')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Resumo X')), emTexto(p)).toBe(true)
+  const publicado = (h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []
+  expect(publicado.some((u: any) => u.brief === 'Resumo X'), JSON.stringify(publicado)).toBe(true)
+})
+

@@ -325,3 +325,30 @@ test('fim do turno com Esc no reinício, 2/2: a iniciada segue interrompida', as
   esperarEstado(p, 'Dois.dois', 'pendente')
   semAndamento(p)
 })
+
+// O resumo do done, gravado antes de uma recarga, chega à linha ↩ e ao arquivo publicado.
+const RESUMO: Record<string, unknown> = {}
+
+// Regra: durabilidade.resumo-do-done-na-recarga
+test('recarga a quente, 1/2: o resumo do done no state', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RESUMO, 'captura')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo X')
+  expect(Object.keys(RESUMO).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: durabilidade.resumo-do-done-na-recarga
+test('recarga a quente, 2/2: o resumo do done chega ao ↩ e ao publicado', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RESUMO, 'semear')
+  const h = host(on, [])
+  exigir(Object.keys(RESUMO).length > 0)
+  await fimDoTurno($, 'Resposta final')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Resumo X')), emTexto(p)).toBe(true)
+  expect(resposta(h, 'Resumo X'), JSON.stringify(h.proprio())).toBe(true)
+})
+

@@ -50,9 +50,9 @@ export const pedido = ($: any, texto: string) => $.prompt.submit({ text: texto }
 // Um aviso do app (uma sessão terminou): não abre pedido.
 export const aviso = ($: any) => $.prompt.submit({ text: '<side-sessions-event>sessão terminou</side-sessions-event>' })
 
-// O fim normal do turno do modelo.
-export const fimDoTurno = ($: any) =>
-  $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: false, turnId: 't' })
+// O fim normal do turno do modelo, com a resposta final dele (nenhuma por padrão).
+export const fimDoTurno = ($: any, resposta = '') =>
+  $.turn.complete({ reason: 'end_turn', answer: resposta, durationMs: 1, isAborted: false, turnId: 't' })
 
 // O fim do turno de um subagente (ele termina).
 export const fimDoSubagente = ($: any, agente: string) =>
