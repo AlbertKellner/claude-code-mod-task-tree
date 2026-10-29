@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
 import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
-import { aprovarGolden, liberaGolden } from './selos.mjs'
+import { aprovarGolden, liberaGolden, liberaTeste } from './selos.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
@@ -210,4 +210,26 @@ test('a regressão de desenho só passa com o desenho aprovado hoje, com hash no
   assert.equal(liberaGolden({ golden: { principal: { hash: 'b', data: '2026-10-01', motivo: 'x' } } }, head, 'principal', hoje), false)
   assert.equal(liberaGolden({ golden: { principal: { hash: 'a', data: hoje, motivo: 'x' } } }, head, 'principal', hoje), false)
   assert.equal(liberaGolden({ golden: { principal: { hash: 'b', data: hoje, motivo: 'x' } } }, head, 'principal', hoje), true)
+})
+
+// O modo --base (a CI, contra a base do PR): sem "hoje", vale o selo que o PR traz.
+test('na CI, um teste mudado sem selo de decisão no PR falha', () => {
+  const base = { hash: 'a', tipo: 'novo', data: '2026-10-01' }
+  assert.equal(liberaTeste(base, base, undefined), false)
+  assert.equal(liberaTeste({ hash: 'b', tipo: 'refatoracao', data: '2026-10-01' }, base, undefined), false)
+  assert.equal(liberaTeste(undefined, base, undefined), false)
+})
+
+test('na CI, o selo de decisão trazido no PR libera, mesmo de outro dia', () => {
+  const base = { hash: 'a', tipo: 'novo', data: '2026-10-01' }
+  assert.equal(liberaTeste({ hash: 'b', tipo: 'decisao', data: '2026-10-02' }, base, undefined), true)
+  // Sem --base, o mesmo selo só vale no dia (o hook local).
+  assert.equal(liberaTeste({ hash: 'b', tipo: 'decisao', data: '2026-10-02' }, base, hoje), false)
+})
+
+test('na CI, o golden mudado sem selo novo no PR falha; com selo trazido no PR, passa', () => {
+  const base = { golden: { principal: { hash: 'a', data: '2026-10-01', motivo: 'x' } } }
+  assert.equal(liberaGolden(base, base, 'principal', undefined), false)
+  assert.equal(liberaGolden({ golden: {} }, base, 'principal', undefined), false)
+  assert.equal(liberaGolden({ golden: { principal: { hash: 'b', data: '2026-10-02', motivo: 'x' } } }, base, 'principal', undefined), true)
 })

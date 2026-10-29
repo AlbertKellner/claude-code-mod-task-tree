@@ -14,6 +14,10 @@ import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const indice = process.argv.includes('--indice')
+// --base <ref> (a CI): selos e regressão comparam com a base do PR em vez de HEAD; roda tudo.
+const iBase = process.argv.indexOf('--base')
+const base = iBase >= 0 ? process.argv[iBase + 1] : undefined
+const comBase = base ? ['--base', base] : []
 
 // O que se verifica: o repositório, ou a cópia do índice (com o node_modules do repositório ligado).
 let raiz = repo
@@ -71,7 +75,7 @@ const etapas = [
   // As travas do selo (scripts/selos.mjs), testadas num repositório temporário.
   ['travas', process.execPath, ['--test', 'scripts/travas.test.mjs'], true, hook.travas],
   // Os testes e o kit contra regras/selos.json: teste existente só muda com selo novo.
-  ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo], true, true],
+  ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo, ...comBase], true, true],
   ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true, hook.validate],
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true, hook.validate],
   ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], true, hook.tsc],
@@ -79,7 +83,7 @@ const etapas = [
   // (1 falha em 5 execuções do hook), e um hook que falha à toa empurra para o --no-verify.
   ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true],
   // Os testes de HEAD contra o código novo; só com diferença em task-tree/ (ela mesma decide).
-  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : [])], true, true],
+  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : []), ...comBase], true, true],
 ]
 
 const resumo = []
