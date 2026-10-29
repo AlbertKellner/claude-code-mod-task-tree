@@ -12,7 +12,10 @@ const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const git = (...a) => spawnSync('git', ['-C', raiz, ...a], { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 })
 
 let base = 'HEAD'
-if (process.argv.includes('--pr')) {
+// --base <ref>: contra esse commit (a CI, a base do PR).
+const iBase = process.argv.indexOf('--base')
+if (iBase >= 0 && process.argv[iBase + 1]) base = process.argv[iBase + 1]
+else if (process.argv.includes('--pr')) {
   const alvo = git('rev-parse', '--verify', '--quiet', 'origin/main').status === 0 ? 'origin/main' : 'main'
   base = git('merge-base', 'HEAD', alvo).stdout.toString().trim()
 }

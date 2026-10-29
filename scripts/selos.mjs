@@ -10,7 +10,7 @@
 //   node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"
 //   node scripts/selos.mjs --novos --motivo "…"             sela como "novo" todo teste e kit sem selo
 // --raiz <pasta>: onde estão os arquivos (padrão: o repositório); --repo <pasta>: o git de HEAD
-// (padrão: a própria raiz).
+// (padrão: a própria raiz); --base <ref>: compara com esse commit em vez de HEAD (a CI, a base do PR).
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -125,8 +125,9 @@ export function extrair(raiz) {
 
 const vazio = () => ({ testes: {}, kit: {}, golden: {} })
 const lerSelos = raiz => ({ ...vazio(), ...(existsSync(join(raiz, SELOS)) ? JSON.parse(readFileSync(join(raiz, SELOS), 'utf8')) : {}) })
-export function selosDeHead(repo) {
-  const r = spawnSync('git', ['-C', repo, 'show', `HEAD:${SELOS}`], { encoding: 'utf8' })
+// Os selos de um commit (HEAD por padrão; na CI, a base do PR).
+export function selosDeHead(repo, ref = 'HEAD') {
+  const r = spawnSync('git', ['-C', repo, 'show', `${ref}:${SELOS}`], { encoding: 'utf8' })
   return { ...vazio(), ...(r.status === 0 ? JSON.parse(r.stdout) : {}) }
 }
 const gravar = (raiz, selos) => {
@@ -158,17 +159,22 @@ export function aprovarGolden(raiz, novos, motivo) {
   gravar(raiz, selos)
   return Object.keys(novos)
 }
-// A etapa regressao aceita a falha do teste de golden de HEAD só com o desenho aprovado hoje (hash novo).
+// A etapa regressao aceita a falha do teste de golden de HEAD só com o desenho aprovado hoje (hash
+// novo). Com `data` undefined (a CI, contra a base do PR), basta o selo ter mudado no PR.
 export function liberaGolden(selos, head, cenario, data) {
   const s = selos.golden?.[cenario]
-  return s !== undefined && s.data === data && s.hash !== head.golden?.[cenario]?.hash
+  return s !== undefined && (data === undefined || s.data === data) && s.hash !== head.golden?.[cenario]?.hash
+}
+// O mesmo para um teste: selo de decisão do usuário com hash novo, de hoje (ou, na CI, trazido no PR).
+export function liberaTeste(s, h, data) {
+  return s !== undefined && s.tipo === 'decisao' && (data === undefined || s.data === data) && (h === undefined || s.hash !== h.hash)
 }
 
 // A conferência: devolve a lista de problemas.
-export function conferir(raiz, repo = raiz) {
+export function conferir(raiz, repo = raiz, base = 'HEAD') {
   const { testes, kit } = extrair(raiz)
   const selos = lerSelos(raiz)
-  const head = selosDeHead(repo)
+  const head = selosDeHead(repo, base)
   const problemas = []
   for (const [chave, t] of Object.entries(testes)) {
     const s = selos.testes[chave]
@@ -266,7 +272,7 @@ if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.a
     if (args.some(a => ['--selar', '--kit', '--remover', '--novos'].includes(a))) {
       console.log(selar(raiz, repo, { selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), novos: args.includes('--novos'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
     } else {
-      const problemas = conferir(raiz, repo)
+      const problemas = conferir(raiz, repo, valor('--base') ?? 'HEAD')
       for (const p of problemas) console.error(`- ${p}`)
       const s = lerSelos(raiz)
       console.log(`selos: ${Object.keys(s.testes).length} testes, ${Object.keys(s.kit).length} arquivos do kit, ${Object.keys(s.golden).length} desenhos${problemas.length ? `, ${problemas.length} problema(s)` : ''}`)
