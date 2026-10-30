@@ -151,18 +151,22 @@ test('sem tarefa em andamento nem pendente, o envio vai à última iniciada', as
   esperarCarta(await painel($), 'Um', 'fila')
 })
 
-// Regra: envios.nivel1-recebido-mostra-carta
+// Regra: envios.pedido-recebido-mostra-carta
 test('o nível 1 aberto por mensagem recebida mostra a carta, na cor do seu estado', async ($: any, on: any) => {
   fixar(on)
   host(on, [{ id: 'local_x' }])
   await mensagemDe($, 'local_x', 'Analise isto')
   await plan($, [{ id: 'R', title: 'Plano R', children: [{ id: 'r1', title: 'Erre um' }] }])
   let p = await painel($)
-  esperarCarta(p, 'Plano R', 'fila')
+  // A carta é a linha do pedido; o nível 1 tem o ícone de tarefa.
+  esperarCarta(p, 'Analise isto', 'fila')
+  expect(linha(p, 'Plano R').carta, emTexto(p)).toBeUndefined()
+  esperarEstado(p, 'Plano R', 'pendente')
   await start($, ['r1'])
   await done($, ['r1'])
   p = await painel($)
-  esperarCarta(p, 'Plano R', 'entregue')
+  esperarCarta(p, 'Analise isto', 'entregue')
+  esperarEstado(p, 'Plano R', 'concluida')
 })
 
 // Regra: pedidos.replano-mantem-envio-ate-entrega
@@ -246,4 +250,31 @@ test('a entrega imediata e depois uma mensagem na fila à mesma sessão: cada um
   p = await painel($)
   esperarCarta(p, 'Um', 'entregue')
   esperarCarta(p, 'Dois', 'entregue')
+})
+
+// Regra: envios.pedido-recebido-mostra-carta
+test('um pedido recebido com quatro tarefas de nível 1 tem uma carta só, no pedido', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  await mensagemDe($, 'local_x', 'Matriz de impacto')
+  await plan($, ['Ler', 'Commit 1', 'Commit 2', 'Commit 3'].map((title, i) => ({ id: `${i + 1}`, title })))
+  await start($, ['1'])
+  await done($, ['1'])
+  const p = await painel($)
+  expect(p.filter(l => l.carta !== undefined).map(l => l.titulo), emTexto(p)).toEqual(['Matriz de impacto'])
+  esperarCarta(p, 'Matriz de impacto', 'fila')
+  esperarEstado(p, 'Ler', 'concluida')
+  esperarEstado(p, 'Commit 1', 'pendente')
+})
+
+// Regra: envios.pedido-recebido-mostra-carta
+test('o mesmo plano num pedido da pessoa não mostra carta nenhuma', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Matriz de impacto')
+  await plan($, ['Ler', 'Commit 1', 'Commit 2', 'Commit 3'].map((title, i) => ({ id: `${i + 1}`, title })))
+  await start($, ['1'])
+  await done($, ['1'])
+  const p = await painel($)
+  expect(p.filter(l => l.carta !== undefined).map(l => l.titulo), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Ler', 'concluida')
 })

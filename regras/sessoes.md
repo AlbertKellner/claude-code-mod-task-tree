@@ -149,3 +149,14 @@ Mensagens entregues juntas: o cartão vai à tarefa da última.
 
 Origem: decisão do usuário, 2026-10-23 ("quero ver as tarefas lineares andando de cima para baixo; as paralelas andam fora de ordem, normal, mas as lineares precisam seguir uma linha do tempo"); commit 8b67366.
 Estado: coberto
+
+### sessoes.pedido-recebido-aparece-no-cartao
+No cartão da filha, o pedido que veio por mensagem tem a sua linha, com a carta.
+
+- Dado uma filha que recebeu uma mensagem e planejou as tarefas dela, mesmo uma só
+- Quando o cartão é desenhado na sessão que a abriu
+- Então a linha do pedido aparece com o ✉ de recebida, e as tarefas embaixo com o ícone comum (exceção à regra de que um pedido de uma tarefa só não tem linha no cartão)
+
+Origem: decisão do usuário, 2026-10-30 ("Sim, uma carta por mensagem (Recomendado)": a linha do pedido aparece sempre no cartão da filha, até com uma tarefa só).
+Código: draw/layout.ts
+Estado: coberto
