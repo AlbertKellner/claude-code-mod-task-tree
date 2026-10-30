@@ -283,3 +283,21 @@ test('com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rod
   expect([c.feitas, c.total], emTexto(p)).toEqual([0, 3])
   esperarEstado(p, 'f2', 'andamento')
 })
+
+// Regra: sessoes.pedido-recebido-aparece-no-cartao
+test('no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo com uma tarefa só', async ($: any, on: any) => {
+  fixar(on)
+  const mensagem = { id: 1, title: 'Governança: push e PR', at: AGORA + 10, msg: true, from: { id: 'local_00000000-0000-0000-0000-00000000e0e0', name: 'orquestradora' } }
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [noTurno(1, '1', 'Conferir e rodar o check', 'feita')], turns: [mensagem] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const cartao = cartoes(p, 'filha-um')
+  expect(cartao.map(c => c.tarefas), emTexto(p)).toEqual([['Governança: push e PR', 'Conferir e rodar o check']])
+  expect(linha(p, 'Governança: push e PR').carta, emTexto(p)).toBeDefined()
+  esperarEstado(p, 'Conferir e rodar o check', 'concluida')
+})
+

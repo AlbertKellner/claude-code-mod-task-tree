@@ -484,15 +484,25 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
-    "task-tree/tests/envios.test.ts::o nível 1 aberto por mensagem recebida mostra a carta, na cor do seu estado": {
+    "task-tree/tests/envios.test.ts::o mesmo plano num pedido da pessoa não mostra carta nenhuma": {
       "regras": [
-        "envios.nivel1-recebido-mostra-carta"
+        "envios.pedido-recebido-mostra-carta"
       ],
-      "hash": "dc72dd95560e6d8b",
+      "hash": "df1935a4c70a6976",
       "assercoes": 2,
       "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "data": "2026-10-30",
+      "motivo": "carta de recebimento na linha do pedido"
+    },
+    "task-tree/tests/envios.test.ts::o nível 1 aberto por mensagem recebida mostra a carta, na cor do seu estado": {
+      "regras": [
+        "envios.pedido-recebido-mostra-carta"
+      ],
+      "hash": "e3a7a4ebc6b515bd",
+      "assercoes": 6,
+      "tipo": "decisao",
+      "data": "2026-10-30",
+      "motivo": "a carta de recebimento é a linha do pedido (usuário, 2026-10-30: \"Sim, uma carta por mensagem (Recomendado)\")"
     },
     "task-tree/tests/envios.test.ts::o ✉ na fila fica na tarefa, mesmo concluída, até a entrega": {
       "regras": [
@@ -524,6 +534,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/envios.test.ts::um pedido recebido com quatro tarefas de nível 1 tem uma carta só, no pedido": {
+      "regras": [
+        "envios.pedido-recebido-mostra-carta"
+      ],
+      "hash": "9ea04b51347086a6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-30",
+      "motivo": "carta de recebimento na linha do pedido"
     },
     "task-tree/tests/fumaca.test.ts::plan mostra a tarefa no painel": {
       "regras": [
@@ -921,6 +941,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo com uma tarefa só": {
+      "regras": [
+        "sessoes.pedido-recebido-aparece-no-cartao"
+      ],
+      "hash": "9a11879901c97f8e",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-10-30",
+      "motivo": "carta de recebimento na linha do pedido"
     },
     "task-tree/tests/sessoes.test.ts::o busto da sessão só na tarefa de que o cartão pende": {
       "regras": [
