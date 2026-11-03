@@ -55,13 +55,14 @@ Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.cabecalho-em-cartao
-O cabeçalho aparece em cartão.
+O cabeçalho aparece em cartão, no desenho V4.
 
 - Dado o painel aberto
 - Quando o cabeçalho é desenhado
-- Então ele aparece em cartão, com repositório e branch
+- Então ele é um cartão com a faixa de estado à esquerda, o título (16 px), o repositório e a branch, a barra, as pílulas e o bloco de números à direita (o % grande, "d de n", o tempo e toks/s)
 
 Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
+Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
 Código: io/git.ts
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
@@ -116,13 +117,14 @@ Origem: tabela de durabilidade, commit 9fb1c51, 2026-10-22.
 Estado: checklist (recarga e processo reais)
 
 ### visual.cabecalho-barra-e-chips-desenhados
-A barra e os chips do cabeçalho aparecem desenhados no app desktop.
+A barra e as pílulas do cabeçalho aparecem desenhadas no app desktop.
 
 - Dado o painel aberto no app desktop
 - Quando o cabeçalho é desenhado
-- Então a barra de progresso, os chips em ícone e cor e o tooltip "sessão inteira" aparecem
+- Então a barra de progresso, as pílulas (ícone e texto num fundo da cor do tom) e o tooltip "sessão inteira" aparecem
 
 Origem: regra do painel.
+Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
 Estado: checklist (pintura real)
 
 ### visual.golden-gera-desenho
@@ -144,6 +146,7 @@ O desenho do painel principal é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -155,6 +158,7 @@ O desenho do cartão da filha trabalhando é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -166,5 +170,18 @@ O desenho do ✉ na fila, entregue e interrompido é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Código: draw/layout.ts
 Estado: coberto
+
+### visual.faixa-de-estado-geral
+A faixa à esquerda do cabeçalho diz o estado geral pela cor.
+
+- Dado o painel com tarefas, sessões filhas ou nada
+- Quando o cabeçalho é desenhado no app desktop
+- Então a faixa é âmbar com tarefa em andamento; âmbar claro ("aguardando") com algo aguardando ou só tarefas pendentes, nada iniciado; azul com só uma sessão filha trabalhando; verde com tudo concluído; cinza com o que ficou interrompido; e o estado vai ao texto alternativo ("estado geral: …")
+
+Origem: decisão do usuário, 2026-11-03 ("gostei da V4, siga para análise e implementação"; para só pendentes, nada iniciado: "Âmbar claro, 'aguardando'", contra a recomendação de cinza).
+Código: draw/svg.ts, hooks/render.tsx
+Estado: coberto
+

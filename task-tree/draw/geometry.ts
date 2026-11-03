@@ -82,7 +82,7 @@ export const GUIDE_FROM = 8
 // right end take ICONS_W px of the title's line, inside the card.
 export const HEADER_PAD = CARD_RIGHT + 12
 export const HEADER_GAP = 8
-export const HEADER_H = 100
+export const HEADER_H = 116
 export const ICONS_W = 72
 
 // The context ring: RING_D px across (radius 5.5, stroke 2), drawn RING_D px inside the innermost

@@ -47,7 +47,7 @@ Origem: regra do painel desde a entrada do mod (commit 465b09e, "Interrupted tas
 Estado: coberto
 
 ### cabecalho.chips-contam-folhas
-Os chips contam só folhas, nunca pais nem tarefas de mensagem.
+Os chips (as pílulas do cabeçalho) contam só folhas, nunca pais nem tarefas de mensagem.
 
 - Dado tarefas com filhas, tarefas de mensagem e folhas em cada estado
 - Quando o cabeçalho é desenhado
