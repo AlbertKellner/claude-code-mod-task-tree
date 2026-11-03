@@ -33,7 +33,8 @@ function ler(raiz: any): { el: any; linha: Linha }[] {
     .filter(c => typeof c === 'object')
     .map(l => {
       const partes = ((l.children ?? []) as any[]).filter(c => typeof c === 'object')
-      const icone = partes.find(p => mostrado(p) in ESTADOS || mostrado(p) === '✉' || mostrado(p) === SESSAO)
+      // O ▸/▾ de uma linha de seção que abre (os pedidos anteriores) faz as vezes do ícone.
+      const icone = partes.find(p => mostrado(p) in ESTADOS || mostrado(p) === '✉' || mostrado(p) === SESSAO || mostrado(p) === '▸' || mostrado(p) === '▾')
       const titulo = icone ? partes[partes.indexOf(icone) + 1] : undefined
       // O seletor de visão no fim da linha de título fica de fora.
       const texto = mostrado(l).replace(/\s+\[?≡\]? \[?▤\]?$/, '').trimEnd()

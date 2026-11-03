@@ -52,6 +52,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/cabecalho.test.ts::\"+N pedidos anteriores\" abre com um clique, fechado por padrão, e fecha de novo": {
+      "regras": [
+        "cabecalho.historico-abre-com-clique"
+      ],
+      "hash": "d920acb9eecba5b6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "histórico abre com clique"
+    },
     "task-tree/tests/cabecalho.test.ts::a interrompida sai do total e entra no chip": {
       "regras": [
         "cabecalho.interrompida-fora-do-total"
@@ -1170,10 +1180,10 @@
       "motivo": "fimDoTurno com resposta opcional"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "b43727a46600e3b5",
+      "hash": "85bd3242c0cc29c1",
       "tipo": "refatoracao",
-      "data": "2026-10-28",
-      "motivo": "svgs: o desenho do desktop para o golden"
+      "data": "2026-11-03",
+      "motivo": "o ▸/▾ da linha de seção faz as vezes do ícone"
     }
   },
   "golden": {

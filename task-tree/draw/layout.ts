@@ -1248,10 +1248,23 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const recent = asked.slice(-keep)
       const cut = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
       // A request with a session still at work under its task stays drawn too (it is going on).
-      const drawn = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
-      const left = cut ? new Set(list.filter(t => !drawn.includes(t)).map(t => t.turn ?? -1)).size : 0
-      if (cut && left > 0) lines.push({ key: `${scope}sec:turns`, depth: top, tone: 'section', title: `+${left} pedidos anteriores`, label: 'Pedidos anteriores, não desenhados' })
-      if (cut && level === 0 && g.agent === MAIN) {
+      const recentOnly = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
+      const left = cut ? new Set(list.filter(t => !recentOnly.includes(t)).map(t => t.turn ?? -1)).size : 0
+      // The line of the requests left out opens with a click, closed by default, and draws them (the
+      // person, 2026-11-03: "Sim, fechado por padrão (Recomendado)"); the limit of lines still holds.
+      const historyKey = `${scope}sec:turns`
+      const history = cut && left > 0 && opened(historyKey, false)
+      const drawn = history ? list : recentOnly
+      if (cut && left > 0)
+        lines.push({
+          key: historyKey,
+          depth: top,
+          tone: 'section',
+          title: `+${left} pedidos anteriores`,
+          label: history ? 'Pedidos anteriores, desenhados' : 'Pedidos anteriores, não desenhados',
+          fold: { key: historyKey, open: history },
+        })
+      if (cut && !history && level === 0 && g.agent === MAIN) {
         const away = flat(list.filter(t => !drawn.includes(t))).map(t => t.id)
         for (const c of sessions) if (c.anchor !== undefined && away.includes(c.anchor) && alive(c)) strays.push(loosen(c, list, g.turns ?? []))
       }

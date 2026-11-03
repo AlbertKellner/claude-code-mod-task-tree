@@ -235,3 +235,29 @@ test('pedidos antigos saem inteiros do começo, contados em "+N linhas anteriore
   for (const titulo of ['Pedido três', 'Plano pequeno', 'Pequeno um', 'Pequeno dois']) expect(p.some(l => l.titulo === titulo), titulo).toBe(true)
   expect(p.some(l => /\+\d+ linhas$/.test(l.texto.trim())), emTexto(p).slice(-500)).toBe(false)
 })
+
+// Regra: cabecalho.historico-abre-com-clique
+test('"+N pedidos anteriores" abre com um clique, fechado por padrão, e fecha de novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  for (let i = 1; i <= 5; i++) {
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+    await relogio.advance(1000)
+  }
+  await visao($, 'completa')
+  const m = await montar($)
+  let p = await m.linhas()
+  expect(tem(p, 'Plano 1') || tem(p, 'Plano 2'), emTexto(p)).toBe(false)
+  await m.recolher('+2 pedidos anteriores')
+  p = await m.linhas()
+  expect(tem(p, 'Plano 1') && tem(p, 'Plano 2') && tem(p, 'Plano 5'), emTexto(p)).toBe(true)
+  expect(p.filter(l => l.titulo === '+2 pedidos anteriores').length, emTexto(p)).toBe(1)
+  await m.recolher('+2 pedidos anteriores')
+  p = await m.linhas()
+  expect(tem(p, 'Plano 1'), emTexto(p)).toBe(false)
+  await m.fim()
+})
+

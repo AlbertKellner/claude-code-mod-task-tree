@@ -214,7 +214,8 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {lines.map((r, i) => {
         // A message task: the ✉ in every state, in the color of where the message is.
         const env = r.msg ?? r.recv
-        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : GLYPH[progress(r)]
+        // A section that opens (the requests left out) shows its ▸/▾ where the icon is.
+        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : r.tone === 'section' && r.fold ? [r.fold.open ? '▾' : '▸', 'inactive'] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)

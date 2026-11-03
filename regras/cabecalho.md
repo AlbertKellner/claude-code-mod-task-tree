@@ -109,3 +109,15 @@ Duas tarefas iniciadas no mesmo instante: vale a ordem do start.
 Origem: regra do painel; correção do empate achada no teste da tarefa 6, 2026-10-28.
 Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto
+
+### cabecalho.historico-abre-com-clique
+"+N pedidos anteriores" abre e fecha com um clique.
+
+- Dado mais de três pedidos, os antigos cortados numa linha "+N pedidos anteriores"
+- Quando a pessoa clica no ▸ dessa linha (fechada por padrão)
+- Então os pedidos cortados são desenhados, a linha mostra ▾, e um clique de novo a fecha; o limite de 400 linhas do desenho continua valendo
+
+Origem: decisão do usuário, 2026-11-03 ("Sim, fechado por padrão (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...".
+Código: draw/svg.ts, hooks/render.tsx
+Estado: coberto
+

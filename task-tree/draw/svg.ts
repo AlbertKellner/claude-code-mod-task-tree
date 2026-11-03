@@ -545,8 +545,14 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   }
   // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
   const env = r.msg ?? r.recv
-  const lead = section ? '' : `<g class="ic">${env ? envelope(x, cy, MSG_CLASS[env]) : icon(progress(r), x, cy)}</g>`
-  const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
+  // A section that opens (the requests left out) shows its ▸/▾ where the icon is, which folds and opens it.
+  const folding = section && r.fold !== undefined
+  const lead = folding
+    ? `<text class="s" x="${x}" y="${cy + 4}" font-size="11" text-anchor="middle">${r.fold?.open ? '▾' : '▸'}</text>`
+    : section
+      ? ''
+      : `<g class="ic">${env ? envelope(x, cy, MSG_CLASS[env]) : icon(progress(r), x, cy)}</g>`
+  const tx = section && !folding ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
