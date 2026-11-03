@@ -77,13 +77,14 @@ Origem: decisão do usuário, 2026-10-24; commit b897cac.
 Código: draw/layout.ts, draw/svg.ts
 Estado: coberto
 
-### envios.nivel1-recebido-mostra-carta
-O nível 1 aberto por mensagem recebida mostra a carta.
+### envios.pedido-recebido-mostra-carta
+A carta de recebimento é a linha do pedido; as tarefas derivadas têm ícone de tarefa.
 
 - Dado uma mensagem de outra sessão que abre um pedido
-- Quando o modelo planeja o nível 1 dele e depois o conclui
-- Então o nível 1 mostra o ✉ de recebida, azul enquanto aberto e verde concluído
+- Quando o modelo planeja as tarefas dele e as trata
+- Então a linha do pedido mostra o ✉ de recebida (azul enquanto há trabalho aberto, verde concluído, cinza interrompido), e as tarefas, em qualquer nível, mostram o ícone comum; um pedido da pessoa não tem carta
 
 Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' deveria ser uma carta também"); commit 83f715d.
+Reescrito: 2026-10-30, decisão do usuário ("as cartas deveriam representar somente quando uma sessão se comunica com outra… Quando o pedido fosse recebido, ele seria representado por uma carta, e as tarefas derivadas dessa mensagem (pedido) deveriam ter os icones de tarefas, não de cartas"; "Sim, uma carta por mensagem (Recomendado)"; "Azul tratando, verde concluído, cinza interrompido (Recomendado)"); desfaz o ajuste de 2026-10-24 e volta ao pedido original do mesmo dia ("as tarefas partem como subtarefas da tarefa de recebimento").
 Código: hooks/prompt-submit.ts, draw/layout.ts
 Estado: coberto

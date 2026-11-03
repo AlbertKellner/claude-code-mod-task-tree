@@ -920,8 +920,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     scope: string,
     work: (t: TaskNode) => Work,
     pending: Send[],
-    // The turn a level-1 task was planned in, when another session's message opened it (Turn.msg).
-    recvOf: (t: TaskNode) => Turn | undefined = () => undefined,
   ): Row[] =>
     items.flatMap(t => {
       // A message task a replan left out shows only while its message is queued (carry).
@@ -965,13 +963,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // word on the right saying it (the person: "mantenha o ícone e troque somente a cor").
       const msg: Row['msg'] =
         t.children.length > 0 || !t.msg ? undefined : waitsOn.length > 0 ? 'queued' : t.status === 'interrupted' ? 'cut' : 'delivered'
-      // A level-1 task derived from a message received: the ✉ in its icon's place, blue while open,
-      // green done, gray interrupted (the person's words: "o ícone do 'analisar a tarefa' deveria ser
-      // uma carta também"); who sent it and the message in its tooltip. It counts as work.
-      const from = recvOf(t)
-      const recv: Row['recv'] =
-        from === undefined ? undefined : t.status === 'done' ? 'delivered' : t.status === 'interrupted' ? 'cut' : 'queued'
-      const said = from === undefined ? undefined : `Mensagem de ${from.from?.name || from.from?.id || 'outra sessão'}: ${from.title}`
       const row: Row = {
         key: `${scope}t:${t.id}`,
         leaf: t.children.length === 0,
@@ -989,7 +980,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         bar: true,
         meta: msg !== undefined ? MSG_WORD[msg] : tone === 'interrupted' ? 'interrompida' : undefined,
         ...(msg !== undefined ? { msg } : {}),
-        ...(recv !== undefined ? { recv, hint: said, whole: said } : {}),
         time:
           (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
           (tone === 'done' || tone === 'interrupted'
@@ -1073,8 +1063,17 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       fold: { key, open },
       // No session icon on a request: a card never hangs from it directly (see Work.direct).
     }
+    // A request another session's message opened is the ✉ received: blue while its work is open,
+    // green once done, gray interrupted; who sent it and the message in its tooltip. Its tasks keep
+    // their own icons (the person, 2026-10-30: "as tarefas derivadas dessa mensagem (pedido) deveriam
+    // ter os icones de tarefas, não de cartas"; "Azul tratando, verde concluído, cinza interrompido").
+    if (u.msg) {
+      row.recv = flat(list).some(t => t.status === 'open') ? 'queued' : tone === 'interrupted' ? 'cut' : 'delivered'
+      row.hint = `Mensagem de ${u.from?.name || u.from?.id || 'outra sessão'}: ${u.title}`
+      row.whole = row.hint
+    }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-    const inner = open ? rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending, () => (u.msg ? u : undefined)) : []
+    const inner = open ? rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending) : []
     row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.cards)]
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
@@ -1229,18 +1228,17 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // in, oldest first; tasks from before turns existed stay loose, ahead of them.
       // In a session's card, only a turn that planned more than one level-1 task gets its header:
       // with no line from the card's label, those tasks read as loose ones (the person's words:
-      // "Tarefas sem ligação"); a turn of one task stays as it was, that task its own header.
+      // "Tarefas sem ligação"); a turn of one task stays as it was, that task its own header. A turn
+      // a message opened always gets it, one task or more: its header is the ✉ received (the person,
+      // 2026-10-30: "Sim, uma carta por mensagem (Recomendado)").
       const turns =
         g.agent !== MAIN
           ? []
-          : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || drawn.filter(t => t.turn === u.id).length > 1))
+          : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || u.msg === true || drawn.filter(t => t.turn === u.id).length > 1))
       const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
       // Only the main group's tasks send messages: a subagent's lines have none pending.
       const sent = g.agent === MAIN ? pending : []
-      // A level-1 task of a turn a message opened shows the ✉ received (rows' recvOf).
-      const byTurn = new Map((g.turns ?? []).filter(u => u.msg).map(u => [u.id, u] as const))
-      const recvOf = (t: TaskNode) => (g.agent === MAIN && t.turn !== undefined ? byTurn.get(t.turn) : undefined)
-      lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent, recvOf))
+      lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent))
       for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
