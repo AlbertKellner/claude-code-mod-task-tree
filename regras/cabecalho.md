@@ -61,9 +61,10 @@ Os pedidos além dos três últimos viram "+N pedidos anteriores".
 
 - Dado mais de três pedidos, os antigos sem nada aberto
 - Quando a completa é desenhada
-- Então os mais antigos viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, à parte)
+- Então os mais antigos viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, à parte); um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
+Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos

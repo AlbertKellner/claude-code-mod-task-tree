@@ -993,6 +993,16 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::o cartão vivo de um pedido cortado é desenhado solto no fim, nas duas visões; o parado e concluído segue cortado": {
+      "regras": [
+        "sessoes.cartao-vivo-nunca-some"
+      ],
+      "hash": "86aec63ca4f42e4e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "cartão vivo nunca some"
+    },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"

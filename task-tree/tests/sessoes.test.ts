@@ -367,3 +367,52 @@ test('com o turno próprio da filha trabalhando no pedido antigo, o pedido segue
   expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
 })
 
+// ---- Cartão vivo nunca some.
+
+const VELHA = 'local_44444444-4444-4444-4444-444444444444'
+// Pedido antigo com duas filhas: a viva (parada com tarefa aberta) e a velha (parada, tudo feito); depois,
+// três pedidos novos, e o antigo sai de vista.
+async function filhasNoPedidoAntigo($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: K1, nome: 'viva', painel: { tasks: [noTurno(1, '1', 'Ainda aberta', 'aberta')], turns: [turno(1, AGORA + 10)] } },
+    { id: VELHA, nome: 'velha', painel: { tasks: [noTurno(1, '1', 'Já feita', 'feita')], turns: [turno(1, AGORA + 10)] } },
+  ])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Antigo', children: [{ id: 'o1', title: 'Abrir as filhas' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(VELHA).rodando = false
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  for (let i = 2; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await aviso($)
+}
+
+// Regra: sessoes.cartao-vivo-nunca-some
+test('o cartão vivo de um pedido cortado é desenhado solto no fim, nas duas visões; o parado e concluído segue cortado', async ($: any, on: any) => {
+  await filhasNoPedidoAntigo($, on)
+  for (const v of ['completa', 'resumida'] as const) {
+    await visao($, v)
+    const p = await painel($)
+    const solto = 'viva · do pedido "Pedido antigo"'
+    expect(p.some(l => l.titulo === solto), `${v}:\n${emTexto(p)}`).toBe(true)
+    // Solto no fim: depois do último pedido, e o pedido antigo não volta.
+    expect(p.indexOf(linha(p, solto)), `${v}:\n${emTexto(p)}`).toBeGreaterThan(p.indexOf(linha(p, 'Folha 4')))
+    expect(p.some(l => l.titulo === 'Antigo'), `${v}:\n${emTexto(p)}`).toBe(false)
+    expect(p.some(l => l.titulo === 'velha' || l.titulo.startsWith('velha ·')), `${v}:\n${emTexto(p)}`).toBe(false)
+    esperarEstado(p, 'Ainda aberta', 'pendente')
+  }
+})
+

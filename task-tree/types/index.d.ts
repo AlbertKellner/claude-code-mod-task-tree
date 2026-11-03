@@ -156,6 +156,8 @@ export type Child = {
   part?: number
   // Drawn only: a card of a turn the person opened by typing in that session, its text.
   ownTurn?: string
+  // Drawn only: a card at work drawn loose at the end, its request cut from sight: that request's title.
+  loose?: string
   // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:
   // the index moves when the oldest round is dropped (the last 20 are kept), the time does not.
   partAt?: number

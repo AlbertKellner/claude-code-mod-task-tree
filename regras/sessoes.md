@@ -173,3 +173,14 @@ Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (R
 Código: draw/layout.ts
 Estado: coberto
 
+### sessoes.cartao-vivo-nunca-some
+Um cartão com a sessão trabalhando ou com tarefa aberta nunca some.
+
+- Dado um cartão vivo (sessão trabalhando ou tarefa aberta) sob um pedido que saiu de vista: cortado na completa ("+N pedidos anteriores") ou fora do trabalho na resumida
+- Quando o painel é desenhado
+- Então o cartão é desenhado solto no fim do painel, com o nome do pedido de origem no título; o pedido antigo não volta; cartões parados e concluídos seguem cortados
+
+Origem: decisão do usuário, 2026-11-03 ("Cartão vivo solto no fim (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". Reescreve, só para o cartão vivo, a decisão de 2026-10-23 da resumida ("não traz o pedido de volta, nem o cartão é desenhado solto").
+Código: draw/layout.ts
+Estado: coberto
+
