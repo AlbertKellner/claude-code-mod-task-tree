@@ -611,7 +611,7 @@ export function headerState(s: { active: number; waiting: number; live: number; 
 const BAND: Partial<Record<Tone, string>> = { current: 'amf', paused: 'amf', running: 'blf', done: 'grf', interrupted: 'gyf', open: 'tr' }
 const PILL: Partial<Record<Tone, string>> = { current: 'amp', wait: 'amp', paused: 'amp', open: 'gyp', interrupted: 'gyp', sent: 'blp', running: 'blp', done: 'grp' }
 
-// The header (V4, "Respiro", 116 px): a card with the state band inside its left border; the title
+// The header (V4, "Respiro", 125 px, with room under the pills): a card with the state band inside its left border; the title
 // alone on the first line (its right end left to the view icons, drawn over it), the repository and
 // branch below it, the bar, then the chips as pills; the numbers block at the right, the % large with
 // the count and the time (and the output rate) below it.
