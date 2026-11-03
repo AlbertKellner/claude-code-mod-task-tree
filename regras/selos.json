@@ -1164,6 +1164,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "11d73456dcbfb13d",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "faixa de estado geral do cabeçalho V4"
+    },
+    "task-tree/tests/visual.test.ts::a faixa do cabeçalho: interrompido depois do Esc, e sessão ativa com só a filha trabalhando": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "f2997d1ce000e257",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "faixa de estado geral do cabeçalho V4"
     }
   },
   "kit": {
@@ -1188,19 +1208,19 @@
   },
   "golden": {
     "envios": {
-      "hash": "1895347c21c49a9b",
-      "data": "2026-10-29",
-      "motivo": "\"sim, correto\", 2026-10-29"
+      "hash": "73b74227b094cf3f",
+      "data": "2026-11-03",
+      "motivo": "\"esta funcionando\", 2026-11-03"
     },
     "filha": {
-      "hash": "c83bf433d33a47fc",
-      "data": "2026-10-29",
-      "motivo": "\"sim, correto\", 2026-10-29"
+      "hash": "e56d6140af2081d2",
+      "data": "2026-11-03",
+      "motivo": "\"esta funcionando\", 2026-11-03"
     },
     "principal": {
-      "hash": "ddb7a58745ecb35a",
-      "data": "2026-10-29",
-      "motivo": "\"Funcionou\", 2026-10-29"
+      "hash": "dcc05e9565798023",
+      "data": "2026-11-03",
+      "motivo": "\"esta funcionando\", 2026-11-03"
     }
   }
 }
