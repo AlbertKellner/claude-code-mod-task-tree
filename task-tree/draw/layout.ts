@@ -287,13 +287,22 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
   // The turns the person opened by typing in that session (`own`): each one a card of its own, at
-  // the end of the request that opened the session (the person: "turno aberto direto pelo usuário
-  // na filha vira cartão próprio, sem âncora, no fim do pedido de origem"), not under the task of
-  // the last message this session sent (work it did not ask for hung from "Reverter o commit…").
+  // the end of this session's request in force when the person typed there (the person, 2026-11-03:
+  // "No pedido vigente da orquestradora (Recomendado)"; it was the request that opened the session,
+  // where the work of today hung from a request of days before), not under the task of the last
+  // message this session sent (work it did not ask for hung from "Reverter o commit…").
   const ownTurns = (main.turns ?? []).filter(u => u.own === true)
   if (rounds.length === 0 && ownTurns.length === 0) return [c]
   const openedIn = owner.find(t => t.id === c.anchor || flat(t.children).some(k => k.id === c.anchor))
   const originEnd = openedIn?.turn === undefined ? undefined : [...owner].reverse().find(t => t.turn === openedIn.turn)?.id
+  // The request in force when the person typed: the turn of the last level-1 task planned by then
+  // (its last task, the end of that request); with none, the one that opened the session.
+  const inForce = (u: Turn | undefined) => {
+    const at = u?.at
+    if (at === undefined) return originEnd
+    const turn = owner.reduce<number | undefined>((m, t) => (t.turn !== undefined && t.plannedAt !== undefined && t.plannedAt <= at && (m === undefined || t.turn > m) ? t.turn : m), undefined)
+    return turn === undefined ? originEnd : ([...owner].reverse().find(t => t.turn === turn)?.id ?? originEnd)
+  }
   const turns = main.turns ?? []
   const roundOf = (u: Turn) => rounds.reduce((k, r, i) => (u.at !== undefined && u.at >= r.at ? i + 1 : k), 0)
   // The part (round) of each turn, once per turn; a task with no turn, or with a turn not listed, is
@@ -373,8 +382,11 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
       part: k,
       lead: at,
       ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1]!.at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k]!.at } : {}),
-      anchor: k < 0 ? originEnd : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
-      lastAnchor: at ? c.lastAnchor : undefined,
+      anchor: k < 0 ? inForce(ownTurns[-1 - k]) : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
+      // At work on a turn the person opened, the session is at work under that card (its request is
+      // kept drawn, its line busy), not under the task of the last message.
+      lastAnchor: at ? (k < 0 ? inForce(ownTurns[-1 - k]) : c.lastAnchor) : undefined,
+      ...(k < 0 && ownTurns[-1 - k] !== undefined ? { ownTurn: ownTurns[-1 - k]!.title } : {}),
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),
       waiting: at ? c.waiting : false,
@@ -1108,9 +1120,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       tone,
       // The card's first line is the session alone (its name); its tasks start on the line below.
       // The session's title (often worded like a task) goes only to the alt, not the line.
-      title: c.name || c.title,
+      // A card of a turn the person opened by typing in that session says so; the text in its tooltip.
+      title: c.ownTurn !== undefined ? `${c.name || c.title} · pedido do usuário na filha` : c.name || c.title,
       label: 'Sessão',
-      hint: c.name && c.name !== c.title ? c.title : undefined,
+      hint: c.ownTurn !== undefined ? `Pedido do usuário na filha: ${c.ownTurn}` : c.name && c.name !== c.title ? c.title : undefined,
       strong: live(c),
       sub: cn > 0 ? [cd, cn] : undefined,
       meta: state,

@@ -910,6 +910,17 @@
       "data": "2026-10-28",
       "motivo": "sessão aberta conta como uso da tarefa"
     },
+    "task-tree/tests/sessoes.test.ts::com o turno próprio da filha trabalhando no pedido antigo, o pedido segue desenhado depois de três pedidos novos": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente",
+        "cabecalho.limites-de-linhas"
+      ],
+      "hash": "fd78e6fda9a85c0f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "turno próprio da filha no pedido vigente"
+    },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",
@@ -981,6 +992,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "d80a949186d6b638",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "turno próprio da filha no pedido vigente"
     },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
