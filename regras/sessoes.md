@@ -25,6 +25,7 @@ O cartão diz em uma palavra o estado da filha, quando ela não está só trabal
 - Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "concluída" ou "arquivada"
 
 Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); o teste da filha arquivada, que cobre também esta regra, passa a ver o pai ✓.
 Estado: coberto
 
 ### sessoes.um-cartao-por-mensagem
@@ -85,9 +86,10 @@ A filha arquivada deixa interrompido o que ficou aberto.
 
 - Dado uma filha arquivada com tarefas abertas
 - Quando o cartão é desenhado
-- Então o que ficou aberto fica ✕, e o pai com filha ✓ fica ◷
+- Então o que ficou aberto fica ✕, e o pai fica ✓
 
 Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit 95b1a21.
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem

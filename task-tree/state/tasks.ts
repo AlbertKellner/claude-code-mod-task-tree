@@ -89,7 +89,7 @@ export function fill(items: TaskNode[], before: TaskNode[], parentStart: number 
 export function settle(list: TaskNode[], now?: number): TaskNode[] {
   return list.map(t => {
     const children = settle(t.children, now)
-    const closed = t.status === 'open' && children.length > 0 && children.every(c => c.status === 'done')
+    const closed = t.status === 'open' && children.length > 0 && children.every(c => c.status !== 'open')
     return closed
       ? { ...t, status: 'done' as Status, started: undefined, endedAt: stop(t, now), children }
       : { ...t, children }

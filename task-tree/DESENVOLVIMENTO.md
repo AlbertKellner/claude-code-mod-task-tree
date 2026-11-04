@@ -1534,3 +1534,11 @@ visões nas seções anteriores são histórico. O painel sempre desenha o corte
 sai do trabalho não se perde ("Ficam em '+N pedidos anteriores' (Recomendado)"): `Group.whole`, só no
 desenho, guarda todos os níveis 1, e a linha "+N pedidos anteriores" os desenha quando aberta, com os
 cartões e, por último, os cartões antigos sem origem. "Sessão inteira" fica só no tooltip.
+
+## Pai fecha sem nada aberto embaixo (2026-11-04)
+
+Decisão do usuário: "todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como
+em andamento, ela deveria estar concluida tambem"; com só ✕ embaixo, "Fica ✓". Pai, nível 1 e pedido
+ficam ✓ em qualquer mistura de ✓ e ✕ (`settled`, `halt`, `turnRows`, `settle`); só a folha é ✕. O ◷
+fica para o pai com algo ainda aberto. A linha fechada de um grupo de subagente não é pai de tarefa:
+segue ✕ "interrompido". O pedido recebido por mensagem segue cinza só sem nada concluído.

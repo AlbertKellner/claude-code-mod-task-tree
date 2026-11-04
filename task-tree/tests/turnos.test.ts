@@ -161,7 +161,7 @@ test('o subagente que termina deixa interrompido o que ficou aberto, e o pai com
   esperarEstado(p, 'Sub um', 'concluida')
   esperarEstado(p, 'Sub dois', 'interrompida')
   esperarEstado(p, 'Sub três', 'interrompida')
-  esperarEstado(p, 'Plano do sub', 'aguardando')
+  esperarEstado(p, 'Plano do sub', 'concluida')
   esperarEstado(p, 'Um', 'andamento')
 })
 

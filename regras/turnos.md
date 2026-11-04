@@ -39,9 +39,10 @@ O Esc interrompe só a tarefa iniciada.
 
 - Dado uma tarefa iniciada e outras pendentes
 - Quando a pessoa para o turno (Esc)
-- Então só a iniciada fica ✕; as pendentes seguem ○; o pai sem nada feito embaixo fica ○
+- Então só a iniciada fica ✕; as pendentes seguem ○; o pai com pendentes e nada feito embaixo fica ○
 
 Origem: decisão do usuário, 2026-10-27; commit d57807e.
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
 ### turnos.prompt-seguinte-retoma
@@ -79,9 +80,10 @@ Pai com filha concluída nunca fica interrompido.
 
 - Dado um pai com uma filha ✓
 - Quando o resto embaixo fica ✕ (Esc ou subagente que termina)
-- Então o pai fica ◷, nunca ✕
+- Então o pai fica ✓, nunca ✕; ◷ só enquanto algo embaixo segue aberto
 
 Origem: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"); commit 95b1a21.
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
 ### turnos.subagente-que-termina-interrompe

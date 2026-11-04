@@ -72,10 +72,11 @@ Um plano de pedido anterior com o mesmo id vira histórico.
 
 - Dado um nível 1 aberto de um pedido anterior
 - Quando um pedido novo traz plan com o mesmo id
-- Então o antigo fica ✕, renomeado, sob o pedido antigo (em "+N pedidos anteriores"), e o novo fica sob o pedido novo
+- Então as folhas abertas do antigo ficam ✕, e ele fica ✓ se tem filhas (✕ se é folha), renomeado, sob o pedido antigo (em "+N pedidos anteriores"), e o novo fica sob o pedido novo
 
 Origem: série 2, 2026-10-23; o usuário confirmou em 2026-10-27.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
 ### pedidos.nivel1-concluido-e-historico

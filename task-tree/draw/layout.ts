@@ -17,6 +17,8 @@ export const MAIN = ''
 export const flat = (list: TaskNode[]): TaskNode[] => list.flatMap(t => [t, ...flat(t.children)])
 export const tasksOf = (groups: Group[]) => groups.flatMap(g => g.tasks)
 export const hasOpen = (list: TaskNode[]) => flat(list).some(t => t.status === 'open')
+// A parent with nothing open below it is closed, whatever its own status says: ✓ on the panel.
+const settled = (t: TaskNode) => t.children.length > 0 && !hasOpen(t.children)
 export const withMain = (groups: Group[]): Group[] =>
   groups.some(g => g.agent === MAIN) ? groups : [{ agent: MAIN, label: '', tasks: [] }, ...groups]
 
@@ -37,9 +39,9 @@ export const interrupt =
 // (`aborted`: Esc, stop) reads it as interrupted. A task never started stays pending, the plan goes
 // on in the next turn (the person's panel: four steps never started came out "✕ interrompida"). An
 // open parent keeps its pending subtasks, its clock stopped; with nothing open left below it, it is
-// kept open too when something below it was done (the person: "se existem tarefas concluidas como
-// filhas, o pai nunca pode ficar como interrompido"), and is interrupted only with nothing done
-// below. Nothing lights up without start (current), so a halted panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
+// done once nothing below it is open, whatever mix of ✓ and ✕ is there (the person, 2026-11-04: "todos
+// os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria
+// estar concluida tambem"; only ✕ below too: "Fica ✓"). Nothing lights up without start (current), so a halted panel needs no other mark. A task with a message still queued (`sent`: the anchors of the sends
 // not taken up) is left as it is, open and started: it waits on that session, not on this turn,
 // and shows ✉ until the delivery (the person: "não mostre como interrompida, deixe como mensagem
 // até ela ser entregue"; it came out ✕ once the turn ended with the send still queued). The pending
@@ -61,9 +63,7 @@ export const halt =
       return begun ? interrupt(at)(t) : t
     }
     const children = t.children.map(halt(at, sent, aborted))
-    return hasOpen(children) || flat(children).some(k => k.status === 'done')
-      ? { ...t, started: undefined, endedAt: stop(t, at), children }
-      : interrupt(at)({ ...t, children })
+    return { ...t, ...(hasOpen(children) ? {} : { status: 'done' as const }), started: undefined, endedAt: stop(t, at), children }
   }
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
 // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
@@ -961,28 +961,26 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const waitsOn = pending.filter(s => s.anchor === t.id).map(s => s.to)
       // A task below it waits on a session (✉): the work is going on (it was drawn not started).
       const waitsBelow = t.status === 'open' && t.children.length > 0 && waitingBelow(t, pending)
-      // A parent with something done below it is never ✕ (the person: "se existem tarefas concluidas
-      // como filhas, o pai nunca pode ficar como interrompido"): interrupted or done with an interrupted
-      // one below, it is drawn waiting (◷); a task left open waiting at the turn's end too (leftWaiting).
-      const doneBelow = flat(t.children).some(k => k.status === 'done')
+      // A parent with nothing open below it is ✓, with any mix of ✓ and ✕ (see halt); only a leaf is ✕.
+      // A task left open waiting at the turn's end is ◷ (leftWaiting).
       const tone: Tone =
         t.status === 'interrupted'
-            ? t.children.length > 0 && doneBelow
-              ? 'paused'
+            ? settled(t)
+              ? 'done'
               : 'interrupted'
             : w.busy || waitsBelow
               ? 'current'
               : t.status === 'done'
-                ? flat(t.children).some(k => k.status === 'interrupted')
-                  ? 'paused'
-                  : 'done'
-                : leftWaiting(t)
-                  ? 'paused'
-                  : lit.includes(t.id) || trailIds.includes(t.id)
-                    ? 'current'
-                    : t.children.length > 0 && resting(t.children)
-                      ? 'paused'
-                      : 'open'
+                ? 'done'
+                : settled(t)
+                  ? 'done'
+                  : leftWaiting(t)
+                    ? 'paused'
+                    : lit.includes(t.id) || trailIds.includes(t.id)
+                      ? 'current'
+                      : t.children.length > 0 && resting(t.children)
+                        ? 'paused'
+                        : 'open'
       const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
       const row: Row = {
@@ -1051,15 +1049,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const tone: Tone =
       busy || list.some(t => t.status === 'open' && (lit.includes(t.id) || trailIds.includes(t.id) || waitingBelow(t, pending)))
         ? 'current'
-        : list.some(t => t.status === 'open')
+        : list.some(t => t.status === 'open' && !settled(t))
           ? resting(list)
             ? 'paused'
             : 'open'
-          : flat(list).some(t => t.status === 'interrupted')
-            ? flat(list).some(t => t.status === 'done')
-              ? 'paused'
-              : 'interrupted'
-            : 'done'
+          : 'done'
     const key = `${scope}T:${u.id}`
     const open = opened(key, true)
     const row: Row = {
@@ -1076,7 +1070,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       bar: true,
       time:
         (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], busy, now)) ??
-        (tone === 'done' || tone === 'interrupted'
+        (tone === 'done'
           ? null
           : tone === 'current' && now !== undefined && list.some(t => t.plannedAt !== undefined)
             ? now - Math.min(...list.flatMap(t => (t.plannedAt === undefined ? [] : [t.plannedAt])))
@@ -1089,7 +1083,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // their own icons (the person, 2026-10-30: "as tarefas derivadas dessa mensagem (pedido) deveriam
     // ter os icones de tarefas, não de cartas"; "Azul tratando, verde concluído, cinza interrompido").
     if (u.msg) {
-      row.recv = flat(list).some(t => t.status === 'open') ? 'queued' : tone === 'interrupted' ? 'cut' : 'delivered'
+      row.recv = flat(list).some(t => t.status === 'open') ? 'queued' : flat(list).some(t => t.status === 'done') ? 'delivered' : flat(list).some(t => t.status === 'interrupted') ? 'cut' : 'delivered'
       row.hint = `Mensagem de ${u.from?.name || u.from?.id || 'outra sessão'}: ${u.title}`
       row.whole = row.hint
     }

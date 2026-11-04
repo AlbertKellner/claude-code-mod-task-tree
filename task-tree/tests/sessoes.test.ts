@@ -86,7 +86,7 @@ test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha c
   const p = await painel($)
   esperarPalavra(p, 'filha-um', 'arquivada')
   esperarEstado(p, 'Aberta', 'interrompida')
-  esperarEstado(p, 'Pai da filha', 'aguardando')
+  esperarEstado(p, 'Pai da filha', 'concluida')
 })
 
 // Regra: sessoes.busto-so-no-pai

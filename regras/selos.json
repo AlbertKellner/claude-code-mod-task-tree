@@ -702,11 +702,11 @@
       "regras": [
         "turnos.pai-com-filha-concluida-nunca-interrompido"
       ],
-      "hash": "eb1923a11b37cfb3",
+      "hash": "2ab3ef47ab4e7208",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
     "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
       "regras": [
@@ -728,6 +728,36 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/pedidos.test.ts::pai com concluída e pendente embaixo segue aguardando": {
+      "regras": [
+        "arvore.pai-fecha-com-nada-aberto-embaixo"
+      ],
+      "hash": "017671e2816b9063",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/pedidos.test.ts::pai e pedido com só ✕ embaixo ficam concluídos, e a folha segue interrompida": {
+      "regras": [
+        "arvore.pai-fecha-com-nada-aberto-embaixo"
+      ],
+      "hash": "301174b046d5fa2c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/pedidos.test.ts::pai e pedido com ✓ e ✕ embaixo ficam concluídos, com as ✕ fora do x/y": {
+      "regras": [
+        "arvore.pai-fecha-com-nada-aberto-embaixo"
+      ],
+      "hash": "f5fedec5bb7a2b71",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
     "task-tree/tests/pedidos.test.ts::plan com o id de um nível 1 concluído deixa o concluído como histórico e põe um plano novo ao lado": {
       "regras": [
         "pedidos.nivel1-concluido-e-historico"
@@ -743,11 +773,11 @@
         "pedidos.replano-no-lugar",
         "pedidos.plano-anterior-vira-historico"
       ],
-      "hash": "bff2c2a0721403ee",
+      "hash": "7b864af6a3bda605",
       "assercoes": 7,
       "tipo": "decisao",
       "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
     "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
       "regras": [
@@ -956,11 +986,11 @@
         "sessoes.filha-arquivada-interrompe",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "8498f7e50e57ac9f",
+      "hash": "6aa91734264e0fba",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "sessões filhas (tarefa 5, commit A)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
     "task-tree/tests/sessoes.test.ts::filha parada: a iniciada aguarda e as pendentes seguem pendentes": {
       "regras": [
@@ -1159,11 +1189,11 @@
       "regras": [
         "turnos.subagente-que-termina-interrompe"
       ],
-      "hash": "a05f0b02458719d1",
+      "hash": "db54fe90d4d117ff",
       "assercoes": 5,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "subagente, hand-back e limites do desenho"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
     "task-tree/tests/turnos.test.ts::o ↩ aparece mesmo quando o turno termina sem texto final": {
       "regras": [
