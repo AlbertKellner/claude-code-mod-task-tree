@@ -1542,3 +1542,10 @@ em andamento, ela deveria estar concluida tambem"; com só ✕ embaixo, "Fica �
 ficam ✓ em qualquer mistura de ✓ e ✕ (`settled`, `halt`, `turnRows`, `settle`); só a folha é ✕. O ◷
 fica para o pai com algo ainda aberto. A linha fechada de um grupo de subagente não é pai de tarefa:
 segue ✕ "interrompido". O pedido recebido por mensagem segue cinza só sem nada concluído.
+
+## Sem animações (2026-11-04)
+
+Decisão do usuário: "desative as animacoes do task tree, quero avaliar como fica sem" e, depois de
+avaliar no app, "Manter sem animações". Saiu `draw/motion.ts` e o quadro de 100 ms do render: cada
+mudança é desenhada direto no estado final. As classes `ic`, `ch-*` e `bar` do SVG ficaram, para o
+desenho aprovado não mudar. Os relógios seguem no seu tique.

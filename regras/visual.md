@@ -2,7 +2,7 @@
 
 O que só o app mostra.
 
-Código da área: draw/svg.ts, draw/geometry.ts, draw/motion.ts
+Código da área: draw/svg.ts, draw/geometry.ts
 
 ### visual.largura-real
 O desenho termina na borda real.
@@ -35,14 +35,15 @@ Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortad
 Estado: checklist (tooltip do app)
 
 ### visual.animacao-de-linha-nova
-A linha nova anima uma vez e nada pisca à toa.
+A linha nova aparece de uma vez, sem animação, e nada pisca à toa.
 
 - Dado uma linha nova no painel
 - Quando ela aparece
-- Então anima uma vez, e as outras não piscam
+- Então ela aparece pronta, sem animação, e as outras não piscam
 
 Origem: commit f19a4ad, 2026-10-23 ("linhas e cartões novos entram com fade-in").
-Estado: checklist (animação real)
+Reescrito: 2026-11-04, "Manter sem animações" (decisão do usuário, depois de "desative as animacoes do task tree, quero avaliar como fica sem"); desfaz a linha que se revelava, o ícone que crescia, o traço do ✓, a barra que crescia e o chip que surgia.
+Estado: checklist (desenho real)
 
 ### visual.cores-dos-temas
 As cores seguem o tema.

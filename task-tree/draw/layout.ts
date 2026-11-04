@@ -773,7 +773,7 @@ export type Row = {
   // null: a closed task whose time is unknown (panels of earlier versions), drawn as "—".
   time?: number | null
   // What the line is, the same in every state (its title, fold or nodes may change): its task, turn,
-  // session, wait, answer or section. The render's motion follows lines by it.
+  // session, wait, answer or section.
   key?: string
   // A task with no subtasks.
   leaf?: boolean
