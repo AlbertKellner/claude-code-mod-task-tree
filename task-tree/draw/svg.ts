@@ -76,10 +76,13 @@ export const LIGHT: [string, string][] = [
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
   ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['lnf', 'fill:#888780;fill-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['csf', 'fill:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
+  // The header's state band and pills (V4): blue fill, and each tone's fill at 13 %.
+  ['blf', 'fill:#378add'], ['amp', 'fill:#ba7517;fill-opacity:.13'], ['grp', 'fill:#639922;fill-opacity:.13'], ['gyp', 'fill:#888780;fill-opacity:.13'], ['blp', 'fill:#378add;fill-opacity:.13'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
   ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['csf', 'fill:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['blf', 'fill:#85b7eb'], ['amp', 'fill:#ef9f27;fill-opacity:.13'], ['grp', 'fill:#97c459;fill-opacity:.13'], ['gyp', 'fill:#9c9a92;fill-opacity:.13'], ['blp', 'fill:#85b7eb;fill-opacity:.13'],
 ]
 export const STYLE = '<style data-slim></style>'
 // The sheet of one Svg: its classes' rules, light and dark. The sheet depends on the set of classes
@@ -545,8 +548,14 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   }
   // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
   const env = r.msg ?? r.recv
-  const lead = section ? '' : `<g class="ic">${env ? envelope(x, cy, MSG_CLASS[env]) : icon(progress(r), x, cy)}</g>`
-  const tx = section ? x - SECTION_TEXT_OUT : x + TEXT_IN
+  // A section that opens (the requests left out) shows its ▸/▾ where the icon is, which folds and opens it.
+  const folding = section && r.fold !== undefined
+  const lead = folding
+    ? `<text class="s" x="${x}" y="${cy + 4}" font-size="11" text-anchor="middle">${r.fold?.open ? '▾' : '▸'}</text>`
+    : section
+      ? ''
+      : `<g class="ic">${env ? envelope(x, cy, MSG_CLASS[env]) : icon(progress(r), x, cy)}</g>`
+  const tx = section && !folding ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
   const title = fit(whole, size, Math.max(24, edge - 10 - tx))
@@ -584,56 +593,105 @@ export function chips(active: number, waiting: number, cut: number, live: number
   return list
 }
 
-// The header: the title alone on the first line (its right end is left to the view icons, drawn
-// over it), the count and time below it, the bar, then the chips.
-export function headerSvg(title: string, d: number, n: number, list: Chip[], W: number, time?: number, rate?: { toks: number; live: boolean }, git?: GitLabel): { source: string; height: number } {
-  const L = HEADER_PAD
+// The header's general state, the color of its band (the person, 2026-11-03: "gostei da V4, siga para
+// análise e implementação"): in progress (amber) while a task of its own runs; waiting (light amber)
+// with something left waiting, a notice, or only pending tasks, nothing started yet (the person:
+// "Âmbar claro, 'aguardando'"); a session at work (blue) with nothing of its own running; all done
+// (green); interrupted (gray) with nothing open and something cut; none (the track's gray) when empty.
+export type HeaderState = { tone: Tone; word: string }
+export function headerState(s: { active: number; waiting: number; live: number; pending: number; d: number; n: number; x: number }): HeaderState {
+  if (s.active > 0) return { tone: 'current', word: 'em andamento' }
+  if (s.waiting > 0) return { tone: 'paused', word: 'aguardando' }
+  if (s.live > 0) return { tone: 'running', word: 'sessão ativa' }
+  if (s.n > 0 && s.d === s.n && s.pending === 0) return { tone: 'done', word: 'concluído' }
+  if (s.x > 0 && s.pending === 0) return { tone: 'interrupted', word: 'interrompido' }
+  if (s.n + s.x === 0) return { tone: 'open', word: 'nenhuma tarefa' }
+  return { tone: 'paused', word: 'aguardando' }
+}
+const BAND: Partial<Record<Tone, string>> = { current: 'amf', paused: 'amf', running: 'blf', done: 'grf', interrupted: 'gyf', open: 'tr' }
+const PILL: Partial<Record<Tone, string>> = { current: 'amp', wait: 'amp', paused: 'amp', open: 'gyp', interrupted: 'gyp', sent: 'blp', running: 'blp', done: 'grp' }
+
+// The header (V4, "Respiro", 125 px, with room under the pills): a card with the state band inside its left border; the title
+// alone on the first line (its right end left to the view icons, drawn over it), the repository and
+// branch below it, the bar, then the chips as pills; the numbers block at the right, the % large with
+// the count and the time (and the output rate) below it.
+export function headerSvg(
+  title: string,
+  d: number,
+  n: number,
+  list: Chip[],
+  W: number,
+  time?: number,
+  rate?: { toks: number; live: boolean },
+  git?: GitLabel,
+  state: HeaderState = headerState({ active: 0, waiting: 0, live: 0, pending: 0, d, n, x: 0 }),
+): { source: string; height: number } {
+  const L = HEADER_PAD + 8
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
   const H = HEADER_H
+  const narrow = W < 600
+  const block = narrow ? 76 : 130
   // The card first, under everything: a session's card's fill, border and corners (cardSlice), from
   // CARD_RIGHT in on each side and HEADER_GAP short of the bottom; no dividing line below it (the
   // person: "remova a barra horizontal de divisão").
-  const parts: string[] = [cardSlice(CARD_RIGHT, W - CARD_RIGHT, CARD_RIGHT, H - HEADER_GAP - CARD_RIGHT, true, true, W)]
+  const y0 = CARD_RIGHT
+  const y1 = H - HEADER_GAP - CARD_RIGHT
+  const parts: string[] = [cardSlice(CARD_RIGHT, W - CARD_RIGHT, y0, y1, true, true, W)]
+  // The band: 5 px inside the left border, the card's height, following its rounded corners.
+  parts.push(
+    `<clipPath id="fxc"><rect x="${CARD_RIGHT + 0.5}" y="${y0 + 0.5}" width="${4 * CARD_RADIUS}" height="${y1 - y0 - 1}" rx="${CARD_RADIUS}"/></clipPath>` +
+      `<g class="fx fx-${state.tone}" clip-path="url(#fxc)"><rect class="${BAND[state.tone] ?? 'tr'}" x="${CARD_RIGHT}" y="${y0}" width="${CARD_RIGHT + 5}" height="${y1 - y0}"${state.tone === 'paused' ? ' opacity=".5"' : ''}/></g>`,
+  )
   if (empty) {
-    parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">Tarefas</text>`)
-    parts.push(`<text class="s" x="${L}" y="38" font-size="12">Nenhuma tarefa planejada.</text>`)
+    parts.push(`<text class="p" x="${L}" y="30" font-size="16" font-weight="600">Tarefas</text>`)
+    parts.push(`<text class="s" x="${L}" y="52" font-size="12">Nenhuma tarefa planejada.</text>`)
   } else {
-    const score = `${d} de ${n} · ${percent(d, n)}%` + (time !== undefined ? ` · ${clockText(time)}` : '')
-    const name = fit(title, 14, Math.max(40, R - ICONS_W - L))
-    parts.push(`<text class="p" x="${L}" y="22" font-size="14" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
-    parts.push(`<text class="s" x="${L}" y="40" font-size="12" font-variant-numeric="tabular-nums">${score}</text>`)
-    // This session's own output rate after the count, dim when it is the last turn's mean.
-    if (rate) parts.push(`<text class="s" x="${L + textW(`${score} `, 12)}" y="40" font-size="12" font-variant-numeric="tabular-nums"${rate.live ? '' : ' opacity=".45"'}>· ${rateText(rate.toks)}</text>`)
-    // This session's repository and branch after the count, with their icons (the person: "coloque
+    const name = fit(title, 16, Math.max(24, R - ICONS_W - L - block))
+    parts.push(`<text class="p" x="${L}" y="30" font-size="16" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
+    // This session's repository and branch below the title, with their icons (the person: "coloque
     // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
+    const room = R - L - block
     if (git) {
-      const gx = L + textW(`${score} ${rate ? `· ${rateText(rate.toks)} ` : ''}`, 12) + 14
-      // A folder has no branch to fall back to: short of room, nothing.
-      if (gx + gitW(git, 12, true) <= R) parts.push(gitSvg(git, gx, 36, 12, true, R - gx).svg)
-      else if (!git.folder && gx + gitW(git, 12, false) <= R) parts.push(gitSvg(git, gx, 36, 12, false, R - gx).svg)
+      if (gitW(git, 12, true) <= room) parts.push(gitSvg(git, L, 48, 12, true, room).svg)
+      else if (!git.folder && gitW(git, 12, false) <= room) parts.push(gitSvg(git, L, 48, 12, false, room).svg)
     }
-    // The bar runs from edge to edge of the slot (its CSS width); the width attribute, in px of W, is
-    // what the motion reads (barOf), and its share of the track is the same.
-    const track = `calc(${slot(W)} - ${2 * HEADER_PAD}px)`
-    parts.push(`<rect class="tr" x="${L}" y="50" width="${R - L}" height="4" rx="2" style="width:${track}"/>`)
-    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="50" width="${Math.max(4, ((R - L) * d) / n)}" height="4" rx="2" style="width:max(4px, calc(${track} * ${d / n}))"/>`)
-    // Too narrow for the words: the numbers alone, after their icons.
-    const wide = list.reduce((w, c) => w + 32 + textW(c.text, 12), -16) <= R - L
+    // The bar runs from the left to the numbers block (its CSS width follows the slot); the width
+    // attribute, in px of W, is what the motion reads (barOf), and its share of the track is the same.
+    const span = R - L - block - 20
+    const track = `calc(${slot(W)} - ${L + (W - R) + block + 20}px)`
+    parts.push(`<rect class="tr" x="${L}" y="66" width="${span}" height="4" rx="2" style="width:${track}"/>`)
+    if (n > 0 && d > 0) parts.push(`<rect class="grf bar" x="${L}" y="66" width="${Math.max(4, (span * d) / n)}" height="4" rx="2" style="width:max(4px, calc(${track} * ${d / n}))"/>`)
+    // The pills; too narrow for the words, the numbers alone, after their icons.
+    const pillW = (text: string) => 30 + textW(text, 12)
+    const wide = list.reduce((w, c) => w + pillW(c.text) + 8, -8) <= span
     let cx = L
     for (const chip of list) {
       const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0]! }
-      const w = 16 + textW(c.text, 12)
-      if (cx + w > R) break
-      // Each chip in a group named by its tone (`ch-<tone>`), and the bars' filled part (`bar`): what
+      const w = pillW(c.text)
+      if (cx + w > L + span) break
+      // Each pill in a group named by its tone (`ch-<tone>`), and the bar's filled part (`bar`): what
       // the motion of a new chip and of a new count animates (../draw/motion).
       parts.push(
-        `<g class="ch-${c.tone}">` +
-          (c.tone === 'current' ? `<circle class="amf" cx="${cx + 5}" cy="72" r="4"/>` : icon(c.tone, cx + 5, 72)) +
-          `<text class="s" x="${cx + 15}" y="76" font-size="12">${xml(c.text)}</text></g>`,
+        `<g class="ch-${c.tone}"><rect class="${PILL[c.tone] ?? 'gyp'}" x="${cx}" y="82" width="${w}" height="22" rx="11"/>` +
+          icon(c.tone, cx + 13, 93) +
+          `<text class="p" x="${cx + 23}" y="98" font-size="12">${xml(c.text)}</text></g>`,
       )
-      cx += w + 16
+      cx += w + 8
     }
+    // The numbers block, at the right of the slot (toRight), left of the view icons.
+    const bx = R - ICONS_W - 6
+    const num = 'text-anchor="end" font-variant-numeric="tabular-nums"'
+    const clock = time !== undefined ? clockText(time) : ''
+    const tail = !narrow && rate ? `<tspan${rate.live ? '' : ' opacity=".45"'}>${clock ? ' · ' : ''}${rateText(rate.toks)}</tspan>` : ''
+    parts.push(
+      toRight(
+        W,
+        `<text class="p" x="${bx}" y="54" font-size="${narrow ? 20 : 26}" font-weight="700" ${num}>${percent(d, n)}%</text>` +
+          `<text class="s" x="${bx}" y="74" font-size="12" ${num}>${d} de ${n}</text>` +
+          (clock || tail ? `<text class="s" x="${bx}" y="92" font-size="12" ${num}>${clock}${tail}</text>` : ''),
+      ),
+    )
   }
   return {
     source: slim(`${svgOpen(H)}${parts.join('')}</svg>`),

@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, type Filha } from './kit/ambiente'
 import { abrirSessao, aviso, done, pedido, plan, start, type No } from './kit/cenario'
+import { fimDoTurno, visao } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
 import { envio } from './kit/cenario'
@@ -299,5 +300,119 @@ test('no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo
   expect(cartao.map(c => c.tarefas), emTexto(p)).toEqual([['Governança: push e PR', 'Conferir e rodar o check']])
   expect(linha(p, 'Governança: push e PR').carta, emTexto(p)).toBeDefined()
   esperarEstado(p, 'Conferir e rodar o check', 'concluida')
+})
+
+// ---- Turno aberto pelo usuário na filha (own).
+
+const PROPRIO = 'governanca · pedido do usuário na filha'
+// A mãe abre a filha no pedido antigo ("Reescrita"); a filha trata a mensagem (turno 1).
+async function abrirNoPedidoAntigo($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  return { h, relogio }
+}
+// O usuário digita na filha em `at`: ela planeja e começa uma tarefa desse turno próprio.
+const digitouNaFilha = (h: any, at: number) => {
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Reescrever com filter-repo', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'pode apagar e reescrever', at, own: true }],
+  }
+}
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  const cartao = linha(p, PROPRIO)
+  // No fim do pedido atual (sob a última tarefa de nível 1 dele), não no pedido antigo.
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
+  expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Pedido atual')))
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente, cabecalho.limites-de-linhas
+test('com o turno próprio da filha trabalhando no pedido antigo, o pedido segue desenhado depois de três pedidos novos', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  digitouNaFilha(h, AGORA + 500)
+  for (let i = 3; i <= 5; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await aviso($)
+  await visao($, 'completa')
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Reescrita'), emTexto(p)).toBe(true)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Reescrita'])
+  expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+})
+
+// ---- Cartão vivo nunca some.
+
+const VELHA = 'local_44444444-4444-4444-4444-444444444444'
+// Pedido antigo com duas filhas: a viva (parada com tarefa aberta) e a velha (parada, tudo feito); depois,
+// três pedidos novos, e o antigo sai de vista.
+async function filhasNoPedidoAntigo($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: K1, nome: 'viva', painel: { tasks: [noTurno(1, '1', 'Ainda aberta', 'aberta')], turns: [turno(1, AGORA + 10)] } },
+    { id: VELHA, nome: 'velha', painel: { tasks: [noTurno(1, '1', 'Já feita', 'feita')], turns: [turno(1, AGORA + 10)] } },
+  ])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Antigo', children: [{ id: 'o1', title: 'Abrir as filhas' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(VELHA).rodando = false
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  for (let i = 2; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await aviso($)
+}
+
+// Regra: sessoes.cartao-vivo-nunca-some
+test('o cartão vivo de um pedido cortado é desenhado solto no fim, nas duas visões; o parado e concluído segue cortado', async ($: any, on: any) => {
+  await filhasNoPedidoAntigo($, on)
+  for (const v of ['completa', 'resumida'] as const) {
+    await visao($, v)
+    const p = await painel($)
+    const solto = 'viva · do pedido "Pedido antigo"'
+    expect(p.some(l => l.titulo === solto), `${v}:\n${emTexto(p)}`).toBe(true)
+    // Solto no fim: depois do último pedido, e o pedido antigo não volta.
+    expect(p.indexOf(linha(p, solto)), `${v}:\n${emTexto(p)}`).toBeGreaterThan(p.indexOf(linha(p, 'Folha 4')))
+    expect(p.some(l => l.titulo === 'Antigo'), `${v}:\n${emTexto(p)}`).toBe(false)
+    expect(p.some(l => l.titulo === 'velha' || l.titulo.startsWith('velha ·')), `${v}:\n${emTexto(p)}`).toBe(false)
+    esperarEstado(p, 'Ainda aberta', 'pendente')
+  }
 })
 

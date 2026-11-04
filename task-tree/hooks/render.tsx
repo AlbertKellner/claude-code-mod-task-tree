@@ -9,7 +9,7 @@ import { ICONS_W, lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureView, ensureWork, knownId, setView, stamp } from './panel'
@@ -132,7 +132,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
-            <Svg source={hoverLayer(top.source, W - ICONS_W, 28)} alt="" width={W - ICONS_W} height={28} isInteractive />
+            <Svg source={hoverLayer(top.source, W - ICONS_W, 40)} alt="" width={W - ICONS_W} height={40} isInteractive />
           </Box>
         ) : null}
         <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
@@ -214,7 +214,8 @@ function drawTerminal($: any, ui: any, lines: Row[], header: any[], errorLine: a
       {lines.map((r, i) => {
         // A message task: the ✉ in every state, in the color of where the message is.
         const env = r.msg ?? r.recv
-        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : GLYPH[progress(r)]
+        // A section that opens (the requests left out) shows its ▸/▾ where the icon is.
+        const [glyph, color] = env ? [GLYPH.sent[0], MSG_TERM[env]] : r.tone === 'section' && r.fold ? [r.fold.open ? '▾' : '▸', 'inactive'] : GLYPH[progress(r)]
         const forked = r.session === true || r.kids === true
         const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'section' || r.tone === 'reply'
         const words = rightText(r)
@@ -374,7 +375,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   const resting = open.filter(leftWaiting).length
   const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
-  const list = chips(active, tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting, x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
+  const waitingNow = tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting
+  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
+  // The header's general state, the color of its band (headerState).
+  const state = headerState({ active, waiting: waitingNow, live: tally(r => r.live), pending, d, n, x })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   const { Button } = ui
@@ -404,7 +408,7 @@ export async function render($: EngineInterface, e: any, next: any) {
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit)
+    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
@@ -414,7 +418,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
-          ].join(', ')) + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
+          ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
     return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
   }
 

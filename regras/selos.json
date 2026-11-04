@@ -52,6 +52,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/cabecalho.test.ts::\"+N pedidos anteriores\" abre com um clique, fechado por padrão, e fecha de novo": {
+      "regras": [
+        "cabecalho.historico-abre-com-clique"
+      ],
+      "hash": "d920acb9eecba5b6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "histórico abre com clique"
+    },
     "task-tree/tests/cabecalho.test.ts::a interrompida sai do total e entra no chip": {
       "regras": [
         "cabecalho.interrompida-fora-do-total"
@@ -910,6 +920,17 @@
       "data": "2026-10-28",
       "motivo": "sessão aberta conta como uso da tarefa"
     },
+    "task-tree/tests/sessoes.test.ts::com o turno próprio da filha trabalhando no pedido antigo, o pedido segue desenhado depois de três pedidos novos": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente",
+        "cabecalho.limites-de-linhas"
+      ],
+      "hash": "fd78e6fda9a85c0f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "turno próprio da filha no pedido vigente"
+    },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",
@@ -981,6 +1002,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::o cartão vivo de um pedido cortado é desenhado solto no fim, nas duas visões; o parado e concluído segue cortado": {
+      "regras": [
+        "sessoes.cartao-vivo-nunca-some"
+      ],
+      "hash": "86aec63ca4f42e4e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "cartão vivo nunca some"
+    },
+    "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "d80a949186d6b638",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "turno próprio da filha no pedido vigente"
     },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
@@ -1123,6 +1164,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "11d73456dcbfb13d",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "faixa de estado geral do cabeçalho V4"
+    },
+    "task-tree/tests/visual.test.ts::a faixa do cabeçalho: interrompido depois do Esc, e sessão ativa com só a filha trabalhando": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "f2997d1ce000e257",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "faixa de estado geral do cabeçalho V4"
     }
   },
   "kit": {
@@ -1139,27 +1200,27 @@
       "motivo": "fimDoTurno com resposta opcional"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "b43727a46600e3b5",
+      "hash": "85bd3242c0cc29c1",
       "tipo": "refatoracao",
-      "data": "2026-10-28",
-      "motivo": "svgs: o desenho do desktop para o golden"
+      "data": "2026-11-03",
+      "motivo": "o ▸/▾ da linha de seção faz as vezes do ícone"
     }
   },
   "golden": {
     "envios": {
-      "hash": "1895347c21c49a9b",
-      "data": "2026-10-29",
-      "motivo": "\"sim, correto\", 2026-10-29"
+      "hash": "e1f8dcd2699393a4",
+      "data": "2026-11-03",
+      "motivo": "\"de só um pequeno espaço embaico de cada label, esta colado no final do painel, apos isso, pode fazer push\", 2026-11-03"
     },
     "filha": {
-      "hash": "c83bf433d33a47fc",
-      "data": "2026-10-29",
-      "motivo": "\"sim, correto\", 2026-10-29"
+      "hash": "50295ba1bb0bbed8",
+      "data": "2026-11-03",
+      "motivo": "\"de só um pequeno espaço embaico de cada label, esta colado no final do painel, apos isso, pode fazer push\", 2026-11-03"
     },
     "principal": {
-      "hash": "ddb7a58745ecb35a",
-      "data": "2026-10-29",
-      "motivo": "\"Funcionou\", 2026-10-29"
+      "hash": "e26ebd1d0cd6eb59",
+      "data": "2026-11-03",
+      "motivo": "\"de só um pequeno espaço embaico de cada label, esta colado no final do painel, apos isso, pode fazer push\", 2026-11-03"
     }
   }
 }

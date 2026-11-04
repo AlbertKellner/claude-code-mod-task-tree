@@ -9,10 +9,11 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 
 - Dado uma sessão filha aberta a partir de uma tarefa
 - Quando o painel é desenhado
-- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem
+- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente)
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
 Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
+Reescrito: 2026-11-03, decisão do usuário ("No pedido vigente da orquestradora (Recomendado)"), pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc..."; desfaz, para o turno próprio da filha, "turno aberto direto pelo usuário na filha vira cartão próprio, sem âncora, no fim do pedido de origem".
 Código: hooks/panel.ts
 Estado: coberto
 
@@ -160,3 +161,26 @@ No cartão da filha, o pedido que veio por mensagem tem a sua linha, com a carta
 Origem: decisão do usuário, 2026-10-30 ("Sim, uma carta por mensagem (Recomendado)": a linha do pedido aparece sempre no cartão da filha, até com uma tarefa só).
 Código: draw/layout.ts
 Estado: coberto
+
+### sessoes.turno-proprio-da-filha-no-pedido-vigente
+O turno que o usuário abriu digitando na filha fica no pedido da mãe vigente quando ele digitou.
+
+- Dado uma filha aberta num pedido antigo da mãe, e o usuário digitando direto nela depois de um pedido novo da mãe
+- Quando a mãe desenha o painel
+- Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no tooltip; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
+
+Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
+Código: draw/layout.ts
+Estado: coberto
+
+### sessoes.cartao-vivo-nunca-some
+Um cartão com a sessão trabalhando ou com tarefa aberta nunca some.
+
+- Dado um cartão vivo (sessão trabalhando ou tarefa aberta) sob um pedido que saiu de vista: cortado na completa ("+N pedidos anteriores") ou fora do trabalho na resumida
+- Quando o painel é desenhado
+- Então o cartão é desenhado solto no fim do painel, com o nome do pedido de origem no título; o pedido antigo não volta; cartões parados e concluídos seguem cortados
+
+Origem: decisão do usuário, 2026-11-03 ("Cartão vivo solto no fim (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". Reescreve, só para o cartão vivo, a decisão de 2026-10-23 da resumida ("não traz o pedido de volta, nem o cartão é desenhado solto").
+Código: draw/layout.ts
+Estado: coberto
+

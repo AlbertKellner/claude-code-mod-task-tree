@@ -89,8 +89,9 @@ A resumida mantém os pedidos anteriores enquanto há algo aberto.
 
 - Dado um pedido anterior com algo aberto à vista
 - Quando um pedido novo começa
-- Então a visão resumida mantém os dois; com tudo fechado, só o novo
+- Então a visão resumida mantém os dois; com tudo fechado, só o novo; um cartão de sessão ainda viva sob um pedido fora da resumida não traz o pedido de volta, mas é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"); desfaz, só para o cartão vivo, "nem o cartão é desenhado solto" (2026-10-23).
 Código: draw/layout.ts, hooks/command.ts
 Estado: coberto

@@ -47,7 +47,7 @@ Origem: regra do painel desde a entrada do mod (commit 465b09e, "Interrupted tas
 Estado: coberto
 
 ### cabecalho.chips-contam-folhas
-Os chips contam só folhas, nunca pais nem tarefas de mensagem.
+Os chips (as pílulas do cabeçalho) contam só folhas, nunca pais nem tarefas de mensagem.
 
 - Dado tarefas com filhas, tarefas de mensagem e folhas em cada estado
 - Quando o cabeçalho é desenhado
@@ -61,9 +61,10 @@ Os pedidos além dos três últimos viram "+N pedidos anteriores".
 
 - Dado mais de três pedidos, os antigos sem nada aberto
 - Quando a completa é desenhada
-- Então os mais antigos viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, à parte)
+- Então os mais antigos viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, à parte); um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
+Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos
@@ -108,3 +109,15 @@ Duas tarefas iniciadas no mesmo instante: vale a ordem do start.
 Origem: regra do painel; correção do empate achada no teste da tarefa 6, 2026-10-28.
 Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto
+
+### cabecalho.historico-abre-com-clique
+"+N pedidos anteriores" abre e fecha com um clique.
+
+- Dado mais de três pedidos, os antigos cortados numa linha "+N pedidos anteriores"
+- Quando a pessoa clica no ▸ dessa linha (fechada por padrão)
+- Então os pedidos cortados são desenhados, a linha mostra ▾, e um clique de novo a fecha; o limite de 400 linhas do desenho continua valendo
+
+Origem: decisão do usuário, 2026-11-03 ("Sim, fechado por padrão (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...".
+Código: draw/svg.ts, hooks/render.tsx
+Estado: coberto
+
