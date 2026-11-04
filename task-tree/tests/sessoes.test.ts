@@ -1,11 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, type Filha } from './kit/ambiente'
 import { abrirSessao, aviso, done, pedido, plan, start, type No } from './kit/cenario'
-import { fimDoTurno, visao } from './kit/cenario'
+import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
 import { envio } from './kit/cenario'
-import { cabecalho, cartoes, esperarCarta } from './kit/leitura'
+import { cabecalho, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }] }] }]
@@ -86,7 +86,7 @@ test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha c
   const p = await painel($)
   esperarPalavra(p, 'filha-um', 'arquivada')
   esperarEstado(p, 'Aberta', 'interrompida')
-  esperarEstado(p, 'Pai da filha', 'aguardando')
+  esperarEstado(p, 'Pai da filha', 'concluida')
 })
 
 // Regra: sessoes.busto-so-no-pai
@@ -201,10 +201,10 @@ test('mensagens entregues juntas: o cartão do turno vai à tarefa da última', 
 
 // Regra: sessoes.rodada-descartada-fora-da-contagem
 test('a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada', async ($: any, on: any) => {
-  // A rodada 1 com uma ✓ e uma aberta; a rodada 2 com f2. Contam Um, Três e f2 (Dois é tarefa de mensagem).
+  // A rodada 1 com uma ✓ e uma aberta; a rodada 2 com f2. Contam Um, Dois, Três e f2 (a tarefa que enviou conta).
   const p = await duasRodadas($, on, [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')])
   const c = cabecalho(p)
-  expect(c.total, emTexto(p)).toBe(3)
+  expect(c.total, emTexto(p)).toBe(4)
   expect(cartoes(p, 'filha-um')[0]?.tarefas, emTexto(p)).toEqual(expect.arrayContaining(['f1', 'f1b']))
 })
 
@@ -273,7 +273,7 @@ test('a cadeia de irmãs fica na sequência, sob a tarefa da mãe, sem cartão d
 test('a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega', async ($: any, on: any) => {
   const { p } = await cadeia($, on, false)
   expect(cartoes(p, 'filha-um')[0]?.tarefas, emTexto(p)).toContain('Avisar K2')
-  esperarCarta(p, 'Avisar K2', 'fila')
+  esperarCartaSob(p, 'Avisar K2', 'fila')
 })
 
 // Regra: sessoes.rodada-descartada-fora-da-contagem-do-pai
@@ -281,7 +281,7 @@ test('com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rod
   const p = await duasRodadas($, on, [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')])
   expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
   const c = cabecalho(p)
-  expect([c.feitas, c.total], emTexto(p)).toEqual([0, 3])
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 4])
   esperarEstado(p, 'f2', 'andamento')
 })
 
@@ -358,7 +358,6 @@ test('com o turno próprio da filha trabalhando no pedido antigo, o pedido segue
     await fimDoTurno($)
   }
   await aviso($)
-  await visao($, 'completa')
   const p = await painel($)
   expect(p.some(l => l.titulo === 'Reescrita'), emTexto(p)).toBe(true)
   const cs = cartoes(p, PROPRIO)
@@ -403,16 +402,28 @@ async function filhasNoPedidoAntigo($: any, on: any) {
 // Regra: sessoes.cartao-vivo-nunca-some
 test('o cartão vivo de um pedido cortado é desenhado solto no fim, nas duas visões; o parado e concluído segue cortado', async ($: any, on: any) => {
   await filhasNoPedidoAntigo($, on)
-  for (const v of ['completa', 'resumida'] as const) {
-    await visao($, v)
-    const p = await painel($)
-    const solto = 'viva · do pedido "Pedido antigo"'
-    expect(p.some(l => l.titulo === solto), `${v}:\n${emTexto(p)}`).toBe(true)
-    // Solto no fim: depois do último pedido, e o pedido antigo não volta.
-    expect(p.indexOf(linha(p, solto)), `${v}:\n${emTexto(p)}`).toBeGreaterThan(p.indexOf(linha(p, 'Folha 4')))
-    expect(p.some(l => l.titulo === 'Antigo'), `${v}:\n${emTexto(p)}`).toBe(false)
-    expect(p.some(l => l.titulo === 'velha' || l.titulo.startsWith('velha ·')), `${v}:\n${emTexto(p)}`).toBe(false)
-    esperarEstado(p, 'Ainda aberta', 'pendente')
-  }
+  const p = await painel($)
+  const solto = 'viva · do pedido "Pedido antigo"'
+  expect(p.some(l => l.titulo === solto), emTexto(p)).toBe(true)
+  // Solto no fim: depois do último pedido, e o pedido antigo não volta.
+  expect(p.indexOf(linha(p, solto)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Folha 4')))
+  expect(p.some(l => l.titulo === 'Antigo'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === 'velha' || l.titulo.startsWith('velha ·')), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Ainda aberta', 'pendente')
 })
 
+// Regra: cabecalho.historico-guarda-o-que-saiu
+test('o pedido que saiu do trabalho volta com o cartão da filha ao abrir "+N pedidos anteriores"', async ($: any, on: any) => {
+  await abrir($, on, { rodando: false, painel: { tasks: [tarefa('1', 'Da filha', 'feita')] } })
+  await done($, ['1', '2.1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido novo')
+  await plan($, [{ id: 'N', title: 'Plano novo', children: [{ id: 'n1', title: 'Novo um' }] }])
+  await start($, ['n1'])
+  await aviso($)
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'Da filha'), emTexto(p)).toBe(false)
+  p = await comHistorico($, 1)
+  expect(cartoes(p, 'filha-um').length, emTexto(p)).toBe(1)
+  esperarEstado(p, 'Da filha', 'concluida')
+})

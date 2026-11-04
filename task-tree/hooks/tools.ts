@@ -103,9 +103,10 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     if (agent === MAIN) {
       // The sessions' ties to a renamed task go with it (see renameAnchors).
       await renameAnchors($, renamed, tag)
-      // The sends from tasks the replan left out (already delivered: a queued one is kept) go.
+      // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
+      // hanging from the request's level-1 task until the delivery (the panel's letters).
       const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
-      await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor)))
+      await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
       // A closed level-1 task of the current work renamed by this plan stays in it.
       const { value: cur = [] } = await $.state.get(workState)
       const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)

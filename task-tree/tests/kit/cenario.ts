@@ -38,7 +38,6 @@ export const retomar = ($: any, id: string) => $.classic.SessionStart({ source: 
 export const limpar = ($: any) => $.classic.SessionStart({ source: 'clear' })
 
 // Troca a visão, como /task-tree resumida | completa.
-export const visao = ($: any, v: 'resumida' | 'completa') => $.command.run({ command: 'task-tree', args: v })
 
 // Uma mensagem de outra sessão: abre um pedido marcado como recebido.
 export const mensagemDe = ($: any, de: string, texto: string) =>

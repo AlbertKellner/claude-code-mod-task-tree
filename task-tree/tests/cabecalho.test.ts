@@ -2,8 +2,8 @@ import { expect, test } from 'claude-code/testing'
 import { AGORA } from './kit/ambiente'
 import { aviso } from './kit/cenario'
 import { fixar, host, responderEnvio } from './kit/ambiente'
-import { done, envio, fimDoTurno, pedido, plan, start, visao, type No } from './kit/cenario'
-import { cabecalho, emTexto, esperarEstado, montar, painel } from './kit/leitura'
+import { done, envio, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { comHistorico, cabecalho, emTexto, esperarEstado, montar, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }, { id: 'b2', title: 'b2' }] }]
@@ -16,10 +16,9 @@ test('os números somam o que a visão desenha, e recolher não muda nada', asyn
   await plan($, A)
   await start($, ['1'])
   await done($, ['1'])
-  // A dobra fica guardada entre as visões: na completa as linhas são recolhidas, na resumida reabertas.
-  const ordem = { completa: ['Dois', 'Plano A', 'Pedido um'], resumida: ['Pedido um', 'Plano A', 'Dois'] }
-  for (const v of ['completa', 'resumida'] as const) {
-    await visao($, v)
+  // A dobra fica guardada: as linhas são recolhidas e depois reabertas.
+  const ordem = { recolhendo: ['Dois', 'Plano A', 'Pedido um'], reabrindo: ['Pedido um', 'Plano A', 'Dois'] }
+  for (const v of ['recolhendo', 'reabrindo'] as const) {
     const m = await montar($)
     let c = cabecalho(await m.linhas())
     expect([c.feitas, c.total], `${v}:\n${emTexto(await m.linhas())}`).toEqual([1, 3])
@@ -45,18 +44,17 @@ test('o pedido finalizado sai da resumida quando um pedido novo começa trabalho
   await pedido($, 'Pedido dois')
   await plan($, B)
   await start($, ['b1'])
-  await visao($, 'completa')
   let p = await painel($)
-  expect(tem(p, 'Plano A') && tem(p, 'Plano B'), emTexto(p)).toBe(true)
-  let c = cabecalho(p)
-  expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
-  await visao($, 'resumida')
-  p = await painel($)
   expect(tem(p, 'Plano A'), emTexto(p)).toBe(false)
   expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
-  c = cabecalho(p)
+  let c = cabecalho(p)
   expect([c.feitas, c.total], emTexto(p)).toEqual([0, 2])
   expect(c.inteira, emTexto(p)).toEqual({ feitas: 3, total: 5 })
+  // O que saiu fica a um clique: aberto, volta a ser desenhado e contado.
+  p = await comHistorico($, 1)
+  expect(tem(p, 'Plano A') && tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
 })
 
 // Regra: pedidos.resumida-mantem-anteriores-com-algo-aberto
@@ -71,7 +69,6 @@ test('com algo aberto à vista, a resumida mantém o pedido anterior', async ($:
   await pedido($, 'Pedido dois')
   await plan($, B)
   await start($, ['b1'])
-  await visao($, 'resumida')
   const p = await painel($)
   expect(tem(p, 'Plano A') && tem(p, 'Plano B'), emTexto(p)).toBe(true)
   const c = cabecalho(p)
@@ -88,8 +85,7 @@ test('a interrompida sai do total e entra no chip', async ($: any, on: any) => {
   await relogio.advance(1000)
   await pedido($, 'Pedido dois')
   await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
-  await visao($, 'completa')
-  const p = await painel($)
+  const p = await comHistorico($, 1)
   // Só as folhas (os pais ✕ não contam).
   const folhas = p.filter(l => ['Um', 'Dois.um', 'Dois.dois'].includes(l.titulo))
   const x = folhas.filter(l => l.estado === 'interrompida').length
@@ -113,7 +109,8 @@ test('os chips contam só folhas, nunca pais nem tarefas de mensagem', async ($:
   await envio($, 'local_x')
   p = await painel($)
   c = cabecalho(p)
-  expect([c.chips.andamento, c.chips.sessao, c.chips.pendentes], emTexto(p)).toEqual([0, 1, 2])
+  // A tarefa que enviou conta pelo ícone (em andamento); a carta na fila, em "aguardando sessão".
+  expect([c.chips.andamento, c.chips.sessao, c.chips.pendentes], emTexto(p)).toEqual([1, 1, 2])
 })
 
 // Regra: cabecalho.titulo-e-a-ultima-iniciada
@@ -162,14 +159,13 @@ test('só os três últimos pedidos aparecem na completa; os outros viram "+N pe
     await fimDoTurno($)
     await relogio.advance(1000)
   }
-  await visao($, 'completa')
   const p = await painel($)
-  expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(true)
-  expect(tem(p, 'Plano 1') || tem(p, 'Plano 2'), emTexto(p)).toBe(false)
-  expect(tem(p, 'Plano 3') && tem(p, 'Plano 5'), emTexto(p)).toBe(true)
-  // Os números somam o que a completa desenha (os três pedidos); a sessão inteira conta os cinco.
+  expect(p.some(l => l.texto.includes('+4 pedidos anteriores')), emTexto(p)).toBe(true)
+  expect(tem(p, 'Plano 1') || tem(p, 'Plano 4'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano 5'), emTexto(p)).toBe(true)
+  // Os números somam o que está desenhado (o último pedido); a sessão inteira conta os cinco.
   const c = cabecalho(p)
-  expect([c.feitas, c.total], emTexto(p)).toEqual([3, 3])
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 1])
   expect(c.inteira, emTexto(p)).toEqual({ feitas: 5, total: 5 })
 })
 
@@ -187,8 +183,10 @@ test('o cartão parado, sem tarefa de origem e de antes dos três últimos pedid
     await fimDoTurno($)
   }
   await aviso($)
-  await visao($, 'completa')
-  const p = await painel($)
+  // Fechada, a linha dos pedidos anteriores guarda também os cartões antigos.
+  const fechado = await painel($)
+  expect(fechado.some(l => l.texto.includes('cartões antigos')), emTexto(fechado)).toBe(false)
+  const p = await comHistorico($, 3)
   expect(p.some(l => l.texto.includes('+1 cartões antigos de sessões')), emTexto(p)).toBe(true)
   expect(p.some(l => l.titulo === 'filha-antiga'), emTexto(p)).toBe(false)
 })
@@ -206,7 +204,6 @@ test('um pedido grande demais é desenhado até o limite e fecha com "+N linhas"
   fixar(on)
   await pedido($, 'Pedido grande')
   await plan($, grande('T', 8, 8, 7))
-  await visao($, 'completa')
   const p = await painel($)
   const desenho = p.filter(l => !l.cabecalho)
   expect(desenho.length, emTexto(p).slice(-500)).toBeLessThanOrEqual(400)
@@ -227,8 +224,7 @@ test('pedidos antigos saem inteiros do começo, contados em "+N linhas anteriore
   await relogio.advance(1000)
   await pedido($, 'Pedido três')
   await plan($, [{ id: 'P', title: 'Plano pequeno', children: [{ id: 'p1', title: 'Pequeno um' }, { id: 'p2', title: 'Pequeno dois' }] }])
-  await visao($, 'completa')
-  const p = await painel($)
+  const p = await comHistorico($, 1)
   const desenho = p.filter(l => !l.cabecalho)
   expect(desenho.length, emTexto(p).slice(0, 500)).toBeLessThanOrEqual(400)
   expect(desenho[0]?.texto, emTexto(p).slice(0, 500)).toMatch(/^\+\d+ linhas anteriores$/)
@@ -247,15 +243,14 @@ test('"+N pedidos anteriores" abre com um clique, fechado por padrão, e fecha d
     await fimDoTurno($)
     await relogio.advance(1000)
   }
-  await visao($, 'completa')
   const m = await montar($)
   let p = await m.linhas()
   expect(tem(p, 'Plano 1') || tem(p, 'Plano 2'), emTexto(p)).toBe(false)
-  await m.recolher('+2 pedidos anteriores')
+  await m.recolher('+4 pedidos anteriores')
   p = await m.linhas()
   expect(tem(p, 'Plano 1') && tem(p, 'Plano 2') && tem(p, 'Plano 5'), emTexto(p)).toBe(true)
-  expect(p.filter(l => l.titulo === '+2 pedidos anteriores').length, emTexto(p)).toBe(1)
-  await m.recolher('+2 pedidos anteriores')
+  expect(p.filter(l => l.titulo === '+4 pedidos anteriores').length, emTexto(p)).toBe(1)
+  await m.recolher('+4 pedidos anteriores')
   p = await m.linhas()
   expect(tem(p, 'Plano 1'), emTexto(p)).toBe(false)
   await m.fim()

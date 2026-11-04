@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
 import { armazem, estado, fixar, host, SESSAO } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, visao, type No } from './kit/cenario'
-import { cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
+import { abrirSessao, aviso, done, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, type No } from './kit/cenario'
+import { comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
 // o 1/2 grava nos objetos abaixo e o 2/2 (módulo novo, state vazio) lê deles.
@@ -73,7 +73,6 @@ test('respawn sem session.start, 1/2: dois pedidos e a visão resumida no store'
   await pedido($, 'Pedido dois')
   await plan($, B)
   await start($, ['b1'])
-  await visao($, 'resumida')
   await fimDoTurno($)
   expect(temPainel(RESPAWN), JSON.stringify(Object.keys(RESPAWN))).toBe(true)
 })
@@ -93,8 +92,7 @@ test('respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no 
   esperarEstado(p, 'b1', 'concluida')
   esperarEstado(p, 'b2', 'andamento')
   // O que o respawn gravou não apagou o pedido um.
-  await visao($, 'completa')
-  p = await painel($)
+  p = await comHistorico($, 1)
   esperarEstado(p, 'Um', 'concluida')
   esperarEstado(p, 'Dois.dois', 'concluida')
 })
@@ -246,8 +244,9 @@ test('os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do 
   PUBLISHED_FILES.forEach((f, i) => {
     expect(linha(p, `formato-${i}`).sessao, `${f.label}:\n${emTexto(p)}`).toBe(true)
     const doc = JSON.parse(f.file)
-    const primeira = (doc.groups?.find((g: any) => g.agent === '')?.tasks ?? doc.tasks ?? [])[0]
-    if (primeira) expect(tem(p, primeira.title), `${f.label}:\n${emTexto(p)}`).toBe(true)
+    // O cartão desenha o trabalho do formato: ao menos uma das tarefas dele.
+    const tarefas: any[] = doc.groups?.find((g: any) => g.agent === '')?.tasks ?? doc.tasks ?? []
+    if (tarefas.length > 0) expect(tarefas.some(t => tem(p, t.title)), `${f.label}:\n${emTexto(p)}`).toBe(true)
   })
 })
 

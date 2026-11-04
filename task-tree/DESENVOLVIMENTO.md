@@ -38,7 +38,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     do store, abre o pane, lê as sessões) e `classicSessionStart` (`/clear` e `resume`).
   - `prompt-submit.ts` (98): `said` (classificação pura do prompt), `promptSubmit`, `promptCompose`,
     `NO_TURN`.
-  - `command.ts` (34): `commandRun` (`/task-tree [resumida|completa]`).
+  - `command.ts` (34): `commandRun` (`/task-tree`).
   - `tools.ts` (208): `planTool`, `doneTool`, `startTool` e os schemas (`node`, `level`).
   - `permission.ts` (22): `permissionRequest`.
   - `turn.ts` (87): `brief` (pura), `turnStep`, `turnComplete`.
@@ -96,7 +96,7 @@ Na ordem de `register.tsx`:
 | `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`; `resume`: `restore` do store |
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
-| `command.run` | `task-tree` | `commandRun` (command.ts) | troca a visão (`resumida`/`completa`), abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
+| `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
 | `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que `request` renomeia), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`), abre o pane |
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
@@ -1525,3 +1525,20 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (`site.scroll.bodyRows`). Falta provar que o desktop dispara `ui.scroll` ao rolar o pane (lá as
   linhas são `Svg` em pixels). Próximo passo, quando retomado: um hook temporário de diagnóstico no
   `ui.scroll` que registre os eventos enquanto o usuário rola o pane no desktop.
+
+## Só a visão resumida (2026-11-04)
+
+Decisão do usuário: "remova os icones de reesumo e tarefas completas, deixe somente a visão resumida".
+Saíram os botões ≡ e ▤, o estado e o store `view` e os argumentos de `/task-tree`; as menções a
+visões nas seções anteriores são histórico. O painel sempre desenha o corte de `trimToWork`. O que
+sai do trabalho não se perde ("Ficam em '+N pedidos anteriores' (Recomendado)"): `Group.whole`, só no
+desenho, guarda todos os níveis 1, e a linha "+N pedidos anteriores" os desenha quando aberta, com os
+cartões e, por último, os cartões antigos sem origem. "Sessão inteira" fica só no tooltip.
+
+## Pai fecha sem nada aberto embaixo (2026-11-04)
+
+Decisão do usuário: "todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como
+em andamento, ela deveria estar concluida tambem"; com só ✕ embaixo, "Fica ✓". Pai, nível 1 e pedido
+ficam ✓ em qualquer mistura de ✓ e ✕ (`settled`, `halt`, `turnRows`, `settle`); só a folha é ✕. O ◷
+fica para o pai com algo ainda aberto. A linha fechada de um grupo de subagente não é pai de tarefa:
+segue ✕ "interrompido". O pedido recebido por mensagem segue cinza só sem nada concluído.

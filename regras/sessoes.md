@@ -25,6 +25,7 @@ O cartão diz em uma palavra o estado da filha, quando ela não está só trabal
 - Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "concluída" ou "arquivada"
 
 Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); o teste da filha arquivada, que cobre também esta regra, passa a ver o pai ✓.
 Estado: coberto
 
 ### sessoes.um-cartao-por-mensagem
@@ -55,6 +56,8 @@ A mensagem entre filhas fica no cartão da remetente.
 - Então a tarefa da mensagem, com o ✉, fica no cartão da remetente, e o cartão da destinatária fica na sequência sob a tarefa da mãe, não dentro do cartão da remetente
 
 Origem: commit 28ae764, 2026-10-23; o cartão dentro do cartão foi desfeito por fddd473 no mesmo dia ("o painel não deve ficar dentro de outro").
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é a linha sob a tarefa, no cartão da remetente.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### sessoes.filha-trabalhando-mantem-pais-em-andamento
@@ -72,9 +75,10 @@ Na filha parada, as pendentes seguem pendentes.
 
 - Dado uma filha que terminou o turno com pendentes
 - Quando o cartão é desenhado
-- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido)
+- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
 
 Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit d57807e.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o cartão sem `work` não pode mostrar uma tarefa só.
 Estado: coberto
 
 ### sessoes.filha-arquivada-interrompe
@@ -82,9 +86,10 @@ A filha arquivada deixa interrompido o que ficou aberto.
 
 - Dado uma filha arquivada com tarefas abertas
 - Quando o cartão é desenhado
-- Então o que ficou aberto fica ✕, e o pai com filha ✓ fica ◷
+- Então o que ficou aberto fica ✕, e o pai fica ✓
 
 Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit 95b1a21.
+Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem
@@ -96,6 +101,8 @@ A rodada descartada sai da contagem.
 
 Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
 Reescrito: 2026-10-28, decisão do usuário ("Sim, corrigir (Recomendado)... o teste esperava o valor do bug; decisão de 2026-10-24 mantida"): a rodada descartada é a anterior, não a que está trabalhando.
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou a mensagem passa a contar no total.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem-do-pai
@@ -106,6 +113,8 @@ A rodada descartada sai também do x/y da tarefa da mãe.
 - Então o x/y de "Um" não conta as tarefas dessa rodada
 
 Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou a mensagem passa a contar no total.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### sessoes.busto-so-no-pai
@@ -170,17 +179,19 @@ O turno que o usuário abriu digitando na filha fica no pedido da mãe vigente q
 - Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no tooltip; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Código: draw/layout.ts
 Estado: coberto
 
 ### sessoes.cartao-vivo-nunca-some
 Um cartão com a sessão trabalhando ou com tarefa aberta nunca some.
 
-- Dado um cartão vivo (sessão trabalhando ou tarefa aberta) sob um pedido que saiu de vista: cortado na completa ("+N pedidos anteriores") ou fora do trabalho na resumida
+- Dado um cartão vivo (sessão trabalhando ou tarefa aberta) sob um pedido que saiu de vista ("+N pedidos anteriores" fechada)
 - Quando o painel é desenhado
-- Então o cartão é desenhado solto no fim do painel, com o nome do pedido de origem no título; o pedido antigo não volta; cartões parados e concluídos seguem cortados
+- Então o cartão é desenhado solto no fim do painel, com o nome do pedido de origem no título; o pedido antigo não volta; cartões parados e concluídos ficam na linha
 
 Origem: decisão do usuário, 2026-11-03 ("Cartão vivo solto no fim (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". Reescreve, só para o cartão vivo, a decisão de 2026-10-23 da resumida ("não traz o pedido de volta, nem o cartão é desenhado solto").
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts
 Estado: coberto
 

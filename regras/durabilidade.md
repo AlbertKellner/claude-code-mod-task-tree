@@ -9,9 +9,10 @@ O reinício e a retomada restauram o painel do store.
 
 - Dado um painel salvo no store
 - Quando um processo novo roda o session.start, ou a sessão é retomada (resume) com outro painel no state
-- Então o painel volta como estava no store (títulos, estados e números), e o start seguinte age sobre ele
+- Então o painel volta como estava no store (títulos, estados e números), com o trabalho da sessão retomada, e o start seguinte age sobre ele; um trabalho sem nenhuma tarefa presente não vale, e o painel nunca fica vazio por isso
 
 Origem: regra do painel desde a entrada do mod (commit 465b09e); tabela de durabilidade, commit 9fb1c51, 2026-10-22.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o trabalho antigo deixava o painel vazio na retomada.
 Estado: coberto
 
 ### durabilidade.respawn-sem-session-start
@@ -19,9 +20,10 @@ Num processo novo sem session.start, o painel volta no primeiro uso, e o store n
 
 - Dado o painel no store e um processo novo que não rodou o session.start
 - Quando o painel é desenhado e o modelo chama start e done
-- Então o painel aparece inteiro, a visão escolhida e o trabalho atual voltam, e o store não encolhe
+- Então o painel aparece inteiro, o trabalho atual volta, e o store não encolhe
 
 Origem: commits 59eb558 e fba6171, 2026-10-22.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
 ### durabilidade.fim-do-turno-sobrevive-ao-reinicio
@@ -53,6 +55,7 @@ Os formatos antigos do arquivo publicado são lidos.
 - Então o cartão aparece, sem erro, com as tarefas que o formato traz
 
 Origem: contrato do arquivo publicado, commit 04fcae7, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Código: io/publish.ts, io/host.ts
 Estado: coberto
 

@@ -89,7 +89,7 @@ export function fill(items: TaskNode[], before: TaskNode[], parentStart: number 
 export function settle(list: TaskNode[], now?: number): TaskNode[] {
   return list.map(t => {
     const children = settle(t.children, now)
-    const closed = t.status === 'open' && children.length > 0 && children.every(c => c.status === 'done')
+    const closed = t.status === 'open' && children.length > 0 && children.every(c => c.status !== 'open')
     return closed
       ? { ...t, status: 'done' as Status, started: undefined, endedAt: stop(t, now), children }
       : { ...t, children }
@@ -130,13 +130,11 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
     }
     return undefined
   }
-  const left = flat([old]).filter(t => t.children.length === 0 && t.msg === true && queued.includes(t.id) && !ids.has(t.id))
-  for (const o of left) {
-    const p = parentOf([old], o.id)
-    const host = p !== undefined && ids.has(p.id) ? p.id : out.id
-    const add = (t: TaskNode): TaskNode => (t.id === host ? { ...t, children: [...t.children, { ...o, kept: true }] } : { ...t, children: t.children.map(add) })
-    out = add(out)
-  }
+  // A task with a letter still queued that the replan leaves out is not kept: its letter hangs from
+  // the request's level-1 task until the delivery (the panel's letters).
+  void queued
+  void parentOf
+  void ids
   // A parent with something open below it is open again; settle closes the ones left all done.
   const reopen = (t: TaskNode): TaskNode => {
     const children = t.children.map(reopen)

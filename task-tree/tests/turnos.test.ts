@@ -161,8 +161,22 @@ test('o subagente que termina deixa interrompido o que ficou aberto, e o pai com
   esperarEstado(p, 'Sub um', 'concluida')
   esperarEstado(p, 'Sub dois', 'interrompida')
   esperarEstado(p, 'Sub três', 'interrompida')
-  esperarEstado(p, 'Plano do sub', 'aguardando')
+  esperarEstado(p, 'Plano do sub', 'concluida')
   esperarEstado(p, 'Um', 'andamento')
+})
+
+// Regra: turnos.subagente-que-termina-interrompe
+test('o subagente lançado sem tarefa de origem que termina segue desenhado', async ($: any, on: any) => {
+  fixar(on)
+  subagente(on, 'sub-1')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await plan($, [{ id: 'S', title: 'Plano do sub', children: [{ id: 's1', title: 'Sub um' }] }], undefined, 'sub-1')
+  await start($, ['s1'], 'sub-1')
+  await done($, ['s1'], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('sub-1') || l.titulo === 'Plano do sub'), emTexto(p)).toBe(true)
 })
 
 // Regra: turnos.prompt-sem-turno

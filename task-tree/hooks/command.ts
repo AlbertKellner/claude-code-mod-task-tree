@@ -1,18 +1,13 @@
-// /task-tree: opens the pane, picks the view (resumida | completa), and says what the app answered.
+// /task-tree: opens the pane and says what the app answered.
 
-import { PANE, DRAW_LIMIT, drawn, publishPanel, setView } from './panel'
+import { PANE, DRAW_LIMIT, drawn, publishPanel } from './panel'
 
 // Opens the panel, asked by the person (placed at any width), and says what the app answered and
 // which panes it holds, so a panel that does not show up can be told apart: undrawn (the width),
 // open behind another plugin's pane (a tab), or not there at all.
-// `/task-tree resumida` or `/task-tree completa` also picks the view, for a panel that cannot be
-// clicked (it does not show).
 
 import type { EngineInterface } from 'claude-code'
 export async function commandRun($: EngineInterface, e: any) {
-  const arg = String((e as any).args ?? '').trim().toLowerCase()
-  if (arg === 'resumida' || arg === 'summary') await setView($, 'summary')
-  if (arg === 'completa' || arg === 'full') await setView($, 'full')
   let opened: any
   try {
     opened = await $.ui.open({ id: PANE, title: 'Tarefas', focus: true })

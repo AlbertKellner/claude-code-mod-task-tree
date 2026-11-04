@@ -86,3 +86,14 @@ plan com ids repetidos é recusado.
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
+
+### arvore.pai-fecha-com-nada-aberto-embaixo
+Pai e pedido sem nada aberto embaixo ficam ✓.
+
+- Dado um pai (tarefa, nível 1 ou pedido) com todas as folhas ✓ ou ✕, em qualquer mistura, inclusive só ✕
+- Quando o painel é desenhado (depois de Esc, de subagente que terminou, de replano com o mesmo id em pedido novo, de filha parada ou arquivada)
+- Então o pai e os ancestrais ficam ✓, a folha ✕ segue ✕ e fora do x/y; ◷ fica para o pai com algo ainda aberto embaixo
+
+Origem: decisão do usuário, 2026-11-04 ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); mantém "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido" (95b1a21).
+Código: draw/layout.ts, state/tasks.ts
+Estado: coberto

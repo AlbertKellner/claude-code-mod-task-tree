@@ -52,17 +52,18 @@ export const RULES = [
     'em que vai executar, e só então siga com start e done.',
   '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
     'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
-  '- Uma tarefa de enviar mensagem a outra sessão (SendMessage) fica com o ícone de mensagem (✉) do ' +
-    'envio. Na entrega imediata ("delivered; its turn has started on it"), a mensagem já conta como ' +
-    'recebida: o ✉ fica verde na hora e a tarefa segue em andamento até você chamar done nela. Com ' +
-    '"queued", o ✉ fica azul até a sessão destino começar a tratar a mensagem; não chame done nela: ' +
-    'quando o recebimento é confirmado, o painel a conclui sozinho (mesmo com esta sessão parada) e avisa.',
+  '- Uma mensagem a outra sessão (SendMessage) aparece como uma carta ✉ embaixo da tarefa em andamento ' +
+    'de onde saiu: azul na fila, verde quando a sessão destino começa a tratar, sem você fazer nada. A ' +
+    'tarefa continua uma tarefa comum, com ícone e contagem normais. Na entrega imediata ("delivered; ' +
+    'its turn has started on it"), a carta fica verde na hora e a tarefa segue em andamento até você ' +
+    'chamar done. Com "queued", não chame done nela: quando o recebimento é confirmado, o painel a ' +
+    'conclui sozinho (mesmo com esta sessão parada) e avisa.',
   '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
     'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
 ].join('\n')
 
 // The /task-tree command and the three tools, as the model sees them.
-export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele; com resumida ou completa, troca a visão'
+export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele'
 export const TOOLS = {
   plan:
     'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +

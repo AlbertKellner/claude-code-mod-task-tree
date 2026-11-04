@@ -36,8 +36,7 @@ function ler(raiz: any): { el: any; linha: Linha }[] {
       // O ▸/▾ de uma linha de seção que abre (os pedidos anteriores) faz as vezes do ícone.
       const icone = partes.find(p => mostrado(p) in ESTADOS || mostrado(p) === '✉' || mostrado(p) === SESSAO || mostrado(p) === '▸' || mostrado(p) === '▾')
       const titulo = icone ? partes[partes.indexOf(icone) + 1] : undefined
-      // O seletor de visão no fim da linha de título fica de fora.
-      const texto = mostrado(l).replace(/\s+\[?≡\]? \[?▤\]?$/, '').trimEnd()
+      const texto = mostrado(l).trimEnd()
       const guias = texto.match(/^[\s│├└─]*/)?.[0] ?? ''
       const glifo = icone ? mostrado(icone) : ''
       const linha: Linha = {
@@ -105,6 +104,15 @@ export async function svgs($: any, opcoes: { colunas?: number } = {}): Promise<D
 
 export async function painel($: any, opcoes: { colunas?: number } = {}): Promise<Linha[]> {
   const m = await montar($, opcoes)
+  const linhas = await m.linhas()
+  await m.fim()
+  return linhas
+}
+
+// O painel com a linha "+N pedidos anteriores" aberta (fica aberta, como a pessoa a deixou).
+export async function comHistorico($: any, n: number): Promise<Linha[]> {
+  const m = await montar($)
+  await m.recolher(`+${n} pedidos anteriores`)
   const linhas = await m.linhas()
   await m.fim()
   return linhas
@@ -179,6 +187,20 @@ export function temBusto(linhas: Linha[], titulo: string): boolean {
 // A linha (de tarefa ou de cartão) mostra a palavra.
 export function esperarPalavra(linhas: Linha[], titulo: string, palavra: string) {
   expect(linha(linhas, titulo).texto, `${titulo} no painel:\n${emTexto(linhas)}`).toContain(palavra)
+}
+
+// A carta de envio (a linha ✉ "Para <sessão>: …") que pende da tarefa com esse título, ou undefined.
+export function cartaSob(linhas: Linha[], titulo: string): Carta | undefined {
+  const l = linha(linhas, titulo)
+  for (const x of linhas.slice(linhas.indexOf(l) + 1)) {
+    if (x.nivel <= l.nivel) break
+    if (x.carta !== undefined && x.titulo.startsWith('Para ')) return x.carta
+  }
+  return undefined
+}
+
+export function esperarCartaSob(linhas: Linha[], titulo: string, carta: Carta) {
+  expect(cartaSob(linhas, titulo), `carta sob ${titulo} no painel:\n${emTexto(linhas)}`).toBe(carta)
 }
 
 export function esperarCarta(linhas: Linha[], titulo: string, carta: Carta) {
