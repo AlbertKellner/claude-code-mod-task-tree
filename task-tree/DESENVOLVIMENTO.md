@@ -559,7 +559,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   CSS que usa (`slim`), claro e escuro.
 - **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
   (`GLYPH`), o glifo como `Button` quando a linha recolhe; os botões de visão `[≡] ▤`.
-- Um desenho acima de `DRAW_LIMIT` = 20 MB vira uma linha de aviso; um que lança exceção vira uma
+- Um desenho acima de `DRAW_LIMIT` = 600 KB vira uma linha de aviso; um que lança exceção vira uma
   linha de erro e publica `renderError`. `drawn` guarda tamanho, linhas e erro do último desenho.
 - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
   último desenho registrou em `actions` (`act`).
@@ -1036,7 +1036,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   antes do pedido mais antigo desenhado viram "+N cartões antigos de sessões". O cabeçalho continua
   contando tudo. Cada `Svg` leva só as regras CSS das classes que usa (`slim`). Medido com o estado
   da orquestradora: 1.614.695 → 101.345 bytes na completa, 29 KB na resumida. Os três limites, em
-  ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas, ver abaixo) → `DRAW_LIMIT` (20 MB): só
+  ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas, ver abaixo) → `DRAW_LIMIT` (600 KB): só
   se 400 linhas passarem disso, desenho de emergência: "Painel grande demais (N KB): mostrando só o
   essencial. Use ≡ (/task-tree resumida) para a visão resumida." (agora raro). Aprovado pelo usuário:
   "Sim, está bom".
@@ -1550,8 +1550,10 @@ avaliar no app, "Manter sem animações". Saiu `draw/motion.ts` e o quadro de 10
 mudança é desenhada direto no estado final. As classes `ic`, `ch-*` e `bar` do SVG ficaram, para o
 desenho aprovado não mudar. Os relógios seguem no seu tique.
 
-## Limite do desenho em avaliação (2026-11-04)
+## Limite do desenho: 20 MB avaliado e desfeito (2026-11-04)
 
 `DRAW_LIMIT` subiu de 600 KB para 20 MB, valor em avaliação. Decisão do usuário: "deixe esse limite em
 20 megas, vou avaliar e avisar quando ele travar. pode ser uma restrição do código antigo". As menções
 a 600 KB nas seções de histórico ficam como eram. Um desenho de 1,3 MB já não foi mostrado pelo app.
+
+O limite de 20 MB travou o painel: a tela ficou congelada no último desenho aceito (o aviso de 948 KB) enquanto o tamanho publicado mudava (950 a 953 KB), o que indica que o app não aplica um desenho de ~950 KB. `DRAW_LIMIT` voltou a 600 KB, e o aviso pequeno chega ao app com o botão "Voltar à visualização anterior". Palavras do usuário: "eu quero ver as tarefas em andamento, e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens em andamento".
