@@ -155,7 +155,7 @@ ferramentas, lembretes dos hooks), nunca na memória do Claude Code nem num CLAU
 
 Depois do commit local, o usuário valida no app, quando a mudança toca o que o harness não vê:
 - largura real e recorte na borda, nos dois temas;
-- cliques no ícone e no anel; tooltip; animação da linha nova; nada pisca à toa;
+- cliques no ícone e no anel; tooltip; linha nova sem animação; nada pisca à toa;
 - recarga a quente real (salvar um arquivo com o painel aberto);
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.

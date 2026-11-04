@@ -427,3 +427,122 @@ test('o pedido que saiu do trabalho volta com o cartão da filha ao abrir "+N pe
   expect(cartoes(p, 'filha-um').length, emTexto(p)).toBe(1)
   esperarEstado(p, 'Da filha', 'concluida')
 })
+
+// ---- Cartão parado: a filha para com pendentes e a tarefa de origem fecha na mãe.
+const deTurno = (turn: number, id: string, title: string, estado: 'aberta' | 'iniciada' | 'feita') => ({ ...tarefa(id, title, estado), turn })
+const turnoDe = (id: number, at: number) => ({ id, title: `turno ${id}`, at })
+
+// A filha fez duas e deixou `resto`; a mãe fecha a origem (`fechar`) e termina o turno.
+async function parada($: any, on: any, resto: 'aberta' | 'iniciada' = 'aberta', fechar = true) {
+  const r = fixar(on)
+  responderEnvio(on)
+  const tarefas = [deTurno(1, 'a', 'f1', 'feita'), deTurno(1, 'b', 'f2', 'feita'), deTurno(1, 'c', 'Colapso', resto)]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas, turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  await aviso($)
+  if (fechar) await done($, ['1', '9'])
+  await fimDoTurno($)
+  return { h, tarefas, ...r }
+}
+
+// Regra: pedidos.rodada-descartada-nao-segura-a-visao
+test('a rodada descartada não segura a visão no pedido seguinte', async ($: any, on: any) => {
+  const { h, tarefas, relogio } = await parada($, on)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '2', title: 'Dois' }])
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).rodando = true
+  h.filha(K1).painel = { tasks: [...tarefas, deTurno(2, 'd', 'nova', 'feita')], turns: [turnoDe(1, AGORA + 10), turnoDe(2, AGORA + 1800)] }
+  await aviso($)
+  h.filha(K1).rodando = false
+  await aviso($)
+  await done($, ['2'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido tres')
+  await plan($, [{ id: '3', title: 'Tres' }])
+  const p = await painel($)
+  expect([p.some(l => l.titulo === 'Um'), cabecalho(p).total], emTexto(p)).toEqual([false, 1])
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem, sessoes.palavra-de-estado-do-cartao
+test('filha parada só com pendentes e origem fechada: encerrada, fora da contagem, ✓ contam', async ($: any, on: any) => {
+  await parada($, on)
+  const p = await painel($)
+  const c = cabecalho(p)
+  esperarPalavra(p, 'filha-um', 'encerrada')
+  esperarEstado(p, 'Colapso', 'pendente')
+  expect([c.feitas, c.total, c.pct, c.chips.pendentes], emTexto(p)).toEqual([4, 4, 100, 0])
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('com a origem aberta, a filha segue parada e as pendentes contam', async ($: any, on: any) => {
+  await parada($, on, 'aberta', false)
+  const p = await painel($)
+  esperarPalavra(p, 'filha-um', 'parada')
+  expect(cabecalho(p).chips.pendentes, emTexto(p)).toBeGreaterThan(0)
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('com algo iniciado, a filha segue parada mesmo com a origem fechada', async ($: any, on: any) => {
+  await parada($, on, 'iniciada')
+  const p = await painel($)
+  esperarPalavra(p, 'filha-um', 'parada')
+  expect(cabecalho(p).total, emTexto(p)).toBe(5)
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('a filha que volta a trabalhar volta a contar', async ($: any, on: any) => {
+  const { h } = await parada($, on)
+  h.filha(K1).rodando = true
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('encerrada')), emTexto(p)).toBe(false)
+  expect(cabecalho(p).total, emTexto(p)).toBe(5)
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('com mensagem da mãe na fila, a filha segue parada', async ($: any, on: any) => {
+  await parada($, on)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '2', title: 'Dois' }])
+  await start($, ['2'])
+  await envio($, K1)
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('encerrada')), emTexto(p)).toBe(false)
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('a filha encerrada não segura a visão no pedido novo', async ($: any, on: any) => {
+  await parada($, on)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '2', title: 'Dois' }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Um'), emTexto(p)).toBe(false)
+  // O cartão fica, solto no fim; a pendente do chip é só "Dois", a do pedido novo.
+  expect(p.some(l => l.texto.includes('filha-um') && l.texto.includes('encerrada')), emTexto(p)).toBe(true)
+  expect(cabecalho(p).chips.pendentes, emTexto(p)).toBe(1)
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('a mãe é avisada de que a filha parou com pendentes', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [deTurno(1, 'c', 'Colapso', 'aberta')], turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['1'])
+  h.filha(K1).rodando = false
+  const r = [await aviso($), await pedido($, 'Pedido dois')]
+  expect(JSON.stringify(r)).toContain('1 pendentes')
+})

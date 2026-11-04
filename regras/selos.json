@@ -899,6 +899,26 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a filha encerrada não segura a visão no pedido novo": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "b59f9c09c6c595c0",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha que volta a trabalhar volta a contar": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "803c4b988f2d33ce",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
+    },
     "task-tree/tests/sessoes.test.ts::a filha trabalhando mantém a tarefa e os pais em andamento": {
       "regras": [
         "sessoes.filha-trabalhando-mantem-pais-em-andamento",
@@ -920,6 +940,16 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/sessoes.test.ts::a mãe é avisada de que a filha parou com pendentes": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "1d6f682b5e334137",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
+    },
     "task-tree/tests/sessoes.test.ts::a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
@@ -929,6 +959,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/sessoes.test.ts::a rodada descartada não segura a visão no pedido seguinte": {
+      "regras": [
+        "pedidos.rodada-descartada-nao-segura-a-visao"
+      ],
+      "hash": "f94c71923380ffd5",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "bug: rodada descartada segurava a visão"
     },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
@@ -950,6 +990,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::com a origem aberta, a filha segue parada e as pendentes contam": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "62b3999dd25a1a2e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
+    },
     "task-tree/tests/sessoes.test.ts::com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rodada nova segue em andamento": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem-do-pai"
@@ -960,6 +1010,16 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/sessoes.test.ts::com algo iniciado, a filha segue parada mesmo com a origem fechada": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "644d317efe2777f7",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
+    },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
         "sessoes.cartao-sob-a-tarefa-de-origem"
@@ -969,6 +1029,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessão aberta conta como uso da tarefa"
+    },
+    "task-tree/tests/sessoes.test.ts::com mensagem da mãe na fila, a filha segue parada": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "069e4029f77995e8",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
     },
     "task-tree/tests/sessoes.test.ts::com o turno próprio da filha trabalhando no pedido antigo, o pedido segue desenhado depois de três pedidos novos": {
       "regras": [
@@ -991,6 +1061,17 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/sessoes.test.ts::filha parada só com pendentes e origem fechada: encerrada, fora da contagem, ✓ contam": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem",
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "62b398fcdb2907f3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "filha encerrada com origem fechada"
     },
     "task-tree/tests/sessoes.test.ts::filha parada: a iniciada aguarda e as pendentes seguem pendentes": {
       "regras": [

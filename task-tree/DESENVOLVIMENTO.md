@@ -1542,3 +1542,18 @@ em andamento, ela deveria estar concluida tambem"; com só ✕ embaixo, "Fica �
 ficam ✓ em qualquer mistura de ✓ e ✕ (`settled`, `halt`, `turnRows`, `settle`); só a folha é ✕. O ◷
 fica para o pai com algo ainda aberto. A linha fechada de um grupo de subagente não é pai de tarefa:
 segue ✕ "interrompido". O pedido recebido por mensagem segue cinza só sem nada concluído.
+
+## Sem animações (2026-11-04)
+
+Decisão do usuário: "desative as animacoes do task tree, quero avaliar como fica sem" e, depois de
+avaliar no app, "Manter sem animações". Saiu `draw/motion.ts` e o quadro de 100 ms do render: cada
+mudança é desenhada direto no estado final. As classes `ic`, `ch-*` e `bar` do SVG ficaram, para o
+desenho aprovado não mudar. Os relógios seguem no seu tique.
+
+## Limite do desenho: 20 MB avaliado e desfeito (2026-11-04)
+
+`DRAW_LIMIT` subiu de 600 KB para 20 MB, valor em avaliação. Decisão do usuário: "deixe esse limite em
+20 megas, vou avaliar e avisar quando ele travar. pode ser uma restrição do código antigo". As menções
+a 600 KB nas seções de histórico ficam como eram. Um desenho de 1,3 MB já não foi mostrado pelo app.
+
+O limite de 20 MB travou o painel: a tela ficou congelada no último desenho aceito (o aviso de 948 KB) enquanto o tamanho publicado mudava (950 a 953 KB), o que indica que o app não aplica um desenho de ~950 KB. `DRAW_LIMIT` voltou a 600 KB, e o aviso pequeno chega ao app com o botão "Voltar à visualização anterior". Palavras do usuário: "eu quero ver as tarefas em andamento, e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens em andamento".

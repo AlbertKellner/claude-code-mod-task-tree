@@ -89,6 +89,16 @@ Um nível 1 concluído fica como histórico.
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
+### pedidos.rodada-descartada-nao-segura-a-visao
+Uma rodada descartada não conta como algo aberto à vista.
+
+- Dado um cartão de rodada descartada, com tarefa aberta, sob um pedido fechado
+- Quando um pedido novo começa
+- Então o painel mostra só o pedido novo, como com tudo fechado
+
+Origem: bug achado na análise do pedido do usuário, 2026-11-04 ("entao pq esse card de plano esta parado? analise se é um bug do mod, ou se podemos fazer melhoria. ele ja deveria estar encerrado").
+Estado: coberto
+
 ### pedidos.resumida-mantem-anteriores-com-algo-aberto
 O painel mantém os pedidos anteriores enquanto há algo aberto.
 

@@ -546,7 +546,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
       edge -= textW(words, 12)
     }
   }
-  // In a group of its own (`ic`), what the motion of a change of state animates (../draw/motion).
+  // In a group of its own (`ic`).
   const env = r.msg ?? r.recv
   // A section that opens (the requests left out) shows its ▸/▾ where the icon is, which folds and opens it.
   const folding = section && r.fold !== undefined
@@ -565,8 +565,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   // words on the right are moved to the slot's edge (toRight). The title is cut with "…" against W
   // (an estimate under the slot) and, should the estimate fail, clipped where the words on the right
   // begin in the slot (its clip, `tc`, a rect as wide as the slot less them): never under them, if
-  // without its "…" then. The clip is on the text inside a group, so the reveal of a new line (its
-  // clip-path on the group, ../draw/motion) leaves it be.
+  // without its "…" then.
   const clip = `<clipPath id="tc"><rect x="0" y="0" height="${H}" style="width:calc(100% - ${W - edge + 10}px)"/></clipPath>`
   return slim(
     svgOpen(H) +
@@ -657,7 +656,7 @@ export function headerSvg(
       else if (!git.folder && gitW(git, 12, false) <= room) parts.push(gitSvg(git, L, 48, 12, false, room).svg)
     }
     // The bar runs from the left to the numbers block (its CSS width follows the slot); the width
-    // attribute, in px of W, is what the motion reads (barOf), and its share of the track is the same.
+    // attribute is in px of W, and its share of the track is the same.
     const span = R - L - block - 20
     const track = `calc(${slot(W)} - ${L + (W - R) + block + 20}px)`
     parts.push(`<rect class="tr" x="${L}" y="66" width="${span}" height="4" rx="2" style="width:${track}"/>`)
@@ -670,8 +669,7 @@ export function headerSvg(
       const c = wide ? chip : { ...chip, text: chip.text.split(' ')[0]! }
       const w = pillW(c.text)
       if (cx + w > L + span) break
-      // Each pill in a group named by its tone (`ch-<tone>`), and the bar's filled part (`bar`): what
-      // the motion of a new chip and of a new count animates (../draw/motion).
+      // Each pill in a group named by its tone (`ch-<tone>`), and the bar's filled part (`bar`).
       parts.push(
         `<g class="ch-${c.tone}"><rect class="${PILL[c.tone] ?? 'gyp'}" x="${cx}" y="82" width="${w}" height="22" rx="11"/>` +
           icon(c.tone, cx + 13, 93) +

@@ -124,6 +124,8 @@ export type Published = {
 // `tasks` (its main group only) is what earlier versions published.
 export type Child = {
   id: string
+  // Worked out at each drawing, never kept (see settle in draw/layout).
+  settled?: boolean
   name: string
   title: string
   running: boolean

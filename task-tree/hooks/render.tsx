@@ -7,10 +7,9 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { MAIN, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -20,6 +19,16 @@ import { keepTime, openSession, watchSessions } from './sessions'
 const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
 async function setFold($: any, key: string, closed: boolean) {
   await update($, folds, cur => ({ ...cur, [key]: closed }))
+}
+// The way back from the emergency drawing, which has none of the lines that fold (the person,
+// 2026-11-04: "coloque um botão para voltar a visualização anterior"): the histories opened close;
+// with none open, every line the person opened does.
+async function closeOpened($: any) {
+  await update($, folds, cur => {
+    const open = Object.keys(cur).filter(k => cur[k] === false)
+    const history = open.filter(k => k.endsWith('sec:turns'))
+    return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])) }
+  })
 }
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -52,60 +61,12 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
 // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
 // the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; now?: number }) {
+function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
   const { Box, Svg, Button } = ui
-  const keys = rowKeys(lines)
   const lanes = guides(lines)
   const hides = labelCols(lines)
   const cards = frames(lines)
-  // What changed since the drawing before (../draw/motion): new lines fade in (together); a
-  // line whose state changed pops its icon; a bar whose count changed grows; a new chip fades in.
-  const headKey = 'head'
   const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
-  const tones = chipTones(top.source)
-  const marks = mark(
-    [
-      ...keys.map(k => [k, ''] as [string, string]),
-      ...lines.map((r, i) => [`${keys[i]}#tone`, progress(r)] as [string, string]),
-      ...lines.flatMap((r, i) => (r.msg || r.recv ? [[`${keys[i]}#msg`, (r.msg ?? r.recv) as string] as [string, string]] : [])),
-      ...sources.map((s, i) => [`${keys[i]}#bar`, barOf(s)] as [string, string]),
-      ...tones.map(t => [`${headKey}#chip:${t}`, ''] as [string, string]),
-      [`${headKey}#bar`, barOf(top.source)],
-    ],
-    chrome.now,
-  )
-  // The icon pops only for a change of the line's own that lands somewhere new: a task with no
-  // subtasks when it starts or closes; a parent or a request only when it closes (✓), not on its way
-  // between in progress and waiting as its subtasks go; a session's card never.
-  const popsAt = (i: number) => {
-    const r = lines[i]!
-    // A message task's ✉ pops when its color changes (queued → delivered → cut), as the icons do.
-    if (r.msg || r.recv) return marks.changed.has(`${keys[i]!}#msg`)
-    const k = `${keys[i]!}#tone`
-    if (!marks.changed.has(k) || r.card || r.session) return false
-    const to = progress(r)
-    if (r.leaf) return to === 'done' || to === 'interrupted' || (to === 'current' && marks.before.get(k) === 'open')
-    return to === 'done' && (r.key?.includes('t:') || r.key?.includes('T:'))
-  }
-  // A drawing with motion asks for the next frame (nextFrame): the mod draws the frames itself, since
-  // the app makes the Svgs again when it likes and an animation in them starts over each time.
-  let animated = false
-  const moving = (source: string, rules: string[]) => {
-    if (rules.length > 0) animated = true
-    return animate(source, rules)
-  }
-  const ago = (k: string) => marks.ago.get(k) ?? 0
-  const motion = (i: number) =>
-    marks.enter.has(keys[i]!)
-      ? [fadeIn(ago(keys[i]!))]
-      : [
-          ...(popsAt(i) ? [lines[i]!.msg || lines[i]!.recv ? pop(false, ago(`${keys[i]}#msg`)) : pop(progress(lines[i]!) === 'done', ago(`${keys[i]}#tone`))] : []),
-          ...(marks.changed.has(`${keys[i]}#bar`) && barOf(sources[i]!) !== '' ? growFrom(marks.before.get(`${keys[i]}#bar`), barOf(sources[i]!), ago(`${keys[i]}#bar`)) : []),
-        ]
-  const headMotion = [
-    ...tones.filter(t => marks.enter.has(`${headKey}#chip:${t}`)).map(t => chipIn(t!, ago(`${headKey}#chip:${t}`))),
-    ...(marks.changed.has(`${headKey}#bar`) && barOf(top.source) !== '' ? growFrom(marks.before.get(`${headKey}#bar`), barOf(top.source), ago(`${headKey}#bar`)) : []),
-  ]
   const over = (r: Row, p: Placed, source: string, H: number) =>
     p.kind === 'icon' ? (
       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
@@ -127,7 +88,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
     <Box flexDirection="column">
       {chrome.errorLine}
       <Box key="head" position="relative" flexDirection="column">
-        <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
+        <Svg source={top.source} alt={alt} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
             <Svg source={hoverLayer(top.source, W, 40)} alt="" width={W} height={40} isInteractive />
@@ -145,7 +106,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
             }
             return (
               <Box position="relative" flexDirection="column">
-                <Svg source={moving(source, motion(i))} alt={rowAlt(r)} height={H} />
+                <Svg source={source} alt={rowAlt(r)} height={H} />
                 {one('icon')}
                 {one('ring')}
                 {one('name')}
@@ -156,39 +117,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       ))}
     </Box>
   )
-  if (animated) nextFrame($)
   return drawing
-}
-
-// The next frame of a drawing with motion (see drawDesktop and ../draw/motion), FRAME ms on: one
-// wait at a time. A drawing past DUR has no motion and asks for none, which ends the frames; the
-// clock's tick (keepTime) is another invalidate and lives beside these.
-let framing = false
-function nextFrame($: any) {
-  if (framing) return
-  framing = true
-  try {
-    $.clock.after(FRAME, () => {
-      framing = false
-      try {
-        $.ui.invalidate('ui.render')
-      } catch {}
-    })
-  } catch {
-    framing = false
-  }
-}
-
-// A line's name across drawings, for its motion: what the layout says it is (Row.key), the same in
-// every state; a second line of the same name gets a number.
-const rowKeys = (lines: Row[]) => {
-  const n = new Map<string, number>()
-  return lines.map(r => {
-    const k = r.key ?? `${r.depth}|${r.tone}|${r.title}`
-    const i = n.get(k) ?? 0
-    n.set(k, i + 1)
-    return i === 0 ? k : `${k}~${i}`
-  })
 }
 
 // Terminal: the same lines as text, the guides in box-drawing characters, color only on the icon
@@ -300,8 +229,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The whole session's count, for the header's tooltip; the header itself counts what the
   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
+  const ownTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
   const [ad, an] = total({ groups: withMain(held ?? []), waits, children: sessions }, 0, c =>
-    split(c, sessions, knownId(), withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? [], undefined, newBreaksMemo()),
+    split(c, sessions, knownId(), ownTasks, undefined, newBreaksMemo()).map(r => settle(r, ownTasks, sends as Send[])),
   )
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
   const now = await stamp($)
@@ -381,7 +311,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
-    return drawDesktop($, ui, lines, W, top, alt, { errorLine, now })
+    return drawDesktop($, ui, lines, W, top, alt, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -419,9 +349,16 @@ export async function render($: EngineInterface, e: any, next: any) {
   drawn.size = JSON.stringify(made ?? null).length
   if (drawn.size > DRAW_LIMIT) {
     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
-    const { Text } = $.ui.resolve(e) as any
+    const { Box, Button, Text } = $.ui.resolve(e) as any
     return (
-      <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial.`}</Text>
+      <Box flexDirection="column">
+        <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial.`}</Text>
+        <Box flexDirection="row">
+          <Button key="back" onPress={act('back', () => void closeOpened($))}>
+            <Text>Voltar à visualização anterior</Text>
+          </Button>
+        </Box>
+      </Box>
     )
   }
   return made

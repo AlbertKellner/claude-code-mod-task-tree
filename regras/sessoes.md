@@ -21,11 +21,12 @@ Estado: coberto
 O cartão diz em uma palavra o estado da filha, quando ela não está só trabalhando.
 
 - Dado uma filha
-- Quando ela trabalha, espera a pessoa, para com tarefas abertas, termina ou é arquivada
-- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "concluída" ou "arquivada"
+- Quando ela trabalha, espera a pessoa, para com tarefas abertas, para com a origem fechada e só pendentes, termina ou é arquivada
+- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "encerrada", "concluída" ou "arquivada"
 
 Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); o teste da filha arquivada, que cobre também esta regra, passa a ver o pai ✓.
+Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"): a palavra "encerrada".
 Estado: coberto
 
 ### sessoes.um-cartao-por-mensagem
@@ -70,15 +71,27 @@ A filha trabalhando mantém a tarefa e os pais em andamento.
 Origem: commit d956e11, 2026-10-24.
 Estado: coberto
 
+### sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+As pendentes de uma filha parada saem da contagem quando a tarefa de origem fecha.
+
+- Dado uma filha parada só com pendentes, sem nada iniciado aberto, sem mensagem da mãe na fila, sem esperar a pessoa
+- Quando a tarefa de origem do cartão na mãe está fechada
+- Então as pendentes saem do cabeçalho, do chip e do x/y do pai, e não seguram a visão; as ✓ seguem contando; o cartão fica desenhado com as ○ e a palavra "encerrada"; a mãe é avisada de que ela parou com N pendentes; se a filha voltar a trabalhar, tudo volta a contar
+
+Origem: decisão do usuário, 2026-11-04 ("Origem fechada (Recomendado)"), ao pedido "entao pq esse card de plano esta parado? analise se é um bug do mod, ou se podemos fazer melhoria. ele ja deveria estar encerrado".
+Código: draw/layout.ts, hooks/sessions.ts, hooks/render.tsx
+Estado: coberto
+
 ### sessoes.filha-parada-pendentes-seguem-pendentes
 Na filha parada, as pendentes seguem pendentes.
 
-- Dado uma filha que terminou o turno com pendentes
+- Dado uma filha que terminou o turno com pendentes, com a tarefa de origem aberta ou algo iniciado
 - Quando o cartão é desenhado
 - Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
 
 Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit d57807e.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o cartão sem `work` não pode mostrar uma tarefa só.
+Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"); com a origem fechada e só pendentes vale sessoes.filha-parada-com-origem-fechada-sai-da-contagem.
 Estado: coberto
 
 ### sessoes.filha-arquivada-interrompe
