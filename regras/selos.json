@@ -930,6 +930,16 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/sessoes.test.ts::a rodada descartada não segura a visão no pedido seguinte": {
+      "regras": [
+        "pedidos.rodada-descartada-nao-segura-a-visao"
+      ],
+      "hash": "f94c71923380ffd5",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "bug: rodada descartada segurava a visão"
+    },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"

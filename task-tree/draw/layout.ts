@@ -665,7 +665,7 @@ export function limitRows(rows: Row[]): Row[] {
 // while another was still open, and a card with an open task did not hold its request; and it looked
 // only at where a session was opened, with an open task required, so a session at work under a later
 // request (its current round there) did not hold that request, and its card left the summary.
-export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; taken?: boolean }[]): boolean {
+export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; taken?: boolean }[], me?: string): boolean {
   const main = withMain(p.groups ?? []).find(g => g.agent === MAIN)
   const tasks = main?.tasks ?? []
   const turns = tasks.filter(t => ids.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
@@ -676,7 +676,9 @@ export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; t
   // A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
   const anchors = (c: Child) =>
     [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
-  return (p.children ?? []).some(c => anchors(c).some(a => all.includes(a)) && (live(c) || hasOpen(allTasks(panelOf(c), 1))))
+  // A discarded round holds nothing in sight, as it keeps no card alive (alive).
+  const holds = (c: Child) => split(c, p.children ?? [], me, tasks, undefined, newBreaksMemo()).some(r => !discarded(r) && hasOpen(allTasks(panelOf(r), 1)))
+  return (p.children ?? []).some(c => anchors(c).some(a => all.includes(a)) && (live(c) || holds(c)))
 }
 
 // A card at work: its session working, or a task of it still open (an abandoned round is not). It is

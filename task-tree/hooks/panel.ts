@@ -577,7 +577,7 @@ export async function joinWork($: any, ids: string[], fresh: boolean) {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
-  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[], sends as Send[]) ? (cur as string[]) : []
+  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[], sends as Send[], knownId()) ? (cur as string[]) : []
   await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and

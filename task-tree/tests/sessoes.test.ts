@@ -427,3 +427,48 @@ test('o pedido que saiu do trabalho volta com o cartão da filha ao abrir "+N pe
   expect(cartoes(p, 'filha-um').length, emTexto(p)).toBe(1)
   esperarEstado(p, 'Da filha', 'concluida')
 })
+
+// ---- Cartão parado: a filha para com pendentes e a tarefa de origem fecha na mãe.
+const deTurno = (turn: number, id: string, title: string, estado: 'aberta' | 'iniciada' | 'feita') => ({ ...tarefa(id, title, estado), turn })
+const turnoDe = (id: number, at: number) => ({ id, title: `turno ${id}`, at })
+
+// A filha fez duas e deixou `resto`; a mãe fecha a origem (`fechar`) e termina o turno.
+async function parada($: any, on: any, resto: 'aberta' | 'iniciada' = 'aberta', fechar = true) {
+  const r = fixar(on)
+  responderEnvio(on)
+  const tarefas = [deTurno(1, 'a', 'f1', 'feita'), deTurno(1, 'b', 'f2', 'feita'), deTurno(1, 'c', 'Colapso', resto)]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas, turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  await aviso($)
+  if (fechar) await done($, ['1', '9'])
+  await fimDoTurno($)
+  return { h, tarefas, ...r }
+}
+
+// Regra: pedidos.rodada-descartada-nao-segura-a-visao
+test('a rodada descartada não segura a visão no pedido seguinte', async ($: any, on: any) => {
+  const { h, tarefas, relogio } = await parada($, on)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '2', title: 'Dois' }])
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).rodando = true
+  h.filha(K1).painel = { tasks: [...tarefas, deTurno(2, 'd', 'nova', 'feita')], turns: [turnoDe(1, AGORA + 10), turnoDe(2, AGORA + 1800)] }
+  await aviso($)
+  h.filha(K1).rodando = false
+  await aviso($)
+  await done($, ['2'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido tres')
+  await plan($, [{ id: '3', title: 'Tres' }])
+  const p = await painel($)
+  expect([p.some(l => l.titulo === 'Um'), cabecalho(p).total], emTexto(p)).toEqual([false, 1])
+})
