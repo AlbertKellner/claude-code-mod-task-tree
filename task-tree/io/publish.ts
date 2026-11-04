@@ -141,7 +141,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       rows: p.rows,
       work: p.work,
       received: p.received,
-      sends: p.sends.filter(x => !x.taken),
+      sends: p.sends,
     }
     const key = JSON.stringify({ ...body, percent, rate: p.rate ? [p.rate.toks, p.rate.live] : undefined, git: p.git ? [p.git.kind ?? 'git', p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
     if (lastPublished.get(path) === key) return

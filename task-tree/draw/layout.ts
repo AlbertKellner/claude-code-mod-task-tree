@@ -53,11 +53,11 @@ export const halt =
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
     if (t.children.length === 0) {
-      if (sent.includes(t.id)) return t
       const begun = t.started !== undefined || t.startedAt !== undefined
-      // A message task (its message delivered, or queued: spared above) is not this turn's work to
-      // interrupt: a stop leaves it as a normal end does, ✉ green (the person, 2026-10-28).
-      if (begun && (!aborted || t.msg)) return { ...t, started: undefined, endedAt: stop(t, at) }
+      // A task whose letter is still queued (`sent`) waits on that session, not on this turn: a stop
+      // leaves it waiting (◷), as a normal end does (the person, 2026-10-30: "Não, fica ◷ enquanto a
+      // carta está na fila"). Delivered, it is a task like any other: a stop interrupts it.
+      if (begun && (!aborted || sent.includes(t.id))) return { ...t, started: undefined, endedAt: stop(t, at) }
       return begun ? interrupt(at)(t) : t
     }
     const children = t.children.map(halt(at, sent, aborted))
@@ -93,7 +93,7 @@ export function count(list: TaskNode[]): [number, number, number] {
   let n = 0
   let x = 0
   for (const t of flat(list)) {
-    if (t.children.length > 0 || t.msg) continue
+    if (t.children.length > 0) continue
     if (t.status === 'interrupted') x++
     else {
       n++
@@ -909,11 +909,15 @@ export type Choices = Record<string, boolean>
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
-  const sentFrom = model.sends.filter(s => !s.taken).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  const sentFrom = model.sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
   const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
   const waits = model.waits
   const sessions = model.children
-  const queued = model.sends
+  // The sends still waiting to be taken up (a task's wait), and all of them (the letters).
+  const queued = model.sends.filter(s => !s.taken && !s.cut)
+  // The tasks interrupted by the plan itself (a new request, before any halt): a letter of them was
+  // dropped before its delivery, gray.
+  const cutAt = new Set(flat(withMain(model.groups).find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'interrupted').map(t => t.id))
   const chosen = choices
   const summary = model.view === 'summary'
   const work = model.work
@@ -962,9 +966,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // one below, it is drawn waiting (◷); a task left open waiting at the turn's end too (leftWaiting).
       const doneBelow = flat(t.children).some(k => k.status === 'done')
       const tone: Tone =
-        waitsOn.length > 0
-          ? 'sent'
-          : t.status === 'interrupted'
+        t.status === 'interrupted'
             ? t.children.length > 0 && doneBelow
               ? 'paused'
               : 'interrupted'
@@ -983,27 +985,22 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                       : 'open'
       const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
-      // A message task (a send went out from it): its ✉ in the color of where the message is, the
-      // word on the right saying it (the person: "mantenha o ícone e troque somente a cor").
-      const msg: Row['msg'] =
-        t.children.length > 0 || !t.msg ? undefined : waitsOn.length > 0 ? 'queued' : t.status === 'interrupted' ? 'cut' : 'delivered'
       const row: Row = {
         key: `${scope}t:${t.id}`,
         leaf: t.children.length === 0,
         depth,
         tone,
         title: t.title,
+        // A task a message went from is a task like any other (its letter is the line below it, see
+        // letters): the person, 2026-10-30, "a tarefa de trabalho que enviou uma mensagem não deve
+        // virar ✉ nem sair da contagem; segue tarefa comum".
         label:
-          tone === 'sent'
-            ? `Aguardando confirmação de ${waitsOn.join(', ')}`
-            : msg !== undefined
-              ? `Mensagem ${MSG_WORD[msg]}`
-              : ({ open: 'Aberta', current: 'Em andamento', done: 'Concluída', interrupted: 'Interrompida', paused: 'Aguardando' }[tone as string] ?? ''),
-        strong: tone === 'current' || tone === 'sent' || (depth === top && t.status === 'open'),
+          (waitsOn.length > 0 ? `Aguardando confirmação de ${waitsOn.join(', ')}; ` : '') +
+          ({ open: 'Aberta', current: 'Em andamento', done: 'Concluída', interrupted: 'Interrompida', paused: 'Aguardando' }[tone as string] ?? ''),
+        strong: tone === 'current' || (depth === top && t.status === 'open'),
         sub: (t.children.length > 0 || w.any) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
         bar: true,
-        meta: msg !== undefined ? MSG_WORD[msg] : tone === 'interrupted' ? 'interrompida' : undefined,
-        ...(msg !== undefined ? { msg } : {}),
+        meta: tone === 'interrupted' ? 'interrompida' : undefined,
         time:
           (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
           (tone === 'done' || tone === 'interrupted'
@@ -1017,7 +1014,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         // colocar esse icone na tarefa pai que originou essas sessoes"); the ⑂ still marks a task
         // with sessions below.
         // In progress of its own (the chip); a session at work below it counts as a session.
-        active: tone !== 'sent' && t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
+        active: t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
       }
       const under = below(t, depth)
       if (t.children.length === 0 && under.length === 0) return [{ ...row, nodes: [t] }]
@@ -1183,7 +1180,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const panel = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number): Row[] => {
     // The sends of this panel's main group still waiting to be taken up: this session's at the top,
     // what each session publishes in its card (its task shows ✉ too).
-    const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken) : queued
+    const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken && !x.cut) : queued
+    // Every send of this panel (taken ones too, the last 20): its letters.
+    const mail = level > 0 ? (p.sends ?? []) : model.sends
+    const cutHere = level > 0 ? new Set(flat(withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'interrupted').map(t => t.id)) : cutAt
     const groups = withMain(p.groups ?? [])
     const waits = p.waits ?? []
     // Archived sessions stay, as history, drawn gray with "arquivada".
@@ -1198,6 +1198,44 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
 
     const main = groups.find(g => g.agent === MAIN) as Group
     const allIds = flat(main.tasks).map(t => t.id)
+    // The letters of the messages sent from this panel's main tasks (the person, 2026-10-30: "A: linha
+    // própria sob a tarefa (Recomendado)"): one line per (session, task) under the task it went from,
+    // before the session's card: "Para <session>: <message>", blue queued, green taken up, gray when
+    // dropped before its delivery (its task cut by a new request); the time it has waited while queued.
+    // Out of every count and chip but the one of what waits on a session. A send whose task left the plan
+    // (a replan) hangs from the level-1 task of the request it was sent in.
+    const levelOne = (s: Send): string | undefined => {
+      const turns = (main.turns ?? []).filter(u => typeof u.at === 'number' && s.at !== undefined && (u.at as number) <= s.at)
+      const turn = turns[turns.length - 1]?.id
+      const list = turn === undefined ? main.tasks : main.tasks.filter(t => t.turn === turn)
+      return (list[list.length - 1] ?? main.tasks[main.tasks.length - 1])?.id
+    }
+    const hostOf = (s: Send) => (s.anchor !== undefined && allIds.includes(s.anchor) ? s.anchor : levelOne(s))
+    const nameOf = (to: string) => {
+      const c = [...(p.children ?? []), ...model.children].find(k => k.id === to || (k.name !== '' && k.name === to))
+      // The title a just-opened session has before the host lists it ("Sessão…") names nothing.
+      const named = c ? c.name || (c.title.endsWith('…') ? '' : c.title) : ''
+      return named || (to.startsWith('local_') ? to.slice(6, 14) : to)
+    }
+    const letters = (t: TaskNode, depth: number): Row[] =>
+      mail
+        .filter(s => hostOf(s) === t.id)
+        .map(s => {
+          const state: MsgState = s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
+          const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
+          return {
+            key: `${scope}m:${s.to}:${s.anchor ?? ''}`,
+            leaf: true,
+            depth,
+            tone: 'sent' as Tone,
+            title: `Para ${nameOf(s.to)}${text ? `: ${text.length > 60 ? `${text.slice(0, 59)}…` : text}` : ''}`,
+            label: `Mensagem ${MSG_WORD[state]}`,
+            meta: MSG_WORD[state],
+            msg: state,
+            time: state === 'queued' && s.at !== undefined && now !== undefined ? now - s.at : null,
+            nodes: [],
+          }
+        })
     const loose = sessions.filter(c => c.anchor === undefined || !allIds.includes(c.anchor))
     // Cards at work under a request the full view cut ("+N pedidos anteriores"): drawn loose at the end.
     const strays: Child[] = []
@@ -1215,6 +1253,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor))
       const below = (t: TaskNode, depth: number) => [
         ...(t.id === anchor ? mine.map(w => notice(w, depth + 1)) : []),
+        ...(g.agent === MAIN ? letters(t, depth + 1) : []),
         ...(g.agent === MAIN
           ? inOrder(sessions.filter(c => c.anchor === t.id)).flatMap(c => session(c, depth + 1, level, scope))
           : []),

@@ -127,11 +127,11 @@
       "regras": [
         "cabecalho.chips-contam-folhas"
       ],
-      "hash": "f8abd5461bb0b574",
+      "hash": "030c448b1b4832a2",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/cabecalho.test.ts::os números somam o que a visão desenha, e recolher não muda nada": {
       "regras": [
@@ -403,96 +403,116 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/envios.test.ts::a carta de envio é uma linha sob a tarefa; a tarefa conta e o painel a conclui na entrega": {
+      "regras": [
+        "envios.carta-sob-a-tarefa"
+      ],
+      "hash": "41c74aedb7fc71f1",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-03",
+      "motivo": "carta de envio sob a tarefa"
+    },
     "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
       "regras": [
         "envios.entrega-imediata-fica-verde"
       ],
-      "hash": "ad932dd7c79c9953",
-      "assercoes": 6,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "7cd09c8cfc47af42",
+      "assercoes": 5,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::a entrega imediata e depois uma mensagem na fila à mesma sessão: cada uma no seu estado": {
       "regras": [
         "envios.fica-ate-entrega",
         "envios.entrega-imediata-fica-verde"
       ],
-      "hash": "3b234f3c814cbb69",
-      "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "c7286b1fd5e15106",
+      "assercoes": 0,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::a mensagem de um plano interrompido fica cinza depois da entrega": {
       "regras": [
         "envios.cor-por-estado"
       ],
-      "hash": "bad18e660f3984e0",
+      "hash": "629f23aee0fdf818",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
       "regras": [
         "pedidos.replano-mantem-envio-ate-entrega"
       ],
-      "hash": "c11fd1d66ed3ac5f",
+      "hash": "54a6d7c33c691091",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::a tarefa iniciada antes do lote recente fica sem o envio": {
       "regras": [
         "envios.ancora-no-lote-recente"
       ],
-      "hash": "10077c34bf07bb3f",
-      "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "07fbf8bdfaccb71d",
+      "assercoes": 1,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::cada envio vai a uma tarefa do lote recente de starts ainda sem envio": {
       "regras": [
         "envios.ancora-no-lote-recente"
       ],
-      "hash": "b897bafbc12133f7",
+      "hash": "e627da9783cd7a6f",
+      "assercoes": 0,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::com a carta na fila, o Esc deixa a tarefa aguardando; a entrega a conclui": {
+      "regras": [
+        "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
+      ],
+      "hash": "6f79fbcf51559c64",
       "assercoes": 2,
       "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "data": "2026-11-03",
+      "motivo": "carta de envio sob a tarefa"
     },
     "task-tree/tests/envios.test.ts::depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem": {
       "regras": [
         "envios.esc-apos-entrega-imediata"
       ],
-      "hash": "0a24d1861143a261",
-      "assercoes": 6,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "ea22dd3525fa71a4",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
       "regras": [
         "envios.fila-nao-interrompe-no-fim-do-turno"
       ],
-      "hash": "fa7370f002a0b8b3",
-      "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "24bfd5c87e4ec60b",
+      "assercoes": 2,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::o envio nunca vai à tarefa com pergunta aberta": {
       "regras": [
         "envios.ancora-no-lote-recente"
       ],
-      "hash": "9b1d9a57aca447f6",
-      "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "760f7fee90330c41",
+      "assercoes": 1,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::o mesmo plano num pedido da pessoa não mostra carta nenhuma": {
       "regras": [
@@ -519,31 +539,31 @@
         "envios.fica-ate-entrega",
         "envios.cor-por-estado"
       ],
-      "hash": "8bcd3fa10eff9800",
-      "assercoes": 7,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "7e7e763f380a5a10",
+      "assercoes": 2,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
       "regras": [
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
       ],
-      "hash": "0698f521a08131d1",
-      "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "c45318e1469283ab",
+      "assercoes": 0,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento, o envio vai à pendente planejada por último": {
       "regras": [
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
       ],
-      "hash": "f25ab0151eb4f456",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "f0b780974c79d7ad",
+      "assercoes": 1,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/envios.test.ts::um pedido recebido com quatro tarefas de nível 1 tem uma carta só, no pedido": {
       "regras": [
@@ -864,21 +884,21 @@
       "regras": [
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
       ],
-      "hash": "e625eec84b6c1314",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "rodadas das sessões (commit B)"
+      "hash": "f7682742a3205841",
+      "assercoes": 1,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/sessoes.test.ts::a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
-      "hash": "292f9840d07f277a",
+      "hash": "16c24433fac7332c",
       "assercoes": 2,
       "tipo": "decisao",
-      "data": "2026-10-28",
-      "motivo": "o teste afirmava o valor do bug; corrigido para a decisão de 2026-10-24 (usuário, 2026-10-28: Sim, corrigir)"
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
@@ -904,11 +924,11 @@
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem-do-pai"
       ],
-      "hash": "78f231c2597cd475",
+      "hash": "b2311e892e2c3b19",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "x/y do pai sem a rodada descartada"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
@@ -1200,17 +1220,17 @@
       "motivo": "fimDoTurno com resposta opcional"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "85bd3242c0cc29c1",
+      "hash": "1955c0f7424fbea2",
       "tipo": "refatoracao",
-      "data": "2026-11-03",
-      "motivo": "o ▸/▾ da linha de seção faz as vezes do ícone"
+      "data": "2026-11-04",
+      "motivo": "cartaSob: a carta de envio sob a tarefa"
     }
   },
   "golden": {
     "envios": {
-      "hash": "e1f8dcd2699393a4",
-      "data": "2026-11-03",
-      "motivo": "\"de só um pequeno espaço embaico de cada label, esta colado no final do painel, apos isso, pode fazer push\", 2026-11-03"
+      "hash": "5cb3107a2fad4428",
+      "data": "2026-11-04",
+      "motivo": "\"Funcionou\", 2026-11-04"
     },
     "filha": {
       "hash": "50295ba1bb0bbed8",

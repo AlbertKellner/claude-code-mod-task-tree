@@ -113,7 +113,8 @@ test('os chips contam só folhas, nunca pais nem tarefas de mensagem', async ($:
   await envio($, 'local_x')
   p = await painel($)
   c = cabecalho(p)
-  expect([c.chips.andamento, c.chips.sessao, c.chips.pendentes], emTexto(p)).toEqual([0, 1, 2])
+  // A tarefa que enviou conta pelo ícone (em andamento); a carta na fila, em "aguardando sessão".
+  expect([c.chips.andamento, c.chips.sessao, c.chips.pendentes], emTexto(p)).toEqual([1, 1, 2])
 })
 
 // Regra: cabecalho.titulo-e-a-ultima-iniciada

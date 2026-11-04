@@ -174,7 +174,9 @@ export type Child = {
 // `taken` once it was seen running again (it started on the message).
 // `delivered`: the session took it at once ("its turn has started"); kept until seen taken up, so
 // its task shows ✉ meanwhile, with no reminder when taken.
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean }
+// `text`: the message's start (its letter's title); `noted`: the main loop was told it was taken up
+// (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

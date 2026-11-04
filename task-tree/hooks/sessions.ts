@@ -169,9 +169,10 @@ export async function watchSends($: any, rows: any[]) {
 // Once: the sessions that took up a queued message, with the task it was sent from.
 export async function takenNote($: any): Promise<string | undefined> {
   const { value: sends = [] } = await $.state.get(sendsState)
-  const done = (sends as Send[]).filter(s => s.taken)
+  const done = (sends as Send[]).filter(s => s.taken && !s.noted)
   if (done.length === 0) return undefined
-  await $.state.set(sendsState, (sends as Send[]).filter(s => !s.taken))
+  // Kept, its letter green under its task (the last 20); the reminder goes once.
+  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken ? { ...s, noted: true } : s)).slice(-20))
   // A delivery at once needs no reminder: the model saw it delivered.
   const taken = done.filter(s => !s.delivered)
   if (taken.length === 0) return undefined

@@ -51,9 +51,11 @@ Os chips (as pílulas do cabeçalho) contam só folhas, nunca pais nem tarefas d
 
 - Dado tarefas com filhas, tarefas de mensagem e folhas em cada estado
 - Quando o cabeçalho é desenhado
-- Então em andamento conta as folhas iniciadas, pendentes as não iniciadas, e a tarefa de mensagem só no chip ✉
+- Então em andamento conta as folhas iniciadas (inclusive a tarefa que enviou uma mensagem), pendentes as não iniciadas; a carta na fila só conta no chip ✉ ("aguardando sessão")
 
 Origem: regra do painel ("Open leaves only, a parent never"); tarefas de mensagem fora: decisão do usuário, 2026-10-24 ("quero diferenciar as tarefas de execução, das tarefas de mensagem"), commit 8eb801c.
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou conta pelo ícone; a carta, fora dos chips de tarefa.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### cabecalho.limites-de-linhas

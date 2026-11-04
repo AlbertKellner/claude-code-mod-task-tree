@@ -55,6 +55,8 @@ A mensagem entre filhas fica no cartão da remetente.
 - Então a tarefa da mensagem, com o ✉, fica no cartão da remetente, e o cartão da destinatária fica na sequência sob a tarefa da mãe, não dentro do cartão da remetente
 
 Origem: commit 28ae764, 2026-10-23; o cartão dentro do cartão foi desfeito por fddd473 no mesmo dia ("o painel não deve ficar dentro de outro").
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é a linha sob a tarefa, no cartão da remetente.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### sessoes.filha-trabalhando-mantem-pais-em-andamento
@@ -96,6 +98,8 @@ A rodada descartada sai da contagem.
 
 Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
 Reescrito: 2026-10-28, decisão do usuário ("Sim, corrigir (Recomendado)... o teste esperava o valor do bug; decisão de 2026-10-24 mantida"): a rodada descartada é a anterior, não a que está trabalhando.
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou a mensagem passa a contar no total.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem-do-pai
@@ -106,6 +110,8 @@ A rodada descartada sai também do x/y da tarefa da mãe.
 - Então o x/y de "Um" não conta as tarefas dessa rodada
 
 Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou a mensagem passa a contar no total.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### sessoes.busto-so-no-pai

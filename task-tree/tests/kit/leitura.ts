@@ -181,6 +181,20 @@ export function esperarPalavra(linhas: Linha[], titulo: string, palavra: string)
   expect(linha(linhas, titulo).texto, `${titulo} no painel:\n${emTexto(linhas)}`).toContain(palavra)
 }
 
+// A carta de envio (a linha ✉ "Para <sessão>: …") que pende da tarefa com esse título, ou undefined.
+export function cartaSob(linhas: Linha[], titulo: string): Carta | undefined {
+  const l = linha(linhas, titulo)
+  for (const x of linhas.slice(linhas.indexOf(l) + 1)) {
+    if (x.nivel <= l.nivel) break
+    if (x.carta !== undefined && x.titulo.startsWith('Para ')) return x.carta
+  }
+  return undefined
+}
+
+export function esperarCartaSob(linhas: Linha[], titulo: string, carta: Carta) {
+  expect(cartaSob(linhas, titulo), `carta sob ${titulo} no painel:\n${emTexto(linhas)}`).toBe(carta)
+}
+
 export function esperarCarta(linhas: Linha[], titulo: string, carta: Carta) {
   expect(linha(linhas, titulo).carta, `${titulo} no painel:\n${emTexto(linhas)}`).toBe(carta)
 }

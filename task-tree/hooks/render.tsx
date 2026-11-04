@@ -301,9 +301,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { value: waits = [] } = await $.state.get(waitsState)
   const { value: sessions = [] } = await $.state.get(childrenState)
   const { value: sessionsError = '' } = await $.state.get(childrenErrorState)
-  // The sends still waiting to be taken up (see watchSends): "mensagem na fila".
+  // Every send of this session, queued and taken up (see watchSends): their letters.
   const { value: sends = [] } = await $.state.get(sendsState)
-  const queued = (sends as Send[]).filter(s => !s.taken)
   // The whole session's count, for the header's tooltip; the header itself counts what the
   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
@@ -334,7 +333,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  const model = { groups: held ?? [], waits, children: sessions, sends: queued, view, work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
+  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], view, work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
 
@@ -363,20 +362,17 @@ export async function render($: EngineInterface, e: any, next: any) {
   const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
   const headTime = sessionTime(shown, tally(r => r.live) > 0 || hasOpen(shown), now)
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
-  const sentIds = queued.map(q => q.anchor ?? '')
-  // A task waiting on a session is not in progress: this session's (the queued sends' tasks) and
-  // the ones the lines show waiting (a card's ✉ task too), by the tasks the lines stand for.
-  const sentTasks = new Set(lines.filter(r => r.tone === 'sent').flatMap(r => r.nodes ?? []))
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.
-  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0 && !t.msg && !sentIds.includes(t.id) && !sentTasks.has(t))
+  // A task a message went from counts as any task (its letter, the line below it, is what waits).
+  const open = flat(shown).filter(t => t.status === 'open' && t.children.length === 0)
   const active = open.filter(t => t.startedAt !== undefined && t.endedAt === undefined).length
   // Left open waiting when the turn ended (◷): in the chip of what waits, not pending.
   const resting = open.filter(leftWaiting).length
   const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
   const waitingNow = tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting
-  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent'), pending)
+  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent' && r.msg === 'queued'), pending)
   // The header's general state, the color of its band (headerState).
   const state = headerState({ active, waiting: waitingNow, live: tally(r => r.live), pending, d, n, x })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null

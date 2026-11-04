@@ -59,9 +59,11 @@ A tarefa de mensagem que sai do plano fica até a entrega.
 
 - Dado uma tarefa de mensagem com ✉ na fila
 - Quando o replano a tira do plano
-- Então ela segue visível com o ✉ até a entrega e depois some
+- Então a tarefa sai do plano, e a carta dela pende do nível 1 do pedido até a entrega
 
 Origem: decisão do usuário, 2026-10-27; commit fbf3c5c.
+Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa não é mais mantida; a carta rependura no nível 1.
+Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### pedidos.plano-anterior-vira-historico

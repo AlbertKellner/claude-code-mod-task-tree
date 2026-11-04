@@ -9,10 +9,10 @@
 
 import { update } from 'claude-code'
 
-import type { Child, Group, Send, TaskNode, Wait } from '../types'
+import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, askingAnchors, change, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, addWait, askingAnchors, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -103,6 +103,8 @@ const sentMessage: Notes = async ($, c, notes) => {
   if (String(e.tool) !== 'SendMessage') return
   const out = JSON.stringify(r.result ?? r)
   const to = String(e.to ?? e.input?.to ?? '')
+  // The message's start, its letter's title.
+  const said = String(e.message ?? e.input?.message ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
   // The task the message is sent from, once, before this send is recorded anywhere (a round, a send):
   // with several tasks in progress it is the first one with no message yet (sendAnchor), and the
   // records below must not move it to the next.
@@ -144,15 +146,9 @@ const sentMessage: Notes = async ($, c, notes) => {
     const at = sentAt ?? (await stamp($))
     await update($, sendsState, cur => [
       ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
-      { to, anchor, at, ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
-    ])
-    // The task it went from is a message task from now on (TaskNode.msg): kept on the task itself,
-    // since the send is dropped once taken up, and published with the panel for the card upstream.
-    if (anchor !== undefined) {
-      const mark = (list: TaskNode[]): TaskNode[] =>
-        list.map(t => (t.id === anchor ? (t.msg ? t : { ...t, msg: true }) : t.children.length > 0 ? { ...t, children: mark(t.children) } : t))
-      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: mark(g.tasks) } : g)))
-    }
+      { to, anchor, at, text: said, ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
+    ].slice(-20))
+    // The task it went from stays a task like any other: the message is its letter, drawn below it.
     await publishPanel($)
   }
   if (waitsDelivery && to !== '') {
