@@ -206,4 +206,7 @@ export const SESSION = {
     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
     `concluiu. Tarefas abertas no painel: ${open}.`,
+  stopped: (sessions: string[]) =>
+    PANEL + `parou com a tarefa de origem já fechada a sessão ${sessions.join(', a sessão ')}: essas pendentes ` +
+    'saíram da contagem do painel. Se o trabalho delegado não acabou, retome a sessão.',
 }

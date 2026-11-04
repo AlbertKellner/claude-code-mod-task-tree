@@ -7,7 +7,7 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { MAIN, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
@@ -229,8 +229,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The whole session's count, for the header's tooltip; the header itself counts what the
   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
+  const ownTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
   const [ad, an] = total({ groups: withMain(held ?? []), waits, children: sessions }, 0, c =>
-    split(c, sessions, knownId(), withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? [], undefined, newBreaksMemo()),
+    split(c, sessions, knownId(), ownTasks, undefined, newBreaksMemo()).map(r => settle(r, ownTasks, sends as Send[])),
   )
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
   const now = await stamp($)

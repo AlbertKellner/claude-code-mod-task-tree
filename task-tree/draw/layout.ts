@@ -112,7 +112,7 @@ export const live = (c: Child) => !c.archived && (c.running || c.waiting === tru
 // task open when the next message began the round after it, or the leading round of a session whose
 // turn was stopped (aborted) with a task open. Its leaves, the ✓ ones too, count for nothing in the
 // lines above it and in the header; the card itself is drawn as it is. A session that merely ended
-// its turn with pending tasks is not discarded (its 3/5 reads 3/3, as before), nor an archived one
+// its turn with pending tasks is not discarded (its pending tasks count, see settle), nor an archived one
 // (history, its interrupted ones out of the total as before).
 export const discarded = (c: Child): boolean => {
   if (c.archived || !hasOpen(tasksOf(rawPanel(c).groups ?? []))) return false
@@ -134,6 +134,33 @@ export const panelOf = (c: Child): Panel => {
   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
   const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
   return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], c.aborted === true)) })) }
+}
+// A card whose session is done with it (the person, 2026-11-04: "Origem fechada (Recomendado)"):
+// stopped, not waiting on the person, not archived or opening, only pending tasks left (nothing
+// started), no message of this session queued for it, and the task it hangs from closed here. Its
+// ○ stay drawn but leave the count, the chips and what holds the view; its ✓ still count. Worked out
+// at each drawing, nothing kept: it undoes itself when the session goes back to work.
+export function settle(c: Child, owner: TaskNode[], sends: { to?: string; taken?: boolean; cut?: boolean }[]): Child {
+  const mine = flat(tasksOf(rawPanel(c).groups ?? []))
+  const open = mine.filter(t => t.status === 'open')
+  if (c.archived || c.starting || live(c) || open.length === 0 || discarded(c)) return c
+  if (open.some(t => t.started !== undefined || t.startedAt !== undefined)) return c
+  if (sends.some(s => !s.taken && !s.cut && (s.to === c.id || s.to === c.name))) return c
+  const at = c.lastAnchor ?? c.anchor
+  const origin = flat(owner).find(t => t.id === at)
+  return origin !== undefined && origin.status !== 'open' ? { ...c, settled: true } : c
+}
+// The tasks without their pending leaves, and the parents left with nothing.
+export const withoutPending = (list: TaskNode[]): TaskNode[] =>
+  list.flatMap(t => {
+    if (t.children.length === 0) return t.status === 'open' ? [] : [t]
+    const kids = withoutPending(t.children)
+    return kids.length > 0 ? [{ ...t, children: kids }] : []
+  })
+// A session's panel as it counts: a settled one's without its pending tasks.
+export const inCount = (c: Child): Panel => {
+  const p = panelOf(c)
+  return c.settled ? { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: withoutPending(g.tasks) })) } : p
 }
 // A session in one card per message the main loop sent it (`rounds`): the card of a message holds
 // the turns the session opened after it (its tasks in plan order, the subagents, notices and
@@ -416,7 +443,7 @@ export function total(p: Panel, level = 0, splitter?: (c: Child) => Child[]): [n
   if (level >= DEEP) return [d, n, x]
   for (const c of (p.children ?? []).flatMap(c => (splitter ? splitter(c) : [c]))) {
     if (discarded(c)) continue
-    const [cd, cn, cx] = total(panelOf(c), level + 1)
+    const [cd, cn, cx] = total(inCount(c), level + 1)
     d += cd
     n += cn
     x += cx
@@ -477,14 +504,14 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   let d = 0
   let n = 0
   for (const c of kept) {
-    const [cd, cn] = total(panelOf(c), level + 1)
+    const [cd, cn] = total(inCount(c), level + 1)
     d += cd
     n += cn
   }
-  const tasks = mine.flatMap(c => allTasks(panelOf(c), level + 1))
-  const cards = kept.flatMap(c => allTasks(panelOf(c), level + 1))
+  const tasks = mine.flatMap(c => allTasks(inCount(c), level + 1))
+  const cards = kept.flatMap(c => allTasks(inCount(c), level + 1))
   const direct = sessions.some(c => c.anchor === t.id || roundAt(c) === t.id)
-  const left = [...below, ...here].some(c => hasOpen(tasksOf(rawPanel(c).groups ?? [])))
+  const left = [...below, ...here].some(c => !c.settled && hasOpen(tasksOf(rawPanel(c).groups ?? [])))
   return { busy: hereOpen.some(live), any: below.length > 0 || here.length > 0, direct, live: here.some(live), open: left, d, n, tasks, cards }
 }
 // An open parent with something done (or left waiting, see leftWaiting) below it and nothing in progress:
@@ -665,7 +692,7 @@ export function limitRows(rows: Row[]): Row[] {
 // while another was still open, and a card with an open task did not hold its request; and it looked
 // only at where a session was opened, with an open task required, so a session at work under a later
 // request (its current round there) did not hold that request, and its card left the summary.
-export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; taken?: boolean }[], me?: string): boolean {
+export function openInSight(p: Panel, ids: string[], sends: { to?: string; anchor?: string; taken?: boolean; cut?: boolean }[], me?: string): boolean {
   const main = withMain(p.groups ?? []).find(g => g.agent === MAIN)
   const tasks = main?.tasks ?? []
   const turns = tasks.filter(t => ids.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
@@ -676,8 +703,9 @@ export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; t
   // A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
   const anchors = (c: Child) =>
     [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
-  // A discarded round holds nothing in sight, as it keeps no card alive (alive).
-  const holds = (c: Child) => split(c, p.children ?? [], me, tasks, undefined, newBreaksMemo()).some(r => !discarded(r) && hasOpen(allTasks(panelOf(r), 1)))
+  // A discarded round holds nothing in sight, as it keeps no card alive (alive); nor does a settled one.
+  const holds = (c: Child) =>
+    split(c, p.children ?? [], me, tasks, undefined, newBreaksMemo()).some(r => !discarded(r) && !settle(r, tasks, sends).settled && hasOpen(allTasks(panelOf(r), 1)))
   return (p.children ?? []).some(c => anchors(c).some(a => all.includes(a)) && (live(c) || holds(c)))
 }
 
@@ -1117,7 +1145,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
     // A card of one round (split) speaks for its group only: done, it shows the check, with no
     // word that would say the whole session ended.
-    const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : parked ? 'parada' : c.part !== undefined ? undefined : 'concluída'
+    const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? 'parada' : c.part !== undefined ? undefined : 'concluída'
     const [cd, cn] = total(p, level + 1)
     const header: Row = {
       key: `${scope}s:${c.id}#${c.partAt ?? c.part ?? 0}`,
@@ -1163,8 +1191,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id, going).length > 0) header.fold = { key, open: inner.length > 0 }
     // A discarded round's lines stand for nothing in the header's count (discarded), ✓ ones included.
     const out = discarded(c)
-    header.nodes = out || inner.length > 0 ? [] : allTasks(p, level + 1)
-    return [header, ...(out ? inner.map(r => ({ ...r, nodes: [] })) : inner)]
+    header.nodes = out || inner.length > 0 ? [] : allTasks(inCount(c), level + 1)
+    // A settled card's ○ are drawn, and stand for nothing in the header (settle).
+    return [header, ...(out ? inner.map(r => ({ ...r, nodes: [] })) : c.settled ? inner.map(r => (r.nodes ? { ...r, nodes: withoutPending(r.nodes) } : r)) : inner)]
   }
 
   // One session's panel from `base`: its main group, its subagents' groups and the sessions
@@ -1186,7 +1215,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // One card per message the session was sent (split).
     const sessions = (p.children ?? []).flatMap(c => {
       const m = withMain(p.groups ?? []).find(g => g.agent === MAIN)
-      return split(c, p.children ?? [], me, m?.whole ?? m?.tasks ?? [], now, memo)
+      const owner = m?.whole ?? m?.tasks ?? []
+      const cards = split(c, p.children ?? [], me, owner, now, memo)
+      // The direct sessions only: a session's own sends are not known a level down.
+      return level === 0 ? cards.map(r => settle(r, owner, model.sends)) : cards
     })
 
     // A subagent's group hangs from the loop that launched it; one whose launcher has no

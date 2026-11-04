@@ -7,12 +7,12 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, flat, running } from '../draw/layout'
+import { MAIN, flat, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf } from '../draw/layout'
 import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { change, ensureTurn, inDesktopApp, keptLink, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -229,8 +229,15 @@ export async function endedNote($: any): Promise<string | undefined> {
     .map(c => ({ c, t: open.find(t => t.id === c.anchor) }))
     .filter(x => x.t !== undefined)
     .map(x => `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title})`)
-  if (lines.length === 0) return undefined
-  return SESSION.ended(lines, openList(tasks))
+  // One that stopped with its task closed here: its pending tasks left the count (settle), said once.
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const left = (kids as Child[])
+    .filter(c => ids.includes(c.id))
+    .flatMap(c => split(c, kids as Child[], knownId(), tasks, undefined, newBreaksMemo()).map(r => settleCard(r, tasks, sends as Send[])))
+    .filter(r => r.settled)
+    .map(r => `"${r.name || r.title}" (${flat(tasksOf(rawPanel(r).groups ?? [])).filter(t => t.status === 'open' && t.children.length === 0).length} pendentes)`)
+  const notes = [...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks))] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
+  return notes.length > 0 ? notes.join(' ') : undefined
 }
 
 // The pane's 1 s clock: it redraws the times while a task runs, here or in a session this one
