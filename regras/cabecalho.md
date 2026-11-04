@@ -62,6 +62,17 @@ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou um
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
+### cabecalho.aviso-de-painel-grande-volta
+O aviso de painel grande tem um botão que volta à visualização anterior.
+
+- Dado o painel trocado pelo aviso "Painel grande demais", depois de abrir "+N pedidos anteriores"
+- Quando a pessoa aperta "Voltar à visualização anterior"
+- Então o que foi aberto fecha (os históricos abertos; sem nenhum, as linhas abertas) e o painel normal volta, com "+N pedidos anteriores" fechado
+
+Origem: decisão do usuário, 2026-11-04 ("coloque um botão para voltar a visualização anterior").
+Código: hooks/render.tsx
+Estado: checklist (o harness limita cada valor do state a 4 MB, e o aviso só aparece acima de 20 MB)
+
 ### cabecalho.limites-de-linhas
 Os pedidos fora do trabalho viram "+N pedidos anteriores".
 

@@ -20,6 +20,16 @@ const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Rec
 async function setFold($: any, key: string, closed: boolean) {
   await update($, folds, cur => ({ ...cur, [key]: closed }))
 }
+// The way back from the emergency drawing, which has none of the lines that fold (the person,
+// 2026-11-04: "coloque um botão para voltar a visualização anterior"): the histories opened close;
+// with none open, every line the person opened does.
+async function closeOpened($: any) {
+  await update($, folds, cur => {
+    const open = Object.keys(cur).filter(k => cur[k] === false)
+    const history = open.filter(k => k.endsWith('sec:turns'))
+    return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])) }
+  })
+}
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -338,9 +348,16 @@ export async function render($: EngineInterface, e: any, next: any) {
   drawn.size = JSON.stringify(made ?? null).length
   if (drawn.size > DRAW_LIMIT) {
     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
-    const { Text } = $.ui.resolve(e) as any
+    const { Box, Button, Text } = $.ui.resolve(e) as any
     return (
-      <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial.`}</Text>
+      <Box flexDirection="column">
+        <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial.`}</Text>
+        <Box flexDirection="row">
+          <Button key="back" onPress={act('back', () => void closeOpened($))}>
+            <Text>Voltar à visualização anterior</Text>
+          </Button>
+        </Box>
+      </Box>
     )
   }
   return made
