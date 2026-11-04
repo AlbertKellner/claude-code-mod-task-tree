@@ -483,8 +483,9 @@ export async function publishPanel($: any) {
 // with the latest action instead.
 // The last drawing's size (serialized), and the most a drawing may be before the pane shows only a
 // warning line: a 1.3 MB one was not shown by the app (the person's words: "resumir os 57 pedidos
-// anteriores resolveu").
-export const DRAW_LIMIT = 600 * 1024
+// anteriores resolveu"). 20 MB is under evaluation (the person, 2026-11-04: "deixe esse limite em 20
+// megas, vou avaliar e avisar quando ele travar. pode ser uma restrição do código antigo"); it was 600 KB.
+export const DRAW_LIMIT = 20 * 1024 * 1024
 // The last drawing: its size (serialized), its lines (after the limit, published with the size for
 // the session that opened this one to see how big its children's panels are) and its error, if it
 // threw (see the render hook), published with the panel. Written by the render (hooks/render.tsx).
