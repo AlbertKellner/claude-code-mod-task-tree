@@ -1,38 +1,41 @@
 # Cabeçalho
 
-Os números, chips e limites do cabeçalho e das visões.
+Os números, chips e limites do cabeçalho e do que é desenhado.
 
 Código da área: draw/layout.ts, draw/svg.ts
 
 ### cabecalho.numeros-somam-o-desenhado
-Os números do cabeçalho somam o que a visão desenha.
+Os números do cabeçalho somam o que está desenhado.
 
-- Dado linhas recolhidas na visão
+- Dado linhas recolhidas no painel
 - Quando o cabeçalho é desenhado
-- Então os números somam o que a visão mostra, e recolher não muda nada
+- Então os números somam o que o painel mostra, e recolher não muda nada
 
 Origem: decisão do usuário, 2026-10-23 ("deve somar as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa visao"; "as colapsada, mas que estao nessa visao, tambem entram"); commit 3e79cb8.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); não há mais visões.
 Estado: coberto
 
 ### cabecalho.resumida-exclui-pedido-finalizado
-A resumida tira o pedido finalizado quando um pedido novo começa trabalho.
+O pedido finalizado sai do trabalho quando um pedido novo começa trabalho.
 
 - Dado um pedido de turno anterior todo concluído
 - Quando um pedido novo começa trabalho (plan ou start)
-- Então o finalizado sai da resumida e dos números dela; a completa o mantém e o conta
+- Então o finalizado sai do desenho e dos números e fica em "+N pedidos anteriores"; aberta a linha, ele volta a ser desenhado e contado
 
 Origem: decisão do usuário, 2026-10-22 ("segundo a regra antiga, na visão resumida, ficam somente as tarefas novas do turno"); commit 6599050.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: hooks/panel.ts, hooks/command.ts
 Estado: coberto
 
 ### cabecalho.resumida-limpa-so-com-tudo-concluido
-A resumida só é limpa quando tudo à vista está concluído.
+O trabalho só é limpo quando tudo à vista está concluído.
 
 - Dado o trabalho de um pedido anterior todo concluído
 - Quando um pedido novo começa trabalho
-- Então a resumida mostra só o pedido novo (o par de pedidos.resumida-mantem-anteriores-com-algo-aberto)
+- Então o painel mostra só o pedido novo, com os anteriores em "+N pedidos anteriores" (o par de pedidos.resumida-mantem-anteriores-com-algo-aberto)
 
 Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: hooks/panel.ts, hooks/command.ts
 Estado: coberto
 
@@ -44,6 +47,7 @@ A interrompida fica fora do total.
 - Então ela sai do total e entra no chip "interrompidas"
 
 Origem: regra do painel desde a entrada do mod (commit 465b09e, "Interrupted tasks are kept out of the done/total count"); reafirmada pelo usuário, 2026-10-24 ("interrompida fora do total, 3/5 → 3/3").
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Estado: coberto
 
 ### cabecalho.chips-contam-folhas
@@ -59,24 +63,26 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### cabecalho.limites-de-linhas
-Os pedidos além dos três últimos viram "+N pedidos anteriores".
+Os pedidos fora do trabalho viram "+N pedidos anteriores".
 
-- Dado mais de três pedidos, os antigos sem nada aberto
-- Quando a completa é desenhada
-- Então os mais antigos viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, à parte); um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
+- Dado pedidos fora do trabalho atual, sem nada aberto
+- Quando o painel é desenhado
+- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, só no tooltip); no máximo três pedidos sem nada aberto ficam desenhados; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos
-Os cartões antigos sem tarefa de origem viram "+N cartões antigos de sessões".
+Os cartões antigos sem tarefa de origem ficam em "+N pedidos anteriores".
 
 - Dado cartões parados, sem tarefa de origem, de pedidos antigos
-- Quando a completa é desenhada
-- Então eles viram uma linha "+N cartões antigos de sessões"
+- Quando o painel é desenhado
+- Então fechada a linha, não aparecem; aberta, viram uma linha "+N cartões antigos de sessões"
 
 Origem: commit 4edb3f2, 2026-10-21.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
 ### cabecalho.limite-de-linhas-do-desenho
@@ -88,6 +94,7 @@ O desenho tem no máximo 400 linhas; o que passa vira uma linha de contagem.
 
 Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Estado: coberto
 
 ### cabecalho.titulo-e-a-ultima-iniciada
@@ -115,11 +122,21 @@ Estado: coberto
 ### cabecalho.historico-abre-com-clique
 "+N pedidos anteriores" abre e fecha com um clique.
 
-- Dado mais de três pedidos, os antigos cortados numa linha "+N pedidos anteriores"
+- Dado pedidos fora do trabalho, cortados numa linha "+N pedidos anteriores"
 - Quando a pessoa clica no ▸ dessa linha (fechada por padrão)
 - Então os pedidos cortados são desenhados, a linha mostra ▾, e um clique de novo a fecha; o limite de 400 linhas do desenho continua valendo
 
 Origem: decisão do usuário, 2026-11-03 ("Sim, fechado por padrão (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...".
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/svg.ts, hooks/render.tsx
 Estado: coberto
 
+### cabecalho.historico-guarda-o-que-saiu
+O que saiu do trabalho fica em "+N pedidos anteriores", com os cartões das filhas.
+
+- Dado um pedido finalizado, com o cartão de uma filha, fora do trabalho
+- Quando a pessoa abre a linha "+N pedidos anteriores"
+- Então o pedido é desenhado, com o cartão e as tarefas da filha sob a tarefa de origem
+
+Origem: decisão do usuário, 2026-11-04 ("Ficam em '+N pedidos anteriores' (Recomendado)").
+Estado: coberto

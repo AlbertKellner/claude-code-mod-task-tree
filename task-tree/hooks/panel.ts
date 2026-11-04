@@ -103,7 +103,6 @@ export async function clearTurn($: any) {
 }
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
-const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
@@ -321,7 +320,6 @@ export async function adopt($: any) {
 
 export async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
   await ensureGroups($)
-  await ensureView($)
   await ensureWork($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
@@ -377,32 +375,11 @@ export async function ensureGroups($: any): Promise<Group[] | undefined> {
     return undefined
   }
 }
-// The view's and the work's "first use" (the table's restoredAt), as ensureGroups: a restart
-// without session.start would otherwise draw the default view and let the next plan write its own
-// work over the store's (the summary view would lose the work in progress). Each answers what it
-// brought, for a drawing that cannot write the state, and counts the key as loaded only once the
-// state holds it. With nothing in the store, nothing is brought: the pane keeps its defaults.
-export async function ensureView($: any): Promise<'full' | 'summary' | undefined> {
-  if (loaded.has('view') || !restoredAt('view', 'first-use')) return undefined
-  try {
-    if ((await $.state.get(viewState)).value !== undefined) {
-      loaded.add('view')
-      return undefined
-    }
-    const saved = await loadStore($, 'view')
-    if (saved !== 'full' && saved !== 'summary') {
-      loaded.add('view')
-      return undefined
-    }
-    try {
-      await $.state.set(viewState, saved)
-      loaded.add('view')
-    } catch {}
-    return saved
-  } catch {
-    return undefined
-  }
-}
+// The work's "first use" (the table's restoredAt), as ensureGroups: a restart without
+// session.start would otherwise let the next plan write its own work over the store's (the panel
+// would lose the work in progress). It answers what it brought, for a drawing that cannot write the
+// state, and counts the key as loaded only once the state holds it. With nothing in the store,
+// nothing is brought: the pane keeps its default.
 export async function ensureWork($: any): Promise<string[] | undefined> {
   if (loaded.has('work') || !restoredAt('work', 'first-use')) return undefined
   try {
@@ -552,28 +529,7 @@ export async function dropAsked($: any, agent: string) {
 
 // A press on a line's ▾/▸: the line stays as the person left it (closed or open) until they
 // press it again. Written from onPress, since a render may not write.
-// The pane's view, chosen with the toggle at its top: kept in the state (a reload) and in the
-// store under the session (a resume). Written from onPress, like setFold.
-export async function setView($: any, view: 'full' | 'summary') {
-  await $.state.set(viewState, view)
-  try {
-    await saveStore($, 'view', view)
-  } catch {}
-}
-// At the session's start: the view chosen before (a reload, a resume), else the summary, the
-// default of a new session (the table's `current`: the state's wins).
-export async function restoreView($: any) {
-  loaded.add('view')
-  const { value: cur } = await $.state.get(viewState)
-  if (cur !== undefined) return
-  let saved: unknown
-  try {
-    saved = await loadStore($, 'view')
-  } catch {}
-  await $.state.set(viewState, keepCurrent(cur, saved === 'full' || saved === 'summary' ? saved : 'summary'))
-}
-
-// The current work (the summary view's list): the main group's level-1 tasks of the person's
+// The current work (what the panel draws): the main group's level-1 tasks of the person's
 // current request, with those of earlier requests still going on. A plan or start of the main loop
 // in a new request (another message of the person) starts new work: the new level-1 tasks, plus the
 // ones of the work before that still have something open (goingOn);
@@ -692,6 +648,15 @@ export async function restoreLinks($: any) {
     if (list('sends').length > 0) await update($, sendsState, cur => merge('sends', cur, list('sends')))
     if (list('received').length > 0) await update($, receivedState, cur => merge('received', cur, list('received')))
     if (list('launches').length > 0) await update($, launchesState, cur => merge('launches', cur, list('launches')))
+  } catch {}
+}
+// A resume replaces the groups with the resumed session's (restore): its work comes with them, kept
+// under the new session too. With the old work's ids gone from the groups the panel drew nothing.
+export async function restoreWorkOf($: any, id: string) {
+  loaded.add('work')
+  try {
+    const saved = await loadStore($, 'work', id)
+    if (Array.isArray(saved)) await setWork($, saved.map(String))
   } catch {}
 }
 export async function restoreWork($: any) {

@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, responderDepois, responderEnvio } from './kit/ambiente'
 import { aviso, done, envio, esc, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
-import { cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
+import { comHistorico, cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const PERGUNTA = {
@@ -45,7 +45,7 @@ test('a mensagem de um plano interrompido fica cinza depois da entrega', async (
   await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
   h.recebeu('local_x', AGORA)
   await aviso($)
-  const p = await painel($)
+  const p = await comHistorico($, 1)
   const cartas = p.filter(l => l.titulo.startsWith('Para ') && l.carta !== undefined)
   expect(cartas.map(l => l.carta), emTexto(p)).toEqual(['interrompida'])
   expect(cartas[0]!.texto).toContain('interrompida')

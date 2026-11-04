@@ -45,7 +45,8 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
 // `anchor`, the task the loop that launched it (`parent`) was on at launch. `turns`, the main
 // group's only, in order; absent in panels of earlier versions, whose tasks are drawn loose.
-export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[] }
+// `whole`: only in a drawing's cut (trimToWork): every level-1 task, `tasks` being those of the work.
+export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[] }
 
 // An Agent call, recorded at launch until the subagent's group claims it.
 export type Launch = { parent: string; anchor?: string; description: string }
@@ -64,7 +65,7 @@ export type Wait = {
 
 // A session's whole panel, as it publishes it for the session that opened it (see waitFile):
 // its groups, what waits on the person and the sessions it opened in turn.
-// `work`: its current work (the summary view's level-1 tasks), absent from earlier versions.
+// `work`: its current work (the level-1 tasks the panel draws), absent from earlier versions.
 // `received`: the messages of other sessions it got (see the state's `received`): a sister's
 // message opens a card of its own, as one from the session drawing it does.
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
@@ -146,7 +147,7 @@ export type Child = {
   // belong to); an earlier round's card left with open tasks is a discarded round.
   lead?: boolean
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
-  // summary view draws it when that task is in the current work.
+  // panel draws it when that task is in the current work.
   lastAnchor?: string
   // The messages the main loop sent this session (SendMessage): when (ms, before the send) and the
   // task it was sent from. The turns the session opened after each one are drawn in a card of their
@@ -183,10 +184,9 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 
 // `ended`: the sessions whose turn ended, until the main loop is reminded of their task.
 // `sends`: messages to other sessions still queued, until taken up and the main loop reminded.
-// `view`: the pane's view, the whole tree ('full', the default) or what is in progress ('summary').
 // `received`: the messages of other sessions this one got (from, when), published for their senders
 // to confirm a queued SendMessage.
-// `work`: the main group's level-1 tasks of the current work, drawn by the summary view until new
+// `work`: the main group's level-1 tasks of the current work, drawn by the panel until new
 // work starts (a plan or start with no open task left).
 // `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
 // the state so a reload of the mod mid-turn does not lose it.
@@ -204,6 +204,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; view: 'full' | 'summary'; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }

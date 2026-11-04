@@ -42,6 +42,7 @@ O replano no mesmo pedido substitui no lugar.
 - Então ele é substituído no mesmo lugar da lista, sem ✕
 
 Origem: decisão do usuário, 2026-10-21 (ordem do plano); commit 4af1b92.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Estado: coberto
 
 ### pedidos.replano-preserva-estado
@@ -71,9 +72,10 @@ Um plano de pedido anterior com o mesmo id vira histórico.
 
 - Dado um nível 1 aberto de um pedido anterior
 - Quando um pedido novo traz plan com o mesmo id
-- Então o antigo fica ✕, renomeado, sob o pedido antigo, e o novo fica sob o pedido novo
+- Então o antigo fica ✕, renomeado, sob o pedido antigo (em "+N pedidos anteriores"), e o novo fica sob o pedido novo
 
 Origem: série 2, 2026-10-23; o usuário confirmou em 2026-10-27.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
 ### pedidos.nivel1-concluido-e-historico
@@ -87,13 +89,14 @@ Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### pedidos.resumida-mantem-anteriores-com-algo-aberto
-A resumida mantém os pedidos anteriores enquanto há algo aberto.
+O painel mantém os pedidos anteriores enquanto há algo aberto.
 
 - Dado um pedido anterior com algo aberto à vista
 - Quando um pedido novo começa
-- Então a visão resumida mantém os dois; com tudo fechado, só o novo; um cartão de sessão ainda viva sob um pedido fora da resumida não traz o pedido de volta, mas é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
+- Então o painel mantém os dois; com tudo fechado, só o novo, e o anterior fica em "+N pedidos anteriores"; um cartão de sessão ainda viva sob um pedido fora do trabalho não traz o pedido de volta, mas é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"); desfaz, só para o cartão vivo, "nem o cartão é desenhado solto" (2026-10-23).
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts, hooks/command.ts
 Estado: coberto

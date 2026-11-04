@@ -4,7 +4,7 @@
 
 import {
   BAR_GAP, BAR_W, BRANCH_GAP, BRANCH_IN, BRANCH_RADIUS, CARD_EDGE, CARD_IN, CARD_RADIUS, CARD_RIGHT, EDGE_PAD, GUIDE_FROM, HEADER_GAP, HEADER_H, HEADER_PAD,
-  ICONS_W, PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
+  PAD, RIGHT_GAP, RING_D, RING_GAP, ROW_H, ROW_H_TOP, SECTION_TEXT_OUT, TEXT_IN, cardRight, col, ringFromRight, textRight,
 } from './geometry'
 import type { Tone, Row, Frame, Guide, SessionState, GitLabel, MsgState } from './layout'
 
@@ -647,7 +647,7 @@ export function headerSvg(
     parts.push(`<text class="p" x="${L}" y="30" font-size="16" font-weight="600">Tarefas</text>`)
     parts.push(`<text class="s" x="${L}" y="52" font-size="12">Nenhuma tarefa planejada.</text>`)
   } else {
-    const name = fit(title, 16, Math.max(24, R - ICONS_W - L - block))
+    const name = fit(title, 16, Math.max(24, R - L - block))
     parts.push(`<text class="p" x="${L}" y="30" font-size="16" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
     // This session's repository and branch below the title, with their icons (the person: "coloque
     // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
@@ -679,8 +679,8 @@ export function headerSvg(
       )
       cx += w + 8
     }
-    // The numbers block, at the right of the slot (toRight), left of the view icons.
-    const bx = R - ICONS_W - 6
+    // The numbers block, at the right of the slot (toRight).
+    const bx = R
     const num = 'text-anchor="end" font-variant-numeric="tabular-nums"'
     const clock = time !== undefined ? clockText(time) : ''
     const tail = !narrow && rate ? `<tspan${rate.live ? '' : ' opacity=".45"'}>${clock ? ' · ' : ''}${rateText(rate.toks)}</tspan>` : ''

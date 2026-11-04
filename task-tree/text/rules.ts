@@ -63,7 +63,7 @@ export const RULES = [
 ].join('\n')
 
 // The /task-tree command and the three tools, as the model sees them.
-export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele; com resumida ou completa, troca a visão'
+export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele'
 export const TOOLS = {
   plan:
     'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +

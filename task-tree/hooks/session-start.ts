@@ -5,7 +5,7 @@
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, replace, restore, restoreLinks, restoreTurn, restoreView, restoreWork, setWork } from './panel'
+import { PANE, adopt, clearTurn, replace, restore, restoreLinks, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
 import { refreshChildren, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -56,7 +56,6 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   await adopt($)
   if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
   loaded.add('groups')
-  await restoreView($)
   await restoreWork($)
   await restoreTurn($)
   await restoreLinks($)
@@ -79,6 +78,7 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
   }
   if (e.source === 'resume') {
     await restore($, e.session_id)
+    await restoreWorkOf($, e.session_id)
     await restoreTurn($, e.session_id, true)
   }
   return next(e)

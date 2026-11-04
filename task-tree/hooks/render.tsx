@@ -5,14 +5,14 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Send } from '../types'
-import { ICONS_W, lineWidth, overlays } from '../draw/geometry'
+import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { FRAME, animate, barOf, chipIn, chipTones, fadeIn, growFrom, mark, pop } from '../draw/motion'
 import { debug } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureView, ensureWork, knownId, setView, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
@@ -31,7 +31,6 @@ const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as cons
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
-const viewState = { plugin: 'task-tree', key: 'view' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
@@ -53,7 +52,7 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
 // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
 // the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; views: any[]; now?: number; view?: string }) {
+function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any; now?: number }) {
   const { Box, Svg, Button } = ui
   const keys = rowKeys(lines)
   const lanes = guides(lines)
@@ -61,8 +60,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   const cards = frames(lines)
   // What changed since the drawing before (../draw/motion): new lines fade in (together); a
   // line whose state changed pops its icon; a bar whose count changed grows; a new chip fades in.
-  // The header's keys carry the view: each view's header has its own bar and chips.
-  const headKey = `head@${chrome.view ?? ''}`
+  const headKey = 'head'
   const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
   const tones = chipTones(top.source)
   const marks = mark(
@@ -132,12 +130,9 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
         <Svg source={moving(top.source, headMotion)} alt={alt} height={top.height} />
         {hovers(top.source) ? (
           <Box position="absolute" top={0} left={0}>
-            <Svg source={hoverLayer(top.source, W - ICONS_W, 40)} alt="" width={W - ICONS_W} height={40} isInteractive />
+            <Svg source={hoverLayer(top.source, W, 40)} alt="" width={W} height={40} isInteractive />
           </Box>
         ) : null}
-        <Box position="absolute" top={0} right={0} flexDirection="row" alignItems="center">
-          {chrome.views}
-        </Box>
       </Box>
       {lines.map((r, i) => (
         <Box key={`r${i}`} flexDirection="column">
@@ -282,11 +277,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   const made = await (async () => {
   const ui = $.ui.resolve(e) as any
   const { Box, Text } = ui
-  // After a restart without session.start, the groups, the view and the work come from the store
-  // (see ensureGroups, ensureView, ensureWork): a drawing cannot write the state, so what they
+  // After a restart without session.start, the groups and the work come from the store
+  // (see ensureGroups, ensureWork): a drawing cannot write the state, so what they
   // brought is used here.
   const brought = await ensureGroups($)
-  const viewBrought = await ensureView($)
   const workBrought = await ensureWork($)
   // After a hot reload of the mod (each saved edit of the clone reloads it in every session) the clocks
   // were the old module's, gone with it, and they came back only with the next event (a tool call, a
@@ -313,9 +307,6 @@ export async function render($: EngineInterface, e: any, next: any) {
   const now = await stamp($)
   // What the person opened or closed.
   const chosen = await read($, folds)
-  const { value: heldView } = await $.state.get(viewState)
-  const view = heldView ?? viewBrought ?? 'full'
-  const summary = view === 'summary'
   const { value: heldWork } = await $.state.get(workState)
   const work = heldWork ?? workBrought ?? []
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
@@ -333,7 +324,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], view, work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
+  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
   const lines = layout(model, chosen, now, knownId())
   drawn.rows = lines.length
 
@@ -377,31 +368,6 @@ export async function render($: EngineInterface, e: any, next: any) {
   const state = headerState({ active, waiting: waitingNow, live: tally(r => r.live), pending, d, n, x })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
-  const { Button } = ui
-
-  // The view toggle: two icon buttons at the right end of the header's title line, ≡ the
-  // summary (what is in progress), ▤ the whole tree. The chosen one is the surface's primary
-  // (highlighted) button, the other dim; on the terminal the chosen one is in brackets. A desktop
-  // draws a Button's `label` as its text, so the label is the glyph alone; which view is chosen
-  // is said in the header's alt.
-  const VIEWS = [
-    ['summary', '≡'],
-    ['full', '▤'],
-  ] as const
-  const views =
-    e.surface === 'desktop'
-      ? VIEWS.map(([v, glyph]) =>
-          view === v ? (
-            <Button key={`view:${v}`} label={glyph} variant="primary" onPress={act(`view:${v}`, () => void setView($, v))} />
-          ) : (
-            <Button key={`view:${v}`} label={glyph} plain dimColor onPress={act(`view:${v}`, () => void setView($, v))} />
-          ),
-        )
-      : VIEWS.flatMap(([v, glyph], i) => [
-          ...(i > 0 ? [<Text key="gap"> </Text>] : []),
-          <Button key={`view:${v}`} label={view === v ? `[${glyph}]` : glyph} plain dimColor={view !== v} onPress={act(`view:${v}`, () => void setView($, v))} />,
-        ])
-
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const W = lineWidth((e.props as any).bodyColumns || 40)
     const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state)
@@ -414,8 +380,8 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
-          ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '') + `. Visão: ${summary ? 'resumida' : 'completa'}, selecionada (≡ resumida, ▤ completa)`
-    return drawDesktop($, ui, lines, W, top, alt, { errorLine, views, now, view })
+          ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
+    return drawDesktop($, ui, lines, W, top, alt, { errorLine, now })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -425,8 +391,6 @@ export async function render($: EngineInterface, e: any, next: any) {
       ? [
           <Box key="head" flexDirection="row">
             <Text dimColor>Nenhuma tarefa planejada.</Text>
-            <Text>{'  '}</Text>
-            {views}
           </Box>,
         ]
       : [
@@ -439,8 +403,6 @@ export async function render($: EngineInterface, e: any, next: any) {
               {headGit ? <Text dimColor>{`  ${gitTerm(headGit)}`}</Text> : null}
               {whole ? <Text dimColor>{`  (${whole})`}</Text> : null}
             </Text>
-            <Text>{'  '}</Text>
-            {views}
           </Box>,
           <Text key="bar">
             <Text color="success">{ratioBar(d, n, 20)[0]}</Text>
@@ -459,7 +421,7 @@ export async function render($: EngineInterface, e: any, next: any) {
     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
     const { Text } = $.ui.resolve(e) as any
     return (
-      <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial. Use ≡ (/task-tree resumida) para a visão resumida.`}</Text>
+      <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial.`}</Text>
     )
   }
   return made

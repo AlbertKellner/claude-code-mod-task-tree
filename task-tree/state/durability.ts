@@ -36,7 +36,7 @@ export type Row = {
   lives: Lives
   // The store's key prefix (`<store>:<session uuid>`); `field`: this key is one field of that
   // store record (the links record holds four).
-  store?: 'session' | 'view' | 'work' | 'links' | 'sessions' | 'turn'
+  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn'
   field?: boolean
   merge: Merge
   // `union`: how many of the merged entries are kept (the last ones).
@@ -51,10 +51,8 @@ export const TABLE: readonly Row[] = [
     note: 'the groups (tasks, turns, answers); a resume replaces the state with the store\'s; subagents\' open tasks come back interrupted' },
   { key: 'tasks', lives: 'state', merge: 'none', restoredAt: [],
     note: 'legacy: the one list before groups, moved into the main group once (adopt) at session.start or the first write' },
-  { key: 'view', lives: 'state+store', store: 'view', merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'the pane\'s view (summary or full); a new session starts with the summary; after a restart without session.start the first drawing or write brings it back (ensureView), else the pane would fall to the default view' },
-  { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'the current work (the summary view\'s level-1 tasks); after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
+  { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'fill', restoredAt: ['start', 'first-save'],
     note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks)' },

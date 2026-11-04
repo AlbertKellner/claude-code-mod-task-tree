@@ -89,9 +89,10 @@ O subagente que termina deixa interrompido o que ficou aberto.
 
 - Dado um subagente com tarefas abertas no grupo dele
 - Quando ele termina
-- Então o que ele deixou aberto fica ✕
+- Então o que ele deixou aberto fica ✕, e o grupo segue desenhado, mesmo lançado sem tarefa de origem
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o grupo sem origem sumia.
 Código: hooks/tools.ts
 Estado: coberto
 

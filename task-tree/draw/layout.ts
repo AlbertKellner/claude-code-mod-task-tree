@@ -681,7 +681,7 @@ export function openInSight(p: Panel, ids: string[], sends: { anchor?: string; t
 
 // A card at work: its session working, or a task of it still open (an abandoned round is not). It is
 // never left out of sight (the person, 2026-11-03: "Cartão vivo solto no fim (Recomendado)"): when
-// its request is cut ("+N pedidos anteriores") or out of the summary's work, the card is drawn loose
+// its request is cut ("+N pedidos anteriores") or out of the work, the card is drawn loose
 // at the end of the panel, named after its request, which itself stays out.
 export const alive = (c: Child) => !discarded(c) && (live(c) || hasOpen(tasksOf(panelOf(c).groups ?? [])))
 // The card loose at the end: no task to hang from, and the title of the request it came from.
@@ -694,18 +694,21 @@ export function loosen(c: Child, tasks: TaskNode[], turns: Turn[]): Child {
 export function trimToWork(p: Panel, level: number): Panel {
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
-  let work = p.work ?? []
+  // A work none of whose tasks are here (a resume, a replan that took them) is no work. With none,
+  // the last request with tasks, and with no requests every level-1 task (an older session's card:
+  // it took one, and the card hid the rest).
+  const present = main.tasks.map(t => t.id)
+  let work = (p.work ?? []).filter(id => present.includes(id))
   if (work.length === 0) {
     const last = [...(main.turns ?? [])].reverse().find(u => main.tasks.some(t => t.turn === u.id))
-    const lone = [...main.tasks].reverse().find(t => t.status === 'open') ?? main.tasks[main.tasks.length - 1]
-    work = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : lone ? [lone.id] : []
+    work = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : present
   }
   // The requests of the work, whole. A session still at work under a request out of the work does not
   // pull the request back (the person's decision; it did, and a day-old request came back with its
   // old cards while a session worked); its card, at work, is drawn loose at the end (alive, loosen).
-  // A card with no task to go under is left out of the summary too (it was drawn loose at the root:
-  // with few requests in sight every old session's card counted as recent, and days-old cards of
-  // archived and stopped sessions piled up after the last request).
+  // What is out of the work is not lost: it stays in `whole`, and the "+N pedidos anteriores" line
+  // draws it when opened, with its cards (the person, 2026-11-04: "Ficam em '+N pedidos anteriores'
+  // (Recomendado)"). So every card stays here; the panel draws those under tasks in sight.
   const wanted = work
   const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
@@ -714,14 +717,13 @@ export function trimToWork(p: Panel, level: number): Panel {
   return {
     ...p,
     groups: groups
-      .map(g => (g.agent === MAIN ? { ...g, tasks: keep, turns: (g.turns ?? []).filter(u => keep.some(t => t.turn === u.id)) } : g))
-      .filter(g => g.agent === MAIN || under(g.anchor) || hasOpen(g.tasks)),
+      .map(g => (g.agent === MAIN ? { ...g, tasks: keep, whole: main.tasks } : g))
+      // A group launched on no task has nothing to leave with: it stays (it ends the list).
+      .filter(g => g.agent === MAIN || g.anchor === undefined || under(g.anchor) || hasOpen(g.tasks)),
     children:
       level >= DEEP
         ? (p.children ?? [])
-        : (p.children ?? [])
-            .filter(c => under(c.anchor) || (level === 0 && alive(c)))
-            .map(c => ({ ...(under(c.anchor) ? c : loosen(c, main.tasks, main.turns ?? [])), panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
+        : (p.children ?? []).map(c => ({ ...c, panel: trimToWork(panelOf(c), level + 1), tasks: undefined })),
   }
 }
 
@@ -892,7 +894,6 @@ export type Model = {
   children: Child[]
   // The sends still waiting to be taken up.
   sends: Send[]
-  view: 'full' | 'summary'
   work: string[]
   // When this session's turn ended, until the next prompt: what its main loop left open is drawn
   // with no close and its clock stopped then (a session that ended its turn shows no task running).
@@ -919,7 +920,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // dropped before its delivery, gray.
   const cutAt = new Set(flat(withMain(model.groups).find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'interrupted').map(t => t.id))
   const chosen = choices
-  const summary = model.view === 'summary'
   const work = model.work
   // The breaks of the sessions' cards, computed once per drawing (see breaks).
   const memo = newBreaksMemo()
@@ -1188,7 +1188,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const waits = p.waits ?? []
     // Archived sessions stay, as history, drawn gray with "arquivada".
     // One card per message the session was sent (split).
-    const sessions = (p.children ?? []).flatMap(c => split(c, p.children ?? [], me, withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
+    const sessions = (p.children ?? []).flatMap(c => {
+      const m = withMain(p.groups ?? []).find(g => g.agent === MAIN)
+      return split(c, p.children ?? [], me, m?.whole ?? m?.tasks ?? [], now, memo)
+    })
 
     // A subagent's group hangs from the loop that launched it; one whose launcher has no
     // group (it never planned) hangs from the main one.
@@ -1197,7 +1200,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const kidsOf = (agent: string) => groups.filter(g => g.agent !== MAIN && launcher(g) === agent)
 
     const main = groups.find(g => g.agent === MAIN) as Group
-    const allIds = flat(main.tasks).map(t => t.id)
+    const everyTask = main.whole ?? main.tasks
+    const allIds = flat(everyTask).map(t => t.id)
     // The letters of the messages sent from this panel's main tasks (the person, 2026-10-30: "A: linha
     // própria sob a tarefa (Recomendado)"): one line per (session, task) under the task it went from,
     // before the session's card: "Para <session>: <message>", blue queued, green taken up, gray when
@@ -1237,8 +1241,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           }
         })
     const loose = sessions.filter(c => c.anchor === undefined || !allIds.includes(c.anchor))
-    // Cards at work under a request the full view cut ("+N pedidos anteriores"): drawn loose at the end.
+    // Cards at work under a request left out ("+N pedidos anteriores"): drawn loose at the end.
     const strays: Child[] = []
+    // Whether that line is open: the cards with no task to go under are drawn only then.
+    let pastOpen = false
     // A group's tasks from `top` (`list`), with what hangs below them. Its subagents' groups
     // go under the task they were launched on, hidden with it once it closes; one launched
     // on no task (or a task replanned away) ends the group. `extras` adds those groups and
@@ -1249,8 +1255,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const lines: Row[] = []
       const { lit, anchor } = current(g.tasks)
       const trailIds = g.agent === MAIN ? trail(g.tasks, turnAt) : []
-      const ids = flat(g.tasks).map(t => t.id)
-      const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor))
+      const whole = g.whole ?? list
+      const ids = flat(whole).map(t => t.id)
       const below = (t: TaskNode, depth: number) => [
         ...(t.id === anchor ? mine.map(w => notice(w, depth + 1)) : []),
         ...(g.agent === MAIN ? letters(t, depth + 1) : []),
@@ -1285,16 +1291,19 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const asked = g.agent === MAIN ? [...new Set(list.flatMap(t => (t.turn === undefined ? [] : [t.turn])))].sort((a, b) => a - b) : []
       const keep = level === 0 ? SHOWN_TURNS : SHOWN_CARD_TURNS
       const recent = asked.slice(-keep)
-      const cut = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
+      const over = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
       // A request with a session still at work under its task stays drawn too (it is going on).
-      const recentOnly = cut ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
-      const left = cut ? new Set(list.filter(t => !recentOnly.includes(t)).map(t => t.turn ?? -1)).size : 0
+      const recentOnly = over ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
+      // Out of the line's reach too: what left the work (trimToWork).
+      const left = new Set(whole.filter(t => !recentOnly.includes(t)).map(t => t.turn ?? -1)).size
+      const cut = left > 0
       // The line of the requests left out opens with a click, closed by default, and draws them (the
       // person, 2026-11-03: "Sim, fechado por padrão (Recomendado)"); the limit of lines still holds.
       const historyKey = `${scope}sec:turns`
-      const history = cut && left > 0 && opened(historyKey, false)
-      const drawn = history ? list : recentOnly
-      if (cut && left > 0)
+      const history = cut && opened(historyKey, false)
+      const drawn = history ? whole : recentOnly
+      if (g.agent === MAIN && history) pastOpen = true
+      if (cut)
         lines.push({
           key: historyKey,
           depth: top,
@@ -1304,8 +1313,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           fold: { key: historyKey, open: history },
         })
       if (cut && !history && level === 0 && g.agent === MAIN) {
-        const away = flat(list.filter(t => !drawn.includes(t))).map(t => t.id)
-        for (const c of sessions) if (c.anchor !== undefined && away.includes(c.anchor) && alive(c)) strays.push(loosen(c, list, g.turns ?? []))
+        const away = flat(whole.filter(t => !drawn.includes(t))).map(t => t.id)
+        for (const c of sessions) if (c.anchor !== undefined && away.includes(c.anchor) && alive(c)) strays.push(loosen(c, whole, g.turns ?? []))
       }
       // The top panel's main tasks go under the turn (the person's message) they were planned
       // in, oldest first; tasks from before turns existed stay loose, ahead of them.
@@ -1324,6 +1333,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent))
       for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
+      // A subagent with no task in sight to go under ends the list: launched on none, or still open
+      // under a task left out.
+      const inSight = flat(drawn).map(t => t.id)
+      const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor) || (!inSight.includes(k.anchor) && hasOpen(k.tasks)))
       return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
     }
 
@@ -1366,27 +1379,26 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // stays: it is recent.
     // The requests (turns) with a level-1 task, by a set of the tasks' turns: one pass over each
     // list, not one over the tasks per turn (a long session has thousands of both).
-    const withTasks = new Set(main.tasks.map(t => t.turn))
+    const withTasks = new Set(everyTask.map(t => t.turn))
     const ats = (main.turns ?? []).filter(u => withTasks.has(u.id)).flatMap(u => (typeof u.at === 'number' ? [u.at] : []))
     const since = ats.length > SHOWN_TURNS ? [...ats].sort((a, b) => a - b)[ats.length - SHOWN_TURNS] : -Infinity
     const busy = (c: Child) => begins(c) >= (since as number) || live(c) || hasOpen(tasksOf(panelOf(c).groups ?? []))
-    const old = level === 0 ? loose.filter(c => !busy(c)) : []
-    const ends = level === 0 ? loose.filter(busy) : loose
-    return draw(main, base)
+    const lines = draw(main, base)
+    // In a cut, one with no task to go under is history too (it was drawn at the root, and days-old
+    // cards piled up after the last request): at work it ends the list, the rest only with the line
+    // open.
+    const cutHistory = main.whole !== undefined && !pastOpen
+    const old = level === 0 && !cutHistory ? loose.filter(c => !busy(c)) : []
+    const ends = cutHistory ? (level === 0 ? loose.filter(alive).map(c => loosen(c, everyTask, main.turns ?? [])) : []) : level === 0 ? loose.filter(busy) : loose
+    return lines
       .concat(old.length > 0 ? [{ key: `${scope}sec:cards`, depth: base, tone: 'section' as Tone, title: `+${old.length} cartões antigos de sessões`, label: 'Cartões antigos, não desenhados' }] : [])
       .concat(inOrder([...ends, ...strays]).flatMap(c => session(c, base, level, scope)))
   }
-  const all = { groups: held ?? [], waits, children: sessions }
-  // The summary view is the full view of a cut of the panel: the current work (trimToWork) with what
-  // is still going on, the finished requests of earlier turns left out. It never moves a card: each
-  // card stays under the task its message was sent from, as in the full view (the person's words, with
-  // two pictures of one moment: "a visão completa parece mais correta que a resumida"; a card used to
-  // move under the task of the session's last message). Same lines, the same ▾/▸ and the same choices
-  // as the full view.
-  const cut = (): Panel => {
-    const base = { groups: withMain(held ?? []), waits, work: work as string[] }
-    const cards = sessions.flatMap(c => split(c, sessions, ownId, withMain(base.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
-    return trimToWork({ ...base, children: cards }, 0)
-  }
-  return limitRows(panel(summary ? cut() : all, 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined))
+  // The panel draws a cut: the current work (trimToWork) with what is still going on, the finished
+  // requests of earlier turns behind the "+N pedidos anteriores" line. It never moves a card: each
+  // card stays under the task its message was sent from (the person's words: a card used to move
+  // under the task of the session's last message).
+  const base = { groups: withMain(held ?? []), waits, work: work as string[] }
+  const cards = sessions.flatMap(c => split(c, sessions, ownId, base.groups.find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
+  return limitRows(panel(trimToWork({ ...base, children: cards }, 0), 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined))
 }

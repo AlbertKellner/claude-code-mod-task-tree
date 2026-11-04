@@ -63,6 +63,7 @@ O cabeçalho aparece em cartão, no desenho V4.
 
 Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: io/git.ts
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
@@ -125,6 +126,7 @@ A barra e as pílulas do cabeçalho aparecem desenhadas no app desktop.
 
 Origem: regra do painel.
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: checklist (pintura real)
 
 ### visual.golden-gera-desenho
@@ -147,6 +149,7 @@ O desenho do painel principal é o validado no app.
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts
 Estado: coberto
 
@@ -159,6 +162,7 @@ O desenho do cartão da filha trabalhando é o validado no app.
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts
 Estado: coberto
 
@@ -171,6 +175,7 @@ O desenho do ✉ na fila, entregue e interrompido é o validado no app.
 
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
+Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts
 Estado: coberto
 

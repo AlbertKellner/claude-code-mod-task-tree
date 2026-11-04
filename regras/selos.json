@@ -56,31 +56,31 @@
       "regras": [
         "cabecalho.historico-abre-com-clique"
       ],
-      "hash": "d920acb9eecba5b6",
+      "hash": "c162be072d495c47",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-11-03",
-      "motivo": "histórico abre com clique"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::a interrompida sai do total e entra no chip": {
       "regras": [
         "cabecalho.interrompida-fora-do-total"
       ],
-      "hash": "044adfe5e064828b",
+      "hash": "8aa14ca32377c411",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
       ],
-      "hash": "3ffbf463778fd5a3",
+      "hash": "b704ac6bedda88f4",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::dois starts no mesmo instante: o título é o do último da lista do start": {
       "regras": [
@@ -96,22 +96,22 @@
       "regras": [
         "cabecalho.limite-de-cartoes-antigos"
       ],
-      "hash": "04b4f5280d2984b7",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "subagente, hand-back e limites do desenho"
+      "hash": "470a29f0381cef74",
+      "assercoes": 3,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém": {
       "regras": [
         "cabecalho.resumida-exclui-pedido-finalizado",
         "cabecalho.resumida-limpa-so-com-tudo-concluido"
       ],
-      "hash": "aa24f59564c56e0a",
+      "hash": "256d158fc236b10b",
       "assercoes": 6,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::o título é o nível 1 da tarefa iniciada por último": {
       "regras": [
@@ -137,41 +137,41 @@
       "regras": [
         "cabecalho.numeros-somam-o-desenhado"
       ],
-      "hash": "1a3b596db70583a8",
+      "hash": "c1f2a061ba734aca",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::pedidos antigos saem inteiros do começo, contados em \"+N linhas anteriores\"": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "af2f7fa9a67076c6",
+      "hash": "20579f6421246fd4",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "limite de 400 linhas do desenho"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.limites-de-linhas"
       ],
-      "hash": "f4178d978f8069c7",
+      "hash": "c69adb9ab6c4d893",
       "assercoes": 5,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "cabeçalho e visão resumida (tarefa 6)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::um pedido grande demais é desenhado até o limite e fecha com \"+N linhas\"": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "045124ea29f2a74a",
+      "hash": "5e197307830eb946",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "limite de 400 linhas do desenho"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
@@ -257,11 +257,11 @@
       "regras": [
         "durabilidade.formatos-antigos-do-publicado"
       ],
-      "hash": "724e546ce35f0e9a",
+      "hash": "249c0312aefc58f2",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
       "regras": [
@@ -367,21 +367,21 @@
       "regras": [
         "durabilidade.respawn-sem-session-start"
       ],
-      "hash": "50702c0a7fb9299c",
+      "hash": "9c470b3630b0f69f",
       "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no primeiro uso, e o store não encolhe": {
       "regras": [
         "durabilidade.respawn-sem-session-start"
       ],
-      "hash": "dd8a4b300a5d0e8a",
+      "hash": "45237da1e70a310a",
       "assercoes": 6,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/durabilidade.test.ts::retomada, 1/2: um painel diferente no state (o plano B)": {
       "regras": [
@@ -438,11 +438,11 @@
       "regras": [
         "envios.cor-por-estado"
       ],
-      "hash": "629f23aee0fdf818",
+      "hash": "1320897d1af51c1f",
       "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
-      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
       "regras": [
@@ -743,11 +743,11 @@
         "pedidos.replano-no-lugar",
         "pedidos.plano-anterior-vira-historico"
       ],
-      "hash": "e74bad1f10e36675",
+      "hash": "bff2c2a0721403ee",
       "assercoes": 7,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
       "regras": [
@@ -945,11 +945,11 @@
         "sessoes.turno-proprio-da-filha-no-pedido-vigente",
         "cabecalho.limites-de-linhas"
       ],
-      "hash": "fd78e6fda9a85c0f",
+      "hash": "55ff4d54724ac0b2",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-11-03",
-      "motivo": "turno próprio da filha no pedido vigente"
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
@@ -1027,11 +1027,21 @@
       "regras": [
         "sessoes.cartao-vivo-nunca-some"
       ],
-      "hash": "86aec63ca4f42e4e",
+      "hash": "26cca34227b2e087",
       "assercoes": 7,
+      "tipo": "decisao",
+      "data": "2026-11-04",
+      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/sessoes.test.ts::o pedido que saiu do trabalho volta com o cartão da filha ao abrir \"+N pedidos anteriores\"": {
+      "regras": [
+        "cabecalho.historico-guarda-o-que-saiu"
+      ],
+      "hash": "7fbfbc4b2d668668",
+      "assercoes": 3,
       "tipo": "novo",
-      "data": "2026-11-03",
-      "motivo": "cartão vivo nunca some"
+      "data": "2026-11-04",
+      "motivo": "só a visão resumida, 2026-11-04"
     },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
@@ -1135,6 +1145,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::o subagente lançado sem tarefa de origem que termina segue desenhado": {
+      "regras": [
+        "turnos.subagente-que-termina-interrompe"
+      ],
+      "hash": "ca728279b5c68612",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-04",
+      "motivo": "só a visão resumida, 2026-11-04"
+    },
     "task-tree/tests/turnos.test.ts::o subagente que termina deixa interrompido o que ficou aberto, e o pai com filha concluída aguarda": {
       "regras": [
         "turnos.subagente-que-termina-interrompe"
@@ -1214,33 +1234,33 @@
       "motivo": "agentId opcional e subagente no host"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "b4abba5bf93859d9",
-      "tipo": "refatoracao",
-      "data": "2026-10-29",
-      "motivo": "fimDoTurno com resposta opcional"
-    },
-    "task-tree/tests/kit/leitura.ts": {
-      "hash": "1955c0f7424fbea2",
+      "hash": "5402d729bd74d26e",
       "tipo": "refatoracao",
       "data": "2026-11-04",
-      "motivo": "cartaSob: a carta de envio sob a tarefa"
+      "motivo": "sem o escolher da visão: decisão do usuário, 2026-11-04"
+    },
+    "task-tree/tests/kit/leitura.ts": {
+      "hash": "ad3cbea6b0f478ef",
+      "tipo": "refatoracao",
+      "data": "2026-11-04",
+      "motivo": "sem o seletor de visão; comHistorico abre a linha dos pedidos anteriores: decisão do usuário, 2026-11-04"
     }
   },
   "golden": {
     "envios": {
-      "hash": "5cb3107a2fad4428",
+      "hash": "96a9f9fa34ec59c3",
       "data": "2026-11-04",
       "motivo": "\"Funcionou\", 2026-11-04"
     },
     "filha": {
-      "hash": "50295ba1bb0bbed8",
-      "data": "2026-11-03",
-      "motivo": "\"de só um pequeno espaço embaico de cada label, esta colado no final do painel, apos isso, pode fazer push\", 2026-11-03"
+      "hash": "ccf4288473f33a56",
+      "data": "2026-11-04",
+      "motivo": "\"Funcionou\", 2026-11-04"
     },
     "principal": {
-      "hash": "e26ebd1d0cd6eb59",
-      "data": "2026-11-03",
-      "motivo": "\"de só um pequeno espaço embaico de cada label, esta colado no final do painel, apos isso, pode fazer push\", 2026-11-03"
+      "hash": "4b0ec4f574c6038f",
+      "data": "2026-11-04",
+      "motivo": "\"Funcionou\", 2026-11-04"
     }
   }
 }

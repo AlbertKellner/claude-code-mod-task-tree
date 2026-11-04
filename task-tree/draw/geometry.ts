@@ -78,12 +78,10 @@ export const GUIDE_FROM = 8
 // in from each edge, as the lines' cards do, and its text and bar start HEADER_PAD px in from the
 // Svg's edge (12 px inside the card's border). Its height is always HEADER_H: the card, then
 // HEADER_GAP px of air before the first line; the line of chips is kept even with no chip (or
-// nothing planned), so the tasks below never jump when a chip comes or goes. The view icons at its
-// right end take ICONS_W px of the title's line, inside the card.
+// nothing planned), so the tasks below never jump when a chip comes or goes.
 export const HEADER_PAD = CARD_RIGHT + 12
 export const HEADER_GAP = 8
 export const HEADER_H = 125
-export const ICONS_W = 72
 
 // The context ring: RING_D px across (radius 5.5, stroke 2), drawn RING_D px inside the innermost
 // card's right edge (so its middle is RING_IN px from the line's right end on the outermost card,

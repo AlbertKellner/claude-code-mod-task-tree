@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { fixar } from './kit/ambiente'
 import { aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
+import { comHistorico, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }]
@@ -64,7 +64,7 @@ test('plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o ante
   await relogio.advance(1000)
   await pedido($, 'Pedido dois')
   await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
-  p = await painel($)
+  p = await comHistorico($, 1)
   esperarEstado(p, 'Plano A revisto', 'interrompida')
   esperarEstado(p, 'Plano A novo', 'pendente')
   expect(indice(p, 'Plano A revisto'), emTexto(p)).toBeLessThan(indice(p, 'Pedido dois'))
