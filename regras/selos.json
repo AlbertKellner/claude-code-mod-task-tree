@@ -1306,6 +1306,16 @@
       "data": "2026-10-29",
       "motivo": "resumo do done na recarga e sem resposta final"
     },
+    "task-tree/tests/turnos.test.ts::o ↩ que o summary já traz não se repete na linha da resposta": {
+      "regras": [
+        "turnos.resumo-sem-seta-duplicada"
+      ],
+      "hash": "d1ff5a36c6490cdc",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "↩ inicial do summary"
+    },
     "task-tree/tests/turnos.test.ts::pedido anterior parado segue aguardando enquanto o pedido novo está em andamento": {
       "regras": [
         "turnos.pedido-anterior-parado-aguarda"
@@ -1355,6 +1365,46 @@
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "faixa de estado geral do cabeçalho V4"
+    },
+    "task-tree/tests/visual.test.ts::a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de cortar": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "40b93e00964328ec",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
+    },
+    "task-tree/tests/visual.test.ts::no cartão da filha, o título da folha passa da coluna da contagem e corta junto do tempo": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "3fb182566531ae22",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
+    },
+    "task-tree/tests/visual.test.ts::o título de uma linha sem contagem vai até o tempo; a com contagem corta antes da barra": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "ae1e387a8b09b2bb",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
+    },
+    "task-tree/tests/visual.test.ts::texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>": {
+      "regras": [
+        "visual.tooltip"
+      ],
+      "hash": "02c1fca9303d619b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
     }
   },
   "kit": {
@@ -1379,19 +1429,19 @@
   },
   "golden": {
     "envios": {
-      "hash": "96a9f9fa34ec59c3",
-      "data": "2026-11-04",
-      "motivo": "\"Funcionou\", 2026-11-04"
+      "hash": "c4d2227fd1a878ac",
+      "data": "2026-11-09",
+      "motivo": "\"faça push e crie o pr\", 2026-11-09"
     },
     "filha": {
-      "hash": "ccf4288473f33a56",
-      "data": "2026-11-04",
-      "motivo": "\"Funcionou\", 2026-11-04"
+      "hash": "289c531c50099c07",
+      "data": "2026-11-09",
+      "motivo": "\"faça push e crie o pr\", 2026-11-09"
     },
     "principal": {
-      "hash": "4b0ec4f574c6038f",
-      "data": "2026-11-04",
-      "motivo": "\"Funcionou\", 2026-11-04"
+      "hash": "bb83bbb8823a6c68",
+      "data": "2026-11-09",
+      "motivo": "\"faça push e crie o pr\", 2026-11-09"
     }
   }
 }

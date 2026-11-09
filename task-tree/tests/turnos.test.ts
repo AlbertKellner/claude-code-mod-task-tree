@@ -217,3 +217,18 @@ test('o ↩ aparece mesmo quando o turno termina sem texto final', async ($: any
   expect(publicado.some((u: any) => u.brief === 'Resumo X'), JSON.stringify(publicado)).toBe(true)
 })
 
+
+// Regra: turnos.resumo-sem-seta-duplicada
+test('o ↩ que o summary já traz não se repete na linha da resposta', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], '↩ Resumo Y')
+  await fimDoTurno($)
+  const p = await painel($)
+  const linha = p.find(l => l.texto.includes('Resumo Y'))
+  expect(linha?.texto.includes('↩ ↩'), emTexto(p)).toBe(false)
+  expect(linha?.texto.includes('↩'), emTexto(p)).toBe(true)
+})

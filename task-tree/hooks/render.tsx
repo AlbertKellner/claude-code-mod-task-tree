@@ -9,7 +9,7 @@ import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, hoverLayer, hovers, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -67,18 +67,14 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
   const hides = labelCols(lines)
   const cards = frames(lines)
   const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
-  const over = (r: Row, p: Placed, source: string, H: number) =>
+  const over = (r: Row, p: Placed) =>
     p.kind === 'icon' ? (
       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
         <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, pressOf($, r))} />
       </Box>
-    ) : p.kind === 'ring' ? (
+    ) : (
       <Box position="absolute" top={0} bottom={0} right={p.right} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
         <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
-      </Box>
-    ) : (
-      <Box position="absolute" top={0} left={p.left}>
-        <Svg source={hoverLayer(source, p.width, H)} alt="" width={p.width} height={H} isInteractive />
       </Box>
     )
   // Each Svg sits in a Box in a column, as its parent's is: the Svg takes the slot's width (100%), and
@@ -89,27 +85,21 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       {chrome.errorLine}
       <Box key="head" position="relative" flexDirection="column">
         <Svg source={top.source} alt={alt} height={top.height} />
-        {hovers(top.source) ? (
-          <Box position="absolute" top={0} left={0}>
-            <Svg source={hoverLayer(top.source, W, 40)} alt="" width={W} height={40} isInteractive />
-          </Box>
-        ) : null}
       </Box>
       {lines.map((r, i) => (
         <Box key={`r${i}`} flexDirection="column">
           {(source => {
             const H = rowHeight(r, cards[i])
-            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring), hover: hovers(source) }, Math.max(0, cards[i]!.cards.length - 1), W)
+            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring) }, Math.max(0, cards[i]!.cards.length - 1))
             const one = (kind: Placed['kind']) => {
               const p = placed.find(x => x.kind === kind)
-              return p ? over(r, p, source, H) : null
+              return p ? over(r, p) : null
             }
             return (
               <Box position="relative" flexDirection="column">
                 <Svg source={source} alt={rowAlt(r)} height={H} />
                 {one('icon')}
                 {one('ring')}
-                {one('name')}
               </Box>
             )
           })(sources[i]!)}

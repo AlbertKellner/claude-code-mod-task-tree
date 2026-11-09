@@ -25,14 +25,26 @@ Origem: commit 4edb3f2, 2026-10-21 ("cliques por chave, painel na tela e desenho
 Estado: checklist (cliques reais)
 
 ### visual.tooltip
-O tooltip mostra o texto inteiro.
+Texto cortado não tem tooltip.
 
-- Dado uma linha cortada
-- Quando a pessoa passa o mouse
-- Então o tooltip mostra o texto inteiro
+- Dado um texto cortado com "…" porque não coube (título, nome de sessão, repositório, pasta ou branch)
+- Quando o painel é desenhado no app desktop
+- Então não há tooltip: nenhuma camada interativa sobre a linha e nenhum `<title>` no desenho
 
 Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
-Estado: checklist (tooltip do app)
+Reescrito: 2026-11-09, decisão do usuário ("não funcionou. aborte e remova a funcionalidade de tooltip"), depois de pedir "mostre um tooltip com o texto completo quando eu parar o mouse em cima do texto por um segundo".
+Código: hooks/render.tsx
+Estado: coberto
+
+### visual.titulo-sem-contagem-vai-ate-o-tempo
+O título de uma linha sem barra nem contagem vai até o tempo.
+
+- Dado uma tarefa sem subtarefas e sem sessão abaixo, com título mais largo que a linha
+- Quando o painel é desenhado no app desktop
+- Então o título só é cortado com "…" ao chegar no tempo da linha (ou na borda, sem tempo), e a palavra de estado encosta no tempo; a linha com barra e contagem segue cortando antes da barra
+
+Origem: decisão do usuário, 2026-11-09 ("quero que o texto vá até alcança o tempo de execução, somente ai, corte o texto com reticencias"; "Encosta no tempo (Recomendado)").
+Estado: coberto
 
 ### visual.animacao-de-linha-nova
 A linha nova aparece de uma vez, sem animação, e nada pisca à toa.

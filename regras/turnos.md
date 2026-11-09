@@ -127,3 +127,14 @@ O resumo do done vira a linha ↩ mesmo sem texto final no turno.
 
 Origem: regra do painel ("a linha ↩ só existe com resumo"; o summary "é a linha ↩", text/rules.ts; commit 3f06a32, 2026-10-21); bug achado na análise de 2026-10-29.
 Estado: coberto
+
+### turnos.resumo-sem-seta-duplicada
+O ↩ que o resumo já traz não se repete.
+
+- Dado um done com summary que começa com "↩"
+- Quando o turno termina
+- Então a linha da resposta mostra um ↩ só, antes do resumo
+
+Origem: achado da sessão orquestradora no app, 2026-11-09 (a linha aparecia "↩ ↩").
+Código: hooks/tools.ts
+Estado: coberto
