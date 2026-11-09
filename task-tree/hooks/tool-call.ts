@@ -112,7 +112,10 @@ const sentMessage: Notes = async ($, c, notes) => {
   const { value: kids0 = [] } = await $.state.get(childrenState)
   const { value: sends0 = [] } = await $.state.get(sendsState)
   const { value: waits0 = [] } = await $.state.get(waitsState)
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(waits0 as Wait[]))
+  // The receiving session's names, to match a task's title (sendAnchor): what `to` says, and the name
+  // the host lists for that id.
+  const names = [to, ...(kids0 as Child[]).filter(k => k.id === to).map(k => k.name)].filter(n => n !== '' && !/^local_/.test(n))
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(waits0 as Wait[]), names)
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
@@ -220,7 +223,8 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   await refreshStale($).catch(() => {})
   if (String(e.tool) === 'mcp__ccd_session__start_session') {
     const out = JSON.stringify(c.r.result ?? c.r)
-    await recordStart($, out)
+    const input = ((e as any).input ?? e) as { name?: unknown; title?: unknown }
+    await recordStart($, out, [input.name, input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
   }
   if (c.r.deny !== undefined) return c.r
   const notes: string[] = []

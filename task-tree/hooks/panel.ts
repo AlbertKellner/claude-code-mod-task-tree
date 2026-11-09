@@ -194,7 +194,26 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
 // last; then a task opened before and still in progress took a later send, its card under it.
 export type Used = { anchor?: string; at?: number }
 const BATCH = 3000
-export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = []): string | undefined {
+// The receiving session's name against a task's title, both without accents, hyphens or case
+// (the person's decision, 2026-11-09: "Pelo nome"; the web research session's card had gone under the
+// other task): the title holds the name ("pesquisa-web" in "Pesquisa web: changelog"), or the name
+// holds the title's head, before a ":" ("implementacao-hover" holds "Implementação").
+const plain = (s: string) =>
+  s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+export function namedFor(title: string, names: string[]): boolean {
+  const t = plain(title)
+  const head = plain(title.split(':')[0] ?? '')
+  return names.some(n => {
+    const name = plain(n)
+    return name.length >= 3 && (t.includes(name) || (head.length >= 4 && name.includes(head)))
+  })
+}
+// The one candidate whose title matches the receiving session's name, if exactly one does.
+const byName = (tasks: TaskNode[], names: string[]) => {
+  const hit = names.length === 0 ? [] : tasks.filter(t => namedFor(t.title, names))
+  return hit.length === 1 ? hit[0] : undefined
+}
+export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in the current request (the person's decisions): its pending task with no
   // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
@@ -208,6 +227,8 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
     const free = order.filter(x => !has(x.t))
+    const named = byName(going, names)
+    if (named) return named.id
     if (free.length > 0) {
       const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
       const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
@@ -221,8 +242,16 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     const last = turns.length > 0 ? Math.max(...turns) : undefined
     const mine = list.filter(t => last === undefined || t.turn === last)
     const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined)
+    const named = byName(pending, names)
+    if (named) return named.id
     const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
-    if (newest) return newest.id
+    if (newest) {
+      // Planned together (a tie): the first in order with no message of this session's yet; all with
+      // one, the last (the person's decision, 2026-11-09, with no name matching).
+      const batch = pending.filter(t => (t.plannedAt ?? -Infinity) === (newest.plannedAt ?? -Infinity))
+      const free = batch.find(t => !used.some(u => u.anchor === t.id))
+      return (free ?? newest).id
+    }
     return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
   }
   const leaves = flat(list).filter(t => t.status === 'open' && t.children.length === 0)

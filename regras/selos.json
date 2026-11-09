@@ -545,6 +545,26 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/envios.test.ts::sem casamento pelo nome, os envios vão às pendentes planejadas juntas, pela ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao"
+      ],
+      "hash": "4df388c4d16d47ba",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "carta pelo nome da sessão"
+    },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, cada envio vai à pendente cujo título casa com o nome da sessão": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao"
+      ],
+      "hash": "e5c3c175e6867dd4",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "carta pelo nome da sessão"
+    },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
       "regras": [
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
