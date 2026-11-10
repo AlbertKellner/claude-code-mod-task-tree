@@ -31,8 +31,6 @@ const THROTTLE = 1000
 
 const wrote = new Map<string, number>()
 const calls = new Map<string, number>()
-type Sample = { at: number; tokens: number; ms: number }
-const samples = new Map<string, Sample[]>()
 
 function setSub($: any, agent: string, fn: (s: Sub) => Sub) {
   return change($, all => all.map(g => (g.agent === agent && g.sub ? { ...g, sub: fn(g.sub) } : g)))
@@ -86,18 +84,10 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
   return r
 }
 
-// A subagent's model call (`t0`, when it began, `r` what it gave): its model and effort, and its
-// output rate (as the main loop's, see turn).
-export async function subStep($: any, agent: string, e: any, r: any, t0: number | undefined) {
+// A subagent's model call: its model and effort, and the call's rate (`toks`, measured in turn.ts by
+// speedOf, the same as the main loop's; undefined when the call was not valid).
+export async function subStep($: any, agent: string, e: any, toks: number | undefined) {
   const t1 = await stamp($)
-  const tokens = r?.usage?.output_tokens
-  let toks: number | undefined
-  if (t0 !== undefined && t1 !== undefined && t1 > t0 && typeof tokens === 'number') {
-    const list = [...(samples.get(agent) ?? []), { at: t1, tokens, ms: t1 - t0 }].slice(-10)
-    samples.set(agent, list)
-    const ms = list.reduce((a, s) => a + s.ms, 0)
-    toks = ms > 0 ? Math.round((list.reduce((a, s) => a + s.tokens, 0) * 1000) / ms) : undefined
-  }
   const engine = typeof e?.model === 'string' && e.model !== '' ? engineText(e.model, e.effort) : undefined
   const { value = [] } = await $.state.get(groupsState)
   const s = (value as Group[]).find(g => g.agent === agent)?.sub
@@ -147,7 +137,6 @@ export async function subEnd($: any, agent: string, e: any) {
   const now = (await stamp($)) ?? 0
   const state: Sub['state'] = e?.isAborted ? 'interrupted' : e?.reason === 'error' || e?.reason === 'refusal' ? 'failed' : 'done'
   wrote.delete(agent)
-  samples.delete(agent)
   const n = calls.get(agent)
   calls.delete(agent)
   await setSub($, agent, x => {
