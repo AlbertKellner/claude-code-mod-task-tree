@@ -25,14 +25,26 @@ Origem: commit 4edb3f2, 2026-10-21 ("cliques por chave, painel na tela e desenho
 Estado: checklist (cliques reais)
 
 ### visual.tooltip
-O tooltip mostra o texto inteiro.
+Texto cortado não tem tooltip.
 
-- Dado uma linha cortada
-- Quando a pessoa passa o mouse
-- Então o tooltip mostra o texto inteiro
+- Dado um texto cortado com "…" porque não coube (título, nome de sessão, repositório, pasta ou branch)
+- Quando o painel é desenhado no app desktop
+- Então não há tooltip: nenhuma camada interativa sobre a linha e nenhum `<title>` no desenho
 
 Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
-Estado: checklist (tooltip do app)
+Reescrito: 2026-11-09, decisão do usuário ("não funcionou. aborte e remova a funcionalidade de tooltip"), depois de pedir "mostre um tooltip com o texto completo quando eu parar o mouse em cima do texto por um segundo".
+Código: hooks/render.tsx
+Estado: coberto
+
+### visual.titulo-sem-contagem-vai-ate-o-tempo
+O título de uma linha sem barra nem contagem vai até o tempo.
+
+- Dado uma tarefa sem subtarefas e sem sessão abaixo, com título mais largo que a linha
+- Quando o painel é desenhado no app desktop
+- Então o título só é cortado com "…" ao chegar no tempo da linha (ou na borda, sem tempo), e a palavra de estado encosta no tempo; a linha com barra e contagem segue cortando antes da barra
+
+Origem: decisão do usuário, 2026-11-09 ("quero que o texto vá até alcança o tempo de execução, somente ai, corte o texto com reticencias"; "Encosta no tempo (Recomendado)").
+Estado: coberto
 
 ### visual.animacao-de-linha-nova
 A linha nova aparece de uma vez, sem animação, e nada pisca à toa.
@@ -180,6 +192,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: draw/layout.ts
 Estado: coberto
 
+### visual.desenho-subagente
+O desenho do cartão de subagente e do cartão de grupo é o validado no app.
+
+- Dado um subagente rodando com a ferramenta em uso, um concluído e quatro lançados juntos
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)"); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Código: draw/layout.ts
+Estado: coberto
+
 ### visual.faixa-de-estado-geral
 A faixa à esquerda do cabeçalho diz o estado geral pela cor.
 
@@ -191,3 +214,13 @@ Origem: decisão do usuário, 2026-11-03 ("gostei da V4, siga para análise e im
 Código: draw/svg.ts, hooks/render.tsx
 Estado: coberto
 
+### visual.secao-sem-traco
+A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizontal.
+
+- Dado uma seção no painel ("+N pedidos anteriores", na raiz ou dentro de um cartão; "+N cartões antigos")
+- Quando o painel é desenhado
+- Então não há linha horizontal atravessando o painel nem as bordas do cartão; a seção é só o ▸/▾ e o texto apagado
+
+Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
+Código: draw/svg.ts
+Estado: checklist (pintura real)

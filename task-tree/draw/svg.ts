@@ -65,14 +65,14 @@ export const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 1
 // (white or black at 10%) as it lands on the card's fill, #373736 dark and #e1e1df light, the same
 // border the app's text box has (the person's words: "use a mesma cor da borda").
 export const FONT = "system-ui,-apple-system,'Segoe UI',sans-serif"
-// `svg,text{cursor:default}`: in an interactive Svg (a cut name with its tooltip) the pointer stays
+// `svg,text{cursor:default}`: the pointer stays
 // the arrow over the text, not the text cursor.
 // Each line is its own Svg, so each carries the rules it uses and no others: the whole sheet in
 // every one came to 1 KB a line, 1.6 MB a drawing on a panel of some 700 lines (the orchestrator's),
 // sent again every second, and the app stopped drawing the pane (the person's words: "o tasktree nao
 // esta aparecendo na orquestradora").
 export const LIGHT: [string, string][] = [
-  ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
+  ['p', 'fill:#2c2c2a'], ['s', 'fill:#5f5e5a'], ['pc', 'color:#2c2c2a'], ['sc', 'color:#5f5e5a'], ['am', 'stroke:#ba7517'], ['amf', 'fill:#ba7517'], ['gr', 'stroke:#639922'],
   ['grf', 'fill:#639922'], ['gy', 'stroke:#888780'], ['gyf', 'fill:#888780'], ['g', 'stroke:#888780;stroke-opacity:.55'],
   ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['lnf', 'fill:#888780;fill-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['csf', 'fill:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
@@ -80,7 +80,7 @@ export const LIGHT: [string, string][] = [
   ['blf', 'fill:#378add'], ['amp', 'fill:#ba7517;fill-opacity:.13'], ['grp', 'fill:#639922;fill-opacity:.13'], ['gyp', 'fill:#888780;fill-opacity:.13'], ['blp', 'fill:#378add;fill-opacity:.13'],
 ]
 export const DARK: [string, string][] = [
-  ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
+  ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['pc', 'color:#e8e6dc'], ['sc', 'color:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
   ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['csf', 'fill:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
   ['blf', 'fill:#85b7eb'], ['amp', 'fill:#ef9f27;fill-opacity:.13'], ['grp', 'fill:#97c459;fill-opacity:.13'], ['gyp', 'fill:#9c9a92;fill-opacity:.13'], ['blp', 'fill:#85b7eb;fill-opacity:.13'],
 ]
@@ -140,22 +140,7 @@ export const em = (ch: string) => {
   return w
 }
 export const textW = (s: string, size: number) => Array.from(s).reduce((w, ch) => w + em(ch) * size, 0)
-// A name cut with … carries the whole one in a `<title>`: the tooltip under the mouse, drawn
-// only by an interactive Svg (`hovers`), so the pane need not be widened to read it.
-export const tip = (whole: string, shown: string) => (shown === whole ? '' : `<title>${xml(whole)}</title>`)
-export const hovers = (source: string) => source.includes('<title>')
-// The tooltip goes in a layer of its own over the line: a transparent interactive Svg holding only
-// the whole name, whose source does not change with the clock. The line itself stays an image: an
-// interactive Svg is a frame, reloaded (drawn blank for an instant) every time its source changes,
-// and a line with a running time changes every second.
-export function hoverLayer(source: string, w: number, h: number): string {
-  const whole = /<title>([^<]*)<\/title>/.exec(source)?.[1] ?? ''
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
-    '<style>svg,rect{cursor:default}</style>' +
-    `<rect width="${w}" height="${h}" fill="transparent" pointer-events="all"><title>${whole}</title></rect></svg>`
-  )
-}
+const r1 = (n: number) => Math.round(n * 10) / 10
 export function fit(s: string, size: number, max: number): string {
   if (textW(s, size) <= max) return s
   // Linear in the title: the width of what is kept is accumulated as textW would add it (the same
@@ -364,7 +349,7 @@ export function labelName(r: Row, W: number, depth: number, inner: number): { na
   return { name: fit(whole, 12, Math.max(24, R - tx - tags)), whole, tx }
 }
 export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: number, cards: { L: number; Rc: number; svg: string }[], paths: string[]): string {
-  const { name, whole, tx } = labelName(r, W, r.depth, Math.max(0, cards.length - 1))
+  const { name, tx } = labelName(r, W, r.depth, Math.max(0, cards.length - 1))
   // The session's icon left of the name, where a task's icon is (it folds the card, see foldOver),
   // in the color of the card's state; the state word after the name; the context ring on its own at
   // the card's right end, in the column the lines below end their time in (the person's words: "deve
@@ -417,7 +402,7 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
     svgOpen(H) +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
-    `<text class="s" x="${tx}" y="${cy + 4}" font-size="12" font-weight="600">${tip(whole, name)}${xml(name)}</text>` +
+    `<text class="s" x="${tx}" y="${cy + 4}" font-size="12" font-weight="600">${xml(name)}</text>` +
     parts.join('') +
     toRight(W, rightParts.join('')) +
     '</svg>'
@@ -432,6 +417,8 @@ export const RING_LABEL = ' '
 
 // The desktop's time column: room for "0:00:00".
 export const TIME_W = textW('0:00:00', 12)
+// Between a title that runs to the time and the time.
+export const TIME_GAP = 8
 export const COUNT_W = textW('00/00', 12)
 
 export const NO_FRAME: Frame = { cards: [], top: 0, bottom: 0 }
@@ -504,11 +491,18 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   const forked = r.kids === true
   // Task, turn and card lines are drawn in columns from the right, the same on every one of them,
   // open or closed: the time, the count, the bar and, left of the bar, the branch of a line with a
-  // session (a card, or a task or turn with one below it), its column kept empty on the others. A
-  // word of state ("concluída", "interrompida") goes left of it. The progress icon stays at the
-  // left, after the guides, then the title.
+  // session (a card, or a task or turn with one below it). A word of state ("concluída",
+  // "interrompida") goes left of it. The progress icon stays at the left, after the guides, then the
+  // title. A line with no count and no branch keeps no empty columns: its title (and its word) runs
+  // to the time it draws, or to the edge with none (the person: "quero que o texto vá até alcança o
+  // tempo de execução, somente ai, corte o texto com reticencias").
   const tabular = r.bar === true || r.card === true
   let edge = R
+  // The room kept between the cut title and what is right of it: 10 px, and none on a line whose
+  // title runs to its time (the time's own gap is already there; with the 10 px the "…" stopped at
+  // the column of the neighbours' count, the person's words: "corta na coluna com a quantidade de
+  // tarefas (4/4, por exemplo)").
+  let pad = 10
   let mark = ''
   if (tabular) {
     const clock = `class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums"`
@@ -531,7 +525,9 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     }
     const ix = bx - BRANCH_IN
     if (forked) mark = sessionIcon('filha', r.kidsState ?? 'parada', ix, cy)
-    edge = ix - RIGHT_GAP
+    const toTime = !r.sub && !forked
+    edge = toTime ? (t ? R - textW(t, 12) - TIME_GAP : R) : ix - RIGHT_GAP
+    if (toTime) pad = 0
     if (r.meta) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(r.meta)}</text>`)
       edge -= textW(r.meta, 12) + 8
@@ -541,6 +537,9 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     if (t) right.push(`<text class="s" x="${R}" y="${cy + 4}" font-size="12" text-anchor="end" font-variant-numeric="tabular-nums">${t}</text>`)
     if (t) edge = R - textW(t, 12) - RIGHT_GAP
     const words = rightText(r)
+    // Nothing on the right (a ↩ line, the person's words: "essa linha não tem timer"): the title
+    // runs to the line's (or card's) right edge, with no room kept.
+    if (!t && !words && !section) pad = 0
     if (words) {
       right.push(`<text class="s" x="${edge}" y="${cy + 4}" font-size="12" text-anchor="end" opacity=".75">${xml(words)}</text>`)
       edge -= textW(words, 12)
@@ -558,22 +557,26 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
   const tx = section && !folding ? x - SECTION_TEXT_OUT : x + TEXT_IN
   // Folded by the person: " ⋯" after the name (the ▸ is gone; the icon itself folds and opens).
   const whole = r.fold && !r.fold.open ? `${r.title} ⋯` : r.title
-  const title = fit(whole, size, Math.max(24, edge - 10 - tx))
   const quiet = r.tone === 'done' || r.tone === 'interrupted' || r.tone === 'archived' || r.tone === 'wait' || r.tone === 'reply' || section
-  const look = `class="${quiet ? 's' : 'p'}"${r.strong ? ' font-weight="600"' : ''}${r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''}`
+  const dim = r.tone === 'interrupted' || r.tone === 'archived' ? ' opacity=".7"' : ''
   // A section's line runs to the slot's edge, less what is right of R; the time, count, bar, bust and
-  // words on the right are moved to the slot's edge (toRight). The title is cut with "…" against W
-  // (an estimate under the slot) and, should the estimate fail, clipped where the words on the right
-  // begin in the slot (its clip, `tc`, a rect as wide as the slot less them): never under them, if
-  // without its "…" then.
-  const clip = `<clipPath id="tc"><rect x="0" y="0" height="${H}" style="width:calc(100% - ${W - edge + 10}px)"/></clipPath>`
+  // words on the right are moved to the slot's edge (toRight). W is only an estimate of the slot
+  // (columns × COL_PX), and the slot is often wider: a title cut with "…" against W stopped short of
+  // the real edge by the difference (the person, at 686 px: "ainda corta a linha da resposta"). So the
+  // title is cut where it really ends: an HTML box (`foreignObject`) as wide as the slot less what is
+  // right of the title, with CSS's own "…" (text-overflow). A cut text has no tooltip (the person,
+  // 2026-11-09: "não funcionou. aborte e remova a funcionalidade de tooltip").
+  const box = `width:calc(100% - ${r1(W - edge + pad + tx)}px)`
+  const font = `font:${r.strong ? '600 ' : ''}${size}px ${FONT.replace(/'/g, '&apos;')};line-height:20px`
+  const name =
+    `<foreignObject x="${tx}" y="${cy - 10}" height="20" style="${box}"${dim}>` +
+    `<div xmlns="http://www.w3.org/1999/xhtml" class="${quiet ? 'sc' : 'pc'}" style="${font};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${xml(whole)}</div></foreignObject>`
   return slim(
     svgOpen(H) +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
-    (section ? `<rect class="lnf" x="0" y="0" height="1" style="width:calc(${slot(W)} - ${W - R}px)"/>` : '') +
     lead +
-    `<g>${clip}<text ${look} x="${tx}" y="${cy + 4.5}" font-size="${size}" clip-path="url(#tc)">${tip(r.whole ?? whole, title)}${xml(title)}</text></g>` +
+    name +
     toRight(W, mark + right.join('')) +
     '</svg>'
   )
@@ -581,7 +584,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
 
 // The header's chips: only those above zero, in this order.
 export type Chip = { tone: Tone; text: string }
-export function chips(active: number, waiting: number, cut: number, live: number, sent = 0, pending = 0): Chip[] {
+export function chips(active: number, waiting: number, cut: number, live: number, sent = 0, pending = 0, agents = 0): Chip[] {
   const list: Chip[] = []
   if (active > 0) list.push({ tone: 'current', text: `${active} em andamento` })
   if (pending > 0) list.push({ tone: 'open', text: plural(pending, 'pendente', 'pendentes') })
@@ -589,6 +592,8 @@ export function chips(active: number, waiting: number, cut: number, live: number
   if (sent > 0) list.push({ tone: 'sent', text: `${sent} aguardando sessão` })
   if (cut > 0) list.push({ tone: 'interrupted', text: plural(cut, 'interrompida', 'interrompidas') })
   if (live > 0) list.push({ tone: 'running', text: plural(live, 'sessão ativa', 'sessões ativas') })
+  // The subagents at work, out of every count of tasks (the person, 2026-11-09: "Fora da contagem").
+  if (agents > 0) list.push({ tone: 'agent', text: plural(agents, 'subagente', 'subagentes') })
   return list
 }
 
@@ -647,7 +652,7 @@ export function headerSvg(
     parts.push(`<text class="s" x="${L}" y="52" font-size="12">Nenhuma tarefa planejada.</text>`)
   } else {
     const name = fit(title, 16, Math.max(24, R - L - block))
-    parts.push(`<text class="p" x="${L}" y="30" font-size="16" font-weight="600">${tip(title, name)}${xml(name)}</text>`)
+    parts.push(`<text class="p" x="${L}" y="30" font-size="16" font-weight="600">${xml(name)}</text>`)
     // This session's repository and branch below the title, with their icons (the person: "coloque
     // essas infos também no topo do painel"); short of room, the branch alone, then nothing.
     const room = R - L - block

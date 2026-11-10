@@ -12,6 +12,7 @@ import { permissionRequest } from './permission'
 import { turnComplete, turnStep } from './turn'
 import { toolCall } from './tool-call'
 import { press, render } from './render'
+import { agentSpawn } from './agents'
 
 export const register: Register = on => {
   on('session.start', sessionStart)
@@ -23,6 +24,7 @@ export const register: Register = on => {
   on('tool.call', { tool: 'mcp__task-tree__done' }, doneTool)
   on('tool.call', { tool: 'mcp__task-tree__start' }, startTool)
   on('classic.PermissionRequest', permissionRequest)
+  on('agent.spawn', agentSpawn)
   on('turn.step', turnStep)
   on('turn.complete', turnComplete)
   on('tool.call', toolCall)

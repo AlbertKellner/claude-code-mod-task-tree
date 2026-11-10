@@ -554,7 +554,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
   o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
-  (`RING_LABEL`, 4 células pela direita) e a camada de tooltip (`hoverLayer`) sobre um nome cortado. A
+  (`RING_LABEL`, 4 células pela direita). Texto cortado não tem tooltip (removido em 2026-11-09). A
   largura é `lineWidth(bodyColumns)` = `clamp(240, colunas × 8 − 8, 900)`. Cada SVG leva só as regras
   CSS que usa (`slim`), claro e escuro.
 - **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
@@ -619,7 +619,7 @@ Só uma sessão real no app desktop mostra:
 - Os cliques: se o `Button` sobre o ícone e sobre o anel acertam o alvo nos dois temas e em todas as
   larguras (a regra de não-sobreposição fala em células, não em pixels); se o clique na troca de desenho
   ainda chega (`ui.press` por chave); o realce do botão nativo; o toast de `open_session_in` recusado.
-- O tooltip da camada `hoverLayer` e se a linha pisca a cada segundo.
+- Se a linha pisca a cada segundo.
 - A recarga a quente real e o respawn do hooks worker (o kit não os reproduz).
 - As sessões filhas de verdade: `list_sessions`, `get_session`, os arquivos publicados por versões
   diferentes do mod, o `startedBy`, a latência entre a publicação de uma filha e a releitura de 3 s.
@@ -909,6 +909,16 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (`cursor:default;user-select:none`; pedido do usuário: "quero que o mouse seja o mouse padrão,
   seta"). Linha sem corte não tem camada; recolher não corta nome; terminal sem tooltip.
     Quando os chips não cabem com as palavras, ficam só os números.
+  Tooltip removido (2026-11-09, decisão do usuário: "não funcionou. aborte e remova a funcionalidade
+  de tooltip"): texto cortado não tem mais tooltip nem camada interativa (`hoverLayer`, `tip`,
+  `overlay('name')` saíram). Aprendido no app, com linhas de prova, para quem tentar de novo:
+  (1) o `<title>` nativo não aparece nas molduras isoladas do `Svg` interativo (desde a 2.1.294);
+  (2) o app passa a fonte pelo DOMPurify (perfil svg), que mantém `class`, `<style>`, `@keyframes` e
+  `<title>`, mas tira o atributo `pointer-events`; (3) o `hover` de `Box` do kit não reagiu no
+  painel; (4) a moldura só recebe o mouse onde há algo pintado o bastante (área com opacidade .01
+  não recebeu; com fundo .12, recebeu e mostrou o tooltip depois de 1 s por `transition-delay`);
+  (5) o app só reaproveita a moldura entre desenhos se o nó for idêntico (`isEqualNode`), e a
+  trocada perde o hover até o mouse se mexer. Mesmo com isso, nas linhas reais não funcionou.
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂`; linha recolhida ganha " ⋯" depois do nome (nas duas superfícies). A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.
@@ -1303,8 +1313,13 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   de sessao filha"): no desktop, o ícone de progresso fica à esquerda, logo depois das guias, antes
   do título, em todas as linhas. Nas linhas de tarefa, turno e cartão, as colunas da direita são
   fixas: tempo (`TIME_W`), d/n (`COUNT_W`), barra e, logo à esquerda da barra, o ramo (só nas
-  linhas com sessão; vazia nas outras, para alinhar), com a palavra de estado ("concluída",
-  "interrompida") antes dele. No terminal: "◉ título  ⑂  d/n  tempo".
+  linhas com sessão), com a palavra de estado ("concluída", "interrompida") antes dele. Linha sem
+  contagem e sem ramo não guarda colunas vazias: o título (e a palavra) vai até o tempo desenhado, ou
+  até a borda sem tempo (decisão do usuário, 2026-11-09: "quero que o texto vá até alcança o tempo de
+  execução, somente ai, corte o texto com reticencias"; "Encosta no tempo (Recomendado)"). O corte
+  do título é do CSS, na largura real: um `foreignObject` com `text-overflow: ellipsis`, da largura do
+  slot menos o que fica à direita. Antes, o "…" era posto contra `W` (colunas × `COL_PX`), estimativa
+  menor que o slot real, e o título parava antes do tempo pela diferença (no app, a 686 px, uns 60 px). No terminal: "◉ título  ⑂  d/n  tempo".
 - Concluídas com o mesmo layout: a linha fechada tem o mesmo ícone de progresso (✓/✕), ramo,
   título, barra, d/n e tempo da aberta. `plan` grava `plannedAt`; `done` sem `start` dá início à
   tarefa (`fillStarts`): o fim da irmã anterior fechada, senão o início do pai, senão `plannedAt`

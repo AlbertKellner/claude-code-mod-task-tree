@@ -330,3 +330,62 @@ test('com a carta na fila, o Esc deixa a tarefa aguardando; a entrega a conclui'
   esperarCartaSob(p, 'Um', 'entregue')
 })
 
+
+// As cartas sob uma tarefa: os títulos das linhas "Para …" logo abaixo dela.
+const cartasDe = (linhas: any[], titulo: string): string[] => {
+  const l = linha(linhas, titulo)
+  const out: string[] = []
+  for (const x of linhas.slice(linhas.indexOf(l) + 1)) {
+    if (x.nivel <= l.nivel) break
+    if (x.titulo.startsWith('Para ')) out.push(x.titulo)
+  }
+  return out
+}
+const DUAS: No[] = [{ id: 'A', title: 'Investigar', children: [{ id: '1', title: 'Pesquisa web: changelog' }, { id: '2', title: 'Implementação: ler o código' }] }]
+
+// Regra: envios.carta-pelo-nome-da-sessao
+test('sem nada em andamento, cada envio vai à pendente cujo título casa com o nome da sessão', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  // Fora da ordem do plano: a implementação primeiro.
+  await envio($, 'implementacao-hover', 'para a implementação')
+  await envio($, 'pesquisa-web', 'para a pesquisa')
+  await start($, ['1', '2'])
+  const p = await painel($)
+  expect(cartasDe(p, 'Pesquisa web: changelog').join(' | '), emTexto(p)).toContain('para a pesquisa')
+  expect(cartasDe(p, 'Implementação: ler o código').join(' | '), emTexto(p)).toContain('para a implementação')
+  expect(cartasDe(p, 'Pesquisa web: changelog').join(' | ')).not.toContain('para a implementação')
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao
+test('sem casamento pelo nome, os envios vão às pendentes planejadas juntas, pela ordem', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await envio($, 'local_x', 'primeira')
+  await envio($, 'local_y', 'segunda')
+  const p = await painel($)
+  expect(cartasDe(p, 'Um').join(' | '), emTexto(p)).toContain('primeira')
+  expect(cartasDe(p, 'Dois').join(' | '), emTexto(p)).toContain('segunda')
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao
+test('com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Investigar', children: [{ id: '1', title: 'Subagente da hora na orquestradora' }, { id: '2', title: 'Subagente da hora na análise' }] }])
+  await start($, ['1', '2'])
+  await envio($, 'analise-plano', 'para a análise')
+  await envio($, 'hora-extra', 'para a hora')
+  const p = await painel($)
+  expect(cartasDe(p, 'Subagente da hora na análise').join(' | '), emTexto(p)).toContain('para a análise')
+  // "hora" está nas duas: decide a ordem, a primeira ainda sem carta.
+  expect(cartasDe(p, 'Subagente da hora na orquestradora').join(' | '), emTexto(p)).toContain('para a hora')
+})

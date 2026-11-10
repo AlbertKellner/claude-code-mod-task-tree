@@ -9,9 +9,10 @@ A tarefa iniciada e aberta aguarda no fim do turno.
 
 - Dado uma tarefa iniciada e aberta
 - Quando o turno termina normalmente
-- Então ela fica ◷ com o relógio parado, e o pai e o pedido ◷
+- Então ela fica ◷ com o relógio parado, e o pai e o pedido ◷; salvo a tarefa cujo trabalho era só subagentes, todos terminados e nada mais em execução nela, que reflete o fim deles (subagentes.pai-conclui-no-fim-do-turno)
 
 Origem: decisão do usuário, 2026-10-27; commit 95b1a21.
+Reescrito: 2026-11-09, decisão do usuário ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)").
 Estado: coberto
 
 ### turnos.pendentes-seguem-pendentes
@@ -126,4 +127,15 @@ O resumo do done vira a linha ↩ mesmo sem texto final no turno.
 - Então a linha ↩ mostra o resumo, e ele vai ao arquivo publicado
 
 Origem: regra do painel ("a linha ↩ só existe com resumo"; o summary "é a linha ↩", text/rules.ts; commit 3f06a32, 2026-10-21); bug achado na análise de 2026-10-29.
+Estado: coberto
+
+### turnos.resumo-sem-seta-duplicada
+O ↩ que o resumo já traz não se repete.
+
+- Dado um done com summary que começa com "↩"
+- Quando o turno termina
+- Então a linha da resposta mostra um ↩ só, antes do resumo
+
+Origem: achado da sessão orquestradora no app, 2026-11-09 (a linha aparecia "↩ ↩").
+Código: hooks/tools.ts
 Estado: coberto

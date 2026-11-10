@@ -484,6 +484,16 @@
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
     },
+    "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao"
+      ],
+      "hash": "76f4006b4e43bbc9",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
     "task-tree/tests/envios.test.ts::depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem": {
       "regras": [
         "envios.esc-apos-entrega-imediata"
@@ -544,6 +554,26 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::sem casamento pelo nome, os envios vão às pendentes planejadas juntas, pela ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao"
+      ],
+      "hash": "4df388c4d16d47ba",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "carta pelo nome da sessão"
+    },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, cada envio vai à pendente cujo título casa com o nome da sessão": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao"
+      ],
+      "hash": "e5c3c175e6867dd4",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "carta pelo nome da sessão"
     },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
       "regras": [
@@ -617,6 +647,17 @@
       "tipo": "refatoracao",
       "data": "2026-10-29",
       "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
+    },
+    "task-tree/tests/golden.test.ts::golden: subagente": {
+      "regras": [
+        "visual.golden-gera-desenho",
+        "visual.desenho-subagente"
+      ],
+      "hash": "cf4a772084d4f8f8",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
@@ -1174,6 +1215,159 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/subagentes.test.ts::com duas em andamento, o subagente vai à primeira e a carta seguinte à segunda": {
+      "regras": [
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "fbba245f620e37e8",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com um ainda rodando, a tarefa não fecha; o último, terminando depois do turno, a fecha": {
+      "regras": [
+        "subagentes.um-rodando-mantem-o-pai",
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "817255071a5c660b",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com uma carta na fila na mesma tarefa, o subagente concluído não a fecha": {
+      "regras": [
+        "subagentes.um-rodando-mantem-o-pai"
+      ],
+      "hash": "9ebd6d85f445bef5",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado de uma pendente (sem start), o subagente concluído fecha a pendente também": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "284c2b0b5c24adf3",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado um subagente, o cartão aparece sob a tarefa em andamento, com o modelo e \"trabalhando\"": {
+      "regras": [
+        "subagentes.cartao-desde-o-lancamento",
+        "subagentes.cartao-mostra-modelo-e-estado"
+      ],
+      "hash": "a507f9a316496285",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::mais de três lançados juntos ficam num cartão de grupo, uma linha por agente; três, cada um no seu": {
+      "regras": [
+        "subagentes.varios-juntos-num-cartao-de-grupo"
+      ],
+      "hash": "ceb28a25e16202f5",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente concluído fecha a tarefa de onde saiu no fim do turno; o pai e a contagem seguem": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "cffe7014737cdf05",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "pai reflete subagente"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente de uma filha aparece dentro do cartão dela": {
+      "regras": [
+        "subagentes.na-filha"
+      ],
+      "hash": "193c0a0eb20399b1",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente não entra no \"d de n\" e ganha a pílula de subagentes": {
+      "regras": [
+        "subagentes.fora-da-contagem"
+      ],
+      "hash": "fb2224452e081978",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente que falhou deixa a tarefa ✕ \"falhou\"; o interrompido, ✕ \"interrompida\"; misto, o pior": {
+      "regras": [
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "78292c71ab0b24d5",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente que usa o painel mostra as tarefas dele no cartão": {
+      "regras": [
+        "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
+      ],
+      "hash": "52c688c58731da3c",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::os agentes de um workflow ficam num cartão \"Workflow · N agentes\"": {
+      "regras": [
+        "subagentes.varios-juntos-num-cartao-de-grupo"
+      ],
+      "hash": "1f9ab07523f6d89a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::sem nada em andamento, o cartão vai à pendente do pedido atual": {
+      "regras": [
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "dacf75940df84246",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::sem usar o painel, o cartão mostra a ferramenta em uso e quantas chamadas fez": {
+      "regras": [
+        "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
+      ],
+      "hash": "ad391ebfaeca3d63",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::terminado, o cartão segue com \"concluído\"; com erro, \"falhou\"; parado, \"interrompido\"": {
+      "regras": [
+        "subagentes.terminado-segue-cartao",
+        "subagentes.cartao-mostra-modelo-e-estado"
+      ],
+      "hash": "3900f9332c92caf8",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
     "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
       "regras": [
         "turnos.esc-interrompe-so-a-iniciada"
@@ -1286,6 +1480,16 @@
       "data": "2026-10-29",
       "motivo": "resumo do done na recarga e sem resposta final"
     },
+    "task-tree/tests/turnos.test.ts::o ↩ que o summary já traz não se repete na linha da resposta": {
+      "regras": [
+        "turnos.resumo-sem-seta-duplicada"
+      ],
+      "hash": "d1ff5a36c6490cdc",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "↩ inicial do summary"
+    },
     "task-tree/tests/turnos.test.ts::pedido anterior parado segue aguardando enquanto o pedido novo está em andamento": {
       "regras": [
         "turnos.pedido-anterior-parado-aguarda"
@@ -1335,20 +1539,60 @@
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "faixa de estado geral do cabeçalho V4"
+    },
+    "task-tree/tests/visual.test.ts::a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de cortar": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "40b93e00964328ec",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
+    },
+    "task-tree/tests/visual.test.ts::no cartão da filha, o título da folha passa da coluna da contagem e corta junto do tempo": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "3fb182566531ae22",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
+    },
+    "task-tree/tests/visual.test.ts::o título de uma linha sem contagem vai até o tempo; a com contagem corta antes da barra": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "ae1e387a8b09b2bb",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
+    },
+    "task-tree/tests/visual.test.ts::texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>": {
+      "regras": [
+        "visual.tooltip"
+      ],
+      "hash": "02c1fca9303d619b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "tooltip removido"
     }
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "498a4f75947d6bcd",
-      "tipo": "refatoracao",
-      "data": "2026-10-28",
-      "motivo": "agentId opcional e subagente no host"
+      "hash": "b85489f71594f39e",
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "kit: lancaveis e agentes da filha (card de subagente)"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "5402d729bd74d26e",
-      "tipo": "refatoracao",
-      "data": "2026-11-04",
-      "motivo": "sem o escolher da visão: decisão do usuário, 2026-11-04"
+      "hash": "91234fc8b73af6f0",
+      "tipo": "novo",
+      "data": "2026-11-09",
+      "motivo": "kit: lancar, chamadaDoSubagente, fimDoSubagenteCom (card de subagente)"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "ad3cbea6b0f478ef",
@@ -1359,19 +1603,24 @@
   },
   "golden": {
     "envios": {
-      "hash": "96a9f9fa34ec59c3",
-      "data": "2026-11-04",
-      "motivo": "\"Funcionou\", 2026-11-04"
+      "hash": "c4d2227fd1a878ac",
+      "data": "2026-11-09",
+      "motivo": "\"faça push e crie o pr\", 2026-11-09"
     },
     "filha": {
-      "hash": "ccf4288473f33a56",
-      "data": "2026-11-04",
-      "motivo": "\"Funcionou\", 2026-11-04"
+      "hash": "289c531c50099c07",
+      "data": "2026-11-09",
+      "motivo": "\"faça push e crie o pr\", 2026-11-09"
     },
     "principal": {
-      "hash": "4b0ec4f574c6038f",
-      "data": "2026-11-04",
-      "motivo": "\"Funcionou\", 2026-11-04"
+      "hash": "bb83bbb8823a6c68",
+      "data": "2026-11-09",
+      "motivo": "\"faça push e crie o pr\", 2026-11-09"
+    },
+    "subagente": {
+      "hash": "a4a2747c6b57f3d1",
+      "data": "2026-11-09",
+      "motivo": "\"Funcionou\", 2026-11-09"
     }
   }
 }

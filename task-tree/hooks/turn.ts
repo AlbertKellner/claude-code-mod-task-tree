@@ -8,6 +8,7 @@ import { BRIEF } from '../text/rules'
 import { MAIN, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
 import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
+import { settleBySubs, subEnd, subStep } from './agents'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -62,8 +63,13 @@ export async function* turnStep($: EngineInterface, e: any, next: any) {
       void publishPanel($).catch(() => {})
     }
   }
-  const t0 = main ? await stamp($) : undefined
+  const t0 = await stamp($)
   const r = yield* next(e)
+  // A subagent's step: its card's model, effort and rate (hooks/agents).
+  if (!main) {
+    await subStep($, String(e.agentId), e, r, t0)
+    return r
+  }
   const tokens = r?.usage?.output_tokens
   if (t0 !== undefined && typeof tokens === 'number') {
     const t1 = await stamp($)
@@ -114,6 +120,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
   if (!agent) await $.state.set(turnEndedState, (await stamp($)) ?? 0)
+  // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
+  if (!agent && !e.isAborted) await settleBySubs($)
   // The turn's output rate closes into its mean over the whole turn, shown dim until the next turn
   // (the person's choice for a stopped session); the samples start over with the next turn.
   if (!agent) {
@@ -134,6 +142,7 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   if (agent) {
     const info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
     if (info?.type !== 'teammate' && info?.teammateId === undefined) {
+      await subEnd($, agent, e)
       await dropWaits($, w => w.agent !== agent)
       const { value } = await $.state.get(groupsState)
       if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {

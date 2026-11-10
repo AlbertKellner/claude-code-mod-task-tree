@@ -129,7 +129,9 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     if (agent === MAIN) reminders.planned = true
     if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { ids?: string[]; summary?: unknown }
-    if (agent === MAIN && typeof input.summary === 'string' && input.summary.trim() !== '') await $.state.set(briefState, input.summary)
+    // The panel draws its own ↩ before the summary: one the model wrote too is dropped ("↩ ↩").
+    const brief = typeof input.summary === 'string' ? input.summary.replace(/^\s*↩\s*/, '') : ''
+    if (agent === MAIN && brief.trim() !== '') await $.state.set(briefState, brief)
     let notes: string[] = []
     let closed: string[] = []
     let unstarted: string[] = []
