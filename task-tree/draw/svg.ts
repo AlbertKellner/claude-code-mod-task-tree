@@ -575,7 +575,6 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
     svgOpen(H) +
     cards.map(c => c.svg).join('') +
     (paths.length > 0 ? `<path class="g" d="${paths.join('')}" fill="none" stroke-width="1"/>` : '') +
-    (section ? `<rect class="lnf" x="0" y="0" height="1" style="width:calc(${slot(W)} - ${W - R}px)"/>` : '') +
     lead +
     name +
     toRight(W, mark + right.join('')) +

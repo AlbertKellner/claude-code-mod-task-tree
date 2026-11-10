@@ -203,3 +203,13 @@ Origem: decisão do usuário, 2026-11-03 ("gostei da V4, siga para análise e im
 Código: draw/svg.ts, hooks/render.tsx
 Estado: coberto
 
+### visual.secao-sem-traco
+A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizontal.
+
+- Dado uma seção no painel ("+N pedidos anteriores", na raiz ou dentro de um cartão; "+N cartões antigos")
+- Quando o painel é desenhado
+- Então não há linha horizontal atravessando o painel nem as bordas do cartão; a seção é só o ▸/▾ e o texto apagado
+
+Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
+Código: draw/svg.ts
+Estado: checklist (pintura real)
