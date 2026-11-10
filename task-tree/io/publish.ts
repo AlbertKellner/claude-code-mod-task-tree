@@ -43,6 +43,7 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     children: list<Child>(f.children) ?? [],
     ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
     ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
+    ...(f.ultracode === true ? { ultracode: true } : {}),
     ...(rate && typeof rate === 'object' && typeof rate.toks === 'number' && typeof rate.at === 'number' && typeof rate.live === 'boolean'
       ? { rate: { toks: rate.toks, at: rate.at, live: rate.live } }
       : {}),
@@ -99,7 +100,7 @@ export async function readPublished($: any, id: string): Promise<Published | und
 // What the hooks module hands over for one publication: the panel as the state holds it (`tasks`,
 // the main group's, is for earlier versions; `sends` as queued, the taken ones are dropped here) and
 // what the last drawing left (its error, size and lines).
-export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
+export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'ultracode' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the
 // app) waits on the person, and its whole panel, with the share of the context window used (for the
@@ -135,6 +136,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       waits: p.waits,
       children: p.children,
       engine: p.engine,
+      ultracode: p.ultracode === true ? true : undefined,
       aborted: p.aborted === true ? true : undefined,
       renderError: p.renderError,
       drawSize: p.drawSize,
@@ -164,6 +166,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
         children: body.children,
         context,
         engine: body.engine,
+        ultracode: body.ultracode,
         rate: p.rate,
         git: p.git,
         aborted: body.aborted,

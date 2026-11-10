@@ -55,7 +55,7 @@ export function deducedOwn(rows: HostRow[]): string | undefined {
 
 // What the sessions' published files say, by session id: which wait on the person, their panels,
 // the share of context used, their model and effort, their output rate, and their repository and branch.
-export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; rates: Record<string, Rate>; gits: Record<string, GitInfo> }
+export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo> }
 // A published file's panel: its groups (and the rest the file has), or, from before groups, its
 // `tasks` as the main group; none when the file has neither.
 export function panelOf(file: Published): Panel | undefined {
@@ -76,7 +76,7 @@ export function panelOf(file: Published): Panel | undefined {
 // waits on the person, its own task-tree publishes. No file, or one this version cannot read: the
 // session shows by the host's row alone. A file without the model asks the app for it (engineOf).
 export async function readFiles($: any, mine: HostRow[]): Promise<Read> {
-  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, rates: {}, gits: {} }
+  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {} }
   for (const r of mine) {
     try {
       const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
@@ -85,6 +85,7 @@ export async function readFiles($: any, mine: HostRow[]): Promise<Read> {
       if (file.context) read.contexts[r.sessionId] = file.context.percent
       if (file.rate) read.rates[r.sessionId] = file.rate
       if (file.git) read.gits[r.sessionId] = file.git
+      if (file.ultracode) read.ultras.push(r.sessionId)
       if (file.engine) read.engines[r.sessionId] = file.engine
       else {
         const known = await engineOf($, r.sessionId)
@@ -154,6 +155,8 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       aborted: read.aborted.includes(r.sessionId) || undefined,
       context: read.contexts[r.sessionId] ?? before?.context,
       engine: read.engines[r.sessionId] ?? before?.engine,
+      // As its file says it at each read: off once it no longer does.
+      ultracode: read.ultras.includes(r.sessionId) || undefined,
       rate: read.rates[r.sessionId] ?? before?.rate,
       git: read.gits[r.sessionId] ?? before?.git,
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,

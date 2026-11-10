@@ -9,7 +9,7 @@ import { promptCompose, promptSubmit } from './prompt-submit'
 import { commandRun } from './command'
 import { doneTool, planTool, startTool } from './tools'
 import { permissionRequest } from './permission'
-import { turnComplete, turnStep } from './turn'
+import { turnComplete, turnStep, ultraAttachment } from './turn'
 import { toolCall } from './tool-call'
 import { press, render } from './render'
 import { agentSpawn } from './agents'
@@ -26,6 +26,8 @@ export const register: Register = on => {
   on('classic.PermissionRequest', permissionRequest)
   on('agent.spawn', agentSpawn)
   on('turn.step', turnStep)
+  on('prompt.attachment', { type: 'ultra_effort_enter' }, ultraAttachment)
+  on('prompt.attachment', { type: 'ultra_effort_exit' }, ultraAttachment)
   on('turn.complete', turnComplete)
   on('tool.call', toolCall)
   on('ui.press', press)

@@ -106,6 +106,7 @@ const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
+const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
@@ -500,13 +501,14 @@ export async function publishPanel($: any) {
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
+    const { value: ultracode } = await $.state.get(ultracodeState)
     const { value: rate } = await $.state.get(rateState)
     const { value: sends = [] } = await $.state.get(sendsState)
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
     // session that opened this one reads the round it left open as discarded.
     const { value: aborted } = await $.state.get(turnAbortedState)
     const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, ultracode: ultracode === true, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }

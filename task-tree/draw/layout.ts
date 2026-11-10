@@ -858,6 +858,8 @@ export type Row = {
   // A session's card: its model and effort ("Opus 5.5 · high"), drawn left of the ring, and its
   // output rate ("n toks/s"), drawn left of that, dim when it is the last turn's mean (not live).
   engine?: string
+  // ... and "ultracode" right of the model when its switch is on, in the app's ultracode color.
+  ultracode?: boolean
   rate?: { toks: number; live: boolean }
   // A session's card: its repository (folder name) and branch, drawn right of its name with their
   // icons (the repository goes first when the line is short).
@@ -1179,6 +1181,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       session: true,
       sid: c.id,
       engine: c.engine,
+      ultracode: c.ultracode === true ? true : undefined,
       rate: c.rate ? { toks: c.rate.toks, live: c.rate.live } : undefined,
       git: c.git ? gitLabel(c.git) : undefined,
       ring: ringOf(c),

@@ -1561,6 +1561,37 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/ultracode.test.ts::a palavra digitada num prompt e o attachment de um subagente não acendem": {
+      "regras": [
+        "ultracode.so-o-interruptor-real"
+      ],
+      "hash": "684a2ffc2ba2283e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
+    },
+    "task-tree/tests/ultracode.test.ts::o cartão da filha diz \"ultracode\" depois do modelo enquanto ela publica o interruptor ligado": {
+      "regras": [
+        "ultracode.cartao-da-filha"
+      ],
+      "hash": "54e461ff602a4416",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
+    },
+    "task-tree/tests/ultracode.test.ts::ultra_effort_enter acende a palavra no cabeçalho e no arquivo publicado; ultra_effort_exit apaga": {
+      "regras": [
+        "ultracode.so-o-interruptor-real",
+        "ultracode.cabecalho"
+      ],
+      "hash": "f3eae996ada8d209",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
+    },
     "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
       "regras": [
         "visual.faixa-de-estado-geral"
