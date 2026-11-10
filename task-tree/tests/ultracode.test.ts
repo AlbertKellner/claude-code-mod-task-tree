@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host } from './kit/ambiente'
-import { abrirSessao, aviso, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
+import { abrirSessao, aviso, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { svgs } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
@@ -72,4 +72,22 @@ test('a palavra digitada num prompt e o attachment de um subagente não acendem'
   await $.prompt.attachment(anexo('ultra_effort_enter', 'sub-1'))
   await pedido($, 'ative o modo ultracode')
   expect(await topo($)).not.toContain('ultracode')
+})
+
+// Regra: ultracode.subagente-sem-palavra
+test('com a sessão em ultracode, o cartão de subagente não diz "ultracode"', async ($: any, on: any) => {
+  fixar(on)
+  base(on)
+  lancaveis(on, ['sub-1'])
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  await lancar($, { descricao: 'ler o kit' })
+  const alts = (await svgs($)).map(s => s.alt)
+  expect(alts[0]).toContain('ultracode')
+  const sub = alts.find(a => a.includes('Explore: ler o kit')) ?? ''
+  expect(sub).toContain('ler o kit')
+  expect(sub).not.toContain('ultracode')
 })

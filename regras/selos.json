@@ -1571,6 +1571,16 @@
       "data": "2026-11-10",
       "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
     },
+    "task-tree/tests/ultracode.test.ts::com a sessão em ultracode, o cartão de subagente não diz \"ultracode\"": {
+      "regras": [
+        "ultracode.subagente-sem-palavra"
+      ],
+      "hash": "f6704a5a24a6bb70",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "decisão do usuário, 2026-11-10: Deixar sem"
+    },
     "task-tree/tests/ultracode.test.ts::o cartão da filha diz \"ultracode\" depois do modelo enquanto ela publica o interruptor ligado": {
       "regras": [
         "ultracode.cartao-da-filha"

@@ -46,3 +46,14 @@ A palavra tem a cor do rótulo "Ultracode on" do app e sai junto com o modelo.
 Origem: decisão do usuário, 2026-11-10 ("Roxo sólido (Recomendado)"; "Junto com o modelo (Recomendado)").
 Estado: checklist (cor e tema, no app)
 
+
+### ultracode.subagente-sem-palavra
+O cartão de subagente não diz "ultracode", mesmo com a sessão em ultracode.
+
+- Dado uma sessão com o interruptor de ultracode ligado e um subagente lançado dela
+- Quando o cartão do subagente é desenhado
+- Então ele não tem a palavra "ultracode" (o estado do subagente não chega ao mod, e herdar o da sessão não é garantido); o cabeçalho segue com ela
+
+Origem: decisão do usuário, 2026-11-10 ("Deixar sem (Recomendado)").
+Código: draw/layout.ts
+Estado: coberto
