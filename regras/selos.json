@@ -1368,6 +1368,47 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
+      "regras": [
+        "taxa.fim-do-turno-fica-aceso"
+      ],
+      "hash": "a06dbb039075c858",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
+    },
+    "task-tree/tests/taxa.test.ts::o cartão de subagente mostra a velocidade dele pela mesma regra": {
+      "regras": [
+        "taxa.subagente-mesma-medida"
+      ],
+      "hash": "3ded2a8844846a61",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
+    },
+    "task-tree/tests/taxa.test.ts::o número é o do último passo válido; poucos tokens, pouco tempo ou rápido demais não o mudam": {
+      "regras": [
+        "taxa.velocidade-de-geracao",
+        "taxa.filtros"
+      ],
+      "hash": "f8c2f650113fb86f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
+    },
+    "task-tree/tests/taxa.test.ts::o toks/s conta só do primeiro chunk ao stop": {
+      "regras": [
+        "taxa.velocidade-de-geracao"
+      ],
+      "hash": "a3f353f612c917da",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
+    },
     "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
       "regras": [
         "turnos.esc-interrompe-so-a-iniciada"
@@ -1583,10 +1624,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "b85489f71594f39e",
+      "hash": "253551d84da06eb1",
       "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "kit: lancaveis e agentes da filha (card de subagente)"
+      "data": "2026-11-10",
+      "motivo": "kit: passos do modelo (turn.step com stream)"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "91234fc8b73af6f0",

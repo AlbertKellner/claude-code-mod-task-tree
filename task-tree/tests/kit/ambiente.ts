@@ -183,3 +183,25 @@ export function lancaveis(on: any, ids: string[], modelo = 'claude-haiku-5-5') {
   on('agent.spawn', () => ({ model: modelo, agentId: ids[i++] ?? `sub-${i}` }))
   on('agent.list', () => ({ value: ids.map(id => ({ id, type: 'general-purpose', description: `subagente ${id}` })) }))
 }
+
+// Os passos do modelo (turn.step), com o stream: `antes` ms até o primeiro chunk, `geracao` ms até o
+// chunk 'stop', `tokens` no usage; o relógio parado avança entre os chunks. Chamar antes da primeira
+// chamada a $; devolve o roteiro que roda um passo.
+export type Passo = { antes?: number; geracao?: number; tokens?: number; agente?: string }
+export function passos(on: any, relogio: any) {
+  let atual: Required<Omit<Passo, 'agente'>> = { antes: 800, geracao: 2000, tokens: 200 }
+  on('turn.step', async function* (_$: any, _e: any, _next: any) {
+    const { antes, geracao, tokens } = atual
+    await relogio.advance(antes)
+    yield { kind: 'text', index: 0, text: 'a' }
+    await relogio.advance(geracao)
+    yield { kind: 'stop', stopReason: 'end_turn', usage: { output_tokens: tokens, input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+    return { turnId: 't', index: 0, answer: '', toolUses: [], stopReason: 'end_turn', usage: { output_tokens: tokens, input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+  })
+  return async ($: any, p: Passo = {}) => {
+    atual = { antes: p.antes ?? 800, geracao: p.geracao ?? 2000, tokens: p.tokens ?? 200 }
+    const s = $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', ...(p.agente !== undefined ? { agentId: p.agente } : {}) })
+    for await (const _ of s) void _
+    return s.result
+  }
+}
