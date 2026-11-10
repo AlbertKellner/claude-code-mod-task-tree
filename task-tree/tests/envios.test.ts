@@ -373,3 +373,19 @@ test('sem casamento pelo nome, os envios vão às pendentes planejadas juntas, p
   expect(cartasDe(p, 'Um').join(' | '), emTexto(p)).toContain('primeira')
   expect(cartasDe(p, 'Dois').join(' | '), emTexto(p)).toContain('segunda')
 })
+
+// Regra: envios.carta-pelo-nome-da-sessao
+test('com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Investigar', children: [{ id: '1', title: 'Subagente da hora na orquestradora' }, { id: '2', title: 'Subagente da hora na análise' }] }])
+  await start($, ['1', '2'])
+  await envio($, 'analise-plano', 'para a análise')
+  await envio($, 'hora-extra', 'para a hora')
+  const p = await painel($)
+  expect(cartasDe(p, 'Subagente da hora na análise').join(' | '), emTexto(p)).toContain('para a análise')
+  // "hora" está nas duas: decide a ordem, a primeira ainda sem carta.
+  expect(cartasDe(p, 'Subagente da hora na orquestradora').join(' | '), emTexto(p)).toContain('para a hora')
+})

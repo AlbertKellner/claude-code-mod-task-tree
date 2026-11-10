@@ -87,7 +87,7 @@ export type Filha = {
   arquivada?: boolean
   aguardando?: boolean
   aborted?: boolean
-  painel?: { tasks: any[]; turns?: any[] } // o grupo principal publicado
+  painel?: { tasks: any[]; turns?: any[]; agentes?: any[] } // o grupo principal publicado (e os grupos dos subagentes dela)
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
   recebidas?: { from: string; at: number }[] // received além do que recebeu() acrescenta (de irmãs)
@@ -124,7 +124,7 @@ export function host(on: any, sessoes: Filha[]): Host {
         ...(s.aborted ? { aborted: true } : {}),
         waits: [],
         children: [],
-        groups: s.painel ? [{ agent: '', label: '', tasks: s.painel.tasks, ...(s.painel.turns ? { turns: s.painel.turns } : {}) }] : [],
+        groups: s.painel ? [{ agent: '', label: '', tasks: s.painel.tasks, ...(s.painel.turns ? { turns: s.painel.turns } : {}) }, ...(s.painel.agentes ?? [])] : [],
         ...(s.git ? { git: { ...s.git, at: AGORA } } : {}),
         ...(s.rate ? { rate: { ...s.rate, at: AGORA } } : {}),
         received: [...(s.recebidas ?? []), ...(recebidas[s.id] ?? [])],
@@ -173,4 +173,13 @@ export function responderDepois(on: any, relogio: { sleep(ms: number): Promise<v
     if (ms > 0) await relogio.sleep(ms)
     return { result: resultado }
   })
+}
+
+// Os subagentes lançados pela ferramenta Agent (agent.spawn): o núcleo responde com o próximo id da
+// lista e o modelo dado; o host os lista (agent.list) como general-purpose. Chamar antes da primeira
+// chamada a $.
+export function lancaveis(on: any, ids: string[], modelo = 'claude-haiku-5-5') {
+  let i = 0
+  on('agent.spawn', () => ({ model: modelo, agentId: ids[i++] ?? `sub-${i}` }))
+  on('agent.list', () => ({ value: ids.map(id => ({ id, type: 'general-purpose', description: `subagente ${id}` })) }))
 }

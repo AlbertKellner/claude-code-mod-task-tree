@@ -60,3 +60,23 @@ export const fimDoSubagente = ($: any, agente: string) =>
 // O turno parado pela pessoa (Esc, stop).
 export const esc = ($: any) =>
   $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: true, turnId: 't' })
+
+// O lançamento de um subagente (agent.spawn, como a ferramenta Agent o faz); o id vem de lancaveis.
+export type Lancamento = { tipo?: string; descricao: string; pai?: string; segundoPlano?: boolean; run?: string }
+export const lancar = ($: any, l: Lancamento) =>
+  $.agent.spawn({
+    prompt: 'faça',
+    description: l.descricao,
+    subagentType: l.tipo ?? 'Explore',
+    ...(l.pai !== undefined ? { parentAgentId: l.pai } : {}),
+    ...(l.segundoPlano ? { background: true } : {}),
+    ...(l.run !== undefined ? { workflow: { runId: l.run, agentIndex: 1 } } : {}),
+  })
+
+// Uma chamada de ferramenta de um subagente (Grep, Read…), com os argumentos dela.
+export const chamadaDoSubagente = ($: any, agente: string, tool: string, args: object = {}) =>
+  $.tool.call({ tool, tool_use_id: `${tool}-${agente}`, agentId: agente, ...args })
+
+// O fim do turno de um subagente com um motivo (erro, parado).
+export const fimDoSubagenteCom = ($: any, agente: string, como: { erro?: boolean; parado?: boolean }) =>
+  $.turn.complete({ reason: como.erro ? 'error' : 'end_turn', answer: '', durationMs: 1, isAborted: como.parado === true, turnId: 't', agentId: agente })

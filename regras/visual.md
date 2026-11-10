@@ -192,6 +192,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: draw/layout.ts
 Estado: coberto
 
+### visual.desenho-subagente
+O desenho do cartão de subagente e do cartão de grupo é o validado no app.
+
+- Dado um subagente rodando com a ferramenta em uso, um concluído e quatro lançados juntos
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)"); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Código: draw/layout.ts
+Estado: coberto
+
 ### visual.faixa-de-estado-geral
 A faixa à esquerda do cabeçalho diz o estado geral pela cor.
 

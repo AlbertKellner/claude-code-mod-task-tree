@@ -584,7 +584,7 @@ export function rowSvg(r: Row, g: Guide, f: Frame, W: number, hide: number[] = [
 
 // The header's chips: only those above zero, in this order.
 export type Chip = { tone: Tone; text: string }
-export function chips(active: number, waiting: number, cut: number, live: number, sent = 0, pending = 0): Chip[] {
+export function chips(active: number, waiting: number, cut: number, live: number, sent = 0, pending = 0, agents = 0): Chip[] {
   const list: Chip[] = []
   if (active > 0) list.push({ tone: 'current', text: `${active} em andamento` })
   if (pending > 0) list.push({ tone: 'open', text: plural(pending, 'pendente', 'pendentes') })
@@ -592,6 +592,8 @@ export function chips(active: number, waiting: number, cut: number, live: number
   if (sent > 0) list.push({ tone: 'sent', text: `${sent} aguardando sessão` })
   if (cut > 0) list.push({ tone: 'interrupted', text: plural(cut, 'interrompida', 'interrompidas') })
   if (live > 0) list.push({ tone: 'running', text: plural(live, 'sessão ativa', 'sessões ativas') })
+  // The subagents at work, out of every count of tasks (the person, 2026-11-09: "Fora da contagem").
+  if (agents > 0) list.push({ tone: 'agent', text: plural(agents, 'subagente', 'subagentes') })
   return list
 }
 

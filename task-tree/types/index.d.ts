@@ -26,6 +26,9 @@ export type TaskNode = {
   msg?: boolean
   // A message task left out of a replan while its message is still queued: kept, drawn until delivered.
   kept?: boolean
+  // Closed by the panel as interrupted because the subagent launched from it failed (hooks/agents,
+  // settleBySubs): drawn ✕ with "falhou" instead of "interrompida".
+  failed?: boolean
   children: TaskNode[]
 }
 
@@ -46,7 +49,22 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // `anchor`, the task the loop that launched it (`parent`) was on at launch. `turns`, the main
 // group's only, in order; absent in panels of earlier versions, whose tasks are drawn loose.
 // `whole`: only in a drawing's cut (trimToWork): every level-1 task, `tasks` being those of the work.
-export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[] }
+// `sub`: a subagent's card (hooks/agents), from its launch: when (`at`) and how it ended (`end`, `state`),
+// its model and effort (`engine`), output rate (`toks`), the tool in use and how many calls it made, the
+// batch it was launched in (the first launch's time) and its workflow run (`run`). Absent from the
+// main group, from a subagent's group made before its launch was heard, and from earlier versions.
+export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub }
+export type Sub = {
+  at: number
+  end?: number
+  state: 'running' | 'background' | 'done' | 'failed' | 'interrupted'
+  engine?: string
+  toks?: number
+  tool?: string
+  calls: number
+  batch: number
+  run?: string
+}
 
 // An Agent call, recorded at launch until the subagent's group claims it.
 export type Launch = { parent: string; anchor?: string; description: string }

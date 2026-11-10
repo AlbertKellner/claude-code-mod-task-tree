@@ -1,10 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 import { GOLDEN } from './golden/svg'
-import { AGORA, fixar, host, responderEnvio } from './kit/ambiente'
-import { abrirSessao, aviso, done, envio, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
+import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { svgs, type DesenhoSvg } from './kit/leitura'
 
-// O desenho do app desktop em 3 cenários, a 60 colunas. Com o cenário em GOLDEN (aprovado pelo usuário
+// O desenho do app desktop em 4 cenários, a 60 colunas. Com o cenário em GOLDEN (aprovado pelo usuário
 // no app), o desenho tem de ser igual; sem ele, o teste só confere que há desenho. Em ambos os casos,
 // imprime GOLDEN-NEW com o desenho atual (npm run golden:aprovar o recolhe). Ver o CLAUDE.md.
 
@@ -91,4 +91,27 @@ test('golden: envios', async ($: any, on: any) => {
   await esc($)
   await relogio.advance(1000)
   conferir('envios', await svgs($))
+})
+
+// Regra: visual.golden-gera-desenho, visual.desenho-subagente
+test('golden: subagente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['s1', 's2', 's3', 's4', 's5', 's6'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Revisar' }] }])
+  await start($, ['1'])
+  // Um cartão rodando, com a ferramenta em uso, e um já concluído.
+  await lancar($, { descricao: 'buscar usos de hover' })
+  await chamadaDoSubagente($, 's1', 'Grep', { pattern: 'hover' })
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 's2')
+  await relogio.advance(5000)
+  // Quatro lançados juntos de outra tarefa: o cartão de grupo.
+  await start($, ['2'])
+  for (const d of ['ler o diff', 'ler os testes', 'segurança', 'correção']) await lancar($, { descricao: d })
+  await fimDoSubagente($, 's3')
+  await relogio.advance(1000)
+  conferir('subagente', await svgs($))
 })

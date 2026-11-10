@@ -200,12 +200,17 @@ const BATCH = 3000
 // holds the title's head, before a ":" ("implementacao-hover" holds "Implementação").
 const plain = (s: string) =>
   s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+// Or a word of the name, of 4 letters or more, is a word of the title ("analise-plano" in "Subagente da
+// hora na análise"; the person, 2026-11-09: "Sim, por palavra (Recomendado)"); only a match with one
+// candidate counts (byName), so a word every candidate has decides nothing.
+const words = (s: string) => plain(s).split(' ').map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w.length >= 4)
 export function namedFor(title: string, names: string[]): boolean {
   const t = plain(title)
   const head = plain(title.split(':')[0] ?? '')
+  const inTitle = words(title)
   return names.some(n => {
     const name = plain(n)
-    return name.length >= 3 && (t.includes(name) || (head.length >= 4 && name.includes(head)))
+    return name.length >= 3 && (t.includes(name) || (head.length >= 4 && name.includes(head)) || words(n).some(w => inTitle.includes(w)))
   })
 }
 // The one candidate whose title matches the receiving session's name, if exactly one does.
@@ -275,8 +280,11 @@ export const askingAnchors = (waits: Wait[]): string[] =>
   waits.filter(w => w.agent === MAIN && w.kind !== 'permission').flatMap(w => (w.anchor === undefined ? [] : [w.anchor]))
 // Where this session's messages went (sendAnchor's `used`), with when: the sends kept, and the
 // rounds of the sessions (a send already taken up is dropped from the sends, its round stays).
-export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[]): Used[] => [
+// A subagent launched from a task uses it too (`groups`, its card's anchor; the person, 2026-11-09: "Vai à
+// pendente (Recomendado)"): the next message or launch goes to the next task.
+export const usedAnchors = (children: Child[], sends: { anchor?: string; at?: number }[], groups: Group[] = []): Used[] => [
   ...sends.map(s => ({ anchor: s.anchor, at: s.at })),
+  ...groups.flatMap(g => (g.sub && g.anchor !== undefined ? [{ anchor: g.anchor, at: g.sub.at }] : [])),
   ...children.flatMap(c => (c.rounds ?? []).map(r => ({ anchor: r.anchor, at: r.at }))),
   // A session opened from a task uses it as a message does (the person: "Abrir sessão conta como uso
   // da tarefa", 2026-10-28).

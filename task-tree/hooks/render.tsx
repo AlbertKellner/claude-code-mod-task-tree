@@ -283,7 +283,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
   const waitingNow = tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting
-  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent' && r.msg === 'queued'), pending)
+  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent' && r.msg === 'queued'), pending, lines.reduce((a, r) => a + (r.subs ?? 0), 0))
   // The header's general state, the color of its band (headerState).
   const state = headerState({ active, waiting: waitingNow, live: tally(r => r.live), pending, d, n, x })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null

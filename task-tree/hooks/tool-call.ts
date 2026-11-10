@@ -14,6 +14,7 @@ import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
 import { reminders, addWait, askingAnchors, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
+import { launchAnchor, subTool } from './agents'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -36,8 +37,8 @@ type Notes = ($: any, c: Call, notes: string[]) => Promise<void>
 async function launch($: any, c: Call) {
   if (c.e.tool !== 'Agent' && c.e.tool !== 'Task') return
   const { value = [] } = await $.state.get(groupsState)
-  const { anchor } = current(value.find((g: Group) => g.agent === c.agent)?.tasks ?? [])
   const description = String(c.e.description ?? '')
+  const anchor = await launchAnchor($, value as Group[], c.agent, [description, String(c.e.subagent_type ?? '')])
   await update($, launchesState, cur => [...(cur ?? []), { parent: c.agent, anchor, description }].slice(-20))
 }
 
@@ -115,7 +116,7 @@ const sentMessage: Notes = async ($, c, notes) => {
   // The receiving session's names, to match a task's title (sendAnchor): what `to` says, and the name
   // the host lists for that id.
   const names = [to, ...(kids0 as Child[]).filter(k => k.id === to).map(k => k.name)].filter(n => n !== '' && !/^local_/.test(n))
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[]), askingAnchors(waits0 as Wait[]), names)
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names)
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
@@ -206,6 +207,8 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
   // A call of the main loop: its turn is running, what the last one left open is in progress again.
   if (c.agent === MAIN) await wake($)
+  // A subagent's call: the tool its card shows (hooks/agents).
+  else await subTool($, c.agent, e)
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered

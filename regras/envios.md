@@ -89,6 +89,7 @@ A carta vai à tarefa cujo título casa com o nome da sessão destino.
 
 Origem: decisão do usuário, 2026-11-09 ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome").
 Código: hooks/tool-call.ts, hooks/sessions.ts
+Reescrito: 2026-11-09, decisão do usuário ("Sim, por palavra (Recomendado)"): casa também quando uma palavra do nome, com 4 letras ou mais, é palavra do título de uma única candidata ("analise-plano" com "Subagente da hora na análise"); um subagente lançado de uma tarefa conta como carta para o envio seguinte.
 Estado: coberto
 
 ### envios.fila-nao-interrompe-no-fim-do-turno

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
 import { aprovarGolden, lerGolden, motivoValido } from './selos.mjs'
 
-export const CENARIOS = ['principal', 'filha', 'envios']
+export const CENARIOS = ['principal', 'filha', 'envios', 'subagente']
 
 // Roda só o golden.test.ts numa cópia do mod e recolhe o desenho de cada cenário (as linhas GOLDEN-NEW).
 export function receber(repo) {

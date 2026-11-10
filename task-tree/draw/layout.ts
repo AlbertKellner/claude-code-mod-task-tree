@@ -8,7 +8,7 @@
 // the sessions' breaks is a BreaksMemo made by layout() for one drawing and passed down; the sends
 // still queued reach the task lines as `pending`, from the panel that holds them.
 
-import type { Child, Group, Panel, Send, TaskNode, Turn, Wait } from '../types'
+import type { Child, Group, Panel, Send, Sub, TaskNode, Turn, Wait } from '../types'
 import { PAD } from './geometry'
 
 // The main loop's agent id in the groups.
@@ -749,7 +749,7 @@ export function trimToWork(p: Panel, level: number): Panel {
     groups: groups
       .map(g => (g.agent === MAIN ? { ...g, tasks: keep, whole: main.tasks } : g))
       // A group launched on no task has nothing to leave with: it stays (it ends the list).
-      .filter(g => g.agent === MAIN || g.anchor === undefined || under(g.anchor) || hasOpen(g.tasks)),
+      .filter(g => g.agent === MAIN || g.anchor === undefined || under(g.anchor) || hasOpen(g.tasks) || subLive(g.sub)),
     children:
       level >= DEEP
         ? (p.children ?? [])
@@ -771,6 +771,18 @@ export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'runni
 // discarded (gray).
 export type MsgState = 'queued' | 'delivered' | 'cut'
 export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida' }
+// A subagent's card (hooks/agents): its word of state, as a session's card says its own.
+export const SUB_WORD: Record<Sub['state'], string> = {
+  running: 'trabalhando',
+  background: 'em segundo plano',
+  done: 'concluído',
+  failed: 'falhou',
+  interrupted: 'interrompido',
+}
+export const subLive = (s?: Sub) => s !== undefined && (s.state === 'running' || s.state === 'background')
+const SUB_TONE: Record<Sub['state'], Tone> = { running: 'agent', background: 'agent', done: 'done', failed: 'interrupted', interrupted: 'interrupted' }
+// More than SUB_GROUP subagents launched together (or a workflow's) share one card, a line each.
+export const SUB_GROUP = 3
 // Where a session works, as its card and the header draw it: a repository with its branch (the
 // branch a detached head's short hash), or a folder with no repository (`folder`, `repo` its path).
 export type GitLabel = { repo: string; branch?: string; detached?: boolean; folder?: boolean }
@@ -814,6 +826,8 @@ export type Row = {
   recv?: MsgState
   // A session's or subagent's header: it and the lines below it are drawn in a card.
   card?: boolean
+  // The subagents at work the line stands for, for the header's chip (out of every count of tasks).
+  subs?: number
   // For the header's chips: a task in progress with nothing open below it; a session at work;
   // a session waiting with no notice of its own drawn.
   active?: boolean
@@ -1028,7 +1042,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         strong: tone === 'current' || (depth === top && t.status === 'open'),
         sub: (t.children.length > 0 || w.any) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
         bar: true,
-        meta: tone === 'interrupted' ? 'interrompida' : undefined,
+        meta: tone === 'interrupted' ? (t.failed ? 'falhou' : 'interrompida') : undefined,
         time:
           (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
           (tone === 'done' || tone === 'interrupted'
@@ -1291,7 +1305,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         ...(g.agent === MAIN
           ? inOrder(sessions.filter(c => c.anchor === t.id)).flatMap(c => session(c, depth + 1, level, scope))
           : []),
-        ...(t.status === 'open' ? kids.filter(k => k.anchor === t.id).flatMap(k => draw(k, depth + 1)) : []),
+        ...(t.status === 'open' ? drawKids(kids.filter(k => k.anchor === t.id), depth + 1) : []),
       ]
       // With no task to go under, a notice goes under the header, or ends the main list.
       if (extras && anchor === undefined && g.agent !== MAIN) lines.push(...mine.map(w => notice(w, top)))
@@ -1365,7 +1379,80 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // under a task left out.
       const inSight = flat(drawn).map(t => t.id)
       const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor) || (!inSight.includes(k.anchor) && hasOpen(k.tasks)))
-      return extras ? lines.concat(lost.flatMap(k => draw(k, top))) : lines
+      return extras ? lines.concat(drawKids(lost, top)) : lines
+    }
+
+    // The subagents hanging from one place (a task, or the end of a list), from `d`: more than
+    // SUB_GROUP launched together, or a workflow's, in one card with a line each (the person,
+    // 2026-11-09: "Cartão + grupo (Recomendado)"); the others each in its own (draw). A line opens
+    // into that subagent's own card.
+    const drawKids = (list: Group[], d: number): Row[] => {
+      const bucketOf = (k: Group) => (k.sub ? (k.sub.run ?? `${k.parent ?? MAIN}|${k.anchor ?? ''}|${k.sub.batch}`) : undefined)
+      const buckets = new Map<string, Group[]>()
+      for (const k of list) {
+        const b = bucketOf(k)
+        if (b !== undefined) buckets.set(b, [...(buckets.get(b) ?? []), k])
+      }
+      const done = new Set<string>()
+      const out: Row[] = []
+      for (const k of list) {
+        const b = bucketOf(k)
+        const mates = b === undefined ? [] : (buckets.get(b) ?? [])
+        if (b === undefined || !(mates.length > SUB_GROUP || (k.sub?.run !== undefined && mates.length > 1))) {
+          out.push(...draw(k, d))
+          continue
+        }
+        if (done.has(b)) continue
+        done.add(b)
+        out.push(...groupCard(b, mates, d))
+      }
+      return out
+    }
+    const groupCard = (b: string, mates: Group[], d: number): Row[] => {
+      const subs = mates.map(k => k.sub as Sub)
+      const live = subs.filter(subLive).length
+      const failed = subs.some(s => s.state === 'failed' || s.state === 'interrupted')
+      const first = Math.min(...subs.map(s => s.at))
+      const last = live > 0 || now === undefined ? now : Math.max(...subs.map(s => s.end ?? s.at))
+      const key = `${scope}gg:${b}`
+      const open = opened(key, true)
+      const header: Row = {
+        key,
+        depth: d,
+        tone: live > 0 ? 'agent' : failed ? 'interrupted' : 'done',
+        strong: live > 0,
+        title: subs[0]?.run !== undefined ? `Workflow · ${mates.length} agentes` : `${mates.length} subagentes`,
+        label: 'Subagentes',
+        meta: live > 0 ? `${live} trabalhando` : failed ? 'interrompido' : 'concluído',
+        sub: [subs.filter(s => !subLive(s)).length, mates.length],
+        time: last !== undefined ? last - first : undefined,
+        card: true,
+        subs: live,
+        fold: { key, open },
+        nodes: [],
+      }
+      if (!open) return [header]
+      return [
+        header,
+        ...mates.flatMap(k => {
+          const s = k.sub as Sub
+          const lineKey = `${scope}gl:${k.agent}`
+          // Opened, the line is that subagent's own card.
+          if (opened(lineKey, false)) return draw(k, d + 1).map((r, i) => (i === 0 ? { ...r, fold: { key: lineKey, open: true }, subs: 0 } : r))
+          const row: Row = {
+            key: lineKey,
+            depth: d + 1,
+            tone: subLive(s) ? 'current' : SUB_TONE[s.state],
+            title: k.label,
+            label: 'Subagente',
+            meta: subLive(s) && s.tool ? s.tool : [s.engine, SUB_WORD[s.state]].filter(Boolean).join(' · '),
+            time: now !== undefined ? (s.end ?? now) - s.at : undefined,
+            fold: { key: lineKey, open: false },
+            nodes: [],
+          }
+          return [row]
+        }),
+      ]
     }
 
     // One group's lines from `b`: a subagent's header there and its tasks below, opened and
@@ -1373,25 +1460,42 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const draw = (g: Group, b: number): Row[] => {
       if (g.agent === MAIN) return body(g, b, g.tasks, true)
       const mine = waits.filter(w => w.agent === g.agent)
-      if (g.tasks.length === 0 && mine.length === 0 && kidsOf(g.agent).length === 0) return []
+      const s = g.sub
+      if (!s && g.tasks.length === 0 && mine.length === 0 && kidsOf(g.agent).length === 0) return []
       // A subagent's group closes into one line once nothing in it is open; its notices
       // stay in sight.
       const closed = g.tasks.length > 0 && !hasOpen(g.tasks)
       const cut = flat(g.tasks).some(t => t.status === 'interrupted')
       const [gd, gn] = count(g.tasks)
+      // A subagent heard from its launch (hooks/agents): its card says its model and effort, its
+      // rate while it works, and its state's word; its time runs from the launch to its end. Ended,
+      // it stays a card (the person did not choose "Fecha ao terminar").
+      const subTime = s && now !== undefined ? (s.end ?? now) - s.at : undefined
       const header: Row = {
-        ...(closed
-          ? { tone: cut ? 'interrupted' : 'done', meta: cut ? 'interrompido' : undefined }
-          : { tone: 'agent', strong: true }),
+        ...(s
+          ? {
+              tone: SUB_TONE[s.state],
+              strong: subLive(s),
+              meta: [s.engine, subLive(s) && s.toks !== undefined ? `${s.toks} toks/s` : '', SUB_WORD[s.state]].filter(Boolean).join(' · '),
+              subs: subLive(s) ? 1 : 0,
+            }
+          : closed
+            ? { tone: cut ? 'interrupted' : 'done', meta: cut ? 'interrompido' : undefined }
+            : { tone: 'agent', strong: true }),
         key: `${scope}g:${g.agent}`,
         depth: b,
         title: g.label,
         label: 'Subagente',
         sub: gn > 0 ? [gd, gn] : undefined,
-        time: span(g.tasks, now),
+        time: g.tasks.length > 0 ? span(g.tasks, now) : subTime,
         card: true,
       } as Row
-      const inner = body(g, b + 1, g.tasks, true)
+      // At work with no task of its own: one line with the tool in use and how many calls it made.
+      const toolLine: Row[] =
+        s && subLive(s) && g.tasks.length === 0 && s.tool
+          ? [{ key: `${scope}gt:${g.agent}`, depth: b + 1, tone: 'agent', title: s.calls > 1 ? `${s.tool} · ${s.calls} chamadas` : s.tool, label: 'Ferramenta em uso', leaf: true, nodes: [] }]
+          : []
+      const inner = [...toolLine, ...body(g, b + 1, g.tasks, true)]
       if (inner.length === 0) return [{ ...header, nodes: g.tasks }]
       const key = `${scope}g:${g.agent}`
       const open = opened(key, true)
