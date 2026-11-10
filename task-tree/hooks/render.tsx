@@ -9,7 +9,7 @@ import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
 import { MAIN, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, RING_LABEL, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -42,6 +42,7 @@ const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
+const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
@@ -241,6 +242,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
   const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
+  // Its ultracode switch (turn.ts, ultraAttachment), for the header beside the rate.
+  const { value: ultracode } = await $.state.get(ultracodeState)
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
@@ -290,7 +293,7 @@ export async function render($: EngineInterface, e: any, next: any) {
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state)
+    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state, ultracode === true)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
@@ -298,6 +301,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
             ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
+            ...(ultracode === true ? [ULTRA] : []),
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')

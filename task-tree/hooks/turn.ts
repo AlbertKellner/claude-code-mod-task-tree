@@ -15,6 +15,7 @@ import { settleBySubs, subEnd, subStep } from './agents'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
+const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
@@ -45,6 +46,23 @@ export function speedOf(tokens: number, ms: number): number | undefined {
   if (!(tokens >= MIN_TOKENS) || !(ms >= MIN_MS)) return undefined
   const toks = Math.round((tokens * 1000) / ms)
   return toks <= MAX_TOKS ? toks : undefined
+}
+
+// Whether this session's ultracode switch is on (the person, 2026-11-10: "se a filha está usando
+// ultracode"; "Só o interruptor real (Recomendado)"): the engine tells the main loop's model with an
+// `ultra_effort_enter` attachment when the switch goes on (and every few turns while it stays on) and
+// `ultra_effort_exit` when it goes off. A message saying "ultracode", or the word typed in a prompt
+// (`workflow_keyword_request`, one turn's opt-in), turns nothing on. A subagent's request is left
+// alone: its own switch is not known (only the main loop gets these attachments).
+export async function ultraAttachment($: EngineInterface, e: any, next: any) {
+  if (!e.agentId && (e.type === 'ultra_effort_enter' || e.type === 'ultra_effort_exit')) {
+    const on = e.type === 'ultra_effort_enter'
+    if ((await $.state.get(ultracodeState)).value !== on) {
+      await $.state.set(ultracodeState, on)
+      void publishPanel($).catch(() => {})
+    }
+  }
+  return next(e)
 }
 
 // A subagent's turn ending is the subagent ending: what it left open is interrupted.

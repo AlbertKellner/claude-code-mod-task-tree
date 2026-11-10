@@ -54,6 +54,8 @@ export const ratioBar = (d: number, n: number, cells: number) => {
 export const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
 // A session's output rate, as the person asked it written: "n toks/s", n whole.
 export const rateText = (toks: number) => `${Math.round(toks)} toks/s`
+// The word a session's card and the header say when its ultracode switch is on.
+export const ULTRA = 'ultracode'
 export const percent = (d: number, n: number) => (n > 0 ? Math.round((d / n) * 100) : 0)
 
 // Desktop: each SVG is an image that does not follow the app's theme, so it carries its
@@ -77,11 +79,14 @@ export const LIGHT: [string, string][] = [
   ['tr', 'fill:#888780;fill-opacity:.25'], ['ln', 'stroke:#888780;stroke-opacity:.45'], ['lnf', 'fill:#888780;fill-opacity:.45'], ['cd', 'fill:#f9f9f7'], ['cs', 'stroke:#e1e1df'], ['csf', 'fill:#e1e1df'], ['cds', 'stroke:#f9f9f7'],
   ['bl', 'stroke:#378add'], ['rd', 'stroke:#e24b4a'], ['tk', 'stroke:#888780;stroke-opacity:.3'],
   // The header's state band and pills (V4): blue fill, and each tone's fill at 13 %.
+  // "ultracode": the app's effortUltra, light (the person: "Roxo sólido (Recomendado)").
+  ['ul', 'fill:#8700FF'],
   ['blf', 'fill:#378add'], ['amp', 'fill:#ba7517;fill-opacity:.13'], ['grp', 'fill:#639922;fill-opacity:.13'], ['gyp', 'fill:#888780;fill-opacity:.13'], ['blp', 'fill:#378add;fill-opacity:.13'],
 ]
 export const DARK: [string, string][] = [
   ['p', 'fill:#e8e6dc'], ['s', 'fill:#b4b2a9'], ['pc', 'color:#e8e6dc'], ['sc', 'color:#b4b2a9'], ['am', 'stroke:#ef9f27'], ['amf', 'fill:#ef9f27'], ['gr', 'stroke:#97c459'], ['grf', 'fill:#97c459'],
   ['gy', 'stroke:#9c9a92'], ['gyf', 'fill:#9c9a92'], ['cd', 'fill:#20201f'], ['cs', 'stroke:#373736'], ['csf', 'fill:#373736'], ['cds', 'stroke:#20201f'], ['bl', 'stroke:#85b7eb'], ['rd', 'stroke:#f09595'],
+  ['ul', 'fill:#AF87FF'],
   ['blf', 'fill:#85b7eb'], ['amp', 'fill:#ef9f27;fill-opacity:.13'], ['grp', 'fill:#97c459;fill-opacity:.13'], ['gyp', 'fill:#9c9a92;fill-opacity:.13'], ['blp', 'fill:#85b7eb;fill-opacity:.13'],
 ]
 export const STYLE = '<style data-slim></style>'
@@ -374,18 +379,22 @@ export function labelSvg(r: Row, f: Frame, W: number, H: number, cy: number, x: 
   // model, then the rate; the branch is cut last, and the name never is (the person's order).
   const left = at + (r.meta ? textW(r.meta, 11) + 8 : 0)
   let end = r.ring ? W - ringFromRight(Math.max(0, cards.length - 1)) - RING_D / 2 - RING_GAP : (cards.length > 0 ? cards[cards.length - 1]!.Rc : W) - 10
-  const engW = r.engine ? textW(r.engine, 11) + 10 : 0
+  // "ultracode" right of the model, the two one block: short of room they go together ("Junto com
+  // o modelo (Recomendado)").
+  const ultraW = r.ultracode ? textW(ULTRA, 11) + 6 : 0
+  const engW = r.engine || r.ultracode ? (r.engine ? textW(r.engine, 11) + 10 : 4) + ultraW : 0
   const rateW = r.rate ? textW(rateText(r.rate.toks), 11) + 10 : 0
   const room = end - left
   const need = (repo: boolean, eng: boolean, rate: boolean) => (r.git ? gitW(r.git, 11, repo) + 10 : 0) + (eng ? engW : 0) + (rate ? rateW : 0)
   let repo = r.git !== undefined
-  let eng = r.engine !== undefined
+  let eng = r.engine !== undefined || r.ultracode === true
   let rate = r.rate !== undefined
   if (need(repo, eng, rate) > room) repo = false
   if (need(repo, eng, rate) > room) eng = false
   if (need(repo, eng, rate) > room) rate = false
   if (eng) {
-    rightParts.push(`<text class="s" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine as string)}</text>`)
+    if (r.ultracode) rightParts.push(`<text class="ul" x="${end}" y="${cy + 4}" font-size="11" text-anchor="end">${ULTRA}</text>`)
+    if (r.engine) rightParts.push(`<text class="s" x="${end - ultraW}" y="${cy + 4}" font-size="11" text-anchor="end" opacity=".75">${xml(r.engine)}</text>`)
     end -= engW
   }
   if (rate) {
@@ -629,13 +638,17 @@ export function headerSvg(
   rate?: { toks: number; live: boolean },
   git?: GitLabel,
   state: HeaderState = headerState({ active: 0, waiting: 0, live: 0, pending: 0, d, n, x: 0 }),
+  ultracode = false,
 ): { source: string; height: number } {
   const L = HEADER_PAD + 8
   const R = W - HEADER_PAD
   const empty = n === 0 && list.length === 0
   const H = HEADER_H
   const narrow = W < 600
-  const block = narrow ? 76 : 130
+  // The ultracode word widens the numbers block, so the bar and the pills stop short of it; too
+  // narrow, it is left out, like the rate.
+  const ultra = ultracode && !narrow
+  const block = (narrow ? 76 : 130) + (ultra ? textW(` · ${ULTRA}`, 12) : 0)
   // The card first, under everything: a session's card's fill, border and corners (cardSlice), from
   // CARD_RIGHT in on each side and HEADER_GAP short of the bottom; no dividing line below it (the
   // person: "remova a barra horizontal de divisão").
@@ -686,7 +699,10 @@ export function headerSvg(
     const bx = R
     const num = 'text-anchor="end" font-variant-numeric="tabular-nums"'
     const clock = time !== undefined ? clockText(time) : ''
-    const tail = !narrow && rate ? `<tspan${rate.live ? '' : ' opacity=".45"'}>${clock ? ' · ' : ''}${rateText(rate.toks)}</tspan>` : ''
+    const rateTail = !narrow && rate ? `<tspan${rate.live ? '' : ' opacity=".45"'}>${clock ? ' · ' : ''}${rateText(rate.toks)}</tspan>` : ''
+    // This session's ultracode switch, after the time and the rate (the header draws no model), in
+    // the app's color (the person: "Cabeçalho do painel").
+    const tail = rateTail + (ultra ? `${clock || rateTail ? ' · ' : ''}<tspan class="ul">${ULTRA}</tspan>` : '')
     parts.push(
       toRight(
         W,
@@ -711,6 +727,7 @@ export const rowAlt = (r: Row) =>
   (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
+  (r.ultracode ? `, ${ULTRA}` : '') +
   (r.rate ? `, ${rateText(r.rate.toks)}${r.rate.live ? '' : ' (último turno)'}` : '') +
   (r.git ? `, ${gitAlt(r.git)}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +

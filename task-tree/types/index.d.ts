@@ -114,6 +114,8 @@ export type Published = {
   children: Child[]
   context?: { percent: number; at: number }
   engine?: string
+  // Whether its ultracode switch is on (ultra_effort_enter/exit); absent when off, or from earlier versions.
+  ultracode?: boolean
   // Its output rate, "n toks/s": the mean over the model calls of the last ~10 s of the turn in
   // course (`live`), or of the whole last turn once it ended; absent until its first model call,
   // or from earlier versions.
@@ -157,6 +159,8 @@ export type Child = {
   // Its model and effort in a few words ("Opus 5.5 · high"), as it publishes them; absent until its
   // first model request, or from earlier versions.
   engine?: string
+  // Whether its ultracode switch is on, as it publishes it; absent when off or unknown.
+  ultracode?: boolean
   // Its output rate as it publishes it (see Published.rate); absent likewise.
   rate?: Rate
   // Its repository and branch as it publishes them (see Published.git); absent likewise.
@@ -224,6 +228,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
   }
 }
