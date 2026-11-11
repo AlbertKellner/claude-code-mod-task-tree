@@ -659,6 +659,16 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/lembretes.test.ts::a descrição do plan diz que o estado só fica no replano da mesma mensagem": {
+      "regras": [
+        "lembretes.estado-guardado-so-no-mesmo-pedido"
+      ],
+      "hash": "7e88a01acbb9c772",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
         "lembretes.regras-no-prompt-de-sistema"
@@ -668,6 +678,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras e o lembrete depois do Esc dizem que o estado só fica no replano da mesma mensagem": {
+      "regras": [
+        "lembretes.estado-guardado-so-no-mesmo-pedido"
+      ],
+      "hash": "6b6a8dcd51d5bb2e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 1"
     },
     "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
       "regras": [
@@ -819,6 +839,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/pedidos.test.ts::plan que reusa o id de um nível 1 concluído num pedido novo não segura o pedido anterior todo concluído": {
+      "regras": [
+        "pedidos.id-reusado-nao-segura-pedido-concluido"
+      ],
+      "hash": "ddb82a3c578ab279",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 1"
     },
     "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
       "regras": [

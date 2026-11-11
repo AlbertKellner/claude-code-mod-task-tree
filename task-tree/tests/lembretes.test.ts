@@ -1,7 +1,7 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
-import { fixar } from './kit/ambiente'
-import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, fixar } from './kit/ambiente'
+import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -101,4 +101,40 @@ test('as regras do painel entram no prompt de sistema quando as ferramentas dele
   expect((com?.sections ?? []).map((s: any) => s.id)).toContain('task-tree:regras')
   const sem = await $.prompt.compose({ ...COMPOR, tools: ['Bash'] })
   expect((sem?.sections ?? []).map((s: any) => s.id)).not.toContain('task-tree:regras')
+})
+
+// Regra: lembretes.estado-guardado-so-no-mesmo-pedido
+test('as regras e o lembrete depois do Esc dizem que o estado só fica no replano da mesma mensagem', async ($: any, on: any) => {
+  on('prompt.compose', () => ({ sections: [] }))
+  await iniciar($, on)
+  await esc($)
+  const ctx = contexto(await pedido($, 'Agora faça outra coisa'))
+  expect(ctx).not.toContain('guardam o estado')
+  expect(ctx).toContain('ids novos')
+  expect(ctx).toContain('o deixaria como histórico')
+  const outra = contexto(await pedido($, '<cross-session-message from="local_x" name="X">oi</cross-session-message>'))
+  expect(outra).not.toContain('guardam o estado')
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('Isso vale só na mesma mensagem')
+  expect(regras).toContain('use start e done nos ids delas')
+})
+
+// Regra: lembretes.estado-guardado-so-no-mesmo-pedido
+test('a descrição do plan diz que o estado só fica no replano da mesma mensagem', async ($: any, on: any) => {
+  // Como fixar, mas com o tool.register que guarda a descrição (fixar já o ocupa).
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  const descricoes: Record<string, string> = {}
+  on('tool.register', (_$: any, e: any) => {
+    descricoes[String(e.name)] = String(e.description ?? '')
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  expect(descricoes['plan'] ?? '').toContain('Na mesma mensagem do usuário')
+  expect(descricoes['plan'] ?? '').toContain('Numa mensagem seguinte')
 })

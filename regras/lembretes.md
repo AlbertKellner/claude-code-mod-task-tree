@@ -74,3 +74,13 @@ As regras do painel entram no prompt de sistema.
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
+
+### lembretes.estado-guardado-so-no-mesmo-pedido
+Os textos ao modelo dizem que o replano só guarda o estado dentro da mesma mensagem.
+
+- Dado as regras do painel, a descrição do plan e os lembretes de depois do Esc
+- Quando o modelo os lê
+- Então eles dizem que o mesmo id guarda o estado só no replano da mesma mensagem; numa mensagem seguinte, o nível 1 aberto com o mesmo id fica como histórico, com as abertas ✕, e a cópia nasce ○; para continuar, start e done nos ids que já existem, e o que é novo vai com ids novos
+
+Origem: auditoria 2026-11-10 (os textos prometiam o estado guardado sem a condição da mensagem, contra pedidos.plano-anterior-vira-historico).
+Estado: coberto

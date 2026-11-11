@@ -107,10 +107,11 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       // hanging from the request's level-1 task until the delivery (the panel's letters).
       const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
       await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
-      // A closed level-1 task of the current work renamed by this plan stays in it.
+      // A closed level-1 task of the current work renamed by this plan stays in it. In new work, the
+      // renamed ids leave the check of what holds the view (joinWork).
       const { value: cur = [] } = await $.state.get(workState)
       const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)
-      await joinWork($, [...ids, ...kept], fresh0)
+      await joinWork($, [...ids, ...kept], fresh0, renamed)
     }
     void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
     // What this plan sent (every level) and what is open in the caller's own group: not the

@@ -607,7 +607,7 @@ export async function setWork($: any, ids: string[]) {
     await saveStore($, 'work', ids)
   } catch {}
 }
-export async function joinWork($: any, ids: string[], fresh: boolean) {
+export async function joinWork($: any, ids: string[], fresh: boolean, renamed: string[] = []) {
   if (ids.length === 0) return
   const { value: cur = [] } = await $.state.get(workState)
   if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
@@ -616,7 +616,11 @@ export async function joinWork($: any, ids: string[], fresh: boolean) {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
-  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[], sends as Send[], knownId()) ? (cur as string[]) : []
+  // An id of the work that this plan renamed now names the new (open) task. Checked with it, the
+  // previous request, all closed, stayed in sight. It leaves the check: the old copy stays in sight
+  // with its request only when another task of that request still holds the view.
+  const before = (cur as string[]).filter(id => !renamed.includes(id))
+  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, before, sends as Send[], knownId()) ? before : []
   await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and

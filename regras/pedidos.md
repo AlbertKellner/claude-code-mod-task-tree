@@ -111,3 +111,14 @@ Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomen
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts, hooks/command.ts
 Estado: coberto
+
+### pedidos.id-reusado-nao-segura-pedido-concluido
+Um pedido anterior todo concluído sai de vista mesmo quando o pedido novo reusa o id de um nível 1 dele.
+
+- Dado um pedido anterior com dois níveis 1, os dois ✓
+- Quando um pedido novo traz plan reusando o id de um deles e começa a trabalhar
+- Então o painel mostra só o pedido novo, com o plano novo ○, e o anterior fica em "+N pedidos anteriores", como com tudo fechado
+
+Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1); aplica pedidos.resumida-mantem-anteriores-com-algo-aberto ("com tudo fechado, só o novo") ao id reusado, sem mudar pedidos.plano-anterior-vira-historico.
+Código: draw/layout.ts
+Estado: coberto

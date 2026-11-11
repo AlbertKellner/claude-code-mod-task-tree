@@ -211,3 +211,25 @@ test('plan com o id de um nível 1 concluído deixa o concluído como histórico
   const planos = p.filter(l => l.titulo === 'Plano A')
   expect(planos.map(l => l.estado), emTexto(p)).toEqual(['concluida', 'pendente'])
 })
+
+
+// Regra: pedidos.id-reusado-nao-segura-pedido-concluido
+test('plan que reusa o id de um nível 1 concluído num pedido novo não segura o pedido anterior todo concluído', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Primeira' }, { id: '2', title: 'Segunda' }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '1', title: 'Primeira de novo' }, { id: '3', title: 'Terceira' }])
+  await start($, ['3'])
+  const p = await painel($)
+  expect(p.some(l => ['Pedido um', 'Primeira', 'Segunda'].includes(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Primeira de novo', 'pendente')
+  esperarEstado(p, 'Terceira', 'andamento')
+})
