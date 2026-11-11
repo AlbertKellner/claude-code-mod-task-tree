@@ -389,3 +389,26 @@ test('com duas em andamento, a carta vai à tarefa com uma palavra do nome da se
   // "hora" está nas duas: decide a ordem, a primeira ainda sem carta.
   expect(cartasDe(p, 'Subagente da hora na orquestradora').join(' | '), emTexto(p)).toContain('para a hora')
 })
+
+// Regra: envios.entrega-com-lista-de-sessoes-em-erro
+test('com a lista de sessões em erro, a entrega publicada pela sessão deixa a carta verde e conclui a tarefa', async ($: any, on: any) => {
+  fixar(on)
+  const lista = { falha: false }
+  on('mcp.call', { tool: 'list_sessions' }, (_$: any, e: any, next: any) =>
+    lista.falha ? { value: { content: [{ type: 'text', text: 'list_sessions indisponível' }], isError: true } } : next(e),
+  )
+  const h = host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  lista.falha = true
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  // O cartão da sessão, que a lista em erro deixa abrindo, segura "Um" ◉; o painel já a concluiu.
+  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 2])
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+})

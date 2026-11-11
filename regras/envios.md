@@ -138,3 +138,14 @@ Enquanto a carta está na fila, a tarefa de onde saiu espera a sessão.
 Origem: decisão do usuário, 2026-10-30 ("Não, fica ◷ enquanto a carta está na fila"; "Sim, conclusão automática como hoje").
 Código: draw/layout.ts, hooks/sessions.ts
 Estado: coberto
+
+### envios.entrega-com-lista-de-sessoes-em-erro
+A entrega é confirmada mesmo quando a lista de sessões do app falha.
+
+- Dado uma tarefa com a carta dela na fila
+- Quando a lista de sessões do app volta com erro e a sessão destino já publicou que recebeu a mensagem
+- Então a carta fica verde, sai do chip "aguardando sessão" e o painel conclui a tarefa, como na entrega com a lista lida
+
+Origem: auditoria 2026-11-10 (carta na fila sem saída: com a lista em erro, o envio nunca era conferido); aplica envios.fica-ate-entrega ("na entrega, verde, e o painel conclui a tarefa que enviou"), sem mudar nenhuma regra.
+Código: hooks/sessions.ts
+Estado: coberto

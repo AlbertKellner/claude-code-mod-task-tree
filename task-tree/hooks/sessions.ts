@@ -35,6 +35,11 @@ export async function refreshChildren($: any) {
   // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
   // outside the desktop app there are no sessions to show, so no line either.
   const listed = await listSessions($)
+  const rows = 'error' in listed ? undefined : listed.rows
+  // Messages queued to any session (its children, its mother, its sisters): before any return, a list
+  // that failed included (with no rows, a session that publishes the messages it got still confirms
+  // them by its file; the list's error kept the letter blue after the delivery).
+  await watchSends($, Array.isArray(rows) ? rows : [])
   // The error line is written only when it changes (every poll cleared it before).
   const { value: shownError = '' } = await $.state.get(childrenErrorState)
   if ('error' in listed) {
@@ -43,10 +48,7 @@ export async function refreshChildren($: any) {
     return
   }
   if (shownError !== '') await $.state.set(childrenErrorState, '')
-  const rows = listed.rows
   if (!Array.isArray(rows)) return
-  // Messages queued to any session (its children, its mother, its sisters): before the returns below.
-  await watchSends($, rows)
   // No linked session at all: this one opened none (the state is cleared once, not every poll).
   if (rows.length === 0) {
     const { value: cur } = await $.state.get(childrenState)

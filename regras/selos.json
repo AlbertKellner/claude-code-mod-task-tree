@@ -484,6 +484,16 @@
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
     },
+    "task-tree/tests/envios.test.ts::com a lista de sessões em erro, a entrega publicada pela sessão deixa a carta verde e conclui a tarefa": {
+      "regras": [
+        "envios.entrega-com-lista-de-sessoes-em-erro"
+      ],
+      "hash": "654719f8ad37cea0",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: carta na fila sem saída com a lista em erro"
+    },
     "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
       "regras": [
         "envios.carta-pelo-nome-da-sessao"
