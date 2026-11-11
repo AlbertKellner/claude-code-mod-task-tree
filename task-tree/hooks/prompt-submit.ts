@@ -81,8 +81,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       ],
     })
   }
-  // Safety net: a new message means the main loop has no question open.
-  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission')
+  // Safety net: a new message means the main loop has no question open. Not one delivered into a
+  // running turn (`e.turnId`: another session's message, or one typed over the turn): the question or
+  // plan dialog may still be on screen, and its call drops its wait when it returns (and the turn's end).
+  const midTurn = typeof e.turnId === 'string' && e.turnId !== ''
+  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission' || (midTurn && (w.kind === 'question' || w.kind === 'plan')))
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
   reminders.planned = false

@@ -950,6 +950,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
+      "regras": [
+        "perguntas.mensagem-no-meio-do-turno-mantem-espera"
+      ],
+      "hash": "124bf584a42f5897",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: a mensagem entregue no meio do turno derrubava a pergunta ou o plano ainda abertos"
+    },
     "task-tree/tests/perguntas.test.ts::o pedido de permissão aparece como espera; o de pergunta, não": {
       "regras": [
         "perguntas.permissao-espera"

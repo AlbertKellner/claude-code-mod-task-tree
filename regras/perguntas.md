@@ -54,6 +54,17 @@ O ExitPlanMode mostra a espera da aprovação do plano.
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
+### perguntas.mensagem-no-meio-do-turno-mantem-espera
+A mensagem que chega com o turno em curso não tira a espera da pergunta ou do plano que segue aberto.
+
+- Dado uma pergunta (AskUserQuestion) ou uma aprovação de plano (ExitPlanMode) aberta sob uma tarefa ◉
+- Quando chega, com o turno em curso, uma mensagem de outra sessão ou uma que a pessoa digitou por cima do turno
+- Então a espera segue até a resposta, e a tarefa segue ◉; a escolha do wrap_up e a permissão seguem como antes
+
+Origem: auditoria 2026-11-10 (mensagem entregue no meio do turno derrubava a pergunta aberta); aplica perguntas.espera-sob-a-tarefa e perguntas.exitplanmode-espera ("até a resposta"), sem mudar quando a mensagem abre o seu pedido (pedidos.uma-mensagem-um-pedido).
+Código: hooks/prompt-submit.ts
+Estado: coberto
+
 ### perguntas.escolha-do-wrapup-ate-proxima-mensagem
 A escolha do wrap_up fica até a próxima mensagem.
 
