@@ -1296,6 +1296,17 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
     },
+    "task-tree/tests/subagentes.test.ts::a tarefa ✕ \"falhou\" reaberta com start e refeita por outro subagente que conclui fica ✓": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "3c67d422b2a88ef6",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
     "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
@@ -1336,6 +1347,27 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
+      ],
+      "hash": "9e1ed3b72ccc2bb0",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado da pendente, o subagente que termina antes do primeiro start ainda fecha a tarefa no fim do turno": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "894586017d8a00ec",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
     },
     "task-tree/tests/subagentes.test.ts::lançado de uma pendente (sem start), o subagente concluído fecha a pendente também": {
       "regras": [
@@ -1458,6 +1490,27 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
     },
+    "task-tree/tests/subagentes.test.ts::reaberta com start depois de fechar pelo subagente, a tarefa aguarda no fim do turno seguinte; o subagente antigo não a fecha de novo": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
+      ],
+      "hash": "3958e84470188da1",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::reaberta com start, a tarefa que tinha falhado e é parada com Esc diz \"interrompida\", não \"falhou\"": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
+        "turnos.esc-interrompe-so-a-iniciada"
+      ],
+      "hash": "e7fe3eef8ba9a35c",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
     "task-tree/tests/subagentes.test.ts::sem nada em andamento, o cartão vai à pendente do pedido atual": {
       "regras": [
         "subagentes.cartao-desde-o-lancamento"
@@ -1488,6 +1541,26 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tarefa de onde saiu o subagente do pedido um": {
+      "regras": [
+        "subagentes.lancado-antes-da-tarefa-nao-conta"
+      ],
+      "hash": "694665aa2925dddb",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela": {
+      "regras": [
+        "subagentes.lancado-antes-da-tarefa-nao-conta"
+      ],
+      "hash": "13e907247ecc1ae2",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
     },
     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
       "regras": [

@@ -98,11 +98,14 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
 
 // Start marks the task in progress, reopening it and its parents when it was closed. Its clock
 // starts (again, when it was closed); a parent's starts with its first child's and goes on.
+// Reopened, the task keeps when (`reopenedAt`) and drops the "falhou" of its earlier close: the
+// subagents that ended before were reflected in that close (hooks/agents, settleBySubs).
 export function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
   return list.map(t => {
     if (t.id === id) {
-      const startedAt = t.status === 'open' ? (t.startedAt ?? now) : now
-      return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt, endedAt: undefined }
+      if (t.status === 'open') return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
+      const { failed: _, ...rest } = t
+      return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now } : {}) }
     }
     if (!flat(t.children).some(c => c.id === id)) return t
     return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now) }
@@ -117,7 +120,9 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
   const byId = new Map(flat([old]).map(t => [t.id, t] as const))
   const merge = (n: TaskNode): TaskNode => {
     const o = byId.get(n.id)
-    const kept = o ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg } : {}
+    const kept = o
+      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}) }
+      : {}
     return { ...n, ...kept, children: n.children.map(merge) }
   }
   let out = merge(fresh)

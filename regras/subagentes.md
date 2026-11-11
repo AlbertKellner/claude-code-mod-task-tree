@@ -144,3 +144,30 @@ Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho seg
 Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
 Código: draw/layout.ts
 Estado: coberto
+
+### subagentes.reaberta-nao-fecha-pelo-subagente-antigo
+Reaberta com start, a tarefa não fecha de novo pelos subagentes que terminaram antes.
+
+- Dado uma tarefa fechada (✓ sozinha pelo fim dos subagentes, ✕ "falhou", ou pelo `done` do modelo) com subagentes já terminados embaixo
+- Quando o modelo a reabre com start (e a replaneja no mesmo pedido ou não) e o turno termina, normal ou com Esc
+- Então os subagentes que terminaram antes do start não contam: sem subagente novo, ela fica ◷ como toda iniciada no fim do turno (com Esc, ✕ "interrompida", sem o "falhou" de antes); com um subagente que termina depois do start, reflete o fim dele, como sempre; os cartões antigos seguem embaixo dela
+
+Também: a tarefa (pendente ou iniciada) cujo subagente terminou antes do primeiro start dela não foi reaberta e segue fechando no fim do turno ("Fecha também").
+
+Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (segue valendo o pior); o fim de um subagente depois do Esc.
+
+Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores); aplica turnos.iniciada-aguarda-no-fim ("salvo a tarefa cujo trabalho era só subagentes") e subagentes.pai-conclui-no-fim-do-turno ("Fecha de fato (Recomendado)", "Fecha também") ao fim que já foi refletido, sem mudar nenhuma delas nem subagentes.pai-reflete-falha-ou-interrupcao.
+Código: state/tasks.ts
+Estado: coberto
+
+### subagentes.lancado-antes-da-tarefa-nao-conta
+Um subagente lançado antes de a tarefa ser planejada não a fecha.
+
+- Dado um painel gravado por uma versão anterior, em que o cartão de um subagente do pedido anterior ficou com o id que um plano novo reusou (antes de a âncora ser renomeada com a tarefa)
+- Quando o turno termina com a tarefa nova aberta
+- Então ela segue como o turno a deixou, sem fechar pelo subagente lançado antes de ela ser planejada
+
+Fora deste cenário: nesse painel antigo, o cartão segue desenhado sob a tarefa nova.
+
+Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores; a defesa por tempo para os dados já gravados, proposta com a correção da âncora); aplica subagentes.id-reusado-nao-herda-cartao ("sem fechar pelo subagente antigo") ao que já estava gravado.
+Estado: coberto

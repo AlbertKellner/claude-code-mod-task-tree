@@ -18,6 +18,9 @@ export type TaskNode = {
   endedAt?: number
   // When the task was planned: where a task closed with no start starts, at the latest.
   plannedAt?: number
+  // When a start last reopened it after it closed: the subagents that ended before were already
+  // reflected in that close and no longer close it (hooks/agents, settleBySubs).
+  reopenedAt?: number
   // A level-1 task of the main group: the turn (the person's message) it was planned in.
   turn?: number
   // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in

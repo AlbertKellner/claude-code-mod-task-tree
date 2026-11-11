@@ -8,7 +8,7 @@
 import { update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Child, Group, Send, Sub, Wait } from '../types'
+import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
 import { MAIN, flat } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
@@ -155,6 +155,13 @@ export async function subEnd($: any, agent: string, e: any) {
 // under it (no session alive, no message queued, no question open), closes: done when they all
 // were, else interrupted, "falhou" when one failed (the worse end decides, failed over interrupted
 // over done). Its parents close by the usual rule; the subagents' cards stay out of the count.
+// A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not launched before the leaf
+// was planned (an earlier task's with the same id, in a state written before the anchor was renamed
+// with it), and, once a start reopened the leaf after a close, still running or ended since: one
+// that ended before was reflected in that close.
+const ofLeaf = (s: Sub, leaf: TaskNode) =>
+  !(leaf.plannedAt !== undefined && s.at < leaf.plannedAt) &&
+  (leaf.reopenedAt === undefined || s.end === undefined || s.end >= leaf.reopenedAt)
 export async function settleBySubs($: any) {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: kids = [] } = await $.state.get(childrenState)
@@ -171,7 +178,7 @@ export async function settleBySubs($: any) {
   for (const owner of groups as Group[]) {
     for (const leaf of flat(owner.tasks)) {
       if (leaf.status !== 'open' || leaf.children.length > 0) continue
-      const mine = subs.filter(g => (g.parent ?? MAIN) === owner.agent && g.anchor === leaf.id).map(g => g.sub!)
+      const mine = subs.filter(g => (g.parent ?? MAIN) === owner.agent && g.anchor === leaf.id).map(g => g.sub!).filter(s => ofLeaf(s, leaf))
       if (mine.length === 0 || mine.some(s => s.state === 'running' || s.state === 'background') || busy(owner.agent, leaf.id)) continue
       const state = mine.some(s => s.state === 'failed') ? 'failed' : mine.some(s => s.state === 'interrupted') ? 'interrupted' : 'done'
       ends.set(`${owner.agent}|${leaf.id}`, { state, end: Math.max(...mine.map(s => s.end ?? s.at)), at: Math.min(...mine.map(s => s.at)) })

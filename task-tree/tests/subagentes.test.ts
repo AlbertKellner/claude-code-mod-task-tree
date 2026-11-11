@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, estado, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
+import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { cabecalho, emTexto, linha, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
@@ -382,4 +382,140 @@ test('lançado num pedido sem plano depois de um pedido todo concluído, o cart�
   const p = await painel($)
   expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
   expect(linha(p, 'Explore: conferir o diff').texto).toContain('trabalhando')
+})
+
+// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo
+test('reaberta com start depois de fechar pelo subagente, a tarefa aguarda no fim do turno seguinte; o subagente antigo não a fecha de novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await start($, ['1'])
+  await fimDoTurno($)
+  p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
+  expect(cabecalho(p).feitas).toBe(0)
+})
+
+// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo
+test('fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 'sub-1')
+  await done($, ['1'], 'Lido')
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Outra' }, { id: '3', title: 'Revisar' }] }])
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
+  expect(linha(p, 'Revisar').estado).toBe('pendente')
+})
+
+// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo, subagentes.pai-reflete-falha-ou-interrupcao
+test('a tarefa ✕ "falhou" reaberta com start e refeita por outro subagente que conclui fica ✓', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['f1', 's2'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'tentar' })
+  await fimDoSubagenteCom($, 'f1', { erro: true })
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('interrompida')
+  expect(linha(p, 'Investigar').texto).toContain('falhou')
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await start($, ['1'])
+  await lancar($, { descricao: 'tentar de novo' })
+  await fimDoSubagente($, 's2')
+  await fimDoTurno($)
+  p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
+  expect(linha(p, 'Investigar').texto).not.toContain('falhou')
+})
+
+// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo, turnos.esc-interrompe-so-a-iniciada
+test('reaberta com start, a tarefa que tinha falhado e é parada com Esc diz "interrompida", não "falhou"', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['f1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'tentar' })
+  await fimDoSubagenteCom($, 'f1', { erro: true })
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await start($, ['1'])
+  await esc($)
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('interrompida')
+  expect(linha(p, 'Investigar').texto).toContain('interrompida')
+  expect(linha(p, 'Investigar').texto).not.toContain('falhou')
+})
+
+// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo, subagentes.pai-conclui-no-fim-do-turno
+test('lançado da pendente, o subagente que termina antes do primeiro start ainda fecha a tarefa no fim do turno', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 'sub-1')
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
+  expect(linha(p, 'Outra').estado).toBe('pendente')
+})
+
+// O state de uma versão anterior à âncora renomeada com a tarefa (o par abaixo).
+const ANTIGO: Record<string, unknown> = {}
+
+// Regra: subagentes.lancado-antes-da-tarefa-nao-conta
+test('âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tarefa de onde saiu o subagente do pedido um', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, ANTIGO, 'captura')
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano B', children: [{ id: '1', title: 'Corrigir' }, { id: '2', title: 'Revisar' }] }])
+  const p = await painel($)
+  expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
+  // Como uma versão anterior deixava o grupo: a âncora no id reusado, não na cópia antiga.
+  const sub = ((ANTIGO.groups ?? []) as any[]).find(g => g.agent === 'sub-1')
+  expect(sub?.anchor).not.toBe('A/1')
+  sub.anchor = 'A/1'
+})
+
+// Regra: subagentes.lancado-antes-da-tarefa-nao-conta
+test('âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela', async ($: any, on: any) => {
+  fixar(on, { agora: AGORA + 1000 })
+  estado(on, ANTIGO, 'semear')
+  if (((ANTIGO.groups ?? []) as any[]).every(g => g.anchor !== 'A/1')) throw new Error('rode o par inteiro: o 1/2 não gravou')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
+  expect(linha(p, 'Plano B').estado).not.toBe('concluida')
 })
