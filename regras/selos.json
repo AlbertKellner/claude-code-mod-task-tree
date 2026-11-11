@@ -1091,6 +1091,16 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::com carta: o id reusado num pedido novo deixa cartão e carta sob a tarefa de origem, e a carta fica cinza depois da entrega": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
+      ],
+      "hash": "b4b8492ab3390f14",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 2"
+    },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
         "sessoes.cartao-sob-a-tarefa-de-origem"
@@ -1234,6 +1244,16 @@
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "turno próprio da filha no pedido vigente"
+    },
+    "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
+      ],
+      "hash": "a78432d6e6279145",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 2"
     },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [

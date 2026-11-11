@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast, hasOpen, allTasks, panelOf } from '../draw/layout'
 import { debug } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
@@ -607,7 +607,7 @@ export async function setWork($: any, ids: string[]) {
     await saveStore($, 'work', ids)
   } catch {}
 }
-export async function joinWork($: any, ids: string[], fresh: boolean, renamed: string[] = []) {
+export async function joinWork($: any, ids: string[], fresh: boolean, renamed: string[] = [], moved: string[] = []) {
   if (ids.length === 0) return
   const { value: cur = [] } = await $.state.get(workState)
   if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
@@ -621,7 +621,12 @@ export async function joinWork($: any, ids: string[], fresh: boolean, renamed: s
   // with its request only when another task of that request still holds the view.
   const before = (cur as string[]).filter(id => !renamed.includes(id))
   const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, before, sends as Send[], knownId()) ? before : []
-  await setWork($, [...new Set([...kept, ...ids])])
+  // The old copy of a renamed level-1 task (`moved`) holds its request only through a card with an
+  // open task of its own; a session at work with no task, or a queued letter, does not (a queued
+  // letter of an abandoned plan goes to "+N pedidos anteriores", envios.cor-por-estado).
+  const cards = (children as Child[]).filter(c => hasOpen(allTasks(panelOf(c), 1)))
+  const held = moved.length > 0 && openInSight({ groups: withMain(groups as Group[]), waits: [], children: cards }, moved, [], knownId())
+  await setWork($, [...new Set([...kept, ...(held ? moved : []), ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
 // rounds of their messages; the sends still waiting; the messages received; the subagents'

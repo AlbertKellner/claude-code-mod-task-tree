@@ -546,3 +546,48 @@ test('a mãe é avisada de que a filha parou com pendentes', async ($: any, on: 
   const r = [await aviso($), await pedido($, 'Pedido dois')]
   expect(JSON.stringify(r)).toContain('1 pendentes')
 })
+
+// Regra: pedidos.id-reusado-segura-pedido-com-cartao-aberto
+test('plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista', async ($: any, on: any) => {
+  await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, [
+    { id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }, { id: '2', title: 'Dois de novo', children: [{ id: '2.1', title: 'Dois.um de novo' }] }] },
+    { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] },
+  ])
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.some(l => l.titulo === 'Pedido um'), emTexto(p)).toBe(true)
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.indexOf(linha(p, 'Pedido um')), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pedido dois')))
+  esperarEstado(p, 'Um de novo', 'pendente')
+  esperarEstado(p, 'Plano A de novo', 'pendente')
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-cartao-aberto
+test('com carta: o id reusado num pedido novo deixa cartão e carta sob a tarefa de origem, e a carta fica cinza depois da entrega', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await envio($, K1)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
+  h.recebeu(K1, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  const cartas = p.filter(l => l.titulo.startsWith('Para ') && l.carta !== undefined)
+  expect(cartas.map(l => l.carta), emTexto(p)).toEqual(['interrompida'])
+})

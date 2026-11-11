@@ -122,3 +122,14 @@ Um pedido anterior todo concluído sai de vista mesmo quando o pedido novo reusa
 Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1); aplica pedidos.resumida-mantem-anteriores-com-algo-aberto ("com tudo fechado, só o novo") ao id reusado, sem mudar pedidos.plano-anterior-vira-historico.
 Código: draw/layout.ts
 Estado: coberto
+
+### pedidos.id-reusado-segura-pedido-com-cartao-aberto
+O pedido anterior cujo nível 1 foi reusado segue à vista enquanto um cartão com tarefa aberta pende da cópia antiga.
+
+- Dado um nível 1 aberto de um pedido anterior, com uma sessão filha aberta de uma tarefa dele (ou que recebeu mensagem dela) e com tarefa própria aberta
+- Quando um pedido novo traz plan com o mesmo id
+- Então o antigo vira histórico como em pedidos.plano-anterior-vira-historico, mas o pedido anterior segue à vista, acima do novo, com o cartão e a carta sob a tarefa de origem, nunca soltos; o nível 1 novo nasce ○ sob o pedido novo. Sessão trabalhando sem tarefa própria aberta, ou só carta na fila, não segura (envios.cor-por-estado)
+
+Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1, cartão solto); aplica pedidos.resumida-mantem-anteriores-com-algo-aberto à cópia renomeada, sem mudar pedidos.plano-anterior-vira-historico nem envios.cor-por-estado.
+Código: hooks/panel.ts, hooks/tools.ts
+Estado: coberto
