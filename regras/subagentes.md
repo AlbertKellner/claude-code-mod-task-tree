@@ -171,3 +171,25 @@ Fora deste cenário: nesse painel antigo, o cartão segue desenhado sob a tarefa
 
 Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores; a defesa por tempo para os dados já gravados, proposta com a correção da âncora); aplica subagentes.id-reusado-nao-herda-cartao ("sem fechar pelo subagente antigo") ao que já estava gravado.
 Estado: coberto
+
+### subagentes.lancados-juntos-se-veem
+Subagentes lançados juntos, na mesma mensagem, ficam como se tivessem sido lançados um depois do outro.
+
+- Dado uma tarefa em andamento, ou mais de uma
+- Quando o modelo lança vários subagentes na mesma mensagem e os lançamentos correm juntos (cada um lê o painel antes de outro gravar), com o relógio andando entre eles
+- Então o resultado é o de lançá-los em série: mais de três da mesma tarefa ficam num cartão de grupo "N subagentes"; com várias em andamento, cada lançamento vai à tarefa que receberia depois do anterior (dois lançados juntos, dois em andamento: um cartão em cada); e um painel gravado ou um cartão de filha publicado por versão anterior, com um lote por lançamento, também junta no cartão de grupo os lançados a até 3 s um do outro
+
+Fora deste cenário: o lote com mais lançamentos que tarefas em andamento, e o workflow com várias tarefas em andamento (segue a regra de hoje, a de lançá-los em série; ficarem todos num cartão de grupo só é pergunta em aberto da auditoria).
+
+Origem: auditoria 2026-11-10 (subagentes lançados em paralelo não se enxergam, e o cartão de grupo não se forma); aplica subagentes.varios-juntos-num-cartao-de-grupo ("Cartão + grupo (Recomendado)") e subagentes.cartao-desde-o-lancamento ("Vai à pendente (Recomendado)") aos lançamentos simultâneos, sem mudar nenhuma delas.
+Estado: coberto
+
+### subagentes.lancados-juntos-no-app
+Lançados juntos no app, os subagentes ficam como em série.
+
+- Dado uma tarefa em andamento numa sessão real
+- Quando o modelo lança quatro ou mais subagentes na mesma mensagem (e, noutra vez, dois com duas tarefas em andamento)
+- Então aparece um cartão "N subagentes" com todos (com duas em andamento, um cartão em cada), sem cartões soltos
+
+Origem: auditoria 2026-11-10 (dados reais: 4 lançamentos em 45 ms com 4 lotes; 10 em 850 ms com 3 lotes); o teste simula a corrida com as leituras presas, não a ordem real dos hooks do app.
+Estado: checklist (subagentes reais lançados juntos no app)

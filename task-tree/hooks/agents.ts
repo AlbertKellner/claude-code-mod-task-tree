@@ -9,7 +9,7 @@ import { update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
-import { MAIN, flat } from '../draw/layout'
+import { MAIN, SUB_BATCH, flat } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
 import { askingAnchors, change, sendAnchor, stamp, usedAnchors } from './panel'
@@ -22,9 +22,6 @@ const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
-// Launched from the same task within BATCH ms, subagents are one batch: more than three of them (or
-// a workflow's) share one card (see draw/layout).
-const BATCH = 3000
 // The tool in use changes many times a second: the card is written at most once every THROTTLE ms
 // per subagent (the pane redraws on every write).
 const THROTTLE = 1000
@@ -40,16 +37,30 @@ function setSub($: any, agent: string, fn: (s: Sub) => Sub) {
 // pendente (Recomendado)"): the one in progress; with several, the first of the latest batch with no
 // message, session or subagent yet; with none, the pending one of the current request. The messages
 // and sessions are the main loop's: a subagent's launch counts only its own subagents.
-export async function launchAnchor($: any, groups: Group[], parent: string, names: string[]): Promise<string | undefined> {
-  const tasks = groups.find(g => g.agent === parent)?.tasks ?? []
-  const mine = groups.filter(g => (g.parent ?? MAIN) === parent)
-  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], names)
+type Uses = { kids: Child[]; sends: Send[]; waits: Wait[] }
+const NO_USES: Uses = { kids: [], sends: [], waits: [] }
+async function mainUses($: any): Promise<Uses> {
   const { value: kids = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
   const { value: waits = [] } = await $.state.get(waitsState)
-  return sendAnchor(tasks, usedAnchors(kids as Child[], sends as Send[], mine), askingAnchors(waits as Wait[]), names)
+  return { kids: kids as Child[], sends: sends as Send[], waits: waits as Wait[] }
+}
+function anchorIn(groups: Group[], parent: string, names: string[], uses: Uses): string | undefined {
+  const tasks = groups.find(g => g.agent === parent)?.tasks ?? []
+  const mine = groups.filter(g => (g.parent ?? MAIN) === parent)
+  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], names)
+  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), names)
+}
+export async function launchAnchor($: any, groups: Group[], parent: string, names: string[]): Promise<string | undefined> {
+  return anchorIn(groups, parent, names, parent === MAIN ? await mainUses($) : NO_USES)
 }
 
+// The launches of one message run together: each hook reads the panel before the others write
+// (the audit, 2026-11-10: 4 launches in 45 ms, 4 batches and no group card; with two tasks in
+// progress, all of them under the first). So the task and the batch are decided inside the groups'
+// write (change, over the groups as they are, again on a conflict), against the launches already
+// written: what launching them one after the other gives (subagentes.lancados-juntos-se-veem). The
+// sessions, messages and questions that also decide the task are read before: launches do not write them.
 export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   const agent = r?.agentId
@@ -57,8 +68,8 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const now = (await stamp($)) ?? 0
   const parent = typeof e.parentAgentId === 'string' && e.parentAgentId !== '' ? e.parentAgentId : MAIN
   const description = String(e.description ?? '')
-  const { value = [] } = await $.state.get(groupsState)
-  const anchor = await launchAnchor($, value as Group[], parent, [description, String(e.subagentType ?? '')])
+  const names = [description, String(e.subagentType ?? '')]
+  const uses = parent === MAIN ? await mainUses($) : NO_USES
   // The Agent call's own record (tool.call) is claimed here: the group needs no other.
   await update($, launchesState, (cur: any) => {
     const list = cur ?? []
@@ -66,21 +77,22 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
     return i >= 0 ? list.filter((_: unknown, j: number) => j !== i) : list
   })
   const run = typeof e.workflow?.runId === 'string' && e.workflow.runId !== '' ? e.workflow.runId : undefined
-  const mate = (value as Group[]).find(g => g.sub && g.parent === parent && g.anchor === anchor && !g.sub.run && now - g.sub.at <= BATCH)
-  const sub: Sub = {
-    at: now,
-    state: e.background ? 'background' : 'running',
-    calls: 0,
-    batch: mate?.sub?.batch ?? now,
-    ...(typeof r.model === 'string' && r.model !== '' ? { engine: engineText(r.model) } : {}),
-    ...(run ? { run } : {}),
-  }
   const label = `${String(e.subagentType ?? 'Subagente')}: ${description}`
-  await change($, all =>
-    all.some(g => g.agent === agent)
+  await change($, all => {
+    const anchor = anchorIn(all, parent, names, uses)
+    const mate = all.find(g => g.agent !== agent && g.sub && g.parent === parent && g.anchor === anchor && !g.sub.run && now - g.sub.at <= SUB_BATCH)
+    const sub: Sub = {
+      at: now,
+      state: e.background ? 'background' : 'running',
+      calls: 0,
+      batch: mate?.sub?.batch ?? now,
+      ...(typeof r.model === 'string' && r.model !== '' ? { engine: engineText(r.model) } : {}),
+      ...(run ? { run } : {}),
+    }
+    return all.some(g => g.agent === agent)
       ? all.map(g => (g.agent === agent ? { ...g, sub } : g))
-      : [...all, { agent, label, parent, ...(anchor !== undefined ? { anchor } : {}), tasks: [], sub }],
-  )
+      : [...all, { agent, label, parent, ...(anchor !== undefined ? { anchor } : {}), tasks: [], sub }]
+  })
   return r
 }
 

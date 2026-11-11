@@ -519,3 +519,102 @@ test('âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tar
   expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
   expect(linha(p, 'Plano B').estado).not.toBe('concluida')
 })
+
+// Lançamentos que correm juntos, como os de uma mensagem com várias chamadas a Agent: o host devolve
+// cada id alguns ms depois do anterior (o relógio anda 10 ms a cada um), e as primeiras leituras dos
+// grupos depois dos lançamentos ficam presas até chegarem tantas quantos os lançamentos (cada um lê o
+// painel antes de outro gravar, como no app). `presas()`: quantas leituras ficaram presas juntas.
+// Chamar antes da primeira chamada a $.
+const tique = (ms: number) => new Promise(r => (globalThis as any).setTimeout(r, ms))
+function juntos(on: any, relogio: any, ids: string[]) {
+  let i = 0
+  let lancando = false
+  let fila: (() => void)[] | undefined = []
+  let presas = 0
+  on('agent.spawn', async () => {
+    const n = i++
+    lancando = true
+    await tique(n * 5)
+    await relogio.advance(10)
+    return { model: 'claude-haiku-5-5', agentId: ids[n] }
+  })
+  on('agent.list', () => ({ value: ids.map(id => ({ id, type: 'general-purpose', description: `subagente ${id}` })) }))
+  on('state.get', async (_$: any, e: any, next: any) => {
+    const f = fila
+    if (e.key === 'groups' && lancando && f) {
+      await new Promise<void>(solta => {
+        f.push(solta)
+        if (f.length === ids.length) {
+          fila = undefined
+          presas = f.length
+          for (const s of f) s()
+        }
+      })
+    }
+    return next(e)
+  })
+  return { presas: () => presas }
+}
+
+// Regra: subagentes.lancados-juntos-se-veem, subagentes.varios-juntos-num-cartao-de-grupo
+test('quatro lançados juntos da mesma tarefa, com o relógio andando, ficam num cartão de grupo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const corrida = juntos(on, relogio, ['s1', 's2', 's3', 's4'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await Promise.all(['a', 'b', 'c', 'd'].map(d => lancar($, { descricao: d })))
+  // Os quatro leram o painel antes de qualquer um gravar.
+  expect(corrida.presas()).toBe(4)
+  const p = await painel($)
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('4 trabalhando')
+  expect(abaixo(p, 'Investigar')[0].titulo).toBe('4 subagentes')
+  expect(abaixo(p, '4 subagentes').map(l => l.titulo).sort()).toEqual(['Explore: a', 'Explore: b', 'Explore: c', 'Explore: d'])
+})
+
+// Regra: subagentes.lancados-juntos-se-veem, subagentes.cartao-desde-o-lancamento
+test('com duas em andamento, dois lançados juntos vão um a cada tarefa, como em série', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const corrida = juntos(on, relogio, ['s1', 's2'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Primeira' }, { id: '2', title: 'Segunda' }] }])
+  await start($, ['1', '2'])
+  await Promise.all(['achar o teste', 'ler o kit'].map(d => lancar($, { descricao: d })))
+  expect(corrida.presas()).toBe(2)
+  const p = await painel($)
+  const cartoes = (titulo: string) => abaixo(p, titulo).filter(l => l.titulo.startsWith('Explore: '))
+  expect(cartoes('Primeira').length, emTexto(p)).toBe(1)
+  expect(cartoes('Segunda').length).toBe(1)
+})
+
+// Regra: subagentes.lancados-juntos-se-veem, subagentes.na-filha
+test('o cartão de uma filha publicado com um lote por lançamento junta os quatro lançados juntos num cartão de grupo', async ($: any, on: any) => {
+  fixar(on)
+  // Como uma versão anterior publicava: quatro lançamentos a 10 ms um do outro, cada um com o seu lote.
+  const sub = (n: number) => ({
+    agent: `fs-${n}`,
+    label: `Explore: parte ${n}`,
+    parent: '',
+    anchor: '1',
+    tasks: [],
+    sub: { at: AGORA - 500 + n * 10, state: 'running', calls: 0, batch: AGORA - 500 + n * 10, engine: 'Haiku 5.5' },
+  })
+  host(on, [
+    {
+      id: 'local_11111111-1111-1111-1111-111111111111',
+      nome: 'filha',
+      painel: {
+        tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }],
+        agentes: [1, 2, 3, 4].map(sub),
+      },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(abaixo(p, 'Da filha').map(l => l.titulo), emTexto(p)).toContain('4 subagentes')
+  expect(abaixo(p, '4 subagentes').map(l => l.titulo)).toEqual(['Explore: parte 1', 'Explore: parte 2', 'Explore: parte 3', 'Explore: parte 4'])
+})

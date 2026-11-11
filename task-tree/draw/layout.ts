@@ -794,6 +794,8 @@ export const subLive = (s?: Sub) => s !== undefined && (s.state === 'running' ||
 const SUB_TONE: Record<Sub['state'], Tone> = { running: 'agent', background: 'agent', done: 'done', failed: 'interrupted', interrupted: 'interrupted' }
 // More than SUB_GROUP subagents launched together (or a workflow's) share one card, a line each.
 export const SUB_GROUP = 3
+// Launched together: by the same loop, to the same place, each within SUB_BATCH ms of the one before.
+export const SUB_BATCH = 3000
 // Where a session works, as its card and the header draw it: a repository with its branch (the
 // branch a detached head's short hash), or a folder with no repository (`folder`, `repo` its path).
 export type GitLabel = { repo: string; branch?: string; detached?: boolean; folder?: boolean }
@@ -1403,7 +1405,27 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // 2026-11-09: "Cartão + grupo (Recomendado)"); the others each in its own (draw). A line opens
     // into that subagent's own card.
     const drawKids = (list: Group[], d: number): Row[] => {
-      const bucketOf = (k: Group) => (k.sub ? (k.sub.run ?? `${k.parent ?? MAIN}|${k.anchor ?? ''}|${k.sub.batch}`) : undefined)
+      // Outside a workflow, the batch is read from the launches' times, not from `batch`: a panel or a
+      // session's published file from an earlier version kept one batch per launch for launches that ran
+      // together (subagentes.lancados-juntos-se-veem). A batch is named by its first launch's time, the
+      // `batch` hooks/agents writes, so a group's fold key stays.
+      const start = new Map<Group, number>()
+      const places = new Map<string, Group[]>()
+      for (const k of list) {
+        if (!k.sub || k.sub.run !== undefined) continue
+        const p = `${k.parent ?? MAIN}|${k.anchor ?? ''}`
+        places.set(p, [...(places.get(p) ?? []), k])
+      }
+      for (const same of places.values()) {
+        let first = -Infinity
+        let prev = -Infinity
+        for (const k of [...same].sort((a, b) => a.sub!.at - b.sub!.at)) {
+          if (k.sub!.at - prev > SUB_BATCH) first = k.sub!.at
+          prev = k.sub!.at
+          start.set(k, first)
+        }
+      }
+      const bucketOf = (k: Group) => (k.sub ? (k.sub.run ?? `${k.parent ?? MAIN}|${k.anchor ?? ''}|${start.get(k) ?? k.sub.batch}`) : undefined)
       const buckets = new Map<string, Group[]>()
       for (const k of list) {
         const b = bucketOf(k)

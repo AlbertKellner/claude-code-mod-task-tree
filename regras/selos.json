@@ -1317,6 +1317,17 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
     },
+    "task-tree/tests/subagentes.test.ts::com duas em andamento, dois lançados juntos vão um a cada tarefa, como em série": {
+      "regras": [
+        "subagentes.lancados-juntos-se-veem",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "5a3b24ac7a65efa1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
     "task-tree/tests/subagentes.test.ts::com duas em andamento, o subagente vai à primeira e a carta seguinte à segunda": {
       "regras": [
         "subagentes.cartao-desde-o-lancamento"
@@ -1410,6 +1421,17 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::o cartão de uma filha publicado com um lote por lançamento junta os quatro lançados juntos num cartão de grupo": {
+      "regras": [
+        "subagentes.lancados-juntos-se-veem",
+        "subagentes.na-filha"
+      ],
+      "hash": "b757df2f32a678de",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
         "subagentes.id-reusado-nao-herda-cartao"
@@ -1489,6 +1511,17 @@
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
+    },
+    "task-tree/tests/subagentes.test.ts::quatro lançados juntos da mesma tarefa, com o relógio andando, ficam num cartão de grupo": {
+      "regras": [
+        "subagentes.lancados-juntos-se-veem",
+        "subagentes.varios-juntos-num-cartao-de-grupo"
+      ],
+      "hash": "fd2fe6b546f2f744",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 7"
     },
     "task-tree/tests/subagentes.test.ts::reaberta com start depois de fechar pelo subagente, a tarefa aguarda no fim do turno seguinte; o subagente antigo não a fecha de novo": {
       "regras": [
