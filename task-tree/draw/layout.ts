@@ -1302,9 +1302,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // Whether that line is open: the cards with no task to go under are drawn only then.
     let pastOpen = false
     // A group's tasks from `top` (`list`), with what hangs below them. Its subagents' groups
-    // go under the task they were launched on, hidden with it once it closes; one launched
-    // on no task (or a task replanned away) ends the group. `extras` adds those groups and
-    // the notices with no task to go under.
+    // go under the task they were launched on, and stay there once it closes, as a session's
+    // card and a letter do (the person did not choose "Fecha ao terminar"; "o cartão segue
+    // 'concluído'" after the task closes by itself); they leave with the task's request, cut out
+    // of the work (trimToWork). One launched on no task (or a task replanned away) ends the group.
+    // `extras` adds those groups and the notices with no task to go under.
     const body = (g: Group, top: number, list: TaskNode[], extras: boolean): Row[] => {
       const mine = waits.filter(w => w.agent === g.agent)
       const kids = kidsOf(g.agent)
@@ -1319,7 +1321,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         ...(g.agent === MAIN
           ? inOrder(sessions.filter(c => c.anchor === t.id)).flatMap(c => session(c, depth + 1, level, scope))
           : []),
-        ...(t.status === 'open' ? drawKids(kids.filter(k => k.anchor === t.id), depth + 1) : []),
+        ...drawKids(kids.filter(k => k.anchor === t.id), depth + 1),
       ]
       // With no task to go under, a notice goes under the header, or ends the main list.
       if (extras && anchor === undefined && g.agent !== MAIN) lines.push(...mine.map(w => notice(w, top)))

@@ -1286,6 +1286,26 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "3e40470cceec5936",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 5"
+    },
+    "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "dcf3324b22fa9b03",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 5"
+    },
     "task-tree/tests/subagentes.test.ts::com duas em andamento, o subagente vai à primeira e a carta seguinte à segunda": {
       "regras": [
         "subagentes.cartao-desde-o-lancamento"
@@ -1326,6 +1346,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "42efd176ce0a2c8b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 5"
     },
     "task-tree/tests/subagentes.test.ts::lançado um subagente, o cartão aparece sob a tarefa em andamento, com o modelo e \"trabalhando\"": {
       "regras": [

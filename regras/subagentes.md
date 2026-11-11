@@ -131,3 +131,16 @@ Um plano que reusa o id de uma tarefa com subagente não herda o cartão dele.
 Origem: auditoria 2026-11-10 (plano que reusa um id não renomeia a âncora dos grupos de subagente); aplica subagentes.cartao-desde-o-lancamento ("o cartão aparece embaixo dessa tarefa") e pedidos.plano-anterior-vira-historico, como a renomeação já fazia com sessões, cartas e lançamentos, sem mudar subagentes.pai-conclui-no-fim-do-turno.
 Código: hooks/tools.ts, hooks/panel.ts
 Estado: coberto
+
+### subagentes.cartao-fica-com-a-origem-fechada
+Fechada a tarefa de onde saiu o subagente, o cartão dele segue embaixo dela.
+
+- Dado uma tarefa de onde saiu um subagente, à vista no trabalho atual
+- Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela
+- Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; sai junto com o pedido da tarefa, quando ele sai do trabalho ("+N pedidos anteriores"), como o cartão da sessão e a carta
+
+Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho segue sem ser desenhado solto no fim (depende de o cartão vivo terminar quando o fim do subagente não chega).
+
+Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
+Código: draw/layout.ts
+Estado: coberto
