@@ -120,3 +120,14 @@ Com um subagente ainda rodando, a tarefa de onde saiu não fecha.
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao").
 Estado: coberto
+
+### subagentes.id-reusado-nao-herda-cartao
+Um plano que reusa o id de uma tarefa com subagente não herda o cartão dele.
+
+- Dado uma tarefa de onde saiu um subagente (o cartão sob ela), fechada, ou aberta de um pedido anterior
+- Quando um plan com o mesmo id a renomeia (pedido novo, nível 1 concluído, ou o replano de um subagente sobre as tarefas dele)
+- Então o cartão fica com a cópia antiga, como o da sessão e a carta; não aparece sob a tarefa nova, que no fim do turno segue como o turno a deixou, sem fechar pelo subagente antigo
+
+Origem: auditoria 2026-11-10 (plano que reusa um id não renomeia a âncora dos grupos de subagente); aplica subagentes.cartao-desde-o-lancamento ("o cartão aparece embaixo dessa tarefa") e pedidos.plano-anterior-vira-historico, como a renomeação já fazia com sessões, cartas e lançamentos, sem mudar subagentes.pai-conclui-no-fim-do-turno.
+Código: hooks/tools.ts, hooks/panel.ts
+Estado: coberto

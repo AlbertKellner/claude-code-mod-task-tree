@@ -648,10 +648,15 @@ export const keptLink = (id: string): Link | undefined => keptLinks.get(id)
 // message, each message's task), the launches' and the sends' are renamed with it, or they would
 // point at the new task with that id, and every card of every earlier request would fall under it
 // (the person's panel: a request that sent nothing showed the cards of the whole day). The module's
-// copy of the links (keptLinks) is renamed too, so a later save keeps the renamed ties.
+// copy of the links (keptLinks) is renamed too, so a later save keeps the renamed ties. The
+// subagents' groups go with it in planTool's own change (renamedAnchor), for every loop.
+// An anchor under a renamed id (the id or a task below it) renamed with it: `tag:` before it, as
+// planTool renames the tasks.
+export const renamedAnchor = (ids: string[], tag: string) => (a?: string) =>
+  a !== undefined && ids.some(id => a === id || a.startsWith(id + '/')) ? tag + ':' + a : a
 export async function renameAnchors($: any, ids: string[], tag: string) {
   if (ids.length === 0) return
-  const fix = (a?: string) => (a !== undefined && ids.some(id => a === id || a.startsWith(id + '/')) ? tag + ':' + a : a)
+  const fix = renamedAnchor(ids, tag)
   const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[] }>(c: T): T => {
     const out = { ...c }
     if (c.anchor !== undefined) out.anchor = fix(c.anchor)

@@ -1348,6 +1348,16 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
+      "regras": [
+        "subagentes.id-reusado-nao-herda-cartao"
+      ],
+      "hash": "9a2b9aa479efa4cf",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 4"
+    },
     "task-tree/tests/subagentes.test.ts::o subagente concluído fecha a tarefa de onde saiu no fim do turno; o pai e a contagem seguem": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -1407,6 +1417,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::plan de um pedido novo que reusa o id não herda o cartão do subagente antigo, e o fim do turno não fecha a tarefa nova": {
+      "regras": [
+        "subagentes.id-reusado-nao-herda-cartao"
+      ],
+      "hash": "d0f6d6507649d1b0",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 4"
     },
     "task-tree/tests/subagentes.test.ts::sem nada em andamento, o cartão vai à pendente do pedido atual": {
       "regras": [

@@ -9,7 +9,7 @@ import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { PANE, reminders, renameAnchors, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
+import { PANE, reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -67,8 +67,13 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
     const now = await stamp($)
     const groups = await change($, all => {
+      // The subagents this loop launched from a task the plan renames go with the old copy (their
+      // card, and the task the end of the turn closes by them), or they would hang from the new task
+      // with that id: the ids as `away` below takes them, from the groups this change gets.
+      const own = all.find(g => g.agent === agent)?.tasks ?? []
+      const fix = renamedAnchor(own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id), tag)
       return all.map(g => {
-        if (g.agent !== agent) return g
+        if (g.agent !== agent) return (g.parent ?? MAIN) === agent && fix(g.anchor) !== g.anchor ? { ...g, anchor: fix(g.anchor) } : g
         // In plan order: a replanned task takes the place of the one it replaces; the new ones
         // go below the ones already there.
         const reused = (t: TaskNode) => replanned(t)
