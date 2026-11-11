@@ -60,7 +60,8 @@ export const halt =
       // leaves it waiting (◷), as a normal end does (the person, 2026-10-30: "Não, fica ◷ enquanto a
       // carta está na fila"). Delivered, it is a task like any other: a stop interrupts it.
       if (begun && (!aborted || sent.includes(t.id))) return { ...t, started: undefined, endedAt: stop(t, at) }
-      return begun ? interrupt(at)(t) : t
+      // Marked (`halted`): it was open until the stop, which a card's discard and word go by (leftOpen).
+      return begun ? { ...interrupt(at)(t), halted: true } : t
     }
     const children = t.children.map(halt(at, sent, aborted))
     return { ...t, ...(hasOpen(children) ? {} : { status: 'done' as const }), started: undefined, endedAt: stop(t, at), children }
@@ -68,6 +69,11 @@ export const halt =
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
 // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
 export const leftWaiting = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt !== undefined
+// Something left open when the turn ended: open, or started and read as interrupted by the stop
+// (halt marks it). A card's panel is the halted one once the cut (trimToWork) is made, so what was
+// open is told by this, not by what the halt left open: a session stopped with Esc with one task
+// done and the other started, nothing pending, came out "concluída", its ✓ counted (audit, 2026-11-10).
+export const leftOpen = (list: TaskNode[]) => flat(list).some(t => t.status === 'open' || t.halted === true)
 
 // A task whose clock runs: started and not closed.
 export const timing = (list: TaskNode[]) => flat(list).some(t => t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
@@ -115,7 +121,7 @@ export const live = (c: Child) => !c.archived && (c.running || c.waiting === tru
 // its turn with pending tasks is not discarded (its pending tasks count, see settle), nor an archived one
 // (history, its interrupted ones out of the total as before).
 export const discarded = (c: Child): boolean => {
-  if (c.archived || !hasOpen(tasksOf(rawPanel(c).groups ?? []))) return false
+  if (c.archived || !leftOpen(tasksOf(rawPanel(c).groups ?? []))) return false
   if (c.part !== undefined && !c.lead) return true
   return !live(c) && c.aborted === true
 }
@@ -522,7 +528,7 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   const tasks = mine.flatMap(c => allTasks(inCount(c), level + 1))
   const cards = kept.flatMap(c => allTasks(inCount(c), level + 1))
   const direct = sessions.some(c => c.anchor === t.id || roundAt(c) === t.id)
-  const left = [...below, ...here].some(c => !c.settled && hasOpen(tasksOf(rawPanel(c).groups ?? [])))
+  const left = [...below, ...here].some(c => !c.settled && leftOpen(tasksOf(rawPanel(c).groups ?? [])))
   return { busy: hereOpen.some(live), any: below.length > 0 || here.length > 0, direct, live: here.some(live), open: left, d, n, tasks, cards }
 }
 // An open parent with something done (or left waiting, see leftWaiting) below it and nothing in progress:
@@ -1170,7 +1176,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const pending = c.waiting === true && (p.waits ?? []).length === 0
     // Stopped with tasks still open (it waits for a signal, or the next message): not done; its
     // tasks stay in sight, as it planned them.
-    const parked = !live(c) && !c.archived && hasOpen(tasksOf(rawPanel(c).groups ?? []))
+    const parked = !live(c) && !c.archived && leftOpen(tasksOf(rawPanel(c).groups ?? []))
     const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
     // A card of one round (split) speaks for its group only: done, it shows the check, with no
     // word that would say the whole session ended.

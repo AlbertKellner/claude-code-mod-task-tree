@@ -118,6 +118,17 @@ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou um
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
+### sessoes.filha-parada-com-esc-sem-pendente
+A filha parada com Esc que não deixou pendente é descartada como a que deixou.
+
+- Dado uma filha com uma tarefa ✓ e outra iniciada, sem pendente nunca iniciada
+- Quando o usuário a para com Esc e a mãe desenha o painel
+- Então a iniciada fica ✕ e conta como a tarefa aberta da sessão parada com Esc: as duas saem do cabeçalho, do chip "interrompidas" e do x/y da tarefa de origem (sessoes.rodada-descartada-fora-da-contagem, sessoes.rodada-descartada-fora-da-contagem-do-pai); o cartão continua desenhado, com a palavra "parada" (parou com tarefa aberta, sessoes.palavra-de-estado-do-cartao), não "concluída"
+
+Origem: auditoria 2026-11-10 (filha parada com Esc: o descarte era decidido depois de o Esc deixar a iniciada ✕, então sem pendente a ✓ contava e o cartão dizia "concluída"; com uma pendente, tudo saía da contagem); aplica sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-24: "as tarefas dessa sessão foram descartadas") e sessoes.palavra-de-estado-do-cartao, sem mudar nenhuma das duas.
+Código: draw/layout.ts
+Estado: coberto
+
 ### sessoes.rodada-descartada-fora-da-contagem-do-pai
 A rodada descartada sai também do x/y da tarefa da mãe.
 

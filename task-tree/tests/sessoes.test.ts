@@ -229,6 +229,30 @@ test('a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a
   expect(cabecalho(p).total, emTexto(p)).toBe(3)
 })
 
+// Regra: sessoes.filha-parada-com-esc-sem-pendente
+test('a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o cartão diz "parada"', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [noTurno(1, '1', 'Feita', 'feita'), noTurno(1, '2', 'Começada', 'iniciada')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Feita', 'concluida')
+  esperarEstado(p, 'Começada', 'interrompida')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([0, 3])
+  expect(c.chips.interrompidas, emTexto(p)).toBe(0)
+  // O x/y de "Um", de onde a filha foi aberta, só conta a própria "Um".
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
+  esperarPalavra(p, 'filha-um', 'parada')
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
+})
+
 // K1 sob "Um" e K2 sob "Dois"; K1 manda uma mensagem a K2 da tarefa "Avisar K2", e K2 abre o turno 2
 // depois dela, com "d2".
 async function cadeia($: any, on: any, tomada: boolean) {

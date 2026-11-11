@@ -32,6 +32,9 @@ export type TaskNode = {
   // Closed by the panel as interrupted because the subagent launched from it failed (hooks/agents,
   // settleBySubs): drawn ✕ with "falhou" instead of "interrompida".
   failed?: boolean
+  // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
+  // by that stop (halt in draw/layout); never kept nor published.
+  halted?: boolean
   children: TaskNode[]
 }
 

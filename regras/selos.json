@@ -1010,6 +1010,16 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o cartão diz \"parada\"": {
+      "regras": [
+        "sessoes.filha-parada-com-esc-sem-pendente"
+      ],
+      "hash": "5192b3c7aaab1f70",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 10"
+    },
     "task-tree/tests/sessoes.test.ts::a filha que volta a trabalhar volta a contar": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
