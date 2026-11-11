@@ -1360,8 +1360,13 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const over = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
       // A request with a session still at work under its task stays drawn too (it is going on).
       const recentOnly = over ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
-      // Out of the line's reach too: what left the work (trimToWork).
-      const left = new Set(whole.filter(t => !recentOnly.includes(t)).map(t => t.turn ?? -1)).size
+      // Out of the line's reach too: what left the work (trimToWork). Told by id, not by object: a
+      // stopped session's card is halted twice (panelOf in trimToWork, then in session), which makes
+      // its open parents and started tasks anew in `tasks` but not in `whole`, and the card showed
+      // "+1 pedidos anteriores" with nothing left out (audit, 2026-11-10).
+      const shown = new Set(recentOnly.map(t => t.id))
+      const out = whole.filter(t => !shown.has(t.id))
+      const left = new Set(out.map(t => t.turn ?? -1)).size
       const cut = left > 0
       // The line of the requests left out opens with a click, closed by default, and draws them (the
       // person, 2026-11-03: "Sim, fechado por padrão (Recomendado)"); the limit of lines still holds.
@@ -1379,7 +1384,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           fold: { key: historyKey, open: history },
         })
       if (cut && !history && level === 0 && g.agent === MAIN) {
-        const away = flat(whole.filter(t => !drawn.includes(t))).map(t => t.id)
+        const away = flat(out).map(t => t.id)
         for (const c of sessions) if (c.anchor !== undefined && away.includes(c.anchor) && alive(c)) strays.push(loosen(c, whole, g.turns ?? []))
       }
       // The top panel's main tasks go under the turn (the person's message) they were planned

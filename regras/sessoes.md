@@ -129,6 +129,17 @@ Origem: auditoria 2026-11-10 (filha parada com Esc: o descarte era decidido depo
 Código: draw/layout.ts
 Estado: coberto
 
+### sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
+O cartão da filha parada só mostra "+N pedidos anteriores" quando há pedido dela fora do desenho.
+
+- Dado uma filha parada (não trabalhando, não arquivada), com um turno só, que deixou um pai aberto (só pendentes embaixo) ou uma folha iniciada, parada normalmente ou com Esc
+- Quando a mãe desenha o cartão
+- Então o cartão mostra as tarefas dela e nenhuma linha "+N pedidos anteriores", porque nada ficou fora; a linha segue aparecendo quando um pedido da filha sai do desenho (cabecalho.limites-de-linhas)
+
+Origem: auditoria 2026-11-10 (a linha aparecia dentro do cartão da filha parada sem nada escondido, e aberta não mostrava nada novo: o cartão parado era lido duas vezes e as tarefas abertas da segunda leitura não eram reconhecidas como as da primeira); aplica cabecalho.limites-de-linhas ("Os pedidos fora do trabalho viram '+N pedidos anteriores'") e cabecalho.historico-guarda-o-que-saiu (decisão do usuário, 2026-11-04: "Ficam em '+N pedidos anteriores' (Recomendado)"), sem mudar nenhuma das duas.
+Código: draw/layout.ts
+Estado: coberto
+
 ### sessoes.rodada-descartada-fora-da-contagem-do-pai
 A rodada descartada sai também do x/y da tarefa da mãe.
 

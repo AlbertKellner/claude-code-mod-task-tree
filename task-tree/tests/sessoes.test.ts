@@ -253,6 +253,37 @@ test('a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o ca
   expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
 })
 
+// Três filhas paradas, cada uma com um turno só: K1 com um pai aberto (só pendente embaixo), K2 com
+// uma folha iniciada, K3 com um pai aberto e parada com Esc. Nada delas está fora do desenho.
+// Regra: sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
+test('o cartão da filha parada não mostra "+N pedidos anteriores" sem nada fora do desenho', async ($: any, on: any) => {
+  fixar(on)
+  const K2 = 'local_22222222-2222-2222-2222-222222222222'
+  const K3 = 'local_33333333-3333-3333-3333-333333333333'
+  const pai = (id: string, titulo: string, filho: string) => ({ ...tarefa(id, titulo, 'aberta', [tarefa(`${id}.1`, filho)]), turn: 1 })
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [pai('P', 'Pai um', 'Filho um')], turns: [turno(1, AGORA + 10)] } },
+    { id: K2, nome: 'filha-dois', painel: { tasks: [noTurno(1, '1', 'Começada', 'iniciada')], turns: [turno(1, AGORA + 20)] } },
+    { id: K3, nome: 'filha-tres', painel: { tasks: [pai('P', 'Pai três', 'Filho três')], turns: [turno(1, AGORA + 30)] } },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  for (const de of ['1', '2', '3']) {
+    await start($, [de])
+    await abrirSessao($)
+  }
+  await aviso($)
+  for (const k of [K1, K2, K3]) h.filha(k).rodando = false
+  h.filha(K3).aborted = true
+  await aviso($)
+  const p = await painel($)
+  expect(p.filter(l => l.texto.includes('pedidos anteriores')).map(l => l.texto), emTexto(p)).toEqual([])
+  expect(cartoes(p, 'filha-um').map(c => c.tarefas), emTexto(p)).toEqual([['Pai um', 'Filho um']])
+  expect(cartoes(p, 'filha-dois').map(c => c.tarefas), emTexto(p)).toEqual([['Começada']])
+  expect(cartoes(p, 'filha-tres').map(c => c.tarefas), emTexto(p)).toEqual([['Pai três', 'Filho três']])
+  for (const nome of ['filha-um', 'filha-dois', 'filha-tres']) esperarPalavra(p, nome, 'parada')
+})
+
 // K1 sob "Um" e K2 sob "Dois"; K1 manda uma mensagem a K2 da tarefa "Avisar K2", e K2 abre o turno 2
 // depois dela, com "d2".
 async function cadeia($: any, on: any, tomada: boolean) {

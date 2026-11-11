@@ -1245,6 +1245,16 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::o cartão da filha parada não mostra \"+N pedidos anteriores\" sem nada fora do desenho": {
+      "regras": [
+        "sessoes.cartao-parado-sem-pedidos-anteriores-a-mais"
+      ],
+      "hash": "248169b9efc52c6b",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 11"
+    },
     "task-tree/tests/sessoes.test.ts::o cartão mostra toks/s e repositório com branch": {
       "regras": [
         "sessoes.toks-e-repo-branch-no-cartao"
