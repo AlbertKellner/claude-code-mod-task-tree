@@ -294,6 +294,10 @@ export const inOrder = (list: Child[]) =>
 // While a sister's message has no known origin yet (the sister's state not read yet), its card is
 // not drawn, for up to WAIT_ORIGIN ms: it would show at the root and jump into place on the next read.
 export const WAIT_ORIGIN = 10000
+// The turn that opened a session is its first (id 1) when it began within OPENING ms of when this
+// session opened it (its `openedAt`; seen up to 97 s with many sessions opened at once). A turn 1
+// begun long after it is one the person typed there after a /clear (the ids start over).
+const OPENING = 10 * 60_000
 // `now`: the drawing's clock (undefined where it cannot be read); `memo`: the drawing's cache of breaks.
 export function split(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
   // A card already cut to one round (the summary view's cut() splits the sessions before the pass
@@ -318,7 +322,14 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   // "No pedido vigente da orquestradora (Recomendado)"; it was the request that opened the session,
   // where the work of today hung from a request of days before), not under the task of the last
   // message this session sent (work it did not ask for hung from "Reverter o commit…").
-  const ownTurns = (main.turns ?? []).filter(u => u.own === true)
+  // The turn that opened the session (the start_session's text) is not one the person typed there,
+  // though the session publishes it as its own (any prompt that is not another session's message is,
+  // see prompt-submit): its card stays under the task it was opened from (the panels already
+  // published bring the mark, so it is told apart here). A session with neither `openedAt` nor an
+  // origin (not opened by a start_session of this one) keeps it as it is.
+  const opening = (u: Turn) => u.id === 1 && (c0.openedAt !== undefined ? u.at === undefined || u.at - c0.openedAt < OPENING : c0.anchor !== undefined)
+  const typed = (u: Turn) => u.own === true && !opening(u)
+  const ownTurns = (main.turns ?? []).filter(typed)
   if (rounds.length === 0 && ownTurns.length === 0) return [c]
   const openedIn = owner.find(t => t.id === c.anchor || flat(t.children).some(k => k.id === c.anchor))
   const originEnd = openedIn?.turn === undefined ? undefined : [...owner].reverse().find(t => t.turn === openedIn.turn)?.id
@@ -345,7 +356,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   let before = -Infinity
   for (const u of [...turns].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
     if (partOfTurn.has(u.id)) continue
-    if (u.own === true) {
+    if (typed(u)) {
       // Its own part, keyed below zero (one per turn), apart from the rounds.
       partOfTurn.set(u.id, -1 - ownTurns.findIndex(o => o.id === u.id))
       if (u.at !== undefined) before = u.at

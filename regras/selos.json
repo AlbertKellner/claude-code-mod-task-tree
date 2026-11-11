@@ -1235,6 +1235,27 @@
       "data": "2026-11-04",
       "motivo": "só a visão resumida, 2026-11-04"
     },
+    "task-tree/tests/sessoes.test.ts::o turno 1 próprio que começa bem depois da abertura (a filha limpa com /clear) segue como pedido do usuário na filha": {
+      "regras": [
+        "sessoes.turno-de-abertura-da-filha-sob-a-origem",
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "3290535052127c86",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 3"
+    },
+    "task-tree/tests/sessoes.test.ts::o turno de abertura que a filha publica como próprio fica sob a tarefa de origem, sem \"pedido do usuário na filha\"": {
+      "regras": [
+        "sessoes.turno-de-abertura-da-filha-sob-a-origem"
+      ],
+      "hash": "37a5e7c4dca9d8d2",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 3"
+    },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"

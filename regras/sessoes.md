@@ -196,6 +196,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: draw/layout.ts
 Estado: coberto
 
+### sessoes.turno-de-abertura-da-filha-sob-a-origem
+O turno que abriu a filha (o texto do start_session) não é pedido do usuário na filha, mesmo quando ela o publica como próprio.
+
+- Dado uma filha aberta a partir de uma tarefa, que publica o primeiro turno marcado como próprio (os arquivos publicados reais trazem a marca)
+- Quando a mãe desenha o painel
+- Então o cartão desse turno fica sob a tarefa de origem, com o nome simples, sem "pedido do usuário na filha"; um turno 1 marcado como próprio que começa bem depois da abertura (a filha limpa com /clear, os turnos recomeçam) segue como pedido do usuário na filha (sessoes.turno-proprio-da-filha-no-pedido-vigente)
+
+Origem: auditoria 2026-11-10 (o primeiro turno da filha é marcado como pedido do usuário na filha); aplica sessoes.cartao-sob-a-tarefa-de-origem e sessoes.turno-proprio-da-filha-no-pedido-vigente ("O turno que o usuário abriu digitando na filha"), sem mudar nenhuma das duas.
+Código: draw/layout.ts
+Estado: coberto
+
 ### sessoes.cartao-vivo-nunca-some
 Um cartão com a sessão trabalhando ou com tarefa aberta nunca some.
 

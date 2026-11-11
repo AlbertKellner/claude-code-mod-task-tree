@@ -591,3 +591,37 @@ test('com carta: o id reusado num pedido novo deixa cartão e carta sob a tarefa
   const cartas = p.filter(l => l.titulo.startsWith('Para ') && l.carta !== undefined)
   expect(cartas.map(l => l.carta), emTexto(p)).toEqual(['interrompida'])
 })
+// O turno 1 como a filha o publica quando o texto do start_session chega como prompt próprio
+// (os arquivos publicados reais trazem a marca).
+const abertura = (at: number) => ({ id: 1, title: 'Texto do start_session', at, own: true })
+
+// Regra: sessoes.turno-de-abertura-da-filha-sob-a-origem
+test('o turno de abertura que a filha publica como próprio fica sob a tarefa de origem, sem "pedido do usuário na filha"', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'iniciada')], turns: [abertura(AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo === PROPRIO), emTexto(p)).toBe(false)
+  const cs = cartoes(p, 'governanca')
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita'])
+  expect(cs[0]?.tarefas, emTexto(p)).toEqual(['Reescrever autoria'])
+})
+
+// Regra: sessoes.turno-de-abertura-da-filha-sob-a-origem, sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('o turno 1 próprio que começa bem depois da abertura (a filha limpa com /clear) segue como pedido do usuário na filha', async ($: any, on: any) => {
+  const { h } = await abrirNoPedidoAntigo($, on)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }] }])
+  await start($, ['v1'])
+  h.filha(K1).painel = { tasks: [noTurno(1, '1', 'Reescrever com filter-repo', 'iniciada')], turns: [{ id: 1, title: 'pode apagar e reescrever', at: AGORA + 20 * 60_000, own: true }] }
+  await aviso($)
+  const p = await painel($)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
+})
+
