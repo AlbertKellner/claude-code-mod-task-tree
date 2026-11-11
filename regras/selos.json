@@ -699,6 +699,16 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar": {
+      "regras": [
+        "lembretes.replanejar-apos-esc-com-aviso-no-meio"
+      ],
+      "hash": "abed49138f309bc5",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
+    },
     "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
       "regras": [
         "lembretes.esc-sem-abertas"
@@ -728,6 +738,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, avisos que não abrem pedido no meio não tiram o pedido de replanejar da mensagem da pessoa": {
+      "regras": [
+        "lembretes.replanejar-apos-esc-com-aviso-no-meio"
+      ],
+      "hash": "2788a08468f0bdcc",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
     },
     "task-tree/tests/lembretes.test.ts::depois do fim normal do turno, a mensagem da pessoa só lista o que ficou aberto": {
       "regras": [

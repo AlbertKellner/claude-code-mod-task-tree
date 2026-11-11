@@ -54,6 +54,17 @@ O pedido de replanejar vale uma vez só.
 Origem: decisão do usuário, 2026-10-27; commit d3ff1be.
 Estado: coberto
 
+### lembretes.replanejar-apos-esc-com-aviso-no-meio
+Um aviso que não abre pedido, entre o Esc e a mensagem seguinte, não tira o pedido de replanejar.
+
+- Dado um turno parado pela pessoa, com tarefas abertas
+- Quando, antes da mensagem dela, chegam o aviso do app, o hand-back de um subagente ou a notificação de uma tarefa em segundo plano, e o turno deles termina normalmente
+- Então a mensagem seguinte, da pessoa ou de outra sessão, ainda traz o pedido de replanejar com a lista das abertas, uma vez só
+
+Origem: auditoria 2026-11-10 (o fim normal do turno do aviso apagava a marca do Esc); aplica lembretes.replanejar-apos-esc-pessoa ("precisa replanejar quando eu interrompo e envio nova mensagem") e lembretes.outra-sessao-apos-esc, sem mudar nenhuma regra nem o desenho.
+Código: hooks/panel.ts, state/durability.ts
+Estado: coberto
+
 ### lembretes.primeira-chamada-sem-plano
 O lembrete de planejar na primeira ferramenta sem plano.
 

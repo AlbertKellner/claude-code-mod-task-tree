@@ -36,21 +36,27 @@ export async function wake($: any) {
   }
 }
 
-// The turn's end (turnEnded, turnAborted) is kept in the store too, one record (`turn`): a new
+// The turn's end (turnEnded, turnAborted, replanDue) is kept in the store too, one record (`turn`): a new
 // process (the worker respawned, /model, a restart of the app) drew as in progress, with its clock
 // going, what the last turn had left stopped. Written only when it changes: wake runs at every prompt
 // and every call of the main loop.
-type TurnRecord = { ended: number | null; aborted: boolean }
+// A record of an earlier version has no `replan`: its `aborted` says it (no request came since the stop).
+type TurnRecord = { ended: number | null; aborted: boolean; replan: boolean }
 let lastTurn: string | undefined
 const turnRecord = (v: unknown): TurnRecord | undefined =>
   v !== null && typeof v === 'object' && 'ended' in v
-    ? { ended: typeof (v as any).ended === 'number' ? (v as any).ended : null, aborted: (v as any).aborted === true }
+    ? {
+        ended: typeof (v as any).ended === 'number' ? (v as any).ended : null,
+        aborted: (v as any).aborted === true,
+        replan: (v as any).replan === true || ((v as any).replan === undefined && (v as any).aborted === true),
+      }
     : undefined
 export async function saveTurn($: any) {
   try {
     const ended = (await $.state.get(turnEndedState)).value
     const aborted = (await $.state.get(turnAbortedState)).value
-    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true })
+    const replan = (await $.state.get(replanDueState)).value
+    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true })
     if (text === lastTurn) return
     await saveStore($, 'turnEnded', JSON.parse(text))
     lastTurn = text
@@ -75,6 +81,7 @@ export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
     try {
       await $.state.set(turnEndedState, saved.ended)
       await $.state.set(turnAbortedState, saved.aborted)
+      await $.state.set(replanDueState, saved.replan)
       loaded.add('turn')
     } catch {}
     return saved
@@ -92,6 +99,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
     if (saved === undefined) return
     await $.state.set(turnEndedState, saved.ended)
     await $.state.set(turnAbortedState, saved.aborted)
+    await $.state.set(replanDueState, saved.replan)
     lastTurn = JSON.stringify(saved)
   } catch {}
 }
@@ -99,6 +107,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
 export async function clearTurn($: any) {
   await $.state.set(turnEndedState, null)
   await $.state.set(turnAbortedState, false)
+  await $.state.set(replanDueState, false)
   await saveTurn($)
 }
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
@@ -110,6 +119,7 @@ const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
+const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.

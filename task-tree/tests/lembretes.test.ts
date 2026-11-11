@@ -2,6 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
 import { AGORA, fixar } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
+import { aviso, mensagemDe } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -71,6 +72,41 @@ test('o lembrete de replanejar vale uma vez só', async ($: any, on: any) => {
   const ctx = contexto(await pedido($, 'Mais uma'))
   expect(ctx).toContain(ABERTAS)
   expect(ctx).not.toContain(REPLANEJAR)
+})
+
+// Regra: lembretes.replanejar-apos-esc-com-aviso-no-meio
+test('depois do Esc, avisos que não abrem pedido no meio não tiram o pedido de replanejar da mensagem da pessoa', async ($: any, on: any) => {
+  await iniciar($, on)
+  await esc($)
+  // O aviso do app, o hand-back de um subagente e a notificação de uma tarefa em segundo plano, cada
+  // um com o seu turno terminado normalmente.
+  expect(contexto(await aviso($))).not.toContain(REPLANEJAR)
+  await fimDoTurno($)
+  await $.prompt.submit({ text: '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>' })
+  await fimDoTurno($)
+  await $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } })
+  await fimDoTurno($)
+  const ctx = contexto(await pedido($, 'Agora faça outra coisa'))
+  expect(ctx).toContain(REPLANEJAR)
+  expect(ctx).toContain('o usuário interrompeu')
+  expect(ctx).toContain('Um')
+  expect(ctx).not.toContain(ABERTAS)
+  // E vale uma vez só.
+  await fimDoTurno($)
+  const depois = contexto(await pedido($, 'Mais uma'))
+  expect(depois).toContain(ABERTAS)
+  expect(depois).not.toContain(REPLANEJAR)
+})
+
+// Regra: lembretes.replanejar-apos-esc-com-aviso-no-meio
+test('depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar', async ($: any, on: any) => {
+  await iniciar($, on)
+  await esc($)
+  await aviso($)
+  await fimDoTurno($)
+  const ctx = contexto(await mensagemDe($, 'local_x', 'oi'))
+  expect(ctx).toContain('esta mensagem de outra sessão')
+  expect(ctx).toContain(REPLANEJAR)
 })
 
 // Regra: lembretes.primeira-chamada-sem-plano

@@ -225,12 +225,16 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
 // `turnAborted`: the last turn of the main loop ended interrupted (turn.complete with isAborted), until
 // the next request; a message of another session that comes then gets a reminder to replan the panel.
+// `replanDue`: a turn of the main loop was stopped (Esc) and no request came since: the next request,
+// the person's or another session's, gets the reminder to replan the panel. A turn that opens no
+// request (the app's notice, a hand-back, a background task's notification) leaves it as it is,
+// though its normal end sets turnAborted back to false.
 // `rate`: this session's output rate (turn.step measures it), for its own header and published for
 // its card; in the state so a reload mid-turn keeps the last value.
 // `git`: this session's repository and branch (refreshGit reads them), for its own header and
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean }
   }
 }

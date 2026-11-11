@@ -20,6 +20,7 @@ const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
+const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 
 // The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
 // that names the limit): the summary the session gave, else the first sentence of the answer;
@@ -146,6 +147,10 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.
   if (!agent) await $.state.set(turnAbortedState, e.isAborted === true)
+  // The replan the stop asks for waits on the next request (prompt.submit clears it there): a turn
+  // that opened no request (the app's notice, a hand-back) and ended normally leaves it as it is
+  // (the person, 2026-10-27: "precisa replanejar quando eu interrompo e envio nova mensagem").
+  if (!agent && e.isAborted === true) await $.state.set(replanDueState, true)
   // The end in the store too: a new process draws it as stopped (see saveTurn).
   if (!agent) await saveTurn($)
   // The turn's answer grew the context: publish its share for the session that opened this one.

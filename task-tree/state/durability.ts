@@ -79,6 +79,8 @@ export const TABLE: readonly Row[] = [
     note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock; in the store so a new process does not draw as in progress what had already stopped (saveTurn, ensureTurn, restoreTurn)' },
   { key: 'turnAborted', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan; what it left in progress is drawn interrupted, after a restart too' },
+  { key: 'replanDue', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'a turn of the main loop was stopped (Esc) and no request came since: the next request gets the reminder to replan; a turn that opens no request (the app\'s notice, a hand-back) leaves it, though its end sets turnAborted back to false' },
   // The store alone.
   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
   // Variables of the module: a hot reload starts them over.
