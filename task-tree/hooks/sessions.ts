@@ -12,6 +12,7 @@ import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
+import { checkSubs } from './agents'
 import { change, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -32,6 +33,9 @@ const receivedState = { plugin: 'task-tree', key: 'received' } as const
 export let refreshedAt: number | undefined
 export async function refreshChildren($: any) {
   refreshedAt = (await stamp($)) ?? refreshedAt
+  // The subagents' cards still alive, against the engine's list: one whose end never came is ended
+  // (hooks/agents, checkSubs). First, and whatever the sessions' list says below.
+  await checkSubs($).catch(() => {})
   // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
   // outside the desktop app there are no sessions to show, so no line either.
   const listed = await listSessions($)

@@ -1548,6 +1548,18 @@
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
     },
+    "task-tree/tests/subagentes.test.ts::com o turno terminado, o subagente que o app passa a listar como parado ou concluído encerra o cartão, e a tarefa de origem reflete o fim": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido",
+        "subagentes.pai-reflete-falha-ou-interrupcao",
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "84b14e55521ab203",
+      "assercoes": 13,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
     "task-tree/tests/subagentes.test.ts::com um ainda rodando, a tarefa não fecha; o último, terminando depois do turno, a fecha": {
       "regras": [
         "subagentes.um-rodando-mantem-o-pai",
@@ -1673,6 +1685,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
     },
+    "task-tree/tests/subagentes.test.ts::o cartão vivo não é encerrado quando a lista do app falha, vem sem o estado, ou uma só releitura deu pela falta dele": {
+      "regras": [
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "9a21bf761e2f3c70",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
         "subagentes.id-reusado-nao-herda-cartao"
@@ -1732,6 +1754,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
+      "regras": [
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "b37843e67db976b2",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
     },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow ficam num cartão \"Workflow · N agentes\"": {
       "regras": [
@@ -1804,6 +1836,36 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 1/3: o cartão vivo vai ao store": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "551f7b4cc75f4a96",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
+    "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 2/3: o worker de hooks volta com ele ainda listado como rodando, e o cartão segue vivo": {
+      "regras": [
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "92f3787112d51a39",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
+    "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 3/3: o app reiniciado não o lista mais, e o cartão fica \"interrompido\", com o tempo parado e fora da pílula": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "4fc95bc4364ef71e",
+      "assercoes": 14,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
     },
     "task-tree/tests/subagentes.test.ts::terminado, o cartão segue com \"concluído\"; com erro, \"falhou\"; parado, \"interrompido\"": {
       "regras": [

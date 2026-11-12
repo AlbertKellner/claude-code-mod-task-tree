@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, estado, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { cabecalho, emTexto, linha, painel } from './kit/leitura'
+import { AGORA, armazem, estado, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
+import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { cabecalho, emTexto, linha, montar, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
 
@@ -732,4 +732,175 @@ test('o cartão do subagente lançado por outro não vai para uma tarefa da sess
   p = await painel($)
   expect(abaixo(p, 'Plano B').length, emTexto(p)).toBe(0)
   expect(p.map(l => l.titulo), emTexto(p)).not.toContain('Explore: achar o kit')
+})
+
+// O cartão vivo conferido com a lista de agentes do app (agent.list), a cada releitura de 3 s.
+// `app.lista`: o que o app lista, com o estado de cada um; o teste a muda (o app deixa de listar um
+// subagente, ou passa a dizê-lo terminado) e pode fazê-la falhar (`app.falha`). Os lançamentos
+// devolvem os ids na ordem. Chamar antes da primeira chamada a $.
+type DoApp = { lista: { id: string; type: string; description: string; status?: string }[]; falha: boolean }
+function listaDoApp(on: any, ids: string[] = []): DoApp {
+  const app: DoApp = { lista: [], falha: false }
+  let i = 0
+  on('agent.spawn', () => ({ model: 'claude-haiku-5-5', agentId: ids[i++] }))
+  on('agent.list', () => {
+    if (app.falha) throw new Error('lista indisponível')
+    return { value: app.lista }
+  })
+  on('tool.call', { tool: 'Read' }, () => ({ result: 'ok' }))
+  return app
+}
+const listado = (id: string, status?: string) => ({ id, type: 'Explore', description: `subagente ${id}`, ...(status !== undefined ? { status } : {}) })
+const pilula = (p: any[]) => p.filter(l => l.cabecalho).map(l => l.texto).join('\n')
+// O trio "1/3, 2/3, 3/3" depende de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
+// o 1/3 grava no store abaixo e os seguintes (módulo novo, state vazio: outro processo) leem dele.
+const SEM_FIM: Record<string, unknown> = {}
+const gravou = (store: Record<string, unknown>) => Object.keys(store).some(k => k.startsWith('session:'))
+
+// Regra: subagentes.sem-fim-vira-interrompido
+test('subagente em segundo plano e o processo novo, 1/3: o cartão vivo vai ao store', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, SEM_FIM)
+  const app = listaDoApp(on, ['sub-1'])
+  app.lista = [listado('sub-1', 'running')]
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await relogio.advance(2000)
+  await chamadaDoSubagente($, 'sub-1', 'Read', { file_path: 'C:/x/kit/leitura.ts' })
+  await done($, ['1'], 'Lançado em segundo plano')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
+  expect(linha(p, 'Explore: varrer o repo').texto).toContain('em segundo plano')
+  expect(gravou(SEM_FIM), JSON.stringify(Object.keys(SEM_FIM))).toBe(true)
+})
+
+// Regra: subagentes.vivo-de-verdade-segue-vivo
+test('subagente em segundo plano e o processo novo, 2/3: o worker de hooks volta com ele ainda listado como rodando, e o cartão segue vivo', async ($: any, on: any) => {
+  const { relogio } = fixar(on, { agora: AGORA + 60_000 })
+  armazem(on, SEM_FIM)
+  host(on, [])
+  const app = listaDoApp(on)
+  app.lista = [listado('sub-1', 'running')]
+  if (!gravou(SEM_FIM)) throw new Error('rode o trio inteiro: o 1/3 não gravou')
+  // Sem session.start: o painel volta do store no primeiro uso, e a releitura recomeça com o desenho.
+  let p = await painel($)
+  expect(linha(p, 'Explore: varrer o repo').texto, emTexto(p)).toContain('em segundo plano')
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: varrer o repo')
+  expect(linha(p, 'Explore: varrer o repo').texto).toContain('em segundo plano')
+  expect(pilula(p)).toContain('▸ 1')
+})
+
+// Regra: subagentes.sem-fim-vira-interrompido
+test('subagente em segundo plano e o processo novo, 3/3: o app reiniciado não o lista mais, e o cartão fica "interrompido", com o tempo parado e fora da pílula', async ($: any, on: any) => {
+  const { relogio } = fixar(on, { agora: AGORA + 3_600_000 })
+  armazem(on, SEM_FIM)
+  host(on, [])
+  listaDoApp(on)
+  if (!gravou(SEM_FIM)) throw new Error('rode o trio inteiro: o 1/3 não gravou')
+  await iniciarSessao($)
+  await relogio.advance(3000)
+  let p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: varrer o repo')
+  expect(linha(p, 'Explore: varrer o repo').texto).toContain('interrompido')
+  expect(linha(p, 'Explore: varrer o repo').texto).not.toContain('em segundo plano')
+  expect(linha(p, 'Explore: varrer o repo').estado).toBe('interrompida')
+  // O tempo para no último sinal dele (a chamada, 2 s depois do lançamento), não na hora do reinício.
+  expect(linha(p, 'Explore: varrer o repo').texto).toContain('0:02')
+  expect(pilula(p)).not.toContain('▸')
+  expect(linha(p, 'Investigar').estado).toBe('concluida')
+  await relogio.advance(5000)
+  p = await painel($)
+  expect(linha(p, 'Explore: varrer o repo').texto, emTexto(p)).toContain('0:02')
+})
+
+// Regra: subagentes.sem-fim-vira-interrompido, subagentes.pai-reflete-falha-ou-interrupcao, subagentes.pai-conclui-no-fim-do-turno
+test('com o turno terminado, o subagente que o app passa a listar como parado ou concluído encerra o cartão, e a tarefa de origem reflete o fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  const app = listaDoApp(on, ['s1', 's2'])
+  app.lista = [listado('s1', 'running'), listado('s2', 'running')]
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1', '2'])
+  await lancar($, { descricao: 'um', segundoPlano: true })
+  await lancar($, { descricao: 'dois', segundoPlano: true })
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: um')
+  expect(abaixo(p, 'Outra').map(l => l.titulo), emTexto(p)).toContain('Explore: dois')
+  // O fim de nenhum dos dois chega ao painel; o app passa a listá-los como parado e como concluído.
+  app.lista = [listado('s1', 'killed'), listado('s2', 'completed')]
+  await relogio.advance(3000)
+  await relogio.advance(3000)
+  p = await painel($)
+  expect(linha(p, 'Explore: um').texto, emTexto(p)).toContain('interrompido')
+  expect(linha(p, 'Explore: dois').texto).toContain('concluído')
+  expect(linha(p, 'Investigar').estado).toBe('interrompida')
+  expect(linha(p, 'Investigar').texto).toContain('interrompida')
+  expect(linha(p, 'Outra').estado).toBe('concluida')
+  expect(pilula(p)).not.toContain('▸')
+})
+
+// Regra: subagentes.vivo-de-verdade-segue-vivo
+test('o cartão vivo não é encerrado quando a lista do app falha, vem sem o estado, ou uma só releitura deu pela falta dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  const app = listaDoApp(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo' })
+  const vivo = async (caso: string) => {
+    const p = await painel($)
+    expect(linha(p, 'Explore: varrer o repo').texto, `${caso}\n${emTexto(p)}`).toContain('trabalhando')
+    expect(pilula(p), caso).toContain('▸ 1')
+  }
+  // A lista falha: nada é encerrado, por mais releituras que passem.
+  app.falha = true
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  await vivo('a lista falha')
+  // A lista não diz o estado (um app anterior): listado é vivo.
+  app.falha = false
+  app.lista = [listado('sub-1')]
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  await vivo('lista sem estado')
+  // Uma só releitura sem ele (recém-lançado, lista lida na hora errada), e ele volta a ser listado.
+  app.lista = []
+  await relogio.advance(3000)
+  await vivo('uma releitura sem ele')
+  app.lista = [listado('sub-1', 'running')]
+  await relogio.advance(3000)
+  app.lista = []
+  await relogio.advance(3000)
+  await vivo('a falta não foi seguida')
+  // Só a falta vista em duas releituras seguidas encerra.
+  await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'Explore: varrer o repo').texto, emTexto(p)).toContain('interrompido')
+})
+
+// Regra: subagentes.vivo-de-verdade-segue-vivo
+test('os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  listaDoApp(on, ['w1', 'w2', 'n1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o diff', run: 'wf_1' })
+  await lancar($, { descricao: 'ler os testes', run: 'wf_1' })
+  await lancar($, { descricao: 'achar o kit', pai: 'w1' })
+  for (let i = 0; i < 4; i++) await relogio.advance(3000)
+  // A linha do agente que lançou outro, aberta: o cartão dele, com o do que ele lançou.
+  const m = await montar($)
+  await m.recolher('Explore: ler o diff')
+  const p = await m.linhas()
+  await m.fim()
+  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
+  expect(linha(p, 'Explore: achar o kit').texto, emTexto(p)).toContain('trabalhando')
 })

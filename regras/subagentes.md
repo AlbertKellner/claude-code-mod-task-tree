@@ -215,3 +215,37 @@ No app, o cartão do subagente lançado por outro subagente segue depois que ele
 
 Origem: decisão do usuário, 2026-11-12 ("Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes"); o teste simula o lançamento a partir de outro subagente, não um subagente real lançando outro.
 Estado: checklist (subagente real lançando outro no app)
+
+### subagentes.sem-fim-vira-interrompido
+O cartão vivo de um subagente cujo fim não chegou é encerrado pela lista de agentes do app.
+
+- Dado um subagente com o cartão "trabalhando" ou "em segundo plano" cujo fim não chegou ao painel: o processo reiniciou (o app, `/model`, uma retomada) e o painel voltou do store com o cartão vivo; ou o app o parou, ou o deu por terminado, sem o fim chegar
+- Quando a releitura de 3 s (a mesma das sessões) não o acha na lista de agentes do app, ou o acha listado como terminado, em duas releituras seguidas
+- Então o cartão fica "interrompido" (listado como terminado, com o fim que a lista diz: "concluído", "falhou" ou "interrompido"), com o tempo parado no último sinal dele (a última chamada ou passo que o cartão registrou; sem nenhum, o lançamento); sai da pílula "N subagentes"; o que ele deixou aberto fica interrompido, como em qualquer fim; e, com o turno terminado, a tarefa de onde saiu reflete esse fim (✕ "interrompida", ✕ "falhou" ou ✓), se nada mais está em execução nela. Um fim que chegue depois vale sobre este
+
+Fora deste cenário: os agentes de workflow e o que eles lançam (o app não os lista: seguem como estão, à espera do critério deles); o cartão gravado por versão anterior, sem o último sinal, para no lançamento; o subagente de uma sessão filha é conferido pela filha, enquanto o processo dela roda.
+
+Origem: auditoria 2026-11-10 (subagente fica "trabalhando" ou "em segundo plano" para sempre quando o fim dele não chega); decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)", para "O cartão vivo é conferido contra a lista de agentes do app. Os agentes de workflow, que não aparecem nessa lista, usam outro critério. O órfão vira "interrompido" com o tempo parado, e a tarefa de origem pode fechar."); aplica subagentes.pai-reflete-falha-ou-interrupcao e subagentes.pai-conclui-no-fim-do-turno ao fim dado pela lista, sem mudar nenhuma delas.
+Código: hooks/sessions.ts
+Estado: coberto
+
+### subagentes.vivo-de-verdade-segue-vivo
+Um subagente que ainda roda nunca tem o cartão encerrado pela conferência.
+
+- Dado um subagente rodando, com o cartão "trabalhando" ou "em segundo plano"
+- Quando o worker de hooks volta sem reinício do app (o painel vem do store e o app segue listando o subagente como rodando, à espera ou ocioso); ou a lista do app falha, vem sem o estado, ou uma só releitura não o acha (recém-lançado, lista lida na hora errada) e a seguinte volta a achá-lo; ou ele é um agente de workflow, ou foi lançado por um, que a lista não traz
+- Então o cartão segue vivo, na pílula "N subagentes", e a tarefa de onde saiu não fecha por ele
+
+Origem: auditoria 2026-11-10, ajuste da verificação (o worker de hooks pode voltar com os subagentes ainda rodando no motor; os agentes de workflow não são listados); decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)": "O cartão vivo é conferido contra a lista de agentes do app. Os agentes de workflow, que não aparecem nessa lista, usam outro critério.").
+Código: hooks/sessions.ts
+Estado: coberto
+
+### subagentes.sem-fim-no-app
+No app, o cartão do subagente que morreu com o processo fica "interrompido"; o que segue rodando, não.
+
+- Dado uma sessão real com um subagente em segundo plano de longa duração, o cartão dele sob a tarefa de origem
+- Quando o app é fechado e reaberto (e, noutra vez, o modelo é trocado com `/model`, e o subagente é parado pelo app) com o subagente ainda rodando
+- Então, em alguns segundos, o cartão diz "interrompido", com o tempo parado, e a pílula deixa de contá-lo; um subagente que segue rodando depois de uma recarga do mod continua "em segundo plano" ou "trabalhando"
+
+Origem: decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)"); o teste simula a lista de agentes do app, não o reinício real nem o que o app lista depois dele.
+Estado: checklist (reinício real do app e /model com subagente em segundo plano)

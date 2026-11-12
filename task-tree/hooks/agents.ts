@@ -6,13 +6,13 @@
 // subagents show in its card in the session that opened it.
 
 import { update } from 'claude-code'
-import type { EngineInterface } from 'claude-code'
+import type { AgentInfo, EngineInterface } from 'claude-code'
 
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
-import { MAIN, SUB_BATCH, flat } from '../draw/layout'
+import { MAIN, SUB_BATCH, flat, interrupt, subLive } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
-import { askingAnchors, change, sendAnchor, stamp, usedAnchors } from './panel'
+import { askingAnchors, change, dropWaits, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -108,7 +108,7 @@ export async function subStep($: any, agent: string, e: any, toks: number | unde
   const due = s !== undefined && ((engine !== undefined && s.engine !== engine) || (t1 ?? 0) - (wrote.get(agent) ?? -Infinity) >= THROTTLE)
   if (changed && due) {
     wrote.set(agent, t1 ?? 0)
-    await setSub($, agent, x => ({ ...x, ...(engine !== undefined ? { engine } : {}), ...(toks !== undefined ? { toks } : {}) }))
+    await setSub($, agent, x => ({ ...x, ...(engine !== undefined ? { engine } : {}), ...(toks !== undefined ? { toks } : {}), ...(t1 !== undefined ? { seen: t1 } : {}) }))
   }
 }
 
@@ -141,7 +141,7 @@ export async function subTool($: any, agent: string, e: any) {
   // The first call, a new tool, or a second gone by: written; else only counted, written later.
   if (s.tool === tool && now - (wrote.get(agent) ?? -Infinity) < THROTTLE) return
   wrote.set(agent, now)
-  await setSub($, agent, x => ({ ...x, tool, calls: n }))
+  await setSub($, agent, x => ({ ...x, tool, calls: n, seen: now }))
 }
 
 // A subagent's turn ending is its end: done, failed, or interrupted (stopped).
@@ -156,6 +156,81 @@ export async function subEnd($: any, agent: string, e: any) {
     return { ...rest, state, end: now, ...(n !== undefined ? { calls: n } : {}) }
   })
   // One in the background ending after the turn: the task it came from may close now.
+  if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
+}
+
+// A card still alive whose subagent is gone (the person, 2026-11-12: "Sim, entra nesta rodada
+// (Recomendado)", for "O cartão vivo é conferido contra a lista de agentes do app. Os agentes de
+// workflow, que não aparecem nessa lista, usam outro critério. O órfão vira "interrompido" com o tempo
+// parado, e a tarefa de origem pode fechar."). The end of a subagent is its turn.complete, and it
+// may never come: the process restarted (the app, /model, a resume: the panel comes back from the
+// store with the card as it was), the task was stopped, or the end's own hook failed. The card then
+// said "trabalhando" or "em segundo plano" for good, its time growing, the pill counting it and the
+// task it came from never closing by itself.
+// So the cards alive are checked against the engine's list ($.agent.list), by the poll (sessions'
+// refreshChildren, every POLL): the agent not listed, the card ends "interrompido"; listed as ended,
+// with the end the list says (`completed` done, `failed` failed, `killed` interrupted). Its time
+// stops where the card last heard from it (`seen`, else its launch), what it left open is
+// interrupted as at any end, and with the turn over the task it came from reflects it (settleBySubs).
+// A card truly alive is never ended: only one whose agent was seen gone twice, SUB_CONFIRM ms apart
+// or more (one just launched and not listed yet, a list read at the wrong moment), and never when
+// the list fails, has no `status` (an earlier engine: unknown, so alive) or says anything else
+// (pending, running, waiting, idle). After a respawn of the hooks worker the subagents go on in the
+// engine, listed as running: their cards stay. A late turn.complete still writes the true end over
+// this one (subEnd). A workflow's agents are not in the list, so they are left as they are, and so
+// is what one of them launched (the list may file it under the run too).
+const ENDED: Record<string, Sub['state']> = { completed: 'done', failed: 'failed', killed: 'interrupted' }
+export const SUB_CONFIRM = 3000
+// When each card's agent was first seen gone, by this module (a reload starts over: one check more).
+const gone = new Map<string, number>()
+export async function checkSubs($: any) {
+  const { value = [] } = await $.state.get(groupsState)
+  const byAgent = new Map((value as Group[]).map(g => [g.agent, g] as const))
+  const ofRun = (g: Group | undefined, seen: string[] = []): boolean =>
+    g !== undefined && !seen.includes(g.agent) && (g.sub?.run !== undefined || ofRun(byAgent.get(g.parent ?? MAIN), [...seen, g.agent]))
+  const live = (value as Group[]).filter(g => g.agent !== MAIN && subLive(g.sub) && !ofRun(g))
+  for (const id of [...gone.keys()]) if (!live.some(g => g.agent === id)) gone.delete(id)
+  if (live.length === 0) return
+  const now = await stamp($)
+  if (now === undefined) return
+  let list: AgentInfo[]
+  try {
+    const got = await $.agent.list()
+    if (!Array.isArray(got)) return
+    list = got
+  } catch {
+    return
+  }
+  const ends = new Map<string, Sub['state']>()
+  for (const g of live) {
+    const info = list.find(a => a?.id === g.agent)
+    const state = info === undefined ? 'interrupted' : ENDED[String(info.status)]
+    if (state === undefined) {
+      gone.delete(g.agent)
+      continue
+    }
+    const since = gone.get(g.agent)
+    if (since === undefined) gone.set(g.agent, now)
+    else if (now - since >= SUB_CONFIRM) ends.set(g.agent, state)
+  }
+  if (ends.size === 0) return
+  await change($, all =>
+    all.map(g => {
+      const state = ends.get(g.agent)
+      // Its own end may have come meanwhile (subEnd): that one stays.
+      if (state === undefined || !g.sub || !subLive(g.sub)) return g
+      const end = Math.max(g.sub.at, g.sub.seen ?? g.sub.at)
+      const { tool: _, ...rest } = g.sub
+      const n = calls.get(g.agent)
+      return { ...g, sub: { ...rest, state, end, ...(n !== undefined ? { calls: n } : {}) }, tasks: g.tasks.map(interrupt(end)) }
+    }),
+  )
+  for (const id of ends.keys()) {
+    gone.delete(id)
+    wrote.delete(id)
+    calls.delete(id)
+  }
+  await dropWaits($, w => !ends.has(w.agent))
   if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
 }
 

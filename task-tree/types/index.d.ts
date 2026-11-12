@@ -57,12 +57,15 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // `whole`: only in a drawing's cut (trimToWork): every level-1 task, `tasks` being those of the work.
 // `sub`: a subagent's card (hooks/agents), from its launch: when (`at`) and how it ended (`end`, `state`),
 // its model and effort (`engine`), output rate (`toks`), the tool in use and how many calls it made, the
-// batch it was launched in (the first launch's time) and its workflow run (`run`). Absent from the
+// batch it was launched in (the first launch's time) and its workflow run (`run`). `seen`: when the card
+// last heard from it (a call, a step); where its time stops when its end never comes (hooks/agents,
+// checkSubs); absent until its first call, and from earlier versions. Absent from the
 // main group, from a subagent's group made before its launch was heard, and from earlier versions.
 export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub }
 export type Sub = {
   at: number
   end?: number
+  seen?: number
   state: 'running' | 'background' | 'done' | 'failed' | 'interrupted'
   engine?: string
   toks?: number
