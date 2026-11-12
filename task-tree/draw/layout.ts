@@ -716,7 +716,7 @@ export function openInSight(p: Panel, ids: string[], sends: { to?: string; ancho
   const seen = tasks.filter(t => ids.includes(t.id) || (t.turn !== undefined && turns.includes(t.turn)))
   if (hasOpen(seen)) return true
   const all = flat(seen).map(t => t.id)
-  if (sends.some(s => !s.taken && s.anchor !== undefined && all.includes(s.anchor))) return true
+  if (sends.some(s => !s.taken && !s.cut && s.anchor !== undefined && all.includes(s.anchor))) return true
   // A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
   const anchors = (c: Child) =>
     [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
@@ -799,8 +799,9 @@ export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'runni
 // A message task's state, as its ✉ is colored and its word on the right says: still queued for the
 // session (blue), taken up by it (green, the session may still be at work), interrupted or
 // discarded (gray).
-export type MsgState = 'queued' | 'delivered' | 'cut'
-export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida' }
+// `lost`: the session it went to was archived with it still queued (Send.lost).
+export type MsgState = 'queued' | 'delivered' | 'cut' | 'lost'
+export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida', lost: 'não entregue' }
 // A subagent's card (hooks/agents): its word of state, as a session's card says its own.
 export const SUB_WORD: Record<Sub['state'], string> = {
   running: 'trabalhando',
@@ -1302,7 +1303,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       mail
         .filter(s => hostOf(s) === t.id)
         .map(s => {
-          const state: MsgState = s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
+          const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
           return {
             key: `${scope}m:${s.to}:${s.anchor ?? ''}`,

@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host, responderDepois, responderEnvio } from './kit/ambiente'
+import { AGORA, fixar, host, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
 import { aviso, done, envio, esc, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
 import { cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
 
@@ -411,4 +411,128 @@ test('com a lista de sessões em erro, a entrega publicada pela sessão deixa a 
   // O cartão da sessão, que a lista em erro deixa abrindo, segura "Um" ◉; o painel já a concluiu.
   expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 2])
   expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+})
+
+// A linha da carta ("Para <sessão>: …") sob a tarefa.
+const cartaDe = (linhas: any[]) => linhas.find(l => l.titulo.startsWith('Para '))
+const NAO_ENTREGUE = 'mensagem não entregue'
+const contexto = async (r: Promise<any>) => JSON.stringify((await r)?.context ?? [])
+
+// Regra: envios.destino-arquivado-nao-entregue
+test('a sessão destino arquivada com a carta na fila: carta cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez e o Esc interrompe a tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
+  host(on, [x])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await relogio.advance(1000)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('na fila')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
+  x.arquivada = true
+  expect(await contexto(aviso($)), 'o aviso ao modelo').toContain(NAO_ENTREGUE)
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'interrompida')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
+  expect(cartaDe(p)?.texto, emTexto(p)).not.toMatch(/\d:\d\d/)
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+  // A tarefa segue uma tarefa comum, em andamento e na contagem.
+  esperarEstado(p, 'Um', 'andamento')
+  expect(cabecalho(p).total, emTexto(p)).toBe(2)
+  expect(await contexto(aviso($)), 'o aviso vai uma vez só').not.toContain(NAO_ENTREGUE)
+  // Sem a carta na fila, o Esc trata a tarefa como qualquer outra.
+  await esc($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  esperarCartaSob(p, 'Um', 'interrompida')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
+})
+
+// Regra: envios.destino-arquivado-nao-entregue
+test('a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul, na fila, a tarefa volta a esperar e a entrega a conclui', async ($: any, on: any) => {
+  fixar(on)
+  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
+  const h = host(on, [x])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  x.arquivada = true
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'interrompida')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+  x.arquivada = false
+  expect(await contexto(aviso($)), 'desarquivada, nada a avisar').not.toContain(NAO_ENTREGUE)
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('na fila')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
+  // Com a carta de novo na fila, a tarefa volta a esperar a sessão: no Esc fica ◷, não ✕.
+  await esc($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  esperarCartaSob(p, 'Um', 'fila')
+  h.recebeu('local_x', AGORA)
+  expect(await contexto(aviso($)), 'o aviso da entrega').toContain('recebimento confirmado')
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: envios.destino-arquivado-nao-entregue
+test('carta não entregue: o done da tarefa não avisa de fila; tomada mesmo assim, fica verde e o modelo é avisado da entrega', async ($: any, on: any) => {
+  fixar(on)
+  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
+  const h = host(on, [x])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  x.arquivada = true
+  expect(await contexto(aviso($)), 'o aviso ao modelo').toContain(NAO_ENTREGUE)
+  const r = await done($, ['1'])
+  expect(r.texto, 'o done de uma tarefa cuja carta não foi entregue').not.toContain('na fila')
+  let p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarCartaSob(p, 'Um', 'interrompida')
+  // A sessão arquivada publica que recebeu: a mensagem foi tomada, como em qualquer entrega.
+  h.recebeu('local_x', AGORA)
+  expect(await contexto(aviso($)), 'o aviso da entrega').toContain('recebimento confirmado')
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('entregue')
+  expect(cartaDe(p)?.texto, emTexto(p)).not.toContain('não entregue')
+})
+
+// Regra: envios.destino-arquivado-nao-entregue
+test('carta não entregue não segura o pedido à vista: com tudo concluído, o pedido novo fica só', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
+  host(on, [x])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'])
+  x.arquivada = true
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }])
+  const p = await painel($)
+  expect(p.some(l => ['Pedido um', 'Plano A', 'Um'].includes(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo.startsWith('Para ')), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'b1', 'pendente')
 })

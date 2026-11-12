@@ -206,12 +206,16 @@ export const UNPLANNED =
   'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.'
 
 // The sessions this one opened: one took up a queued message (`what`: each session, with the task
-// it was sent from); one ended its turn with the task it was opened on still open (`sessions`: each
-// with that task; `open`: the panel's open tasks).
+// it was sent from); one was archived with a message still queued, which is not delivered (`lost`);
+// one ended its turn with the task it was opened on still open (`sessions`: each with that task;
+// `open`: the panel's open tasks).
 export const SESSION = {
   taken: (what: string[]) =>
     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
     'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
+  lost: (what: string[]) =>
+    PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
+    'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa (mcp__task-tree__done quando concluída).',
   ended: (sessions: string[], open: string) =>
     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +

@@ -311,8 +311,8 @@ export function envelope(x: number, y: number, cls: string): string {
 }
 // A message task's ✉ by state: blue while queued, green once taken up, gray interrupted; in the
 // terminal, the same glyph in the theme's color for each.
-export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy' }
-export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive' }
+export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy', lost: 'gy' }
+export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive', lost: 'inactive' }
 
 // One icon, 14 px across, centered on (x, y).
 export function icon(tone: Tone, x: number, y: number): string {

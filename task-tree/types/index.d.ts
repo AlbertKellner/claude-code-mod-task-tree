@@ -207,7 +207,9 @@ export type Child = {
 // its task shows ✉ meanwhile, with no reminder when taken.
 // `text`: the message's start (its letter's title); `noted`: the main loop was told it was taken up
 // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean }
+// `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
+// (its letter gray, "não entregue"); undone if the session is listed again unarchived.
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

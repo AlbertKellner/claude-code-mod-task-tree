@@ -444,6 +444,26 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\"; o pedido de id reusado segue à vista, o teste deixa de abrir \"+1 pedidos anteriores\""
     },
+    "task-tree/tests/envios.test.ts::a sessão destino arquivada com a carta na fila: carta cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez e o Esc interrompe a tarefa": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "57583c91834d0c56",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
+    "task-tree/tests/envios.test.ts::a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul, na fila, a tarefa volta a esperar e a entrega a conclui": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "6a405bf5bc4817fa",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
       "regras": [
         "pedidos.replano-mantem-envio-ate-entrega"
@@ -473,6 +493,26 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::carta não entregue não segura o pedido à vista: com tudo concluído, o pedido novo fica só": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "8fb262a54a2a0966",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
+    "task-tree/tests/envios.test.ts::carta não entregue: o done da tarefa não avisa de fila; tomada mesmo assim, fica verde e o modelo é avisado da entrega": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "c9486d03627c776e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
     },
     "task-tree/tests/envios.test.ts::com a carta na fila, o Esc deixa a tarefa aguardando; a entrega a conclui": {
       "regras": [

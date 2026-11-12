@@ -166,7 +166,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     if (agent === MAIN) {
       const { value: sends = [] } = await $.state.get(sendsState)
       const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
-      for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
+      for (const s of (sends as Send[]).filter(s => !s.taken && !s.cut && closed.includes(s.anchor ?? ''))) {
         const t = main.find(t => t.id === s.anchor)
         if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
       }
