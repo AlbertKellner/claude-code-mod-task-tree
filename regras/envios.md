@@ -113,10 +113,11 @@ A carta de recebimento é a linha do pedido; as tarefas derivadas têm ícone de
 
 - Dado uma mensagem de outra sessão que abre um pedido
 - Quando o modelo planeja as tarefas dele e as trata
-- Então a linha do pedido mostra o ✉ de recebida (azul enquanto há trabalho aberto, verde concluído, cinza interrompido), e as tarefas, em qualquer nível, mostram o ícone comum; um pedido da pessoa não tem carta
+- Então a linha do pedido mostra o ✉ de recebida (azul enquanto há trabalho aberto, verde concluído, cinza interrompido), e as tarefas, em qualquer nível, mostram o ícone comum; um pedido da pessoa não tem carta; o relato de uma sessão que esta abriu, entregue com o turno em curso, não abre pedido, então não tem carta de recebida (pedidos.mensagem-no-meio-do-turno-continua-o-pedido)
 
 Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' deveria ser uma carta também"); commit 83f715d.
 Reescrito: 2026-10-30, decisão do usuário ("as cartas deveriam representar somente quando uma sessão se comunica com outra… Quando o pedido fosse recebido, ele seria representado por uma carta, e as tarefas derivadas dessa mensagem (pedido) deveriam ter os icones de tarefas, não de cartas"; "Sim, uma carta por mensagem (Recomendado)"; "Azul tratando, verde concluído, cinza interrompido (Recomendado)"); desfaz o ajuste de 2026-10-24 e volta ao pedido original do mesmo dia ("as tarefas partem como subtarefas da tarefa de recebimento").
+Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomendado)"); exceção a "uma carta por mensagem" (2026-10-30): o relato de uma sessão que esta abriu, entregue no meio do turno, continua o pedido em curso, sem linha nem ✉ de recebida. Os testes não mudam.
 Código: hooks/prompt-submit.ts, draw/layout.ts
 Estado: coberto
 

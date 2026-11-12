@@ -41,7 +41,9 @@ export const RULES = [
     'na mesma mensagem: numa mensagem seguinte (do usuário ou de outra sessão), um plan com o id de um nível 1 ' +
     'ainda aberto não o replaneja, ele fica como histórico do pedido anterior, com as tarefas abertas ' +
     'interrompidas, e a cópia nova entra toda pendente. Para seguir numa mensagem seguinte com tarefas de uma ' +
-    'anterior, use start e done nos ids delas e planeje só o que é novo, com ids novos. Um nível 1 já concluído ' +
+    'anterior, use start e done nos ids delas e planeje só o que é novo, com ids novos. Quando o lembrete de ' +
+    'uma mensagem diz que ela chegou no meio do turno e continua o pedido em curso, ela não é mensagem ' +
+    'seguinte: não há pedido novo no painel, e o replano do nível 1 em curso guarda o estado. Um nível 1 já concluído ' +
     'fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
     'replaneje o nível 1 com ids novos para o que deve ser refeito.',
   '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
@@ -101,7 +103,8 @@ const PANEL = 'Painel de tarefas (task-tree): '
 
 // Added to the prompt (prompt.submit): with the person's message, the reminder of a new request
 // and, with tasks still open, their list (`answered`: the message answers the last question); with
-// a background task's notification, a subagent's hand-back or the app's own notice, a short one.
+// a background task's notification, a subagent's hand-back or the app's own notice, a short one;
+// with a message delivered into a running turn that continues the request, the one that says so.
 export const PROMPT = {
   request:
     PANEL + 'todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
@@ -119,6 +122,17 @@ export const PROMPT = {
     PANEL + `tarefas abertas antes desta mensagem: ${list}. Feche com ` +
     'mcp__task-tree__done as que esta mensagem conclui ou substitui (por exemplo, a de perguntar ou de ' +
     'esperar a resposta) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.',
+  // A message delivered into a running turn that continues the request in progress, with no request
+  // of its own in the panel (the person, 2026-11-12: "Entra no pedido em curso (Recomendado)").
+  // `list`: the open tasks, if any; `answered`: the message answers the last question.
+  midTurn: (list: string, answered: boolean) =>
+    (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
+    PANEL + 'esta mensagem chegou no meio do turno e continua o pedido em curso; ela não abre pedido novo ' +
+    'no painel. ' + (list !== '' ? `Tarefas abertas: ${list}. ` : '') +
+    'Siga nas tarefas que já existem com mcp__task-tree__start e mcp__task-tree__done, e feche as que esta ' +
+    'mensagem conclui ou substitui. O que ela pede de novo entra no plano atual: mcp__task-tree__plan com ids ' +
+    'novos, ou de novo com o nível 1 inteiro (as tarefas que mantêm o id guardam o estado), sem request: o ' +
+    'pedido em curso mantém o título.',
   handback: PANEL + 'o subagente terminou; atualize o painel (mcp__task-tree__done no que ele concluiu).',
   background:
     PANEL + 'uma tarefa em segundo plano (um subagente, um comando) terminou; ' +

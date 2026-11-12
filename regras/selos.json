@@ -749,6 +749,26 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::a mensagem entregue no meio do turno traz o lembrete de que continua o pedido em curso, não o de pedido novo": {
+      "regras": [
+        "lembretes.mensagem-no-meio-do-turno"
+      ],
+      "hash": "acb74b8c7ba8fcc2",
+      "assercoes": 17,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
+    "task-tree/tests/lembretes.test.ts::a resposta dada pelo chat a uma pergunta, entregue no meio do turno, é dita como resposta e continua o pedido": {
+      "regras": [
+        "lembretes.mensagem-no-meio-do-turno"
+      ],
+      "hash": "5e111f36fe949261",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
         "lembretes.regras-no-prompt-de-sistema"
@@ -809,6 +829,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, a mensagem que chega com o turno de um aviso em curso ainda pede para replanejar": {
+      "regras": [
+        "lembretes.mensagem-no-meio-do-turno"
+      ],
+      "hash": "9fc078d575a94fb4",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
     "task-tree/tests/lembretes.test.ts::depois do Esc, avisos que não abrem pedido no meio não tiram o pedido de replanejar da mensagem da pessoa": {
       "regras": [
         "lembretes.replanejar-apos-esc-com-aviso-no-meio"
@@ -858,6 +888,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::mensagem entregue no meio do turno continua o pedido em curso: sem pedido novo, e o replano guarda o estado": {
+      "regras": [
+        "pedidos.mensagem-no-meio-do-turno-continua-o-pedido"
+      ],
+      "hash": "e1c74db479222f63",
+      "assercoes": 20,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
     },
     "task-tree/tests/pedidos.test.ts::no Esc, pai com filha concluída fica aguardando, nunca interrompido": {
       "regras": [

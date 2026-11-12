@@ -95,3 +95,14 @@ Os textos ao modelo dizem que o replano só guarda o estado dentro da mesma mens
 
 Origem: auditoria 2026-11-10 (os textos prometiam o estado guardado sem a condição da mensagem, contra pedidos.plano-anterior-vira-historico).
 Estado: coberto
+
+### lembretes.mensagem-no-meio-do-turno
+A mensagem entregue no meio do turno traz o lembrete de que continua o pedido em curso.
+
+- Dado um turno em curso, com tarefas abertas
+- Quando chega, com esse turno em curso, o relato de uma sessão que esta abriu ou uma mensagem que a pessoa digitou por cima do turno
+- Então o modelo recebe o lembrete de que ela continua o pedido em curso e não abre pedido novo, com a lista das abertas: seguir com start e done, fechar o que ela conclui, e pôr o que é novo no plano atual (ids novos, ou o nível 1 inteiro de novo, que guarda o estado), sem request; não recebe o lembrete de pedido novo ("a primeira chamada é plan") nem a lista para fechar antes do pedido novo; a resposta dada pelo chat a uma pergunta é dita como resposta, uma vez; as regras do prompt de sistema dizem a exceção; a mensagem de uma sessão que esta não abriu segue com o lembrete de pedido novo; depois de um Esc, a mensagem que chega com o turno de um aviso em curso ainda traz o pedido de replanejar e abre o seu pedido, uma vez (lembretes.replanejar-apos-esc-pessoa, lembretes.replanejar-apos-esc-com-aviso-no-meio)
+
+Origem: auditoria 2026-11-10 (a mensagem entregue no meio do turno mandava planejar um pedido novo); decisão do usuário, 2026-11-12 ("Entra no pedido em curso (Recomendado)"). Exceção a lembretes.estado-guardado-so-no-mesmo-pedido: a mensagem que continua o pedido em curso não é "mensagem seguinte".
+Código: hooks/tool-call.ts, hooks/panel.ts
+Estado: coberto

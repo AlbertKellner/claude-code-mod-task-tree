@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
-import { fixar } from './kit/ambiente'
-import { aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { comHistorico, emTexto, esperarEstado, esperarPalavra, linha, painel, type Linha } from './kit/leitura'
+import { AGORA, fixar, host } from './kit/ambiente'
+import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, painel, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }]
@@ -256,4 +256,62 @@ test('o pedido concluído cujo id o pedido novo reusa segue à vista enquanto ou
   expect(indice(p, 'Pedido dois'), emTexto(p)).toBeLessThan(indice(p, 'Pedido três'))
   esperarEstado(p, 'Primeira', 'concluida')
   esperarEstado(p, 'Primeira de novo', 'pendente')
+})
+
+// A mensagem entregue com o turno em curso (o `turnId` do turno que rodava): a de outra sessão e a
+// que a pessoa digita por cima do turno. K1 é uma sessão que esta abriu; MAE, uma que não.
+const K1 = 'local_11111111-1111-1111-1111-111111111111'
+const MAE = 'local_22222222-2222-2222-2222-222222222222'
+const relatoNoMeio = ($: any, de: string, texto: string) =>
+  $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">${texto}</cross-session-message>`, turnId: 't', origin: { kind: 'peer', from: de } })
+const digitadaNoMeio = ($: any, texto: string) => $.prompt.submit({ text: texto, turnId: 't', origin: { kind: 'composer' }, wait: false })
+// As linhas de pedido e as cartas do painel, pelos títulos.
+const pedidosECartas = (p: Linha[]) => p.filter(l => l.titulo.startsWith('Pedido') || l.carta !== undefined).map(l => l.titulo)
+
+// Regra: pedidos.mensagem-no-meio-do-turno-continua-o-pedido
+test('mensagem entregue no meio do turno continua o pedido em curso: sem pedido novo, e o replano guarda o estado', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [{ id: '1', short: '1', title: 'Tarefa da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  // O relato da filha chega com o turno em curso, e o modelo replaneja o nível 1 em que trabalha.
+  await relatoNoMeio($, K1, 'Relato da filha')
+  await plan($, comTres())
+  let p = await painel($)
+  expect(pedidosECartas(p), emTexto(p)).toEqual(['Pedido um'])
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(emTexto(p)).not.toContain('✕')
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  // A filha confirma a entrega por esta mensagem: ela segue publicada como recebida.
+  expect((h.proprio()?.received ?? []).map((r: any) => r.from)).toEqual([K1])
+  // A mensagem que a pessoa digita por cima do turno: o mesmo.
+  await digitadaNoMeio($, 'Pedido no meio: mais uma coisa')
+  await plan($, comTres('Plano A revisto'))
+  p = await painel($)
+  expect(pedidosECartas(p), emTexto(p)).toEqual(['Pedido um'])
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Plano A revisto', 'andamento')
+  // A mensagem de uma sessão que esta não abriu (a que a abriu, uma irmã) segue abrindo o seu pedido,
+  // com a carta, mesmo no meio do turno.
+  await relatoNoMeio($, MAE, 'Recado de outra sessão')
+  await plan($, B)
+  p = await painel($)
+  expect(pedidosECartas(p), emTexto(p)).toEqual(['Pedido um', 'Recado de outra sessão'])
+  esperarCarta(p, 'Recado de outra sessão', 'fila')
+  expect(linha(p, 'Plano B').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Recado de outra sessão').nivel)
+  esperarEstado(p, 'Um', 'andamento')
+  // Com o turno terminado, a mensagem seguinte abre o seu pedido, como antes.
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: 'c1', title: 'Cê um' }] }])
+  p = await painel($)
+  expect(pedidosECartas(p), emTexto(p)).toEqual(['Pedido um', 'Recado de outra sessão', 'Pedido dois'])
+  expect(linha(p, 'Plano C').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Pedido dois').nivel)
 })

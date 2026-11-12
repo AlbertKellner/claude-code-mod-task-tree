@@ -15,13 +15,25 @@ Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
 Estado: coberto
 
 ### pedidos.uma-mensagem-um-pedido
-Cada mensagem abre o seu pedido.
+Cada mensagem abre o seu pedido, menos a que continua o pedido em curso no meio do turno.
 
-- Dado duas mensagens da pessoa, cada uma com o seu plano
+- Dado duas mensagens da pessoa, cada uma com o seu plano, a segunda depois do fim do turno da primeira
 - Quando o painel é desenhado
-- Então cada plano fica sob o seu pedido, na ordem das mensagens
+- Então cada plano fica sob o seu pedido, na ordem das mensagens; a mensagem que continua o pedido em curso no meio do turno não abre pedido (pedidos.mensagem-no-meio-do-turno-continua-o-pedido)
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomendado)"); só para o relato de uma sessão que esta abriu e a mensagem da pessoa, entregues no meio do turno, que deixam de abrir o seu pedido. O teste não muda.
+Estado: coberto
+
+### pedidos.mensagem-no-meio-do-turno-continua-o-pedido
+A mensagem entregue no meio do turno continua o pedido em curso.
+
+- Dado um pedido em curso, com um nível 1 aberto, uma tarefa ◉ e o cartão de uma sessão filha sob ela
+- Quando chega, com o turno em curso, o relato de uma sessão que esta abriu ou uma mensagem que a pessoa digitou por cima do turno, e o modelo replaneja o nível 1 com o mesmo id
+- Então a mensagem não ganha linha de pedido nem ✉; o plano fica no pedido em curso, quem mantém o id mantém o estado (pedidos.replano-preserva-estado), nada fica ✕, nada vai a "+N pedidos anteriores" e o cartão segue sob a tarefa de origem; a mensagem de outra sessão segue publicada como recebida, e a remetente confirma a entrega por ela; a mensagem de uma sessão que esta não abriu (a que a abriu, uma irmã) segue abrindo o seu pedido, com a carta, mesmo no meio do turno (envios.pedido-recebido-mostra-carta, sessoes.um-cartao-por-mensagem); com o turno terminado, a mensagem seguinte abre o seu pedido (pedidos.uma-mensagem-um-pedido); depois de um Esc, a mensagem abre o seu pedido e pede o replano (lembretes.mensagem-no-meio-do-turno)
+
+Origem: auditoria 2026-11-10 (a mensagem entregue no meio do turno abria um pedido na hora, e o replano seguinte, no mesmo turno do modelo, caía em "pedido novo": o nível 1 em curso virava histórico, tudo voltava a ○ e o cartão ficava solto); decisão do usuário, 2026-11-12 ("Entra no pedido em curso (Recomendado)", sobre "o relato de uma filha, ou algo que você digita enquanto ela trabalha"). Desfaz, só para o meio do turno, "cada mensagem abre o seu pedido" (pedidos.uma-mensagem-um-pedido) e "uma carta por mensagem" (envios.pedido-recebido-mostra-carta).
+Código: hooks/sessions.ts, text/rules.ts
 Estado: coberto
 
 ### pedidos.aviso-do-app-nao-abre-pedido

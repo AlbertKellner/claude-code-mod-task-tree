@@ -151,7 +151,17 @@ principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: t�
 caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
 tarefas), releem a lista se está velha e
 levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensagem é a resposta") e
-`PROMPT.request`.
+`PROMPT.request`. A mensagem entregue com o turno em curso (`e.turnId` preenchido: o relato de uma
+sessão que esta abriu, `fromChildren`, ou a mensagem que a pessoa digita por cima do turno, que o app
+entrega dentro do turno) continua o pedido em curso (decisão do usuário, 2026-11-12: "Entra no
+pedido em curso (Recomendado)"): mantém a pergunta e o plano abertos, não abre turno nem zera
+`reminders`, e leva `PROMPT.midTurn` no lugar de `PROMPT.open` e `PROMPT.request`; o `plan` seguinte
+fica no último turno, e o replano com o mesmo id guarda o estado. Não vale depois de um Esc
+(`turnAborted`/`replanDue`: a mensagem abre o pedido e pede o replano) nem sem turno nenhum aberto.
+Antes ela abria um turno na hora, e o replano seguinte, no mesmo turno do modelo, deixava o nível 1 em
+curso como histórico. A mensagem de uma sessão que esta não abriu (a que a abriu, uma irmã) segue abrindo
+o turno, mesmo no meio do turno: é por ele que a sessão que mandou corta o cartão desta ("Um cartão
+por mensagem").
 
 **As sessões filhas** (`hooks/sessions.ts` + `io/host.ts`): `refreshChildren` roda no
 `session.start`, a cada `POLL` = 3 000 ms (`watchSessions`, recriado a cada chamada e prompt do loop

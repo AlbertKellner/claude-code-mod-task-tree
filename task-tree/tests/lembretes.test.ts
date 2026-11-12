@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
-import { AGORA, fixar } from './kit/ambiente'
+import { AGORA, fixar, host } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
-import { aviso, mensagemDe } from './kit/cenario'
+import { abrirSessao, aviso, mensagemDe } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -10,6 +10,15 @@ import { aviso, mensagemDe } from './kit/cenario'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const REPLANEJAR = 'replaneje o painel'
 const ABERTAS = 'deixe abertas só as que continuam'
+const NO_MEIO = 'continua o pedido em curso'
+const PEDIDO_NOVO = 'A PRIMEIRA chamada'
+// A mensagem entregue com o turno em curso (o `turnId` do turno que rodava): a que a pessoa digita
+// por cima do turno e a de outra sessão. K1 é uma sessão que esta abriu; MAE, uma que não.
+const K1 = 'local_11111111-1111-1111-1111-111111111111'
+const MAE = 'local_22222222-2222-2222-2222-222222222222'
+const digitadaNoMeio = ($: any, texto: string) => $.prompt.submit({ text: texto, turnId: 't', origin: { kind: 'composer' }, wait: false })
+const relatoNoMeio = ($: any, de: string, texto: string) =>
+  $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">${texto}</cross-session-message>`, turnId: 't', origin: { kind: 'peer', from: de } })
 
 // O contexto que o mod passa adiante ao modelo, numa linha só.
 const contexto = (r: any) => (r?.context ?? []).join(' | ')
@@ -173,4 +182,70 @@ test('a descrição do plan diz que o estado só fica no replano da mesma mensag
   await iniciarSessao($)
   expect(descricoes['plan'] ?? '').toContain('Na mesma mensagem do usuário')
   expect(descricoes['plan'] ?? '').toContain('Numa mensagem seguinte')
+})
+
+// Regra: lembretes.mensagem-no-meio-do-turno
+test('a mensagem entregue no meio do turno traz o lembrete de que continua o pedido em curso, não o de pedido novo', async ($: any, on: any) => {
+  on('prompt.compose', () => ({ sections: [] }))
+  host(on, [{ id: K1, nome: 'filha-um' }])
+  await iniciar($, on)
+  await abrirSessao($)
+  await aviso($)
+  const relato = contexto(await relatoNoMeio($, K1, 'relato'))
+  expect(relato).toContain(NO_MEIO)
+  expect(relato).toContain('Um')
+  expect(relato).toContain('Dois')
+  expect(relato).toContain('guardam o estado')
+  expect(relato).not.toContain(PEDIDO_NOVO)
+  expect(relato).not.toContain(ABERTAS)
+  expect(relato).not.toContain(REPLANEJAR)
+  const digitada = contexto(await digitadaNoMeio($, 'mais uma coisa'))
+  expect(digitada).toContain(NO_MEIO)
+  expect(digitada).not.toContain(PEDIDO_NOVO)
+  expect(digitada).not.toContain('resposta do usuário')
+  // A mensagem de uma sessão que esta não abriu segue com o lembrete de pedido novo.
+  const outra = contexto(await relatoNoMeio($, MAE, 'recado'))
+  expect(outra).toContain(PEDIDO_NOVO)
+  expect(outra).not.toContain(NO_MEIO)
+  // Com o turno terminado, a mensagem seguinte volta ao lembrete de pedido novo.
+  await fimDoTurno($)
+  const seguinte = contexto(await pedido($, 'Próximo'))
+  expect(seguinte).toContain(PEDIDO_NOVO)
+  expect(seguinte).toContain(ABERTAS)
+  expect(seguinte).not.toContain(NO_MEIO)
+  // As regras do prompt de sistema dizem a exceção.
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('no meio do turno')
+  expect(regras).toContain(NO_MEIO)
+})
+
+// Regra: lembretes.mensagem-no-meio-do-turno
+test('depois do Esc, a mensagem que chega com o turno de um aviso em curso ainda pede para replanejar', async ($: any, on: any) => {
+  await iniciar($, on)
+  await esc($)
+  await aviso($)
+  const digitada = contexto(await digitadaNoMeio($, 'Agora faça outra coisa'))
+  expect(digitada).toContain(REPLANEJAR)
+  expect(digitada).toContain('o usuário interrompeu')
+  expect(digitada).toContain(PEDIDO_NOVO)
+  expect(digitada).not.toContain(NO_MEIO)
+  // Vale uma vez: a mensagem seguinte no meio do mesmo turno já continua o pedido que a anterior abriu.
+  const outra = contexto(await digitadaNoMeio($, 'e mais isto'))
+  expect(outra).toContain(NO_MEIO)
+  expect(outra).not.toContain(REPLANEJAR)
+})
+
+// Regra: lembretes.mensagem-no-meio-do-turno
+test('a resposta dada pelo chat a uma pergunta, entregue no meio do turno, é dita como resposta e continua o pedido', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: 'User did not answer this question — they sent a message instead.' }))
+  await iniciar($, on)
+  await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] })
+  const resposta = contexto(await digitadaNoMeio($, 'prefiro a segunda'))
+  expect(resposta).toContain('Esta mensagem é a resposta do usuário à pergunta anterior')
+  expect(resposta).toContain(NO_MEIO)
+  expect(resposta).not.toContain(PEDIDO_NOVO)
+  // Uma vez só.
+  expect(contexto(await digitadaNoMeio($, 'e mais isto'))).not.toContain('resposta do usuário')
 })
