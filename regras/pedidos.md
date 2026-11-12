@@ -128,8 +128,20 @@ O pedido anterior cujo nível 1 foi reusado segue à vista enquanto um cartão c
 
 - Dado um nível 1 aberto de um pedido anterior, com uma sessão filha aberta de uma tarefa dele (ou que recebeu mensagem dela) e com tarefa própria aberta
 - Quando um pedido novo traz plan com o mesmo id
-- Então o antigo vira histórico como em pedidos.plano-anterior-vira-historico, mas o pedido anterior segue à vista, acima do novo, com o cartão e a carta sob a tarefa de origem, nunca soltos; o nível 1 novo nasce ○ sob o pedido novo. Sessão trabalhando sem tarefa própria aberta, ou só carta na fila, não segura (envios.cor-por-estado)
+- Então o antigo vira histórico como em pedidos.plano-anterior-vira-historico, mas o pedido anterior segue à vista, acima do novo, com o cartão e a carta sob a tarefa de origem, nunca soltos; o nível 1 novo nasce ○ sob o pedido novo
 
-Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1, cartão solto); aplica pedidos.resumida-mantem-anteriores-com-algo-aberto à cópia renomeada, sem mudar pedidos.plano-anterior-vira-historico nem envios.cor-por-estado.
+Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1, cartão solto); aplica pedidos.resumida-mantem-anteriores-com-algo-aberto à cópia renomeada, sem mudar pedidos.plano-anterior-vira-historico.
+Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); desfaz "sessão trabalhando sem tarefa própria aberta, ou só carta na fila, não segura": esses casos também seguram (pedidos.id-reusado-segura-pedido-com-sessao-viva). Os testes não mudam.
 Código: hooks/panel.ts, hooks/tools.ts
+Estado: coberto
+
+### pedidos.id-reusado-segura-pedido-com-sessao-viva
+O pedido anterior cujo nível 1 foi reusado segue à vista enquanto a sessão sob a cópia antiga trabalha ou a carta dela está na fila.
+
+- Dado um nível 1 aberto de um pedido anterior, com uma sessão filha trabalhando sob uma tarefa dele (mesmo sem tarefa própria aberta) ou uma carta ainda na fila saída dela
+- Quando um pedido novo traz plan com o mesmo id
+- Então o antigo vira histórico como em pedidos.plano-anterior-vira-historico, mas o pedido anterior segue à vista, acima do novo, com o cartão sob a tarefa de origem, nunca solto, e a carta sob ela (cinza "interrompida", envios.cor-por-estado); o nível 1 novo nasce ○ sob o pedido novo. A linha "+N pedidos anteriores" só leva o pedido antigo num pedido seguinte, depois que a sessão parou e a carta foi entregue, como quando o id não é reusado (pedidos.resumida-mantem-anteriores-com-algo-aberto)
+
+Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1, cartão solto); decisão do usuário, 2026-11-12 ("Sim, fica à vista (Recomendado)"). Desfaz, para o id reusado, "sessão trabalhando sem tarefa própria aberta, ou só carta na fila, não segura" (2026-11-10) e o cartão vivo solto no fim desse caso (sessoes.cartao-vivo-nunca-some segue valendo para o pedido que já saiu do trabalho).
+Código: draw/layout.ts, hooks/sessions.ts
 Estado: coberto

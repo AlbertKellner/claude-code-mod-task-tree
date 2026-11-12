@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast, hasOpen, allTasks, panelOf } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
 import { debug } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
@@ -617,26 +617,25 @@ export async function setWork($: any, ids: string[]) {
     await saveStore($, 'work', ids)
   } catch {}
 }
-export async function joinWork($: any, ids: string[], fresh: boolean, renamed: string[] = [], moved: string[] = []) {
+// A plan renames the level-1 tasks whose id it reuses without replanning them (planTool); `old` gives
+// the id of such a task's old copy. The work follows the task to that copy, as the sessions' ties and
+// the sends do (renameAnchors): the bare id now names the new task, which comes in with `ids`. So
+// the old copy is checked like any other task of the work before: a session at work under it, or a
+// letter still queued from it, holds its request in sight, the card under the task it came from and
+// not loose at the end (the person, 2026-11-12: "Sim, fica à vista (Recomendado)"); with nothing open
+// in sight, it leaves with its request.
+export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: string) => string = id => id) {
   if (ids.length === 0) return
-  const { value: cur = [] } = await $.state.get(workState)
-  if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
+  const { value = [] } = await $.state.get(workState)
+  const cur = (value as string[]).map(old)
+  if (!fresh) return setWork($, [...new Set([...cur, ...ids])])
   // New work: with anything still open in sight (a task, a ✉, a card with an open task), the work
   // before stays whole, the new request below it; with nothing open, the new request alone (openInSight).
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
-  // An id of the work that this plan renamed now names the new (open) task. Checked with it, the
-  // previous request, all closed, stayed in sight. It leaves the check: the old copy stays in sight
-  // with its request only when another task of that request still holds the view.
-  const before = (cur as string[]).filter(id => !renamed.includes(id))
-  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, before, sends as Send[], knownId()) ? before : []
-  // The old copy of a renamed level-1 task (`moved`) holds its request only through a card with an
-  // open task of its own; a session at work with no task, or a queued letter, does not (a queued
-  // letter of an abandoned plan goes to "+N pedidos anteriores", envios.cor-por-estado).
-  const cards = (children as Child[]).filter(c => hasOpen(allTasks(panelOf(c), 1)))
-  const held = moved.length > 0 && openInSight({ groups: withMain(groups as Group[]), waits: [], children: cards }, moved, [], knownId())
-  await setWork($, [...new Set([...kept, ...(held ? moved : []), ...ids])])
+  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur, sends as Send[], knownId()) ? cur : []
+  await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
 // rounds of their messages; the sends still waiting; the messages received; the subagents'

@@ -438,11 +438,11 @@
       "regras": [
         "envios.cor-por-estado"
       ],
-      "hash": "1320897d1af51c1f",
+      "hash": "629f23aee0fdf818",
       "assercoes": 2,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\"; o pedido de id reusado segue à vista, o teste deixa de abrir \"+1 pedidos anteriores\""
     },
     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
       "regras": [
@@ -798,6 +798,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/pedidos.test.ts::o pedido concluído cujo id o pedido novo reusa segue à vista enquanto outro pedido do trabalho tem algo aberto": {
+      "regras": [
+        "pedidos.resumida-mantem-anteriores-com-algo-aberto"
+      ],
+      "hash": "c071ab99d11c2128",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "auditoria 2026-11-10: o trabalho atual segue a renomeação do nível 1"
     },
     "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
       "regras": [
@@ -1182,6 +1192,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/sessoes.test.ts::depois que a sessão para e a carta é entregue, o pedido seguinte leva o pedido de id reusado para \"+N pedidos anteriores\"": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-sessao-viva"
+      ],
+      "hash": "22b57bcb94df1107",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",
@@ -1336,6 +1356,16 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 2"
     },
+    "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa sob a tarefa de origem o cartão da sessão trabalhando sem tarefa própria, com o pedido antigo à vista": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-sessao-viva"
+      ],
+      "hash": "631a84cfad55fcab",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
         "sessoes.pasta-sem-git"
@@ -1345,6 +1375,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::só a carta na fila, com a sessão parada: o id reusado num pedido novo deixa o pedido antigo à vista, com a carta sob a tarefa de origem": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-sessao-viva"
+      ],
+      "hash": "010afe3cd07614a7",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [

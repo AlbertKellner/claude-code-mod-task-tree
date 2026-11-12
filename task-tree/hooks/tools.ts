@@ -18,7 +18,6 @@ import { keepTime } from './sessions'
 import type { EngineInterface } from 'claude-code'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
-const workState = { plugin: 'task-tree', key: 'work' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 
 export const node = {
@@ -112,13 +111,10 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       // hanging from the request's level-1 task until the delivery (the panel's letters).
       const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
       await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
-      // A closed level-1 task of the current work renamed by this plan stays in it. In new work, the
-      // renamed ids leave the check of what holds the view, and their old copies (`moved`) are
-      // checked apart (joinWork).
-      const { value: cur = [] } = await $.state.get(workState)
-      const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)
-      const moved = fresh0 ? renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`) : []
-      await joinWork($, [...ids, ...kept], fresh0, renamed, moved)
+      // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
+      // task of the current work stays in it, and in new work the old copy is checked with the rest
+      // of the work before for what still holds the view.
+      await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
     }
     void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
     // What this plan sent (every level) and what is open in the caller's own group: not the

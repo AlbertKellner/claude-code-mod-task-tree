@@ -5,7 +5,7 @@ import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
 import { envio } from './kit/cenario'
-import { cabecalho, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
+import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }] }] }]
@@ -646,6 +646,77 @@ test('com carta: o id reusado num pedido novo deixa cartão e carta sob a tarefa
   const cartas = p.filter(l => l.titulo.startsWith('Para ') && l.carta !== undefined)
   expect(cartas.map(l => l.carta), emTexto(p)).toEqual(['interrompida'])
 })
+
+// Regra: pedidos.id-reusado-segura-pedido-com-sessao-viva
+test('plan que reusa o id do nível 1 num pedido novo deixa sob a tarefa de origem o cartão da sessão trabalhando sem tarefa própria, com o pedido antigo à vista', async ($: any, on: any) => {
+  await abrir($, on, {})
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }] }])
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.indexOf(linha(p, 'Pedido um')), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pedido dois')))
+  esperarEstado(p, 'Um de novo', 'pendente')
+  esperarEstado(p, 'Plano A de novo', 'pendente')
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-sessao-viva
+test('só a carta na fila, com a sessão parada: o id reusado num pedido novo deixa o pedido antigo à vista, com a carta sob a tarefa de origem', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, K1)
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }] }])
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.indexOf(linha(p, 'Pedido um')), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pedido dois')))
+  expect(cartaSob(p, 'Um'), emTexto(p)).not.toBe(undefined)
+  esperarEstado(p, 'Um de novo', 'pendente')
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-sessao-viva
+test('depois que a sessão para e a carta é entregue, o pedido seguinte leva o pedido de id reusado para "+N pedidos anteriores"', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await envio($, K1)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'Pedido um'), emTexto(p)).toBe(true)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).rodando = false
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: 'c1', title: 'Cê um' }] }])
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Pedido um' || l.titulo === 'Pedido dois' || l.sessao === true), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === '+2 pedidos anteriores'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Cê um', 'pendente')
+})
+
 // O turno 1 como a filha o publica quando o texto do start_session chega como prompt próprio
 // (os arquivos publicados reais trazem a marca).
 const abertura = (at: number) => ({ id: 1, title: 'Texto do start_session', at, own: true })
