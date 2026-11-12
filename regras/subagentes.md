@@ -193,3 +193,25 @@ Lançados juntos no app, os subagentes ficam como em série.
 
 Origem: auditoria 2026-11-10 (dados reais: 4 lançamentos em 45 ms com 4 lotes; 10 em 850 ms com 3 lotes); o teste simula a corrida com as leituras presas, não a ordem real dos hooks do app.
 Estado: checklist (subagentes reais lançados juntos no app)
+
+### subagentes.neto-segue-o-cartao-de-quem-o-lancou
+O cartão do subagente lançado por outro subagente fica no cartão de quem o lançou, também depois de terminar.
+
+- Dado um subagente à vista no painel, da raiz ou de uma sessão filha, que lança outro subagente
+- Quando o subagente lançado termina; e, depois, quando o pedido de quem o lançou sai do trabalho
+- Então o cartão dele segue dentro do cartão de quem o lançou, com a palavra de estado ("concluído"…): sob a tarefa de onde foi lançado, ou no fim do cartão quando quem o lançou não tem tarefas; e sai junto com esse cartão, sem ficar solto no fim do painel nem ir para uma tarefa da sessão que tenha o mesmo id
+
+Fora deste cenário: a tarefa de quem o lançou fechar (ou não) pelo fim dele; o subagente lançado por um agente de um cartão de grupo, que só aparece com a linha desse agente aberta; o subagente ainda rodando depois que o cartão de quem o lançou saiu do trabalho.
+
+Origem: auditoria 2026-11-10 / rodada de correções (o cartão do subagente lançado por outro subagente some quando ele termina); decisão do usuário, 2026-11-12 ("Cartão do subagente neto": "Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes"); aplica subagentes.terminado-segue-cartao, subagentes.cartao-desde-o-lancamento ("o cartão aparece embaixo dessa tarefa") e subagentes.cartao-fica-com-a-origem-fechada ("sai junto com o pedido da tarefa") ao subagente de outro subagente, sem mudar nenhuma delas.
+Estado: coberto
+
+### subagentes.neto-no-app
+No app, o cartão do subagente lançado por outro subagente segue depois que ele termina.
+
+- Dado uma sessão real em que um subagente lança outro (uma vez com tarefas no painel, outra sem)
+- Quando o subagente lançado termina e, depois, quando quem o lançou termina
+- Então o cartão dele segue dentro do cartão de quem o lançou, "concluído", sob a tarefa de onde saiu (ou no fim do cartão); com um pedido novo, os dois cartões saem juntos
+
+Origem: decisão do usuário, 2026-11-12 ("Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes"); o teste simula o lançamento a partir de outro subagente, não um subagente real lançando outro.
+Estado: checklist (subagente real lançando outro no app)

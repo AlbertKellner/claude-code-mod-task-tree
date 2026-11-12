@@ -1500,6 +1500,16 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
     },
+    "task-tree/tests/subagentes.test.ts::lançado por um subagente sem tarefas, o cartão fica no fim do cartão dele e sai com ele, sem ficar solto no fim do painel": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
+      ],
+      "hash": "c0b20540ce69bea0",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
+    },
     "task-tree/tests/subagentes.test.ts::lançado um subagente, o cartão aparece sob a tarefa em andamento, com o modelo e \"trabalhando\"": {
       "regras": [
         "subagentes.cartao-desde-o-lancamento",
@@ -1521,6 +1531,17 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou",
+        "subagentes.na-filha"
+      ],
+      "hash": "054c68659e3829c4",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
+    },
     "task-tree/tests/subagentes.test.ts::o cartão de uma filha publicado com um lote por lançamento junta os quatro lançados juntos num cartão de grupo": {
       "regras": [
         "subagentes.lancados-juntos-se-veem",
@@ -1531,6 +1552,16 @@
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
+    "task-tree/tests/subagentes.test.ts::o cartão do subagente lançado por outro não vai para uma tarefa da sessão que tem o mesmo id da tarefa de quem o lançou": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
+      ],
+      "hash": "a9abd158b2baa2e4",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
     },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
@@ -1674,6 +1705,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::terminado, o subagente lançado por outro subagente segue com o cartão \"concluído\" sob a tarefa de quem o lançou": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
+      ],
+      "hash": "50b93caa4b324c31",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
     },
     "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tarefa de onde saiu o subagente do pedido um": {
       "regras": [

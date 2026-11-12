@@ -618,3 +618,118 @@ test('o cartão de uma filha publicado com um lote por lançamento junta os quat
   expect(abaixo(p, 'Da filha').map(l => l.titulo), emTexto(p)).toContain('4 subagentes')
   expect(abaixo(p, '4 subagentes').map(l => l.titulo)).toEqual(['Explore: parte 1', 'Explore: parte 2', 'Explore: parte 3', 'Explore: parte 4'])
 })
+
+// Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou
+test('terminado, o subagente lançado por outro subagente segue com o cartão "concluído" sob a tarefa de quem o lançou', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  let p = await painel($)
+  expect(abaixo(p, 'Ler os testes').map(l => l.titulo), emTexto(p)).toContain('Explore: achar o kit')
+  expect(linha(p, 'Explore: achar o kit').texto).toContain('trabalhando')
+  await fimDoSubagente($, 'neto-1')
+  p = await painel($)
+  expect(abaixo(p, 'Ler os testes').map(l => l.titulo), emTexto(p)).toContain('Explore: achar o kit')
+  expect(linha(p, 'Explore: achar o kit').texto).toContain('concluído')
+  expect(linha(p, 'Explore: achar o kit').estado).toBe('concluida')
+  // O subagente que o lançou fecha a tarefa e termina, e o turno acaba: os dois cartões seguem.
+  await done($, ['X'], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('general-purpose: revisar testes')
+  expect(abaixo(p, 'Ler os testes').map(l => l.titulo), emTexto(p)).toContain('Explore: achar o kit')
+  expect(linha(p, 'Explore: achar o kit').texto).toContain('concluído')
+})
+
+// Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou, subagentes.na-filha
+test('numa filha, o subagente terminado que outro subagente lançou segue no cartão dele', async ($: any, on: any) => {
+  fixar(on)
+  const fim = { at: AGORA - 500, state: 'done', calls: 2, batch: AGORA - 500, engine: 'Haiku 5.5', end: AGORA - 100 }
+  host(on, [
+    {
+      id: 'local_11111111-1111-1111-1111-111111111111',
+      nome: 'filha',
+      painel: {
+        tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }],
+        agentes: [
+          {
+            agent: 'fs-1',
+            label: 'general-purpose: revisar testes',
+            parent: '',
+            anchor: '1',
+            tasks: [{ id: 'X', short: 'X', title: 'Ler os testes', status: 'done', startedAt: AGORA - 400, endedAt: AGORA - 200, children: [] }],
+            sub: { ...fim, state: 'running', end: undefined },
+          },
+          { agent: 'fs-2', label: 'Explore: achar o kit', parent: 'fs-1', anchor: 'X', tasks: [], sub: fim },
+        ],
+      },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(abaixo(p, 'Da filha').map(l => l.titulo), emTexto(p)).toContain('general-purpose: revisar testes')
+  expect(abaixo(p, 'Ler os testes').map(l => l.titulo), emTexto(p)).toContain('Explore: achar o kit')
+  expect(linha(p, 'Explore: achar o kit').texto).toContain('concluído')
+})
+
+// Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou
+test('lançado por um subagente sem tarefas, o cartão fica no fim do cartão dele e sai com ele, sem ficar solto no fim do painel', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  await fimDoSubagente($, 'neto-1')
+  await fimDoSubagente($, 'sub-1')
+  await done($, ['1', '2'], 'Feito')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(abaixo(p, 'general-purpose: revisar testes').map(l => l.titulo), emTexto(p)).toEqual(['Explore: achar o kit'])
+  expect(linha(p, 'Explore: achar o kit').texto).toContain('concluído')
+  // O pedido sai do trabalho: o cartão do subagente sai com ele, e o do que ele lançou também.
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: '1', title: 'Corrigir' }] }])
+  await start($, ['B/1'])
+  p = await painel($)
+  expect(p.map(l => l.titulo), emTexto(p)).not.toContain('general-purpose: revisar testes')
+  expect(p.map(l => l.titulo), emTexto(p)).not.toContain('Explore: achar o kit')
+})
+
+// Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou
+test('o cartão do subagente lançado por outro não vai para uma tarefa da sessão que tem o mesmo id da tarefa de quem o lançou', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'B', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['B'], 'sub-1')
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  await fimDoSubagente($, 'neto-1')
+  await done($, ['B'], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  await done($, ['1', '2'], 'Feito')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(abaixo(p, 'Ler os testes').map(l => l.titulo), emTexto(p)).toEqual(['Explore: achar o kit'])
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B' }])
+  await start($, ['B'])
+  p = await painel($)
+  expect(abaixo(p, 'Plano B').length, emTexto(p)).toBe(0)
+  expect(p.map(l => l.titulo), emTexto(p)).not.toContain('Explore: achar o kit')
+})

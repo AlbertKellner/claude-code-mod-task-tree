@@ -761,12 +761,25 @@ export function trimToWork(p: Panel, level: number): Panel {
   const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
   const ids = flat(keep).map(t => t.id)
   const under = (anchor?: string) => anchor !== undefined && ids.includes(anchor)
+  // A subagent launched by another subagent hangs from that one's card: under the task of ITS plan
+  // the launch went to, or ending its list. Its anchor names a task of that plan, not of the main
+  // loop's, so it stays while that card does and leaves with it. It was judged against the main
+  // tasks: cut as soon as it ended (its anchor not among them), left loose at the end once its
+  // launcher's request was out of the work (launched on no task), or drawn under a main task that
+  // happened to have the id (the person, 2026-11-12: "Fazer o cartão do subagente neto aparecer
+  // depois que ele termina, como acontece com os outros subagentes"). One still open or at work
+  // stays as any other; one whose launcher has no group is the main loop's (see launcher, in panel).
+  const byAgent = new Map(groups.map(g => [g.agent, g] as const))
+  const stays = (g: Group, seen: string[] = []): boolean => {
+    if (g.agent === MAIN || hasOpen(g.tasks) || subLive(g.sub)) return true
+    const from = byAgent.get(g.parent ?? MAIN)
+    // A group launched on no task has nothing to leave with: it stays (it ends the list).
+    if (from === undefined || from.agent === MAIN || seen.includes(g.agent)) return g.anchor === undefined || under(g.anchor)
+    return stays(from, [...seen, g.agent])
+  }
   return {
     ...p,
-    groups: groups
-      .map(g => (g.agent === MAIN ? { ...g, tasks: keep, whole: main.tasks } : g))
-      // A group launched on no task has nothing to leave with: it stays (it ends the list).
-      .filter(g => g.agent === MAIN || g.anchor === undefined || under(g.anchor) || hasOpen(g.tasks) || subLive(g.sub)),
+    groups: groups.map(g => (g.agent === MAIN ? { ...g, tasks: keep, whole: main.tasks } : g)).filter(g => stays(g)),
     children:
       level >= DEEP
         ? (p.children ?? [])
