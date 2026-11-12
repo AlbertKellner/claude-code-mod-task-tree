@@ -72,6 +72,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "31a66c08ed35c344",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
@@ -153,6 +163,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::sem nada aberto, um desenho acima de 600 KB perde os pedidos mais antigos até caber, sem aviso": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "fe1935331e9018ca",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.limites-de-linhas"
@@ -172,6 +192,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::um pedido só acima de 600 KB é desenhado até caber e fecha com \"+N linhas\", sem aviso": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "f69aa37cc356be0f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
     },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [

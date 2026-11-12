@@ -668,13 +668,14 @@ export const SHOWN_CARD_TURNS = 3
 
 // The most lines a drawing holds, decided on the rows before any SVG is made: past it, whole blocks
 // (a level-0 line and what hangs under it) go from the start, the oldest, and one line counts them;
-// the recent ones, where the work is, stay. The size limit above stays as the last resort. Far
-// above a real panel (a long session drew 31 lines); the open steps of a huge plan reached it.
+// the recent ones, where the work is, stay. Far above a real panel (a long session drew 31 lines);
+// the open steps of a huge plan reached it. `max` below MAX_ROWS (2 or more): the same cut, asked by
+// the drawing's size limit when these lines pass it (hooks/render.tsx).
 export const MAX_ROWS = 400
-export function limitRows(rows: Row[]): Row[] {
-  if (rows.length <= MAX_ROWS) return rows
-  const room = MAX_ROWS - 1
-  const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas' })
+export function limitRows(rows: Row[], max = MAX_ROWS): Row[] {
+  if (rows.length <= max) return rows
+  const room = max - 1
+  const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas', cut: n })
   const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i <= room)
   if (from > 0) return [before(from), ...rows.slice(from)]
   // The last block alone is past the limit: what came before it goes whole, and the block is drawn
@@ -688,7 +689,8 @@ export function limitRows(rows: Row[]): Row[] {
   }
   const head = last > 0 ? [before(last)] : []
   const kept = rows.slice(last, last + room - head.length)
-  return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${rows.length - last - kept.length} linhas`, label: 'Linhas seguintes, não desenhadas' }]
+  const after = rows.length - last - kept.length
+  return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${after} linhas`, label: 'Linhas seguintes, não desenhadas', cut: after }]
 }
 
 // A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
@@ -897,6 +899,8 @@ export type Row = {
   // A session's card: its repository (folder name) and branch, drawn right of its name with their
   // icons (the repository goes first when the line is short).
   git?: GitLabel
+  // A line that counts the lines a limit left out (limitRows): how many.
+  cut?: number
 }
 
 // With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
@@ -986,7 +990,7 @@ export type Choices = Record<string, boolean>
 
 // The panel's lines from the model and the person's choices, against `now` (the times) and for
 // `ownId` (this session's id, for the sisters' messages). Pure: it reads nothing but its arguments.
-export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
+export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined, maxRows = MAX_ROWS): Row[] {
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
   const sentFrom = model.sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
@@ -1595,5 +1599,5 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // under the task of the session's last message).
   const base = { groups: withMain(held ?? []), waits, work: work as string[] }
   const cards = sessions.flatMap(c => split(c, sessions, ownId, base.groups.find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
-  return limitRows(panel(trimToWork({ ...base, children: cards }, 0), 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined))
+  return limitRows(panel(trimToWork({ ...base, children: cards }, 0), 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined), maxRows)
 }

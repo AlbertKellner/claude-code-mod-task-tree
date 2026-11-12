@@ -238,7 +238,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
 `refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
-`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
@@ -300,7 +300,8 @@ sessões, erro da lista, envios pendentes, `folds`), monta o `Model` e chama `la
 (`draw/layout.ts`, puro): `panel()` percorre os grupos, os turnos (`turnRows`), as tarefas (`rows`),
 os cartões das sessões (`session`, cada uma dividida por mensagem em `split`) e os grupos de
 subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `limitRows` corta em
-`MAX_ROWS` = 400. Daí `Row[]`: profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
+`MAX_ROWS` = 400, ou em menos linhas quando o limite de tamanho pede (abaixo). Daí `Row[]`:
+profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
 `running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
 `fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
 cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
@@ -559,8 +560,18 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   CSS que usa (`slim`), claro e escuro.
 - **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
   (`GLYPH`), o glifo como `Button` quando a linha recolhe; os botões de visão `[≡] ▤`.
-- Um desenho acima de `DRAW_LIMIT` = 600 KB vira uma linha de aviso; um que lança exceção vira uma
-  linha de erro e publica `renderError`. `drawn` guarda tamanho, linhas e erro do último desenho.
+- Um desenho acima de `DRAW_LIMIT` = 600 KB é refeito com menos linhas até caber (decisão do usuário,
+  2026-11-12: "Cortar os mais antigos (Recomendado)"): o render lê o state uma vez e a função `paint`
+  (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
+  `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
+  último pedido sozinho, até o limite, com "+N linhas"). Cada tentativa mira 95% do limite pela média
+  de bytes por linha; depois de três, no máximo a metade das linhas, até 2. O mapa `fitted` (por
+  superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
+  seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
+  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com
+  o botão que fecha o que a pessoa abriu) fica como último recurso, para um desenho de duas linhas que
+  ainda passe do limite. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
+  `drawn` guarda tamanho, linhas e erro do último desenho.
 - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
   último desenho registrou em `actions` (`act`).
 
@@ -1572,3 +1583,7 @@ desenho aprovado não mudar. Os relógios seguem no seu tique.
 a 600 KB nas seções de histórico ficam como eram. Um desenho de 1,3 MB já não foi mostrado pelo app.
 
 O limite de 20 MB travou o painel: a tela ficou congelada no último desenho aceito (o aviso de 948 KB) enquanto o tamanho publicado mudava (950 a 953 KB), o que indica que o app não aplica um desenho de ~950 KB. `DRAW_LIMIT` voltou a 600 KB, e o aviso pequeno chega ao app com o botão "Voltar à visualização anterior". Palavras do usuário: "eu quero ver as tarefas em andamento, e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens em andamento".
+
+## Corte por tamanho no lugar do aviso (2026-11-12)
+
+Com até 400 linhas o desenho de uma sessão longa passava de 600 KB (cerca de 950 KB no app) sem a pessoa abrir nada: o painel virava o aviso, e o botão "Voltar à visualização anterior" não tinha o que fechar. Decisão do usuário: "Cortar os mais antigos (Recomendado)". Acima de 600 KB o desenho é refeito com menos linhas, os blocos mais antigos fora e contados em "+N linhas anteriores", como no corte das 400 linhas; o aviso fica só como último recurso. Os três limites, em ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas) → `DRAW_LIMIT` (600 KB, com menos linhas até caber). O texto do aviso nas seções de histórico acima fica como era.

@@ -71,7 +71,7 @@ O aviso de painel grande tem um botão que volta à visualização anterior.
 
 Origem: decisão do usuário, 2026-11-04 ("coloque um botão para voltar a visualização anterior").
 Código: hooks/render.tsx
-Estado: checklist (o harness limita cada valor do state a 4 MB, e o aviso só aparece acima de 20 MB)
+Estado: checklist (com o corte por tamanho, de 2026-11-12, o aviso é só o último recurso: abrir "+N pedidos anteriores" não leva mais a ele, e nem o harness nem uma sessão comum chegam lá)
 
 ### cabecalho.limites-de-linhas
 Os pedidos fora do trabalho viram "+N pedidos anteriores".
@@ -97,15 +97,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Estado: coberto
 
 ### cabecalho.limite-de-linhas-do-desenho
-O desenho tem no máximo 400 linhas; o que passa vira uma linha de contagem.
+O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de contagem.
 
-- Dado um painel com mais de 400 linhas
+- Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB, com ou sem algo aberto pela pessoa
 - Quando é desenhado
-- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas
+- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB
 
 Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendado)"); acima de 600 KB o desenho perde os blocos mais antigos até caber, sem aviso; desfaz o aviso como saída do desenho grande (2026-11-04), que fica só como último recurso.
+Código: hooks/render.tsx
 Estado: coberto
 
 ### cabecalho.titulo-e-a-ultima-iniciada

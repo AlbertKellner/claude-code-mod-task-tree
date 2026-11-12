@@ -7,7 +7,7 @@ import { atom, read, update } from 'claude-code'
 import type { Send } from '../types'
 import { lineWidth, overlays } from '../draw/geometry'
 import type { Placed } from '../draw/geometry'
-import { MAIN, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
 import { debug } from '../io/log'
@@ -30,6 +30,12 @@ async function closeOpened($: any) {
     return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])) }
   })
 }
+
+// The line limit the last drawing fitted in when its lines passed the size limit (see render), by
+// surface and width, with the lines the panel had then: the pane is drawn again every second while a
+// task runs, and each of those drawings would be made two or more times to reach the same limit.
+// Taken only while it still fits and the panel has the same lines; a reload starts over.
+const fitted = new Map<string, { lines: number; max: number }>()
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -194,7 +200,6 @@ import type { EngineInterface } from 'claude-code'
 export async function render($: EngineInterface, e: any, next: any) {
  try {
   drawn.error = undefined
-  const made = await (async () => {
   const ui = $.ui.resolve(e) as any
   const { Box, Text } = ui
   // After a restart without session.start, the groups and the work come from the store
@@ -248,8 +253,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
   const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
-  const lines = layout(model, chosen, now, knownId())
+  // One drawing of what was read above, in at most `maxRows` lines: nothing below reads the state or
+  // waits, so the size limit can ask for it again with fewer lines. `all`: the lines it stands for,
+  // the ones a limit left out too.
+  let all = 0
+  const paint = (maxRows: number) => {
+  const lines = layout(model, chosen, now, knownId(), maxRows)
   drawn.rows = lines.length
+  all = lines.reduce((a, r) => a + (r.cut ?? 0), lines.length)
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
   // is in progress, waiting, interrupted and the sessions at work.
@@ -337,10 +348,36 @@ export async function render($: EngineInterface, e: any, next: any) {
           </Text>,
         ]
   return drawTerminal($, ui, lines, header, errorLine)
-  })()
+  }
   // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
-  // long session's history, 1.3 MB): an emergency drawing says so in one line instead.
-  drawn.size = JSON.stringify(made ?? null).length
+  // long session's history, 1.3 MB). A drawing past it is made again with fewer lines, the oldest
+  // blocks out first and counted in "+N linhas anteriores", as the 400-line cut does (limitRows),
+  // until it fits (the person, 2026-11-12: "Cortar os mais antigos (Recomendado)"): 400 lines of a
+  // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.
+  // Each try aims a little under the limit by the bytes a line took; after three, at half the lines
+  // at most, so it ends. The emergency drawing below is the last resort (two lines still too big).
+  const sized = (maxRows: number) => {
+    const made = paint(maxRows)
+    drawn.size = JSON.stringify(made ?? null).length
+    return made
+  }
+  const pane = `${e.surface}:${(e.props as any)?.bodyColumns}`
+  const kept = fitted.get(pane)
+  let max = kept?.max ?? MAX_ROWS
+  let made = sized(max)
+  // The limit kept no longer serves (the panel has other lines, or these no longer fit): from the
+  // whole drawing again.
+  if (kept && (drawn.size > DRAW_LIMIT || all !== kept.lines)) {
+    fitted.delete(pane)
+    max = MAX_ROWS
+    made = sized(max)
+  }
+  for (let i = 0; drawn.size > DRAW_LIMIT && max > 2; i++) {
+    const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
+    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? byBytes : Math.min(byBytes, drawn.rows >> 1)))
+    made = sized(max)
+  }
+  if (max < MAX_ROWS && drawn.size <= DRAW_LIMIT) fitted.set(pane, { lines: all, max })
   if (drawn.size > DRAW_LIMIT) {
     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
     const { Box, Button, Text } = $.ui.resolve(e) as any
