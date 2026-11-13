@@ -2297,11 +2297,11 @@
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
       ],
-      "hash": "40b93e00964328ec",
+      "hash": "c33542b5b3f74b24",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::no app, o ícone da linha que recolhe e o anel do cartão são botões com chave": {
       "regras": [
@@ -2317,11 +2317,11 @@
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
       ],
-      "hash": "3fb182566531ae22",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "hash": "0b3b1ecfe221ecbc",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::o título de uma linha sem contagem vai até o tempo; a com contagem corta antes da barra": {
       "regras": [
@@ -2358,20 +2358,20 @@
       "motivo": "kit: lancar, chamadaDoSubagente, fimDoSubagenteCom (card de subagente)"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "98d5f4b7355ba132",
+      "hash": "a95f980682cc34cd",
       "tipo": "decisao",
       "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "motivo": "sai svgs(): nenhum teste lê mais a lista de Svg (migração para o nativo, 2026-11-13)"
     }
   },
   "golden": {
     "envios": {
-      "hash": "d62853f8aa549b3d",
+      "hash": "6028f2702e574b29",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "filha": {
-      "hash": "c07147240ba9d634",
+      "hash": "9fb66abcd92860e4",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
@@ -2381,7 +2381,7 @@
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "subagente": {
-      "hash": "4f25223082177bc4",
+      "hash": "e8f863a86ab372ad",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     }

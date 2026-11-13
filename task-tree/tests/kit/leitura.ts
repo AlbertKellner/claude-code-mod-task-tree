@@ -77,15 +77,9 @@ export async function montar($: any, opcoes: { colunas?: number } = {}) {
 }
 
 // Cada Svg do desenho do app desktop, como o golden o guarda: o texto normalizado (fins de linha LF,
-// números com no máximo 2 casas), o alt e a altura. Monta o desktop uma vez (sem aquecer as animações).
+// números com no máximo 2 casas), o alt e a altura (d.svgs, de noApp).
 export type DesenhoSvg = { alt: string; height?: number; width?: number | string; isInteractive?: boolean; source: string }
 const normalizar = (s: string) => s.replace(/\r\n/g, '\n').replace(/-?\d+\.\d{3,}/g, n => String(Math.round(Number(n) * 100) / 100))
-export async function svgs($: any, opcoes: { colunas?: number } = {}): Promise<DesenhoSvg[]> {
-  const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PROPS(opcoes.colunas ?? 60), requestId: 'task-tree' })
-  const raiz: any = await ui.drawn()
-  await ui.unmount()
-  return svgsDe(raiz)
-}
 function svgsDe(raiz: any): DesenhoSvg[] {
   const out: DesenhoSvg[] = []
   const andar = (el: any) => {

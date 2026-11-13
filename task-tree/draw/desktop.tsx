@@ -90,16 +90,19 @@ function guidesOf(ui: any, lead: string) {
 // name, its state word, the repository and branch; at the right end the output rate, the model and
 // effort (with "ultracode"), and the context ring, the Button that opens the session. What does not
 // fit goes first the repository, then the model with ultracode, then the rate (the person's order);
-// counted in characters against the card's columns, erring to leave one out a little early; the
-// branch and then the name are cut by the app.
+// counted in characters against the card's columns, a caption's character as 0.8 of a column (the
+// caption size is smaller than the body's: counted whole, the repository and the model went at 60
+// columns with room left for them); the branch and then the name are cut by the app.
+const CAPTION = 0.8
+const cap = (s: string) => len(s) * CAPTION
 function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: number) {
   const { Box, Text, Svg, Button } = ui
   const ringed = r.ring !== undefined
-  const engLen = r.engine || r.ultracode ? (r.engine ? len(r.engine) + 1 : 0) + (r.ultracode ? len(ULTRA) + 1 : 0) : 0
-  const rateLen = r.rate ? len(rateText(r.rate.toks)) + 1 : 0
+  const engLen = r.engine || r.ultracode ? (r.engine ? cap(r.engine) + 1 : 0) + (r.ultracode ? cap(ULTRA) + 1 : 0) : 0
+  const rateLen = r.rate ? cap(rateText(r.rate.toks)) + 1 : 0
   // The guides, the bust's cell, the paddings, the name and its ⋯, the word, the ring's cell.
-  const room = cols - len(lead) - 3 - 2 - len(r.title) - (folded(r) ? 2 : 0) - (r.meta ? len(r.meta) + 1 : 0) - (ringed ? 4 : 0)
-  const need = (repo: boolean, eng: boolean, rate: boolean) => (r.git ? len(gitText(r.git, repo)) + 1 : 0) + (eng ? engLen : 0) + (rate ? rateLen : 0)
+  const room = cols - len(lead) - 3 - 2 - len(r.title) - (folded(r) ? 2 : 0) - (r.meta ? cap(r.meta) + 1 : 0) - (ringed ? 4 : 0)
+  const need = (repo: boolean, eng: boolean, rate: boolean) => (r.git ? cap(gitText(r.git, repo)) + 1 : 0) + (eng ? engLen : 0) + (rate ? rateLen : 0)
   let repo = r.git !== undefined
   let eng = engLen > 0
   let rate = r.rate !== undefined

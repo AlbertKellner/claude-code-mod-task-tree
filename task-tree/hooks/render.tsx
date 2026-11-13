@@ -5,12 +5,11 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Send } from '../types'
-import { lineWidth, overlays } from '../draw/geometry'
-import type { Placed } from '../draw/geometry'
-import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { lineWidth } from '../draw/geometry'
+import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
-import { desktopRow, leadOf } from '../draw/desktop'
+import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
+import { desktopTree } from '../draw/desktop'
 import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
@@ -79,70 +78,30 @@ const gitState = { plugin: 'task-tree', key: 'git' } as const
 // with an empty label lies over it.
 const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
 
-// Desktop: the header's Svg (its tooltip layer, the view toggle), then one Svg per line and, over it,
-// the Boxes `overlays` places (the geometry module's one rule: anchored by the nearest edge, none
-// crossing another): the Button that folds the line over its icon (on a session's card, the ⑂ left of
-// its name), the Button that opens the session over its context ring (the person's words: "quando
-// clicar nele, abra a sessao que ele representa"; the app shows it in this window's main pane,
-// open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
-// name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
-// the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, cols: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
-  const { Box, Svg, Button } = ui
-  const lanes = guides(lines)
-  const hides = labelCols(lines)
-  const cards = frames(lines)
-  // The presses of the native lines (../draw/desktop takes no `$`): the same keys and actions as the
-  // Buttons laid over the Svgs below.
+// Desktop: the header's Svg, then the lines and the cards in the app's own elements (../draw/desktop:
+// Box, Text, Button, with an Svg only for the icons and the ring). No `$` goes down there: the presses
+// are made here, with the same keys as before: the Button over a line's progress icon (on a session's
+// card, its bust) folds it, the one over a session's context ring opens it (the person's words:
+// "quando clicar nele, abra a sessao que ele representa"; the app shows it in this window's main
+// pane, open_session_in, focus, and says in a toast what it refuses).
+function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
+  const { Box, Svg } = ui
   const acts: Acts = {
     fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
     open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
   }
-  // Etapa 1: a line outside every card is drawn native; a card's lines keep their Svg (only those
-  // are built).
-  const native = (i: number) => cards[i]!.cards.length === 0
-  const sources = lines.map((r, i) => (native(i) ? '' : rowSvg(r, lanes[i]!, cards[i]!, W, hides[i])))
-  const over = (r: Row, p: Placed) =>
-    p.kind === 'icon' ? (
-      <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
-        <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, pressOf($, r))} />
-      </Box>
-    ) : (
-      <Box position="absolute" top={0} bottom={0} right={p.right} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
-        <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
-      </Box>
-    )
-  // Each Svg sits in a Box in a column, as its parent's is: the Svg takes the slot's width (100%), and
-  // only a column's stretch draws the image that wide; in a row, or centered, it keeps the 300 px an
-  // SVG image has with no width of its own (the person's words: "está cortando o panel").
-  const drawing = (
+  // The header's Svg sits in a Box in a column: the Svg takes the slot's width (100%) only from a
+  // column's stretch; in a row it keeps the 300 px an SVG image has with no width of its own (the
+  // person's words: "está cortando o panel").
+  return (
     <Box flexDirection="column">
       {chrome.errorLine}
       <Box key="head" position="relative" flexDirection="column">
         <Svg source={top.source} alt={alt} height={top.height} />
       </Box>
-      {lines.map((r, i) => native(i) ? desktopRow(ui, r, i, leadOf(r, lanes[i]!, hides[i]), acts, cols) : (
-        <Box key={`r${i}`} flexDirection="column">
-          {(source => {
-            const H = rowHeight(r, cards[i])
-            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring) }, Math.max(0, cards[i]!.cards.length - 1))
-            const one = (kind: Placed['kind']) => {
-              const p = placed.find(x => x.kind === kind)
-              return p ? over(r, p) : null
-            }
-            return (
-              <Box position="relative" flexDirection="column">
-                <Svg source={source} alt={rowAlt(r)} height={H} />
-                {one('icon')}
-                {one('ring')}
-              </Box>
-            )
-          })(sources[i]!)}
-        </Box>
-      ))}
+      {desktopTree(ui, lines, acts, cols)}
     </Box>
   )
-  return drawing
 }
 
 // Terminal: the same lines as text, the guides in box-drawing characters, color only on the icon
@@ -348,7 +307,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
-    return drawDesktop($, ui, lines, W, cols, top, alt, { errorLine })
+    return drawDesktop($, ui, lines, cols, top, alt, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on

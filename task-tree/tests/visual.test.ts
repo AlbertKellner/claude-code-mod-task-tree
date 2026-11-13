@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { estadoGeral, montarNoApp, noApp, pedacosDepois, svgs } from './kit/leitura'
+import { estadoGeral, montarNoApp, noApp, pedacosDepois } from './kit/leitura'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -46,14 +46,8 @@ test('a faixa do cabeçalho: interrompido depois do Esc, e sessão ativa com só
   expect(await faixa($)).not.toBe('em andamento')
 })
 
-// O título de uma linha do app desktop: o texto inteiro, que o CSS corta com "…" na largura real.
+// O título de uma linha do app desktop: o texto inteiro, que o app corta com "…" na largura real.
 const LONGO = 'Um título bem comprido que não cabe inteiro na linha do painel de tarefas, de jeito nenhum'
-const desenhado = (fonte: string) => /<foreignObject [^>]*><div [^>]*>([^<]*)<\/div>/.exec(fonte)?.[1] ?? ''
-// O que o título deixa à direita, na largura real: calc(100% - N px), menos onde ele começa.
-const aDireita = (fonte: string) => {
-  const m = /<foreignObject x="([\d.]+)"[^>]*calc\(100% - ([\d.]+)px\)/.exec(fonte)
-  return Number(m?.[2]) - Number(m?.[1])
-}
 
 // Regra: visual.titulo-sem-contagem-vai-ate-o-tempo
 test('o título de uma linha sem contagem vai até o tempo; a com contagem corta antes da barra', async ($: any, on: any) => {
@@ -108,14 +102,15 @@ test('no cartão da filha, o título da folha passa da coluna da contagem e cort
   await start($, ['1'])
   await abrirSessao($)
   await aviso($)
-  const folha = (await svgs($)).find(s => !s.isInteractive && desenhado(s.source).startsWith('Um título'))!.source
-  // Onde o título termina, na largura do harness (432 px): o que ele deixa à direita, descontado.
-  const fim = 432 - aDireita(folha)
-  const tempo = Number(/<text [^>]*x="([\d.]+)"[^>]*tabular-nums">0:00</.exec(folha)?.[1])
-  // A coluna da contagem termina 12 px antes de TIME_W (≈ 46 px) à esquerda do fim do tempo.
-  expect(fim).toBeGreaterThan(tempo - 46)
-  // E o título cortado não entra no tempo ("0:00" ≈ 24 px).
-  expect(fim).toBeLessThan(tempo - 24)
+  const d = await noApp($)
+  const folha = d.linhas.find(l => l.pedacos.some(p => p.tipo === 'texto' && p.texto === LONGO))
+  expect(folha, d.textos.join('\n')).toBeDefined()
+  // Depois do título só vem o tempo: nenhuma coluna de contagem entre os dois; o app corta o título
+  // junto do tempo (onde o corte cai é do app).
+  const depois = pedacosDepois(folha!, LONGO).filter(p => p.tipo === 'texto')
+  expect(depois.length, folha!.texto).toBe(1)
+  expect(depois[0]?.texto ?? '', folha!.texto).toMatch(/^\d+:\d\d/)
+  expect(depois.some(p => /^\d+\/\d+$/.test(p.texto)), folha!.texto).toBe(false)
 })
 
 // Regra: visual.titulo-sem-contagem-vai-ate-o-tempo
@@ -128,13 +123,12 @@ test('a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de co
   await start($, ['1'])
   await abrirSessao($)
   await aviso($)
-  const respostas = (await svgs($)).filter(s => !s.isInteractive && desenhado(s.source).startsWith('Folha cortava'))
-  expect(respostas.length).toBe(1)
-  for (const r of respostas) {
-    // O corte é o da borda: o recorte só desconta o que fica à direita da borda (≤ 12 px), não a folga de 10 px.
-    const recorte = aDireita(r.source)
-    expect(recorte).toBeLessThanOrEqual(12)
-  }
+  const d = await noApp($)
+  const respostas = d.linhas.filter(l => l.pedacos.some(p => p.tipo === 'texto' && p.texto.startsWith('Folha cortava')))
+  expect(respostas.length, d.textos.join('\n')).toBe(1)
+  // Sem tempo, nada vem depois do título (nem tempo, nem contagem, nem Svg): o app o corta na borda
+  // do cartão.
+  expect(pedacosDepois(respostas[0]!, /^Folha cortava/), respostas[0]!.texto).toEqual([])
 })
 
 // Regra: visual.botoes-por-chave
