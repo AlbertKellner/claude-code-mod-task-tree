@@ -54,7 +54,7 @@ const PILL: Partial<Record<Tone, string>> = {
 
 // Narrower than 600 px before (W = 7.2 px a column): no rate and no ultracode, the % smaller.
 const NARROW = 84
-// The FOLDER_MAX of ./svg (160 px) in columns: a folder's path is cut by the app past it.
+// The most columns a folder's path takes (160 px in the old drawing): the app cuts it past them.
 const FOLDER_COLS = 22
 
 // Room, in columns, the numbers block leaves the left column (the % large, "d de n", the clock and
@@ -63,7 +63,7 @@ const blockCols = (narrow: boolean, ultra: boolean) => (narrow ? 11 : 18) + (ult
 const edge = 6
 
 // The repository and branch under the title (the person: "coloque essas infos também no topo do
-// painel"); short of room, the branch alone, then nothing (as gitSvg/gitW chose in px).
+// painel"); short of room, the branch alone, then nothing.
 function gitLine(git: GitLabel, room: number): string {
   const whole = gitTerm(git)
   const len = git.folder ? 2 + Math.min(FOLDER_COLS, Array.from(git.repo).length) : Array.from(whole).length

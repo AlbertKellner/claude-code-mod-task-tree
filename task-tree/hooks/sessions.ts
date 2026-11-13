@@ -310,9 +310,9 @@ export async function tick($: any) {
   ticker?.cancel()
   ticker = undefined
 }
-// The running times are redrawn every second (the app makes the Svgs again when it likes, so a clock
-// counting inside the Svg went back to its first second at each of those: the drawing has to carry the
-// time itself).
+// The running times are redrawn every second (the drawing carries the time itself: a clock counting
+// inside an image, as the lines once were, went back to its first second each time the app made the
+// image again).
 // Every drawing asks for the clock: the check and the start must not be split by an await, or drawings
 // at the same time each start one, and only the last is kept to cancel (the others redrew the pane
 // every second for good, in bursts that replaced the Buttons under the pointer: clicks were lost).

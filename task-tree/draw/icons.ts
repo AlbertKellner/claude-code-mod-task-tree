@@ -5,7 +5,7 @@
 // 16 × 16 px with the icon centered on (8, 8), no text, no font, no <title>. Each source is built once
 // per key and kept in a Map of the module: a drawing has a handful of them, drawn every second.
 // The colors stay in the light and dark classes of ./svg (prefers-color-scheme): an image does not
-// see the app's theme variables. `slim(x, '')`: no cursor rule, there is no text in these.
+// see the app's theme variables.
 
 import { contextRing, envelope, icon, MSG_CLASS, sessionIcon, slim, STYLE } from './svg'
 import type { MsgState, SessionState, Tone } from './layout'
@@ -31,16 +31,16 @@ const kept = <K>(build: (k: K) => string) => {
 }
 
 // The progress icon of a line (progress(r) in ./svg): ○ ◉ ✓ ✕ ◷ ▸ ↩ and the bust of 'running'.
-export const stateIcon: (tone: Tone) => string = kept((tone: Tone) => slim(open + icon(tone, C, C) + '</svg>', ''))
+export const stateIcon: (tone: Tone) => string = kept((tone: Tone) => slim(open + icon(tone, C, C) + '</svg>'))
 // A message task's ✉, in the color of where the message is (MSG_CLASS).
-export const msgIcon: (state: MsgState) => string = kept((state: MsgState) => slim(open + envelope(C, C, MSG_CLASS[state]) + '</svg>', ''))
+export const msgIcon: (state: MsgState) => string = kept((state: MsgState) => slim(open + envelope(C, C, MSG_CLASS[state]) + '</svg>'))
 // A session's bust in its state's color ('arquivada' faded, sessionIcon's own opacity).
-export const bustIcon: (state: SessionState) => string = kept((state: SessionState) => slim(open + sessionIcon('filha', state, C, C) + '</svg>', ''))
-// The context ring, faded on an archived session's card, as today (labelSvg).
+export const bustIcon: (state: SessionState) => string = kept((state: SessionState) => slim(open + sessionIcon('filha', state, C, C) + '</svg>'))
+// The context ring, faded on an archived session's card.
 const ring = kept((k: string) => {
   const [p, f] = k.split(':')
   const body = contextRing(Number(p), C, C)
-  return slim(open + (f === '1' ? `<g opacity=".45">${body}</g>` : body) + '</svg>', '')
+  return slim(open + (f === '1' ? `<g opacity=".45">${body}</g>` : body) + '</svg>')
 })
 export const ringIcon = (percent: number, faded: boolean) => ring(`${percent}:${faded ? 1 : 0}`)
 // The header's progress bar: the gray track and the green share, 4 px high, as wide as its slot
@@ -53,7 +53,6 @@ const bar = kept((k: string) => {
     `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="4">${STYLE}<rect class="tr" width="100%" height="4" rx="2"/>` +
       (share > 0 ? `<rect class="grf bar" width="${share}%" height="4" rx="2"/>` : '') +
       '</svg>',
-    '',
   )
 })
 export const headBar = (d: number, n: number) => bar(`${d}/${n}`)

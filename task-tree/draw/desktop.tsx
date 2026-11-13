@@ -296,8 +296,8 @@ export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts,
   )
 }
 
-// A card: a session's or subagent's header and every line after it deeper than it (frames in
-// ./layout). Its border and fill are the app's (borderStyle round, the first surface).
+// A card: a session's or subagent's header and every line after it deeper than it. Its border and
+// fill are the app's (borderStyle round, the first surface).
 const CARD = { borderStyle: 'round', paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: 'userMessageBackground' }
 // What a card takes of its container's columns besides its strip: the two sides of its border and
 // padding (2 ch of padding and 2 px of border, counted 3).

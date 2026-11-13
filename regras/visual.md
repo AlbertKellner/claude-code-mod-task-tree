@@ -2,7 +2,7 @@
 
 O que só o app mostra.
 
-Código da área: draw/svg.ts, draw/geometry.ts, draw/icons.ts, draw/desktop.tsx, draw/head.tsx
+Código da área: draw/svg.ts, draw/icons.ts, draw/desktop.tsx, draw/head.tsx
 
 ### visual.largura-real
 O desenho termina na borda real.

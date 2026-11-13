@@ -1,6 +1,7 @@
-// ui.render: the pane, drawn from the state through layout() (../draw/layout, pure) and the SVG
-// builders (../draw/svg), with the Buttons laid over the lines where ../draw/geometry says; a drawing
-// that throws shows the error in one line. ui.press: the pane's presses, answered by key.
+// ui.render: the pane, drawn from the state through layout() (../draw/layout, pure): on the desktop
+// in the app's own elements (../draw/desktop for the lines, ../draw/head for the header, a few Svgs
+// from ../draw/icons), on the terminal in Texts with the glyphs of ../draw/svg; a drawing that throws
+// shows the error in one line. ui.press: the pane's presses, answered by key.
 
 import { atom, read, update } from 'claude-code'
 
@@ -70,7 +71,7 @@ const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
-// built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
+// built): the desktop's Boxes and Texts, the terminal's text. `$` is for the presses.
 // No ▾/▸ (the person's words: "quero que o botao de colapse nao apareca, e que a funcao de colapsar
 // e expandir esteja no icone de progresso da tarefa"): a line with something below it folds and
 // opens by its progress icon, a plain Button (the pointer inverts it); a line with nothing below has
