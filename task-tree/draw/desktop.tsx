@@ -9,6 +9,8 @@
 // `Box key="r<i>"`, at any depth (inside the `Box key="c<i>"` of a card); its title is a Text whose one
 // child is the Row's title, cut by the app (wrap truncate-end); its time and its count are Texts of
 // their own, after it; the icon's alt is rowAlt(r) whole; the ring's, "contexto da sessão <nome>: <N>%".
+// A card is the Box with a borderStyle that is the direct child of a `Box key="c<i>"`; its fill and
+// border (backgroundColor, borderColor) are read by the kit, as are the header's (`Box key="head"`).
 // No element has a hover or display none, no Svg is interactive.
 
 import { guides, labelCols } from './layout'
@@ -296,9 +298,16 @@ export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts,
   )
 }
 
-// A card: a session's or subagent's header and every line after it deeper than it. Its border and
-// fill are the app's (borderStyle round, the first surface).
-const CARD = { borderStyle: 'round', paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: 'userMessageBackground' }
+// A card: a session's or subagent's header and every line after it deeper than it. Its fill and
+// border are raw translucent grays (the neutral of the Svgs, #888780): the theme key the terminal
+// uses for it (userMessageBackground) has no counterpart in the desktop, which drew the card with the
+// pane's own fill and its default border (#222222 on #191919). The person, 2026-11-13: "nao aparece
+// nenhum card". Translucent, the same values lighten the dark pane and darken the light one without
+// the mod knowing the theme (dark: fill #20201f, border #373634; light: #f8f8f7, #dfdfdd). The header
+// (./head) takes the same two. A card inside a card adds its tone to the outer one's.
+export const CARD_FILL = 'rgba(136,135,128,0.06)'
+export const CARD_BORDER = 'rgba(136,135,128,0.22)'
+const CARD = { borderStyle: 'round', borderColor: CARD_BORDER, paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: CARD_FILL }
 // What a card takes of its container's columns besides its strip: the two sides of its border and
 // padding (2 ch of padding and 2 px of border, counted 3).
 const CARD_COLS = 3

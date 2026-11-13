@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { estadoGeral, montarNoApp, noApp, pedacosDepois } from './kit/leitura'
+import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
+import { abrirSessao, aviso, done, esc, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { alfa, cabecalhoDoApp, cartoesDoApp, estadoGeral, montarNoApp, noApp, pedacosDepois, type CaixaDoApp } from './kit/leitura'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -157,4 +157,53 @@ test('no app, o ícone da linha que recolhe e o anel do cartão são botões com
   d = await m.desenho()
   expect(d.linhas.some(l => l.texto.includes('Tarefa única')), d.textos.join('\n')).toBe(false)
   await m.fim()
+})
+
+// O roteiro dos dois testes abaixo: uma filha de nome próprio com uma tarefa aberta e, se pedido, um
+// subagente lançado com uma descrição própria.
+async function comCartoes($: any, on: any, subagente: boolean) {
+  fixar(on)
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha-destacada', painel: { tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
+  if (subagente) lancaveis(on, ['s1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  if (subagente) await lancar($, { descricao: 'subagente destacado' })
+  return noApp($)
+}
+// Fundo e borda em cor crua translúcida, a borda mais forte que o fundo.
+function destacada(c: CaixaDoApp | undefined, onde: string) {
+  expect(c, onde).toBeDefined()
+  expect(c!.estilo, onde).toBe('round')
+  const f = alfa(c!.fundo)
+  const b = alfa(c!.borda)
+  expect(f, `${onde}: fundo ${c!.fundo}`).toBeDefined()
+  expect(b, `${onde}: borda ${c!.borda}`).toBeDefined()
+  expect(f!, onde).toBeGreaterThan(0)
+  expect(f!, onde).toBeLessThan(1)
+  expect(b!, onde).toBeGreaterThan(0)
+  expect(b!, onde).toBeLessThan(1)
+  expect(b!, onde).toBeGreaterThan(f!)
+}
+
+// Regra: visual.cartao-e-cabecalho-destacados
+test('no app, o cartão de sessão e o de subagente têm fundo e borda próprios', async ($: any, on: any) => {
+  const d = await comCartoes($, on, true)
+  const cartoes = cartoesDoApp(d)
+  const quais = JSON.stringify(cartoes)
+  destacada(cartoes.find(c => c.primeira.includes('filha-destacada')), `cartão da filha: ${quais}`)
+  destacada(cartoes.find(c => c.primeira.includes('subagente destacado')), `cartão do subagente: ${quais}`)
+})
+
+// Regra: visual.cartao-e-cabecalho-destacados
+test('no app, o cabeçalho tem o mesmo fundo e a mesma borda do cartão', async ($: any, on: any) => {
+  const d = await comCartoes($, on, false)
+  const cab = cabecalhoDoApp(d)
+  destacada(cab, `cabeçalho: ${JSON.stringify(cab)}`)
+  const filha = cartoesDoApp(d).find(c => c.dentro === 0 && c.primeira.includes('filha-destacada'))
+  expect(filha, JSON.stringify(cartoesDoApp(d))).toBeDefined()
+  expect(cab.fundo).toBe(filha!.fundo)
+  expect(cab.borda).toBe(filha!.borda)
 })

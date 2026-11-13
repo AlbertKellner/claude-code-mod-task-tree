@@ -71,7 +71,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     `desktopRow`, `iconCell`, `cells`/`leadOf`): cada linha é um `Box` em linha com as guias em
     caracteres de caixa (`Text mono`), o ícone de estado num `Svg` de 16 px com um `Button`
     transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo;
-    os cartões de sessão são `Box` com borda, o busto e o anel em `Svg`.
+    os cartões de sessão são `Box` com borda e fundo translúcido, o busto e o anel em `Svg`.
   - `head.tsx` (157): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
     pílulas com borda, git em texto e a barra de progresso num `Svg` (com o `alt` do cabeçalho inteiro).
   - `icons.ts` (58): as fontes dos `Svg` que restam, guardadas por estado (`stateIcon`, `msgIcon`,
@@ -1647,3 +1647,12 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
 - Medidas no harness (60 colunas): principal, 7 linhas, 15 151 B, 134 nós; filha, 6 linhas, 16 625 B.
 - O kit de testes lê o desenho do app por key, texto e `alt` (`noApp`, `linhaDoApp`, `arvoreDoApp`
   etc. em `tests/kit/leitura.ts`), e o golden guarda a árvore (`tests/golden/desenho.ts`).
+- Cartão e cabeçalho destacados (o usuário, 2026-11-13: "nao aparece nenhum card"; para o cabeçalho,
+  "Sim, junto do cartão (Recomendado)"). O fundo pedia a chave `userMessageBackground`, do tema do
+  terminal, que o desktop não tem: no print (tema escuro) o fundo saía igual ao do painel (`#191919`) e
+  a borda era a padrão do app, `#222222`. Agora `CARD_FILL` = `rgba(136,135,128,0.06)` e
+  `CARD_BORDER` = `rgba(136,135,128,0.22)` (`draw/desktop.tsx`), usados no cartão e no cabeçalho. Cor
+  translúcida porque o mod não sabe o tema: sobre `#191919` dá fundo `#20201f` e borda `#373634`;
+  sobre `#ffffff`, `#f8f8f7` e `#dfdfdd`, a até 2 níveis por canal da referência do desenho em SVG
+  (`#20201f`/`#373736` e `#f9f9f7`/`#e1e1df`). Um cartão dentro de outro soma o tom (`#262625` no
+  escuro). O kit lê o fundo e a borda (`cartoesDoApp`, `cabecalhoDoApp`, `alfa`).

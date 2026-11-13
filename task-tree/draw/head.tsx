@@ -3,11 +3,14 @@
 // at its left (a Box's fill), the title, the repository and branch, the progress bar (the one Svg
 // here besides the pills' state icons), the chips as pills, and the numbers block at the right. Pure:
 // hooks/render.tsx reads the state and builds the Head; nothing here gets `$`.
+// Its fill and border are the card's (./desktop, CARD_FILL and CARD_BORDER; the person, 2026-11-13:
+// "Sim, junto do cartão (Recomendado)").
 
 import type { GitLabel, Tone } from './layout'
 import type { Chip, HeaderState } from './svg'
 import { ULTRA, clockText, gitTerm, percent, rateText } from './svg'
 import { headBar, stateIcon } from './icons'
+import { CARD_BORDER, CARD_FILL } from './desktop'
 
 // What render.tsx computes for the header. `alt`: the whole header's words (render.tsx builds them,
 // "estado geral" and "sessão inteira" included), on the bar. `whole`: "sessão inteira: a de b", or ''
@@ -101,7 +104,7 @@ export function desktopHead(ui: any, head: Head): any {
   const clock = head.time !== undefined ? clockText(head.time) : ''
   const rate = !narrow && head.rate ? head.rate : undefined
   return (
-    <Box key="head" flexDirection="row" borderStyle="round" paddingX={0} paddingY={0} overflow="hidden" backgroundColor="userMessageBackground" marginBottom={1}>
+    <Box key="head" flexDirection="row" borderStyle="round" paddingX={0} paddingY={0} overflow="hidden" backgroundColor={CARD_FILL} borderColor={CARD_BORDER} marginBottom={1}>
       <Box key="band" width={1} flexShrink={0} backgroundColor={BAND[head.state.tone] ?? BAND.open} />
       <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0} paddingX={1} paddingY={1}>
         <Box height={1} minWidth={0}>

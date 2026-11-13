@@ -165,7 +165,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   nova sem animação; nada pisca à toa;
 - desenho nativo: guias de caixa alinhadas entre linhas e ao lado do cartão; corte do título no fim;
   alturas do título e do percentual do cabeçalho; a faixa de 1 coluna do cabeçalho; pílulas com borda;
-  cores cruas (`rgba(...)`) e as chaves de tema nos dois temas;
+  cores cruas (`rgba(...)`) e as chaves de tema nos dois temas; o fundo e a borda do cartão e do
+  cabeçalho destacados do painel, e o cartão dentro de cartão (um tom a mais);
 - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
 - recarga a quente real (salvar um arquivo com o painel aberto);
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); avisos do app;

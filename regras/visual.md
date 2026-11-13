@@ -78,6 +78,7 @@ As cores seguem o tema.
 - Então os textos e fundos usam as cores do tema do app; os `Svg` que restam levam as suas, claro e escuro
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): os textos usam as cores do tema; o fundo e a borda do cartão e do cabeçalho, o trilho das barras e a faixa sem chave de tema são cores cruas translúcidas, que assentam nos dois temas; os `Svg` levam as suas.
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
 ### visual.cabecalho-em-cartao
@@ -91,6 +92,7 @@ Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, bor
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cabeçalho em componentes nativos, com só a barra e os ícones das pílulas em `Svg`; sem medidas em px.
+Reescrito: 2026-11-13, decisão do usuário ("Sim, junto do cartão (Recomendado)"): o cabeçalho usa o mesmo fundo e a mesma borda translúcidos do cartão.
 Código: io/git.ts, draw/head.tsx
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
@@ -168,6 +170,16 @@ Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido d
 Código: draw/layout.ts
 Estado: coberto
 
+### visual.cartao-e-cabecalho-destacados
+O cartão de sessão, o de subagente e o cabeçalho se destacam do painel, com fundo próprio e borda visível.
+
+- Dado um cartão de sessão filha, um de subagente e o cabeçalho, no app desktop
+- Quando o painel é desenhado
+- Então cada um tem um fundo e uma borda arredondada de cor própria, em cinza translúcido, que clareia o painel escuro e escurece o claro sem o mod saber o tema; a borda é mais forte que o fundo; o cabeçalho usa o mesmo fundo e a mesma borda do cartão
+
+Origem: decisão do usuário, 2026-11-13 ("nao aparece nenhum card"; para o cabeçalho: "Sim, junto do cartão (Recomendado)"). Referência: o desenho em SVG anterior (fundo `#20201f` e borda `#373736` no escuro, `#f9f9f7` e `#e1e1df` no claro; "calcule qual seria a terceira cor", "use a mesma cor da borda"). Mais o commit da correção.
+Estado: coberto
+
 ### visual.desenho-principal
 O desenho do painel principal é o validado no app.
 
@@ -180,6 +192,7 @@ Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"): a tarefa parada com Esc no primeiro pedido segue ✕, fora da contagem e com o relógio parado, depois do pedido seguinte (antes, ◷); o pai dela, sem mais nada aberto embaixo, fica ✓. O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -194,6 +207,7 @@ Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); go
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cenário passa a publicar o contexto, para o anel; o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -208,6 +222,7 @@ Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); go
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -220,6 +235,7 @@ O desenho do cartão de subagente e do cartão de grupo é o validado no app.
 
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)"); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 

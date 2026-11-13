@@ -359,3 +359,52 @@ export function esperarCartaSob(linhas: Linha[], titulo: string, carta: Carta) {
 export function esperarCarta(linhas: Linha[], titulo: string, carta: Carta) {
   expect(linha(linhas, titulo).carta, `${titulo} no painel:\n${emTexto(linhas)}`).toBe(carta)
 }
+
+// ---- As caixas do app: o cartão (o Box com borderStyle filho direto de um Box key="c<i>") e o
+// cabeçalho (o Box key="head"), com o fundo, a borda e o estilo da borda pedidos ao app.
+// `primeira`: o texto da primeira linha do cartão; `dentro`: quantos cartões há em volta dele.
+export type CaixaDoApp = { primeira: string; fundo?: string; borda?: string; estilo?: string; dentro: number }
+const caixa = (el: any, primeira: string, dentro: number): CaixaDoApp => {
+  const p = el?.props ?? {}
+  return {
+    primeira,
+    ...(p.backgroundColor !== undefined ? { fundo: String(p.backgroundColor) } : {}),
+    ...(p.borderColor !== undefined ? { borda: String(p.borderColor) } : {}),
+    ...(p.borderStyle !== undefined ? { estilo: String(p.borderStyle) } : {}),
+    dentro,
+  }
+}
+const primeiraLinha = (x: any): any => {
+  if (typeof x !== 'object' || x === null) return undefined
+  const k = chave(x)
+  if (x.type === 'Box' && typeof k === 'string' && /^r\d+$/.test(k)) return x
+  for (const c of x.children ?? []) {
+    const r = primeiraLinha(c)
+    if (r) return r
+  }
+  return undefined
+}
+export function cartoesDoApp(d: DesenhoDoApp): CaixaDoApp[] {
+  const out: CaixaDoApp[] = []
+  const andar = (x: any, dentro: number) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const card = ((x.children ?? []) as any[]).find(c => typeof c === 'object' && c?.type === 'Box' && c.props?.borderStyle !== undefined)
+      if (card) {
+        out.push(caixa(card, regiao(primeiraLinha(card)).texto, dentro))
+        for (const c of card.children ?? []) andar(c, dentro + 1)
+        return
+      }
+    }
+    for (const c of x.children ?? []) andar(c, dentro)
+  }
+  andar(d.raiz, 0)
+  return out
+}
+export const cabecalhoDoApp = (d: DesenhoDoApp): CaixaDoApp => caixa(d.cabecalho.el, d.cabecalho.texto, 0)
+// O alfa de uma cor rgba(r,g,b,a); undefined para qualquer outro texto (chave de tema, nome, hex).
+export function alfa(cor: string | undefined): number | undefined {
+  const m = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)$/.exec(cor ?? '')
+  return m ? Number(m[1]) : undefined
+}

@@ -2303,6 +2303,26 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::no app, o cabeçalho tem o mesmo fundo e a mesma borda do cartão": {
+      "regras": [
+        "visual.cartao-e-cabecalho-destacados"
+      ],
+      "hash": "36bb10f6461a57aa",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "cabeçalho com o fundo e a borda do cartão (decisão do usuário, 2026-11-13: Sim, junto do cartão)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o cartão de sessão e o de subagente têm fundo e borda próprios": {
+      "regras": [
+        "visual.cartao-e-cabecalho-destacados"
+      ],
+      "hash": "c2527794687deed8",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "cartão destacado do painel: fundo e borda próprios (decisão do usuário, 2026-11-13: nao aparece nenhum card)"
+    },
     "task-tree/tests/visual.test.ts::no app, o ícone da linha que recolhe e o anel do cartão são botões com chave": {
       "regras": [
         "visual.botoes-por-chave"
@@ -2358,32 +2378,32 @@
       "motivo": "kit: lancar, chamadaDoSubagente, fimDoSubagenteCom (card de subagente)"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "a95f980682cc34cd",
-      "tipo": "decisao",
+      "hash": "78c7fd881a22a8bb",
+      "tipo": "refatoracao",
       "data": "2026-11-13",
-      "motivo": "sai svgs(): nenhum teste lê mais a lista de Svg (migração para o nativo, 2026-11-13)"
+      "motivo": "leitura.ts ganha a leitura do fundo e da borda dos cartões e do cabeçalho do app; nada do que existia muda"
     }
   },
   "golden": {
     "envios": {
-      "hash": "c7c8c973e340f5ef",
+      "hash": "de5d0c1481f7e79f",
       "data": "2026-11-13",
-      "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "filha": {
-      "hash": "244e8a7d09fd7ab7",
+      "hash": "9b46e7b344c892cf",
       "data": "2026-11-13",
-      "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "principal": {
-      "hash": "1bf4f8027bb98dfb",
+      "hash": "8ddac04487e74709",
       "data": "2026-11-13",
-      "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "subagente": {
-      "hash": "cb9bdf2bfef7bd9a",
+      "hash": "2cd3d94d4240ccb1",
       "data": "2026-11-13",
-      "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     }
   }
 }
