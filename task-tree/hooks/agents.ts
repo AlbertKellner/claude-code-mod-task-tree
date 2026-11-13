@@ -177,10 +177,15 @@ export async function subEnd($: any, agent: string, e: any) {
 // the list fails, has no `status` (an earlier engine: unknown, so alive) or says anything else
 // (pending, running, waiting, idle). After a respawn of the hooks worker the subagents go on in the
 // engine, listed as running: their cards stay. A late turn.complete still writes the true end over
-// this one (subEnd). A workflow's agents are not in the list, so they are left as they are, and so
-// is what one of them launched (the list may file it under the run too).
+// this one (subEnd).
+// A workflow's agents are not in the list, nor may be what one of them launched (the list may file
+// it under the run too): theirs is the time with no word (the person, 2026-11-12: "30 minutos sem sinal
+// (Recomendado)"). With no call nor step for SUB_IDLE ms, of its own or of anything alive it launched,
+// the card ends "interrompido", its time stopped at its last word. A call that takes longer than
+// that is read as gone; its real end, when it comes, is written over (subEnd).
 const ENDED: Record<string, Sub['state']> = { completed: 'done', failed: 'failed', killed: 'interrupted' }
 export const SUB_CONFIRM = 3000
+export const SUB_IDLE = 30 * 60_000
 // When each card's agent was first seen gone, by this module (a reload starts over: one check more).
 const gone = new Map<string, number>()
 export async function checkSubs($: any) {
@@ -188,21 +193,29 @@ export async function checkSubs($: any) {
   const byAgent = new Map((value as Group[]).map(g => [g.agent, g] as const))
   const ofRun = (g: Group | undefined, seen: string[] = []): boolean =>
     g !== undefined && !seen.includes(g.agent) && (g.sub?.run !== undefined || ofRun(byAgent.get(g.parent ?? MAIN), [...seen, g.agent]))
-  const live = (value as Group[]).filter(g => g.agent !== MAIN && subLive(g.sub) && !ofRun(g))
+  const alive = (value as Group[]).filter(g => g.agent !== MAIN && subLive(g.sub))
+  const live = alive.filter(g => !ofRun(g))
   for (const id of [...gone.keys()]) if (!live.some(g => g.agent === id)) gone.delete(id)
-  if (live.length === 0) return
+  if (alive.length === 0) return
   const now = await stamp($)
   if (now === undefined) return
-  let list: AgentInfo[]
-  try {
-    const got = await $.agent.list()
-    if (!Array.isArray(got)) return
-    list = got
-  } catch {
-    return
-  }
   const ends = new Map<string, Sub['state']>()
-  for (const g of live) {
+  // A workflow's: when it, or anything alive it launched, was last heard.
+  const heard = (g: Group, seen: string[] = []): number =>
+    Math.max(g.sub?.seen ?? g.sub?.at ?? -Infinity, ...alive.filter(k => (k.parent ?? MAIN) === g.agent && !seen.includes(k.agent)).map(k => heard(k, [...seen, g.agent])))
+  for (const g of alive) if (ofRun(g) && now - heard(g) >= SUB_IDLE) ends.set(g.agent, 'interrupted')
+  let list: AgentInfo[] = []
+  let listed = false
+  if (live.length > 0) {
+    try {
+      const got = await $.agent.list()
+      if (Array.isArray(got)) {
+        list = got
+        listed = true
+      }
+    } catch {}
+  }
+  for (const g of listed ? live : []) {
     const info = list.find(a => a?.id === g.agent)
     const state = info === undefined ? 'interrupted' : ENDED[String(info.status)]
     if (state === undefined) {

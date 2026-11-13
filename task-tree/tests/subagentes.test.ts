@@ -904,3 +904,55 @@ test('os agentes de um workflow e o que um deles lança, que o app não lista, n
   expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
   expect(linha(p, 'Explore: achar o kit').texto, emTexto(p)).toContain('trabalhando')
 })
+
+// O trio do workflow: como o de cima, com o store abaixo.
+const WF_SEM_SINAL: Record<string, unknown> = {}
+
+// Regra: subagentes.workflow-sem-sinal-vira-interrompido
+test('agentes de workflow e o processo novo, 1/3: os cartões vivos vão ao store', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, WF_SEM_SINAL)
+  listaDoApp(on, ['w1', 'w2'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o diff', run: 'wf_1' })
+  await lancar($, { descricao: 'ler os testes', run: 'wf_1' })
+  await relogio.advance(2000)
+  await chamadaDoSubagente($, 'w1', 'Read', { file_path: 'C:/x/kit/leitura.ts' })
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
+  expect(gravou(WF_SEM_SINAL), JSON.stringify(Object.keys(WF_SEM_SINAL))).toBe(true)
+})
+
+// Regra: subagentes.workflow-sem-sinal-vira-interrompido, subagentes.vivo-de-verdade-segue-vivo
+test('agentes de workflow e o processo novo, 2/3: com sinal há 20 minutos, os cartões seguem vivos', async ($: any, on: any) => {
+  const { relogio } = fixar(on, { agora: AGORA + 20 * 60_000 })
+  armazem(on, WF_SEM_SINAL)
+  host(on, [])
+  listaDoApp(on)
+  if (!gravou(WF_SEM_SINAL)) throw new Error('rode o trio inteiro: o 1/3 não gravou')
+  await iniciarSessao($)
+  await relogio.advance(3000)
+  await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
+  expect(pilula(p)).toContain('▸ 2')
+})
+
+// Regra: subagentes.workflow-sem-sinal-vira-interrompido
+test('agentes de workflow e o processo novo, 3/3: sem sinal há mais de 30 minutos, os cartões ficam "interrompido" e a tarefa de origem reflete o fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on, { agora: AGORA + 31 * 60_000 })
+  armazem(on, WF_SEM_SINAL)
+  host(on, [])
+  listaDoApp(on)
+  if (!gravou(WF_SEM_SINAL)) throw new Error('rode o trio inteiro: o 1/3 não gravou')
+  await iniciarSessao($)
+  await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('interrompido')
+  expect(linha(p, 'Workflow · 2 agentes').texto).not.toContain('trabalhando')
+  expect(pilula(p)).not.toContain('▸')
+  expect(linha(p, 'Investigar').estado).toBe('interrompida')
+})

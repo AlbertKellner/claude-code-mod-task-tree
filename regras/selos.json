@@ -1517,6 +1517,37 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 6"
     },
+    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 1/3: os cartões vivos vão ao store": {
+      "regras": [
+        "subagentes.workflow-sem-sinal-vira-interrompido"
+      ],
+      "hash": "7256ee402ee4767c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 2/3: com sinal há 20 minutos, os cartões seguem vivos": {
+      "regras": [
+        "subagentes.workflow-sem-sinal-vira-interrompido",
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "0359fc4117ac74a8",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 3/3: sem sinal há mais de 30 minutos, os cartões ficam \"interrompido\" e a tarefa de origem reflete o fim": {
+      "regras": [
+        "subagentes.workflow-sem-sinal-vira-interrompido"
+      ],
+      "hash": "58319f7ebb6d846a",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
     "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
