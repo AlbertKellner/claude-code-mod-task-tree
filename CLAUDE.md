@@ -111,7 +111,7 @@ a regra que ele protege.
 ## CI
 
 `.github/workflows/test.yml` roda o mesmo `npm run check`, todas as etapas, no Ubuntu, com o Claude
-Code do npm fixado na versão do app (`CLAUDE_CODE_VERSION`, hoje 2.1.308; subir junto com o app) e
+Code do npm fixado na versão do app (`CLAUDE_CODE_VERSION`, hoje 2.1.321; subir junto com o app) e
 `--base <merge-base com o main>`: a regressão roda os testes da base do PR contra o código dele, e uma
 falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de segredo nem de login.
 - Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro";
@@ -120,21 +120,27 @@ falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de 
 - Informativa: não é exigida para o merge. A proteção do `main` (branch protection) é do usuário.
 - Ensaio local: `npm run check -- --base <ref>` (ex.: `--base 9980131`, o começo da branch).
 
-## Golden do SVG
+## Golden do desenho
 
-O desenho do app desktop em 3 cenários (principal, filha trabalhando, envios; 60 colunas) fica
-travado em `task-tree/tests/golden/svg.ts`, conferido por `tests/golden.test.ts` e selado em
+O desenho do app desktop em 4 cenários (principal, filha trabalhando, envios, subagente; 60 colunas)
+fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden.test.ts` e selado em
 `regras/selos.json` (`golden`). Decisão do usuário, 2026-10-28: "Sim, validar antes do commit
 (Recomendado)".
-- O aceite é do usuário, no app. Ele não olha SVG nem página.
+- Desde a migração para o desenho nativo (2026-11-13, "migrar todo o Mod para o hibrido de nativo e
+  mantendo somente o que for obrigatório em SVG"), cada cenário é `{ arvore, svgs }`: a árvore de
+  `Box`, `Text`, `Button` e `Svg` que o app recebe (`arvoreDoApp` do kit: tipo, key, props, hover e
+  filhos) e as fontes dos `Svg` que restam (ícones de estado, busto, envelope, anel e barra do
+  cabeçalho), cada uma uma vez só.
+- O aceite é do usuário, no app. Ele não olha a árvore nem a página.
 - Mudança que altera o desenho: o check falha ("o desenho de <cenário> mudou") e bloqueia o commit.
   A mudança fica sem commit até ele validar o painel no app; com o "funcionou" dele,
   `npm run golden:aprovar -- <cenário…|--todos> --motivo "\"<palavras dele>\", AAAA-MM-DD"` regrava o
-  golden e o selo, e o commit segue com o código, `svg.ts` e `selos.json`. Para o resto, nada muda
+  golden e o selo, e o commit segue com o código, `desenho.ts` e `selos.json`. Para o resto, nada muda
   (commit local e depois validação).
 - Nunca aprovar sem as palavras dele: o `golden:aprovar` recusa motivo sem aspas e sem data, e a
   etapa `regressao` só aceita a falha do teste de golden de `HEAD` com o desenho aprovado hoje.
-- `npm run golden:pagina` (o aprovado e o atual lado a lado, em `golden-recebido/`) só sob pedido dele.
+- `npm run golden:pagina` (o aprovado e o atual lado a lado, em `golden-recebido/`: um desenho
+  aproximado da árvore, a diferença da árvore linha a linha e as fontes dos `Svg`) só sob pedido dele.
 
 ## Editar o mod sem quebrar a recarga
 
@@ -155,7 +161,12 @@ ferramentas, lembretes dos hooks), nunca na memória do Claude Code nem num CLAU
 
 Depois do commit local, o usuário valida no app, quando a mudança toca o que o harness não vê:
 - largura real e recorte na borda, nos dois temas;
-- cliques no ícone e no anel; tooltip; linha nova sem animação; nada pisca à toa;
+- cliques no ícone e no anel (botão transparente sobre o `Svg`) e na linha; realce do botão; linha
+  nova sem animação; nada pisca à toa;
+- desenho nativo: guias de caixa alinhadas entre linhas e ao lado do cartão; corte do título no fim;
+  alturas do título e do percentual do cabeçalho; a faixa de 1 coluna do cabeçalho; pílulas com borda;
+  cores cruas (`rgba(...)`) e as chaves de tema nos dois temas;
+- o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
 - recarga a quente real (salvar um arquivo com o painel aberto);
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.

@@ -96,7 +96,7 @@ num cenário, opcional, entre a `Origem:` e o `Estado:`, os que ele soma à áre
 Código da área: hooks/tool-call.ts, hooks/sessions.ts, hooks/panel.ts, state/tasks.ts
 
 Origem: …
-Código: draw/layout.ts, draw/svg.ts
+Código: draw/layout.ts, draw/desktop.tsx
 Estado: coberto
 ```
 

@@ -222,10 +222,11 @@ O turno que o usuário abriu digitando na filha fica no pedido da mãe vigente q
 
 - Dado uma filha aberta num pedido antigo da mãe, e o usuário digitando direto nela depois de um pedido novo da mãe
 - Quando a mãe desenha o painel
-- Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no tooltip; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
+- Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no texto alternativo do ícone; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o texto digitado vai no texto alternativo do ícone da linha, não num tooltip.
 Código: draw/layout.ts
 Estado: coberto
 
