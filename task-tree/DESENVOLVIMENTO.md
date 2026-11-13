@@ -151,7 +151,17 @@ principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: t�
 caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
 tarefas), releem a lista se está velha e
 levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensagem é a resposta") e
-`PROMPT.request`.
+`PROMPT.request`. A mensagem entregue com o turno em curso (`e.turnId` preenchido: o relato de uma
+sessão que esta abriu, `fromChildren`, ou a mensagem que a pessoa digita por cima do turno, que o app
+entrega dentro do turno) continua o pedido em curso (decisão do usuário, 2026-11-12: "Entra no
+pedido em curso (Recomendado)"): mantém a pergunta e o plano abertos, não abre turno nem zera
+`reminders`, e leva `PROMPT.midTurn` no lugar de `PROMPT.open` e `PROMPT.request`; o `plan` seguinte
+fica no último turno, e o replano com o mesmo id guarda o estado. Não vale depois de um Esc
+(`turnAborted`/`replanDue`: a mensagem abre o pedido e pede o replano) nem sem turno nenhum aberto.
+Antes ela abria um turno na hora, e o replano seguinte, no mesmo turno do modelo, deixava o nível 1 em
+curso como histórico. A mensagem de uma sessão que esta não abriu (a que a abriu, uma irmã) segue abrindo
+o turno, mesmo no meio do turno: é por ele que a sessão que mandou corta o cartão desta ("Um cartão
+por mensagem").
 
 **As sessões filhas** (`hooks/sessions.ts` + `io/host.ts`): `refreshChildren` roda no
 `session.start`, a cada `POLL` = 3 000 ms (`watchSessions`, recriado a cada chamada e prompt do loop
@@ -238,7 +248,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
 `refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
-`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
@@ -300,7 +310,8 @@ sessões, erro da lista, envios pendentes, `folds`), monta o `Model` e chama `la
 (`draw/layout.ts`, puro): `panel()` percorre os grupos, os turnos (`turnRows`), as tarefas (`rows`),
 os cartões das sessões (`session`, cada uma dividida por mensagem em `split`) e os grupos de
 subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `limitRows` corta em
-`MAX_ROWS` = 400. Daí `Row[]`: profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
+`MAX_ROWS` = 400, ou em menos linhas quando o limite de tamanho pede (abaixo). Daí `Row[]`:
+profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
 `running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
 `fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
 cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
@@ -548,6 +559,20 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   turno terminado, e o relógio de 1 s para.
 - Efeitos: uma filha parada com tarefa em andamento passa a ter essa tarefa fora do total (ex.: "3 de 4"
   → "3 de 3 · 100%" ).
+- A parada com Esc espera o `start` (2026-11-12, "Segue ✕ até novo start (Recomendado)"; antes, um aviso
+  do app, um hand-back ou o `start` em outra tarefa a reacendia: ◉ no prompt, relógio correndo, ◷ no fim
+  do turno). No fim do turno parado (`turnComplete` com `isAborted`), `park(at)` (`state/tasks.ts`) marca
+  `stopped` em cada folha aberta e iniciada do grupo principal e para ali o relógio (`endedAt`) dela e
+  dos pais abertos; o `started` de um pai iniciado diretamente é desfeito. A marca fica na própria tarefa
+  (state, store e arquivo publicado, sem chave nova) até o `start` nela (`begin`), o `done` (`finish`) ou
+  o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`). Enquanto existe, a
+  folha é lida como interrompida em todo desenho: `halt` no fim de qualquer turno, e `stay` com o turno
+  em curso (só as marcadas; `stayed` aplica ao grupo principal, na própria sessão e no cartão de uma
+  filha trabalhando). Com a carta dela na fila, segue ◷. `trail` não acende o caminho de uma tarefa
+  parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
+  mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
+  por `stayed`. `wake` não mudou: o que um fim normal deixou ◷ volta a ◉ no prompt seguinte; só o que o
+  Esc parou espera o `start`.
 
 
 - **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa, verde concluído, cinza interrompido), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. A linha do terminal não muda.
@@ -559,8 +584,18 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   CSS que usa (`slim`), claro e escuro.
 - **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
   (`GLYPH`), o glifo como `Button` quando a linha recolhe; os botões de visão `[≡] ▤`.
-- Um desenho acima de `DRAW_LIMIT` = 600 KB vira uma linha de aviso; um que lança exceção vira uma
-  linha de erro e publica `renderError`. `drawn` guarda tamanho, linhas e erro do último desenho.
+- Um desenho acima de `DRAW_LIMIT` = 600 KB é refeito com menos linhas até caber (decisão do usuário,
+  2026-11-12: "Cortar os mais antigos (Recomendado)"): o render lê o state uma vez e a função `paint`
+  (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
+  `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
+  último pedido sozinho, até o limite, com "+N linhas"). Cada tentativa mira 95% do limite pela média
+  de bytes por linha; depois de três, no máximo a metade das linhas, até 2. O mapa `fitted` (por
+  superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
+  seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
+  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com
+  o botão que fecha o que a pessoa abriu) fica como último recurso, para um desenho de duas linhas que
+  ainda passe do limite. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
+  `drawn` guarda tamanho, linhas e erro do último desenho.
 - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
   último desenho registrou em `actions` (`act`).
 
@@ -1572,3 +1607,7 @@ desenho aprovado não mudar. Os relógios seguem no seu tique.
 a 600 KB nas seções de histórico ficam como eram. Um desenho de 1,3 MB já não foi mostrado pelo app.
 
 O limite de 20 MB travou o painel: a tela ficou congelada no último desenho aceito (o aviso de 948 KB) enquanto o tamanho publicado mudava (950 a 953 KB), o que indica que o app não aplica um desenho de ~950 KB. `DRAW_LIMIT` voltou a 600 KB, e o aviso pequeno chega ao app com o botão "Voltar à visualização anterior". Palavras do usuário: "eu quero ver as tarefas em andamento, e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens em andamento".
+
+## Corte por tamanho no lugar do aviso (2026-11-12)
+
+Com até 400 linhas o desenho de uma sessão longa passava de 600 KB (cerca de 950 KB no app) sem a pessoa abrir nada: o painel virava o aviso, e o botão "Voltar à visualização anterior" não tinha o que fechar. Decisão do usuário: "Cortar os mais antigos (Recomendado)". Acima de 600 KB o desenho é refeito com menos linhas, os blocos mais antigos fora e contados em "+N linhas anteriores", como no corte das 400 linhas; o aviso fica só como último recurso. Os três limites, em ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas) → `DRAW_LIMIT` (600 KB, com menos linhas até caber). O texto do aviso nas seções de histórico acima fica como era.

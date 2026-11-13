@@ -12,6 +12,7 @@ import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
+import { checkSubs } from './agents'
 import { change, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -32,9 +33,17 @@ const receivedState = { plugin: 'task-tree', key: 'received' } as const
 export let refreshedAt: number | undefined
 export async function refreshChildren($: any) {
   refreshedAt = (await stamp($)) ?? refreshedAt
+  // The subagents' cards still alive, against the engine's list: one whose end never came is ended
+  // (hooks/agents, checkSubs). First, and whatever the sessions' list says below.
+  await checkSubs($).catch(() => {})
   // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
   // outside the desktop app there are no sessions to show, so no line either.
   const listed = await listSessions($)
+  const rows = 'error' in listed ? undefined : listed.rows
+  // Messages queued to any session (its children, its mother, its sisters): before any return, a list
+  // that failed included (with no rows, a session that publishes the messages it got still confirms
+  // them by its file; the list's error kept the letter blue after the delivery).
+  await watchSends($, Array.isArray(rows) ? rows : [])
   // The error line is written only when it changes (every poll cleared it before).
   const { value: shownError = '' } = await $.state.get(childrenErrorState)
   if ('error' in listed) {
@@ -43,10 +52,7 @@ export async function refreshChildren($: any) {
     return
   }
   if (shownError !== '') await $.state.set(childrenErrorState, '')
-  const rows = listed.rows
   if (!Array.isArray(rows)) return
-  // Messages queued to any session (its children, its mother, its sisters): before the returns below.
-  await watchSends($, rows)
   // No linked session at all: this one opened none (the state is cleared once, not every poll).
   if (rows.length === 0) {
     const { value: cur } = await $.state.get(childrenState)
@@ -147,6 +153,25 @@ export async function watchSends($: any, rows: any[]) {
       else if (r && r.isRunning === true && s.idle) marks[i] = { taken: true }
     }
   }
+  // A session archived with the message still queued will not take it up: the letter is not delivered
+  // (gray, "não entregue") and its task stops waiting on it (the clock, the Esc, what holds the view;
+  // the person, 2026-11-12: "Cinza \"não entregue\" (Recomendado)"). Only by what the list says: a
+  // session the list leaves out (a partial list, a list that failed) is not judged; one with the name of
+  // an archived one and not archived itself still waits. Listed again unarchived, it waits again, and
+  // the main loop will be told again of what comes of it. Taken up after all (its receipt): delivered,
+  // as any other, and the main loop is told so.
+  for (const [i, s] of (sends as Send[]).entries()) {
+    if (s.taken) continue
+    if (marks[i]?.taken) {
+      if (s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
+      continue
+    }
+    const same = rows.filter(r => r.sessionId === s.to || (r.name && r.name === s.to))
+    if (same.length === 0) continue
+    const archived = same.every(r => r.isArchived === true)
+    if (archived && !s.lost) marks[i] = { ...marks[i], cut: true, lost: true }
+    else if (!archived && s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
+  }
   if (Object.keys(marks).length === 0) return
   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
@@ -166,23 +191,26 @@ export async function watchSends($: any, rows: any[]) {
     }),
   )
 }
-// Once: the sessions that took up a queued message, with the task it was sent from.
+// Once: the sessions that took up a queued message, with the task it was sent from; and those archived
+// with a message still queued (not delivered).
 export async function takenNote($: any): Promise<string | undefined> {
   const { value: sends = [] } = await $.state.get(sendsState)
   const done = (sends as Send[]).filter(s => s.taken && !s.noted)
-  if (done.length === 0) return undefined
-  // Kept, its letter green under its task (the last 20); the reminder goes once.
-  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken ? { ...s, noted: true } : s)).slice(-20))
+  const lost = (sends as Send[]).filter(s => s.lost && !s.taken && !s.noted)
+  if (done.length === 0 && lost.length === 0) return undefined
+  // Kept, its letter green (gray when not delivered) under its task (the last 20); the reminder goes once.
+  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken || s.lost ? { ...s, noted: true } : s)).slice(-20))
   // A delivery at once needs no reminder: the model saw it delivered.
   const taken = done.filter(s => !s.delivered)
-  if (taken.length === 0) return undefined
+  if (taken.length === 0 && lost.length === 0) return undefined
   const { value: groups = [] } = await $.state.get(groupsState)
   const all = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
-  const what = taken.map(s => {
-    const t = all.find(t => t.id === s.anchor)
-    return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
-  })
-  return SESSION.taken(what)
+  const what = (list: Send[]) =>
+    list.map(s => {
+      const t = all.find(t => t.id === s.anchor)
+      return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
+    })
+  return [...(taken.length > 0 ? [SESSION.taken(what(taken))] : []), ...(lost.length > 0 ? [SESSION.lost(what(lost))] : [])].join(' ')
 }
 
 // The list read again when it is older than the poll's period: a session drawn at work after
@@ -259,13 +287,14 @@ export async function anyRunning($: any): Promise<boolean> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   // With this session's turn ended, its own tasks run no clock (see turnEnded), except the task of a
-  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait. After a
-  // restart the end comes back from the store first (ensureTurn): no clock for what had stopped.
+  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait (not one
+  // that will not be delivered, `cut`: its session was archived). After a restart the end comes back
+  // from the store first (ensureTurn): no clock for what had stopped.
   const brought = await ensureTurn($)
   const { value: heldEnded } = await $.state.get(turnEndedState)
   const ended = heldEnded !== undefined ? heldEnded : brought?.ended
   const { value: sends = [] } = await $.state.get(sendsState)
-  if ((sends as Send[]).some(s => !s.taken)) return true
+  if ((sends as Send[]).some(s => !s.taken && !s.cut)) return true
   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
 }
 export async function tick($: any) {

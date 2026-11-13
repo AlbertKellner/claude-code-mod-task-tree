@@ -325,6 +325,43 @@ test('fim do turno com Esc no reinício, 2/2: a iniciada segue interrompida', as
   semAndamento(p)
 })
 
+// A parada com Esc, depois de um aviso tratado até o fim (o último turno terminou normalmente).
+const PARADA: Record<string, unknown> = {}
+
+// Regra: durabilidade.parada-com-esc-sobrevive-ao-reinicio
+test('parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, PARADA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await esc($)
+  await relogio.advance(1000)
+  await aviso($)
+  await fimDoTurno($)
+  esperarEstado(await painel($), 'Dois.um', 'interrompida')
+  expect(temPainel(PARADA), JSON.stringify(Object.keys(PARADA))).toBe(true)
+})
+
+// Regra: durabilidade.parada-com-esc-sobrevive-ao-reinicio
+test('parada com Esc no reinício, 2/2: o processo novo a desenha interrompida até o start nela', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, PARADA)
+  exigir(temPainel(PARADA))
+  await iniciarSessao($)
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  semAndamento(p)
+  await pedido($, 'Pedido dois')
+  await start($, ['2.2'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.dois', 'andamento')
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+})
+
 // O resumo do done, gravado antes de uma recarga, chega à linha ↩ e ao arquivo publicado.
 const RESUMO: Record<string, unknown> = {}
 

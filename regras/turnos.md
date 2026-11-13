@@ -51,9 +51,21 @@ A mensagem seguinte retoma o trabalho.
 
 - Dado um turno terminado, normal ou com Esc
 - Quando chega a mensagem seguinte e o modelo chama start
-- Então nada fica ✕ e a tarefa iniciada acende ◉
+- Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕
 
 Origem: commit 55a2dd1, 2026-10-23.
+Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"); desfaz "nada fica ✕" para a tarefa parada com Esc em que o modelo ainda não deu start: antes, o prompt seguinte a reacendia sozinho.
+Estado: coberto
+
+### turnos.parada-segue-interrompida-ate-o-start
+A tarefa parada com Esc segue interrompida até o modelo dar start nela.
+
+- Dado uma tarefa iniciada e aberta quando a pessoa para o turno (Esc), ✕ desde então
+- Quando chega um prompt que não abre pedido (aviso do app, hand-back de subagente, notificação de tarefa em segundo plano) e o turno dele termina, ou uma mensagem da pessoa em que o modelo dá start em outra tarefa
+- Então a parada segue ✕ e fora da contagem (no cabeçalho e na sessão inteira); não acende, o relógio dela não corre e o fim desses turnos não a deixa ◷; o pai e o pedido seguem como o Esc os deixou; só o start nela a reacende ◉ (ela volta a contar e, no fim do turno, aguarda como qualquer outra), e o done a conclui; o replano no mesmo pedido que a mantém a mantém ✕; o pai iniciado diretamente e parado com Esc também só reacende com o start nele; a marca da parada vai no painel publicado até esse start; a tarefa com carta na fila segue ◷ enquanto a carta espera (envios.fila-nao-interrompe-no-fim-do-turno)
+
+Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (depois do Esc, um aviso automático ou o start em outra tarefa reacendia a parada: ◉ no prompt, relógio correndo, ◷ no fim do turno).
+Código: state/tasks.ts
 Estado: coberto
 
 ### turnos.pedido-anterior-parado-aguarda

@@ -13,6 +13,7 @@ import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSi
 import { debug } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
+import { stayed } from '../draw/layout'
 
 export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
@@ -36,21 +37,27 @@ export async function wake($: any) {
   }
 }
 
-// The turn's end (turnEnded, turnAborted) is kept in the store too, one record (`turn`): a new
+// The turn's end (turnEnded, turnAborted, replanDue) is kept in the store too, one record (`turn`): a new
 // process (the worker respawned, /model, a restart of the app) drew as in progress, with its clock
 // going, what the last turn had left stopped. Written only when it changes: wake runs at every prompt
 // and every call of the main loop.
-type TurnRecord = { ended: number | null; aborted: boolean }
+// A record of an earlier version has no `replan`: its `aborted` says it (no request came since the stop).
+type TurnRecord = { ended: number | null; aborted: boolean; replan: boolean }
 let lastTurn: string | undefined
 const turnRecord = (v: unknown): TurnRecord | undefined =>
   v !== null && typeof v === 'object' && 'ended' in v
-    ? { ended: typeof (v as any).ended === 'number' ? (v as any).ended : null, aborted: (v as any).aborted === true }
+    ? {
+        ended: typeof (v as any).ended === 'number' ? (v as any).ended : null,
+        aborted: (v as any).aborted === true,
+        replan: (v as any).replan === true || ((v as any).replan === undefined && (v as any).aborted === true),
+      }
     : undefined
 export async function saveTurn($: any) {
   try {
     const ended = (await $.state.get(turnEndedState)).value
     const aborted = (await $.state.get(turnAbortedState)).value
-    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true })
+    const replan = (await $.state.get(replanDueState)).value
+    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true })
     if (text === lastTurn) return
     await saveStore($, 'turnEnded', JSON.parse(text))
     lastTurn = text
@@ -75,6 +82,7 @@ export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
     try {
       await $.state.set(turnEndedState, saved.ended)
       await $.state.set(turnAbortedState, saved.aborted)
+      await $.state.set(replanDueState, saved.replan)
       loaded.add('turn')
     } catch {}
     return saved
@@ -92,6 +100,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
     if (saved === undefined) return
     await $.state.set(turnEndedState, saved.ended)
     await $.state.set(turnAbortedState, saved.aborted)
+    await $.state.set(replanDueState, saved.replan)
     lastTurn = JSON.stringify(saved)
   } catch {}
 }
@@ -99,6 +108,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
 export async function clearTurn($: any) {
   await $.state.set(turnEndedState, null)
   await $.state.set(turnAbortedState, false)
+  await $.state.set(replanDueState, false)
   await saveTurn($)
 }
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
@@ -110,6 +120,7 @@ const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
+const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -330,7 +341,11 @@ export async function ensureGroup($: any, agent: string) {
 let lastStatus: string | undefined | null = null
 export async function showStatus($: any, groups: Group[]) {
   const { value: children = [] } = await $.state.get(childrenState)
-  const [d, n] = total({ groups, waits: [], children })
+  // What the person stopped and was not started again counts as the panel draws it, interrupted
+  // (stay); a letter of it still queued keeps it open.
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  const [d, n] = total({ groups: stayed(groups, queuedFrom), waits: [], children })
   const text = d === n ? undefined : `Tarefas ${d}/${n}`
   if (lastStatus !== null && lastStatus === text) return
   lastStatus = text
@@ -520,9 +535,10 @@ export async function publishPanel($: any) {
 // handler already gone, and nothing happened (the person's words: "as vezes clico nas acoes e nao
 // faz nada, preciso clicar algumas vezes para funcionar"). The ui.press hook below answers by key
 // with the latest action instead.
-// The last drawing's size (serialized), and the most a drawing may be before the pane shows only a
-// warning line: a 1.3 MB one was not shown by the app (the person's words: "resumir os 57 pedidos
-// anteriores resolveu"). 20 MB was tried on 2026-11-04 and froze the pane: the app did not apply a
+// The last drawing's size (serialized), and the most a drawing may be: past it the render draws fewer
+// lines and, as the last resort, only a warning line (hooks/render.tsx). A 1.3 MB one was not shown by
+// the app (the person's words: "resumir os 57 pedidos anteriores resolveu"). 20 MB was tried on
+// 2026-11-04 and froze the pane: the app did not apply a
 // drawing of ~950 KB and kept the last one it took (the person: "eu quero ver as tarefas em andamento,
 // e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens
 // em andamento"). Back to 600 KB: the small warning, with its button, reaches the app.
@@ -607,16 +623,24 @@ export async function setWork($: any, ids: string[]) {
     await saveStore($, 'work', ids)
   } catch {}
 }
-export async function joinWork($: any, ids: string[], fresh: boolean) {
+// A plan renames the level-1 tasks whose id it reuses without replanning them (planTool); `old` gives
+// the id of such a task's old copy. The work follows the task to that copy, as the sessions' ties and
+// the sends do (renameAnchors): the bare id now names the new task, which comes in with `ids`. So
+// the old copy is checked like any other task of the work before: a session at work under it, or a
+// letter still queued from it, holds its request in sight, the card under the task it came from and
+// not loose at the end (the person, 2026-11-12: "Sim, fica à vista (Recomendado)"); with nothing open
+// in sight, it leaves with its request.
+export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: string) => string = id => id) {
   if (ids.length === 0) return
-  const { value: cur = [] } = await $.state.get(workState)
-  if (!fresh) return setWork($, [...new Set([...(cur as string[]), ...ids])])
+  const { value = [] } = await $.state.get(workState)
+  const cur = (value as string[]).map(old)
+  if (!fresh) return setWork($, [...new Set([...cur, ...ids])])
   // New work: with anything still open in sight (a task, a ✉, a card with an open task), the work
   // before stays whole, the new request below it; with nothing open, the new request alone (openInSight).
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: children = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
-  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur as string[], sends as Send[], knownId()) ? (cur as string[]) : []
+  const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur, sends as Send[], knownId()) ? cur : []
   await setWork($, [...new Set([...kept, ...ids])])
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
@@ -639,10 +663,15 @@ export const keptLink = (id: string): Link | undefined => keptLinks.get(id)
 // message, each message's task), the launches' and the sends' are renamed with it, or they would
 // point at the new task with that id, and every card of every earlier request would fall under it
 // (the person's panel: a request that sent nothing showed the cards of the whole day). The module's
-// copy of the links (keptLinks) is renamed too, so a later save keeps the renamed ties.
+// copy of the links (keptLinks) is renamed too, so a later save keeps the renamed ties. The
+// subagents' groups go with it in planTool's own change (renamedAnchor), for every loop.
+// An anchor under a renamed id (the id or a task below it) renamed with it: `tag:` before it, as
+// planTool renames the tasks.
+export const renamedAnchor = (ids: string[], tag: string) => (a?: string) =>
+  a !== undefined && ids.some(id => a === id || a.startsWith(id + '/')) ? tag + ':' + a : a
 export async function renameAnchors($: any, ids: string[], tag: string) {
   if (ids.length === 0) return
-  const fix = (a?: string) => (a !== undefined && ids.some(id => a === id || a.startsWith(id + '/')) ? tag + ':' + a : a)
+  const fix = renamedAnchor(ids, tag)
   const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[] }>(c: T): T => {
     const out = { ...c }
     if (c.anchor !== undefined) out.anchor = fix(c.anchor)

@@ -5,6 +5,8 @@ import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
 import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, painel } from './kit/leitura'
+import { aviso } from './kit/cenario'
+import { cabecalho, type Linha } from './kit/leitura'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
 // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
@@ -140,9 +142,186 @@ test('o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tar
   await relogio.advance(1000)
   await pedido($, 'segue')
   await start($, ['2.1'])
-  const p = await painel($)
+  let p = await painel($)
   esperarEstado(p, 'Dois.um', 'andamento')
+  // A que o Esc parou segue ✕ até o start nela (decisão de 2026-11-12); com ele, nada fica ✕.
+  esperarEstado(p, 'Um', 'interrompida')
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
   expect(emTexto(p)).not.toContain('✕')
+})
+
+// A parada com Esc segue ✕ até o start nela. Origem: decisão do usuário de 2026-11-12 ("Segue ✕ até
+// novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10: um aviso automático, ou o
+// start em outra tarefa, reacendia a parada (◉, relógio correndo, ◷ no fim do turno).
+const semNadaAceso = (p: Linha[]) => expect(p.filter(l => !l.cabecalho && l.estado === 'andamento').map(l => l.titulo), emTexto(p)).toEqual([])
+const PROMPTS_SEM_PEDIDO: [string, ($: any) => Promise<unknown>][] = [
+  ['aviso do app', $ => aviso($)],
+  ['hand-back de subagente', $ => $.prompt.submit({ text: '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>' })],
+  ['notificação de tarefa em segundo plano', $ => $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } })],
+]
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await esc($)
+  const noEsc = await painel($)
+  esperarEstado(noEsc, 'Dois.um', 'interrompida')
+  for (const [nome, prompt] of PROMPTS_SEM_PEDIDO) {
+    await relogio.advance(5000)
+    await prompt($)
+    await relogio.advance(5000)
+    let p = await painel($)
+    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no turno:\n${emTexto(p)}`).toBe('interrompida')
+    semNadaAceso(p)
+    // O relógio da parada, o do pai e o do pedido ficam onde o Esc os deixou.
+    for (const t of ['Dois.um', 'Dois', 'Plano A', 'Pedido um']) expect(umaLinha(p, t).texto, `${nome}, no turno:\n${emTexto(p)}`).toBe(umaLinha(noEsc, t).texto)
+    await fimDoTurno($)
+    p = await painel($)
+    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no fim do turno:\n${emTexto(p)}`).toBe('interrompida')
+    expect(emTexto(p), nome).not.toContain('◷')
+    const c = cabecalho(p)
+    // Fora da contagem, como interrompida: no cabeçalho e na sessão inteira (sem a nota do tooltip).
+    expect([c.total, c.chips.interrompidas, c.chips.aguardando, c.chips.andamento, c.inteira], `${nome}:\n${emTexto(p)}`).toEqual([2, 1, 0, 0, undefined])
+  }
+})
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('numa mensagem da pessoa em que o modelo dá start em outra tarefa, a parada com Esc segue interrompida, também no fim do turno', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await esc($)
+  await relogio.advance(1000)
+  await pedido($, 'segue')
+  await start($, ['1'])
+  let p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  // O pai da parada não acende com ela: só o caminho da tarefa iniciada agora.
+  esperarEstado(p, 'Dois', 'pendente')
+  esperarEstado(p, 'Plano A', 'andamento')
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(1)
+})
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await esc($)
+  await relogio.advance(1000)
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await start($, ['2.1'])
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  esperarEstado(p, 'Dois', 'andamento')
+  expect(emTexto(p)).not.toContain('✕')
+  expect([cabecalho(p).total, cabecalho(p).chips.andamento], emTexto(p)).toEqual([3, 1])
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  expect(emTexto(p)).not.toContain('✕')
+})
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('o done na tarefa parada com Esc, sem start, a conclui', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await esc($)
+  await relogio.advance(1000)
+  await pedido($, 'segue')
+  const r = await done($, ['2.1'])
+  expect(r.erro, r.texto).toBe(false)
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'concluida')
+  expect(emTexto(p)).not.toContain('✕')
+  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 3])
+})
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('o pai iniciado e parado com Esc não reacende no prompt seguinte; o start nele o reacende', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2'])
+  esperarEstado(await painel($), 'Dois', 'andamento')
+  await esc($)
+  await relogio.advance(1000)
+  await aviso($)
+  let p = await painel($)
+  semNadaAceso(p)
+  for (const t of ['Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
+  await fimDoTurno($)
+  await pedido($, 'segue')
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Dois', 'pendente')
+  await start($, ['2'])
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'andamento')
+  esperarEstado(p, 'Dois.um', 'andamento')
+})
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('o replano no mesmo pedido que mantém a tarefa parada com Esc a mantém interrompida, com o relógio parado', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await esc($)
+  const noEsc = await painel($)
+  await relogio.advance(5000)
+  // O aviso não abre pedido: o plano com o mesmo id replaneja no lugar.
+  await aviso($)
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.3', title: 'Dois.três' }] }] }])
+  await relogio.advance(5000)
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  esperarEstado(p, 'Dois.três', 'pendente')
+  semNadaAceso(p)
+  for (const t of ['Dois.um', 'Dois', 'Plano A']) expect(umaLinha(p, t).texto, emTexto(p)).toBe(umaLinha(noEsc, t).texto)
+})
+
+// Regra: turnos.parada-segue-interrompida-ate-o-start
+test('a marca da parada com Esc vai no painel publicado até o start nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await esc($)
+  await relogio.advance(1000)
+  await aviso($)
+  await fimDoTurno($)
+  const publicadas = (): any[] => {
+    const andar = (l: any[]): any[] => l.flatMap(t => [t, ...andar(t.children ?? [])])
+    return andar((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.tasks ?? [])
+  }
+  // O último turno terminou normalmente: o que diz que a tarefa foi parada é a marca nela.
+  expect(h.proprio()?.aborted, JSON.stringify(h.proprio())).toBe(undefined)
+  expect(publicadas().filter(t => t.stopped === true).map(t => t.title), JSON.stringify(publicadas())).toEqual(['Dois.um'])
+  await aviso($)
+  await start($, ['2.1'])
+  expect(publicadas().filter(t => t.stopped === true).map(t => t.title), JSON.stringify(publicadas())).toEqual([])
 })
 
 // Regra: turnos.subagente-que-termina-interrompe

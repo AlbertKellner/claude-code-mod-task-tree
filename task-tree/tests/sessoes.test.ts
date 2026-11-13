@@ -5,7 +5,7 @@ import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
 import { envio } from './kit/cenario'
-import { cabecalho, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
+import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }] }] }]
@@ -227,6 +227,100 @@ test('a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a
   p = await painel($)
   esperarEstado(p, 'f1', 'interrompida')
   expect(cabecalho(p).total, emTexto(p)).toBe(3)
+})
+
+// Regra: sessoes.filha-parada-com-esc-sem-pendente
+test('a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o cartão diz "parada"', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [noTurno(1, '1', 'Feita', 'feita'), noTurno(1, '2', 'Começada', 'iniciada')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Feita', 'concluida')
+  esperarEstado(p, 'Começada', 'interrompida')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([0, 3])
+  expect(c.chips.interrompidas, emTexto(p)).toBe(0)
+  // O x/y de "Um", de onde a filha foi aberta, só conta a própria "Um".
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
+  esperarPalavra(p, 'filha-um', 'parada')
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
+})
+
+// A filha parou "Parada" com Esc, tratou um aviso e nele iniciou "Outra"; o último turno dela terminou
+// normalmente (o arquivo não diz `aborted`): a marca vai na tarefa.
+// Regra: sessoes.filha-parada-com-esc-segue-descartada-ate-o-start
+test('a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada', async ($: any, on: any) => {
+  fixar(on)
+  const parada = { ...noTurno(1, '2', 'Parada', 'iniciada'), stopped: true, endedAt: AGORA - 500 }
+  const tarefas = (p: any) => [noTurno(1, '1', 'Feita', 'feita'), p, noTurno(1, '3', 'Outra', 'iniciada')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas(parada), turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  // Trabalhando (o turno do aviso): a parada já é desenhada ✕ no cartão, fora da contagem dele.
+  let p = await painel($)
+  esperarEstado(p, 'Parada', 'interrompida')
+  esperarEstado(p, 'Outra', 'andamento')
+  expect(cabecalho(p).total, emTexto(p)).toBe(5)
+  // Parada de novo, o turno terminado normalmente: a rodada segue descartada.
+  h.filha(K1).rodando = false
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Feita', 'concluida')
+  esperarEstado(p, 'Parada', 'interrompida')
+  esperarEstado(p, 'Outra', 'aguardando')
+  let c = cabecalho(p)
+  expect([c.feitas, c.total, c.chips.interrompidas], emTexto(p)).toEqual([0, 3, 0])
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
+  esperarPalavra(p, 'filha-um', 'parada')
+  // O start na tarefa parada tira a marca: a rodada volta a contar e as iniciadas aguardam.
+  h.filha(K1).painel = { tasks: tarefas(noTurno(1, '2', 'Parada', 'iniciada')), turns: [turno(1, AGORA + 10)] }
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Parada', 'aguardando')
+  esperarEstado(p, 'Outra', 'aguardando')
+  c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 6])
+})
+
+// Três filhas paradas, cada uma com um turno só: K1 com um pai aberto (só pendente embaixo), K2 com
+// uma folha iniciada, K3 com um pai aberto e parada com Esc. Nada delas está fora do desenho.
+// Regra: sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
+test('o cartão da filha parada não mostra "+N pedidos anteriores" sem nada fora do desenho', async ($: any, on: any) => {
+  fixar(on)
+  const K2 = 'local_22222222-2222-2222-2222-222222222222'
+  const K3 = 'local_33333333-3333-3333-3333-333333333333'
+  const pai = (id: string, titulo: string, filho: string) => ({ ...tarefa(id, titulo, 'aberta', [tarefa(`${id}.1`, filho)]), turn: 1 })
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [pai('P', 'Pai um', 'Filho um')], turns: [turno(1, AGORA + 10)] } },
+    { id: K2, nome: 'filha-dois', painel: { tasks: [noTurno(1, '1', 'Começada', 'iniciada')], turns: [turno(1, AGORA + 20)] } },
+    { id: K3, nome: 'filha-tres', painel: { tasks: [pai('P', 'Pai três', 'Filho três')], turns: [turno(1, AGORA + 30)] } },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  for (const de of ['1', '2', '3']) {
+    await start($, [de])
+    await abrirSessao($)
+  }
+  await aviso($)
+  for (const k of [K1, K2, K3]) h.filha(k).rodando = false
+  h.filha(K3).aborted = true
+  await aviso($)
+  const p = await painel($)
+  expect(p.filter(l => l.texto.includes('pedidos anteriores')).map(l => l.texto), emTexto(p)).toEqual([])
+  expect(cartoes(p, 'filha-um').map(c => c.tarefas), emTexto(p)).toEqual([['Pai um', 'Filho um']])
+  expect(cartoes(p, 'filha-dois').map(c => c.tarefas), emTexto(p)).toEqual([['Começada']])
+  expect(cartoes(p, 'filha-tres').map(c => c.tarefas), emTexto(p)).toEqual([['Pai três', 'Filho três']])
+  for (const nome of ['filha-um', 'filha-dois', 'filha-tres']) esperarPalavra(p, nome, 'parada')
 })
 
 // K1 sob "Um" e K2 sob "Dois"; K1 manda uma mensagem a K2 da tarefa "Avisar K2", e K2 abre o turno 2
@@ -546,3 +640,153 @@ test('a mãe é avisada de que a filha parou com pendentes', async ($: any, on: 
   const r = [await aviso($), await pedido($, 'Pedido dois')]
   expect(JSON.stringify(r)).toContain('1 pendentes')
 })
+
+// Regra: pedidos.id-reusado-segura-pedido-com-cartao-aberto
+test('plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista', async ($: any, on: any) => {
+  await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, [
+    { id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }, { id: '2', title: 'Dois de novo', children: [{ id: '2.1', title: 'Dois.um de novo' }] }] },
+    { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] },
+  ])
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.some(l => l.titulo === 'Pedido um'), emTexto(p)).toBe(true)
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.indexOf(linha(p, 'Pedido um')), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pedido dois')))
+  esperarEstado(p, 'Um de novo', 'pendente')
+  esperarEstado(p, 'Plano A de novo', 'pendente')
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-cartao-aberto
+test('com carta: o id reusado num pedido novo deixa cartão e carta sob a tarefa de origem, e a carta fica cinza depois da entrega', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await envio($, K1)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
+  h.recebeu(K1, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  const cartas = p.filter(l => l.titulo.startsWith('Para ') && l.carta !== undefined)
+  expect(cartas.map(l => l.carta), emTexto(p)).toEqual(['interrompida'])
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-sessao-viva
+test('plan que reusa o id do nível 1 num pedido novo deixa sob a tarefa de origem o cartão da sessão trabalhando sem tarefa própria, com o pedido antigo à vista', async ($: any, on: any) => {
+  await abrir($, on, {})
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }] }])
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.indexOf(linha(p, 'Pedido um')), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pedido dois')))
+  esperarEstado(p, 'Um de novo', 'pendente')
+  esperarEstado(p, 'Plano A de novo', 'pendente')
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-sessao-viva
+test('só a carta na fila, com a sessão parada: o id reusado num pedido novo deixa o pedido antigo à vista, com a carta sob a tarefa de origem', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, K1)
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }] }])
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(false)
+  expect(p.indexOf(linha(p, 'Pedido um')), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pedido dois')))
+  expect(cartaSob(p, 'Um'), emTexto(p)).not.toBe(undefined)
+  esperarEstado(p, 'Um de novo', 'pendente')
+})
+
+// Regra: pedidos.id-reusado-segura-pedido-com-sessao-viva
+test('depois que a sessão para e a carta é entregue, o pedido seguinte leva o pedido de id reusado para "+N pedidos anteriores"', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await envio($, K1)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A de novo', children: [{ id: '1', title: 'Um de novo' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'Pedido um'), emTexto(p)).toBe(true)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).rodando = false
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: 'c1', title: 'Cê um' }] }])
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Pedido um' || l.titulo === 'Pedido dois' || l.sessao === true), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === '+2 pedidos anteriores'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Cê um', 'pendente')
+})
+
+// O turno 1 como a filha o publica quando o texto do start_session chega como prompt próprio
+// (os arquivos publicados reais trazem a marca).
+const abertura = (at: number) => ({ id: 1, title: 'Texto do start_session', at, own: true })
+
+// Regra: sessoes.turno-de-abertura-da-filha-sob-a-origem
+test('o turno de abertura que a filha publica como próprio fica sob a tarefa de origem, sem "pedido do usuário na filha"', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'iniciada')], turns: [abertura(AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.titulo === PROPRIO), emTexto(p)).toBe(false)
+  const cs = cartoes(p, 'governanca')
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita'])
+  expect(cs[0]?.tarefas, emTexto(p)).toEqual(['Reescrever autoria'])
+})
+
+// Regra: sessoes.turno-de-abertura-da-filha-sob-a-origem, sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('o turno 1 próprio que começa bem depois da abertura (a filha limpa com /clear) segue como pedido do usuário na filha', async ($: any, on: any) => {
+  const { h } = await abrirNoPedidoAntigo($, on)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }] }])
+  await start($, ['v1'])
+  h.filha(K1).painel = { tasks: [noTurno(1, '1', 'Reescrever com filter-repo', 'iniciada')], turns: [{ id: 1, title: 'pode apagar e reescrever', at: AGORA + 20 * 60_000, own: true }] }
+  await aviso($)
+  const p = await painel($)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
+})
+

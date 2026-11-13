@@ -88,6 +88,36 @@ test('ExitPlanMode mostra a espera da aprovação do plano até a resposta', asy
   expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
 })
 
+// Regra: perguntas.mensagem-no-meio-do-turno-mantem-espera
+test('mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  responderDepois(on, relogio, 'ExitPlanMode', 'aprovado')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const de = 'local_11111111-1111-1111-1111-111111111111'
+  await $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">relato</cross-session-message>`, turnId: 't', origin: { kind: 'peer', from: de } })
+  let p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  esperarEstado(p, 'Um', 'andamento')
+  await relogio.advance(1000)
+  await resp
+  p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
+  const aprovar = ferramenta($, 'ExitPlanMode', { plan: 'o plano' })
+  await relogio.settle()
+  await $.prompt.submit({ text: 'mais uma coisa', turnId: 't', origin: { kind: 'composer' }, wait: true })
+  p = await painel($)
+  esperarEstado(p, 'Aguardando aprovação do plano', 'aguardando')
+  await relogio.advance(1000)
+  await aprovar
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
+})
+
 // Regra: perguntas.escolha-do-wrapup-ate-proxima-mensagem
 test('a escolha do wrap_up fica até a próxima mensagem', async ($: any, on: any) => {
   const { relogio } = fixar(on)

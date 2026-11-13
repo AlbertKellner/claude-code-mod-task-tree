@@ -72,6 +72,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "31a66c08ed35c344",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
@@ -153,6 +163,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::sem nada aberto, um desenho acima de 600 KB perde os pedidos mais antigos até caber, sem aviso": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "fe1935331e9018ca",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.limites-de-linhas"
@@ -172,6 +192,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::um pedido só acima de 600 KB é desenhado até caber e fecha com \"+N linhas\", sem aviso": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "f69aa37cc356be0f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
     },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
@@ -262,6 +292,26 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim": {
+      "regras": [
+        "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
+      ],
+      "hash": "5797ef0ab073501e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 2/2: o processo novo a desenha interrompida até o start nela": {
+      "regras": [
+        "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
+      ],
+      "hash": "9f5e4bb85f70e481",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
       "regras": [
@@ -438,11 +488,31 @@
       "regras": [
         "envios.cor-por-estado"
       ],
-      "hash": "1320897d1af51c1f",
+      "hash": "629f23aee0fdf818",
       "assercoes": 2,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\"; o pedido de id reusado segue à vista, o teste deixa de abrir \"+1 pedidos anteriores\""
+    },
+    "task-tree/tests/envios.test.ts::a sessão destino arquivada com a carta na fila: carta cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez e o Esc interrompe a tarefa": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "57583c91834d0c56",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
+    "task-tree/tests/envios.test.ts::a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul, na fila, a tarefa volta a esperar e a entrega a conclui": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "6a405bf5bc4817fa",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
     },
     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
       "regras": [
@@ -474,6 +544,26 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/envios.test.ts::carta não entregue não segura o pedido à vista: com tudo concluído, o pedido novo fica só": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "8fb262a54a2a0966",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
+    "task-tree/tests/envios.test.ts::carta não entregue: o done da tarefa não avisa de fila; tomada mesmo assim, fica verde e o modelo é avisado da entrega": {
+      "regras": [
+        "envios.destino-arquivado-nao-entregue"
+      ],
+      "hash": "c9486d03627c776e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
     "task-tree/tests/envios.test.ts::com a carta na fila, o Esc deixa a tarefa aguardando; a entrega a conclui": {
       "regras": [
         "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
@@ -483,6 +573,16 @@
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
+    },
+    "task-tree/tests/envios.test.ts::com a lista de sessões em erro, a entrega publicada pela sessão deixa a carta verde e conclui a tarefa": {
+      "regras": [
+        "envios.entrega-com-lista-de-sessoes-em-erro"
+      ],
+      "hash": "654719f8ad37cea0",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: carta na fila sem saída com a lista em erro"
     },
     "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
       "regras": [
@@ -659,6 +759,36 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/lembretes.test.ts::a descrição do plan diz que o estado só fica no replano da mesma mensagem": {
+      "regras": [
+        "lembretes.estado-guardado-so-no-mesmo-pedido"
+      ],
+      "hash": "7e88a01acbb9c772",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
+    "task-tree/tests/lembretes.test.ts::a mensagem entregue no meio do turno traz o lembrete de que continua o pedido em curso, não o de pedido novo": {
+      "regras": [
+        "lembretes.mensagem-no-meio-do-turno"
+      ],
+      "hash": "acb74b8c7ba8fcc2",
+      "assercoes": 17,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
+    "task-tree/tests/lembretes.test.ts::a resposta dada pelo chat a uma pergunta, entregue no meio do turno, é dita como resposta e continua o pedido": {
+      "regras": [
+        "lembretes.mensagem-no-meio-do-turno"
+      ],
+      "hash": "5e111f36fe949261",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
         "lembretes.regras-no-prompt-de-sistema"
@@ -668,6 +798,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras e o lembrete depois do Esc dizem que o estado só fica no replano da mesma mensagem": {
+      "regras": [
+        "lembretes.estado-guardado-so-no-mesmo-pedido"
+      ],
+      "hash": "6b6a8dcd51d5bb2e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar": {
+      "regras": [
+        "lembretes.replanejar-apos-esc-com-aviso-no-meio"
+      ],
+      "hash": "abed49138f309bc5",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
     },
     "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
       "regras": [
@@ -698,6 +848,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, a mensagem que chega com o turno de um aviso em curso ainda pede para replanejar": {
+      "regras": [
+        "lembretes.mensagem-no-meio-do-turno"
+      ],
+      "hash": "9fc078d575a94fb4",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, avisos que não abrem pedido no meio não tiram o pedido de replanejar da mensagem da pessoa": {
+      "regras": [
+        "lembretes.replanejar-apos-esc-com-aviso-no-meio"
+      ],
+      "hash": "2788a08468f0bdcc",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
     },
     "task-tree/tests/lembretes.test.ts::depois do fim normal do turno, a mensagem da pessoa só lista o que ficou aberto": {
       "regras": [
@@ -739,6 +909,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/pedidos.test.ts::mensagem entregue no meio do turno continua o pedido em curso: sem pedido novo, e o replano guarda o estado": {
+      "regras": [
+        "pedidos.mensagem-no-meio-do-turno-continua-o-pedido"
+      ],
+      "hash": "e1c74db479222f63",
+      "assercoes": 20,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
     "task-tree/tests/pedidos.test.ts::no Esc, pai com filha concluída fica aguardando, nunca interrompido": {
       "regras": [
         "turnos.pai-com-filha-concluida-nunca-interrompido"
@@ -748,6 +928,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/pedidos.test.ts::o pedido concluído cujo id o pedido novo reusa segue à vista enquanto outro pedido do trabalho tem algo aberto": {
+      "regras": [
+        "pedidos.resumida-mantem-anteriores-com-algo-aberto"
+      ],
+      "hash": "c071ab99d11c2128",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "auditoria 2026-11-10: o trabalho atual segue a renomeação do nível 1"
     },
     "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
       "regras": [
@@ -820,6 +1010,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
+    "task-tree/tests/pedidos.test.ts::plan que reusa o id de um nível 1 concluído num pedido novo não segura o pedido anterior todo concluído": {
+      "regras": [
+        "pedidos.id-reusado-nao-segura-pedido-concluido"
+      ],
+      "hash": "ddb82a3c578ab279",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
     "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
       "regras": [
         "pedidos.replano-preserva-estado"
@@ -890,6 +1090,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
+      "regras": [
+        "perguntas.mensagem-no-meio-do-turno-mantem-espera"
+      ],
+      "hash": "124bf584a42f5897",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10: a mensagem entregue no meio do turno derrubava a pergunta ou o plano ainda abertos"
+    },
     "task-tree/tests/perguntas.test.ts::o pedido de permissão aparece como espera; o de pergunta, não": {
       "regras": [
         "perguntas.permissao-espera"
@@ -949,6 +1159,26 @@
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada": {
+      "regras": [
+        "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
+      ],
+      "hash": "daa9d0de7629daa2",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o cartão diz \"parada\"": {
+      "regras": [
+        "sessoes.filha-parada-com-esc-sem-pendente"
+      ],
+      "hash": "5192b3c7aaab1f70",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 10"
     },
     "task-tree/tests/sessoes.test.ts::a filha que volta a trabalhar volta a contar": {
       "regras": [
@@ -1061,6 +1291,16 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::com carta: o id reusado num pedido novo deixa cartão e carta sob a tarefa de origem, e a carta fica cinza depois da entrega": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
+      ],
+      "hash": "b4b8492ab3390f14",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 2"
+    },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
         "sessoes.cartao-sob-a-tarefa-de-origem"
@@ -1091,6 +1331,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/sessoes.test.ts::depois que a sessão para e a carta é entregue, o pedido seguinte leva o pedido de id reusado para \"+N pedidos anteriores\"": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-sessao-viva"
+      ],
+      "hash": "22b57bcb94df1107",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
@@ -1165,6 +1415,16 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::o cartão da filha parada não mostra \"+N pedidos anteriores\" sem nada fora do desenho": {
+      "regras": [
+        "sessoes.cartao-parado-sem-pedidos-anteriores-a-mais"
+      ],
+      "hash": "248169b9efc52c6b",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 11"
+    },
     "task-tree/tests/sessoes.test.ts::o cartão mostra toks/s e repositório com branch": {
       "regras": [
         "sessoes.toks-e-repo-branch-no-cartao"
@@ -1195,6 +1455,27 @@
       "data": "2026-11-04",
       "motivo": "só a visão resumida, 2026-11-04"
     },
+    "task-tree/tests/sessoes.test.ts::o turno 1 próprio que começa bem depois da abertura (a filha limpa com /clear) segue como pedido do usuário na filha": {
+      "regras": [
+        "sessoes.turno-de-abertura-da-filha-sob-a-origem",
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "3290535052127c86",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 3"
+    },
+    "task-tree/tests/sessoes.test.ts::o turno de abertura que a filha publica como próprio fica sob a tarefa de origem, sem \"pedido do usuário na filha\"": {
+      "regras": [
+        "sessoes.turno-de-abertura-da-filha-sob-a-origem"
+      ],
+      "hash": "37a5e7c4dca9d8d2",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 3"
+    },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
@@ -1204,6 +1485,26 @@
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "turno próprio da filha no pedido vigente"
+    },
+    "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
+      ],
+      "hash": "a78432d6e6279145",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 2"
+    },
+    "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa sob a tarefa de origem o cartão da sessão trabalhando sem tarefa própria, com o pedido antigo à vista": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-sessao-viva"
+      ],
+      "hash": "631a84cfad55fcab",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
@@ -1215,6 +1516,89 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::só a carta na fila, com a sessão parada: o id reusado num pedido novo deixa o pedido antigo à vista, com a carta sob a tarefa de origem": {
+      "regras": [
+        "pedidos.id-reusado-segura-pedido-com-sessao-viva"
+      ],
+      "hash": "010afe3cd07614a7",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
+    "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "3e40470cceec5936",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 5"
+    },
+    "task-tree/tests/subagentes.test.ts::a tarefa ✕ \"falhou\" reaberta com start e refeita por outro subagente que conclui fica ✓": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "3c67d422b2a88ef6",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 1/3: os cartões vivos vão ao store": {
+      "regras": [
+        "subagentes.workflow-sem-sinal-vira-interrompido"
+      ],
+      "hash": "7256ee402ee4767c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 2/3: com sinal há 20 minutos, os cartões seguem vivos": {
+      "regras": [
+        "subagentes.workflow-sem-sinal-vira-interrompido",
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "0359fc4117ac74a8",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 3/3: sem sinal há mais de 30 minutos, os cartões ficam \"interrompido\" e a tarefa de origem reflete o fim": {
+      "regras": [
+        "subagentes.workflow-sem-sinal-vira-interrompido"
+      ],
+      "hash": "58319f7ebb6d846a",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "dcf3324b22fa9b03",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 5"
+    },
+    "task-tree/tests/subagentes.test.ts::com duas em andamento, dois lançados juntos vão um a cada tarefa, como em série": {
+      "regras": [
+        "subagentes.lancados-juntos-se-veem",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "5a3b24ac7a65efa1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
     "task-tree/tests/subagentes.test.ts::com duas em andamento, o subagente vai à primeira e a carta seguinte à segunda": {
       "regras": [
         "subagentes.cartao-desde-o-lancamento"
@@ -1224,6 +1608,18 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com o turno terminado, o subagente que o app passa a listar como parado ou concluído encerra o cartão, e a tarefa de origem reflete o fim": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido",
+        "subagentes.pai-reflete-falha-ou-interrupcao",
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "84b14e55521ab203",
+      "assercoes": 13,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
     },
     "task-tree/tests/subagentes.test.ts::com um ainda rodando, a tarefa não fecha; o último, terminando depois do turno, a fecha": {
       "regras": [
@@ -1246,6 +1642,27 @@
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
     },
+    "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
+      ],
+      "hash": "9e1ed3b72ccc2bb0",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado da pendente, o subagente que termina antes do primeiro start ainda fecha a tarefa no fim do turno": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "894586017d8a00ec",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
     "task-tree/tests/subagentes.test.ts::lançado de uma pendente (sem start), o subagente concluído fecha a pendente também": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -1255,6 +1672,26 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "42efd176ce0a2c8b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 5"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado por um subagente sem tarefas, o cartão fica no fim do cartão dele e sai com ele, sem ficar solto no fim do painel": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
+      ],
+      "hash": "c0b20540ce69bea0",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
     },
     "task-tree/tests/subagentes.test.ts::lançado um subagente, o cartão aparece sob a tarefa em andamento, com o modelo e \"trabalhando\"": {
       "regras": [
@@ -1276,6 +1713,58 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou",
+        "subagentes.na-filha"
+      ],
+      "hash": "054c68659e3829c4",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
+    },
+    "task-tree/tests/subagentes.test.ts::o cartão de uma filha publicado com um lote por lançamento junta os quatro lançados juntos num cartão de grupo": {
+      "regras": [
+        "subagentes.lancados-juntos-se-veem",
+        "subagentes.na-filha"
+      ],
+      "hash": "b757df2f32a678de",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
+    "task-tree/tests/subagentes.test.ts::o cartão do subagente lançado por outro não vai para uma tarefa da sessão que tem o mesmo id da tarefa de quem o lançou": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
+      ],
+      "hash": "a9abd158b2baa2e4",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
+    },
+    "task-tree/tests/subagentes.test.ts::o cartão vivo não é encerrado quando a lista do app falha, vem sem o estado, ou uma só releitura deu pela falta dele": {
+      "regras": [
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "9a21bf761e2f3c70",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
+    "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
+      "regras": [
+        "subagentes.id-reusado-nao-herda-cartao"
+      ],
+      "hash": "9a2b9aa479efa4cf",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 4"
     },
     "task-tree/tests/subagentes.test.ts::o subagente concluído fecha a tarefa de onde saiu no fim do turno; o pai e a contagem seguem": {
       "regras": [
@@ -1327,6 +1816,16 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
+      "regras": [
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "b37843e67db976b2",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow ficam num cartão \"Workflow · N agentes\"": {
       "regras": [
         "subagentes.varios-juntos-num-cartao-de-grupo"
@@ -1336,6 +1835,48 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::plan de um pedido novo que reusa o id não herda o cartão do subagente antigo, e o fim do turno não fecha a tarefa nova": {
+      "regras": [
+        "subagentes.id-reusado-nao-herda-cartao"
+      ],
+      "hash": "d0f6d6507649d1b0",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-10",
+      "motivo": "auditoria 2026-11-10, achado alto 4"
+    },
+    "task-tree/tests/subagentes.test.ts::quatro lançados juntos da mesma tarefa, com o relógio andando, ficam num cartão de grupo": {
+      "regras": [
+        "subagentes.lancados-juntos-se-veem",
+        "subagentes.varios-juntos-num-cartao-de-grupo"
+      ],
+      "hash": "fd2fe6b546f2f744",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
+    "task-tree/tests/subagentes.test.ts::reaberta com start depois de fechar pelo subagente, a tarefa aguarda no fim do turno seguinte; o subagente antigo não a fecha de novo": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
+      ],
+      "hash": "3958e84470188da1",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::reaberta com start, a tarefa que tinha falhado e é parada com Esc diz \"interrompida\", não \"falhou\"": {
+      "regras": [
+        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
+        "turnos.esc-interrompe-so-a-iniciada"
+      ],
+      "hash": "e7fe3eef8ba9a35c",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
     },
     "task-tree/tests/subagentes.test.ts::sem nada em andamento, o cartão vai à pendente do pedido atual": {
       "regras": [
@@ -1357,6 +1898,36 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 1/3: o cartão vivo vai ao store": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "551f7b4cc75f4a96",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
+    "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 2/3: o worker de hooks volta com ele ainda listado como rodando, e o cartão segue vivo": {
+      "regras": [
+        "subagentes.vivo-de-verdade-segue-vivo"
+      ],
+      "hash": "92f3787112d51a39",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
+    "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 3/3: o app reiniciado não o lista mais, e o cartão fica \"interrompido\", com o tempo parado e fora da pílula": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "4fc95bc4364ef71e",
+      "assercoes": 14,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
     "task-tree/tests/subagentes.test.ts::terminado, o cartão segue com \"concluído\"; com erro, \"falhou\"; parado, \"interrompido\"": {
       "regras": [
         "subagentes.terminado-segue-cartao",
@@ -1367,6 +1938,36 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::terminado, o subagente lançado por outro subagente segue com o cartão \"concluído\" sob a tarefa de quem o lançou": {
+      "regras": [
+        "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
+      ],
+      "hash": "50b93caa4b324c31",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
+    },
+    "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tarefa de onde saiu o subagente do pedido um": {
+      "regras": [
+        "subagentes.lancado-antes-da-tarefa-nao-conta"
+      ],
+      "hash": "694665aa2925dddb",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
+    },
+    "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela": {
+      "regras": [
+        "subagentes.lancado-antes-da-tarefa-nao-conta"
+      ],
+      "hash": "13e907247ecc1ae2",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-11",
+      "motivo": "auditoria 2026-11-10, achado alto 6"
     },
     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
       "regras": [
@@ -1419,6 +2020,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::a marca da parada com Esc vai no painel publicado até o start nela": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "600b4efe66d5a53a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/turnos.test.ts::a notificação de uma tarefa em segundo plano não abre pedido": {
       "regras": [
         "turnos.notificacao-de-tarefa-sem-turno"
@@ -1428,6 +2039,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
+    },
+    "task-tree/tests/turnos.test.ts::depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "bb51313001f09f62",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
     "task-tree/tests/turnos.test.ts::fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes": {
       "regras": [
@@ -1471,6 +2092,26 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::numa mensagem da pessoa em que o modelo dá start em outra tarefa, a parada com Esc segue interrompida, também no fim do turno": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "7a6b3470304ded7e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o done na tarefa parada com Esc, sem start, a conclui": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "249729534296de32",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/turnos.test.ts::o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual": {
       "regras": [
         "turnos.prompt-sem-turno"
@@ -1481,15 +2122,45 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::o pai iniciado e parado com Esc não reacende no prompt seguinte; o start nele o reacende": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "e2b5704f024ad3c1",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
       "regras": [
         "turnos.prompt-seguinte-retoma"
       ],
-      "hash": "51e1a0678150e269",
-      "assercoes": 2,
+      "hash": "1cfc71d3b5f3ab8a",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o replano no mesmo pedido que mantém a tarefa parada com Esc a mantém interrompida, com o relógio parado": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "91f0030b5002b6dc",
+      "assercoes": 3,
       "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "a8aa4e6e735fad31",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
     "task-tree/tests/turnos.test.ts::o subagente lançado sem tarefa de origem que termina segue desenhado": {
       "regras": [
@@ -1695,9 +2366,9 @@
       "motivo": "\"faça push e crie o pr\", 2026-11-09"
     },
     "principal": {
-      "hash": "bb83bbb8823a6c68",
-      "data": "2026-11-09",
-      "motivo": "\"faça push e crie o pr\", 2026-11-09"
+      "hash": "b6ef13ecf67ece83",
+      "data": "2026-11-12",
+      "motivo": "\"validado no app\", 2026-11-12"
     },
     "subagente": {
       "hash": "a4a2747c6b57f3d1",

@@ -35,9 +35,15 @@ export const RULES = [
   `- No done do último passo do pedido, passe em \`summary\` um resumo da resposta em ${LIMIT} ` +
     '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
     'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
-  '- Para replanejar, chame plan de novo com o nível 1 inteiro. Um nível 1 aberto com o mesmo id é ' +
-    'substituído no mesmo lugar da lista, e as tarefas que mantêm o id guardam o estado (concluída segue ' +
-    'concluída, em andamento segue em andamento); só as novas entram pendentes. Um nível 1 já concluído ' +
+  '- Para replanejar dentro da mesma mensagem do usuário, chame plan de novo com o nível 1 inteiro. Um nível 1 ' +
+    'aberto com o mesmo id é substituído no mesmo lugar da lista, e as tarefas que mantêm o id guardam o estado ' +
+    '(concluída segue concluída, em andamento segue em andamento); só as novas entram pendentes. Isso vale só ' +
+    'na mesma mensagem: numa mensagem seguinte (do usuário ou de outra sessão), um plan com o id de um nível 1 ' +
+    'ainda aberto não o replaneja, ele fica como histórico do pedido anterior, com as tarefas abertas ' +
+    'interrompidas, e a cópia nova entra toda pendente. Para seguir numa mensagem seguinte com tarefas de uma ' +
+    'anterior, use start e done nos ids delas e planeje só o que é novo, com ids novos. Quando o lembrete de ' +
+    'uma mensagem diz que ela chegou no meio do turno e continua o pedido em curso, ela não é mensagem ' +
+    'seguinte: não há pedido novo no painel, e o replano do nível 1 em curso guarda o estado. Um nível 1 já concluído ' +
     'fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
     'replaneje o nível 1 com ids novos para o que deve ser refeito.',
   '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
@@ -66,9 +72,11 @@ export const RULES = [
 export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele'
 export const TOOLS = {
   plan:
-    'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas; ' +
-    'uma aberta com o mesmo id é substituída no mesmo lugar (replanejamento): as tarefas que mantêm o id ' +
-    'guardam o estado, e só as novas entram pendentes. ' +
+    'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas. ' +
+    'Na mesma mensagem do usuário, uma aberta com o mesmo id é substituída no mesmo lugar (replanejamento): as ' +
+    'tarefas que mantêm o id guardam o estado, e só as novas entram pendentes. Numa mensagem seguinte, uma aberta ' +
+    'com o mesmo id fica como histórico do pedido anterior, com as abertas interrompidas, e o plano novo entra ' +
+    'todo pendente: para continuar tarefas de uma mensagem anterior, use start e done nos ids delas. ' +
     'Até 3 níveis: nível 1 genérico, nível 3 mais granular. Ids únicos dentro do plano (ex.: "1", "1.2", "1.2.3"); ' +
     'abaixo do nível 1 eles ganham o id dele como prefixo ("D/1.2"), então planos diferentes podem repetir ids. ' +
     'Use no início de todo pedido (uma tarefa basta para um pedido simples) e ao replanejar. ' +
@@ -95,7 +103,8 @@ const PANEL = 'Painel de tarefas (task-tree): '
 
 // Added to the prompt (prompt.submit): with the person's message, the reminder of a new request
 // and, with tasks still open, their list (`answered`: the message answers the last question); with
-// a background task's notification, a subagent's hand-back or the app's own notice, a short one.
+// a background task's notification, a subagent's hand-back or the app's own notice, a short one;
+// with a message delivered into a running turn that continues the request, the one that says so.
 export const PROMPT = {
   request:
     PANEL + 'todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
@@ -113,6 +122,17 @@ export const PROMPT = {
     PANEL + `tarefas abertas antes desta mensagem: ${list}. Feche com ` +
     'mcp__task-tree__done as que esta mensagem conclui ou substitui (por exemplo, a de perguntar ou de ' +
     'esperar a resposta) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.',
+  // A message delivered into a running turn that continues the request in progress, with no request
+  // of its own in the panel (the person, 2026-11-12: "Entra no pedido em curso (Recomendado)").
+  // `list`: the open tasks, if any; `answered`: the message answers the last question.
+  midTurn: (list: string, answered: boolean) =>
+    (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
+    PANEL + 'esta mensagem chegou no meio do turno e continua o pedido em curso; ela não abre pedido novo ' +
+    'no painel. ' + (list !== '' ? `Tarefas abertas: ${list}. ` : '') +
+    'Siga nas tarefas que já existem com mcp__task-tree__start e mcp__task-tree__done, e feche as que esta ' +
+    'mensagem conclui ou substitui. O que ela pede de novo entra no plano atual: mcp__task-tree__plan com ids ' +
+    'novos, ou de novo com o nível 1 inteiro (as tarefas que mantêm o id guardam o estado), sem request: o ' +
+    'pedido em curso mantém o título.',
   handback: PANEL + 'o subagente terminou; atualize o painel (mcp__task-tree__done no que ele concluiu).',
   background:
     PANEL + 'uma tarefa em segundo plano (um subagente, um comando) terminou; ' +
@@ -123,10 +143,12 @@ export const PROMPT = {
   // what the message asks, before going on. The person's own message gets interruptedByYou.
   interrupted: (list: string) =>
     PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
-    'chegou em seguida. Antes de seguir, replaneje o painel: chame mcp__task-tree__plan com o nível 1 ' +
-    `inteiro, juntando o que ficou do trabalho interrompido (tarefas abertas: ${list}) e o que esta ` +
-    'mensagem pede, na ordem em que vai executar; mantenha os ids das tarefas que continuam, que guardam ' +
-    'o estado. Depois siga etapa por etapa com start e done.',
+    'chegou em seguida. Antes de seguir, replaneje o painel: esta mensagem abre um pedido novo. O que ' +
+    `continua do trabalho interrompido (tarefas abertas: ${list}) segue pelos ids que já tem: reabra com ` +
+    'mcp__task-tree__start o que retoma agora e feche com mcp__task-tree__done o que esta mensagem conclui. ' +
+    'O que ela pede de novo vai em mcp__task-tree__plan, com ids novos, na ordem em que vai executar: um ' +
+    'plan com o id de um nível 1 da lista o deixaria como histórico, com as abertas interrompidas, e criaria ' +
+    'uma cópia toda pendente. Depois siga etapa por etapa com start e done.',
   interruptedEmpty:
     PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
     'chegou em seguida. Antes de seguir, replaneje o painel com o que esta mensagem pede: chame ' +
@@ -137,11 +159,13 @@ export const PROMPT = {
   interruptedByYou: (list: string, answered: boolean) =>
     (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
     PANEL + 'o usuário interrompeu o turno anterior antes de terminar, e esta é a mensagem seguinte dele. ' +
-    'Antes de seguir, replaneje o painel: chame mcp__task-tree__plan com o nível 1 inteiro, na ordem em ' +
-    `que vai executar. Se esta mensagem continua o trabalho interrompido (tarefas abertas: ${list}), junte ` +
-    'o que ficou com o que ela pede, mantendo os ids das tarefas que continuam, que guardam o estado; se ela ' +
-    'muda de rumo, feche com mcp__task-tree__done o que ela substitui e planeje só o pedido novo. Depois ' +
-    'siga etapa por etapa com start e done.',
+    'Antes de seguir, replaneje o painel; esta mensagem abre um pedido novo. Se ela continua o trabalho ' +
+    `interrompido (tarefas abertas: ${list}), siga essas tarefas pelos ids que já têm, com ` +
+    'mcp__task-tree__start e mcp__task-tree__done, e planeje só o que ela pede de novo, com ' +
+    'mcp__task-tree__plan e ids novos, na ordem em que vai executar: um plan com o id de um nível 1 da lista o ' +
+    'deixaria como histórico, com as abertas interrompidas, e criaria uma cópia toda pendente. Se ela muda de ' +
+    'rumo, feche com mcp__task-tree__done o que ela substitui e planeje só o pedido novo. Depois siga etapa ' +
+    'por etapa com start e done.',
 }
 
 // A question (AskUserQuestion) or a plan to approve: refused with no open task; answered, by an
@@ -196,12 +220,16 @@ export const UNPLANNED =
   'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.'
 
 // The sessions this one opened: one took up a queued message (`what`: each session, with the task
-// it was sent from); one ended its turn with the task it was opened on still open (`sessions`: each
-// with that task; `open`: the panel's open tasks).
+// it was sent from); one was archived with a message still queued, which is not delivered (`lost`);
+// one ended its turn with the task it was opened on still open (`sessions`: each with that task;
+// `open`: the panel's open tasks).
 export const SESSION = {
   taken: (what: string[]) =>
     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
     'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
+  lost: (what: string[]) =>
+    PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
+    'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa (mcp__task-tree__done quando concluída).',
   ended: (sessions: string[], open: string) =>
     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +

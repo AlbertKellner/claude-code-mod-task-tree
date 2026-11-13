@@ -18,6 +18,9 @@ export type TaskNode = {
   endedAt?: number
   // When the task was planned: where a task closed with no start starts, at the latest.
   plannedAt?: number
+  // When a start last reopened it after it closed: the subagents that ended before were already
+  // reflected in that close and no longer close it (hooks/agents, settleBySubs).
+  reopenedAt?: number
   // A level-1 task of the main group: the turn (the person's message) it was planned in.
   turn?: number
   // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in
@@ -29,6 +32,15 @@ export type TaskNode = {
   // Closed by the panel as interrupted because the subagent launched from it failed (hooks/agents,
   // settleBySubs): drawn ✕ with "falhou" instead of "interrompida".
   failed?: boolean
+  // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
+  // by that stop (halt in draw/layout); never kept nor published.
+  halted?: boolean
+  // A leaf started and open when the person stopped the turn (Esc). Kept on the task (state, store,
+  // published panel) from that stop until a start begins it again, a done closes it or a plan
+  // replaces it; its clock stopped at the stop (`endedAt`). Meanwhile every drawing reads it as
+  // interrupted, in the turns that come after too (halt and stay in draw/layout; park in state/tasks).
+  // The person, 2026-11-12: "Segue ✕ até novo start (Recomendado)".
+  stopped?: boolean
   children: TaskNode[]
 }
 
@@ -51,12 +63,15 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // `whole`: only in a drawing's cut (trimToWork): every level-1 task, `tasks` being those of the work.
 // `sub`: a subagent's card (hooks/agents), from its launch: when (`at`) and how it ended (`end`, `state`),
 // its model and effort (`engine`), output rate (`toks`), the tool in use and how many calls it made, the
-// batch it was launched in (the first launch's time) and its workflow run (`run`). Absent from the
+// batch it was launched in (the first launch's time) and its workflow run (`run`). `seen`: when the card
+// last heard from it (a call, a step); where its time stops when its end never comes (hooks/agents,
+// checkSubs); absent until its first call, and from earlier versions. Absent from the
 // main group, from a subagent's group made before its launch was heard, and from earlier versions.
 export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub }
 export type Sub = {
   at: number
   end?: number
+  seen?: number
   state: 'running' | 'background' | 'done' | 'failed' | 'interrupted'
   engine?: string
   toks?: number
@@ -201,7 +216,9 @@ export type Child = {
 // its task shows ✉ meanwhile, with no reminder when taken.
 // `text`: the message's start (its letter's title); `noted`: the main loop was told it was taken up
 // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean }
+// `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
+// (its letter gray, "não entregue"); undone if the session is listed again unarchived.
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }
@@ -222,12 +239,16 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
 // `turnAborted`: the last turn of the main loop ended interrupted (turn.complete with isAborted), until
 // the next request; a message of another session that comes then gets a reminder to replan the panel.
+// `replanDue`: a turn of the main loop was stopped (Esc) and no request came since: the next request,
+// the person's or another session's, gets the reminder to replan the panel. A turn that opens no
+// request (the app's notice, a hand-back, a background task's notification) leaves it as it is,
+// though its normal end sets turnAborted back to false.
 // `rate`: this session's output rate (turn.step measures it), for its own header and published for
 // its card; in the state so a reload mid-turn keeps the last value.
 // `git`: this session's repository and branch (refreshGit reads them), for its own header and
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean }
   }
 }

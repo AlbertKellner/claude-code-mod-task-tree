@@ -118,6 +118,39 @@ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou um
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
+### sessoes.filha-parada-com-esc-sem-pendente
+A filha parada com Esc que não deixou pendente é descartada como a que deixou.
+
+- Dado uma filha com uma tarefa ✓ e outra iniciada, sem pendente nunca iniciada
+- Quando o usuário a para com Esc e a mãe desenha o painel
+- Então a iniciada fica ✕ e conta como a tarefa aberta da sessão parada com Esc: as duas saem do cabeçalho, do chip "interrompidas" e do x/y da tarefa de origem (sessoes.rodada-descartada-fora-da-contagem, sessoes.rodada-descartada-fora-da-contagem-do-pai); o cartão continua desenhado, com a palavra "parada" (parou com tarefa aberta, sessoes.palavra-de-estado-do-cartao), não "concluída"
+
+Origem: auditoria 2026-11-10 (filha parada com Esc: o descarte era decidido depois de o Esc deixar a iniciada ✕, então sem pendente a ✓ contava e o cartão dizia "concluída"; com uma pendente, tudo saía da contagem); aplica sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-24: "as tarefas dessa sessão foram descartadas") e sessoes.palavra-de-estado-do-cartao, sem mudar nenhuma das duas.
+Código: draw/layout.ts
+Estado: coberto
+
+### sessoes.filha-parada-com-esc-segue-descartada-ate-o-start
+A filha parada com Esc segue rodada descartada até dar start na tarefa parada.
+
+- Dado uma filha parada com Esc com uma tarefa iniciada, que depois tratou outro turno (um aviso, ou o start em outra tarefa) e o terminou normalmente
+- Quando a mãe desenha o cartão dela, parada
+- Então a tarefa parada segue ✕ e a rodada segue descartada (fora do cabeçalho, do chip "interrompidas" e do x/y da tarefa de origem; o cartão diz "parada"), e a outra iniciada aguarda ◷; enquanto a filha trabalha, o cartão já mostra a parada ✕; quando a filha dá start na tarefa parada, a rodada volta a contar
+
+Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (depois do turno de um aviso, o cartão da filha parada com Esc voltava a contar, com a tarefa ◷); aplica sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-24: "as tarefas dessa sessão foram descartadas"), sem mudá-la.
+Código: draw/layout.ts, state/tasks.ts, hooks/turn.ts
+Estado: coberto
+
+### sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
+O cartão da filha parada só mostra "+N pedidos anteriores" quando há pedido dela fora do desenho.
+
+- Dado uma filha parada (não trabalhando, não arquivada), com um turno só, que deixou um pai aberto (só pendentes embaixo) ou uma folha iniciada, parada normalmente ou com Esc
+- Quando a mãe desenha o cartão
+- Então o cartão mostra as tarefas dela e nenhuma linha "+N pedidos anteriores", porque nada ficou fora; a linha segue aparecendo quando um pedido da filha sai do desenho (cabecalho.limites-de-linhas)
+
+Origem: auditoria 2026-11-10 (a linha aparecia dentro do cartão da filha parada sem nada escondido, e aberta não mostrava nada novo: o cartão parado era lido duas vezes e as tarefas abertas da segunda leitura não eram reconhecidas como as da primeira); aplica cabecalho.limites-de-linhas ("Os pedidos fora do trabalho viram '+N pedidos anteriores'") e cabecalho.historico-guarda-o-que-saiu (decisão do usuário, 2026-11-04: "Ficam em '+N pedidos anteriores' (Recomendado)"), sem mudar nenhuma das duas.
+Código: draw/layout.ts
+Estado: coberto
+
 ### sessoes.rodada-descartada-fora-da-contagem-do-pai
 A rodada descartada sai também do x/y da tarefa da mãe.
 
@@ -193,6 +226,17 @@ O turno que o usuário abriu digitando na filha fica no pedido da mãe vigente q
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Código: draw/layout.ts
+Estado: coberto
+
+### sessoes.turno-de-abertura-da-filha-sob-a-origem
+O turno que abriu a filha (o texto do start_session) não é pedido do usuário na filha, mesmo quando ela o publica como próprio.
+
+- Dado uma filha aberta a partir de uma tarefa, que publica o primeiro turno marcado como próprio (os arquivos publicados reais trazem a marca)
+- Quando a mãe desenha o painel
+- Então o cartão desse turno fica sob a tarefa de origem, com o nome simples, sem "pedido do usuário na filha"; um turno 1 marcado como próprio que começa bem depois da abertura (a filha limpa com /clear, os turnos recomeçam) segue como pedido do usuário na filha (sessoes.turno-proprio-da-filha-no-pedido-vigente)
+
+Origem: auditoria 2026-11-10 (o primeiro turno da filha é marcado como pedido do usuário na filha); aplica sessoes.cartao-sob-a-tarefa-de-origem e sessoes.turno-proprio-da-filha-no-pedido-vigente ("O turno que o usuário abriu digitando na filha"), sem mudar nenhuma das duas.
 Código: draw/layout.ts
 Estado: coberto
 

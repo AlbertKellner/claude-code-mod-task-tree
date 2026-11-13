@@ -9,11 +9,12 @@ O ✉ fica na tarefa até a entrega.
 
 - Dado uma tarefa de onde saiu uma mensagem a outra sessão, ainda na fila
 - Quando a tarefa é concluída antes da entrega
-- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou
+- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou; se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue
 
 Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é uma linha própria sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Estado: coberto
 
 ### envios.entrega-imediata-fica-verde
@@ -45,13 +46,15 @@ Estado: coberto
 O ✉ mantém o ícone e muda só a cor.
 
 - Dado uma tarefa de mensagem
-- Quando a mensagem está na fila, é entregue ou fica num plano interrompido
-- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega); a tarefa tem o ícone comum e conta
+- Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la)
+- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega ou não entregue); a tarefa tem o ícone comum e conta
 
 Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
+Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Código: draw/layout.ts, draw/svg.ts
 Estado: coberto
 
@@ -110,10 +113,11 @@ A carta de recebimento é a linha do pedido; as tarefas derivadas têm ícone de
 
 - Dado uma mensagem de outra sessão que abre um pedido
 - Quando o modelo planeja as tarefas dele e as trata
-- Então a linha do pedido mostra o ✉ de recebida (azul enquanto há trabalho aberto, verde concluído, cinza interrompido), e as tarefas, em qualquer nível, mostram o ícone comum; um pedido da pessoa não tem carta
+- Então a linha do pedido mostra o ✉ de recebida (azul enquanto há trabalho aberto, verde concluído, cinza interrompido), e as tarefas, em qualquer nível, mostram o ícone comum; um pedido da pessoa não tem carta; o relato de uma sessão que esta abriu, entregue com o turno em curso, não abre pedido, então não tem carta de recebida (pedidos.mensagem-no-meio-do-turno-continua-o-pedido)
 
 Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' deveria ser uma carta também"); commit 83f715d.
 Reescrito: 2026-10-30, decisão do usuário ("as cartas deveriam representar somente quando uma sessão se comunica com outra… Quando o pedido fosse recebido, ele seria representado por uma carta, e as tarefas derivadas dessa mensagem (pedido) deveriam ter os icones de tarefas, não de cartas"; "Sim, uma carta por mensagem (Recomendado)"; "Azul tratando, verde concluído, cinza interrompido (Recomendado)"); desfaz o ajuste de 2026-10-24 e volta ao pedido original do mesmo dia ("as tarefas partem como subtarefas da tarefa de recebimento").
+Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomendado)"); exceção a "uma carta por mensagem" (2026-10-30): o relato de uma sessão que esta abriu, entregue no meio do turno, continua o pedido em curso, sem linha nem ✉ de recebida. Os testes não mudam.
 Código: hooks/prompt-submit.ts, draw/layout.ts
 Estado: coberto
 
@@ -122,9 +126,10 @@ A carta de envio é uma linha sob a tarefa de onde a mensagem saiu.
 
 - Dado uma mensagem a outra sessão enviada de uma tarefa
 - Quando o painel é desenhado
-- Então uma linha "✉ Para <sessão>: <mensagem>" aparece sob a tarefa, antes do cartão da sessão, com "na fila" e o tempo de espera, depois "entregue"; ela fica fora do x/y, das barras e dos chips, menos o de "aguardando sessão"; a tarefa segue com o ícone comum e conta
+- Então uma linha "✉ Para <sessão>: <mensagem>" aparece sob a tarefa, antes do cartão da sessão, com "na fila" e o tempo de espera, depois "entregue" (ou "não entregue", sem tempo, se a sessão destino for arquivada antes de tomá-la); ela fica fora do x/y, das barras e dos chips, menos o de "aguardando sessão", que só conta a carta na fila; a tarefa segue com o ícone comum e conta
 
 Origem: decisão do usuário, 2026-10-30 ("A: linha própria sob a tarefa (Recomendado)"; "a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria").
+Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a linha ganha a palavra "não entregue", sem tempo e fora do chip "aguardando sessão" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Código: draw/layout.ts, draw/svg.ts, hooks/render.tsx
 Estado: coberto
 
@@ -138,3 +143,36 @@ Enquanto a carta está na fila, a tarefa de onde saiu espera a sessão.
 Origem: decisão do usuário, 2026-10-30 ("Não, fica ◷ enquanto a carta está na fila"; "Sim, conclusão automática como hoje").
 Código: draw/layout.ts, hooks/sessions.ts
 Estado: coberto
+
+### envios.entrega-com-lista-de-sessoes-em-erro
+A entrega é confirmada mesmo quando a lista de sessões do app falha.
+
+- Dado uma tarefa com a carta dela na fila
+- Quando a lista de sessões do app volta com erro e a sessão destino já publicou que recebeu a mensagem
+- Então a carta fica verde, sai do chip "aguardando sessão" e o painel conclui a tarefa, como na entrega com a lista lida
+
+Origem: auditoria 2026-11-10 (carta na fila sem saída: com a lista em erro, o envio nunca era conferido); aplica envios.fica-ate-entrega ("na entrega, verde, e o painel conclui a tarefa que enviou"), sem mudar nenhuma regra.
+Código: hooks/sessions.ts
+Estado: coberto
+
+### envios.destino-arquivado-nao-entregue
+A carta cuja sessão destino foi arquivada antes de tomá-la fica cinza, "não entregue".
+
+- Dado uma tarefa com a carta dela na fila
+- Quando a lista de sessões do app mostra a sessão destino arquivada antes de tomar a mensagem
+- Então a carta fica cinza com "não entregue", sem tempo, e sai do chip "aguardando sessão"; a tarefa volta a ser comum (no Esc fica ✕, como qualquer outra; o done dela não avisa de carta na fila; concluída, não segura o pedido à vista) e o modelo é avisado uma vez; desarquivada antes de tomá-la, a carta volta a azul "na fila" e a tarefa volta a esperar a sessão; tomada mesmo assim, a carta fica verde e o modelo é avisado da entrega, como em qualquer entrega
+
+Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"), à pergunta da auditoria 2026-11-10 "Carta na fila cujo destino foi arquivado ou sumiu"; limita envios.fica-ate-entrega, envios.fila-nao-interrompe-no-fim-do-turno e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila à mensagem que ainda pode ser entregue. Só a sessão que a lista do app mostra arquivada: o destino que some da lista (ou a lista em erro) segue "na fila".
+Código: hooks/sessions.ts, hooks/tools.ts, draw/layout.ts, draw/svg.ts, text/rules.ts
+Estado: coberto
+
+### envios.destino-arquivado-no-app
+No app, arquivar a sessão destino com a mensagem na fila deixa a carta cinza "não entregue" e para o tempo da espera.
+
+- Dado uma mensagem na fila para uma sessão real, com o painel aberto
+- Quando a sessão destino é arquivada no app antes de tomar a mensagem, e depois desarquivada
+- Então em poucos segundos a carta fica cinza com "não entregue", nos dois temas, e o tempo da espera para de contar; desarquivada, a carta volta a azul "na fila" com o tempo de espera
+
+Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.destino-arquivado-nao-entregue.
+Código: hooks/sessions.ts, draw/layout.ts, draw/svg.ts
+Estado: checklist (sessão real arquivada no app; o relógio de 1 s e a pintura não rodam no harness)

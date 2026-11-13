@@ -9,7 +9,7 @@ import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { PANE, reminders, renameAnchors, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
+import { PANE, reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -18,7 +18,6 @@ import { keepTime } from './sessions'
 import type { EngineInterface } from 'claude-code'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
-const workState = { plugin: 'task-tree', key: 'work' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 
 export const node = {
@@ -67,8 +66,13 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
     const now = await stamp($)
     const groups = await change($, all => {
+      // The subagents this loop launched from a task the plan renames go with the old copy (their
+      // card, and the task the end of the turn closes by them), or they would hang from the new task
+      // with that id: the ids as `away` below takes them, from the groups this change gets.
+      const own = all.find(g => g.agent === agent)?.tasks ?? []
+      const fix = renamedAnchor(own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id), tag)
       return all.map(g => {
-        if (g.agent !== agent) return g
+        if (g.agent !== agent) return (g.parent ?? MAIN) === agent && fix(g.anchor) !== g.anchor ? { ...g, anchor: fix(g.anchor) } : g
         // In plan order: a replanned task takes the place of the one it replaces; the new ones
         // go below the ones already there.
         const reused = (t: TaskNode) => replanned(t)
@@ -107,10 +111,10 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       // hanging from the request's level-1 task until the delivery (the panel's letters).
       const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
       await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
-      // A closed level-1 task of the current work renamed by this plan stays in it.
-      const { value: cur = [] } = await $.state.get(workState)
-      const kept = fresh0 ? [] : renamed.filter(id => (cur as string[]).includes(id)).map(id => `${tag}:${id}`)
-      await joinWork($, [...ids, ...kept], fresh0)
+      // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
+      // task of the current work stays in it, and in new work the old copy is checked with the rest
+      // of the work before for what still holds the view.
+      await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
     }
     void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
     // What this plan sent (every level) and what is open in the caller's own group: not the
@@ -162,7 +166,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     if (agent === MAIN) {
       const { value: sends = [] } = await $.state.get(sendsState)
       const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
-      for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
+      for (const s of (sends as Send[]).filter(s => !s.taken && !s.cut && closed.includes(s.anchor ?? ''))) {
         const t = main.find(t => t.id === s.anchor)
         if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
       }
