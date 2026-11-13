@@ -17,6 +17,10 @@
 // A line's guides are the `Box key="guides"`, direct child of its `r<i>`; a card's strip at its left,
 // the `Box key="strip"`, direct child of its `c<i>`; one cell per column in them, and every Box with a
 // fill inside them is a stroke of a guide.
+// A line's height is the `height` of its `r<i>`, its content centered by `alignItems="center"` on the
+// boxes inside it (never on the `r<i>`, so the guides still stretch). A card's room above and below is
+// its Box's first and last child, empty boxes `PAD_Y` high; its room at the sides, its `paddingX`. In
+// a strip, the last cell's connector comes after a piece of bar `PAD_Y` high.
 // No element has a hover or display none, no Svg is interactive.
 
 import { guides, labelCols } from './layout'
@@ -37,8 +41,12 @@ const OVER = ' '
 export const GUIDE_COLOR = 'rgba(136,135,128,0.55)'
 export const GUIDE_W = 0.15
 export const GUIDE_H = 0.06
-// The height of a line: the rows and the connector of a card's strip (at its header's height).
-const ROW_H = 1
+// The height of a line: the rows and the connector of a card's strip (at its header's height). 1.4
+// lines, about the 28 px of the Svg drawing: the person, 2026-11-13, "aumente um pouco o padding
+// interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora", and for the
+// height, "1,4". The room above and below a card's content, in lines (the Svg drawing's 6 px PAD).
+const ROW_H = 1.4
+const PAD_Y = 0.3
 
 // A cell of the guides: blank, an ancestor's bar, or the connector to the line, a branch (the line
 // has a sibling after it) or an end (it is the last).
@@ -83,8 +91,10 @@ const joint = (Box: any, kind: Cell, props: Record<string, unknown>) => (
 )
 // The cell of a guide, as wide as the icon's cell by the same mono spacer (three spaces), its strokes
 // in a layer over it. With no height of its own, it stretches to its line's height (or to its card's,
-// in a strip). `strip`: the last column of a card's strip, its connector one line high at the header,
-// and for a branch the bar going on to the card's foot.
+// in a strip). `strip`: the last column of a card's strip: a piece of bar as high as the card's room
+// above (PAD_Y), its connector one line high at the header, and for a branch the bar going on to the
+// card's foot. The piece is shaped as the end's half bar (a fill with no width and no height), so the
+// kit still reads an end as an end.
 function guideCell(ui: any, kind: Cell, key: string, strip = false) {
   const { Box, Text } = ui
   const strokes =
@@ -94,6 +104,11 @@ function guideCell(ui: any, kind: Cell, key: string, strip = false) {
       </Box>
     ) : strip ? (
       <Box {...LAYER} flexDirection="column">
+        <Box height={PAD_Y} justifyContent="center">
+          <Box width={GUIDE_W} flexDirection="column">
+            <Box flexGrow={1} backgroundColor={GUIDE_COLOR} />
+          </Box>
+        </Box>
         {joint(Box, kind, { height: ROW_H })}
         {kind === 'branch' ? (
           <Box flexGrow={1} justifyContent="center">
@@ -181,7 +196,7 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
     <Box key={`r${i}`} height={ROW_H}>
       {guidesOf(ui, lead)}
       {iconCell(ui, bustIcon(sessionState(r.tone)), rowAlt(r), foldPress(r, acts))}
-      <Box flexShrink={1} minWidth={0} paddingLeft={1}>
+      <Box flexShrink={1} minWidth={0} paddingLeft={1} alignItems="center">
         <Text size="footnote" weight="semibold" color="inactive" wrap="truncate-end">
           {r.title}
         </Text>
@@ -194,14 +209,14 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
         ) : null}
       </Box>
       {r.meta ? (
-        <Box flexShrink={0} paddingLeft={1}>
+        <Box flexShrink={0} paddingLeft={1} alignItems="center">
           <Text size="caption" color={r.meta === 'aguardando' ? 'warning' : 'inactive'}>
             {r.meta}
           </Text>
         </Box>
       ) : null}
       {git ? (
-        <Box flexShrink={100} minWidth={0} paddingLeft={1}>
+        <Box flexShrink={100} minWidth={0} paddingLeft={1} alignItems="center">
           <Text size="caption" color="inactive" wrap="truncate-end">
             {git}
           </Text>
@@ -209,14 +224,14 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
       ) : null}
       <Box flexGrow={1} />
       {rate && r.rate ? (
-        <Box flexShrink={0} paddingLeft={1}>
+        <Box flexShrink={0} paddingLeft={1} alignItems="center">
           <Text size="caption" color="inactive" tabular dimColor={!r.rate.live || undefined}>
             {rateText(r.rate.toks)}
           </Text>
         </Box>
       ) : null}
       {eng ? (
-        <Box flexShrink={0} paddingLeft={1}>
+        <Box flexShrink={0} paddingLeft={1} alignItems="center">
           {r.engine ? (
             <Text size="caption" color="inactive">
               {r.engine}
@@ -247,7 +262,10 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
 // a section, or a session's label. `lead`: the cells of the guides drawn before it (desktopTree passes
 // the cells of the columns inside the line's container). `cols`: the columns the line has
 // (the pane's, less the strips and the cards around it), for what fits on a session's label.
-// Every line ROW_H high, with no gap between lines: the guides' boxes stretch to it and meet.
+// Every line ROW_H high, with no gap between lines: the guides' boxes stretch to it and meet. Taller
+// than its text (1.4, the person's "1,4"), so what it shows is centered on its height by the boxes in
+// it (alignItems), the guides' arm in the middle meeting the icon; not on the `r<i>` itself, which
+// would stop the guides from stretching.
 export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number): any {
   if (r.session) return labelRow(ui, r, i, lead, acts, cols)
   const { Box, Text, Svg, Button } = ui
@@ -258,7 +276,7 @@ export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts,
   // The icon: none on a section; on a section that opens, its ▸/▾ is the Button that folds it.
   const icon = section ? (
     r.fold ? (
-      <Box flexShrink={0} width={3} justifyContent="center">
+      <Box flexShrink={0} width={3} justifyContent="center" alignItems="center">
         <Button key={`fold:${r.fold.key}`} label={r.fold.open ? '▾' : '▸'} plain dimColor onPress={acts.fold(r)} />
       </Box>
     ) : null
@@ -341,7 +359,7 @@ export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts,
     <Box key={`r${i}`} height={ROW_H}>
       {guidesOf(ui, lead)}
       {icon}
-      <Box flexGrow={1} flexShrink={1} minWidth={0} paddingLeft={icon ? 1 : 0}>
+      <Box flexGrow={1} flexShrink={1} minWidth={0} paddingLeft={icon ? 1 : 0} alignItems="center">
         <Text wrap="truncate-end" color={quiet ? 'inactive' : undefined} dimColor={dim || undefined} weight={r.strong ? 'semibold' : undefined}>
           {r.title}
         </Text>
@@ -354,7 +372,7 @@ export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts,
         ) : null}
       </Box>
       {shown.length > 0 ? (
-        <Box flexShrink={0} columnGap={1} paddingLeft={1}>
+        <Box flexShrink={0} columnGap={1} paddingLeft={1} alignItems="center">
           {shown}
         </Box>
       ) : null}
@@ -367,14 +385,33 @@ export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts,
 // uses for it (userMessageBackground) has no counterpart in the desktop, which drew the card with the
 // pane's own fill and its default border (#222222 on #191919). The person, 2026-11-13: "nao aparece
 // nenhum card". Translucent, the same values lighten the dark pane and darken the light one without
-// the mod knowing the theme (dark: fill #20201f, border #373634; light: #f8f8f7, #dfdfdd). The header
-// (./head) takes the same two. A card inside a card adds its tone to the outer one's.
-export const CARD_FILL = 'rgba(136,135,128,0.06)'
-export const CARD_BORDER = 'rgba(136,135,128,0.22)'
-const CARD = { borderStyle: 'round', borderColor: CARD_BORDER, paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: CARD_FILL }
+// the mod knowing the theme. A card inside a card lays its fill over the outer one's, so each level
+// has its own alpha: the person, 2026-11-13, "aumente um pouco o contraste do card, deixando ele um
+// pouco mais claro, e repita isso para cada card dentro de card". The fill of level k is a/(1-k*a),
+// a = 0.10, so every card goes the same 10 % of what is left from the pane to the gray, whatever the
+// pane; the border, b/(1-(k+1)*a), b = 0.22, 22 % of that same distance past its own card's fill.
+// Rounded to 3 places, as a table (the color's text stays stable); level 4 on repeats level 4. Level 0
+// on the dark pane (#191919): fill #242423, border #3c3c3a; level 1, #2f2f2e and #484744; on the light
+// one (#ffffff): #f3f3f2, #d9d9d6; level 1, #e7e7e6 and #cdcdca. The header (./head) takes level 0's.
+const LEVELS: [string, string][] = [
+  ['0.1', '0.244'],
+  ['0.111', '0.275'],
+  ['0.125', '0.314'],
+  ['0.143', '0.367'],
+  ['0.167', '0.44'],
+]
+const gray = (a: string) => `rgba(136,135,128,${a})`
+export const CARD_FILL = gray(LEVELS[0]![0])
+export const CARD_BORDER = gray(LEVELS[0]![1])
+// A card's props at a level (how many cards are around it). Its room at the sides is its paddingX
+// (the person, 2026-11-13: "nos 4 lados"); above and below, the empty PAD_Y boxes desktopTree puts in.
+const card = (level: number) => {
+  const [fill, border] = LEVELS[Math.min(level, LEVELS.length - 1)]!
+  return { borderStyle: 'round', borderColor: gray(border), paddingX: 2, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: gray(fill) }
+}
 // What a card takes of its container's columns besides its strip: the two sides of its border and
-// padding (2 ch of padding and 2 px of border, counted 3).
-const CARD_COLS = 3
+// padding (4 ch of padding and 2 px of border, counted 5).
+const CARD_COLS = 5
 
 // The whole list of lines, the cards nested in Boxes. Inside a container every line starts at its
 // content's edge and its guides go one cell (three mono spaces wide) a column, so they line up with one
@@ -393,7 +430,8 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
       .map(c => c.kind)
   // The children of a container whose content starts at column `base`, for the lines [a, b), in
   // `room` columns.
-  const block = (a: number, b: number, base: number, room: number): any[] => {
+  // `level`: how many cards are around them.
+  const block = (a: number, b: number, base: number, room: number, level: number): any[] => {
     const out: any[] = []
     for (let i = a; i < b; ) {
       const r = lines[i]!
@@ -414,9 +452,11 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
               {strip.map((k, n) => guideCell(ui, k, `g${n}`, n === strip.length - 1))}
             </Box>
           ) : null}
-          <Box {...CARD}>
+          <Box {...card(level)}>
+            <Box height={PAD_Y} flexShrink={0} />
             {desktopRow(ui, r, i, [], acts, inner)}
-            {block(i + 1, j, r.depth, inner)}
+            {block(i + 1, j, r.depth, inner, level + 1)}
+            <Box height={PAD_Y} flexShrink={0} />
           </Box>
         </Box>,
       )
@@ -424,5 +464,5 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
     }
     return out
   }
-  return block(0, lines.length, 0, cols)
+  return block(0, lines.length, 0, cols, 0)
 }

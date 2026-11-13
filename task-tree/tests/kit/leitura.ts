@@ -477,3 +477,108 @@ export function textosComCaixa(d: DesenhoDoApp): number {
   andar(d.raiz)
   return n
 }
+
+// ---- A altura das linhas, o centro do conteúdo, os vãos e os respiros dos cartões no app. A altura
+// de uma linha é o height do Box key="r<i>"; o respiro de cima e o de baixo de um cartão são a primeira
+// e a última filha do Box do cartão quando são caixas vazias (sem filhos e sem fundo) com height, e o
+// dos lados é o paddingX (ou paddingLeft/paddingRight) dele; na faixa, as caixas antes do bloco do
+// braço, na mesma coluna, descem o respiro de cima.
+export const alturaDaLinha = (l: LinhaDoApp): unknown => l.el?.props?.height
+const emLinha = (x: any) => x?.type === 'Box' && (x.props?.flexDirection ?? 'row') === 'row'
+// Todo texto com algo além de espaço, todo Svg e todo Button da linha (fora as guias) tem, entre ele
+// e o r<i>, uma caixa em linha com alignItems center.
+export function centrada(l: LinhaDoApp): boolean {
+  let ok = true
+  const andar = (x: any, centro: boolean) => {
+    if (typeof x === 'string') {
+      if (/\S/.test(x) && !centro) ok = false
+      return
+    }
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Box' && chave(x) === 'guides') return
+    if ((x.type === 'Svg' || x.type === 'Button') && !centro) ok = false
+    const c = centro || (emLinha(x) && x.props?.alignItems === 'center')
+    for (const f of x.children ?? []) andar(f, c)
+  }
+  for (const f of l.el?.children ?? []) andar(f, false)
+  return ok
+}
+// Quantos vãos há entre as linhas: r<i> com margem ou padding vertical, mais caixas com r<i> ou c<i>
+// como filho direto e com gap ou rowGap.
+export function vaosEntreLinhas(d: DesenhoDoApp): number {
+  let n = 0
+  const linhaOuCartao = (x: any) => typeof x === 'object' && x?.type === 'Box' && /^[rc]\d+$/.test(String(chave(x) ?? ''))
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const p = x.props ?? {}
+    if (x.type === 'Box' && /^r\d+$/.test(String(chave(x) ?? ''))) {
+      for (const k of ['margin', 'marginY', 'marginTop', 'marginBottom', 'padding', 'paddingY', 'paddingTop', 'paddingBottom']) if (p[k]) n++
+    }
+    if (x.type === 'Box' && (p.gap || p.rowGap) && (x.children ?? []).some(linhaOuCartao)) n++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return n
+}
+export type RespiroDoApp = { primeira: string; dentro: number; cima: number; baixo: number; esquerda: number; direita: number; conector?: { bloco: unknown; antes: number } }
+const vazia = (x: any) => typeof x === 'object' && x?.type === 'Box' && !(x.children ?? []).length && x.props?.backgroundColor === undefined
+const alto = (x: any) => (vazia(x) && typeof x.props?.height === 'number' ? (x.props.height as number) : 0)
+const temBraco = (x: any): boolean => {
+  if (typeof x !== 'object' || x === null) return false
+  if (x.type === 'Box' && x.props?.backgroundColor !== undefined && x.props?.height !== undefined && !(x.children ?? []).length) return true
+  return (x.children ?? []).some(temBraco)
+}
+// O conector na última célula da faixa: a altura da caixa (na coluna dos traços) que contém o braço e
+// a soma das alturas das caixas antes dela na mesma coluna.
+const conectorDe = (cel: any): { bloco: unknown; antes: number } | undefined => {
+  const andar = (x: any): { bloco: unknown; antes: number } | undefined => {
+    if (typeof x !== 'object' || x === null) return undefined
+    const fs = ((x.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+    if (x.type === 'Box' && x.props?.flexDirection === 'column') {
+      const i = fs.findIndex(temBraco)
+      if (i >= 0 && fs.length > 1) return { bloco: fs[i].props?.height, antes: fs.slice(0, i).reduce((s, c) => s + (typeof c.props?.height === 'number' ? c.props.height : 0), 0) }
+    }
+    for (const c of fs) {
+      const r = andar(c)
+      if (r) return r
+    }
+    return undefined
+  }
+  return andar(cel)
+}
+export function respirosDoApp(d: DesenhoDoApp): RespiroDoApp[] {
+  const out: RespiroDoApp[] = []
+  const andar = (x: any, dentro: number) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const card = ((x.children ?? []) as any[]).find(c => typeof c === 'object' && c?.type === 'Box' && c.props?.borderStyle !== undefined)
+      if (card) {
+        const p = card.props ?? {}
+        const fs = ((card.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+        const strip = filhoBox(x, 'strip')
+        const cels = ((strip?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+        const con = cels.length ? conectorDe(cels[cels.length - 1]) : undefined
+        out.push({
+          primeira: regiao(primeiraLinha(card)).texto,
+          dentro,
+          cima: alto(fs[0]),
+          baixo: fs.length > 1 ? alto(fs[fs.length - 1]) : 0,
+          esquerda: Number(p.paddingLeft ?? p.paddingX ?? p.padding ?? 0),
+          direita: Number(p.paddingRight ?? p.paddingX ?? p.padding ?? 0),
+          ...(strip ? { conector: con ?? { bloco: undefined, antes: 0 } } : {}),
+        })
+        for (const c of card.children ?? []) andar(c, dentro + 1)
+        return
+      }
+    }
+    for (const c of x.children ?? []) andar(c, dentro)
+  }
+  andar(d.raiz, 0)
+  return out
+}
+// O tom de uma cor rgba(r,g,b,a): o trecho "r,g,b"; undefined para outro texto.
+export function tom(cor: string | undefined): string | undefined {
+  const m = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*[\d.]+\s*\)$/.exec(cor ?? '')
+  return m ? `${m[1]},${m[2]},${m[3]}` : undefined
+}

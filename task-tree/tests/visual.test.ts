@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { alfa, cabecalhoDoApp, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
+import { alfa, alturaDaLinha, cabecalhoDoApp, centrada, respirosDoApp, tom, vaosEntreLinhas, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -285,4 +285,103 @@ test('no app, o cartão da filha tem a faixa de guias e as tarefas dela começam
   expect(guiasDaLinha(d, 'Tarefa da filha')).toEqual([])
   expect(guiasDaLinha(d, 'Dois')).toEqual(['vazio', 'fim'])
   umaCor(d)
+})
+
+// Três cartões, um dentro do outro: o da filha, o do subagente dela e o do subagente que ele lançou.
+const tresNiveis = async ($: any, on: any): Promise<DesenhoDoApp> => {
+  fixar(on)
+  const fim = { at: AGORA - 500, state: 'done', calls: 2, batch: AGORA - 500, engine: 'Haiku 5.5', end: AGORA - 100 }
+  host(on, [
+    {
+      id: 'local_11111111-1111-1111-1111-111111111111',
+      nome: 'filha',
+      painel: {
+        tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }],
+        agentes: [
+          {
+            agent: 'fs-1',
+            label: 'general-purpose: revisar testes',
+            parent: '',
+            anchor: '1',
+            tasks: [{ id: 'X', short: 'X', title: 'Ler os testes', status: 'done', startedAt: AGORA - 400, endedAt: AGORA - 200, children: [] }],
+            sub: { ...fim, state: 'running', end: undefined },
+          },
+          { agent: 'fs-2', label: 'Explore: achar o kit', parent: 'fs-1', anchor: 'X', tasks: [], sub: fim },
+        ],
+      },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  return noApp($)
+}
+
+// Regra: visual.cartao-dentro-de-cartao-um-degrau
+test('no app, cada cartão dentro de outro tem o fundo e a borda um degrau além, o mesmo a cada nível', async ($: any, on: any) => {
+  const d = await tresNiveis($, on)
+  const todos = cartoesDoApp(d)
+  const quais = JSON.stringify(todos)
+  const nivel = [0, 1, 2].map(n => todos.find(c => c.dentro === n))
+  nivel.forEach((c, n) => expect(c, `nível ${n}: ${quais}`).toBeDefined())
+  const cs = nivel as CaixaDoApp[]
+  const t = tom(cs[0]!.fundo)
+  expect(t, quais).toBeDefined()
+  for (const c of cs) {
+    expect(tom(c.fundo), quais).toBe(t)
+    expect(tom(c.borda), quais).toBe(t)
+    expect(alfa(c.borda)!, quais).toBeGreaterThan(alfa(c.fundo)!)
+  }
+  const f = cs.map(c => alfa(c.fundo)!)
+  const b = cs.map(c => alfa(c.borda)!)
+  expect(f[1]!, quais).toBeGreaterThan(f[0]!)
+  expect(f[2]!, quais).toBeGreaterThan(f[1]!)
+  expect(b[1]!, quais).toBeGreaterThan(b[0]!)
+  expect(b[2]!, quais).toBeGreaterThan(b[1]!)
+  // O quanto cada cartão anda em direção ao cinza: o alfa dele vezes o que os de fora deixaram.
+  const degrau = f.map((a, n) => a * f.slice(0, n).reduce((s, x) => s * (1 - x), 1))
+  for (const g of degrau) expect(Math.abs(g - degrau[0]!) / degrau[0]!, JSON.stringify(degrau)).toBeLessThan(0.02)
+  const cab = cabecalhoDoApp(d)
+  expect(cab.fundo).toBe(cs[0]!.fundo)
+  expect(cab.borda).toBe(cs[0]!.borda)
+})
+
+// Regra: visual.linhas-com-respiro
+test('no app, toda linha tem a mesma altura, maior que a do texto, com o conteúdo centrado e sem vão entre linhas', async ($: any, on: any) => {
+  const d = await tresNiveis($, on)
+  expect(d.linhas.length).toBeGreaterThan(5)
+  const h = alturaDaLinha(d.linhas[0]!)
+  expect(typeof h, String(h)).toBe('number')
+  expect(h as number).toBeGreaterThan(1)
+  for (const l of d.linhas) {
+    expect(alturaDaLinha(l), l.texto).toBe(h)
+    expect(centrada(l), `centrada: ${l.texto}`).toBe(true)
+  }
+  expect(vaosEntreLinhas(d)).toBe(0)
+})
+
+// Regra: visual.cartao-com-respiro
+test('no app, o cartão tem respiro nos quatro lados, e o conector da faixa desce com o cabeçalho', async ($: any, on: any) => {
+  const d = await tresNiveis($, on)
+  const rs = respirosDoApp(d)
+  const quais = JSON.stringify(rs)
+  expect(rs.length, quais).toBeGreaterThanOrEqual(3)
+  const r0 = rs[0]!
+  expect(r0.cima, quais).toBeGreaterThan(0)
+  expect(r0.esquerda, quais).toBeGreaterThan(1)
+  for (const r of rs) {
+    expect(r.baixo, quais).toBe(r.cima)
+    expect(r.cima, quais).toBe(r0.cima)
+    expect(r.direita, quais).toBe(r.esquerda)
+    expect(r.esquerda, quais).toBe(r0.esquerda)
+  }
+  const altura = alturaDaLinha(d.linhas[0]!)
+  const comFaixa = rs.filter(r => r.conector)
+  expect(comFaixa.some(r => r.primeira.includes('filha')), quais).toBe(true)
+  for (const r of comFaixa) {
+    expect(r.conector!.antes, quais).toBe(r.cima)
+    expect(r.conector!.bloco, quais).toBe(altura)
+  }
 })

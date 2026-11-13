@@ -2323,6 +2323,16 @@
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
     },
+    "task-tree/tests/visual.test.ts::no app, cada cartão dentro de outro tem o fundo e a borda um degrau além, o mesmo a cada nível": {
+      "regras": [
+        "visual.cartao-dentro-de-cartao-um-degrau"
+      ],
+      "hash": "1515ef7867594195",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "contraste por nível de cartão (decisão do usuário, 2026-11-13: repita isso para cada card dentro de card)"
+    },
     "task-tree/tests/visual.test.ts::no app, o cabeçalho tem o mesmo fundo e a mesma borda do cartão": {
       "regras": [
         "visual.cartao-e-cabecalho-destacados"
@@ -2353,6 +2363,16 @@
       "data": "2026-11-13",
       "motivo": "cartão destacado do painel: fundo e borda próprios (decisão do usuário, 2026-11-13: nao aparece nenhum card)"
     },
+    "task-tree/tests/visual.test.ts::no app, o cartão tem respiro nos quatro lados, e o conector da faixa desce com o cabeçalho": {
+      "regras": [
+        "visual.cartao-com-respiro"
+      ],
+      "hash": "27c05d0dbcfa0d85",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "respiro do cartão (decisão do usuário, 2026-11-13: nos 4 lados)"
+    },
     "task-tree/tests/visual.test.ts::no app, o ícone da linha que recolhe e o anel do cartão são botões com chave": {
       "regras": [
         "visual.botoes-por-chave"
@@ -2362,6 +2382,16 @@
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "teste novo: as keys de clique no app"
+    },
+    "task-tree/tests/visual.test.ts::no app, toda linha tem a mesma altura, maior que a do texto, com o conteúdo centrado e sem vão entre linhas": {
+      "regras": [
+        "visual.linhas-com-respiro"
+      ],
+      "hash": "41df310d9f36be5e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "linhas com respiro (decisão do usuário, 2026-11-13: os textos estão muito colados; altura 1,4)"
     },
     "task-tree/tests/visual.test.ts::no cartão da filha, o título da folha passa da coluna da contagem e corta junto do tempo": {
       "regras": [
@@ -2408,30 +2438,30 @@
       "motivo": "kit: lancar, chamadaDoSubagente, fimDoSubagenteCom (card de subagente)"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "61250729ca51119d",
+      "hash": "c6d8ba3b659d5b92",
       "tipo": "refatoracao",
       "data": "2026-11-13",
-      "motivo": "leitura das guias do app (guiasDe, faixasDoApp, tracosDoApp, textosComCaixa); nenhuma leitura existente muda"
+      "motivo": "leitura da altura e do centro das linhas, dos vãos, dos respiros dos cartões e do tom de uma cor; nenhuma leitura existente muda"
     }
   },
   "golden": {
     "envios": {
-      "hash": "1ef52a8d0b6c031c",
+      "hash": "b32680be0525bb89",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "filha": {
-      "hash": "4111356c98d91778",
+      "hash": "51438e0c78c22fd8",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "principal": {
-      "hash": "467cdcdc4990a639",
+      "hash": "b4286a70fb1aa0ff",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "subagente": {
-      "hash": "f9510db95aa341fe",
+      "hash": "1447facdd5440f85",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     }

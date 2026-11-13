@@ -175,9 +175,10 @@ O cartão de sessão, o de subagente e o cabeçalho se destacam do painel, com f
 
 - Dado um cartão de sessão filha, um de subagente e o cabeçalho, no app desktop
 - Quando o painel é desenhado
-- Então cada um tem um fundo e uma borda arredondada de cor própria, em cinza translúcido, que clareia o painel escuro e escurece o claro sem o mod saber o tema; a borda é mais forte que o fundo; o cabeçalho usa o mesmo fundo e a mesma borda do cartão
+- Então cada um tem um fundo e uma borda arredondada de cor própria, em cinza translúcido, que clareia o painel escuro e escurece o claro sem o mod saber o tema; a borda é mais forte que o fundo; o cabeçalho usa o mesmo fundo e a mesma borda do cartão que não está dentro de outro
 
 Origem: decisão do usuário, 2026-11-13 ("nao aparece nenhum card"; para o cabeçalho: "Sim, junto do cartão (Recomendado)"). Referência: o desenho em SVG anterior (fundo `#20201f` e borda `#373736` no escuro, `#f9f9f7` e `#e1e1df` no claro; "calcule qual seria a terceira cor", "use a mesma cor da borda"). Mais o commit da correção.
+Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card"): o fundo e a borda ficam um pouco mais fortes e passam a variar com o nível do cartão (visual.cartao-dentro-de-cartao-um-degrau).
 Estado: coberto
 
 ### visual.guias-em-caixas-nativas
@@ -212,6 +213,48 @@ As guias são contínuas, alinhadas com os ícones e visíveis nos dois temas.
 Origem: a mesma decisão, 2026-11-13 ("Caixas finas nativas (Recomendado)"), sobre o print `2026-11-13-cartao-filha-estranho.png`.
 Estado: checklist (pintura real: continuidade, espessura e cor só aparecem no app)
 
+### visual.cartao-dentro-de-cartao-um-degrau
+Cada cartão dentro de outro fica um degrau além do de fora, o mesmo a cada nível.
+
+- Dado um cartão de sessão com um cartão de subagente dentro, e outro dentro deste, no app desktop
+- Quando o painel é desenhado
+- Então o fundo e a borda de cada cartão são o mesmo cinza translúcido, mais forte a cada nível, de modo que cada cartão se afasta do de fora o mesmo tanto (mais claro no tema escuro, mais escuro no claro, sem o mod saber o tema); a borda é sempre mais forte que o fundo dela; o cabeçalho usa os do cartão que não está dentro de outro
+
+Origem: decisão do usuário, 2026-11-13 ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card"). Mais o commit.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.linhas-com-respiro
+As linhas do app têm respiro: mais altas que o texto, com o conteúdo no meio.
+
+- Dado um painel com tarefas, um cartão de sessão e cartões de subagente, no app desktop
+- Quando o painel é desenhado
+- Então toda linha tem a mesma altura, maior que a do texto, com o ícone, o título e o que vem à direita centrados nela; o espaço entre as linhas vem só dessa altura (nenhuma margem, nenhum vão: as guias seguem contínuas); o espaço entre o ícone e o título fica como era
+
+Origem: decisão do usuário, 2026-11-13 ("aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; para a altura da linha, 1,4 linha: "1,4"; para mais espaço entre o ícone e o título: "Não, fica como está (Recomendado)"). Referência: a linha de 28 px do desenho em SVG anterior. Mais o commit.
+Estado: coberto
+
+### visual.cartao-com-respiro
+O cartão tem respiro nos quatro lados, e a guia entra nele na altura do cabeçalho.
+
+- Dado um cartão de sessão ou de subagente, em qualquer nível, no app desktop
+- Quando o painel é desenhado
+- Então entre a borda e o conteúdo há respiro nos quatro lados: o mesmo em cima e embaixo, e o mesmo à esquerda e à direita, maior que uma coluna; e o conector da faixa à esquerda desce o respiro de cima, para chegar ao cartão na altura do cabeçalho dele
+
+Origem: decisão do usuário, 2026-11-13 ("aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; para os lados do cartão: "nos 4 lados"). Referência: os 6 px do cartão do desenho em SVG anterior. Mais o commit.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.contraste-e-respiro-no-app
+O contraste por nível e o respiro aparecem no app, nos dois temas.
+
+- Dado o painel aberto no app, no tema claro e no escuro, com cartão dentro de cartão
+- Quando o painel é desenhado
+- Então cada nível de cartão se distingue do de fora a olho; o texto fica no meio da linha e não encosta em nenhum dos quatro lados do cartão; e as guias seguem contínuas com a linha mais alta
+
+Origem: as mesmas decisões, 2026-11-13 ("1,4"; "nos 4 lados").
+Estado: checklist (pintura real: tom, altura e respiro só aparecem no app)
+
 ### visual.desenho-principal
 O desenho do painel principal é o validado no app.
 
@@ -226,6 +269,7 @@ Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomen
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -242,6 +286,7 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cenário passa a publicar o contexto, para o anel; o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -258,6 +303,7 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -272,6 +318,7 @@ Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)"); gold
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
