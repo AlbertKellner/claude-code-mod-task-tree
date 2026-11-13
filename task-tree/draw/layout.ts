@@ -26,12 +26,14 @@ export const withMain = (groups: Group[]): Group[] =>
 export const stop = (t: TaskNode, now?: number) => (t.startedAt !== undefined ? (t.endedAt ?? now) : t.endedAt)
 
 // What a subagent left open when it ended.
+// The mark of the person's stop (`stopped`) goes with the close: it says the task waits for a start.
 export const interrupt =
   (now?: number) =>
-  (t: TaskNode): TaskNode =>
-    t.status === 'open'
-      ? { ...t, status: 'interrupted', started: undefined, endedAt: stop(t, now), children: t.children.map(interrupt(now)) }
-      : t
+  (t: TaskNode): TaskNode => {
+    if (t.status !== 'open') return t
+    const { stopped: _, ...rest } = t
+    return { ...rest, status: 'interrupted', started: undefined, endedAt: stop(t, now), children: t.children.map(interrupt(now)) }
+  }
 
 // A turn that ended (or a session that ended its turn) touches only what was in progress: a task
 // started and not closed is left open waiting (◷ "Aguardando", see leftWaiting), its clock stopped at `at`
@@ -50,6 +52,9 @@ export const interrupt =
 // session, a subagent that ended and a plan replaced read their pending tasks as interrupted. A message
 // task (its message delivered) is not interrupted by a stopped turn: it is left as a normal end leaves
 // it, ✉ green (the person, 2026-10-28).
+// A task the person stopped in an earlier turn (`stopped`, kept until its next start) reads as
+// interrupted at a normal end too: the turns that came since did not start it again (the person,
+// 2026-11-12: "Segue ✕ até novo start (Recomendado)"; it came out ◷ after the turn of a notice).
 export const halt =
   (at?: number, sent: string[] = [], aborted = true) =>
   (t: TaskNode): TaskNode => {
@@ -59,13 +64,39 @@ export const halt =
       // A task whose letter is still queued (`sent`) waits on that session, not on this turn: a stop
       // leaves it waiting (◷), as a normal end does (the person, 2026-10-30: "Não, fica ◷ enquanto a
       // carta está na fila"). Delivered, it is a task like any other: a stop interrupts it.
-      if (begun && (!aborted || sent.includes(t.id))) return { ...t, started: undefined, endedAt: stop(t, at) }
+      if (begun && (sent.includes(t.id) || (!aborted && t.stopped !== true))) return { ...t, started: undefined, endedAt: stop(t, at) }
       // Marked (`halted`): it was open until the stop, which a card's discard and word go by (leftOpen).
-      return begun ? { ...interrupt(at)(t), halted: true } : t
+      // The mark of an earlier stop (`stopped`) stays on the copy: the discard goes by it too (anyStopped).
+      return begun ? { ...interrupt(at)(t), halted: true, ...(t.stopped === true ? { stopped: true } : {}) } : t
     }
     const children = t.children.map(halt(at, sent, aborted))
     return { ...t, ...(hasOpen(children) ? {} : { status: 'done' as const }), started: undefined, endedAt: stop(t, at), children }
   }
+// Whether a task the person stopped (`stopped`) is still waiting for its start: open as the state
+// keeps it, or read as interrupted by a drawing (halt and stay keep the mark on that copy).
+export const anyStopped = (list: TaskNode[]): boolean =>
+  list.some(t => (t.stopped === true && (t.status === 'open' || t.halted === true)) || anyStopped(t.children))
+// The turn in course touches nothing but what the person stopped in an earlier one (`stopped`): until
+// a start begins it again it reads as that stop left it, interrupted (waiting, while a letter of it
+// is queued), its clock stopped at the stop; a parent with nothing open left below it reads done, as
+// at a turn's end. The rest works again. A notice of the app, a subagent's hand-back or a start of
+// another task used to light it again, its clock running (the person, 2026-11-12: "Segue ✕ até novo
+// start (Recomendado)").
+export const stay =
+  (sent: string[] = []) =>
+  (t: TaskNode): TaskNode => {
+    if (t.status !== 'open') return t
+    if (t.children.length === 0) {
+      if (t.stopped !== true) return t
+      return sent.includes(t.id) ? { ...t, started: undefined } : { ...interrupt(t.endedAt)(t), halted: true, stopped: true }
+    }
+    const children = t.children.map(stay(sent))
+    if (children.every((c, i) => c === t.children[i])) return t
+    return { ...t, ...(hasOpen(children) ? {} : { status: 'done' as const }), children }
+  }
+// A list of groups with the main loop's tasks read by `stay`; the same list when nothing is stopped.
+export const stayed = (groups: Group[], sent: string[] = []): Group[] =>
+  groups.some(g => g.agent === MAIN && anyStopped(g.tasks)) ? groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(stay(sent)) } : g)) : groups
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
 // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
 export const leftWaiting = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt !== undefined
@@ -120,10 +151,14 @@ export const live = (c: Child) => !c.archived && (c.running || c.waiting === tru
 // lines above it and in the header; the card itself is drawn as it is. A session that merely ended
 // its turn with pending tasks is not discarded (its pending tasks count, see settle), nor an archived one
 // (history, its interrupted ones out of the total as before).
+// The stop holds until the session starts the task it stopped again (`stopped`): a turn it ran since
+// (a notice of the app, another task) does not bring the round back into the count (the person,
+// 2026-11-12: "Segue ✕ até novo start (Recomendado)").
 export const discarded = (c: Child): boolean => {
-  if (c.archived || !leftOpen(tasksOf(rawPanel(c).groups ?? []))) return false
+  const tasks = tasksOf(rawPanel(c).groups ?? [])
+  if (c.archived || !leftOpen(tasks)) return false
   if (c.part !== undefined && !c.lead) return true
-  return !live(c) && c.aborted === true
+  return !live(c) && (c.aborted === true || anyStopped(tasks))
 }
 // A session's panel; earlier versions published only its main group's tasks. An archived session
 // stays in the tree as history (its last published panel): what it left open will not be done,
@@ -136,7 +171,12 @@ export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN
 // stopped (`aborted`) reads it as interrupted.
 export const panelOf = (c: Child): Panel => {
   const p = rawPanel(c)
-  if (!c.archived && (live(c) || c.starting)) return p
+  // At work: as it is, but for what the person stopped there and it has not started again (stay).
+  if (!c.archived && (live(c) || c.starting)) {
+    const groups = p.groups ?? []
+    const read = stayed(groups, (p.sends ?? []).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor])))
+    return read === groups ? p : { ...p, groups: read }
+  }
   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
   const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
   return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], c.aborted === true)) })) }
@@ -616,6 +656,10 @@ export function startedLast(list: TaskNode[]): TaskNode | undefined {
 export function trail(list: TaskNode[], since?: number): string[] {
   const s = since === undefined ? undefined : startedLast(list)
   if (s === undefined || (s.startedAt as number) < (since as number)) return []
+  // The task started last was stopped by the person and not started again (open with its clock
+  // stopped, as park leaves it, a parent started itself too; or read as interrupted by stay): nothing
+  // is on its way.
+  if ((s.status === 'open' && s.endedAt !== undefined) || (s.stopped === true && s.halted === true)) return []
   const open = new Set(flat(list).filter(t => t.status === 'open').map(t => t.id))
   return pathTo(list, s.id).filter(id => open.has(id))
 }
@@ -994,7 +1038,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
   const sentFrom = model.sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
+  // With the turn in course, only what the person stopped before and was not started again (stay).
+  const held = ended === undefined ? stayed(model.groups, sentFrom) : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
   const waits = model.waits
   const sessions = model.children
   // The sends still waiting to be taken up (a task's wait), and all of them (the letters).

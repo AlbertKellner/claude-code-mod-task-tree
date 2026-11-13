@@ -4,7 +4,7 @@
 // time the engine's clock gives; nothing of the kit here.
 
 import type { Status, TaskNode } from '../types'
-import { flat, stop } from '../draw/layout'
+import { flat, stop, timing } from '../draw/layout'
 
 export type InNode = { id: string; title: string; children?: InNode[] }
 
@@ -53,13 +53,30 @@ export const edit = (list: TaskNode[], id: string, fn: (t: TaskNode) => TaskNode
 // closes too.
 export const finish =
   (now?: number) =>
-  (t: TaskNode): TaskNode => ({
-    ...t,
-    status: t.status === 'interrupted' ? 'interrupted' : 'done',
-    started: undefined,
-    endedAt: t.status === 'open' ? stop(t, now) : t.endedAt,
-    children: t.children.map(finish(now)),
-  })
+  (t: TaskNode): TaskNode => {
+    // The mark of the person's stop goes with the close (see park).
+    const { stopped: _, ...rest } = t
+    return {
+      ...rest,
+      status: t.status === 'interrupted' ? 'interrupted' : 'done',
+      started: undefined,
+      endedAt: t.status === 'open' ? stop(t, now) : t.endedAt,
+      children: t.children.map(finish(now)),
+    }
+  }
+// The person stopped the turn (Esc): a leaf the main loop had started and open is marked `stopped`,
+// and the clocks of the open tasks stop there. The mark stays until a start begins the task again
+// (begin), a done closes it (finish) or a plan replaces it: meanwhile the panel reads it as the stop
+// left it, interrupted, in every turn (halt and stay in draw/layout). A parent started itself is no
+// longer started (it lit its first open task again at the next prompt): only a start of it lights it
+// again. The person, 2026-11-12: "Segue ✕ até novo start (Recomendado)".
+export const park =
+  (at?: number) =>
+  (t: TaskNode): TaskNode => {
+    if (t.status !== 'open') return t
+    if (t.children.length === 0) return t.started !== undefined || t.startedAt !== undefined ? { ...t, stopped: true, endedAt: stop(t, at) } : t
+    return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(park(at)) }
+  }
 // A task closed with no start (done without start) gets one, so its time shows: the end of the
 // closed sibling before it, else its parent's start, else when it was planned (never before it was
 // planned, never after now).
@@ -103,8 +120,12 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
 export function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
   return list.map(t => {
     if (t.id === id) {
-      if (t.status === 'open') return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
-      const { failed: _, ...rest } = t
+      // A task the person stopped (`stopped`) is in progress again: the mark goes, its clock goes on.
+      if (t.status === 'open') {
+        const { stopped: _, ...open } = t
+        return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
+      }
+      const { failed: _, stopped: __, ...rest } = t
       return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now } : {}) }
     }
     if (!flat(t.children).some(c => c.id === id)) return t
@@ -121,7 +142,7 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
   const merge = (n: TaskNode): TaskNode => {
     const o = byId.get(n.id)
     const kept = o
-      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}) }
+      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}), ...(o.status === 'open' && o.stopped === true ? { stopped: true } : {}) }
       : {}
     return { ...n, ...kept, children: n.children.map(merge) }
   }
@@ -144,7 +165,7 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
   const reopen = (t: TaskNode): TaskNode => {
     const children = t.children.map(reopen)
     return children.length > 0 && flat(children).some(k => k.status === 'open')
-      ? { ...t, status: 'open' as Status, started: undefined, endedAt: undefined, children }
+      ? { ...t, status: 'open' as Status, started: undefined, endedAt: t.status === 'open' && !timing(children) ? t.endedAt : undefined, children }
       : { ...t, children }
   }
   return settle([reopen(out)], now)[0] as TaskNode

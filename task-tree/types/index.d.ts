@@ -35,6 +35,12 @@ export type TaskNode = {
   // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
   // by that stop (halt in draw/layout); never kept nor published.
   halted?: boolean
+  // A leaf started and open when the person stopped the turn (Esc). Kept on the task (state, store,
+  // published panel) from that stop until a start begins it again, a done closes it or a plan
+  // replaces it; its clock stopped at the stop (`endedAt`). Meanwhile every drawing reads it as
+  // interrupted, in the turns that come after too (halt and stay in draw/layout; park in state/tasks).
+  // The person, 2026-11-12: "Segue ✕ até novo start (Recomendado)".
+  stopped?: boolean
   children: TaskNode[]
 }
 

@@ -37,6 +37,17 @@ Origem: decisões do usuário de 2026-10-27 (◉ só no caminho da última inici
 Código: hooks/turn.ts, hooks/sessions.ts, hooks/render.tsx
 Estado: coberto
 
+### durabilidade.parada-com-esc-sobrevive-ao-reinicio
+A tarefa parada com Esc segue interrompida num processo novo.
+
+- Dado uma tarefa parada com Esc e, depois, um turno que não abriu pedido terminado normalmente
+- Quando um processo novo desenha o painel (session.start)
+- Então a parada segue ✕ e nada fica ◉; o pedido seguinte com start em outra tarefa não a reacende, e o start nela sim (turnos.parada-segue-interrompida-ate-o-start)
+
+Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), aplicada ao reinício: a marca da parada fica na própria tarefa, que o store guarda com o painel.
+Código: hooks/turn.ts, state/tasks.ts, draw/layout.ts
+Estado: coberto
+
 ### durabilidade.clear-esvazia
 O /clear esvazia o painel.
 

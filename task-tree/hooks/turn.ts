@@ -9,6 +9,8 @@ import { MAIN, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
 import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
+import { ensureGroups } from './panel'
+import { park } from '../state/tasks'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -140,7 +142,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   }
   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
-  if (!agent) await $.state.set(turnEndedState, (await stamp($)) ?? 0)
+  const endedAt = agent ? undefined : await stamp($)
+  if (!agent) await $.state.set(turnEndedState, endedAt ?? 0)
   // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
   if (!agent && !e.isAborted) await settleBySubs($)
   // The turn's output rate stays as it is, lit (the person, 2026-11-10: "Fica aceso").
@@ -151,6 +154,16 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // that opened no request (the app's notice, a hand-back) and ended normally leaves it as it is
   // (the person, 2026-10-27: "precisa replanejar quando eu interrompo e envio nova mensagem").
   if (!agent && e.isAborted === true) await $.state.set(replanDueState, true)
+  // What the stop found in progress is marked on the tasks themselves (park), in the state and the
+  // store: it reads as interrupted until its next start, through the turns that open no request and
+  // those that start another task (the person, 2026-11-12: "Segue ✕ até novo start (Recomendado)").
+  // The groups come back from the store first (a respawn with no session.start).
+  if (!agent && e.isAborted === true) {
+    await ensureGroups($)
+    const { value: now = [] } = await $.state.get(groupsState)
+    if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
+      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(endedAt)) } : g)))
+  }
   // The end in the store too: a new process draws it as stopped (see saveTurn).
   if (!agent) await saveTurn($)
   // The turn's answer grew the context: publish its share for the session that opened this one.

@@ -129,6 +129,17 @@ Origem: auditoria 2026-11-10 (filha parada com Esc: o descarte era decidido depo
 Código: draw/layout.ts
 Estado: coberto
 
+### sessoes.filha-parada-com-esc-segue-descartada-ate-o-start
+A filha parada com Esc segue rodada descartada até dar start na tarefa parada.
+
+- Dado uma filha parada com Esc com uma tarefa iniciada, que depois tratou outro turno (um aviso, ou o start em outra tarefa) e o terminou normalmente
+- Quando a mãe desenha o cartão dela, parada
+- Então a tarefa parada segue ✕ e a rodada segue descartada (fora do cabeçalho, do chip "interrompidas" e do x/y da tarefa de origem; o cartão diz "parada"), e a outra iniciada aguarda ◷; enquanto a filha trabalha, o cartão já mostra a parada ✕; quando a filha dá start na tarefa parada, a rodada volta a contar
+
+Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (depois do turno de um aviso, o cartão da filha parada com Esc voltava a contar, com a tarefa ◷); aplica sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-24: "as tarefas dessa sessão foram descartadas"), sem mudá-la.
+Código: draw/layout.ts, state/tasks.ts, hooks/turn.ts
+Estado: coberto
+
 ### sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
 O cartão da filha parada só mostra "+N pedidos anteriores" quando há pedido dela fora do desenho.
 

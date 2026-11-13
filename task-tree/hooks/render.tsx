@@ -13,6 +13,7 @@ import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, 
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
+import { stayed } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -226,7 +227,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
   const ownTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
-  const [ad, an] = total({ groups: withMain(held ?? []), waits, children: sessions }, 0, c =>
+  // What the person stopped and was not started again is out of it too, as in the drawing (stay): the
+  // tooltip said "sessão inteira" with one task more than the header, nothing being out of sight.
+  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  const [ad, an] = total({ groups: stayed(withMain(held ?? []), queuedFrom), waits, children: sessions }, 0, c =>
     split(c, sessions, knownId(), ownTasks, undefined, newBreaksMemo()).map(r => settle(r, ownTasks, sends as Send[])),
   )
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.

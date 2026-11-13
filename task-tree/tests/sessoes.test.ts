@@ -253,6 +253,45 @@ test('a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o ca
   expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
 })
 
+// A filha parou "Parada" com Esc, tratou um aviso e nele iniciou "Outra"; o último turno dela terminou
+// normalmente (o arquivo não diz `aborted`): a marca vai na tarefa.
+// Regra: sessoes.filha-parada-com-esc-segue-descartada-ate-o-start
+test('a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada', async ($: any, on: any) => {
+  fixar(on)
+  const parada = { ...noTurno(1, '2', 'Parada', 'iniciada'), stopped: true, endedAt: AGORA - 500 }
+  const tarefas = (p: any) => [noTurno(1, '1', 'Feita', 'feita'), p, noTurno(1, '3', 'Outra', 'iniciada')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas(parada), turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  // Trabalhando (o turno do aviso): a parada já é desenhada ✕ no cartão, fora da contagem dele.
+  let p = await painel($)
+  esperarEstado(p, 'Parada', 'interrompida')
+  esperarEstado(p, 'Outra', 'andamento')
+  expect(cabecalho(p).total, emTexto(p)).toBe(5)
+  // Parada de novo, o turno terminado normalmente: a rodada segue descartada.
+  h.filha(K1).rodando = false
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Feita', 'concluida')
+  esperarEstado(p, 'Parada', 'interrompida')
+  esperarEstado(p, 'Outra', 'aguardando')
+  let c = cabecalho(p)
+  expect([c.feitas, c.total, c.chips.interrompidas], emTexto(p)).toEqual([0, 3, 0])
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
+  esperarPalavra(p, 'filha-um', 'parada')
+  // O start na tarefa parada tira a marca: a rodada volta a contar e as iniciadas aguardam.
+  h.filha(K1).painel = { tasks: tarefas(noTurno(1, '2', 'Parada', 'iniciada')), turns: [turno(1, AGORA + 10)] }
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Parada', 'aguardando')
+  esperarEstado(p, 'Outra', 'aguardando')
+  c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 6])
+})
+
 // Três filhas paradas, cada uma com um turno só: K1 com um pai aberto (só pendente embaixo), K2 com
 // uma folha iniciada, K3 com um pai aberto e parada com Esc. Nada delas está fora do desenho.
 // Regra: sessoes.cartao-parado-sem-pedidos-anteriores-a-mais

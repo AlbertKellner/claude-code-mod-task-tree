@@ -13,6 +13,7 @@ import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSi
 import { debug } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
+import { stayed } from '../draw/layout'
 
 export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
@@ -340,7 +341,11 @@ export async function ensureGroup($: any, agent: string) {
 let lastStatus: string | undefined | null = null
 export async function showStatus($: any, groups: Group[]) {
   const { value: children = [] } = await $.state.get(childrenState)
-  const [d, n] = total({ groups, waits: [], children })
+  // What the person stopped and was not started again counts as the panel draws it, interrupted
+  // (stay); a letter of it still queued keeps it open.
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  const [d, n] = total({ groups: stayed(groups, queuedFrom), waits: [], children })
   const text = d === n ? undefined : `Tarefas ${d}/${n}`
   if (lastStatus !== null && lastStatus === text) return
   lastStatus = text

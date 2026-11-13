@@ -559,6 +559,20 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   turno terminado, e o relógio de 1 s para.
 - Efeitos: uma filha parada com tarefa em andamento passa a ter essa tarefa fora do total (ex.: "3 de 4"
   → "3 de 3 · 100%" ).
+- A parada com Esc espera o `start` (2026-11-12, "Segue ✕ até novo start (Recomendado)"; antes, um aviso
+  do app, um hand-back ou o `start` em outra tarefa a reacendia: ◉ no prompt, relógio correndo, ◷ no fim
+  do turno). No fim do turno parado (`turnComplete` com `isAborted`), `park(at)` (`state/tasks.ts`) marca
+  `stopped` em cada folha aberta e iniciada do grupo principal e para ali o relógio (`endedAt`) dela e
+  dos pais abertos; o `started` de um pai iniciado diretamente é desfeito. A marca fica na própria tarefa
+  (state, store e arquivo publicado, sem chave nova) até o `start` nela (`begin`), o `done` (`finish`) ou
+  o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`). Enquanto existe, a
+  folha é lida como interrompida em todo desenho: `halt` no fim de qualquer turno, e `stay` com o turno
+  em curso (só as marcadas; `stayed` aplica ao grupo principal, na própria sessão e no cartão de uma
+  filha trabalhando). Com a carta dela na fila, segue ◷. `trail` não acende o caminho de uma tarefa
+  parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
+  mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
+  por `stayed`. `wake` não mudou: o que um fim normal deixou ◷ volta a ◉ no prompt seguinte; só o que o
+  Esc parou espera o `start`.
 
 
 - **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa, verde concluído, cinza interrompido), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. A linha do terminal não muda.

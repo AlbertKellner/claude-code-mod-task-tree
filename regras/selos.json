@@ -293,6 +293,26 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim": {
+      "regras": [
+        "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
+      ],
+      "hash": "5797ef0ab073501e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 2/2: o processo novo a desenha interrompida até o start nela": {
+      "regras": [
+        "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
+      ],
+      "hash": "9f5e4bb85f70e481",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
       "regras": [
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
@@ -1139,6 +1159,16 @@
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada": {
+      "regras": [
+        "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
+      ],
+      "hash": "daa9d0de7629daa2",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
     "task-tree/tests/sessoes.test.ts::a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o cartão diz \"parada\"": {
       "regras": [
@@ -1990,6 +2020,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::a marca da parada com Esc vai no painel publicado até o start nela": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "600b4efe66d5a53a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/turnos.test.ts::a notificação de uma tarefa em segundo plano não abre pedido": {
       "regras": [
         "turnos.notificacao-de-tarefa-sem-turno"
@@ -1999,6 +2039,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
+    },
+    "task-tree/tests/turnos.test.ts::depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "bb51313001f09f62",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
     "task-tree/tests/turnos.test.ts::fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes": {
       "regras": [
@@ -2042,6 +2092,26 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::numa mensagem da pessoa em que o modelo dá start em outra tarefa, a parada com Esc segue interrompida, também no fim do turno": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "7a6b3470304ded7e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o done na tarefa parada com Esc, sem start, a conclui": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "249729534296de32",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/turnos.test.ts::o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual": {
       "regras": [
         "turnos.prompt-sem-turno"
@@ -2052,15 +2122,45 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::o pai iniciado e parado com Esc não reacende no prompt seguinte; o start nele o reacende": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "e2b5704f024ad3c1",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
       "regras": [
         "turnos.prompt-seguinte-retoma"
       ],
-      "hash": "51e1a0678150e269",
-      "assercoes": 2,
+      "hash": "1cfc71d3b5f3ab8a",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o replano no mesmo pedido que mantém a tarefa parada com Esc a mantém interrompida, com o relógio parado": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "91f0030b5002b6dc",
+      "assercoes": 3,
       "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra": {
+      "regras": [
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "a8aa4e6e735fad31",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-12",
+      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
     "task-tree/tests/turnos.test.ts::o subagente lançado sem tarefa de origem que termina segue desenhado": {
       "regras": [
@@ -2266,9 +2366,9 @@
       "motivo": "\"faça push e crie o pr\", 2026-11-09"
     },
     "principal": {
-      "hash": "bb83bbb8823a6c68",
-      "data": "2026-11-09",
-      "motivo": "\"faça push e crie o pr\", 2026-11-09"
+      "hash": "b6ef13ecf67ece83",
+      "data": "2026-11-12",
+      "motivo": "\"validado no app\", 2026-11-12"
     },
     "subagente": {
       "hash": "a4a2747c6b57f3d1",
