@@ -39,7 +39,7 @@ Depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensag
 Origem: decisão do usuário, 2026-10-28 ("a mensagem foi entregue; não é interrompida"; o ✉ verde igual com a tarefa aberta ou concluída está bom).
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); só a carta ficava verde no Esc; a tarefa passa a ser tratada como qualquer outra.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
-Código: draw/layout.ts, draw/svg.ts
+Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 
 ### envios.cor-por-estado
@@ -55,7 +55,7 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
-Código: draw/layout.ts, draw/svg.ts
+Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 
 ### envios.ancora-no-lote-recente
@@ -105,7 +105,7 @@ O envio na fila não vira interrompido no fim do turno.
 Origem: decisão do usuário, 2026-10-24; commit b897cac.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa fica ◷, e não mais ✉, enquanto a carta espera.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
-Código: draw/layout.ts, draw/svg.ts
+Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 
 ### envios.pedido-recebido-mostra-carta
@@ -130,7 +130,7 @@ A carta de envio é uma linha sob a tarefa de onde a mensagem saiu.
 
 Origem: decisão do usuário, 2026-10-30 ("A: linha própria sob a tarefa (Recomendado)"; "a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a linha ganha a palavra "não entregue", sem tempo e fora do chip "aguardando sessão" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
-Código: draw/layout.ts, draw/svg.ts, hooks/render.tsx
+Código: draw/layout.ts, draw/svg.ts, draw/icons.ts, hooks/render.tsx
 Estado: coberto
 
 ### envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila
@@ -163,7 +163,7 @@ A carta cuja sessão destino foi arquivada antes de tomá-la fica cinza, "não e
 - Então a carta fica cinza com "não entregue", sem tempo, e sai do chip "aguardando sessão"; a tarefa volta a ser comum (no Esc fica ✕, como qualquer outra; o done dela não avisa de carta na fila; concluída, não segura o pedido à vista) e o modelo é avisado uma vez; desarquivada antes de tomá-la, a carta volta a azul "na fila" e a tarefa volta a esperar a sessão; tomada mesmo assim, a carta fica verde e o modelo é avisado da entrega, como em qualquer entrega
 
 Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"), à pergunta da auditoria 2026-11-10 "Carta na fila cujo destino foi arquivado ou sumiu"; limita envios.fica-ate-entrega, envios.fila-nao-interrompe-no-fim-do-turno e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila à mensagem que ainda pode ser entregue. Só a sessão que a lista do app mostra arquivada: o destino que some da lista (ou a lista em erro) segue "na fila".
-Código: hooks/sessions.ts, hooks/tools.ts, draw/layout.ts, draw/svg.ts, text/rules.ts
+Código: hooks/sessions.ts, hooks/tools.ts, draw/layout.ts, draw/svg.ts, draw/icons.ts, text/rules.ts
 Estado: coberto
 
 ### envios.destino-arquivado-no-app
@@ -174,5 +174,5 @@ No app, arquivar a sessão destino com a mensagem na fila deixa a carta cinza "n
 - Então em poucos segundos a carta fica cinza com "não entregue", nos dois temas, e o tempo da espera para de contar; desarquivada, a carta volta a azul "na fila" com o tempo de espera
 
 Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.destino-arquivado-nao-entregue.
-Código: hooks/sessions.ts, draw/layout.ts, draw/svg.ts
+Código: hooks/sessions.ts, draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: checklist (sessão real arquivada no app; o relógio de 1 s e a pintura não rodam no harness)

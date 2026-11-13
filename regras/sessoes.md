@@ -171,7 +171,7 @@ O busto da sessão só na tarefa de que o cartão pende.
 - Então o busto aparece só nela, não no pedido nem nos ancestrais
 
 Origem: commit e570baa, 2026-10-24.
-Código: draw/svg.ts
+Código: draw/svg.ts, draw/desktop.tsx, draw/icons.ts
 Estado: coberto
 
 ### sessoes.pasta-sem-git
@@ -182,7 +182,7 @@ A sessão numa pasta sem git mostra a pasta.
 - Então mostra o ícone de pasta e o caminho, sem branch
 
 Origem: commit 17f1140, 2026-10-24.
-Código: draw/svg.ts, io/git.ts
+Código: draw/svg.ts, io/git.ts, draw/desktop.tsx, draw/icons.ts
 Estado: coberto
 
 ### sessoes.toks-e-repo-branch-no-cartao
@@ -193,7 +193,7 @@ O cartão mostra toks/s, repositório e branch.
 - Então mostra "n toks/s", o repositório e a branch (a posição no app desktop: visual.cartao-posicao-de-toks-e-repo)
 
 Origem: commits 1987482 e 689d569, 2026-10-24; dividida em conteúdo e posição por decisão do usuário, 2026-10-28.
-Código: draw/svg.ts, io/git.ts
+Código: draw/svg.ts, io/git.ts, draw/desktop.tsx, draw/icons.ts
 Estado: coberto
 
 ### sessoes.mensagens-juntas-vao-a-ultima
@@ -222,10 +222,11 @@ O turno que o usuário abriu digitando na filha fica no pedido da mãe vigente q
 
 - Dado uma filha aberta num pedido antigo da mãe, e o usuário digitando direto nela depois de um pedido novo da mãe
 - Quando a mãe desenha o painel
-- Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no tooltip; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
+- Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no texto alternativo do ícone; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o texto digitado vai no texto alternativo do ícone da linha, não num tooltip.
 Código: draw/layout.ts
 Estado: coberto
 

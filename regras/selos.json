@@ -76,11 +76,11 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "31a66c08ed35c344",
+      "hash": "9b158968c5fab57f",
       "assercoes": 7,
-      "tipo": "novo",
-      "data": "2026-11-12",
-      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
       "regras": [
@@ -167,11 +167,11 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "fe1935331e9018ca",
+      "hash": "99c0c0303bf60a74",
       "assercoes": 7,
-      "tipo": "novo",
-      "data": "2026-11-12",
-      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
@@ -197,11 +197,11 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "f69aa37cc356be0f",
+      "hash": "4d1223ac5ce5b872",
       "assercoes": 6,
-      "tipo": "novo",
-      "data": "2026-11-12",
-      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
@@ -720,44 +720,44 @@
         "visual.golden-gera-desenho",
         "visual.desenho-envios"
       ],
-      "hash": "1f9c7d2b3ef9ca73",
+      "hash": "47a64c4d4d52d62e",
       "assercoes": 0,
-      "tipo": "refatoracao",
-      "data": "2026-10-29",
-      "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/golden.test.ts::golden: filha": {
       "regras": [
         "visual.golden-gera-desenho",
         "visual.desenho-cartao-filha"
       ],
-      "hash": "31bf770a0ae2ee58",
+      "hash": "3d2e07586316bd36",
       "assercoes": 0,
-      "tipo": "refatoracao",
-      "data": "2026-10-29",
-      "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/golden.test.ts::golden: principal": {
       "regras": [
         "visual.golden-gera-desenho",
         "visual.desenho-principal"
       ],
-      "hash": "1614d93ab8218741",
+      "hash": "cb55842b2a59e403",
       "assercoes": 0,
-      "tipo": "refatoracao",
-      "data": "2026-10-29",
-      "motivo": "liga as regras visual.desenho-* (o corpo não muda)"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/golden.test.ts::golden: subagente": {
       "regras": [
         "visual.golden-gera-desenho",
         "visual.desenho-subagente"
       ],
-      "hash": "cf4a772084d4f8f8",
+      "hash": "4e328e88b87186dd",
       "assercoes": 0,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/lembretes.test.ts::a descrição do plan diz que o estado só fica no replano da mesma mensagem": {
       "regras": [
@@ -1973,11 +1973,11 @@
       "regras": [
         "taxa.fim-do-turno-fica-aceso"
       ],
-      "hash": "a06dbb039075c858",
+      "hash": "328855dbe492e065",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/taxa.test.ts::o cartão de subagente mostra a velocidade dele pela mesma regra": {
       "regras": [
@@ -2236,110 +2236,200 @@
       "regras": [
         "ultracode.so-o-interruptor-real"
       ],
-      "hash": "684a2ffc2ba2283e",
+      "hash": "43e28dd786f0e797",
       "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/ultracode.test.ts::com a sessão em ultracode, o cartão de subagente não diz \"ultracode\"": {
       "regras": [
         "ultracode.subagente-sem-palavra"
       ],
-      "hash": "f6704a5a24a6bb70",
+      "hash": "b68ac095b4d46ab3",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "decisão do usuário, 2026-11-10: Deixar sem"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/ultracode.test.ts::o cartão da filha diz \"ultracode\" depois do modelo enquanto ela publica o interruptor ligado": {
       "regras": [
         "ultracode.cartao-da-filha"
       ],
-      "hash": "54e461ff602a4416",
-      "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
+      "hash": "ea0ce917d867f8e0",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/ultracode.test.ts::ultra_effort_enter acende a palavra no cabeçalho e no arquivo publicado; ultra_effort_exit apaga": {
       "regras": [
         "ultracode.so-o-interruptor-real",
         "ultracode.cabecalho"
       ],
-      "hash": "f3eae996ada8d209",
+      "hash": "91ae2433c35476b5",
       "assercoes": 5,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "decisão do usuário, 2026-11-10: ultracode ao lado do modelo"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
       "regras": [
         "visual.faixa-de-estado-geral"
       ],
-      "hash": "11d73456dcbfb13d",
+      "hash": "ac58627a1740b177",
       "assercoes": 5,
-      "tipo": "novo",
-      "data": "2026-11-03",
-      "motivo": "faixa de estado geral do cabeçalho V4"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::a faixa do cabeçalho: interrompido depois do Esc, e sessão ativa com só a filha trabalhando": {
       "regras": [
         "visual.faixa-de-estado-geral"
       ],
-      "hash": "f2997d1ce000e257",
+      "hash": "e5a30fb32c20d818",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-03",
-      "motivo": "faixa de estado geral do cabeçalho V4"
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de cortar": {
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
       ],
-      "hash": "40b93e00964328ec",
+      "hash": "c33542b5b3f74b24",
       "assercoes": 2,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
+      "regras": [
+        "visual.guias-na-faixa-do-cartao"
+      ],
+      "hash": "a94c38b5313c925a",
+      "assercoes": 6,
       "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "data": "2026-11-13",
+      "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
+    },
+    "task-tree/tests/visual.test.ts::no app, as guias da árvore são caixas com fundo, sem caracteres de caixa": {
+      "regras": [
+        "visual.guias-em-caixas-nativas"
+      ],
+      "hash": "35bd17dfc1d7ffeb",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
+    },
+    "task-tree/tests/visual.test.ts::no app, cada cartão dentro de outro tem o fundo e a borda um degrau além, o mesmo a cada nível": {
+      "regras": [
+        "visual.cartao-dentro-de-cartao-um-degrau"
+      ],
+      "hash": "1515ef7867594195",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "contraste por nível de cartão (decisão do usuário, 2026-11-13: repita isso para cada card dentro de card)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o cabeçalho tem o mesmo fundo e a mesma borda do cartão": {
+      "regras": [
+        "visual.cartao-e-cabecalho-destacados"
+      ],
+      "hash": "36bb10f6461a57aa",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "cabeçalho com o fundo e a borda do cartão (decisão do usuário, 2026-11-13: Sim, junto do cartão)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o cartão da filha tem a faixa de guias e as tarefas dela começam sem guia": {
+      "regras": [
+        "visual.guias-na-faixa-do-cartao"
+      ],
+      "hash": "fe81980bf620596b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o cartão de sessão e o de subagente têm fundo e borda próprios": {
+      "regras": [
+        "visual.cartao-e-cabecalho-destacados"
+      ],
+      "hash": "c2527794687deed8",
+      "assercoes": 0,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "cartão destacado do painel: fundo e borda próprios (decisão do usuário, 2026-11-13: nao aparece nenhum card)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o cartão tem respiro nos quatro lados, e o conector da faixa desce com o cabeçalho": {
+      "regras": [
+        "visual.cartao-com-respiro"
+      ],
+      "hash": "27c05d0dbcfa0d85",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "respiro do cartão (decisão do usuário, 2026-11-13: nos 4 lados)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o ícone da linha que recolhe e o anel do cartão são botões com chave": {
+      "regras": [
+        "visual.botoes-por-chave"
+      ],
+      "hash": "5749443f1807a1b3",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "teste novo: as keys de clique no app"
+    },
+    "task-tree/tests/visual.test.ts::no app, toda linha tem a mesma altura, maior que a do texto, com o conteúdo centrado e sem vão entre linhas": {
+      "regras": [
+        "visual.linhas-com-respiro"
+      ],
+      "hash": "41df310d9f36be5e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "linhas com respiro (decisão do usuário, 2026-11-13: os textos estão muito colados; altura 1,4)"
     },
     "task-tree/tests/visual.test.ts::no cartão da filha, o título da folha passa da coluna da contagem e corta junto do tempo": {
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
       ],
-      "hash": "3fb182566531ae22",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "hash": "0b3b1ecfe221ecbc",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::o título de uma linha sem contagem vai até o tempo; a com contagem corta antes da barra": {
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
       ],
-      "hash": "ae1e387a8b09b2bb",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "hash": "1037bf326aab520d",
+      "assercoes": 6,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: as linhas fora de cartão são Box e Text; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>": {
       "regras": [
         "visual.tooltip"
       ],
-      "hash": "02c1fca9303d619b",
-      "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "hash": "fe9316d35539ef7f",
+      "assercoes": 4,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: as linhas fora de cartão são Box e Text; decisão do usuário, 2026-11-13"
     }
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "253551d84da06eb1",
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "kit: passos do modelo (turn.step com stream)"
+      "hash": "fc2b454f75e4a39b",
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "91234fc8b73af6f0",
@@ -2348,32 +2438,32 @@
       "motivo": "kit: lancar, chamadaDoSubagente, fimDoSubagenteCom (card de subagente)"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "ad3cbea6b0f478ef",
+      "hash": "c6d8ba3b659d5b92",
       "tipo": "refatoracao",
-      "data": "2026-11-04",
-      "motivo": "sem o seletor de visão; comHistorico abre a linha dos pedidos anteriores: decisão do usuário, 2026-11-04"
+      "data": "2026-11-13",
+      "motivo": "leitura da altura e do centro das linhas, dos vãos, dos respiros dos cartões e do tom de uma cor; nenhuma leitura existente muda"
     }
   },
   "golden": {
     "envios": {
-      "hash": "c4d2227fd1a878ac",
-      "data": "2026-11-09",
-      "motivo": "\"faça push e crie o pr\", 2026-11-09"
+      "hash": "b32680be0525bb89",
+      "data": "2026-11-13",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "filha": {
-      "hash": "289c531c50099c07",
-      "data": "2026-11-09",
-      "motivo": "\"faça push e crie o pr\", 2026-11-09"
+      "hash": "51438e0c78c22fd8",
+      "data": "2026-11-13",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "principal": {
-      "hash": "b6ef13ecf67ece83",
-      "data": "2026-11-12",
-      "motivo": "\"validado no app\", 2026-11-12"
+      "hash": "b4286a70fb1aa0ff",
+      "data": "2026-11-13",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "subagente": {
-      "hash": "a4a2747c6b57f3d1",
-      "data": "2026-11-09",
-      "motivo": "\"Funcionou\", 2026-11-09"
+      "hash": "1447facdd5440f85",
+      "data": "2026-11-13",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     }
   }
 }

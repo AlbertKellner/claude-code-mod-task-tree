@@ -1,12 +1,13 @@
 import { expect, test } from 'claude-code/testing'
-import { GOLDEN } from './golden/svg'
+import { GOLDEN } from './golden/desenho'
 import { AGORA, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { svgs, type DesenhoSvg } from './kit/leitura'
+import { desenhoDoApp } from './kit/leitura'
 
-// O desenho do app desktop em 4 cenários, a 60 colunas. Com o cenário em GOLDEN (aprovado pelo usuário
-// no app), o desenho tem de ser igual; sem ele, o teste só confere que há desenho. Em ambos os casos,
-// imprime GOLDEN-NEW com o desenho atual (npm run golden:aprovar o recolhe). Ver o CLAUDE.md.
+// O desenho do app desktop em 4 cenários, a 60 colunas: a árvore de Box, Text e Button e as fontes
+// dos Svg (desenhoDoApp, no kit). Com o cenário em GOLDEN (aprovado pelo usuário no app), o desenho
+// tem de ser igual; sem ele, o teste só confere que há desenho. Em ambos os casos, imprime GOLDEN-NEW
+// com o desenho atual (npm run golden:aprovar o recolhe). Ver o CLAUDE.md.
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 
@@ -17,8 +18,8 @@ function trecho(antes: string, depois: string): string {
   return `na posição ${i}:\n  aprovado: …${antes.slice(Math.max(0, i - 80), i + 120)}\n  atual:    …${depois.slice(Math.max(0, i - 80), i + 120)}`
 }
 
-function conferir(cenario: string, desenho: DesenhoSvg[]) {
-  expect(desenho.filter(s => s.source.startsWith('<svg')).length, `${cenario}: sem desenho`).toBeGreaterThan(0)
+function conferir(cenario: string, desenho: { arvore: unknown; svgs: string[] }) {
+  expect(JSON.stringify(desenho.arvore).length, `${cenario}: sem desenho`).toBeGreaterThan(2)
   const atual = JSON.stringify(desenho)
   // O console do teste vai à saída do plugin test (os tipos do kit não o declaram).
   ;(globalThis as any).console.log(`GOLDEN-NEW ${cenario} ${atual}`)
@@ -49,7 +50,7 @@ test('golden: principal', async ($: any, on: any) => {
   await start($, ['b2'])
   await fimDoTurno($)
   await relogio.advance(1000)
-  conferir('principal', await svgs($))
+  conferir('principal', await desenhoDoApp($))
 })
 
 // Regra: visual.golden-gera-desenho, visual.desenho-cartao-filha
@@ -61,6 +62,7 @@ test('golden: filha', async ($: any, on: any) => {
       nome: 'filha-um',
       git: { repo: 'meu-repo', branch: 'minha-branch' },
       rate: { toks: 42, live: true },
+      contexto: 42,
       painel: { tasks: [{ id: '1', short: '1', title: 'Tarefa da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] },
     },
   ])
@@ -70,7 +72,7 @@ test('golden: filha', async ($: any, on: any) => {
   await abrirSessao($)
   await aviso($)
   await relogio.advance(1000)
-  conferir('filha', await svgs($))
+  conferir('filha', await desenhoDoApp($))
 })
 
 // Regra: visual.golden-gera-desenho, visual.desenho-envios
@@ -90,7 +92,7 @@ test('golden: envios', async ($: any, on: any) => {
   await envio($, 'local_x')
   await esc($)
   await relogio.advance(1000)
-  conferir('envios', await svgs($))
+  conferir('envios', await desenhoDoApp($))
 })
 
 // Regra: visual.golden-gera-desenho, visual.desenho-subagente
@@ -113,5 +115,5 @@ test('golden: subagente', async ($: any, on: any) => {
   for (const d of ['ler o diff', 'ler os testes', 'segurança', 'correção']) await lancar($, { descricao: d })
   await fimDoSubagente($, 's3')
   await relogio.advance(1000)
-  conferir('subagente', await svgs($))
+  conferir('subagente', await desenhoDoApp($))
 })

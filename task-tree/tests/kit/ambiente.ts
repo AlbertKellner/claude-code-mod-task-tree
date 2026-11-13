@@ -77,7 +77,8 @@ export function estado(on: any, guardado: Record<string, unknown>, modo: 'captur
 export const EU = 'local_00000000-0000-0000-0000-00000000e0e0'
 const CASA = 'C:/u'
 // `proprio()`: o último arquivo que esta sessão publicou (o que a sessão mãe lê e desenha no cartão).
-export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any }
+// `pedidosAoApp()`: as ferramentas do app que o mod chamou (mcp.call), na ordem.
+export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[] }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -90,6 +91,7 @@ export type Filha = {
   painel?: { tasks: any[]; turns?: any[]; agentes?: any[] } // o grupo principal publicado (e os grupos dos subagentes dela)
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
+  contexto?: number // o % da janela de contexto publicado (o anel do cartão)
   recebidas?: { from: string; at: number }[] // received além do que recebeu() acrescenta (de irmãs)
   envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
@@ -99,8 +101,10 @@ export type Filha = {
 export function host(on: any, sessoes: Filha[]): Host {
   const recebidas: Record<string, { from: string; at: number }[]> = {}
   const abertas: string[] = []
+  const pedidos: string[] = []
   const texto = (t: string) => ({ value: { content: [{ type: 'text', text: t }] } })
   on('mcp.call', (_$: any, e: any) => {
+    pedidos.push(String(e.tool))
     if (e.tool === 'get_session') return texto(JSON.stringify({ sessionId: EU }))
     if (e.tool === 'list_sessions')
       return texto(
@@ -127,6 +131,7 @@ export function host(on: any, sessoes: Filha[]): Host {
         groups: s.painel ? [{ agent: '', label: '', tasks: s.painel.tasks, ...(s.painel.turns ? { turns: s.painel.turns } : {}) }, ...(s.painel.agentes ?? [])] : [],
         ...(s.git ? { git: { ...s.git, at: AGORA } } : {}),
         ...(s.rate ? { rate: { ...s.rate, at: AGORA } } : {}),
+        ...(s.contexto !== undefined ? { context: { percent: s.contexto, at: AGORA } } : {}),
         received: [...(s.recebidas ?? []), ...(recebidas[s.id] ?? [])],
         ...(s.envios ? { sends: s.envios } : {}),
       }),
@@ -150,6 +155,7 @@ export function host(on: any, sessoes: Filha[]): Host {
       return s
     },
     proprio: () => meu,
+    pedidosAoApp: () => [...pedidos],
   }
 }
 

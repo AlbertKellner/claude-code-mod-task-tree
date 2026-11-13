@@ -1,8 +1,9 @@
 import { expect } from 'claude-code/testing'
 import { PROPS } from './ambiente'
 
-// Leitura do painel em comportamento: título e estado de cada linha, pela superfície terminal.
-// Único lugar que conhece os glifos e a forma da árvore desenhada.
+// Leitura do painel em comportamento: título e estado de cada linha, pela superfície terminal, e o
+// desenho do app desktop, por key de Box/Button, texto e alt. Único lugar que conhece os glifos e a
+// forma da árvore desenhada.
 
 export type Estado = 'pendente' | 'andamento' | 'concluida' | 'interrompida' | 'aguardando'
 // A carta (✉) de uma tarefa de mensagem: onde a mensagem está, pela cor do ícone.
@@ -76,13 +77,10 @@ export async function montar($: any, opcoes: { colunas?: number } = {}) {
 }
 
 // Cada Svg do desenho do app desktop, como o golden o guarda: o texto normalizado (fins de linha LF,
-// números com no máximo 2 casas), o alt e a altura. Monta o desktop uma vez (sem aquecer as animações).
+// números com no máximo 2 casas), o alt e a altura (d.svgs, de noApp).
 export type DesenhoSvg = { alt: string; height?: number; width?: number | string; isInteractive?: boolean; source: string }
 const normalizar = (s: string) => s.replace(/\r\n/g, '\n').replace(/-?\d+\.\d{3,}/g, n => String(Math.round(Number(n) * 100) / 100))
-export async function svgs($: any, opcoes: { colunas?: number } = {}): Promise<DesenhoSvg[]> {
-  const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PROPS(opcoes.colunas ?? 60), requestId: 'task-tree' })
-  const raiz: any = await ui.drawn()
-  await ui.unmount()
+function svgsDe(raiz: any): DesenhoSvg[] {
   const out: DesenhoSvg[] = []
   const andar = (el: any) => {
     if (typeof el !== 'object' || el === null) return
@@ -100,6 +98,161 @@ export async function svgs($: any, opcoes: { colunas?: number } = {}): Promise<D
   }
   andar(raiz)
   return out
+}
+
+// ---- O desenho do app desktop, lido de um jeito que vale para o Svg por linha e para o nativo: o
+// texto de uma região é o que ela mostra (strings, rótulo de Button) mais o alt dos Svg dela, na
+// ordem do documento. Linha e cabeçalho pela key do Box (r<i>, head), botão pela key do Button.
+export type Pedaco = { tipo: 'texto' | 'svg' | 'botao'; texto: string; key?: string; props: Record<string, unknown> }
+export type LinhaDoApp = { key: string; texto: string; pedacos: Pedaco[]; botoes: string[]; el: any }
+export type DesenhoDoApp = {
+  raiz: any
+  bytes: number // JSON.stringify(raiz).length, o que o limite de 600 KB mede
+  nos: number // elementos mais strings
+  fundo: number // a maior profundidade
+  aviso: boolean // o desenho virou "Painel grande demais"
+  cabecalho: LinhaDoApp // o Box key="head" (texto '' se não houver)
+  linhas: LinhaDoApp[] // os Box key="r<i>", em qualquer profundidade, na ordem
+  textos: string[] // linhas.map(l => l.texto)
+  svgs: DesenhoSvg[] // todos os Svg
+  revelados: number // elementos com hover ou display: 'none' (cartão de hover): tem de ser 0
+}
+const chave = (el: any) => el?.key ?? el?.props?.key
+const juntar = (ps: Pedaco[]) => ps.map(p => p.texto).join(' ').replace(/\s+/g, ' ').trim()
+function regiao(el: any): LinhaDoApp {
+  const pedacos: Pedaco[] = []
+  const botoes: string[] = []
+  const andar = (x: any, props: Record<string, unknown>) => {
+    if (typeof x === 'string') {
+      if (/\S/.test(x)) pedacos.push({ tipo: 'texto', texto: x, props })
+      return
+    }
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Svg') {
+      pedacos.push({ tipo: 'svg', texto: String(x.props?.alt ?? ''), ...(k !== undefined ? { key: String(k) } : {}), props: x.props ?? {} })
+      return
+    }
+    if (x.type === 'Button') {
+      if (k !== undefined) botoes.push(String(k))
+      const label = x.props?.label
+      if (!(x.children ?? []).length) {
+        if (typeof label === 'string' && label.trim() !== '') pedacos.push({ tipo: 'botao', texto: label, ...(k !== undefined ? { key: String(k) } : {}), props: x.props ?? {} })
+        return
+      }
+    }
+    for (const c of x.children ?? []) andar(c, x.type === 'Text' ? (x.props ?? {}) : props)
+  }
+  if (el) andar(el, {})
+  return { key: String(chave(el) ?? ''), texto: juntar(pedacos), pedacos, botoes, el }
+}
+function lerApp(raiz: any): DesenhoDoApp {
+  let cabecalho: LinhaDoApp | undefined
+  const linhas: LinhaDoApp[] = []
+  let nos = 0
+  let fundo = 0
+  let revelados = 0
+  const medir = (x: any, n: number) => {
+    nos++
+    fundo = Math.max(fundo, n)
+    if (typeof x !== 'object' || x === null) return
+    if (x.hover !== undefined || x.props?.hover !== undefined || x.props?.display === 'none') revelados++
+    for (const c of x.children ?? []) medir(c, n + 1)
+  }
+  const achar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^r\d+$/.test(k)) return void linhas.push(regiao(x))
+    if (x.type === 'Box' && k === 'head' && !cabecalho) return void (cabecalho = regiao(x))
+    for (const c of x.children ?? []) achar(c)
+  }
+  medir(raiz, 1)
+  achar(raiz)
+  return {
+    raiz,
+    bytes: JSON.stringify(raiz ?? null).length,
+    nos,
+    fundo,
+    aviso: regiao(raiz).texto.includes('Painel grande demais'),
+    cabecalho: cabecalho ?? { key: '', texto: '', pedacos: [], botoes: [], el: undefined },
+    linhas,
+    textos: linhas.map(l => l.texto),
+    svgs: svgsDe(raiz),
+    revelados,
+  }
+}
+const montarApp = ($: any, colunas?: number) =>
+  $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PROPS(colunas ?? 60), requestId: 'task-tree' })
+// O desenho do app desktop, montado uma vez (a 60 colunas, sem dizer outra).
+export async function noApp($: any, opcoes: { colunas?: number } = {}): Promise<DesenhoDoApp> {
+  const ui = await montarApp($, opcoes.colunas)
+  const raiz = await ui.drawn()
+  await ui.unmount()
+  return lerApp(raiz)
+}
+// O desenho do app desktop montado, para apertar um botão pela key e reler sem remontar.
+export async function montarNoApp($: any, opcoes: { colunas?: number } = {}) {
+  const ui = await montarApp($, opcoes.colunas)
+  return {
+    desenho: async (): Promise<DesenhoDoApp> => lerApp(await ui.drawn()),
+    apertar: async (key: string): Promise<void> => void (await ui.press({ key })),
+    fim: (): Promise<void> => ui.unmount(),
+  }
+}
+const casa = (texto: string, quem: string | RegExp) => (typeof quem === 'string' ? texto.includes(quem) : quem.test(texto))
+export const emTextoDoApp = (d: DesenhoDoApp) => [d.cabecalho.texto, ...d.textos].join('\n')
+// A primeira linha cujo texto contém (ou casa).
+export const primeiraDoApp = (d: DesenhoDoApp, quem: string | RegExp): LinhaDoApp | undefined => d.linhas.find(l => casa(l.texto, quem))
+// A única linha com um pedaço de texto igual (com string; na falta, cujo texto contém) ou cujo texto
+// casa (com RegExp); senão, erro com o desenho inteiro.
+export function linhaDoApp(d: DesenhoDoApp, quem: string | RegExp): LinhaDoApp {
+  const iguais = typeof quem === 'string' ? d.linhas.filter(l => l.pedacos.some(p => p.tipo === 'texto' && p.texto.trim() === quem)) : []
+  const achadas = iguais.length > 0 ? iguais : d.linhas.filter(l => casa(l.texto, quem))
+  if (achadas.length !== 1) throw new Error(`Linha "${String(quem)}" não encontrada (ou repetida) no app. Painel:\n${emTextoDoApp(d)}`)
+  return achadas[0]!
+}
+// Os pedaços que vêm depois do primeiro pedaço de texto igual ao título (ou que casa); [] sem ele.
+export const pedacosDepois = (l: LinhaDoApp, quem: string | RegExp): Pedaco[] => {
+  const i = l.pedacos.findIndex(p => p.tipo === 'texto' && (typeof quem === 'string' ? p.texto.trim() === quem : quem.test(p.texto)))
+  return i < 0 ? [] : l.pedacos.slice(i + 1)
+}
+// O estado geral do cabeçalho, a palavra depois de "estado geral: " no pedaço (alt ou texto) que a tem.
+export const estadoGeral = (d: DesenhoDoApp): string | undefined =>
+  d.cabecalho.pedacos.map(p => /estado geral: ([^,;]+)/.exec(p.texto)?.[1]).find(Boolean)?.trim()
+
+// O golden: a árvore do desenho, normalizada, e as fontes dos Svg numa lista sem repetição (a árvore
+// as cita pelo índice). Só type, key, props, hover e children entram: press (o handle não é estável),
+// part, group e client não são desenho.
+export function arvoreDoApp(raiz: any): { arvore: unknown; svgs: string[] } {
+  const svgs: string[] = []
+  const ordenado = (o: any) => Object.fromEntries(Object.keys(o).sort().map(k => [k, o[k]]))
+  const no = (el: any): unknown => {
+    if (typeof el !== 'object' || el === null) return el
+    const p = { ...(el.props ?? {}) }
+    const k = el.key ?? p.key
+    delete p.key
+    if (el.type === 'Svg') {
+      const s = normalizar(String(p.source ?? ''))
+      delete p.source
+      const i = svgs.includes(s) ? svgs.indexOf(s) : svgs.push(s) - 1
+      return { t: 'Svg', ...(k !== undefined ? { k } : {}), p: ordenado(p), s: i }
+    }
+    return {
+      t: el.type,
+      ...(k !== undefined ? { k } : {}),
+      ...(Object.keys(p).length ? { p: ordenado(p) } : {}),
+      ...(el.hover ? { h: el.hover } : {}),
+      ...(el.children?.length ? { c: el.children.map(no) } : {}),
+    }
+  }
+  return { arvore: no(raiz), svgs }
+}
+// O desenho do app desktop para o golden, a 60 colunas.
+export async function desenhoDoApp($: any): Promise<{ arvore: unknown; svgs: string[] }> {
+  const ui = await montarApp($, 60)
+  const raiz = await ui.drawn()
+  await ui.unmount()
+  return arvoreDoApp(raiz)
 }
 
 export async function painel($: any, opcoes: { colunas?: number } = {}): Promise<Linha[]> {
@@ -205,4 +358,227 @@ export function esperarCartaSob(linhas: Linha[], titulo: string, carta: Carta) {
 
 export function esperarCarta(linhas: Linha[], titulo: string, carta: Carta) {
   expect(linha(linhas, titulo).carta, `${titulo} no painel:\n${emTexto(linhas)}`).toBe(carta)
+}
+
+// ---- As caixas do app: o cartão (o Box com borderStyle filho direto de um Box key="c<i>") e o
+// cabeçalho (o Box key="head"), com o fundo, a borda e o estilo da borda pedidos ao app.
+// `primeira`: o texto da primeira linha do cartão; `dentro`: quantos cartões há em volta dele.
+export type CaixaDoApp = { primeira: string; fundo?: string; borda?: string; estilo?: string; dentro: number }
+const caixa = (el: any, primeira: string, dentro: number): CaixaDoApp => {
+  const p = el?.props ?? {}
+  return {
+    primeira,
+    ...(p.backgroundColor !== undefined ? { fundo: String(p.backgroundColor) } : {}),
+    ...(p.borderColor !== undefined ? { borda: String(p.borderColor) } : {}),
+    ...(p.borderStyle !== undefined ? { estilo: String(p.borderStyle) } : {}),
+    dentro,
+  }
+}
+const primeiraLinha = (x: any): any => {
+  if (typeof x !== 'object' || x === null) return undefined
+  const k = chave(x)
+  if (x.type === 'Box' && typeof k === 'string' && /^r\d+$/.test(k)) return x
+  for (const c of x.children ?? []) {
+    const r = primeiraLinha(c)
+    if (r) return r
+  }
+  return undefined
+}
+export function cartoesDoApp(d: DesenhoDoApp): CaixaDoApp[] {
+  const out: CaixaDoApp[] = []
+  const andar = (x: any, dentro: number) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const card = ((x.children ?? []) as any[]).find(c => typeof c === 'object' && c?.type === 'Box' && c.props?.borderStyle !== undefined)
+      if (card) {
+        out.push(caixa(card, regiao(primeiraLinha(card)).texto, dentro))
+        for (const c of card.children ?? []) andar(c, dentro + 1)
+        return
+      }
+    }
+    for (const c of x.children ?? []) andar(c, dentro)
+  }
+  andar(d.raiz, 0)
+  return out
+}
+export const cabecalhoDoApp = (d: DesenhoDoApp): CaixaDoApp => caixa(d.cabecalho.el, d.cabecalho.texto, 0)
+// O alfa de uma cor rgba(r,g,b,a); undefined para qualquer outro texto (chave de tema, nome, hex).
+export function alfa(cor: string | undefined): number | undefined {
+  const m = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)$/.exec(cor ?? '')
+  return m ? Number(m[1]) : undefined
+}
+
+// ---- As guias da árvore no app: caixas com fundo, não caracteres. As de uma linha estão no
+// Box key="guides", filho direto do r<i>; a faixa à esquerda de um cartão, no Box key="strip", filho
+// direto do c<i>; uma célula por coluna (os filhos diretos deles); toda caixa com fundo e sem filhos
+// dentro deles é um traço. O tipo da célula sai da forma dos traços: nenhum é vazio; com largura e
+// nenhum com altura, barra; com largura e com altura, ramo (├); com altura e nenhum com largura, fim (└).
+export type CelulaDeGuia = 'vazio' | 'barra' | 'ramo' | 'fim'
+export type TracoDoApp = { cor: string; largura?: unknown; altura?: unknown }
+const filhoBox = (el: any, k: string): any => ((el?.children ?? []) as any[]).find(c => typeof c === 'object' && c?.type === 'Box' && chave(c) === k)
+const tracosEm = (el: any): TracoDoApp[] => {
+  const out: TracoDoApp[] = []
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const p = x.props ?? {}
+    if (x.type === 'Box' && p.backgroundColor !== undefined && !(x.children ?? []).length) {
+      out.push({ cor: String(p.backgroundColor), ...(p.width !== undefined ? { largura: p.width } : {}), ...(p.height !== undefined ? { altura: p.height } : {}) })
+    }
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(el)
+  return out
+}
+const celula = (el: any): CelulaDeGuia => {
+  const t = tracosEm(el)
+  const w = t.some(x => x.largura !== undefined)
+  const h = t.some(x => x.altura !== undefined)
+  return t.length === 0 ? 'vazio' : w && h ? 'ramo' : w ? 'barra' : h ? 'fim' : 'vazio'
+}
+const celulasDe = (el: any): CelulaDeGuia[] => ((el?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null).map(celula)
+// As células das guias de uma linha, na ordem; [] sem o Box key="guides".
+export const guiasDe = (l: LinhaDoApp): CelulaDeGuia[] => celulasDe(filhoBox(l.el, 'guides'))
+// As faixas à esquerda dos cartões: o texto da primeira linha do cartão e as células do strip.
+export function faixasDoApp(d: DesenhoDoApp): { primeira: string; celulas: CelulaDeGuia[] }[] {
+  const out: { primeira: string; celulas: CelulaDeGuia[] }[] = []
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const strip = filhoBox(x, 'strip')
+      if (strip) out.push({ primeira: regiao(primeiraLinha(x)).texto, celulas: celulasDe(strip) })
+    }
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return out
+}
+// Os traços de todas as guias do desenho (das linhas e das faixas).
+export function tracosDoApp(d: DesenhoDoApp): TracoDoApp[] {
+  const out: TracoDoApp[] = []
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && (k === 'guides' || k === 'strip')) return void out.push(...tracosEm(x))
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return out
+}
+// Quantos textos do desenho inteiro têm caractere de caixa (│ ├ └ ─) ou quebra de linha.
+export function textosComCaixa(d: DesenhoDoApp): number {
+  let n = 0
+  const andar = (x: any) => {
+    if (typeof x === 'string') return void (/[│├└─\n]/.test(x) && n++)
+    if (typeof x !== 'object' || x === null) return
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return n
+}
+
+// ---- A altura das linhas, o centro do conteúdo, os vãos e os respiros dos cartões no app. A altura
+// de uma linha é o height do Box key="r<i>"; o respiro de cima e o de baixo de um cartão são a primeira
+// e a última filha do Box do cartão quando são caixas vazias (sem filhos e sem fundo) com height, e o
+// dos lados é o paddingX (ou paddingLeft/paddingRight) dele; na faixa, as caixas antes do bloco do
+// braço, na mesma coluna, descem o respiro de cima.
+export const alturaDaLinha = (l: LinhaDoApp): unknown => l.el?.props?.height
+const emLinha = (x: any) => x?.type === 'Box' && (x.props?.flexDirection ?? 'row') === 'row'
+// Todo texto com algo além de espaço, todo Svg e todo Button da linha (fora as guias) tem, entre ele
+// e o r<i>, uma caixa em linha com alignItems center.
+export function centrada(l: LinhaDoApp): boolean {
+  let ok = true
+  const andar = (x: any, centro: boolean) => {
+    if (typeof x === 'string') {
+      if (/\S/.test(x) && !centro) ok = false
+      return
+    }
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Box' && chave(x) === 'guides') return
+    if ((x.type === 'Svg' || x.type === 'Button') && !centro) ok = false
+    const c = centro || (emLinha(x) && x.props?.alignItems === 'center')
+    for (const f of x.children ?? []) andar(f, c)
+  }
+  for (const f of l.el?.children ?? []) andar(f, false)
+  return ok
+}
+// Quantos vãos há entre as linhas: r<i> com margem ou padding vertical, mais caixas com r<i> ou c<i>
+// como filho direto e com gap ou rowGap.
+export function vaosEntreLinhas(d: DesenhoDoApp): number {
+  let n = 0
+  const linhaOuCartao = (x: any) => typeof x === 'object' && x?.type === 'Box' && /^[rc]\d+$/.test(String(chave(x) ?? ''))
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const p = x.props ?? {}
+    if (x.type === 'Box' && /^r\d+$/.test(String(chave(x) ?? ''))) {
+      for (const k of ['margin', 'marginY', 'marginTop', 'marginBottom', 'padding', 'paddingY', 'paddingTop', 'paddingBottom']) if (p[k]) n++
+    }
+    if (x.type === 'Box' && (p.gap || p.rowGap) && (x.children ?? []).some(linhaOuCartao)) n++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return n
+}
+export type RespiroDoApp = { primeira: string; dentro: number; cima: number; baixo: number; esquerda: number; direita: number; conector?: { bloco: unknown; antes: number } }
+const vazia = (x: any) => typeof x === 'object' && x?.type === 'Box' && !(x.children ?? []).length && x.props?.backgroundColor === undefined
+const alto = (x: any) => (vazia(x) && typeof x.props?.height === 'number' ? (x.props.height as number) : 0)
+const temBraco = (x: any): boolean => {
+  if (typeof x !== 'object' || x === null) return false
+  if (x.type === 'Box' && x.props?.backgroundColor !== undefined && x.props?.height !== undefined && !(x.children ?? []).length) return true
+  return (x.children ?? []).some(temBraco)
+}
+// O conector na última célula da faixa: a altura da caixa (na coluna dos traços) que contém o braço e
+// a soma das alturas das caixas antes dela na mesma coluna.
+const conectorDe = (cel: any): { bloco: unknown; antes: number } | undefined => {
+  const andar = (x: any): { bloco: unknown; antes: number } | undefined => {
+    if (typeof x !== 'object' || x === null) return undefined
+    const fs = ((x.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+    if (x.type === 'Box' && x.props?.flexDirection === 'column') {
+      const i = fs.findIndex(temBraco)
+      if (i >= 0 && fs.length > 1) return { bloco: fs[i].props?.height, antes: fs.slice(0, i).reduce((s, c) => s + (typeof c.props?.height === 'number' ? c.props.height : 0), 0) }
+    }
+    for (const c of fs) {
+      const r = andar(c)
+      if (r) return r
+    }
+    return undefined
+  }
+  return andar(cel)
+}
+export function respirosDoApp(d: DesenhoDoApp): RespiroDoApp[] {
+  const out: RespiroDoApp[] = []
+  const andar = (x: any, dentro: number) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const card = ((x.children ?? []) as any[]).find(c => typeof c === 'object' && c?.type === 'Box' && c.props?.borderStyle !== undefined)
+      if (card) {
+        const p = card.props ?? {}
+        const fs = ((card.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+        const strip = filhoBox(x, 'strip')
+        const cels = ((strip?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+        const con = cels.length ? conectorDe(cels[cels.length - 1]) : undefined
+        out.push({
+          primeira: regiao(primeiraLinha(card)).texto,
+          dentro,
+          cima: alto(fs[0]),
+          baixo: fs.length > 1 ? alto(fs[fs.length - 1]) : 0,
+          esquerda: Number(p.paddingLeft ?? p.paddingX ?? p.padding ?? 0),
+          direita: Number(p.paddingRight ?? p.paddingX ?? p.padding ?? 0),
+          ...(strip ? { conector: con ?? { bloco: undefined, antes: 0 } } : {}),
+        })
+        for (const c of card.children ?? []) andar(c, dentro + 1)
+        return
+      }
+    }
+    for (const c of x.children ?? []) andar(c, dentro)
+  }
+  andar(d.raiz, 0)
+  return out
+}
+// O tom de uma cor rgba(r,g,b,a): o trecho "r,g,b"; undefined para outro texto.
+export function tom(cor: string | undefined): string | undefined {
+  const m = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*[\d.]+\s*\)$/.exec(cor ?? '')
+  return m ? `${m[1]},${m[2]},${m[3]}` : undefined
 }

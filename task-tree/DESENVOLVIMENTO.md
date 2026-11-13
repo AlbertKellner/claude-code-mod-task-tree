@@ -67,11 +67,20 @@ Quem recebe `$` (o engine) e quem não recebe:
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
     só existe com resumo, `hasBrief`).
-  - `geometry.ts` (154): a geometria do desktop em px e células (`CELL` = 8, `col`, `lineWidth`,
-    alturas, `overBox`, `overlay`, `overlays`, `spanOf`, `crossings`).
-  - `svg.ts` (420): os construtores de SVG e os glifos do terminal (`GLYPH`, `prefix`, `clockText`,
-    `slim`, `fit`/`textW`, `contextRing`, `branch`, `icon`, `rowSvg`, `labelSvg`, `headerSvg`,
-    `chips`, `rowAlt`, `RING_LABEL`).
+  - `desktop.tsx` (468): a árvore do app desktop em componentes nativos (`desktopTree`,
+    `desktopRow`, `iconCell`, `cells`, `GUIDE_COLOR`/`GUIDE_W`/`GUIDE_H`): cada linha é um `Box` em
+    linha com as guias em caixas nativas com fundo (uma célula por coluna, no `Box key="guides"` da
+    linha e no `Box key="strip"` ao lado do cartão), o ícone de estado num `Svg` de 16 px com um `Button`
+    transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo;
+    os cartões de sessão são `Box` com borda e fundo translúcido por nível, com respiro nos quatro
+    lados, o busto e o anel em `Svg`.
+  - `head.tsx` (157): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
+    pílulas com borda, git em texto e a barra de progresso num `Svg` (com o `alt` do cabeçalho inteiro).
+  - `icons.ts` (58): as fontes dos `Svg` que restam, guardadas por estado (`stateIcon`, `msgIcon`,
+    `bustIcon`, `ringIcon`, `headBar`, `ICON` = 16).
+  - `svg.ts` (245): os desenhos de cada ícone (`icon`, `envelope`, `sessionIcon`, `contextRing`),
+    `slim`, e os textos e glifos que as duas superfícies usam (`GLYPH`, `prefix`, `ratioBar`,
+    `clockText`, `chips`, `headerState`, `rowAlt`, `rightText`, `gitTerm`, `gitAlt`).
 - **Textos** (`text/rules.ts`, 178): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
   `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`) e `BRIEF` = 120.
 - **Tipos** (`types/index.d.ts`, 145): `TaskNode`, `Turn`, `Group`, `Launch`, `Wait`, `Panel`,
@@ -651,8 +660,8 @@ Só uma sessão real no app desktop mostra:
 
 - O painel na tela: o pane aberto sem pedido só é posto com 144 colunas ou mais (110 com pedido);
   `showPane` o reabre num prompt da pessoa; `/task-tree` responde o que o app disse.
-- Os cliques: se o `Button` sobre o ícone e sobre o anel acertam o alvo nos dois temas e em todas as
-  larguras (a regra de não-sobreposição fala em células, não em pixels); se o clique na troca de desenho
+- Os cliques: se o `Button` transparente sobre o ícone e sobre o anel acerta o alvo nos dois temas e
+  em todas as larguras; se o clique na troca de desenho
   ainda chega (`ui.press` por chave); o realce do botão nativo; o toast de `open_session_in` recusado.
 - Se a linha pisca a cada segundo.
 - A recarga a quente real e o respawn do hooks worker (o kit não os reproduz).
@@ -660,6 +669,11 @@ Só uma sessão real no app desktop mostra:
   diferentes do mod, o `startedBy`, a latência entre a publicação de uma filha e a releitura de 3 s.
 - `turn.step` (modelo e esforço): o kit não tem implementação base para o evento em stream.
 - O `wrap_up` com `ask` do app e os avisos `<side-sessions-event>`.
+- O desenho nativo: a continuidade, a espessura e a cor das guias em caixas e o alinhamento delas com
+  os ícones, as larguras estimadas em células, a fonte e os
+  tamanhos do app, o corte dos títulos; a altura das linhas e o texto centrado nelas, o respiro dos
+  cartões e o degrau de tom por nível de cartão; e se o app aplica o mesmo limite de 100 000
+  caracteres de texto que o harness.
 - O tamanho real do desenho que o app aceita (o `drawSize` do módulo é o JSON do desenho, não o que o app renderiza).
 - O `$.ui.status` embaixo da caixa de mensagem.
 
@@ -1611,3 +1625,79 @@ O limite de 20 MB travou o painel: a tela ficou congelada no último desenho ace
 ## Corte por tamanho no lugar do aviso (2026-11-12)
 
 Com até 400 linhas o desenho de uma sessão longa passava de 600 KB (cerca de 950 KB no app) sem a pessoa abrir nada: o painel virava o aviso, e o botão "Voltar à visualização anterior" não tinha o que fechar. Decisão do usuário: "Cortar os mais antigos (Recomendado)". Acima de 600 KB o desenho é refeito com menos linhas, os blocos mais antigos fora e contados em "+N linhas anteriores", como no corte das 400 linhas; o aviso fica só como último recurso. Os três limites, em ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas) → `DRAW_LIMIT` (600 KB, com menos linhas até caber). O texto do aviso nas seções de histórico acima fica como era.
+
+## Desenho nativo híbrido (2026-11-13)
+
+Pedido do usuário: "migrar todo o Mod para o hibrido de nativo e mantendo somente o que for
+obrigatório em SVG". O app desktop deixou de receber um `Svg` por linha com `Button` sobreposto em
+px: a árvore é de `Box`, `Text` e `Button` nativos, e só fica em `Svg` o que não existe em nativo: os
+ícones de estado (inclui o busto de sessão e o envelope), o anel de contexto com arco e a barra de
+progresso do cabeçalho. Decisões dele, todas de 2026-11-13: "Vai para nativo (Recomendado)" (o resto
+vai para nativo mesmo com diferença visual), "Caracteres (Recomendado)" (guias em caracteres de caixa,
+mono, como no terminal), "Remover de vez (Recomendado)" (sem chave para o desenho antigo), "Não, fica
+fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
+
+- Saíram `draw/geometry.ts` (px, células de 8 px, `overlay`/`overlays`/`crossings`), a medição de
+  texto à mão (`fit`/`textW`), `rowSvg`, `labelSvg`, `headerSvg` e `frames`/`Card`/`Frame` de
+  `layout.ts`. As seções de histórico acima que falam deles ficam como eram.
+- Ícone e anel clicáveis: o `Button` do kit só aceita texto, então o alvo é um `Button` com rótulo
+  de um espaço largo (U+2003) e `plain`, num `Box` absoluto 0/0/0/0 dentro de um `Box` relativo com
+  o `Svg`.
+- O rótulo de sessão estima a largura em 0,8 célula por caractere de `caption`.
+- Corte por texto: o harness desenha só os primeiros 100 000 caracteres de texto (strings, `alt` e
+  `label`); no desktop o laço de corte (`hooks/render.tsx`) também refaz o desenho com menos linhas
+  acima de `TEXT_LIMIT` = 95 000 caracteres, além do `DRAW_LIMIT` de 600 KB. Num pedido pesado medido,
+  quem limita é o texto (167 linhas, 340 KB, 88 878 caracteres).
+- Medidas no harness (60 colunas), antes das guias em caixas: principal, 7 linhas, 15 151 B, 134 nós;
+  filha, 6 linhas, 16 625 B. As guias em caixas aumentam o desenho (de 150 a 700 B por célula, contra
+  um `Text` de cerca de 100 B por linha); refazer com `bytes` e `nos` do kit quando precisar.
+- O kit de testes lê o desenho do app por key, texto e `alt` (`noApp`, `linhaDoApp`, `arvoreDoApp`
+  etc. em `tests/kit/leitura.ts`), e o golden guarda a árvore (`tests/golden/desenho.ts`).
+- Cartão e cabeçalho destacados (o usuário, 2026-11-13: "nao aparece nenhum card"; para o cabeçalho,
+  "Sim, junto do cartão (Recomendado)"). O fundo pedia a chave `userMessageBackground`, do tema do
+  terminal, que o desktop não tem: no print (tema escuro) o fundo saía igual ao do painel (`#191919`) e
+  a borda era a padrão do app, `#222222`. Com o commit desta correção, `CARD_FILL` = `rgba(136,135,128,0.06)` e
+  `CARD_BORDER` = `rgba(136,135,128,0.22)` (`draw/desktop.tsx`), usados no cartão e no cabeçalho; desde
+  o item "Contraste por nível e respiro", abaixo, são os do nível 0 (0,1 e 0,244). Cor
+  translúcida porque o mod não sabe o tema: sobre `#191919` dá fundo `#20201f` e borda `#373634`;
+  sobre `#ffffff`, `#f8f8f7` e `#dfdfdd`, a até 2 níveis por canal da referência do desenho em SVG
+  (`#20201f`/`#373736` e `#f9f9f7`/`#e1e1df`). Um cartão dentro de outro soma o tom (`#262625` no
+  escuro); a regra passou a ser o degrau igual por nível do item abaixo. O kit lê o fundo e a borda
+  (`cartoesDoApp`, `cabecalhoDoApp`, `alfa`).
+- Guias em caixas finas nativas (o usuário, 2026-11-13: "Caixas finas nativas (Recomendado)", que
+  desfaz "Caracteres (Recomendado)", do mesmo dia). No print, o glifo de caixa não ocupa a altura da
+  linha: toda barra vertical tinha um vão entre uma linha e a seguinte, e a faixa ao lado do cartão
+  (um `Text` com `'\n'`) não acompanhava o passo das linhas. Agora cada coluna é uma célula: um `Box`
+  relativo com o mesmo espaçador mono de três espaços de `iconCell` (a largura da célula é a do ícone
+  por construção, sem depender de quanto vale uma coluna no app) e, numa camada absoluta, as caixas
+  com fundo: a barra (`GUIDE_W` = 0,15 coluna, cerca de 1,1 px, sem altura: estica até a linha) e o
+  braço (`GUIDE_H` = 0,06 linha, cerca de 1,2 px), na cor `GUIDE_COLOR` = `rgba(136,135,128,0.55)`, a
+  das guias do desenho em SVG validado (classe `g`, `#888780` a .55), translúcida para servir nos dois
+  temas e sobre qualquer fundo de cartão. Nenhuma caixa se sobrepõe a outra (a sobreposição apareceria
+  como um ponto mais escuro). A faixa do cartão (`strip`) é tirada da linha do cabeçalho e estica até a
+  altura do cartão; o conector fica num bloco de `ROW_H`, depois de um trecho de barra com a altura do
+  respiro de cima do cartão (`PAD_Y`), e no ramo a barra segue até o pé.
+  Espaço entre as linhas (margem, `rowGap`, `paddingY`) reabriria o vão. O terminal segue com os
+  caracteres. O kit lê as guias (`guiasDe`, `faixasDoApp`, `tracosDoApp`, `textosComCaixa`).
+- Contraste por nível e respiro (o usuário, 2026-11-13: "aumente um pouco o contraste do card,
+  deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o
+  padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; às três
+  perguntas: "1,4", "Não, fica como está (Recomendado)" e "nos 4 lados"). No print
+  `2026-11-13-cartao-filha-estranho.png` (escala 1,5) a linha tinha 20 px, sobravam cerca de 7 px entre
+  o texto de uma linha e o da seguinte, e o texto de um cartão de uma linha ficava a pouco mais de 1 px
+  da borda de baixo; o desenho em SVG anterior tinha linhas de 28 px e 6 px de respiro no cartão.
+  Agora `ROW_H` = 1,4 linha; o cartão tem `paddingX` 2 e, em cima e embaixo, `PAD_Y` = 0,3 linha;
+  `CARD_COLS` = 5; o espaço entre o ícone e o título não muda. Fundo e borda por nível (`LEVELS`, até
+  o nível 4): o alfa do fundo do nível k é `a / (1 − k × a)`, com `a` = 0,10, e o da borda
+  `b / (1 − (k + 1) × a)`, com `b` = 0,22: como a cor translúcida de dentro se soma à de fora, cada
+  cartão anda os mesmos 10 % do que falta do painel até o cinza, qualquer que seja o painel, e a borda
+  fica 22 % dessa distância além do próprio fundo (nível 0 no escuro `#242423`/`#3c3c3a`, nível 1
+  `#2f2f2e`/`#484744`; no claro `#f3f3f2`/`#d9d9d6` e `#e7e7e6`/`#cdcdca`). Entram como tabela
+  literal, para o texto da cor ficar estável no golden. O respiro vertical são duas caixas vazias com
+  `height` (a primeira e a última filha do cartão), não `paddingY`: altura fracionária de `Box` o app já
+  desenha (a mini barra), espaçamento fracionário não foi visto. O conteúdo é centrado com
+  `alignItems="center"` nas caixas dentro da linha, não no `r<i>`: lá as guias deixariam de esticar. Na
+  faixa, o trecho de barra antes do conector tem a forma da meia barra do fim (o fundo numa caixa sem
+  `width` nem `height`, dentro de uma coluna com a largura da barra), para a leitura do kit seguir
+  lendo um fim como fim. O kit lê a altura, o centro, os vãos, os respiros e o tom (`alturaDaLinha`,
+  `centrada`, `vaosEntreLinhas`, `respirosDoApp`, `tom`).

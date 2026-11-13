@@ -1,15 +1,17 @@
-// ui.render: the pane, drawn from the state through layout() (../draw/layout, pure) and the SVG
-// builders (../draw/svg), with the Buttons laid over the lines where ../draw/geometry says; a drawing
-// that throws shows the error in one line. ui.press: the pane's presses, answered by key.
+// ui.render: the pane, drawn from the state through layout() (../draw/layout, pure): on the desktop
+// in the app's own elements (../draw/desktop for the lines, ../draw/head for the header, a few Svgs
+// from ../draw/icons), on the terminal in Texts with the glyphs of ../draw/svg; a drawing that throws
+// shows the error in one line. ui.press: the pane's presses, answered by key.
 
 import { atom, read, update } from 'claude-code'
 
 import type { Send } from '../types'
-import { lineWidth, overlays } from '../draw/geometry'
-import type { Placed } from '../draw/geometry'
-import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
+import { desktopTree } from '../draw/desktop'
+import { desktopHead } from '../draw/head'
+import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -38,6 +40,22 @@ async function closeOpened($: any) {
 // Taken only while it still fits and the panel has the same lines; a reload starts over.
 const fitted = new Map<string, { lines: number; max: number }>()
 
+// The most text a desktop drawing may have, in characters: the app draws the first 100,000 of a
+// drawing and drops the rest (see render). A little under it, as the bytes' limit aims.
+const TEXT_LIMIT = 95000
+// The characters of text a drawing draws: its strings, and its elements' alt and label (an Svg's alt
+// counts; its source does not).
+function textOf(el: any): number {
+  if (typeof el === 'string') return el.length
+  if (typeof el !== 'object' || el === null) return 0
+  if (Array.isArray(el)) return el.reduce((a: number, c: any) => a + textOf(c), 0)
+  const p = el.props ?? {}
+  let n = (typeof p.alt === 'string' ? p.alt.length : 0) + (typeof p.label === 'string' ? p.label.length : 0)
+  const kids = el.children ?? p.children
+  if (kids !== undefined) n += textOf(kids)
+  return n
+}
+
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -53,7 +71,7 @@ const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
-// built): the desktop's Svgs with their Boxes, the terminal's text. `$` is for the presses.
+// built): the desktop's Boxes and Texts, the terminal's text. `$` is for the presses.
 // No ▾/▸ (the person's words: "quero que o botao de colapse nao apareca, e que a funcao de colapsar
 // e expandir esteja no icone de progresso da tarefa"): a line with something below it folds and
 // opens by its progress icon, a plain Button (the pointer inverts it); a line with nothing below has
@@ -61,61 +79,25 @@ const gitState = { plugin: 'task-tree', key: 'git' } as const
 // with an empty label lies over it.
 const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
 
-// Desktop: the header's Svg (its tooltip layer, the view toggle), then one Svg per line and, over it,
-// the Boxes `overlays` places (the geometry module's one rule: anchored by the nearest edge, none
-// crossing another): the Button that folds the line over its icon (on a session's card, the ⑂ left of
-// its name), the Button that opens the session over its context ring (the person's words: "quando
-// clicar nele, abra a sessao que ele representa"; the app shows it in this window's main pane,
-// open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
-// name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
-// the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
-  const { Box, Svg, Button } = ui
-  const lanes = guides(lines)
-  const hides = labelCols(lines)
-  const cards = frames(lines)
-  const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
-  const over = (r: Row, p: Placed) =>
-    p.kind === 'icon' ? (
-      <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
-        <Button key={`fold:${(r.fold as any).key}`} label={' '} plain onPress={act(`fold:${(r.fold as any).key}`, pressOf($, r))} />
-      </Box>
-    ) : (
-      <Box position="absolute" top={0} bottom={0} right={p.right} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
-        <Button key={`open:${r.sid}`} label={RING_LABEL} plain onPress={act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title))} />
-      </Box>
-    )
-  // Each Svg sits in a Box in a column, as its parent's is: the Svg takes the slot's width (100%), and
-  // only a column's stretch draws the image that wide; in a row, or centered, it keeps the 300 px an
-  // SVG image has with no width of its own (the person's words: "está cortando o panel").
-  const drawing = (
+// Desktop: the header (../draw/head), then the lines and the cards, all in the app's own elements
+// (../draw/desktop: Box, Text, Button, with an Svg only for the icons, the ring and the header's bar). No `$` goes down there: the presses
+// are made here, with the same keys as before: the Button over a line's progress icon (on a session's
+// card, its bust) folds it, the one over a session's context ring opens it (the person's words:
+// "quando clicar nele, abra a sessao que ele representa"; the app shows it in this window's main
+// pane, open_session_in, focus, and says in a toast what it refuses).
+function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: any, chrome: { errorLine: any }) {
+  const { Box } = ui
+  const acts: Acts = {
+    fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
+    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
+  }
+  return (
     <Box flexDirection="column">
       {chrome.errorLine}
-      <Box key="head" position="relative" flexDirection="column">
-        <Svg source={top.source} alt={alt} height={top.height} />
-      </Box>
-      {lines.map((r, i) => (
-        <Box key={`r${i}`} flexDirection="column">
-          {(source => {
-            const H = rowHeight(r, cards[i])
-            const placed = overlays({ depth: r.depth, folds: !!r.fold, ring: !!(r.session && r.sid && r.ring) }, Math.max(0, cards[i]!.cards.length - 1))
-            const one = (kind: Placed['kind']) => {
-              const p = placed.find(x => x.kind === kind)
-              return p ? over(r, p) : null
-            }
-            return (
-              <Box position="relative" flexDirection="column">
-                <Svg source={source} alt={rowAlt(r)} height={H} />
-                {one('icon')}
-                {one('ring')}
-              </Box>
-            )
-          })(sources[i]!)}
-        </Box>
-      ))}
+      {top}
+      {desktopTree(ui, lines, acts, cols)}
     </Box>
   )
-  return drawing
 }
 
 // Terminal: the same lines as text, the guides in box-drawing characters, color only on the icon
@@ -307,8 +289,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
-    const W = lineWidth((e.props as any).bodyColumns || 40)
-    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state, ultracode === true)
+    const cols = (e.props as any).bodyColumns || 40
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
@@ -320,7 +301,8 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
-    return drawDesktop($, ui, lines, W, top, alt, { errorLine })
+    const top = desktopHead(ui, { title: head, d, n, chips: list, time: headTime, rate: headRate, git: headGit, state, ultracode: ultracode === true, alt, whole, cols })
+    return drawDesktop($, ui, lines, cols, top, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -360,9 +342,18 @@ export async function render($: EngineInterface, e: any, next: any) {
   // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.
   // Each try aims a little under the limit by the bytes a line took; after three, at half the lines
   // at most, so it ends. The emergency drawing below is the last resort (two lines still too big).
+  // On the desktop the text is cut the same way (TEXT_LIMIT): the app draws a drawing's first 100,000
+  // characters of text and none after them (the harness: "characters of text are drawn up to the
+  // first 100000"), and a native line draws its title twice (its Text and its icon's alt), so a long
+  // request reached that before 600 KB and lost its last lines, "+N linhas" with them. The oldest
+  // blocks go first here too (the same words of the person). The terminal is left as it was.
+  const textual = e.surface === 'desktop'
+  let chars = 0
+  const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT
   const sized = (maxRows: number) => {
     const made = paint(maxRows)
     drawn.size = JSON.stringify(made ?? null).length
+    chars = textual ? textOf(made) : 0
     return made
   }
   const pane = `${e.surface}:${(e.props as any)?.bodyColumns}`
@@ -371,17 +362,19 @@ export async function render($: EngineInterface, e: any, next: any) {
   let made = sized(max)
   // The limit kept no longer serves (the panel has other lines, or these no longer fit): from the
   // whole drawing again.
-  if (kept && (drawn.size > DRAW_LIMIT || all !== kept.lines)) {
+  if (kept && (over() || all !== kept.lines)) {
     fitted.delete(pane)
     max = MAX_ROWS
     made = sized(max)
   }
-  for (let i = 0; drawn.size > DRAW_LIMIT && max > 2; i++) {
+  for (let i = 0; over() && max > 2; i++) {
     const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
-    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? byBytes : Math.min(byBytes, drawn.rows >> 1)))
+    const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
+    const aim = Math.min(byBytes, byText)
+    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? aim : Math.min(aim, drawn.rows >> 1)))
     made = sized(max)
   }
-  if (max < MAX_ROWS && drawn.size <= DRAW_LIMIT) fitted.set(pane, { lines: all, max })
+  if (max < MAX_ROWS && !over()) fitted.set(pane, { lines: all, max })
   if (drawn.size > DRAW_LIMIT) {
     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
     const { Box, Button, Text } = $.ui.resolve(e) as any

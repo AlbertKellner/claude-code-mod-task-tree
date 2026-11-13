@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
 import { abrirSessao, aviso, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { svgs } from './kit/leitura'
+import { noApp, primeiraDoApp } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
@@ -17,8 +17,8 @@ const publicado = (ultra: boolean) =>
     engine: 'Opus 5.5 · xhigh',
     ...(ultra ? { ultracode: true } : {}),
   })
-const cartao = async ($: any) => (await svgs($)).slice(1).map(s => s.alt).find(a => a.includes('filha-um')) ?? ''
-const topo = async ($: any) => (await svgs($))[0]?.alt ?? ''
+const cartao = async ($: any) => primeiraDoApp(await noApp($), 'filha-um')?.texto ?? ''
+const topo = async ($: any) => (await noApp($)).cabecalho.texto
 // O que está abaixo do mod devolve o texto do attachment como veio.
 const base = (on: any) => on('prompt.attachment', (_$: any, e: any) => ({ text: e.text }))
 const anexo = (type: string, agentId?: string) => ({ type, text: 'x', origin: { kind: 'engine' }, ...(agentId ? { agentId } : {}) })
@@ -33,7 +33,9 @@ test('o cartão da filha diz "ultracode" depois do modelo enquanto ela publica o
   await abrirSessao($)
   await aviso($)
   const alt = await cartao($)
-  expect(alt).toContain('Opus 5.5 · xhigh, ultracode')
+  expect(alt).toContain('Opus 5.5 · xhigh')
+  // À direita do modelo: depois dele no texto do cartão.
+  expect(alt.indexOf('ultracode')).toBeGreaterThan(alt.indexOf('Opus 5.5 · xhigh'))
   h.filha(K1).publicado = publicado(false)
   await aviso($)
   const depois = await cartao($)
@@ -85,9 +87,9 @@ test('com a sessão em ultracode, o cartão de subagente não diz "ultracode"', 
   await start($, ['1'])
   await $.prompt.attachment(anexo('ultra_effort_enter'))
   await lancar($, { descricao: 'ler o kit' })
-  const alts = (await svgs($)).map(s => s.alt)
-  expect(alts[0]).toContain('ultracode')
-  const sub = alts.find(a => a.includes('Explore: ler o kit')) ?? ''
+  const d = await noApp($)
+  expect(d.cabecalho.texto).toContain('ultracode')
+  const sub = primeiraDoApp(d, 'Explore: ler o kit')?.texto ?? ''
   expect(sub).toContain('ler o kit')
   expect(sub).not.toContain('ultracode')
 })

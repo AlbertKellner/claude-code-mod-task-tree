@@ -1,11 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 import { fixar, lancaveis, passos } from './kit/ambiente'
 import { fimDoTurno, lancar, pedido, plan, start } from './kit/cenario'
-import { emTexto, painel, svgs } from './kit/leitura'
+import { emTexto, noApp, painel } from './kit/leitura'
 
 const UM = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
 const topo = async ($: any) => (await painel($)).filter(l => l.cabecalho).map(l => l.texto).join('\n')
-const altTopo = async ($: any) => (await svgs($))[0]?.alt ?? ''
+const altTopo = async ($: any) => (await noApp($)).cabecalho.texto
 
 // Regra: taxa.velocidade-de-geracao
 test('o toks/s conta só do primeiro chunk ao stop', async ($: any, on: any) => {

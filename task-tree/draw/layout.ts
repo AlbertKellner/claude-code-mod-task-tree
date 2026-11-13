@@ -9,7 +9,6 @@
 // still queued reach the task lines as `pending`, from the panel that holds them.
 
 import type { Child, Group, Panel, Send, Sub, TaskNode, Turn, Wait } from '../types'
-import { PAD } from './geometry'
 
 // The main loop's agent id in the groups.
 export const MAIN = ''
@@ -710,7 +709,7 @@ export const SHOWN_TURNS = 3
 // And in a session's card, the last request of that card (its round).
 export const SHOWN_CARD_TURNS = 3
 
-// The most lines a drawing holds, decided on the rows before any SVG is made: past it, whole blocks
+// The most lines a drawing holds, decided on the rows before any element is made: past it, whole blocks
 // (a level-0 line and what hangs under it) go from the start, the oldest, and one line counts them;
 // the recent ones, where the work is, stay. Far above a real panel (a long session drew 31 lines);
 // the open steps of a huge plan reached it. `max` below MAX_ROWS (2 or more): the same cut, asked by
@@ -840,7 +839,7 @@ export function running(p: Panel, level = 0): boolean {
 }
 
 // The panel as drawn: one line per task, notice, session or subagent, with its depth in
-// the tree. The desktop draws each line as an Svg, the terminal as a Text.
+// the tree. The desktop draws each line in Boxes and Texts (../draw/desktop), the terminal as a Text.
 export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'running' | 'archived' | 'agent' | 'section' | 'sent' | 'paused' | 'reply'
 // A message task's state, as its ✉ is colored and its word on the right says: still queued for the
 // session (blue), taken up by it (green, the session may still be at work), interrupted or
@@ -926,7 +925,7 @@ export type Row = {
   // The context ring of a session: on its card, and on the highest line above it (its turn, else
   // its level-1 task) with the largest share among the sessions there.
   ring?: Ring
-  // A session's card: its id, for the ring's button that opens the session (see ringOver).
+  // A session's card: its id, for the ring's button that opens the session (labelRow in ../draw/desktop).
   sid?: string
   // The tasks the line stands for in the header's count and time: a leaf's own; a folded line's
   // whole subtree (its sessions' tasks too); none for an open parent (its lines below stand for
@@ -959,8 +958,8 @@ export const hasBrief = (u: Turn) => typeof u.brief === 'string' && u.brief.trim
 export const waitingBelow = (t: TaskNode, pending: { anchor?: string }[]) =>
   pending.length > 0 && flat([t]).some(k => k.status === 'open' && pending.some(s => s.anchor === k.id))
 
-// From the rows to how they are drawn: the tree lines (guides), the cards each line is inside
-// (frames) and the session labels whose column stays empty (labelCols).
+// From the rows to how they are drawn: the tree lines (guides) and the session labels whose column
+// stays empty (labelCols).
 // The tree lines of a row: `bars[k]` continues the line of the ancestor at depth k past it,
 // `last` ends its own branch here, `down` starts a line to the rows below it.
 export type Guide = { bars: boolean[]; last: boolean; down: boolean }
@@ -980,12 +979,6 @@ export function guides(rows: Row[]): Guide[] {
   }))
 }
 
-// The cards a line is drawn in, outermost first: the card of the header at `depth`, whether it
-// starts (`first`) or ends (`last`) on this line. A card takes its header and every line below
-// it deeper than it; its edges add `PAD` px above its first line and below its last (the px, and
-// where the columns, cards and overlays sit, are the geometry module's: ../draw/geometry).
-export type Card = { depth: number; first: boolean; last: boolean }
-export type Frame = { cards: Card[]; top: number; bottom: number }
 // A session's card is headed by a label (its name), not a task line: the tasks inside are its
 // roots, with no tree line to the label. Per row, the depths of the session labels it is inside:
 // their column (col(depth)) is drawn empty.
@@ -996,20 +989,6 @@ export function labelCols(rows: Row[]): number[][] {
     const mine = open.slice()
     if (r.session) open.push(r.depth)
     return mine
-  })
-}
-export function frames(rows: Row[]): Frame[] {
-  const open: number[] = []
-  return rows.map((r, i) => {
-    while (open.length > 0 && open[open.length - 1]! >= r.depth) open.pop()
-    if (r.card) open.push(r.depth)
-    const next = rows[i + 1]
-    const cards = open.map(depth => ({
-      depth,
-      first: r.card === true && depth === r.depth,
-      last: next === undefined || next.depth <= depth,
-    }))
-    return { cards, top: r.card ? PAD : 0, bottom: cards.filter(c => c.last).length * PAD }
   })
 }
 
