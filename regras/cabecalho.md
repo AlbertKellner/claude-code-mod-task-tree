@@ -99,7 +99,7 @@ Estado: coberto
 ### cabecalho.limite-de-linhas-do-desenho
 O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de contagem.
 
-- Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB, com ou sem algo aberto pela pessoa
+- Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB (no app desktop, também acima de 95.000 caracteres de texto), com ou sem algo aberto pela pessoa
 - Quando é desenhado
 - Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB
 
@@ -108,6 +108,7 @@ Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (se
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendado)"); acima de 600 KB o desenho perde os blocos mais antigos até caber, sem aviso; desfaz o aviso como saída do desenho grande (2026-11-04), que fica só como último recurso.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto das linhas no lugar do `alt` de cada imagem e usa títulos mais longos, porque a linha nativa pesa menos; a regra não muda.
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG") com a mesma regra de corte ("Cortar os mais antigos (Recomendado)"): no app desktop o corte também conta os caracteres de texto desenhados (os textos, o `alt` e o rótulo), até 95.000, porque o app só desenha os primeiros 100.000 e a linha nativa leva o título no texto e no `alt`; o terminal não muda.
 Código: hooks/render.tsx
 Estado: coberto
 

@@ -95,18 +95,20 @@ export const STYLE = '<style data-slim></style>'
 // the module; the string is the same the rules would give again.
 const sheets = new Map<string, string>()
 const CLASS = /class="([^"]+)"/g
-export function slim(svg: string): string {
+export function slim(svg: string, base = 'svg,text{cursor:default;user-select:none}'): string {
   // The key is the class attributes in the order they come (lines of one kind share it), read in
-  // one pass; the set itself is only built when the sheet is not known yet.
-  let key = ''
+  // one pass; the set itself is only built when the sheet is not known yet. `base`: the rule put
+  // first in the sheet (the cursor over text; '' for the icons, which have none), part of the key.
+  let classes = ''
   CLASS.lastIndex = 0
-  for (let m = CLASS.exec(svg); m !== null; m = CLASS.exec(svg)) key += m[1] + '|'
+  for (let m = CLASS.exec(svg); m !== null; m = CLASS.exec(svg)) classes += m[1] + '|'
+  const key = `${base}#${classes}`
   let sheet = sheets.get(key)
   if (sheet === undefined) {
-    const used = new Set(key.split(/[ |]/))
+    const used = new Set(classes.split(/[ |]/))
     const rules = (list: [string, string][]) => list.filter(([c]) => used.has(c)).map(([c, d]) => `.${c}{${d}}`).join('')
     const dark = rules(DARK)
-    sheet = `<style>svg,text{cursor:default;user-select:none}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`
+    sheet = `<style>${base}${rules(LIGHT)}${dark ? `@media (prefers-color-scheme: dark){${dark}}` : ''}</style>`
     if (sheets.size > 1000) sheets.clear()
     sheets.set(key, sheet)
   }

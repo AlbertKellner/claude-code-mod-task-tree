@@ -2,7 +2,7 @@
 
 O que só o app mostra.
 
-Código da área: draw/svg.ts, draw/geometry.ts
+Código da área: draw/svg.ts, draw/geometry.ts, draw/icons.ts, draw/desktop.tsx
 
 ### visual.largura-real
 O desenho termina na borda real.
@@ -56,6 +56,7 @@ O título de uma linha sem barra nem contagem vai até o tempo.
 - Então o título só é cortado com "…" ao chegar no tempo da linha (ou na borda, sem tempo), e a palavra de estado encosta no tempo; a linha com barra e contagem segue cortando antes da barra
 
 Origem: decisão do usuário, 2026-11-09 ("quero que o texto vá até alcança o tempo de execução, somente ai, corte o texto com reticencias"; "Encosta no tempo (Recomendado)").
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o título vai inteiro ao texto da linha e o app o corta com "…"; sem barra nem contagem, depois do título só vem o tempo; com contagem, a contagem e a barra; onde o corte cai é do app (checklist).
 Estado: coberto
 
 ### visual.animacao-de-linha-nova

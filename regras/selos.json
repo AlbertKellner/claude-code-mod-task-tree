@@ -2327,21 +2327,21 @@
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
       ],
-      "hash": "ae1e387a8b09b2bb",
-      "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-09",
-      "motivo": "tooltip removido"
+      "hash": "1037bf326aab520d",
+      "assercoes": 6,
+      "tipo": "decisao",
+      "data": "2026-11-13",
+      "motivo": "migração para o desenho nativo: as linhas fora de cartão são Box e Text; decisão do usuário, 2026-11-13"
     },
     "task-tree/tests/visual.test.ts::texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>": {
       "regras": [
         "visual.tooltip"
       ],
-      "hash": "cf3a40b4736f15d0",
+      "hash": "fe9316d35539ef7f",
       "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "motivo": "migração para o desenho nativo: as linhas fora de cartão são Box e Text; decisão do usuário, 2026-11-13"
     }
   },
   "kit": {
@@ -2366,22 +2366,22 @@
   },
   "golden": {
     "envios": {
-      "hash": "a773959dc8b49f9d",
+      "hash": "d62853f8aa549b3d",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "filha": {
-      "hash": "f6798c8aa98c6436",
+      "hash": "c07147240ba9d634",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "principal": {
-      "hash": "b0e04a2fdb4ce082",
+      "hash": "0bf1a77638cf9d64",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "subagente": {
-      "hash": "ea07ba3c9a322cf6",
+      "hash": "4f25223082177bc4",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     }

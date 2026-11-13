@@ -10,6 +10,8 @@ import type { Placed } from '../draw/geometry'
 import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+import { desktopRow, leadOf } from '../draw/desktop'
+import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
@@ -37,6 +39,22 @@ async function closeOpened($: any) {
 // task runs, and each of those drawings would be made two or more times to reach the same limit.
 // Taken only while it still fits and the panel has the same lines; a reload starts over.
 const fitted = new Map<string, { lines: number; max: number }>()
+
+// The most text a desktop drawing may have, in characters: the app draws the first 100,000 of a
+// drawing and drops the rest (see render). A little under it, as the bytes' limit aims.
+const TEXT_LIMIT = 95000
+// The characters of text a drawing draws: its strings, and its elements' alt and label (an Svg's alt
+// counts; its source does not).
+function textOf(el: any): number {
+  if (typeof el === 'string') return el.length
+  if (typeof el !== 'object' || el === null) return 0
+  if (Array.isArray(el)) return el.reduce((a: number, c: any) => a + textOf(c), 0)
+  const p = el.props ?? {}
+  let n = (typeof p.alt === 'string' ? p.alt.length : 0) + (typeof p.label === 'string' ? p.label.length : 0)
+  const kids = el.children ?? p.children
+  if (kids !== undefined) n += textOf(kids)
+  return n
+}
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -69,12 +87,21 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
 // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
 // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
 // the last one drawn is on top.
-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
+function drawDesktop($: any, ui: any, lines: Row[], W: number, cols: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
   const { Box, Svg, Button } = ui
   const lanes = guides(lines)
   const hides = labelCols(lines)
   const cards = frames(lines)
-  const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
+  // The presses of the native lines (../draw/desktop takes no `$`): the same keys and actions as the
+  // Buttons laid over the Svgs below.
+  const acts: Acts = {
+    fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
+    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
+  }
+  // Etapa 1: a line outside every card is drawn native; a card's lines keep their Svg (only those
+  // are built).
+  const native = (i: number) => cards[i]!.cards.length === 0
+  const sources = lines.map((r, i) => (native(i) ? '' : rowSvg(r, lanes[i]!, cards[i]!, W, hides[i])))
   const over = (r: Row, p: Placed) =>
     p.kind === 'icon' ? (
       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
@@ -94,7 +121,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
       <Box key="head" position="relative" flexDirection="column">
         <Svg source={top.source} alt={alt} height={top.height} />
       </Box>
-      {lines.map((r, i) => (
+      {lines.map((r, i) => native(i) ? desktopRow(ui, r, i, leadOf(r, lanes[i]!, hides[i]), acts, cols) : (
         <Box key={`r${i}`} flexDirection="column">
           {(source => {
             const H = rowHeight(r, cards[i])
@@ -307,7 +334,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
-    const W = lineWidth((e.props as any).bodyColumns || 40)
+    const cols = (e.props as any).bodyColumns || 40
+    const W = lineWidth(cols)
     const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state, ultracode === true)
     const alt =
       (n + x === 0
@@ -320,7 +348,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
-    return drawDesktop($, ui, lines, W, top, alt, { errorLine })
+    return drawDesktop($, ui, lines, W, cols, top, alt, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -360,9 +388,18 @@ export async function render($: EngineInterface, e: any, next: any) {
   // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.
   // Each try aims a little under the limit by the bytes a line took; after three, at half the lines
   // at most, so it ends. The emergency drawing below is the last resort (two lines still too big).
+  // On the desktop the text is cut the same way (TEXT_LIMIT): the app draws a drawing's first 100,000
+  // characters of text and none after them (the harness: "characters of text are drawn up to the
+  // first 100000"), and a native line draws its title twice (its Text and its icon's alt), so a long
+  // request reached that before 600 KB and lost its last lines, "+N linhas" with them. The oldest
+  // blocks go first here too (the same words of the person). The terminal is left as it was.
+  const textual = e.surface === 'desktop'
+  let chars = 0
+  const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT
   const sized = (maxRows: number) => {
     const made = paint(maxRows)
     drawn.size = JSON.stringify(made ?? null).length
+    chars = textual ? textOf(made) : 0
     return made
   }
   const pane = `${e.surface}:${(e.props as any)?.bodyColumns}`
@@ -371,17 +408,19 @@ export async function render($: EngineInterface, e: any, next: any) {
   let made = sized(max)
   // The limit kept no longer serves (the panel has other lines, or these no longer fit): from the
   // whole drawing again.
-  if (kept && (drawn.size > DRAW_LIMIT || all !== kept.lines)) {
+  if (kept && (over() || all !== kept.lines)) {
     fitted.delete(pane)
     max = MAX_ROWS
     made = sized(max)
   }
-  for (let i = 0; drawn.size > DRAW_LIMIT && max > 2; i++) {
+  for (let i = 0; over() && max > 2; i++) {
     const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
-    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? byBytes : Math.min(byBytes, drawn.rows >> 1)))
+    const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
+    const aim = Math.min(byBytes, byText)
+    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? aim : Math.min(aim, drawn.rows >> 1)))
     made = sized(max)
   }
-  if (max < MAX_ROWS && drawn.size <= DRAW_LIMIT) fitted.set(pane, { lines: all, max })
+  if (max < MAX_ROWS && !over()) fitted.set(pane, { lines: all, max })
   if (drawn.size > DRAW_LIMIT) {
     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
     const { Box, Button, Text } = $.ui.resolve(e) as any

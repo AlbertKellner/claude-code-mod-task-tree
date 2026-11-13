@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { estadoGeral, montarNoApp, noApp, svgs } from './kit/leitura'
+import { estadoGeral, montarNoApp, noApp, pedacosDepois, svgs } from './kit/leitura'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -61,12 +61,21 @@ test('o título de uma linha sem contagem vai até o tempo; a com contagem corta
   await pedido($, 'Pedido um')
   await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: 'P', title: LONGO, children: [{ id: '1', title: LONGO }, { id: '2', title: 'Curta' }] }] }])
   await start($, ['1'])
-  const fontes = (await svgs($)).filter(s => !s.isInteractive).map(s => s.source)
-  // O pai (com contagem e barra) vem antes da filha (sem contagem), com o mesmo título.
-  const [pai, filha] = fontes.filter(f => desenhado(f) === LONGO) as [string, string]
-  // A filha deixa à direita só o tempo e a folga; o pai, também a contagem, a barra e o ramo.
-  expect(aDireita(filha)).toBeLessThan(aDireita(pai) - 60)
-  expect(fontes.some(f => desenhado(f) === 'Curta')).toBe(true)
+  const d = await noApp($)
+  // O título vai inteiro a um Text, e o app o corta na largura real (onde o corte cai é do app).
+  const titulo = (p: { tipo: string; texto: string }) => p.tipo === 'texto' && p.texto === LONGO
+  // O pai (com contagem e barra) vem antes da folha (sem contagem), com o mesmo título.
+  const comLongo = d.linhas.filter(l => l.pedacos.some(titulo))
+  expect(comLongo.length, d.textos.join('\n')).toBe(2)
+  const [pai, folha] = comLongo as [(typeof comLongo)[number], (typeof comLongo)[number]]
+  // Na folha, depois do título só vem o tempo.
+  const depois = pedacosDepois(folha, LONGO).filter(p => p.tipo === 'texto')
+  expect(depois.length, folha.texto).toBe(1)
+  expect(depois[0]?.texto ?? '', folha.texto).toMatch(/^\d+:\d\d/)
+  // No pai, a contagem vem depois do título.
+  expect(pedacosDepois(pai, LONGO).some(p => p.tipo === 'texto' && /^\d+\/\d+$/.test(p.texto)), pai.texto).toBe(true)
+  expect(folha.pedacos.find(titulo)?.props.wrap).toBe('truncate-end')
+  expect(d.linhas.some(l => l.pedacos.some(p => p.tipo === 'texto' && p.texto === 'Curta'))).toBe(true)
 })
 
 // Regra: visual.tooltip
@@ -80,8 +89,8 @@ test('texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>
   await abrirSessao($)
   await aviso($)
   const d = await noApp($)
-  // O título inteiro vai ao desenho (o app o corta com …).
-  expect(d.linhas.some(l => l.texto.includes(LONGO))).toBe(true)
+  // O título inteiro vai a um Text do desenho (o app o corta com …).
+  expect(d.linhas.some(l => l.pedacos.some(p => p.tipo === 'texto' && p.texto === LONGO))).toBe(true)
   expect(d.svgs.filter(s => s.isInteractive).length).toBe(0)
   expect(d.svgs.some(s => s.source.includes('<title'))).toBe(false)
   // Nenhum cartão de hover: nenhum elemento com hover nem escondido.
