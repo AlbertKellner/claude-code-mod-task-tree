@@ -1,15 +1,12 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { svgs } from './kit/leitura'
+import { estadoGeral, montarNoApp, noApp, svgs } from './kit/leitura'
 
-// O cabeçalho do app desktop (V4): a faixa de estado geral, lida pela classe dela no SVG do cabeçalho.
+// O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
 const UM: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
-const faixa = async ($: any) => {
-  const cabecalho = (await svgs($))[0]?.source ?? ''
-  return /class="fx fx-([a-z]+)"/.exec(cabecalho)?.[1]
-}
+const faixa = async ($: any) => estadoGeral(await noApp($))
 
 // Regra: visual.faixa-de-estado-geral
 test('a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido', async ($: any, on: any) => {
@@ -17,16 +14,16 @@ test('a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido
   await pedido($, 'Pedido um')
   await plan($, UM)
   // Só pendentes, nada iniciado: âmbar claro, aguardando.
-  expect(await faixa($)).toBe('paused')
+  expect(await faixa($)).toBe('aguardando')
   await start($, ['1'])
-  expect(await faixa($)).toBe('current')
-  // As pílulas seguem nos grupos que a animação lê.
-  expect((await svgs($))[0]?.source).toContain('class="ch-current"')
+  expect(await faixa($)).toBe('em andamento')
+  // A pílula de em andamento segue no cabeçalho.
+  expect((await noApp($)).cabecalho.texto).toContain('1 em andamento')
   await fimDoTurno($)
-  expect(await faixa($)).toBe('paused')
+  expect(await faixa($)).toBe('aguardando')
   await pedido($, 'Pedido dois')
   await done($, ['1'])
-  expect(await faixa($)).toBe('done')
+  expect(await faixa($)).toBe('concluído')
 })
 
 // Regra: visual.faixa-de-estado-geral
@@ -40,13 +37,13 @@ test('a faixa do cabeçalho: interrompido depois do Esc, e sessão ativa com só
   await abrirSessao($)
   await aviso($)
   await done($, ['1'])
-  expect(await faixa($)).toBe('running')
+  expect(await faixa($)).toBe('sessão ativa')
   await pedido($, 'Pedido dois')
   await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê' }] }])
   await start($, ['b1'])
-  expect(await faixa($)).toBe('current')
+  expect(await faixa($)).toBe('em andamento')
   await esc($)
-  expect(await faixa($)).not.toBe('current')
+  expect(await faixa($)).not.toBe('em andamento')
 })
 
 // O título de uma linha do app desktop: o texto inteiro, que o CSS corta com "…" na largura real.
@@ -82,10 +79,13 @@ test('texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>
   await start($, ['1'])
   await abrirSessao($)
   await aviso($)
-  const todas = await svgs($)
-  expect(todas.some(s => desenhado(s.source) === LONGO)).toBe(true)
-  expect(todas.filter(s => s.isInteractive).length).toBe(0)
-  expect(todas.some(s => s.source.includes('<title'))).toBe(false)
+  const d = await noApp($)
+  // O título inteiro vai ao desenho (o app o corta com …).
+  expect(d.linhas.some(l => l.texto.includes(LONGO))).toBe(true)
+  expect(d.svgs.filter(s => s.isInteractive).length).toBe(0)
+  expect(d.svgs.some(s => s.source.includes('<title'))).toBe(false)
+  // Nenhum cartão de hover: nenhum elemento com hover nem escondido.
+  expect(d.revelados).toBe(0)
 })
 
 // Regra: visual.titulo-sem-contagem-vai-ate-o-tempo
@@ -126,4 +126,32 @@ test('a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de co
     const recorte = aDireita(r.source)
     expect(recorte).toBeLessThanOrEqual(12)
   }
+})
+
+// Regra: visual.botoes-por-chave
+test('no app, o ícone da linha que recolhe e o anel do cartão são botões com chave', async ($: any, on: any) => {
+  fixar(on)
+  const K = 'local_11111111-1111-1111-1111-111111111111'
+  const h = host(on, [{ id: K, nome: 'filha-um', contexto: 42, painel: { tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Tarefa única' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const m = await montarNoApp($)
+  let d = await m.desenho()
+  // O anel do cartão abre a sessão: pede ao app que a mostre.
+  const cartao = d.linhas.find(l => l.botoes.includes(`open:${K}`))
+  expect(cartao?.texto ?? '', d.textos.join('\n')).toContain('filha-um')
+  await m.apertar(`open:${K}`)
+  d = await m.desenho()
+  expect(h.pedidosAoApp()).toContain('open_session_in')
+  // O ícone da linha com algo embaixo recolhe a linha.
+  const fold = d.linhas.find(l => l.texto.includes('Plano A'))?.botoes.find(b => b.startsWith('fold:'))
+  expect(fold, d.textos.join('\n')).toBeDefined()
+  expect(d.linhas.some(l => l.texto.includes('Tarefa única'))).toBe(true)
+  await m.apertar(fold!)
+  d = await m.desenho()
+  expect(d.linhas.some(l => l.texto.includes('Tarefa única')), d.textos.join('\n')).toBe(false)
+  await m.fim()
 })

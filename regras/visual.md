@@ -24,15 +24,27 @@ Os cliques no ícone e no anel funcionam.
 Origem: commit 4edb3f2, 2026-10-21 ("cliques por chave, painel na tela e desenho menor").
 Estado: checklist (cliques reais)
 
+### visual.botoes-por-chave
+No app desktop, o ícone que recolhe a linha e o anel do cartão são botões com chave.
+
+- Dado uma linha com algo embaixo e um cartão de sessão com anel
+- Quando o painel é desenhado no app desktop
+- Então a linha tem o botão `fold:<chave>` e o cartão o botão `open:<sessão>`; apertá-los recolhe a linha e pede a sessão ao app
+
+Origem: decisão do usuário, 2026-10-21 ("quero que o botao de colapse nao apareca, e que a funcao de colapsar e expandir esteja no icone de progresso da tarefa"; "quando clicar nele, abra a sessao que ele representa"); commits 3c4e7df e e5fd006. Teste pedido na migração para o desenho nativo (2026-11-13), que troca a sobreposição dos botões.
+Código: hooks/render.tsx
+Estado: coberto
+
 ### visual.tooltip
 Texto cortado não tem tooltip.
 
 - Dado um texto cortado com "…" porque não coube (título, nome de sessão, repositório, pasta ou branch)
 - Quando o painel é desenhado no app desktop
-- Então não há tooltip: nenhuma camada interativa sobre a linha e nenhum `<title>` no desenho
+- Então não há tooltip: nenhum `Svg` interativo, nenhum `<title>` em fonte de `Svg` e nenhum elemento com `hover` ou escondido
 
 Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
 Reescrito: 2026-11-09, decisão do usuário ("não funcionou. aborte e remova a funcionalidade de tooltip"), depois de pedir "mostre um tooltip com o texto completo quando eu parar o mouse em cima do texto por um segundo".
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): não há tooltip: nenhum `Svg` interativo, nenhum `<title>` em fonte de `Svg` e nenhum elemento com `hover` ou escondido.
 Código: hooks/render.tsx
 Estado: coberto
 
@@ -145,11 +157,12 @@ Estado: checklist (pintura real)
 ### visual.golden-gera-desenho
 Os cenários do golden geram o desenho do app desktop.
 
-- Dado os 3 cenários do golden (principal, filha trabalhando, envios), a 60 colunas
+- Dado os 4 cenários do golden (principal, filha trabalhando, envios, subagente), a 60 colunas
 - Quando o painel é desenhado no app desktop
-- Então cada cenário gera os SVGs do desenho, e o texto deles é o mesmo a cada vez
+- Então cada cenário gera a árvore do desenho, elementos e props, e as fontes dos `Svg`, a mesma a cada vez
 
 Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)"): o desenho validado no app fica travado pelo golden.
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): os 4 cenários (principal, filha trabalhando, envios, subagente); cada cenário gera a árvore do desenho, elementos e props, e as fontes dos `Svg`, a mesma a cada vez.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -164,6 +177,7 @@ Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); go
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"): a tarefa parada com Esc no primeiro pedido segue ✕, fora da contagem e com o relógio parado, depois do pedido seguinte (antes, ◷); o pai dela, sem mais nada aberto embaixo, fica ✓. O golden é regravado com a validação dele no app.
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -177,6 +191,7 @@ O desenho do cartão da filha trabalhando é o validado no app.
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cenário passa a publicar o contexto, para o anel; o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -190,6 +205,7 @@ O desenho do ✉ na fila, entregue e interrompido é o validado no app.
 Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -201,6 +217,7 @@ O desenho do cartão de subagente e do cartão de grupo é o validado no app.
 - Então o desenho é o que o usuário validou no app
 
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)"); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -212,6 +229,7 @@ A faixa à esquerda do cabeçalho diz o estado geral pela cor.
 - Então a faixa é âmbar com tarefa em andamento; âmbar claro ("aguardando") com algo aguardando ou só tarefas pendentes, nada iniciado; azul com só uma sessão filha trabalhando; verde com tudo concluído; cinza com o que ficou interrompido; e o estado vai ao texto alternativo ("estado geral: …")
 
 Origem: decisão do usuário, 2026-11-03 ("gostei da V4, siga para análise e implementação"; para só pendentes, nada iniciado: "Âmbar claro, 'aguardando'", contra a recomendação de cinza).
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o estado no texto alternativo do cabeçalho ("estado geral: …"), não mais a classe da faixa no SVG; a regra não muda.
 Código: draw/svg.ts, hooks/render.tsx
 Estado: coberto
 

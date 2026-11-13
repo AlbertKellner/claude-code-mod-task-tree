@@ -181,7 +181,7 @@ test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', co
   assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
 }))
 
-// O golden do SVG: só se grava com as palavras do usuário, e um desenho mudado sem aprovação falha.
+// O golden do desenho: só se grava com as palavras do usuário, e um desenho mudado sem aprovação falha.
 const GOLDEN_MJS = join(dirname(fileURLToPath(import.meta.url)), 'golden.mjs')
 test('aprovar o golden sem as palavras do usuário e a data é recusado antes de rodar qualquer coisa', () => {
   for (const motivo of [undefined, 'ok', '2026-10-28 sem aspas', '"está certo" sem data']) {
@@ -193,13 +193,13 @@ test('aprovar o golden sem as palavras do usuário e a data é recusado antes de
 
 test('desenho do golden sem selo, ou mudado depois da aprovação, falha', comMontagem(dir => {
   mkdirSync(join(dir, 'task-tree', 'tests', 'golden'), { recursive: true })
-  writeFileSync(join(dir, 'task-tree', 'tests', 'golden', 'svg.ts'), 'export const GOLDEN: Record<string, unknown> = {"principal":[{"alt":"a","source":"<svg/>"}]}\n')
+  writeFileSync(join(dir, 'task-tree', 'tests', 'golden', 'desenho.ts'), 'export const GOLDEN: Record<string, unknown> = {"principal":{"arvore":{"t":"Box"},"svgs":["<svg/>"]}}\n')
   let r = conferir(dir)
   assert.equal(r.status, 1)
   assert.match(r.stderr, /desenho do golden sem selo: principal/)
-  aprovarGolden(dir, { principal: [{ alt: 'a', source: '<svg/>' }] }, `"está certo", ${hoje}`)
+  aprovarGolden(dir, { principal: { arvore: { t: 'Box' }, svgs: ['<svg/>'] } }, `"está certo", ${hoje}`)
   assert.equal(conferir(dir).status, 0)
-  trocar(dir, 'task-tree/tests/golden/svg.ts', '<svg/>', '<svg></svg>')
+  trocar(dir, 'task-tree/tests/golden/desenho.ts', '<svg/>', '<svg></svg>')
   r = conferir(dir)
   assert.equal(r.status, 1)
   assert.match(r.stderr, /o desenho do golden mudou sem aprovação: principal/)

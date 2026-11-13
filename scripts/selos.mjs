@@ -135,8 +135,8 @@ const gravar = (raiz, selos) => {
   writeFileSync(join(raiz, SELOS), `${JSON.stringify({ testes: ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden) }, null, 2)}\n`)
 }
 
-// ---- Golden do SVG: o desenho de cada cenário, aprovado pelo usuário no app (tests/golden/svg.ts).
-export const GOLDEN = 'task-tree/tests/golden/svg.ts'
+// ---- Golden do desenho: a árvore e as fontes dos Svg de cada cenário, aprovadas pelo usuário no app (tests/golden/desenho.ts).
+export const GOLDEN = 'task-tree/tests/golden/desenho.ts'
 const CABECA_GOLDEN = '// Gerado por npm run golden:aprovar, com a aprovação do usuário no app; não editar à mão.\nexport const GOLDEN: Record<string, unknown> = '
 // Os cenários gravados: o JSON depois de "GOLDEN ... = ".
 export function lerGolden(raiz) {

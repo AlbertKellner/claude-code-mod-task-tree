@@ -107,6 +107,7 @@ Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendado)"); acima de 600 KB o desenho perde os blocos mais antigos até caber, sem aviso; desfaz o aviso como saída do desenho grande (2026-11-04), que fica só como último recurso.
+Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto das linhas no lugar do `alt` de cada imagem e usa títulos mais longos, porque a linha nativa pesa menos; a regra não muda.
 Código: hooks/render.tsx
 Estado: coberto
 
