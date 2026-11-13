@@ -408,3 +408,72 @@ export function alfa(cor: string | undefined): number | undefined {
   const m = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)$/.exec(cor ?? '')
   return m ? Number(m[1]) : undefined
 }
+
+// ---- As guias da árvore no app: caixas com fundo, não caracteres. As de uma linha estão no
+// Box key="guides", filho direto do r<i>; a faixa à esquerda de um cartão, no Box key="strip", filho
+// direto do c<i>; uma célula por coluna (os filhos diretos deles); toda caixa com fundo e sem filhos
+// dentro deles é um traço. O tipo da célula sai da forma dos traços: nenhum é vazio; com largura e
+// nenhum com altura, barra; com largura e com altura, ramo (├); com altura e nenhum com largura, fim (└).
+export type CelulaDeGuia = 'vazio' | 'barra' | 'ramo' | 'fim'
+export type TracoDoApp = { cor: string; largura?: unknown; altura?: unknown }
+const filhoBox = (el: any, k: string): any => ((el?.children ?? []) as any[]).find(c => typeof c === 'object' && c?.type === 'Box' && chave(c) === k)
+const tracosEm = (el: any): TracoDoApp[] => {
+  const out: TracoDoApp[] = []
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const p = x.props ?? {}
+    if (x.type === 'Box' && p.backgroundColor !== undefined && !(x.children ?? []).length) {
+      out.push({ cor: String(p.backgroundColor), ...(p.width !== undefined ? { largura: p.width } : {}), ...(p.height !== undefined ? { altura: p.height } : {}) })
+    }
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(el)
+  return out
+}
+const celula = (el: any): CelulaDeGuia => {
+  const t = tracosEm(el)
+  const w = t.some(x => x.largura !== undefined)
+  const h = t.some(x => x.altura !== undefined)
+  return t.length === 0 ? 'vazio' : w && h ? 'ramo' : w ? 'barra' : h ? 'fim' : 'vazio'
+}
+const celulasDe = (el: any): CelulaDeGuia[] => ((el?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null).map(celula)
+// As células das guias de uma linha, na ordem; [] sem o Box key="guides".
+export const guiasDe = (l: LinhaDoApp): CelulaDeGuia[] => celulasDe(filhoBox(l.el, 'guides'))
+// As faixas à esquerda dos cartões: o texto da primeira linha do cartão e as células do strip.
+export function faixasDoApp(d: DesenhoDoApp): { primeira: string; celulas: CelulaDeGuia[] }[] {
+  const out: { primeira: string; celulas: CelulaDeGuia[] }[] = []
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const strip = filhoBox(x, 'strip')
+      if (strip) out.push({ primeira: regiao(primeiraLinha(x)).texto, celulas: celulasDe(strip) })
+    }
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return out
+}
+// Os traços de todas as guias do desenho (das linhas e das faixas).
+export function tracosDoApp(d: DesenhoDoApp): TracoDoApp[] {
+  const out: TracoDoApp[] = []
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    const k = chave(x)
+    if (x.type === 'Box' && (k === 'guides' || k === 'strip')) return void out.push(...tracosEm(x))
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return out
+}
+// Quantos textos do desenho inteiro têm caractere de caixa (│ ├ └ ─) ou quebra de linha.
+export function textosComCaixa(d: DesenhoDoApp): number {
+  let n = 0
+  const andar = (x: any) => {
+    if (typeof x === 'string') return void (/[│├└─\n]/.test(x) && n++)
+    if (typeof x !== 'object' || x === null) return
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(d.raiz)
+  return n
+}

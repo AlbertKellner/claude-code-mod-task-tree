@@ -1,8 +1,11 @@
 // The desktop's lines and cards in the app's own elements (Box, Text, Button), with an Svg only where
 // a drawing is needed: the state icon, the envelope, the bust of a session, the context ring
 // (./icons). The person, 2026-11-13: "migrar todo o Mod para o hibrido de nativo e mantendo somente o
-// que for obrigatório em SVG"; the tree's guides in box-drawing characters, as in the terminal; no
-// tooltip and no hover; the same keys to press (fold:<key>, open:<sid>).
+// que for obrigatório em SVG"; no tooltip and no hover; the same keys to press (fold:<key>, open:<sid>).
+// The tree's guides are thin native boxes with a fill, not box-drawing characters: the person,
+// 2026-11-13, "Caixas finas nativas (Recomendado)", undoing "Caracteres (Recomendado)" of the same day
+// (a glyph is not as tall as the line, so every bar had a gap between one line and the next).
+// The terminal keeps the characters (./svg, prefix).
 // No `$` here: the presses come ready from hooks/render.tsx (`acts`), where `$` is.
 //
 // The contract with the tests' reading of the drawing (tests/kit/leitura.ts): each line is a
@@ -11,6 +14,9 @@
 // their own, after it; the icon's alt is rowAlt(r) whole; the ring's, "contexto da sessão <nome>: <N>%".
 // A card is the Box with a borderStyle that is the direct child of a `Box key="c<i>"`; its fill and
 // border (backgroundColor, borderColor) are read by the kit, as are the header's (`Box key="head"`).
+// A line's guides are the `Box key="guides"`, direct child of its `r<i>`; a card's strip at its left,
+// the `Box key="strip"`, direct child of its `c<i>`; one cell per column in them, and every Box with a
+// fill inside them is a stroke of a guide.
 // No element has a hover or display none, no Svg is interactive.
 
 import { guides, labelCols } from './layout'
@@ -25,26 +31,86 @@ export type Acts = { fold: (r: Row) => () => void; open: (r: Row) => () => void 
 // The label of a Button laid over an icon: an em space, so the native highlight covers the icon.
 const OVER = ' '
 
-// The tree's guides of a line, one cell of three mono characters per column, the bar in the cell's
-// middle (under the middle of the parent's icon): the ancestors' bars, then the connector to the line
-// (├─ or └─). `col`: the column each cell stands for, so a card can take the cells of its own columns
-// and leave the outer ones to the strip at its left (desktopTree). `hide`: a session label's columns
-// (labelCols), left out as in the terminal: the card's tasks start under the label's bust. A
-// session's label has its connector like any line: it is the branch into its card.
+// The guides, as boxes: their color (the guides' gray of the Svg drawing the person validated,
+// #888780 at .55, translucent so it shows on the dark pane, the light one and any card's fill), the
+// width of a bar in columns (about 1.1 px) and the height of an arm in lines (about 1.2 px).
+export const GUIDE_COLOR = 'rgba(136,135,128,0.55)'
+export const GUIDE_W = 0.15
+export const GUIDE_H = 0.06
+// The height of a line: the rows and the connector of a card's strip (at its header's height).
+const ROW_H = 1
+
+// A cell of the guides: blank, an ancestor's bar, or the connector to the line, a branch (the line
+// has a sibling after it) or an end (it is the last).
+export type Cell = 'blank' | 'bar' | 'branch' | 'end'
+// The tree's guides of a line, one cell per column, the bar in the cell's middle (under the middle of
+// the parent's icon): the ancestors' bars, then the connector to the line. `col`: the column each cell
+// stands for, so a card can take the cells of its own columns and leave the outer ones to the strip at
+// its left (desktopTree). `hide`: a session label's columns (labelCols), left out as in the terminal:
+// the card's tasks start under the label's bust. A session's label has its connector like any line:
+// it is the branch into its card.
 export const cells = (r: Row, g: Guide, hide: number[] = []) => {
-  const out: { col: number; text: string }[] = []
+  const out: { col: number; kind: Cell }[] = []
   if (r.depth === 0) return out
   g.bars.forEach((on, k) => {
-    if (!hide.includes(k)) out.push({ col: k, text: on ? ' │ ' : '   ' })
+    if (!hide.includes(k)) out.push({ col: k, kind: on ? 'bar' : 'blank' })
   })
-  if (!hide.includes(r.depth - 1)) out.push({ col: r.depth - 1, text: g.last ? ' └─' : ' ├─' })
+  if (!hide.includes(r.depth - 1)) out.push({ col: r.depth - 1, kind: g.last ? 'end' : 'branch' })
   return out
 }
-// All of a line's guides as one text: a line outside every card (desktopRow's `lead`).
-export const leadOf = (r: Row, g: Guide, hide: number[] = []) =>
-  cells(r, g, hide)
-    .map(c => c.text)
-    .join('')
+
+// The strokes: a bar (no height: it stretches to its container's height), the arm from the bar's
+// right to the cell's right edge, centered on the line's height (the mini bar's arrangement).
+const LAYER = { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }
+const barBox = (Box: any) => <Box width={GUIDE_W} backgroundColor={GUIDE_COLOR} />
+// A connector's three boxes in a row: an empty half, the bar (whole for a branch, down to the middle
+// for an end), the arm. No box over another: translucent, an overlap would show as a darker dot.
+const joint = (Box: any, kind: Cell, props: Record<string, unknown>) => (
+  <Box {...props}>
+    <Box flexGrow={1} />
+    {kind === 'branch' ? (
+      barBox(Box)
+    ) : (
+      <Box width={GUIDE_W} flexDirection="column">
+        <Box flexGrow={1} backgroundColor={GUIDE_COLOR} />
+        <Box flexGrow={1} />
+      </Box>
+    )}
+    <Box flexGrow={1} alignItems="center">
+      <Box flexGrow={1} height={GUIDE_H} backgroundColor={GUIDE_COLOR} />
+    </Box>
+  </Box>
+)
+// The cell of a guide, as wide as the icon's cell by the same mono spacer (three spaces), its strokes
+// in a layer over it. With no height of its own, it stretches to its line's height (or to its card's,
+// in a strip). `strip`: the last column of a card's strip, its connector one line high at the header,
+// and for a branch the bar going on to the card's foot.
+function guideCell(ui: any, kind: Cell, key: string, strip = false) {
+  const { Box, Text } = ui
+  const strokes =
+    kind === 'blank' ? null : kind === 'bar' ? (
+      <Box {...LAYER} justifyContent="center">
+        {barBox(Box)}
+      </Box>
+    ) : strip ? (
+      <Box {...LAYER} flexDirection="column">
+        {joint(Box, kind, { height: ROW_H })}
+        {kind === 'branch' ? (
+          <Box flexGrow={1} justifyContent="center">
+            {barBox(Box)}
+          </Box>
+        ) : null}
+      </Box>
+    ) : (
+      joint(Box, kind, LAYER)
+    )
+  return (
+    <Box key={key} position="relative" flexShrink={0}>
+      <Text mono wrap="truncate-end">{'   '}</Text>
+      {strokes}
+    </Box>
+  )
+}
 
 // The cell of an icon: as wide as three mono characters (the guides' cell), the Svg centered in it,
 // and over it, when the line folds, a Button with an empty label the same size (the Button takes no
@@ -76,14 +142,12 @@ const cutStart = (s: string, max: number) => (len(s) <= max ? s : '…' + Array.
 // the repository left out, "▭ folder" (left out whole with the repository).
 const gitText = (g: GitLabel, repo: boolean) => (g.folder ? (repo ? `▭ ${cutStart(g.repo, FOLDER_MAX)}` : '') : repo ? gitTerm(g) : `⑂ ${g.branch ?? ''}`)
 
-// The guides before a line's icon, mono and dim, never cut.
-function guidesOf(ui: any, lead: string) {
-  const { Box, Text } = ui
-  return lead ? (
-    <Box flexShrink={0}>
-      <Text mono color="inactive" dimColor wrap="truncate-end">
-        {lead}
-      </Text>
+// The guides before a line's icon, one cell per column, never cut.
+function guidesOf(ui: any, cs: Cell[]) {
+  const { Box } = ui
+  return cs.length > 0 ? (
+    <Box key="guides" flexShrink={0}>
+      {cs.map((k, n) => guideCell(ui, k, `g${n}`))}
     </Box>
   ) : null
 }
@@ -97,13 +161,13 @@ function guidesOf(ui: any, lead: string) {
 // columns with room left for them); the branch and then the name are cut by the app.
 const CAPTION = 0.8
 const cap = (s: string) => len(s) * CAPTION
-function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: number) {
+function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number) {
   const { Box, Text, Svg, Button } = ui
   const ringed = r.ring !== undefined
   const engLen = r.engine || r.ultracode ? (r.engine ? cap(r.engine) + 1 : 0) + (r.ultracode ? cap(ULTRA) + 1 : 0) : 0
   const rateLen = r.rate ? cap(rateText(r.rate.toks)) + 1 : 0
   // The guides, the bust's cell, the paddings, the name and its ⋯, the word, the ring's cell.
-  const room = cols - len(lead) - 3 - 2 - len(r.title) - (folded(r) ? 2 : 0) - (r.meta ? cap(r.meta) + 1 : 0) - (ringed ? 4 : 0)
+  const room = cols - 3 * lead.length - 3 - 2 - len(r.title) - (folded(r) ? 2 : 0) - (r.meta ? cap(r.meta) + 1 : 0) - (ringed ? 4 : 0)
   const need = (repo: boolean, eng: boolean, rate: boolean) => (r.git ? cap(gitText(r.git, repo)) + 1 : 0) + (eng ? engLen : 0) + (rate ? rateLen : 0)
   let repo = r.git !== undefined
   let eng = engLen > 0
@@ -114,7 +178,7 @@ function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: nu
   const git = r.git ? gitText(r.git, repo) : ''
   const ring = r.ring
   return (
-    <Box key={`r${i}`} height={1}>
+    <Box key={`r${i}`} height={ROW_H}>
       {guidesOf(ui, lead)}
       {iconCell(ui, bustIcon(sessionState(r.tone)), rowAlt(r), foldPress(r, acts))}
       <Box flexShrink={1} minWidth={0} paddingLeft={1}>
@@ -180,11 +244,11 @@ function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: nu
 }
 
 // One line of the desktop: a task, a request, a notice, a ↩, a ✉, a subagent's tool, a card's header,
-// a section, or a session's label. `lead`: the guides drawn before it (leadOf for a line outside every
-// card; desktopTree passes the cells of the columns inside the card). `cols`: the columns the line has
+// a section, or a session's label. `lead`: the cells of the guides drawn before it (desktopTree passes
+// the cells of the columns inside the line's container). `cols`: the columns the line has
 // (the pane's, less the strips and the cards around it), for what fits on a session's label.
-// Every line one `lh` high, so the guides and the cards' strips line up.
-export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: number): any {
+// Every line ROW_H high, with no gap between lines: the guides' boxes stretch to it and meet.
+export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number): any {
   if (r.session) return labelRow(ui, r, i, lead, acts, cols)
   const { Box, Text, Svg, Button } = ui
   const section = r.tone === 'section'
@@ -274,7 +338,7 @@ export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts,
   }
   const shown = right.filter(x => x !== null)
   return (
-    <Box key={`r${i}`} height={1}>
+    <Box key={`r${i}`} height={ROW_H}>
       {guidesOf(ui, lead)}
       {icon}
       <Box flexGrow={1} flexShrink={1} minWidth={0} paddingLeft={icon ? 1 : 0}>
@@ -313,20 +377,20 @@ const CARD = { borderStyle: 'round', borderColor: CARD_BORDER, paddingX: 1, padd
 const CARD_COLS = 3
 
 // The whole list of lines, the cards nested in Boxes. Inside a container every line starts at its
-// content's edge and its guides go three mono characters a column, so they line up with one another
-// whatever the border and padding around them. A card takes the cells of its own columns; the cells
-// of the columns outside it (the ancestors' bars and its header's connector) go into a strip at its
-// left, one text line per line of the card, in a Box in a row with it. Only the strip's first line
-// must meet a line (the connector, at the header's height); the rest are bars or blanks.
+// content's edge and its guides go one cell (three mono spaces wide) a column, so they line up with one
+// another whatever the border and padding around them. A card takes the cells of its own columns; the
+// cells of the columns outside it (the ancestors' bars and its header's connector) go into a strip at
+// its left, one cell per column, in a row with it, stretched to the card's height. The strip is the
+// same on every line of the card, so it is taken from the header's: the ancestors' bars run from the
+// card's top to its foot, and the connector meets the header (the branch's bar goes on to the foot).
 export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): any[] {
-  const { Box, Text } = ui
+  const { Box } = ui
   const lanes = guides(lines)
   const hides = labelCols(lines)
   const cut = (i: number, from: number, to: number) =>
     cells(lines[i]!, lanes[i]!, hides[i])
       .filter(c => c.col >= from && c.col < to)
-      .map(c => c.text)
-      .join('')
+      .map(c => c.kind)
   // The children of a container whose content starts at column `base`, for the lines [a, b), in
   // `room` columns.
   const block = (a: number, b: number, base: number, room: number): any[] => {
@@ -340,20 +404,18 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
       }
       let j = i + 1
       while (j < b && lines[j]!.depth > r.depth) j++
-      const strip = Array.from({ length: j - i }, (_, k) => cut(i + k, base, r.depth))
-      const wide = strip.reduce((w, s) => Math.max(w, len(s)), 0)
+      const strip = cut(i, base, r.depth)
+      const wide = 3 * strip.length
       const inner = Math.max(10, room - wide - CARD_COLS)
       out.push(
         <Box key={`c${i}`}>
           {wide > 0 ? (
-            <Box flexShrink={0}>
-              <Text mono color="inactive" dimColor wrap="truncate-end">
-                {strip.join('\n')}
-              </Text>
+            <Box key="strip" flexShrink={0}>
+              {strip.map((k, n) => guideCell(ui, k, `g${n}`, n === strip.length - 1))}
             </Box>
           ) : null}
           <Box {...CARD}>
-            {desktopRow(ui, r, i, '', acts, inner)}
+            {desktopRow(ui, r, i, [], acts, inner)}
             {block(i + 1, j, r.depth, inner)}
           </Box>
         </Box>,

@@ -67,9 +67,10 @@ Quem recebe `$` (o engine) e quem não recebe:
     constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
     só existe com resumo, `hasBrief`).
-  - `desktop.tsx` (357): a árvore do app desktop em componentes nativos (`desktopTree`,
-    `desktopRow`, `iconCell`, `cells`/`leadOf`): cada linha é um `Box` em linha com as guias em
-    caracteres de caixa (`Text mono`), o ícone de estado num `Svg` de 16 px com um `Button`
+  - `desktop.tsx` (428): a árvore do app desktop em componentes nativos (`desktopTree`,
+    `desktopRow`, `iconCell`, `cells`, `GUIDE_COLOR`/`GUIDE_W`/`GUIDE_H`): cada linha é um `Box` em
+    linha com as guias em caixas nativas com fundo (uma célula por coluna, no `Box key="guides"` da
+    linha e no `Box key="strip"` ao lado do cartão), o ícone de estado num `Svg` de 16 px com um `Button`
     transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo;
     os cartões de sessão são `Box` com borda e fundo translúcido, o busto e o anel em `Svg`.
   - `head.tsx` (157): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
@@ -667,7 +668,8 @@ Só uma sessão real no app desktop mostra:
   diferentes do mod, o `startedBy`, a latência entre a publicação de uma filha e a releitura de 3 s.
 - `turn.step` (modelo e esforço): o kit não tem implementação base para o evento em stream.
 - O `wrap_up` com `ask` do app e os avisos `<side-sessions-event>`.
-- O desenho nativo: o alinhamento das guias mono, as larguras estimadas em células, a fonte e os
+- O desenho nativo: a continuidade, a espessura e a cor das guias em caixas e o alinhamento delas com
+  os ícones, as larguras estimadas em células, a fonte e os
   tamanhos do app, o corte dos títulos; e se o app aplica o mesmo limite de 100 000 caracteres de
   texto que o harness.
 - O tamanho real do desenho que o app aceita (o `drawSize` do módulo é o JSON do desenho, não o que o app renderiza).
@@ -1644,7 +1646,9 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `label`); no desktop o laço de corte (`hooks/render.tsx`) também refaz o desenho com menos linhas
   acima de `TEXT_LIMIT` = 95 000 caracteres, além do `DRAW_LIMIT` de 600 KB. Num pedido pesado medido,
   quem limita é o texto (167 linhas, 340 KB, 88 878 caracteres).
-- Medidas no harness (60 colunas): principal, 7 linhas, 15 151 B, 134 nós; filha, 6 linhas, 16 625 B.
+- Medidas no harness (60 colunas), antes das guias em caixas: principal, 7 linhas, 15 151 B, 134 nós;
+  filha, 6 linhas, 16 625 B. As guias em caixas aumentam o desenho (de 150 a 700 B por célula, contra
+  um `Text` de cerca de 100 B por linha); refazer com `bytes` e `nos` do kit quando precisar.
 - O kit de testes lê o desenho do app por key, texto e `alt` (`noApp`, `linhaDoApp`, `arvoreDoApp`
   etc. em `tests/kit/leitura.ts`), e o golden guarda a árvore (`tests/golden/desenho.ts`).
 - Cartão e cabeçalho destacados (o usuário, 2026-11-13: "nao aparece nenhum card"; para o cabeçalho,
@@ -1656,3 +1660,17 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   sobre `#ffffff`, `#f8f8f7` e `#dfdfdd`, a até 2 níveis por canal da referência do desenho em SVG
   (`#20201f`/`#373736` e `#f9f9f7`/`#e1e1df`). Um cartão dentro de outro soma o tom (`#262625` no
   escuro). O kit lê o fundo e a borda (`cartoesDoApp`, `cabecalhoDoApp`, `alfa`).
+- Guias em caixas finas nativas (o usuário, 2026-11-13: "Caixas finas nativas (Recomendado)", que
+  desfaz "Caracteres (Recomendado)", do mesmo dia). No print, o glifo de caixa não ocupa a altura da
+  linha: toda barra vertical tinha um vão entre uma linha e a seguinte, e a faixa ao lado do cartão
+  (um `Text` com `'\n'`) não acompanhava o passo das linhas. Agora cada coluna é uma célula: um `Box`
+  relativo com o mesmo espaçador mono de três espaços de `iconCell` (a largura da célula é a do ícone
+  por construção, sem depender de quanto vale uma coluna no app) e, numa camada absoluta, as caixas
+  com fundo: a barra (`GUIDE_W` = 0,15 coluna, cerca de 1,1 px, sem altura: estica até a linha) e o
+  braço (`GUIDE_H` = 0,06 linha, cerca de 1,2 px), na cor `GUIDE_COLOR` = `rgba(136,135,128,0.55)`, a
+  das guias do desenho em SVG validado (classe `g`, `#888780` a .55), translúcida para servir nos dois
+  temas e sobre qualquer fundo de cartão. Nenhuma caixa se sobrepõe a outra (a sobreposição apareceria
+  como um ponto mais escuro). A faixa do cartão (`strip`) é tirada da linha do cabeçalho e estica até a
+  altura do cartão; o conector fica num bloco de `ROW_H` no alto, e no ramo a barra segue até o pé.
+  Espaço entre as linhas (margem, `rowGap`, `paddingY`) reabriria o vão. O terminal segue com os
+  caracteres. O kit lê as guias (`guiasDe`, `faixasDoApp`, `tracosDoApp`, `textosComCaixa`).

@@ -2303,6 +2303,26 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
+      "regras": [
+        "visual.guias-na-faixa-do-cartao"
+      ],
+      "hash": "a94c38b5313c925a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
+    },
+    "task-tree/tests/visual.test.ts::no app, as guias da árvore são caixas com fundo, sem caracteres de caixa": {
+      "regras": [
+        "visual.guias-em-caixas-nativas"
+      ],
+      "hash": "35bd17dfc1d7ffeb",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
+    },
     "task-tree/tests/visual.test.ts::no app, o cabeçalho tem o mesmo fundo e a mesma borda do cartão": {
       "regras": [
         "visual.cartao-e-cabecalho-destacados"
@@ -2312,6 +2332,16 @@
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "cabeçalho com o fundo e a borda do cartão (decisão do usuário, 2026-11-13: Sim, junto do cartão)"
+    },
+    "task-tree/tests/visual.test.ts::no app, o cartão da filha tem a faixa de guias e as tarefas dela começam sem guia": {
+      "regras": [
+        "visual.guias-na-faixa-do-cartao"
+      ],
+      "hash": "fe81980bf620596b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-13",
+      "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
     },
     "task-tree/tests/visual.test.ts::no app, o cartão de sessão e o de subagente têm fundo e borda próprios": {
       "regras": [
@@ -2378,30 +2408,30 @@
       "motivo": "kit: lancar, chamadaDoSubagente, fimDoSubagenteCom (card de subagente)"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "78c7fd881a22a8bb",
+      "hash": "61250729ca51119d",
       "tipo": "refatoracao",
       "data": "2026-11-13",
-      "motivo": "leitura.ts ganha a leitura do fundo e da borda dos cartões e do cabeçalho do app; nada do que existia muda"
+      "motivo": "leitura das guias do app (guiasDe, faixasDoApp, tracosDoApp, textosComCaixa); nenhuma leitura existente muda"
     }
   },
   "golden": {
     "envios": {
-      "hash": "de5d0c1481f7e79f",
+      "hash": "1ef52a8d0b6c031c",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "filha": {
-      "hash": "9b46e7b344c892cf",
+      "hash": "4111356c98d91778",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "principal": {
-      "hash": "8ddac04487e74709",
+      "hash": "467cdcdc4990a639",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "subagente": {
-      "hash": "2cd3d94d4240ccb1",
+      "hash": "f9510db95aa341fe",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     }

@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { alfa, cabecalhoDoApp, cartoesDoApp, estadoGeral, montarNoApp, noApp, pedacosDepois, type CaixaDoApp } from './kit/leitura'
+import { abrirSessao, aviso, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { alfa, cabecalhoDoApp, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -206,4 +206,83 @@ test('no app, o cabeçalho tem o mesmo fundo e a mesma borda do cartão', async 
   expect(filha, JSON.stringify(cartoesDoApp(d))).toBeDefined()
   expect(cab.fundo).toBe(filha!.fundo)
   expect(cab.borda).toBe(filha!.borda)
+})
+
+// As guias de uma linha do app, pelo título (pedaço de texto igual).
+const guiasDaLinha = (d: DesenhoDoApp, titulo: string) => guiasDe(linhaDoApp(d, titulo))
+const umaCor = (d: DesenhoDoApp) => {
+  const tracos = tracosDoApp(d)
+  expect(tracos.length, 'traços das guias').toBeGreaterThan(0)
+  expect(new Set(tracos.map(t => t.cor)).size, JSON.stringify(tracos)).toBe(1)
+}
+
+// Regra: visual.guias-em-caixas-nativas
+test('no app, as guias da árvore são caixas com fundo, sem caracteres de caixa', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido das guias')
+  await plan($, [
+    { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }, { id: '1.2', title: 'Um.dois' }] }, { id: '2', title: 'Dois' }] },
+    { id: 'B', title: 'Plano B' },
+  ])
+  await start($, ['1.1'])
+  const d = await noApp($)
+  expect(guiasDaLinha(d, 'Plano A')).toEqual(['ramo'])
+  expect(guiasDaLinha(d, 'Um')).toEqual(['barra', 'ramo'])
+  expect(guiasDaLinha(d, 'Um.um')).toEqual(['barra', 'barra', 'ramo'])
+  expect(guiasDaLinha(d, 'Um.dois')).toEqual(['barra', 'barra', 'fim'])
+  expect(guiasDaLinha(d, 'Dois')).toEqual(['barra', 'fim'])
+  expect(guiasDaLinha(d, 'Plano B')).toEqual(['fim'])
+  expect(guiasDaLinha(d, 'Pedido das guias')).toEqual([])
+  umaCor(d)
+  expect(textosComCaixa(d)).toBe(0)
+  expect(linhaDoApp(d, 'Um.um').pedacos.filter(p => p.tipo === 'svg').length).toBe(1)
+})
+
+// Regra: visual.guias-na-faixa-do-cartao
+test('no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['s1', 's2'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Revisar' }] }])
+  await start($, ['1'])
+  await lancar($, { descricao: 'buscar usos de hover' })
+  await chamadaDoSubagente($, 's1', 'Grep', { pattern: 'hover' })
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 's2')
+  const d = await noApp($)
+  const faixas = faixasDoApp(d)
+  const quais = JSON.stringify(faixas)
+  expect(faixas.find(f => f.primeira.includes('buscar usos de hover'))?.celulas, quais).toEqual(['vazio', 'barra', 'ramo'])
+  expect(faixas.find(f => f.primeira.includes('ler o kit'))?.celulas, quais).toEqual(['vazio', 'barra', 'fim'])
+  const i = d.linhas.findIndex(l => l.texto.includes('buscar usos de hover'))
+  expect(guiasDe(d.linhas[i + 1]!), d.linhas[i + 1]?.texto).toEqual(['fim'])
+  expect(guiasDaLinha(d, 'Investigar')).toEqual(['vazio', 'ramo'])
+  expect(guiasDaLinha(d, 'Revisar')).toEqual(['vazio', 'fim'])
+  expect(textosComCaixa(d)).toBe(0)
+})
+
+// Regra: visual.guias-na-faixa-do-cartao
+test('no app, o cartão da filha tem a faixa de guias e as tarefas dela começam sem guia', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [
+    {
+      id: 'local_11111111-1111-1111-1111-111111111111',
+      nome: 'filha-um',
+      painel: { tasks: [{ id: '1', short: '1', title: 'Tarefa da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const faixas = faixasDoApp(d)
+  expect(faixas.find(f => f.primeira.includes('filha-um'))?.celulas, JSON.stringify(faixas)).toEqual(['vazio', 'barra', 'fim'])
+  expect(guiasDaLinha(d, 'Tarefa da filha')).toEqual([])
+  expect(guiasDaLinha(d, 'Dois')).toEqual(['vazio', 'fim'])
+  umaCor(d)
 })

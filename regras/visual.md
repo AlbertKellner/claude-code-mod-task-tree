@@ -180,6 +180,38 @@ O cartão de sessão, o de subagente e o cabeçalho se destacam do painel, com f
 Origem: decisão do usuário, 2026-11-13 ("nao aparece nenhum card"; para o cabeçalho: "Sim, junto do cartão (Recomendado)"). Referência: o desenho em SVG anterior (fundo `#20201f` e borda `#373736` no escuro, `#f9f9f7` e `#e1e1df` no claro; "calcule qual seria a terceira cor", "use a mesma cor da borda"). Mais o commit da correção.
 Estado: coberto
 
+### visual.guias-em-caixas-nativas
+No app desktop, as guias da árvore são caixas nativas finas com fundo.
+
+- Dado uma árvore com pai, filhas e netas
+- Quando o painel é desenhado no app desktop
+- Então cada linha tem uma célula de guia por nível: barra onde o ancestral ainda tem irmã abaixo, vazio onde não tem, e no fim o ramo (a linha tem irmã depois) ou o fim (é a última); cada traço é uma caixa com fundo, todas da mesma cor; nenhum texto tem caractere de caixa e nenhuma guia é `Svg`. O terminal segue com os caracteres
+
+Origem: decisão do usuário, 2026-11-13 ("Caixas finas nativas (Recomendado)"), à pergunta se queria guias contínuas; desfaz "Caracteres (Recomendado)", do mesmo dia (guias em caracteres de caixa, mono).
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.guias-na-faixa-do-cartao
+À esquerda de um cartão, as guias são as mesmas caixas, uma célula por coluna.
+
+- Dado um cartão de sessão filha ou de subagente sob uma tarefa
+- Quando o painel é desenhado no app desktop
+- Então a faixa à esquerda do cartão tem uma célula por coluna de fora, não uma linha de texto por linha do cartão: barra onde o ancestral continua e, na última, o ramo (há irmã depois do cartão; a barra segue até o pé) ou o fim (o cartão é o último); dentro do cartão as linhas têm as guias das colunas do cartão, e as tarefas de uma sessão começam sem guia até o rótulo
+
+Origem: a mesma decisão, 2026-11-13 ("Caixas finas nativas (Recomendado)"), que desfaz "Caracteres (Recomendado)", do mesmo dia.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.guias-continuas-e-visiveis
+As guias são contínuas, alinhadas com os ícones e visíveis nos dois temas.
+
+- Dado o painel aberto no app, no tema claro e no escuro, com cartões
+- Quando a árvore é desenhada
+- Então as barras não têm falha entre uma linha e a seguinte, dentro e fora dos cartões e na faixa ao lado deles; ficam sob o meio do ícone do pai; o braço chega ao cartão na altura do rótulo; e a cor aparece nos dois temas
+
+Origem: a mesma decisão, 2026-11-13 ("Caixas finas nativas (Recomendado)"), sobre o print `2026-11-13-cartao-filha-estranho.png`.
+Estado: checklist (pintura real: continuidade, espessura e cor só aparecem no app)
+
 ### visual.desenho-principal
 O desenho do painel principal é o validado no app.
 
@@ -193,6 +225,7 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"): a tarefa parada com Esc no primeiro pedido segue ✕, fora da contagem e com o relógio parado, depois do pedido seguinte (antes, ◷); o pai dela, sem mais nada aberto embaixo, fica ✓. O golden é regravado com a validação dele no app.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -208,6 +241,7 @@ Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cenário passa a publicar o contexto, para o anel; o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -223,6 +257,7 @@ Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -236,6 +271,7 @@ O desenho do cartão de subagente e do cartão de grupo é o validado no app.
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)"); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o golden guarda a árvore do desenho e as fontes dos `Svg`; é regravado pela sessão de migração e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 
