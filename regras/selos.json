@@ -2366,22 +2366,22 @@
   },
   "golden": {
     "envios": {
-      "hash": "6028f2702e574b29",
+      "hash": "c7c8c973e340f5ef",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "filha": {
-      "hash": "9fb66abcd92860e4",
+      "hash": "244e8a7d09fd7ab7",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "principal": {
-      "hash": "0bf1a77638cf9d64",
+      "hash": "1bf4f8027bb98dfb",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     },
     "subagente": {
-      "hash": "e8f863a86ab372ad",
+      "hash": "cb9bdf2bfef7bd9a",
       "data": "2026-11-13",
       "motivo": "\"migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG\", 2026-11-13"
     }

@@ -2,7 +2,7 @@
 
 A palavra "ultracode" ao lado do modelo, quando o interruptor de ultracode da sessão está ligado.
 
-Código da área: hooks/turn.ts, io/publish.ts, io/host.ts, draw/layout.ts, draw/svg.ts, draw/desktop.tsx
+Código da área: hooks/turn.ts, io/publish.ts, io/host.ts, draw/layout.ts, draw/svg.ts, draw/desktop.tsx, draw/head.tsx
 
 ### ultracode.cartao-da-filha
 O cartão da filha diz "ultracode" ao lado do modelo quando o interruptor dela está ligado.

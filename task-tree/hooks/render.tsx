@@ -5,11 +5,11 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Send } from '../types'
-import { lineWidth } from '../draw/geometry'
 import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
+import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
+import { desktopHead } from '../draw/head'
 import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
@@ -78,27 +78,22 @@ const gitState = { plugin: 'task-tree', key: 'git' } as const
 // with an empty label lies over it.
 const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
 
-// Desktop: the header's Svg, then the lines and the cards in the app's own elements (../draw/desktop:
-// Box, Text, Button, with an Svg only for the icons and the ring). No `$` goes down there: the presses
+// Desktop: the header (../draw/head), then the lines and the cards, all in the app's own elements
+// (../draw/desktop: Box, Text, Button, with an Svg only for the icons, the ring and the header's bar). No `$` goes down there: the presses
 // are made here, with the same keys as before: the Button over a line's progress icon (on a session's
 // card, its bust) folds it, the one over a session's context ring opens it (the person's words:
 // "quando clicar nele, abra a sessao que ele representa"; the app shows it in this window's main
 // pane, open_session_in, focus, and says in a toast what it refuses).
-function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
-  const { Box, Svg } = ui
+function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: any, chrome: { errorLine: any }) {
+  const { Box } = ui
   const acts: Acts = {
     fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
     open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
   }
-  // The header's Svg sits in a Box in a column: the Svg takes the slot's width (100%) only from a
-  // column's stretch; in a row it keeps the 300 px an SVG image has with no width of its own (the
-  // person's words: "está cortando o panel").
   return (
     <Box flexDirection="column">
       {chrome.errorLine}
-      <Box key="head" position="relative" flexDirection="column">
-        <Svg source={top.source} alt={alt} height={top.height} />
-      </Box>
+      {top}
       {desktopTree(ui, lines, acts, cols)}
     </Box>
   )
@@ -294,8 +289,6 @@ export async function render($: EngineInterface, e: any, next: any) {
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const cols = (e.props as any).bodyColumns || 40
-    const W = lineWidth(cols)
-    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state, ultracode === true)
     const alt =
       (n + x === 0
         ? 'Nenhuma tarefa planejada'
@@ -307,7 +300,8 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
-    return drawDesktop($, ui, lines, cols, top, alt, { errorLine })
+    const top = desktopHead(ui, { title: head, d, n, chips: list, time: headTime, rate: headRate, git: headGit, state, ultracode: ultracode === true, alt, whole, cols })
+    return drawDesktop($, ui, lines, cols, top, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on

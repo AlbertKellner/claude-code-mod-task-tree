@@ -2,7 +2,7 @@
 
 Os números, chips e limites do cabeçalho e do que é desenhado.
 
-Código da área: draw/layout.ts, draw/svg.ts
+Código da área: draw/layout.ts, draw/svg.ts, draw/head.tsx
 
 ### cabecalho.numeros-somam-o-desenhado
 Os números do cabeçalho somam o que está desenhado.

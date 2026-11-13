@@ -33,6 +33,7 @@ No fim do turno, o último número fica aceso.
 
 Origem: decisão do usuário, 2026-11-10 ("Fica aceso"); turno sem passo válido: o número anterior fica (derivado de "Fica aceso").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto do cabeçalho e da linha no app: o que mostram e o texto alternativo dos `Svg`, não mais o `alt` de uma imagem; a regra não muda.
+Código: draw/head.tsx
 Estado: coberto
 
 ### taxa.subagente-mesma-medida
