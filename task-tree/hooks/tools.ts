@@ -9,7 +9,7 @@ import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt } from '../dr
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { reminders, movedAnchor, moveToLevelOne, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -70,13 +70,24 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const { value: sendsNow = [] } = await $.state.get(sendsState)
     const queued = (sendsNow as Send[]).filter(s => !s.taken).map(s => String(s.anchor ?? ''))
     const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+    // The subtasks a replan in place leaves out, each with its level-1 task: the ties to them go to it
+    // (moveToLevelOne; the person, 2026-11-14: "Sob o nível 1 (Recomendado)").
+    const kept = new Set(flat(fresh).map(t => t.id))
+    const gone = new Map<string, string>()
+    for (const t of (before as Group[]).find(g => g.agent === agent)?.tasks ?? []) {
+      if (!replanned(t)) continue
+      for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
+    }
+    const toLevelOne = movedAnchor(gone)
     const now = await stamp($)
     const groups = await change($, all => {
       // The subagents this loop launched from a task the plan renames go with the old copy (their
       // card, and the task the end of the turn closes by them), or they would hang from the new task
       // with that id: the ids as `away` below takes them, from the groups this change gets.
       const own = all.find(g => g.agent === agent)?.tasks ?? []
-      const fix = renamedAnchor(own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id), tag)
+      const renameTie = renamedAnchor(own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id), tag)
+      // And those launched from a subtask the replan leaves out go to its level-1 task.
+      const fix = (a?: string) => toLevelOne(renameTie(a))
       return all.map(g => {
         if (g.agent !== agent) return (g.parent ?? MAIN) === agent && fix(g.anchor) !== g.anchor ? { ...g, anchor: fix(g.anchor) } : g
         // In plan order: a replanned task takes the place of the one it replaces; the new ones
@@ -115,6 +126,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     if (agent === MAIN) {
       // The sessions' ties to a renamed task go with it (see renameAnchors).
       await renameAnchors($, renamed, tag)
+      await moveToLevelOne($, gone)
       // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
       // hanging from the request's level-1 task until the delivery (the panel's letters).
       const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))

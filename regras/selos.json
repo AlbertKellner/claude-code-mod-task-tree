@@ -1679,6 +1679,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\""
     },
+    "task-tree/tests/pedidos.test.ts::o cartão da filha cuja tarefa de origem sai do plano fica sob o nível 1, vivo ou concluído, e segue contando": {
+      "regras": [
+        "pedidos.replano-leva-o-cartao-ao-nivel-1"
+      ],
+      "hash": "086aa88e2b07af9d",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sob o nível 1 (Recomendado)\""
+    },
     "task-tree/tests/pedidos.test.ts::o pedido concluído cujo id o pedido novo reusa segue à vista enquanto outro pedido do trabalho tem algo aberto": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
@@ -2675,6 +2685,16 @@
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
+    "task-tree/tests/subagentes.test.ts::o cartão do subagente cuja tarefa de origem sai do plano fica sob o nível 1 depois de terminar": {
+      "regras": [
+        "pedidos.replano-leva-o-cartao-ao-nivel-1"
+      ],
+      "hash": "9617b08326169287",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sob o nível 1 (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::o cartão do subagente lançado por outro não vai para uma tarefa da sessão que tem o mesmo id da tarefa de quem o lançou": {
       "regras": [

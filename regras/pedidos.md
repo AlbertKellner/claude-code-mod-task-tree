@@ -63,9 +63,21 @@ O replano no mesmo pedido preserva o estado das tarefas que mantêm o id.
 
 - Dado tarefas ◉ e ✓ num nível 1 aberto
 - Quando o modelo replaneja com o mesmo id no mesmo pedido
-- Então quem mantém o id mantém o estado; as novas entram ○; quem sai do plano some; um pai abaixo do nível 1 que estava ✓ e ganha filha nova reabre
+- Então quem mantém o id mantém o estado; as novas entram ○; quem sai do plano some (o cartão de sessão ou de subagente que pendia dele passa ao nível 1: pedidos.replano-leva-o-cartao-ao-nivel-1); um pai abaixo do nível 1 que estava ✓ e ganha filha nova reabre
 
 Origem: decisão do usuário, 2026-10-27 ("◉ segue ◉, ✓ segue ✓, ✉ segue até a entrega; só tarefas novas nascem ○"); commit fbf3c5c.
+Reescrito: 2026-11-14, decisão do usuário ("Sob o nível 1 (Recomendado)"); os testes deste cenário não mudam.
+Estado: coberto
+
+### pedidos.replano-leva-o-cartao-ao-nivel-1
+O cartão cuja tarefa de origem sai do plano num replano fica sob o nível 1 que a continha.
+
+- Dado uma subtarefa com o cartão de uma sessão filha (ou de um subagente) embaixo
+- Quando o modelo replaneja o nível 1 no mesmo pedido sem essa subtarefa
+- Então o cartão passa para baixo do nível 1, com o busto na linha dele, e fica lá, vivo ou concluído; as tarefas da filha seguem contando no x/y do nível 1 e do pedido, e o nível 1 segue ◉ enquanto ela trabalha; o cartão nunca fica solto no fim; a carta segue a regra dela (pedidos.replano-mantem-envio-ate-entrega)
+
+Origem: decisão do usuário, 2026-11-14 ("Sob o nível 1 (Recomendado)"), sobre os achados da auditoria de 2026-11-10 (carta, subagente e cartão de sessão tinham três tratamentos; o cartão da filha ficava solto e sumia ao concluir).
+Código: hooks/tools.ts, hooks/panel.ts
 Estado: coberto
 
 ### pedidos.replano-mantem-envio-ate-entrega

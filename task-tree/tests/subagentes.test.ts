@@ -1080,3 +1080,20 @@ test('start numa tarefa antiga não traz o cartão de volta', async ($: any, on:
   expect(p.some(l => l.titulo === 'Explore: ler o kit'), emTexto(p)).toBe(false)
   expect(publicados(h)).toEqual([''])
 })
+
+// Regra: pedidos.replano-leva-o-cartao-ao-nivel-1
+test('o cartão do subagente cuja tarefa de origem sai do plano fica sob o nível 1 depois de terminar', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Outra' }] }])
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '2', title: 'Outra' }, { id: '3', title: 'Revisar' }] }])
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(abaixo(p, 'Plano A').map(l => l.titulo), emTexto(p)).toContain('Explore: ler o kit')
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('concluído')
+  expect(linha(p, 'Plano A').estado, emTexto(p)).not.toBe('concluida')
+})

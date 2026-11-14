@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, painel, type Linha } from './kit/leitura'
+import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, painel, temBusto, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }]
@@ -461,4 +461,32 @@ test('as formas reais seguem valendo: a linha de abertura do app antes da tag, o
   expect(p.some(x => x.titulo.startsWith('Another')), emTexto(p)).toBe(false)
   await pedido($, `<cross-session-message from="${K1}" name="filha">um</cross-session-message>\n\n<cross-session-message from="${MAE}" name="mae">dois</cross-session-message>`)
   expect((h.proprio()?.received ?? []).map((r: any) => r.from)).toEqual([K1, K1, MAE])
+})
+
+// Regra: pedidos.replano-leva-o-cartao-ao-nivel-1
+test('o cartão da filha cuja tarefa de origem sai do plano fica sob o nível 1, vivo ou concluído, e segue contando', async ($: any, on: any) => {
+  fixar(on)
+  const K1 = 'local_11111111-1111-1111-1111-111111111111'
+  const t = (id: string, title: string, feita: boolean, iniciada = false) => ({ id, short: id, title, status: feita ? 'done' : 'open', ...(iniciada ? { started: 1, startedAt: AGORA - 1000 } : {}), children: [] })
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [t('f1', 'Efe um', true), t('f2', 'Efe dois', false, true)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] }])
+  await start($, ['2.1'])
+  await abrirSessao($)
+  await aviso($)
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '3', title: 'Três' }] }])
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Plano A'])
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(linha(p, 'Plano A').texto, emTexto(p)).toContain('1/4')
+  expect(temBusto(p, 'Plano A'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Plano A', 'andamento')
+  h.filha(K1).rodando = false
+  h.filha(K1).painel = { tasks: [t('f1', 'Efe um', true), t('f2', 'Efe dois', true)] }
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Plano A'])
+  esperarPalavra(p, 'filha-um', 'concluída')
+  expect(linha(p, 'Plano A').texto, emTexto(p)).toContain('2/4')
 })

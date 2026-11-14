@@ -895,7 +895,22 @@ export const renamedAnchor = (ids: string[], tag: string) => (a?: string) =>
   a !== undefined && ids.some(id => a === id || a.startsWith(id + '/')) ? tag + ':' + a : a
 export async function renameAnchors($: any, ids: string[], tag: string) {
   if (ids.length === 0) return
-  const fix = renamedAnchor(ids, tag)
+  await moveAnchors($, renamedAnchor(ids, tag), true)
+}
+// A replan in place that leaves a subtask out (the level-1 task kept, carry): the ties to it (and to
+// any task below it) go to that level-1 task, so the card of a session opened from it stays under the
+// level-1 task, at work or done, its tasks in the count (the person, 2026-11-14: "Sob o nível 1
+// (Recomendado)"); it went loose at the end and left once done. The sends keep their own rule (the
+// letter hangs from the request's level-1 task until delivered); the subagents' groups go in planTool's
+// change. `gone`: each id left out, with the level-1 task it was in.
+export const movedAnchor = (gone: Map<string, string>) => (a?: string) => (a !== undefined && gone.has(a) ? gone.get(a) : a)
+export async function moveToLevelOne($: any, gone: Map<string, string>) {
+  if (gone.size === 0) return
+  await moveAnchors($, movedAnchor(gone), false)
+}
+// The sessions' ties, the launches' (and the sends', with `sends`) and the module's copy of the links,
+// by `fix`.
+async function moveAnchors($: any, fix: (a?: string) => string | undefined, sends: boolean) {
   const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[] }>(c: T): T => {
     const out = { ...c }
     if (c.anchor !== undefined) out.anchor = fix(c.anchor)
@@ -905,7 +920,7 @@ export async function renameAnchors($: any, ids: string[], tag: string) {
   }
   await update($, childrenState, cur => (cur ?? []).map(link))
   await update($, launchesState, cur => (cur ?? []).map(l => (l.anchor === undefined ? l : { ...l, anchor: fix(l.anchor) })))
-  await update($, sendsState, cur => (cur ?? []).map(s => (s.anchor === undefined ? s : { ...s, anchor: fix(s.anchor) })))
+  if (sends) await update($, sendsState, cur => (cur ?? []).map(s => (s.anchor === undefined ? s : { ...s, anchor: fix(s.anchor) })))
   for (const [id, k] of keptLinks) keptLinks.set(id, link(k))
 }
 // The record as it was last written to the store (a variable of the module: a reload writes once
