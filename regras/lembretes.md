@@ -106,3 +106,13 @@ A mensagem entregue no meio do turno traz o lembrete de que continua o pedido em
 Origem: auditoria 2026-11-10 (a mensagem entregue no meio do turno mandava planejar um pedido novo); decisão do usuário, 2026-11-12 ("Entra no pedido em curso (Recomendado)"). Exceção a lembretes.estado-guardado-so-no-mesmo-pedido: a mensagem que continua o pedido em curso não é "mensagem seguinte".
 Código: hooks/tool-call.ts, hooks/panel.ts
 Estado: coberto
+
+### lembretes.parada-so-volta-com-start
+Os textos ao modelo dizem que a tarefa parada com Esc só volta com start nela.
+
+- Dado uma tarefa em andamento quando a pessoa parou o turno (Esc), ainda sem start depois disso
+- Quando chega um prompt que não abre pedido (aviso do app, hand-back de subagente, notificação de tarefa em segundo plano), logo depois do Esc ou em qualquer turno seguinte enquanto ela não recebe start
+- Então, além do lembrete curto, o modelo recebe a lista das tarefas paradas e a frase de que um turno aberto por aviso automático ou por retorno de subagente não as retoma, e cada uma só volta a andamento com start nela; a pendente nunca iniciada não entra na lista; sem Esc, ou depois do start ou do done na parada, o aviso leva só o lembrete curto; as regras do prompt de sistema dizem a regra para qualquer turno (nem a mensagem seguinte nem o start em outra tarefa a reacendem; o done a conclui sem start)
+
+Origem: decisão do usuário, 2026-11-13 ("Acrescentar (Recomendado)"), sobre a sugestão da correção de 2026-11-12 (turnos.parada-segue-interrompida-ate-o-start, "Segue ✕ até novo start (Recomendado)"): no turno de um aviso, o texto ao modelo era só "start no que começa".
+Estado: coberto

@@ -155,7 +155,8 @@ do app (`notice`: corpo vazio ou `<side-sessions-event>`) ou pedido. `noteReceiv
 das mensagens de outras sessões (os últimos 20) e publica. Um prompt de origem `NO_TURN`
 (`task-notification`, `observer`, `observer-activity`, `auto-continuation`, `unclassified`), um aviso
 ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete curto (`PROMPT.handback`,
-`.background` ou `.notice`). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
+`.background` ou `.notice`) e, com tarefa parada com Esc ainda sem `start` no grupo principal, também
+`PROMPT.parked` com a lista delas (2026-11-13, "Acrescentar (Recomendado)"). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
 principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: título com até 60
 caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
 tarefas), releem a lista se está velha e
@@ -581,7 +582,8 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
   mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
   por `stayed`. `wake` não mudou: o que um fim normal deixou ◷ volta a ◉ no prompt seguinte; só o que o
-  Esc parou espera o `start`.
+  Esc parou espera o `start`. Os textos ao modelo dizem a regra: um item das `RULES` e `PROMPT.parked`
+  nos avisos, hand-backs e notificações (`lembretes.parada-so-volta-com-start`).
 
 
 - **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa, verde concluído, cinza interrompido), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. A linha do terminal não muda.

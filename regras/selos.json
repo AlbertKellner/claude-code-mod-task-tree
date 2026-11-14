@@ -769,6 +769,16 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::a frase da tarefa parada com Esc segue nos avisos depois de outro pedido e some com o start nela": {
+      "regras": [
+        "lembretes.parada-so-volta-com-start"
+      ],
+      "hash": "f86065bdbff0694c",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
     "task-tree/tests/lembretes.test.ts::a mensagem entregue no meio do turno traz o lembrete de que continua o pedido em curso, não o de pedido novo": {
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
@@ -798,6 +808,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras do prompt de sistema dizem que a tarefa parada com Esc só volta com start nela": {
+      "regras": [
+        "lembretes.parada-so-volta-com-start"
+      ],
+      "hash": "eb85288dc8423b2a",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
     },
     "task-tree/tests/lembretes.test.ts::as regras e o lembrete depois do Esc dizem que o estado só fica no replano da mesma mensagem": {
       "regras": [
@@ -869,6 +889,16 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
     },
+    "task-tree/tests/lembretes.test.ts::depois do Esc, o turno de um aviso, de um hand-back ou de uma notificação diz que a tarefa parada só volta com start nela": {
+      "regras": [
+        "lembretes.parada-so-volta-com-start"
+      ],
+      "hash": "49f9b3a72b5be9d3",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
     "task-tree/tests/lembretes.test.ts::depois do fim normal do turno, a mensagem da pessoa só lista o que ficou aberto": {
       "regras": [
         "lembretes.fim-normal-lista-abertas"
@@ -898,6 +928,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/lembretes.test.ts::sem tarefa parada com Esc, ou depois do done nela, o aviso leva só o lembrete curto": {
+      "regras": [
+        "lembretes.parada-so-volta-com-start"
+      ],
+      "hash": "321a3d8006e7bf88",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
     },
     "task-tree/tests/pedidos.test.ts::cada mensagem abre o seu pedido, com o seu plano embaixo": {
       "regras": [
