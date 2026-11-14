@@ -235,3 +235,11 @@ C-03 (selos: remoção e renome de teste, de que lotes A e C precisam), C-04 a C
   `.gitignore` de dentro, o `package-lock.json`, o desfazer com arquivo novo, o hook que falha por
   tempo, o golden depois de uma falha, a virada do dia com remoção ou renome de teste, o bloqueio
   parcial, o patch parcial, a lista dos lotes em commit no prompt).
+- Rodada 5 (confirmação, dois ensaios novos): o da sessão nova voltou sem bloqueio e sem nada que mude
+  o jeito de trabalhar ("o que está escrito basta para continuar do mesmo jeito"), com dez detalhes de
+  redação; o do implementador, sem bloqueio e com uma lacuna só, de um lote (o que acrescenta cenários
+  ao golden não fechava o check na cópia), corrigida. Os detalhes das duas foram aplicados. Fim da
+  revisão em rodadas; as correções desta última rodada não passaram por novo ensaio.
+- Resumo das cinco rodadas: 1, o que depende da máquina (identidade do git, versões); 2, primeiro
+  ensaio em clones novos (tipos do kit, lacunas das instruções); 3 e 4, lacunas menores e duas notas
+  erradas da orquestradora; 5, confirmação.

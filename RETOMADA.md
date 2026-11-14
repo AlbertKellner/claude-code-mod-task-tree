@@ -42,7 +42,7 @@ O que só o usuário faz está marcado com (usuário); o resto a sessão confere
      salvo) e `CLAUDE_CODE_WORKFLOWS` igual a `"1"`;
    - em `enabledPlugins`: `"task-tree@claude-code-mod-task-tree": false`, para a versão instalada pelo
      marketplace não rodar junto com a do clone.
-   A sessão não edita a configuração do Claude Code por conta própria. Ela confere: no shell,
+   A sessão não edita a configuração do Claude Code por conta própria. Ela confere: no bash,
    `echo "$CLAUDE_CODE_PLUGIN_DIRS"` tem de mostrar a pasta `task-tree` deste clone; as ferramentas
    `mcp__task-tree__plan`, `start` e `done` têm de existir; e a pasta do item 6 tem de existir. Se algo
    faltar, ela avisa o usuário e espera. Essas conferências não mostram se a versão do marketplace
@@ -226,6 +226,11 @@ O prompt, trocando os caminhos pelos reais desta máquina e a lista de lotes:
 >
 > Relato: como as instruções pedem (o começo em até 400 caracteres, depois um bloco por lote).
 
+No modelo acima, troque também "três lotes" pelo número do grupo e o índice pelo da triagem dos lotes
+(`medios-B-indice.local.md`, `medios-C-indice.local.md`). Os índices B e C não têm lista de deduções:
+para eles a frase é "as leituras do planejador escritas no índice e nos planos valem como estão
+escritas".
+
 O prompt não leva linha de atribuição: o implementador usa a que a sessão dele recebe do Claude Code,
 que diz o modelo de fato usado. Na máquina antiga as instruções fixavam
 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, e é o que está nos 19 commits; a regra mudou
@@ -264,24 +269,33 @@ sozinho: o usuário não tem o plano na frente.
 Dois cuidados nesse desfazer: arquivo novo que já estava no índice (`git status` mostra `A`) sai antes
 com `git reset -q -- <arquivo>`; e o `git diff --binary HEAD` não leva arquivo que o git não conhece,
 então copie esses arquivos para `<notas>/descartados/` antes de apagá-los. Antes de remover a trava e de
-lançar outro agente, espere o comando de testes do agente parado terminar (um minuto, e `git status`
-sem mudar entre duas leituras).
+lançar outro agente, espere o comando de testes do agente parado terminar (`git status` sem mudar entre
+duas leituras, com um minuto entre elas). Depois de limpar, olhe o `git log` e o `git status` de novo:
+se o hook de um commit do agente parado ainda estava rodando, o commit pode ter entrado depois.
 
 Diferente disso é o lote que o próprio implementador para, por bloqueio ou teste protegido: o clone fica
-limpo, o patch parcial fica no scratchpad dele e o relato diz o caminho. A orquestradora faz a pergunta
-ao usuário na hora, pelo `AskUserQuestion`, e não fica parada: lança os lotes seguintes que não dependem
-do parado (a seção de dependências de cada plano diz; na triagem A quase todos dependem dos anteriores,
-e aí o que resta é esperar a resposta). Com a decisão do usuário, registrada no arquivo de decisões, o
+limpo, o patch parcial fica no scratchpad dele e o relato diz o caminho. A orquestradora não fica
+parada: primeiro lança o agente dos lotes seguintes que não dependem do parado (a seção de dependências
+de cada plano diz; na triagem A quase todos dependem dos anteriores, e aí o que resta é esperar a
+resposta), e só depois faz a pergunta ao usuário, pelo `AskUserQuestion`, porque a pergunta segura o
+turno até ele responder. Com a decisão do usuário, registrada no arquivo de decisões, o
 implementador seguinte recebe no prompt o caminho do patch e a decisão, e pode aproveitá-lo. Foi assim
 com a poda dos subagentes (C-10): parou, os três lotes seguintes foram lançados, a pergunta foi
 respondida e o lote voltou depois.
 
 **Agente sem notícia.** Na máquina antiga, um agente com três lotes levou de 25 a 45 minutos, e o app
-avisou sozinho quando um agente travou (10 minutos sem progresso). Passada uma hora sem aviso, a
-orquestradora olha `git log`, `git status` e a data da pasta da trava; se nada mudou em 15 minutos, para
-o agente e segue o procedimento acima.
+avisou sozinho quando um agente travou (10 minutos sem progresso). A orquestradora não agenda
+verificação nem consulta em laço: ela só age quando tem um turno (uma mensagem do usuário ou um aviso).
+Num turno desses, se já passou uma hora desde o lançamento sem aviso do agente, ela olha `git log`,
+`git status` e a data da pasta da trava; se nada mudou nos últimos 15 minutos, para o agente e segue o
+procedimento acima.
 
-## 5. O que já está em commit (18 lotes de 80, 19 commits, tudo no remoto)
+**Lote que falha sem ser bloqueio** (o implementador não consegue fechar o check e relata isso): não
+houve caso na máquina antiga. A orquestradora confere que o clone ficou no último commit, relata ao
+usuário o que o implementador achou e pergunta como seguir (tentar de novo com outro implementador, do
+zero, ou replanejar o lote com um planejador).
+
+## 5. O que já está em commit (na parada: 18 lotes de 80, 19 commits, todos no remoto)
 
 Triagem C (durabilidade, scripts, release): C-01 `6ec76e7`, C-02 `dadc76a`, C-03 `a21cc3e`,
 C-04 `6a0b93c`, C-05 `509013b`, C-06 `52e6fec`, C-07 `91558b8`, C-08 `2d772df`, C-09 `013b758`,
@@ -399,9 +413,11 @@ Apontado no segundo ensaio e NÃO conferido pela orquestradora no código (o imp
   Parte do plano já está feita, com outra regra.
 - **A-23, A-24 e A-25** (`/clear` numa filha mantém o histórico; arquivada antiga vira linha; dobras no
   `/clear`): o handler do `/clear` foi reescrito, e a retomada sem cópia no store agora esvazia o
-  painel. Campo novo no grupo principal ou na filha tem de sobreviver a `trimPublished`, e
-  `fromOwnFile` devolve `children` do arquivo próprio.
-- **B-10**, além do que está acima: `fromOwnFile` devolve `sends` e `received` sem a marca nova.
+  painel. Campo novo no grupo principal ou na filha tem de sobreviver a `trimPublished`, e a volta pelo
+  arquivo próprio (`fromOwnFile`, que devolve os grupos e grava no state `children`, `sends` e
+  `received`) traz as filhas do arquivo.
+- **B-10**, além do que está acima: a volta pelo arquivo próprio traz `sends` e `received` sem a marca
+  nova.
 - **C-17** (resultado do plan com avisos): o plano avisa que o A-02 muda o segundo aviso; o A-02 já
   está em commit.
 - **B-19** (tempo só com o turno em curso): o campo dos intervalos precisa sobreviver a `trimPublished`
@@ -452,8 +468,9 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
    - título no formato Conventional Commits, `fix(task-tree): …`. Com o "Release" ativo, o merge sobe a
      versão de patch (0.15.1 para 0.15.2);
    - descrição com o que muda (um item por commit ou por grupo), a validação (check, contagem de testes,
-     testes reescritos por decisão) e o checklist do app. Nenhuma linha da descrição pode começar com
-     "BREAKING CHANGE:": desde esta rodada, é essa linha, no rodapé, que sobe a versão major;
+     testes reescritos por decisão) e o checklist do app. Nenhuma linha da descrição pode começar,
+     mesmo recuada, com "BREAKING CHANGE:" ou "BREAKING-CHANGE:": desde esta rodada, é uma linha assim
+     que sobe a versão major (`scripts/versao.mjs`);
    - a descrição termina com a linha de atribuição do Claude Code que a sessão receber;
    - labels: usar as que o repositório já tem e descrevem o PR (existem `bug`, `documentation`,
      `enhancement`, `task-tree`, `tests`, `refactor`, `ci`, `desenho`); criar só a que faltar, depois de
@@ -536,9 +553,10 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
   executar") e dois comentários de `scripts/testes.mjs` dizem que o `validate` gera
   `task-tree/.claude-plugin/types/`. Quem gera é o motor, ao carregar o mod de uma pasta (seção 2,
   item 6). A correção desses textos entra no prompt do agente que fizer o lote de documentação da
-  triagem C (C-30), como item a mais, num commit próprio depois do commit do C-30 (o plano do C-30 é só
-  o `DESENVOLVIMENTO.md`; este toca o `CLAUDE.md` e `scripts/testes.mjs`), e é relatada ao usuário. Não
-  verificado: a CI de testes, se um dia for ligada, deve falhar no `tsc` pelo mesmo motivo.
+  triagem C (C-30), como item a mais, num commit próprio depois do commit do C-30 (o plano do C-30
+  trata do `DESENVOLVIMENTO.md` e confere o "Checklist do app" do `CLAUDE.md`; este item corrige a etapa
+  4 do `CLAUDE.md` e os comentários de `scripts/testes.mjs`), e é relatada ao usuário. Não verificado: a
+  CI de testes, se um dia for ligada, deve falhar no `tsc` pelo mesmo motivo.
 - **Commits antigos das notas:** os dois commits da branch de notas que saíram com a identidade errada
   (`82734cc` e `d674971`) não estão mais em nenhuma branch, mas podem ser abertos pelo hash até o GitHub
   recolhê-los. Só o suporte do GitHub apaga antes; pedir é decisão do usuário.

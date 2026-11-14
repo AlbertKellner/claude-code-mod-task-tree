@@ -85,15 +85,23 @@ usuário como "reload failed".
      raiz da cópia;
    - a prova: `"<binário>" plugin test task-tree`, na raiz da cópia. Ele roda todos os arquivos de teste;
      leia as linhas dos testes novos que falharam e o motivo.
+   - Teste novo das travas (lote que só toca `scripts/`): a prova é `node --test scripts/travas.test.mjs`,
+     também com a trava.
    - A prova é para os testes que o plano diz que falham hoje. Teste que o plano marca "passa hoje" (está
      lá para travar o comportamento) não precisa falhar: diga no relato que passou na base, como previsto.
      O `CLAUDE.md` diz que o teste "não precisa estar vermelho antes"; aqui a prova é pedida porque o
      usuário quis a validação pelo implementador.
 4. Na cópia, implemente o resto: código, cenários, documentação e selos (`npm run regras:selar …`, como
    o plano lista). Rode `npm run check`, com a trava.
-   - Se um teste falhar por tempo (5 s), rode de novo uma vez.
-   - Lote que muda o desenho: na cópia, o esperado é o check falhar SÓ nos testes do golden ("o desenho
-     de <cenário> mudou"). Não aprove o golden na cópia.
+   - Se um teste falhar por tempo (5 s), rode de novo uma vez. Se falhar por tempo de novo, a máquina
+     está carregada: pare o lote, como no passo 9, e relate.
+   - Lote que muda o desenho: na cópia, o esperado é o check falhar SÓ pelo desenho: nos testes do golden
+     ("o desenho de <cenário> mudou") ou, no lote que acrescenta cenários ao golden, já na etapa `selos`
+     ("cenário do golden sumido"). A aprovação que vale é a do clone real (passo 6). Se você precisar do
+     check verde na cópia para validar o resto (no lote que acrescenta cenários o check nem chega aos
+     testes; nos outros, não chega à `regressao`), aprove o golden também na cópia, com o mesmo comando
+     e o mesmo motivo do passo 6: o diff leva o `desenho.ts` e o `regras/selos.json` aprovados, e no
+     clone real você aprova de novo.
    - Data do `Reescrito:`. Os planos escrevem `Reescrito: 2026-11-14, …`. O selo de decisão exige um
      `Reescrito:` com data igual ou posterior à do selo anterior do teste, e todo selo grava a data do
      dia em que é feito. Se hoje não é mais 2026-11-14, escreva a linha com a data de hoje e ponha a
@@ -136,8 +144,9 @@ usuário como "reload failed".
    Se o hook falhar por outro motivo, ou o check à mão do lote de desenho falhar, ou a diferença do
    desenho não for a que o plano espera: corrija NA CÓPIA, nunca direto no clone real (ele recarrega o
    mod a cada arquivo salvo). Rode o check na cópia de novo. No clone real, desfaça o lote:
-   `git checkout -- <arquivos do lote>` (inclusive `desenho.ts` e `regras/selos.json`, se o golden foi
-   regravado) e, para cada arquivo novo que você criou, `git reset -q -- <arquivo>` e depois apague-o
+   `git checkout -- <arquivos do lote que o git já conhecia>` (inclusive `desenho.ts` e
+   `regras/selos.json`, se o golden foi regravado; arquivo novo nessa lista faz o comando falhar
+   inteiro) e, para cada arquivo novo que você criou, `git reset -q -- <arquivo>` e depois apague-o
    (nada de `git clean` nem de `git reset --hard` no clone real). Confira `git status --short` vazio.
    Depois refaça os passos 5 a 7 inteiros com o diff novo da cópia (no lote de desenho, isso inclui
    aprovar o golden de novo). O mesmo desfazer vale se você parar o lote depois do passo 5: o clone
@@ -149,7 +158,8 @@ usuário como "reload failed".
 9. Não faça push. No fim, apague a sua cópia e os arquivos que você criou no scratchpad. Exceção: se
    parou num lote, guarde o que fez em `<scratchpad>/<código do lote>-parcial.patch` (por exemplo,
    `A-05-parcial.patch`; na cópia, `git add -N` nos arquivos novos e depois `git diff --binary`), não
-   apague esse arquivo e diga o caminho no relato. O clone real fica como no último commit.
+   apague esse arquivo e diga o caminho no relato. O clone real fica como no último commit. Parar num
+   lote encerra o prompt: não comece os lotes seguintes, que podem depender dele.
 
 ## Relato
 
@@ -175,5 +185,7 @@ Pegue, rode e solte no MESMO comando de shell (`until …; done; <comando>; s=$?
 trava nunca ficar presa se você for interrompido entre dois comandos. Vale também na sua cópia do
 scratchpad: o que pesa é a máquina, não a pasta. O check inteiro leva alguns minutos: peça o tempo máximo
 do shell ou rode em segundo plano e espere o aviso. Se o ambiente recusar o `sleep` em primeiro plano,
-rode o mesmo comando em segundo plano. Se a trava parecer presa há mais de 15 minutos (veja a data da
-pasta), não a apague: pare o lote como no passo 9, com o patch parcial, e relate.
+rode o mesmo comando em segundo plano. Se o seu próprio comando foi morto por tempo e deixou a trava,
+espere o processo dele acabar e remova-a você mesmo. Se a trava de outro parecer presa há mais de 15
+minutos (veja a data da pasta), não a apague: pare o lote como no passo 9, com o patch parcial, e
+relate.
