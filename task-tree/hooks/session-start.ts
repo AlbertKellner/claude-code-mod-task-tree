@@ -38,6 +38,7 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
       required: [],
       properties: {
         ids: { type: 'array', items: { type: 'string' } },
+        cancel: { type: 'array', items: { type: 'string' }, description: TOOLS.cancel },
         summary: { type: 'string', description: TOOLS.summary },
       },
     },

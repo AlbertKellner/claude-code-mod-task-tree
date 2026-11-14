@@ -17,6 +17,8 @@ export const plan = ($: any, tarefas: No[], request?: string, agente?: string) =
 export const start = ($: any, ids: string[], agente?: string) => chamar($, 'start', { ids }, agente)
 export const done = ($: any, ids: string[], summary?: string, agente?: string) =>
   chamar($, 'done', summary === undefined ? { ids } : { ids, summary }, agente)
+// O done com `cancel`: as tarefas que não serão feitas.
+export const cancelar = ($: any, ids: string[], agente?: string) => chamar($, 'done', { ids: [], cancel: ids }, agente)
 
 // Uma ferramenta qualquer chamada pelo modelo (pergunta, plano, wrap_up), já com o stub registrado.
 export const ferramenta = async ($: any, tool: string, args: object = {}): Promise<Resposta> =>

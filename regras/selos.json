@@ -1,5 +1,15 @@
 {
   "testes": {
+    "task-tree/tests/arvore.test.ts::cancelar um pai interrompe só o que estava aberto embaixo, e avisa o id já fechado ou inexistente": {
+      "regras": [
+        "arvore.cancelar-tarefa-abandonada"
+      ],
+      "hash": "7cc0703ef4efe6cf",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
+    },
     "task-tree/tests/arvore.test.ts::com a tarefa atual interrompida e a de histórico concluída, o start pelo id curto reabre a atual": {
       "regras": [
         "arvore.id-curto-nao-alcanca-o-historico"
@@ -9,6 +19,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: id curto fora do histórico"
+    },
+    "task-tree/tests/arvore.test.ts::done com cancel deixa a tarefa abandonada interrompida, fora do x/y, e o pai fecha com o que sobrou": {
+      "regras": [
+        "arvore.cancelar-tarefa-abandonada"
+      ],
+      "hash": "cce29e6e3904e576",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
     },
     "task-tree/tests/arvore.test.ts::id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve": {
       "regras": [
@@ -1438,6 +1458,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::os lembretes de mensagem nova, as regras e a descrição do done mandam cancelar o que a mensagem substitui": {
+      "regras": [
+        "lembretes.cancelar-o-que-a-mensagem-substitui"
+      ],
+      "hash": "3b6fe7a876d563d6",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar": {
       "regras": [
@@ -3112,10 +3142,10 @@
       "motivo": "host serve o arquivo publicado da própria sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "b3f9c45b550d7930",
-      "tipo": "novo",
+      "hash": "308ce733c0579332",
+      "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "kit: recebidaPeloSubagente, retomadaDoSubagente"
+      "motivo": "roteiro novo: cancelar (done com cancel); nada do que os outros roteiros fazem muda"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "c6d8ba3b659d5b92",

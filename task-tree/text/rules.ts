@@ -33,6 +33,9 @@ export const RULES = [
     'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
     'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
     'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
+  '- Tarefa que não será feita (o usuário mudou de rumo, o plano mudou) não é concluída: passe o id dela em ' +
+    '`cancel`, no mcp__task-tree__done. Ela fica ✕ interrompida no painel, fora da contagem. `ids` é só para o ' +
+    'que foi de fato concluído.',
   `- No done do último passo do pedido, passe em \`summary\` um resumo da resposta em ${LIMIT} ` +
     '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
     'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
@@ -95,7 +98,11 @@ export const TOOLS = {
     'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +
     'Um pai fica concluído quando todos os filhos estão; marcar um pai conclui a subárvore. ' +
     `No done da última etapa do turno, passe summary: a resposta do turno em manchete de ${LIMIT} ` +
-    `${EXAMPLE}. Sem etapa a fechar, chame done só com summary.`,
+    `${EXAMPLE}. Sem etapa a fechar, chame done só com summary. ` +
+    'Tarefa que não será feita não vai em ids: passe o id dela em cancel.',
+  cancel:
+    'Ids das tarefas que não serão feitas (o usuário mudou de rumo, o plano mudou). ' +
+    'Ficam interrompidas (✕) no painel, fora da contagem, sem contar como concluídas. Não use ids para elas.',
   summary:
     `Resumo curto da resposta deste turno, em ${LIMIT} (o que mudou e o resultado), tipo manchete ` +
     `${EXAMPLE}. Vira a linha ↩ do painel; a resposta inteira fica no tooltip.`,
@@ -131,8 +138,9 @@ export const PROMPT = {
   open: (list: string, answered: boolean) =>
     (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
     PANEL + `tarefas abertas antes desta mensagem: ${list}. Feche com ` +
-    'mcp__task-tree__done as que esta mensagem conclui ou substitui (por exemplo, a de perguntar ou de ' +
-    'esperar a resposta) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.',
+    'mcp__task-tree__done as que esta mensagem conclui (por exemplo, a de perguntar ou de esperar a ' +
+    'resposta) e cancele as que ela substitui e não serão feitas (mcp__task-tree__done com `cancel`: ficam ✕, ' +
+    'fora da contagem) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.',
   // A message delivered into a running turn that continues the request in progress, with no request
   // of its own in the panel (the person, 2026-11-12: "Entra no pedido em curso (Recomendado)").
   // `list`: the open tasks, if any; `answered`: the message answers the last question.
@@ -140,8 +148,8 @@ export const PROMPT = {
     (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
     PANEL + 'esta mensagem chegou no meio do turno e continua o pedido em curso; ela não abre pedido novo ' +
     'no painel. ' + (list !== '' ? `Tarefas abertas: ${list}. ` : '') +
-    'Siga nas tarefas que já existem com mcp__task-tree__start e mcp__task-tree__done, e feche as que esta ' +
-    'mensagem conclui ou substitui. O que ela pede de novo entra no plano atual: mcp__task-tree__plan com ids ' +
+    'Siga nas tarefas que já existem com mcp__task-tree__start e mcp__task-tree__done, feche as que esta ' +
+    'mensagem conclui e cancele (mcp__task-tree__done com `cancel`) as que ela substitui. O que ela pede de novo entra no plano atual: mcp__task-tree__plan com ids ' +
     'novos, ou de novo com o nível 1 inteiro (as tarefas que mantêm o id guardam o estado), sem request: o ' +
     'pedido em curso mantém o título.',
   handback: PANEL + 'o subagente terminou; atualize o painel (mcp__task-tree__done no que ele concluiu).',
@@ -180,7 +188,8 @@ export const PROMPT = {
     'mcp__task-tree__start e mcp__task-tree__done, e planeje só o que ela pede de novo, com ' +
     'mcp__task-tree__plan e ids novos, na ordem em que vai executar: um plan com o id de um nível 1 da lista o ' +
     'deixaria como histórico, com as abertas interrompidas, e criaria uma cópia toda pendente. Se ela muda de ' +
-    'rumo, feche com mcp__task-tree__done o que ela substitui e planeje só o pedido novo. Depois siga etapa ' +
+    'rumo, cancele o que ela substitui (mcp__task-tree__done com `cancel`), feche com `ids` só o que foi ' +
+    'concluído e planeje só o pedido novo. Depois siga etapa ' +
     'por etapa com start e done.',
 }
 

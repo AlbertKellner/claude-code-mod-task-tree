@@ -118,3 +118,14 @@ O id curto de start e done não alcança as tarefas de histórico.
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o id curto reabria tarefa de histórico e expunha o id interno); aplica arvore.ids-curtos-e-avisos ("a tarefa aberta vence") e pedidos.plano-anterior-vira-historico, sem mudar nenhuma das duas.
 Estado: coberto
+
+### arvore.cancelar-tarefa-abandonada
+A tarefa de que o modelo desiste é cancelada: ✕ interrompida, fora do x/y.
+
+- Dado tarefas abertas que não serão feitas (o usuário mudou de rumo, o plano mudou)
+- Quando o modelo chama done passando os ids delas em `cancel`
+- Então cada uma, com o que está aberto abaixo dela, fica ✕ "interrompida", fora do x/y e das barras e no chip "interrompidas"; o que já estava ✓ segue ✓; o pai sem nada aberto embaixo fica ✓ (arvore.pai-fecha-com-nada-aberto-embaixo); a resposta diz quantas foram canceladas, sem o aviso de etapas fechadas juntas; o id já fechado, inexistente, ambíguo ou de outro agente é avisado; start numa folha cancelada a reabre
+
+Origem: decisão do usuário, 2026-11-14 ("✕ fora do x/y (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o modelo só podia concluir, e a tarefa abandonada aparecia ✓ e contava como feita).
+Código: hooks/session-start.ts, draw/layout.ts, text/rules.ts
+Estado: coberto

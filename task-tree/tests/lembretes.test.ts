@@ -328,3 +328,40 @@ test('as regras do prompt de sistema dizem que a tarefa parada com Esc só volta
   expect(regras).toContain('aviso automático')
   expect(regras).toContain('retorno de subagente')
 })
+
+// Regra: lembretes.cancelar-o-que-a-mensagem-substitui
+test('os lembretes de mensagem nova, as regras e a descrição do done mandam cancelar o que a mensagem substitui', async ($: any, on: any) => {
+  // Como fixar, mas com o tool.register que guarda as descrições (fixar já o ocupa).
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('prompt.submit', (_$: any, e: any) => e)
+  on('turn.complete', () => ({ text: '' }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
+  on('prompt.compose', () => ({ sections: [] }))
+  const descricoes: Record<string, string> = {}
+  on('tool.register', (_$: any, e: any) => {
+    descricoes[String(e.name)] = String(e.description ?? '') + ' ' + JSON.stringify(e.inputSchema ?? {})
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  const nova = contexto(await pedido($, 'Outra coisa'))
+  expect(nova).toContain('cancel')
+  expect(nova).toContain(ABERTAS)
+  await esc($)
+  const depois = contexto(await pedido($, 'Mudei de ideia'))
+  expect(depois).toContain('cancele o que ela substitui')
+  const digitada = contexto(await digitadaNoMeio($, 'mais uma coisa'))
+  expect(digitada).toContain('cancele')
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('`cancel`')
+  expect(descricoes['done'] ?? '').toContain('cancel')
+})

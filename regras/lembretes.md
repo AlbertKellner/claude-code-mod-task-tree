@@ -116,3 +116,14 @@ Os textos ao modelo dizem que a tarefa parada com Esc só volta com start nela.
 
 Origem: decisão do usuário, 2026-11-13 ("Acrescentar (Recomendado)"), sobre a sugestão da correção de 2026-11-12 (turnos.parada-segue-interrompida-ate-o-start, "Segue ✕ até novo start (Recomendado)"): no turno de um aviso, o texto ao modelo era só "start no que começa".
 Estado: coberto
+
+### lembretes.cancelar-o-que-a-mensagem-substitui
+Os textos ao modelo mandam cancelar, não concluir, o que a mensagem nova substitui.
+
+- Dado tarefas abertas quando chega uma mensagem (depois de um fim normal, depois de um Esc, ou no meio do turno)
+- Quando o modelo lê o lembrete dela, as regras do painel e a descrição do done
+- Então eles dizem para fechar com done o que foi concluído e passar em `cancel` o que a mensagem substitui e não será feito, que fica ✕ fora da contagem
+
+Origem: decisão do usuário, 2026-11-14 ("✕ fora do x/y (Recomendado)"); antes, os três lembretes mandavam done no que a mensagem "substitui".
+Código: hooks/tools.ts, hooks/session-start.ts
+Estado: coberto

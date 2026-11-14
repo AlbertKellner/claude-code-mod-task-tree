@@ -139,18 +139,20 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) reminders.planned = true
     if (agent === MAIN) await wake($)
-    const input = ((e as any).input ?? e) as { ids?: string[]; summary?: unknown }
+    const input = ((e as any).input ?? e) as { ids?: string[]; cancel?: string[]; summary?: unknown }
     // The panel draws its own ↩ before the summary: one the model wrote too is dropped ("↩ ↩").
     const brief = typeof input.summary === 'string' ? input.summary.replace(/^\s*↩\s*/, '') : ''
     if (agent === MAIN && brief.trim() !== '') await $.state.set(briefState, brief)
     let notes: string[] = []
     let closed: string[] = []
     let unstarted: string[] = []
+    let canceled = 0
     const now = await stamp($)
     const groups = await change($, all => {
       notes = []
       closed = []
       unstarted = []
+      canceled = 0
       const others = tasksOf(all.filter(g => g.agent !== agent))
       return all.map(g => {
         if (g.agent !== agent) return g
@@ -164,6 +166,20 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
             unstarted.push(...flat([hit]).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined).map(t => t.id))
             tasks = settle(edit(fillStarts(tasks, hit.id, now), hit.id, finish(now)), now)
             closed.push(...flat([hit]).filter(t => t.status === 'open').map(t => t.id))
+          }
+        }
+        // Tasks that will not be done (the person changed course): interrupted, out of x/y. What was
+        // done below stays done; a parent with something done below closes by settle.
+        for (const id of Array.isArray(input.cancel) ? input.cancel : []) {
+          const { node: hit, error } = resolve(tasks, id)
+          if (error) notes.push(error)
+          else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
+          else if (hit.status !== 'open') notes.push(`"${id}" já está fechada`)
+          else {
+            const drop = (t: TaskNode): TaskNode =>
+              flat(t.children).some(c => c.status === 'done') ? { ...t, children: t.children.map(drop) } : interrupt(now)(t)
+            tasks = settle(edit(tasks, hit.id, drop), now)
+            canceled++
           }
         }
         return { ...g, tasks }
@@ -189,7 +205,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     // all along, then jumped to the last, the steps between at 0:00 (the person's words: "ficou
     // parada muito tempo na primeira tarefa, e derepente pulo para a ultima").
     if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
-    return { result: `Concluídas: ${d}/${n} no seu grupo.` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
+    return { result: `Concluídas: ${d}/${n} no seu grupo.` + (canceled > 0 ? ` Canceladas: ${canceled}.` : '') + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
     return { result: 'erro: ' + String(err), isError: true as const }
   }

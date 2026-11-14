@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import { cabecalho, emTexto as noTexto, painel as desenho } from './kit/leitura'
 import { subagente } from './kit/ambiente'
 import { fixar, lancaveis } from './kit/ambiente'
-import { done, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { cancelar, done, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { esperarEstado, linha, painel } from './kit/leitura'
 
 const ARVORE: No[] = [
@@ -182,4 +182,43 @@ test('start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta
   await fimDoTurno($)
   p = await painel($)
   esperarEstado(p, 'Validar', 'aguardando')
+})
+
+// Regra: arvore.cancelar-tarefa-abandonada
+test('done com cancel deixa a tarefa abandonada interrompida, fora do x/y, e o pai fecha com o que sobrou', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  const r = await cancelar($, ['2', '3'])
+  expect(r.texto).toContain('Canceladas: 2')
+  expect(r.texto).not.toContain('fecharam juntas sem start')
+  expect(r.texto).not.toContain('falta o summary')
+  const p = await painel($)
+  esperarEstado(p, 'Dois', 'interrompida')
+  esperarEstado(p, 'Três', 'interrompida')
+  esperarEstado(p, 'Plano A', 'concluida')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total, c.chips.interrompidas, c.chips.pendentes], noTexto(p)).toEqual([1, 1, 2, 0])
+})
+
+// Regra: arvore.cancelar-tarefa-abandonada
+test('cancelar um pai interrompe só o que estava aberto embaixo, e avisa o id já fechado ou inexistente', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, ARVORE)
+  await start($, ['1.2.1'])
+  await done($, ['1.2.1'])
+  const r = await cancelar($, ['1.2', '1.2.1', 'zz'])
+  let p = await painel($)
+  esperarEstado(p, 'Editar', 'concluida')
+  esperarEstado(p, 'Validar', 'interrompida')
+  esperarEstado(p, 'Corrigir', 'concluida')
+  esperarEstado(p, 'Analisar', 'pendente')
+  expect(r.texto).toContain('"1.2.1" já está fechada')
+  expect(r.texto).toContain('"zz" não existe')
+  await start($, ['1.2.2'])
+  p = await painel($)
+  esperarEstado(p, 'Validar', 'andamento')
 })
