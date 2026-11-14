@@ -54,7 +54,9 @@ export type TaskNode = {
 // `msg` and `from`: a turn opened by another session's message (its first, when several came
 // together), and who sent it (its id and name as the message's tag says them). Its level-1 tasks
 // derive from that message: they show the ✉ of a message received, in their own state's color.
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string } }
+// `named`: a plan's `request` already titled it; a later plan's request leaves the title. Absent until
+// then, and in turns of earlier versions (whose first plan with a request after the update still names it).
+export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string }; named?: boolean }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under

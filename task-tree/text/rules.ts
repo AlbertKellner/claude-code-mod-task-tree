@@ -27,7 +27,8 @@ export const RULES = [
     'quando não é ambíguo (preferem a tarefa aberta) ou o completo, e avisam no resultado ids ' +
     'inexistentes, ambíguos ou de outro agente.',
   '- No primeiro plan de cada mensagem do usuário, passe em `request` um título curto do que foi pedido: ' +
-    'no painel, as tarefas de nível 1 ficam agrupadas pela mensagem em que foram planejadas, com esse título.',
+    'no painel, as tarefas de nível 1 ficam agrupadas pela mensagem em que foram planejadas, com esse título. ' +
+    'O título do pedido é o do primeiro plan: um `request` em outro plan da mesma mensagem não o troca.',
   '- Etapa por etapa, no momento em que acontece: mcp__task-tree__start ao começar cada tarefa (várias ' +
     'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
     'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
@@ -87,7 +88,8 @@ export const TOOLS = {
     'abaixo do nível 1 eles ganham o id dele como prefixo ("D/1.2"), então planos diferentes podem repetir ids. ' +
     'Use no início de todo pedido (uma tarefa basta para um pedido simples) e ao replanejar. ' +
     'No primeiro plan de cada mensagem do usuário, passe em request um título curto do que foi pedido: ' +
-    'o painel agrupa as tarefas de nível 1 por mensagem, com esse título.',
+    'o painel agrupa as tarefas de nível 1 por mensagem, com esse título. ' +
+    'Um request em outro plan do mesmo pedido não muda o título.',
   done:
     'Marca tarefas do painel como concluídas, pelos ids, assim que cada uma termina. ' +
     'Aceita o id curto ("1.2") quando não é ambíguo, ou o completo ("D/1.2"). ' +

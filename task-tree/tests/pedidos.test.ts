@@ -18,6 +18,33 @@ test('o título do pedido vem do request do plan', async ($: any, on: any) => {
   expect(p.some(l => l.titulo === 'uma mensagem bem comprida da pessoa'), emTexto(p)).toBe(false)
 })
 
+// Regra: pedidos.titulo-vem-do-request
+test('o request de outro plan do mesmo pedido não muda o título; o pedido seguinte ganha o seu', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'uma mensagem')
+  await plan($, A, 'Auditar o mod')
+  await plan($, B, 'Relato da auditoria')
+  let p = await painel($)
+  esperarEstado(p, 'Auditar o mod', 'pendente')
+  expect(p.some(l => l.titulo === 'Relato da auditoria'), emTexto(p)).toBe(false)
+  expect(indice(p, 'Plano B'), emTexto(p)).toBeGreaterThan(indice(p, 'Auditar o mod'))
+  expect(linha(p, 'Plano B').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Auditar o mod').nivel)
+  await fimDoTurno($)
+  await aviso($)
+  await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: 'c1', title: 'Cê um' }] }], 'Conferir o relato')
+  p = await painel($)
+  esperarEstado(p, 'Auditar o mod', 'pendente')
+  expect(p.some(l => l.titulo === 'Conferir o relato'), emTexto(p)).toBe(false)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'D', title: 'Plano D', children: [{ id: 'd1', title: 'Dê um' }] }])
+  await plan($, [{ id: 'E', title: 'Plano E', children: [{ id: 'e1', title: 'É um' }] }], 'Título dois')
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Título dois'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Pedido dois'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === 'Auditar o mod'), emTexto(p)).toBe(true)
+})
+
 // Regra: pedidos.uma-mensagem-um-pedido
 test('cada mensagem abre o seu pedido, com o seu plano embaixo', async ($: any, on: any) => {
   const { relogio } = fixar(on)

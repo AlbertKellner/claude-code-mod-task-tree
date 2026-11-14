@@ -1509,6 +1509,16 @@
       "data": "2026-11-12",
       "motivo": "auditoria 2026-11-10: o trabalho atual segue a renomeação do nível 1"
     },
+    "task-tree/tests/pedidos.test.ts::o request de outro plan do mesmo pedido não muda o título; o pedido seguinte ganha o seu": {
+      "regras": [
+        "pedidos.titulo-vem-do-request"
+      ],
+      "hash": "1d30f378b8293757",
+      "assercoes": 13,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Não, vale o 1º (Recomendado)\""
+    },
     "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
       "regras": [
         "pedidos.titulo-vem-do-request"

@@ -91,12 +91,14 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         // which `request` names; a replanned one stays in the turn it was in.
         let turns: Turn[] = g.turns ?? []
         let cur = turns[turns.length - 1]
+        // Only the request's first plan with a `request` names it (`named`); a later one, a replan or
+        // a plan after a notice, leaves the title (the person, 2026-11-14: "Não, vale o 1º (Recomendado)").
         if (request !== '') {
           if (cur === undefined) {
-            cur = { id: 1, title: request }
+            cur = { id: 1, title: request, named: true }
             turns = [cur]
-          } else {
-            cur = { ...cur, title: request }
+          } else if (cur.named !== true) {
+            cur = { ...cur, title: request, named: true }
             turns = [...turns.slice(0, -1), cur]
           }
         }

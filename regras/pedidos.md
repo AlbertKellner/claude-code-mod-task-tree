@@ -5,13 +5,14 @@ O agrupamento por mensagem e o replanejamento.
 Código da área: hooks/tools.ts, state/tasks.ts, hooks/prompt-submit.ts, hooks/panel.ts
 
 ### pedidos.titulo-vem-do-request
-O título do pedido vem do request do plan.
+O título do pedido vem do request do primeiro plan dele.
 
 - Dado uma mensagem longa da pessoa
-- Quando o modelo chama plan com request
-- Então a linha do pedido mostra o request, não o texto da mensagem
+- Quando o modelo chama plan com request, e depois, no mesmo pedido (um replano, ou um plan depois de um aviso do app ou do relato de uma filha), outro plan com outro request
+- Então a linha do pedido mostra o primeiro request, não o texto da mensagem nem o request do plan seguinte; o primeiro plan de um pedido novo dá o título dele
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Reescrito: 2026-11-14, decisão do usuário ("Não, vale o 1º (Recomendado)"); antes, o request de qualquer plan trocava o título. O teste existente não muda.
 Estado: coberto
 
 ### pedidos.uma-mensagem-um-pedido
