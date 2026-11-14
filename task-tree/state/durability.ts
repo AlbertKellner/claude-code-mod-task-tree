@@ -52,11 +52,11 @@ export type Row = {
 export const TABLE: readonly Row[] = [
   // The panel.
   { key: 'groups', lives: 'state+store', store: 'session', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
-    note: 'the groups (tasks, turns, answers); a resume replaces the state with the store\'s; subagents\' open tasks come back interrupted' },
+    note: 'the groups (tasks, turns, answers); a resume replaces the state with the store\'s; subagents\' open tasks come back interrupted; out of the store (only KEEP sessions), a new process in the desktop app brings it back from the file this session published, its long-term copy while the session exists in the app (fromOwnFile), with the work, the links\' four keys and the turn\'s end' },
   { key: 'tasks', lives: 'state', merge: 'none', restoredAt: [],
     note: 'legacy: the one list before groups, moved into the main group once (adopt) at session.start or the first write' },
   { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
-    note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
+    note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s; with no store copy, it comes back from the published file with the groups (fromOwnFile)' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind)' },

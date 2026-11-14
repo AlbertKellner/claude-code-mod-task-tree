@@ -177,3 +177,14 @@ O arquivo publicado de uma sessão que o app não lista mais é esvaziado.
 Origem: decisão do usuário, 2026-11-14 ("Enxugar e esvaziar (Recomendado)").
 Código: hooks/sessions.ts, io/host.ts, io/publish.ts
 Estado: coberto
+
+### durabilidade.painel-volta-do-arquivo-publicado
+O painel de uma sessão parada há muito tempo volta inteiro enquanto a sessão existir no app.
+
+- Dado uma sessão do app desktop cujo painel já saiu do store (só as 30 que gravaram por último ficam lá) e que ainda existe no app
+- Quando um processo novo a abre (session.start, ou o primeiro uso sem ele)
+- Então o painel volta do arquivo que ela mesma publicou: pedidos, estados, trabalho atual, cartas, cartões das filhas sob as mesmas tarefas e o fim do turno como estava; ele volta ao store, e o cartão dela na sessão que a abriu mantém o histórico; com o painel no store, vale o do store; fora do app desktop valem as 30 últimas
+
+Origem: decisão do usuário, 2026-11-14 ("Enquanto a sessão existir (Recomendado)"), à pergunta "Por quanto tempo o painel de uma sessão parada deve ser guardado?".
+Código: io/publish.ts, io/host.ts
+Estado: coberto

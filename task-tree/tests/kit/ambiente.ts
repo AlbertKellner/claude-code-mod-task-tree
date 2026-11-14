@@ -91,7 +91,8 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // `pasta`: o que o host lista na pasta dos arquivos publicados (fs.list); `listaFalha`: a lista de
 // todas as sessões (list_sessions sem `linked`) responde erro. O get_session de um id que não é
 // desta sessão nem de `sessoes` responde o erro do app ("Session <id> not found.").
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean }
+// `arquivoProprio`: o texto do arquivo que esta sessão publicou antes (o host o serve na leitura dele).
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -136,6 +137,7 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
   on('fs.read', (_$: any, e: any) => {
     // O host devolve o caminho com a barra do sistema (\ no Windows).
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
+    if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
     if (s.publicado !== undefined) return { value: s.publicado }

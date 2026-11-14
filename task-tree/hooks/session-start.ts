@@ -5,7 +5,7 @@
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFromOwnFile, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
 import { refreshChildren, sweepPublished, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -54,7 +54,8 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   // With nothing held (a new process), a resumed session's panel comes back from the store.
   await adopt($)
   const fresh = (await $.state.get(groupsState)).value === undefined
-  if (fresh) await restore($, await $.session.id())
+  // Out of the store (only the last 30 sessions are there), from the file it published (fromOwnFile).
+  if (fresh && !(await restore($, await $.session.id()))) await restoreFromOwnFile($)
   loaded.add('groups')
   await restoreWork($)
   await restoreTurn($)

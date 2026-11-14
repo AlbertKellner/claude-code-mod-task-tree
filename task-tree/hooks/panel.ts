@@ -12,7 +12,7 @@ import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
-import { publishWait } from '../io/publish'
+import { publishWait, readPublished } from '../io/publish'
 import { rawPanel, stayed, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
 
@@ -447,6 +447,72 @@ export async function keptGroups($: any, id: string): Promise<Group[] | undefine
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
 }
 
+// The panel out of the store (only the 30 sessions that wrote last keep theirs there) comes back
+// from the file this session published (io/publish.ts), which lasts while the session exists in the
+// app (the person, 2026-11-14: "Enquanto a sessão existir (Recomendado)"): its groups (what the
+// subagents left open comes back interrupted, as from the store), the work, the letters, the
+// messages received, the children with their ties and the turn's end, each into the state only where
+// the state holds none. Once per module, and only in the desktop app (the file is by the app's id);
+// answers the groups it brought (none when the file has no task). A drawing cannot write the state:
+// it gets the groups, and the next write brings them back again.
+let ownFileTried = false
+export async function fromOwnFile($: any): Promise<Group[] | undefined> {
+  if (ownFileTried) return undefined
+  try {
+    const id = await selfId($)
+    if (id === undefined) return undefined
+    ownFileTried = true
+    const file = await readPublished($, id)
+    const groups = file?.groups
+    if (!file || !groups || !groups.some(g => g.tasks.length > 0)) return undefined
+    const back = groups.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) }))
+    try {
+      // The groups first: a caller that cannot write the state (a drawing) leaves the whole try to
+      // the next one.
+      if ((await $.state.get(groupsState)).value === undefined) await $.state.set(groupsState, back)
+      if (file.work && (await $.state.get(workState)).value === undefined) await $.state.set(workState, file.work)
+      // The children's ties (anchor, lastAnchor, rounds, openedAt): into the module's copy of the links
+      // (a reread of the host's list gives them back), and into the children the state already has
+      // without them (a reread that came first).
+      for (const c of file.children) if (typeof c?.id === 'string' && !keptLinks.has(c.id)) keptLinks.set(c.id, linkOf(c))
+      const { value: held } = await $.state.get(childrenState)
+      if (held === undefined) {
+        if (file.children.length > 0) await $.state.set(childrenState, file.children)
+      } else if ((held as Child[]).some(c => c.anchor === undefined && file.children.some(f => f.id === c.id))) {
+        await $.state.set(
+          childrenState,
+          (held as Child[]).map(c => {
+            const f = c.anchor === undefined ? file.children.find(x => x.id === c.id) : undefined
+            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt } : c
+          }),
+        )
+      }
+      if (file.sends && (await $.state.get(sendsState)).value === undefined) await $.state.set(sendsState, file.sends)
+      if (file.received && (await $.state.get(receivedState)).value === undefined) await $.state.set(receivedState, file.received)
+      // The turn's end, unless this module already settled it (a prompt woke the loop first).
+      if (file.turn && !loaded.has('turn') && (await $.state.get(turnEndedState)).value === undefined) {
+        await $.state.set(turnEndedState, file.turn.ended)
+        await $.state.set(turnAbortedState, file.turn.aborted)
+        await $.state.set(replanDueState, file.turn.replan)
+        loaded.add('turn')
+      }
+    } catch {
+      ownFileTried = false
+    }
+    await debug($, `task-tree: painel trazido do arquivo publicado (${id}), fora do store`)
+    return back
+  } catch {
+    return undefined
+  }
+}
+// At session.start of a new process with no panel in the store: the one from the file comes back
+// and is written to the store (replace), so the session is back among the 30.
+export async function restoreFromOwnFile($: any): Promise<boolean> {
+  const groups = await fromOwnFile($)
+  if (groups) await replace($, groups)
+  return groups !== undefined
+}
+
 // A resumed session's panel comes back; answers whether the store had it.
 export async function restore($: any, id: string): Promise<boolean> {
   const groups = await keptGroups($, id)
@@ -477,7 +543,7 @@ export async function ensureGroups($: any): Promise<Group[] | undefined> {
       loaded.add('groups')
       return undefined
     }
-    const groups = await keptGroups($, await $.session.id())
+    const groups = (await keptGroups($, await $.session.id())) ?? (await fromOwnFile($))
     if (groups === undefined) {
       loaded.add('groups')
       return undefined
@@ -588,8 +654,12 @@ export async function publishPanel($: any) {
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
     // session that opened this one reads the round it left open as discarded.
     const { value: aborted } = await $.state.get(turnAbortedState)
+    // The turn's end as the store's `turn` record holds it, for the panel to come back from the file.
+    const { value: ended } = await $.state.get(turnEndedState)
+    const { value: replan } = await $.state.get(replanDueState)
+    const turn = { ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true }
     const cut = (children as Child[]).map(c => (c.panel || c.tasks ? { ...c, panel: trimPublished(rawPanel(c)), tasks: undefined } : c))
-    await publishWait($, id, { groups, waits, children: cut, work, received, engine, ultracode: ultracode === true, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    await publishWait($, id, { groups, waits, children: cut, turn, work, received, engine, ultracode: ultracode === true, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }

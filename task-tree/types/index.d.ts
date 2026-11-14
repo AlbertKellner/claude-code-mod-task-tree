@@ -150,6 +150,10 @@ export type Published = {
   work?: string[]
   received?: { from: string; at: number }[]
   sends?: Send[]
+  // The turn's end as the store's `turn` record holds it (when it ended, null while going on; whether
+  // it was stopped; whether a replan is due), for the panel to come back from this file when the
+  // store no longer has it; absent from earlier versions.
+  turn?: { ended: number | null; aborted: boolean; replan: boolean }
 }
 
 // A session this one opened with start_session (the desktop app's linked sessions):

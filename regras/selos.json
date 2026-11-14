@@ -303,6 +303,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
+    "task-tree/tests/durabilidade.test.ts::com o painel no store, o arquivo não é lido como painel": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "3ad142435dc72b2a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
     "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 1/2: o /clear com a filha trabalhando": {
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
@@ -383,6 +393,16 @@
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
     },
+    "task-tree/tests/durabilidade.test.ts::fora do app, sem painel no store, o painel volta vazio": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "8b506f35060b944f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
     "task-tree/tests/durabilidade.test.ts::o arquivo de uma sessão que o app não lista mais é esvaziado, e o de uma listada não": {
       "regras": [
         "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
@@ -402,6 +422,36 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/durabilidade.test.ts::painel fora do store, 1/2: a sessão publica o painel": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "14fd2ef3bdf1f06f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
+    "task-tree/tests/durabilidade.test.ts::painel fora do store, 2/2: o processo novo o traz do arquivo publicado": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "3857918229e0c6c2",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
+    "task-tree/tests/durabilidade.test.ts::painel fora do store, sem session.start: o primeiro uso o traz do arquivo": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "5e90046e1095b1d9",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
     },
     "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim": {
       "regras": [
@@ -2896,10 +2946,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "122afa3e39c8b44c",
+      "hash": "592be775a88ff109",
       "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "host com work e filhas no painel da filha, fs.list e get_session de sessão que não existe"
+      "motivo": "host serve o arquivo publicado da própria sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "b3f9c45b550d7930",

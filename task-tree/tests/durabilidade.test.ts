@@ -861,3 +861,81 @@ test('com a lista do app em erro, nada é esvaziado', async ($: any, on: any) =>
   await new Promise(r => (globalThis as any).setTimeout(r, 100))
   expect(h.gravados()[SUMIU], JSON.stringify(h.gravados())).toBeUndefined()
 })
+
+// O painel que saiu do store volta do arquivo que a sessão publicou: o 1/2 publica, os seguintes
+// (processo novo, store sem o painel) servem esse arquivo como o da própria sessão.
+const PUBLICADO: { texto?: string } = {}
+const FILHA_X = { id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }
+// A filha parada: a tarefa de onde ela foi aberta mostra o fim do turno desta sessão, não o dela.
+const FILHA_PARADA = { ...FILHA_X, rodando: false }
+const PRIMEIRO: No[] = [{ id: 'p', title: 'Primeira' }]
+const SEGUNDO: No[] = [{ id: 'x', title: 'Tarefa x' }, { id: 'y', title: 'Tarefa y' }]
+
+// Regra: durabilidade.painel-volta-do-arquivo-publicado
+test('painel fora do store, 1/2: a sessão publica o painel', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  const h = host(on, [FILHA_X])
+  await pedido($, 'Pedido um')
+  await plan($, PRIMEIRO)
+  await start($, ['p'])
+  await done($, ['p'], 'feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, SEGUNDO)
+  await start($, ['x'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  const f = h.proprio()
+  expect(typeof f?.turn?.ended, JSON.stringify(f?.turn)).toBe('number')
+  PUBLICADO.texto = JSON.stringify(f)
+})
+
+// Regra: durabilidade.painel-volta-do-arquivo-publicado
+test('painel fora do store, 2/2: o processo novo o traz do arquivo publicado', async ($: any, on: any) => {
+  fixar(on)
+  const dados: Record<string, unknown> = {}
+  armazem(on, dados)
+  host(on, [FILHA_PARADA], { arquivoProprio: PUBLICADO.texto })
+  await iniciarSessao($)
+  // Antes de qualquer turno novo: o fim do turno voltou com o painel.
+  const p = await painel($)
+  esperarEstado(p, 'Tarefa x', 'aguardando')
+  esperarEstado(p, 'Tarefa y', 'pendente')
+  expect(tem(p, '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Tarefa x'])
+  expect(temPainel(dados), JSON.stringify(Object.keys(dados))).toBe(true)
+})
+
+// Regra: durabilidade.painel-volta-do-arquivo-publicado
+test('painel fora do store, sem session.start: o primeiro uso o traz do arquivo', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  host(on, [FILHA_PARADA], { arquivoProprio: PUBLICADO.texto })
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Tarefa x', 'andamento')
+  expect(tem(p, '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Tarefa x'])
+})
+
+// Regra: durabilidade.painel-volta-do-arquivo-publicado
+test('com o painel no store, o arquivo não é lido como painel', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, { [`session:${SESSAO}`]: [{ agent: '', label: '', tasks: [{ id: 'A', short: 'A', title: 'Plano A', status: 'open', children: [] }] }], sessions: [SESSAO] })
+  host(on, [FILHA_PARADA], { arquivoProprio: PUBLICADO.texto })
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Tarefa x'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.painel-volta-do-arquivo-publicado
+test('fora do app, sem painel no store, o painel volta vazio', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(p.some(l => l.estado !== undefined), emTexto(p)).toBe(false)
+})

@@ -7,8 +7,10 @@
 // keeps one file of every shape ever written). Since 2026-11-14 ("Enxugar e esvaziar (Recomendado)")
 // it no longer carries `tasks` (the main group's copy for versions from before groups; still read),
 // the children go in cut to their current work (trimPublished, draw/layout.ts), and the file of a
-// session the app no longer lists is emptied (emptyPublished, by hooks/sessions sweepPublished). The hooks module gathers what to publish from the
-// state (the kit wants the state keys literal there) and hands it over.
+// session the app no longer lists is emptied (emptyPublished, by hooks/sessions sweepPublished).
+// It is also this session's long-term copy of its own panel (with the turn's end, `turn`): out of
+// the store's 30, a new process brings the panel back from it (hooks/panel fromOwnFile), while the
+// session exists in the app. The hooks module gathers what to publish from the state (the kit wants the state keys literal there) and hands it over.
 
 import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { debug } from './log'
@@ -36,6 +38,7 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
   const context = f.context as Record<string, unknown> | undefined
   const rate = f.rate as Record<string, unknown> | undefined
   const git = f.git as Record<string, unknown> | undefined
+  const turn = f.turn as Record<string, unknown> | undefined
   const out: Published = {
     ...(typeof f.version === 'number' ? { version: f.version } : {}),
     waiting: f.waiting === true,
@@ -61,6 +64,9 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
     ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
     ...(list<Send>(f.sends) ? { sends: list<Send>(f.sends) } : {}),
+    ...(turn && typeof turn === 'object' && (typeof turn.ended === 'number' || turn.ended === null)
+      ? { turn: { ended: turn.ended as number | null, aborted: turn.aborted === true, replan: turn.replan === true } }
+      : {}),
   }
   return { ok: out }
 }
@@ -103,7 +109,7 @@ export async function readPublished($: any, id: string): Promise<Published | und
 // What the hooks module hands over for one publication: the panel as the state holds it (`sends` whole, the taken ones too: the card of this session,
 // in the session that opened it, paints the letter delivered by them) and what the last drawing left
 // (its error, size and lines).
-export type Publication = Pick<Published, 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'ultracode' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
+export type Publication = Pick<Published, 'turn' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'ultracode' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the
 // app) waits on the person, and its whole panel, with the share of the context window used (for the
@@ -146,6 +152,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       work: p.work,
       received: p.received,
       sends: p.sends,
+      turn: p.turn,
     }
     const key = JSON.stringify({ ...body, percent, rate: p.rate ? [p.rate.toks, p.rate.live] : undefined, git: p.git ? [p.git.kind ?? 'git', p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
     if (lastPublished.get(path) === key) return
@@ -178,6 +185,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
         work: body.work,
         received: body.received,
         sends: body.sends,
+        turn: body.turn,
       } satisfies Published),
     )
     lastPublished.set(path, key)
