@@ -1386,11 +1386,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // before the session's card: "Para <session>: <message>", blue queued, green taken up, gray when
     // dropped before its delivery (its task cut by a new request); the time it has waited while queued.
     // Out of every count and chip but the one of what waits on a session. A send whose task left the plan
-    // (a replan) hangs from the level-1 task of the request it was sent in.
+    // (a replan) hangs from the level-1 task of the request it was sent in. One sent in a request with
+    // no task (before its first plan) hangs from none: drawn loose at the end (`strayMail`, below) until
+    // the plan adopts it (the person, 2026-11-14: "Sim, o plan adota (Recomendado)").
     const levelOne = (s: Send): string | undefined => {
       const turns = (main.turns ?? []).filter(u => typeof u.at === 'number' && s.at !== undefined && (u.at as number) <= s.at)
       const turn = turns[turns.length - 1]?.id
       const list = turn === undefined ? main.tasks : main.tasks.filter(t => t.turn === turn)
+      if (turn !== undefined && list.length === 0 && !everyTask.some(t => t.turn === turn)) return undefined
       return (list[list.length - 1] ?? main.tasks[main.tasks.length - 1])?.id
     }
     const hostOf = (s: Send) => (s.anchor !== undefined && allIds.includes(s.anchor) ? s.anchor : levelOne(s))
@@ -1400,10 +1403,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const named = c ? c.name || (c.title.endsWith('…') ? '' : c.title) : ''
       return named || (to.startsWith('local_') ? to.slice(6, 14) : to)
     }
-    const letters = (t: TaskNode, depth: number): Row[] =>
-      mail
-        .filter(s => hostOf(s) === t.id)
-        .map(s => {
+    const letterRow = (s: Send, depth: number): Row => {
           const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
           return {
@@ -1418,7 +1418,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             time: state === 'queued' && s.at !== undefined && now !== undefined ? now - s.at : null,
             nodes: [],
           }
-        })
+        }
+    const letters = (t: TaskNode, depth: number): Row[] => mail.filter(s => hostOf(s) === t.id).map(s => letterRow(s, depth))
+    // The request open now: when it began. What was sent or opened since then with no task to go
+    // under (before the request's first plan) ends the list, done or not, until the plan adopts it.
+    const openAt = (main.turns ?? [])[(main.turns ?? []).length - 1]?.at
+    const sinceOpen = (at: number | undefined) => typeof openAt === 'number' && typeof at === 'number' && at >= openAt
+    const strayMail = mail.filter(s => hostOf(s) === undefined && (!s.taken || sinceOpen(s.at)))
+    const fresh = (c: Child) => c.anchor === undefined && sinceOpen(c.openedAt)
     const loose = sessions.filter(c => c.anchor === undefined || !allIds.includes(c.anchor))
     // Cards at work under a request left out ("+N pedidos anteriores"): drawn loose at the end.
     const strays: Child[] = []
@@ -1697,8 +1704,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // open.
     const cutHistory = main.whole !== undefined && !pastOpen
     const old = level === 0 && !cutHistory ? loose.filter(c => !busy(c)) : []
-    const ends = cutHistory ? (level === 0 ? loose.filter(alive).map(c => loosen(c, everyTask, main.turns ?? [])) : []) : level === 0 ? loose.filter(busy) : loose
+    const ends = cutHistory
+      ? level === 0
+        ? loose.filter(c => alive(c) || fresh(c)).map(c => (fresh(c) ? c : loosen(c, everyTask, main.turns ?? [])))
+        : []
+      : level === 0
+        ? loose.filter(c => busy(c) || fresh(c))
+        : loose
     return lines
+      .concat(strayMail.map(s => letterRow(s, base)))
       .concat(old.length > 0 ? [{ key: `${scope}sec:cards`, depth: base, tone: 'section' as Tone, title: `+${old.length} cartões antigos de sessões`, label: 'Cartões antigos, não desenhados' }] : [])
       .concat(inOrder([...ends, ...strays]).flatMap(c => session(c, base, level, scope)))
   }

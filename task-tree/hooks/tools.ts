@@ -3,13 +3,13 @@
 
 import { update } from 'claude-code'
 
-import type { Group, Send, TaskNode, Turn } from '../types'
+import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
 import { DONE } from '../text/rules'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
+import { reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -19,6 +19,8 @@ import type { EngineInterface } from 'claude-code'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
+const childrenState = { plugin: 'task-tree', key: 'children' } as const
+const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 
 export const node = {
   type: 'object',
@@ -120,6 +122,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
       // task of the current work stays in it, and in new work the old copy is checked with the rest
       // of the work before for what still holds the view.
+      // Adopted first: a subagent that ended with no task before the plan is not one to drop (joinWork).
+      await adoptOrphans($, groups)
       await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
     }
     // The plan does not open the panel: one the person closed stays closed until their next message
@@ -132,6 +136,76 @@ export async function planTool($: EngineInterface, e: any, next: any) {
   } catch (err) {
     return { result: 'erro: ' + String(err), isError: true as const }
   }
+}
+
+// The request's first plan adopts what the main loop sent, opened or launched in it before, with no
+// task (sendAnchor gives none before the plan): the messages, the sessions opened (and their rounds
+// with no task) and its subagents, in the order they were made, each to the task sendAnchor gives now
+// (the session's or subagent's name against the titles, else the first pending one), the ones
+// adopted before counting as uses of their task. The person, 2026-11-14: "Sim, o plan adota
+// (Recomendado)". Only a place: an adopted message's delivery closes no task (Send.adopted), and a
+// subagent launched before its task was planned does not close it (ofLeaf, hooks/agents).
+async function adoptOrphans($: any, groups: Group[]) {
+  const turn = openTurnOf(groups)
+  const since = turn?.at
+  const main = groups.find(g => g.agent === MAIN)
+  if (turn === undefined || typeof since !== 'number' || main === undefined || !main.tasks.some(t => t.turn === turn.id)) return
+  const { value: sends0 = [] } = await $.state.get(sendsState)
+  const { value: kids0 = [] } = await $.state.get(childrenState)
+  const { value: waits0 = [] } = await $.state.get(waitsState)
+  const sends = sends0 as Send[]
+  const kids = kids0 as Child[]
+  const named = (list: string[]) => list.filter(n => n !== '' && !/^local_/.test(n) && !n.endsWith('…'))
+  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[] }
+  const sendKey = (x: Send) => `${x.to}|${x.at}`
+  const orphans: Orphan[] = [
+    ...sends.flatMap(x =>
+      x.anchor === undefined && typeof x.at === 'number' && x.at >= since
+        ? [{ at: x.at, kind: 'send' as const, key: sendKey(x), names: named([x.to, ...kids.filter(k => k.id === x.to).map(k => k.name)]) }]
+        : [],
+    ),
+    ...kids.flatMap(c => (c.anchor === undefined && typeof c.openedAt === 'number' && c.openedAt >= since ? [{ at: c.openedAt, kind: 'open' as const, key: c.id, names: named([c.name, c.title]) }] : [])),
+    ...groups.flatMap(g =>
+      g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && g.sub && g.anchor === undefined && g.sub.at >= since
+        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: named(g.label.split(': ')) }]
+        : [],
+    ),
+  ].sort((a, b) => a.at - b.at)
+  if (orphans.length === 0) return
+  const used = usedAnchors(kids, sends, groups.filter(g => (g.parent ?? MAIN) === MAIN))
+  const asking = askingAnchors(waits0 as Wait[])
+  const got = new Map<string, string>()
+  for (const o of orphans) {
+    const anchor = sendAnchor(main.tasks, used, asking, o.names, turn.id)
+    if (anchor === undefined) continue
+    used.push({ anchor, at: o.at })
+    got.set(`${o.kind}:${o.key}`, anchor)
+  }
+  if (got.size === 0) return
+  const ofSend = (x: Send) => (x.anchor === undefined ? got.get(`send:${sendKey(x)}`) : undefined)
+  await update($, sendsState, cur => (cur ?? []).map(x => (ofSend(x) !== undefined ? { ...x, anchor: ofSend(x), adopted: true } : x)))
+  // A session's round with no task goes with the message that opened it (same session, same time),
+  // else with the task the session was adopted by.
+  await update($, childrenState, cur =>
+    (cur ?? []).map(c => {
+      const opened = c.anchor === undefined ? got.get(`open:${c.id}`) : undefined
+      const roundOf = (r: { at: number; anchor?: string }) => {
+        if (r.anchor !== undefined || r.at < since) return r.anchor
+        const x = sends.find(x => (x.to === c.id || (c.name !== '' && x.to === c.name)) && x.at === r.at)
+        return (x && ofSend(x)) ?? opened
+      }
+      const rounds = c.rounds?.map(r => {
+        const anchor = roundOf(r)
+        return anchor === r.anchor ? r : { ...r, anchor }
+      })
+      const moved = opened !== undefined || (rounds ?? []).some((r, i) => r !== c.rounds?.[i])
+      if (!moved) return c
+      const last = [...(rounds ?? [])].reverse().find(r => r.anchor !== undefined)?.anchor
+      return { ...c, ...(opened !== undefined ? { anchor: opened } : {}), ...(rounds ? { rounds } : {}), ...(c.lastAnchor === undefined && (last ?? opened) !== undefined ? { lastAnchor: last ?? opened } : {}) }
+    }),
+  )
+  await change($, all => all.map(g => (g.anchor === undefined && got.has(`group:${g.agent}`) ? { ...g, anchor: got.get(`group:${g.agent}`), ...(g.sub ? { sub: { ...g.sub, adopted: true } } : {}) } : g)))
+  await saveLinks($)
 }
 
 export async function doneTool($: EngineInterface, e: any, next: any) {

@@ -9,11 +9,12 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 
 - Dado uma sessão filha aberta a partir de uma tarefa
 - Quando o painel é desenhado
-- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente)
+- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente); a sessão aberta num pedido ainda sem plano fica solta até o plan (sessoes.aberta-antes-do-plan-e-adotada)
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
 Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
 Reescrito: 2026-11-03, decisão do usuário ("No pedido vigente da orquestradora (Recomendado)"), pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc..."; desfaz, para o turno próprio da filha, "turno aberto direto pelo usuário na filha vira cartão próprio, sem âncora, no fim do pedido de origem".
+Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): a sessão aberta num pedido ainda sem plano fica solta até o plan.
 Código: hooks/panel.ts
 Estado: coberto
 
@@ -318,4 +319,15 @@ A leitura das sessões filhas roda uma de cada vez.
 - Então as outras esperam e, no fim, roda mais uma só; uma leitura mais antiga nunca grava por cima de uma mais nova, e o fim de turno de uma filha gera um lembrete só
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: leituras sobrepostas gravavam sem conferir a versão).
+Estado: coberto
+
+### sessoes.aberta-antes-do-plan-e-adotada
+A sessão aberta antes do plan do pedido fica solta no fim, e o plan do pedido a adota.
+
+- Dado um pedido novo ainda sem plano e nada em andamento
+- Quando o modelo abre uma sessão filha, e depois planeja o pedido
+- Então, até o plan, o cartão fica no fim do painel, mesmo se a filha já concluiu, sem tarefa de pedido anterior; no primeiro plan do pedido, o cartão passa para a tarefa cujo título casa com o nome da sessão, senão para a primeira pendente, e segue lá, vivo ou concluído
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"; antes, na resposta livre: "Se existe uma sessão filha ou subagente criados antes do plan, eles deveriam se planejadas para mostrar corretamente na lista").
+Código: hooks/tools.ts, hooks/panel.ts
 Estado: coberto

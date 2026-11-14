@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool } from './agents'
 
@@ -125,7 +125,8 @@ const sentMessage: Notes = async ($, c, notes) => {
   // The receiving session's names, to match a task's title (sendAnchor): what `to` says, and the name
   // the host lists for that id.
   const names = [to, ...(kids0 as Child[]).filter(k => k.id === to).map(k => k.name)].filter(n => n !== '' && !/^local_/.test(n))
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names)
+  // Before the request's first plan: none (drawn loose until the plan adopts it).
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was

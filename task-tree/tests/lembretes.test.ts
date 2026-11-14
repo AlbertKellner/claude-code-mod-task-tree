@@ -453,3 +453,14 @@ test('com a tarefa da rodada já fechada e a de abertura aberta, o lembrete cita
   const ctx = await filhaComMensagem($, on, true, { depois: ['2'] })
   expect(ctx).toContain('tarefa de origem "A/1" Um')
 })
+
+// Regra: lembretes.planejar-antes-de-delegar
+test('as regras pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('Planeje antes de delegar')
+  expect(regras).toContain('o primeiro plan do pedido o adota')
+})

@@ -159,3 +159,13 @@ Quando uma sessão filha termina o turno, o modelo é lembrado da tarefa de orig
 Origem: regra do painel desde a entrada do mod (o lembrete, sem cenário até aqui); auditoria 2026-11-10 (triagem de 2026-11-13: o lembrete olhava só a tarefa de abertura, enquanto o painel já tratava a tarefa da última rodada como a origem). Aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
 Código: hooks/sessions.ts, hooks/tool-call.ts
 Estado: coberto
+
+### lembretes.planejar-antes-de-delegar
+As regras do painel pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente.
+
+- Dado as regras do painel no prompt de sistema
+- Quando o modelo as lê
+- Então elas dizem para planejar e dar start antes de delegar, e que o que for criado antes do plan fica solto no fim até o primeiro plan do pedido, que o adota
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)": "as regras pedem planejar antes de abrir sessão ou lançar subagente").
+Estado: coberto

@@ -13,7 +13,7 @@ import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -224,7 +224,8 @@ export async function watchSends($: any, rows: any[]) {
   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
   // have stopped waiting for it), so its card in the mother's pane is not left parked.
-  const anchors = (sends as Send[]).flatMap((s, i) => (marks[i]?.taken && s.anchor ? [s.anchor] : []))
+  // An adopted one (given its task by a later plan, Send.adopted) closes none.
+  const anchors = (sends as Send[]).flatMap((s, i) => (marks[i]?.taken && s.anchor && !s.adopted ? [s.anchor] : []))
   if (anchors.length === 0) return
   const now = await stamp($)
   await change($, all =>
@@ -286,7 +287,8 @@ export async function recordStart($: any, resultText: string, names: string[] = 
   // The task the session is opened on: the one in progress, else as a message is anchored (sendAnchor;
   // with several in progress, the first with no message yet).
   const { value: waits0 = [] } = await $.state.get(waitsState)
-  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (value as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names)
+  // Before the request's first plan: none (drawn loose until the plan adopts it).
+  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (value as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(value as Group[])?.id)
   // When it was opened: its task counts as used from then on (usedAnchors).
   const openedAt = await stamp($)
   await update($, childrenState, cur => {

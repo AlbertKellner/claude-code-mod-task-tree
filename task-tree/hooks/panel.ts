@@ -6,7 +6,7 @@
 import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
-import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
+import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
@@ -277,7 +277,16 @@ const byName = (tasks: TaskNode[], names: string[]) => {
   const hit = names.length === 0 ? [] : tasks.filter(t => namedFor(t.title, names))
   return hit.length === 1 ? hit[0] : undefined
 }
-export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = []): string | undefined {
+// The request open now (the person's last message): the main group's last turn. A message, a session
+// or a subagent sent before the request's first plan has no task of it to go to (`open` with no level-1
+// task of that turn): none, it is drawn loose at the end until the plan adopts it (adoptOrphans, in
+// hooks/tools; the person, 2026-11-14: "Sim, o plan adota (Recomendado)"). It went to a pending task of
+// the request before, which closed on the delivery.
+export const openTurnOf = (groups: Group[]): Turn | undefined => {
+  const turns = groups.find(g => g.agent === MAIN)?.turns ?? []
+  return turns[turns.length - 1]
+}
+export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in the current request (the person's decisions): its pending task with no
   // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
@@ -302,6 +311,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
   if (anchor === undefined) {
+    if (open !== undefined && !list.some(t => t.turn === open)) return undefined
     const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
     const last = turns.length > 0 ? Math.max(...turns) : undefined
     const mine = list.filter(t => last === undefined || t.turn === last)

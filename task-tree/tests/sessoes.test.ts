@@ -944,3 +944,42 @@ test('leituras pedidas ao mesmo tempo rodam uma de cada vez', async ($: any, on:
   await Promise.all([aviso($), aviso($), aviso($)])
   expect(h.pedidosAoApp().filter(t => t === 'list_sessions').length - antes).toBeLessThanOrEqual(2)
 })
+
+// O roteiro dos cartões abertos antes do plan: pedido um todo concluído, pedido dois e a sessão aberta nele.
+async function antesDoPlan($: any, on: any, nome: string) {
+  const { relogio } = fixar(on)
+  host(on, [{ id: K1, nome, rodando: false, painel: { tasks: [tarefa('1', 'Tarefa da filha', 'feita')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await abrirSessao($)
+  await aviso($)
+}
+
+// Regra: sessoes.aberta-antes-do-plan-e-adotada
+test('a sessão aberta antes do plan do pedido fica solta no fim, mesmo concluída, e o plan a adota pelo nome', async ($: any, on: any) => {
+  await antesDoPlan($, on, 'pesquisa-web')
+  let p = await painel($)
+  const antes = cartoes(p, 'pesquisa-web')
+  expect(antes.length, emTexto(p)).toBe(1)
+  for (const t of ['Um', 'Dois', 'Três']) expect(antes[0]!.sob, emTexto(p)).not.toBe(t)
+  const ultimoPedido = Math.max(...p.map((l, i) => (l.titulo.startsWith('Pedido ') ? i : -1)))
+  expect(p.indexOf(linha(p, 'pesquisa-web')), emTexto(p)).toBeGreaterThan(ultimoPedido)
+  await plan($, [{ id: 'N', title: 'Plano N', children: [{ id: 'n1', title: 'Implementação' }, { id: 'n2', title: 'Pesquisa web: changelog' }] }])
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'pesquisa-web').map(c => c.sob), emTexto(p)).toEqual(['Pesquisa web: changelog'])
+})
+
+// Regra: sessoes.aberta-antes-do-plan-e-adotada
+test('sem nome que case, a sessão aberta antes do plan vai à primeira pendente do plan', async ($: any, on: any) => {
+  await antesDoPlan($, on, 'filha-um')
+  await plan($, [{ id: 'N', title: 'Plano N', children: [{ id: 'n1', title: 'Escrever o código' }, { id: 'n2', title: 'Rodar a bateria' }] }])
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Escrever o código'])
+})

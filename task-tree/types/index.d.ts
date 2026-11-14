@@ -85,6 +85,9 @@ export type Sub = {
   calls: number
   batch: number
   run?: string
+  // Launched with no task, before the request's first plan, which gave it one (hooks/tools,
+  // adoptOrphans): its end closes no task (ofLeaf, hooks/agents).
+  adopted?: boolean
 }
 
 // An Agent call, recorded at launch until the subagent's group claims it.
@@ -228,10 +231,12 @@ export type Child = {
 // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
 // `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
 // (its letter gray, "não entregue"); undone if the session is listed again unarchived.
+// `adopted`: sent before the request's first plan, with no task, and given one by that plan (hooks/tools,
+// adoptOrphans): only its place; its delivery closes no task (the task did not send it).
 // `agent`: the id of this session's subagent it went to (SendMessage to a subagent, not a session):
 // taken when that subagent receives it (its session.receive) or is resumed with it (agent.spawn with
 // `resume`); `lost` (with `cut`) when it ended without receiving it (hooks/agents, strandedSends).
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string }
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

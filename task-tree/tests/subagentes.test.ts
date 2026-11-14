@@ -368,8 +368,9 @@ test('com a tarefa fechada pelo done, o subagente em segundo plano segue no cart
   expect(linha(p, 'Explore: varrer o repo').texto).toContain('concluído')
 })
 
+// A regra mudou em 2026-11-14 ("Sim, o plan adota (Recomendado)"): num pedido sem plano o cartão termina a lista.
 // Regra: subagentes.cartao-fica-com-a-origem-fechada
-test('lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada', async ($: any, on: any) => {
+test('lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior', async ($: any, on: any) => {
   fixar(on)
   lancaveis(on, ['sub-1'])
   await pedido($, 'Pedido um')
@@ -380,8 +381,44 @@ test('lançado num pedido sem plano depois de um pedido todo concluído, o cart�
   await pedido($, 'Pedido dois')
   await lancar($, { descricao: 'conferir o diff' })
   const p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).not.toContain('Explore: conferir o diff')
+  expect(p.indexOf(linha(p, 'Explore: conferir o diff')), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Investigar')))
+  expect(linha(p, 'Explore: conferir o diff').texto).toContain('trabalhando')
+})
+
+// Regra: subagentes.cartao-fica-com-a-origem-fechada
+test('no mesmo pedido, com tudo concluído, o lançamento vai à última tarefa iniciada, já fechada', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Feito')
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
   expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
   expect(linha(p, 'Explore: conferir o diff').texto).toContain('trabalhando')
+})
+
+// Regra: subagentes.lancado-antes-do-plan-e-adotado
+test('o subagente lançado antes do plan do pedido termina a lista, o plan o adota e o fim dele não fecha a tarefa que o adotou', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await lancar($, { descricao: 'conferir o diff' })
+  await fimDoSubagente($, 'sub-1')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Conferir' }] }])
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(abaixo(p, 'Conferir').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(linha(p, 'Conferir').estado, emTexto(p)).toBe('pendente')
+  // O pedido um (com "Investigar") fica atrás do "+1 pedidos anteriores": o cartão é só o de "Conferir".
+  expect(p.filter(l => l.titulo === 'Explore: conferir o diff').length, emTexto(p)).toBe(1)
 })
 
 // Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo

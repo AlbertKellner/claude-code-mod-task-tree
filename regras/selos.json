@@ -973,6 +973,16 @@
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
     },
+    "task-tree/tests/envios.test.ts::a carta enviada antes do plan do pedido novo fica solta no fim, não fecha tarefa do pedido anterior, e o plan do pedido a adota": {
+      "regras": [
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota"
+      ],
+      "hash": "e4ef44e2cc9a9d50",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
     "task-tree/tests/envios.test.ts::a carta para um subagente parado com Esc antes de recebê-la fica cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez; a tarefa fica interrompida": {
       "regras": [
         "envios.subagente-parado-nao-entregue"
@@ -1428,6 +1438,16 @@
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente": {
+      "regras": [
+        "lembretes.planejar-antes-de-delegar"
+      ],
+      "hash": "8aa87b111dfe525a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::com a mensagem nova ainda na fila, o lembrete do turno que terminou cita a tarefa de abertura": {
       "regras": [
@@ -2061,6 +2081,16 @@
       "data": "2026-11-04",
       "motivo": "bug: rodada descartada segurava a visão"
     },
+    "task-tree/tests/sessoes.test.ts::a sessão aberta antes do plan do pedido fica solta no fim, mesmo concluída, e o plan a adota pelo nome": {
+      "regras": [
+        "sessoes.aberta-antes-do-plan-e-adotada"
+      ],
+      "hash": "55acebc2bf396d98",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
@@ -2386,6 +2416,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::sem nome que case, a sessão aberta antes do plan vai à primeira pendente do plan": {
+      "regras": [
+        "sessoes.aberta-antes-do-plan-e-adotada"
+      ],
+      "hash": "cd82b01f0936be39",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
         "sessoes.pasta-sem-git"
@@ -2563,15 +2603,15 @@
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
     },
-    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
+    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
-      "hash": "42efd176ce0a2c8b",
-      "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "auditoria 2026-11-10, achado alto 5"
+      "hash": "4660b789666203a6",
+      "assercoes": 7,
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\"; num pedido sem plano o cartão termina a lista"
     },
     "task-tree/tests/subagentes.test.ts::lançado por um subagente sem tarefas, o cartão fica no fim do cartão dele e sai com ele, sem ficar solto no fim do painel": {
       "regras": [
@@ -2603,6 +2643,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::no mesmo pedido, com tudo concluído, o lançamento vai à última tarefa iniciada, já fechada": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "fb2944874b92b697",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
       "regras": [
@@ -2695,6 +2745,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente lançado antes do plan do pedido termina a lista, o plan o adota e o fim dele não fecha a tarefa que o adotou": {
+      "regras": [
+        "subagentes.lancado-antes-do-plan-e-adotado"
+      ],
+      "hash": "73554fd26e544c61",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::o subagente não entra no \"d de n\" e ganha a pílula de subagentes": {
       "regras": [
@@ -3516,5 +3576,17 @@
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     }
   },
-  "removidos": {}
+  "removidos": {
+    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\"; num pedido sem plano o cartão termina a lista",
+      "reescrito": "2026-11-14",
+      "hash": "42efd176ce0a2c8b",
+      "para": "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior",
+      "tipo": "decisao"
+    }
+  }
 }

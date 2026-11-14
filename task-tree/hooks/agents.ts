@@ -15,7 +15,7 @@ import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
 import { MAIN, SUB_BATCH, flat, interrupt, subLive } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
-import { askingAnchors, change, dropWaits, ensureLinks, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
+import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -52,7 +52,7 @@ function anchorIn(groups: Group[], parent: string, names: string[], uses: Uses):
   const tasks = groups.find(g => g.agent === parent)?.tasks ?? []
   const mine = groups.filter(g => (g.parent ?? MAIN) === parent)
   if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], names)
-  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), names)
+  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), names, openTurnOf(groups)?.id)
 }
 export async function launchAnchor($: any, groups: Group[], parent: string, names: string[]): Promise<string | undefined> {
   return anchorIn(groups, parent, names, parent === MAIN ? await mainUses($) : NO_USES)
@@ -261,11 +261,13 @@ export async function checkSubs($: any) {
 // under it (no session alive, no message queued, no question open), closes: done when they all
 // were, else interrupted, "falhou" when one failed (the worse end decides, failed over interrupted
 // over done). Its parents close by the usual rule; the subagents' cards stay out of the count.
-// A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not launched before the leaf
+// A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not adopted by a later plan
+// (Sub.adopted, launched with no task), not launched before the leaf
 // was planned (an earlier task's with the same id, in a state written before the anchor was renamed
 // with it), and, once a start reopened the leaf after a close, still running or ended since: one
 // that ended before was reflected in that close.
 const ofLeaf = (s: Sub, leaf: TaskNode) =>
+  s.adopted !== true &&
   !(leaf.plannedAt !== undefined && s.at < leaf.plannedAt) &&
   (leaf.reopenedAt === undefined || s.end === undefined || s.end >= leaf.reopenedAt)
 export async function settleBySubs($: any) {
@@ -332,7 +334,8 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
   await update($, sendsState, (cur: any) =>
     (cur ?? []).map((s: Send, i: number) => (i === hit.i && s.agent === agent ? { ...s, taken: true, cut: false, lost: false, noted: false } : s)),
   )
-  const id = hit.s.anchor
+  // An adopted send (given its task by a later plan) closes none.
+  const id = hit.s.adopted ? undefined : hit.s.anchor
   if (id !== undefined) {
     const now = await stamp($)
     await change($, all => {

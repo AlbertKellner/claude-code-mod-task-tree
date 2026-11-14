@@ -137,7 +137,7 @@ Estado: coberto
 Fechada a tarefa de onde saiu o subagente, o cartão dele segue embaixo dela.
 
 - Dado uma tarefa de onde saiu um subagente, à vista no trabalho atual
-- Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela
+- Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela (no mesmo pedido; num pedido ainda sem plano vale subagentes.lancado-antes-do-plan-e-adotado)
 - Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; quando o pedido da tarefa sai do trabalho ("+N pedidos anteriores"), o subagente terminado que não planejou tarefas é apagado (do painel, do que é guardado e do que é publicado), e o que tem tarefas próprias vai guardado com o pedido, como o cartão da sessão e a carta; ao abrir "+N pedidos anteriores", as tarefas antigas aparecem sem os cartões de subagente
 
 Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho segue sem ser desenhado solto no fim (depende de o cartão vivo terminar quando o fim do subagente não chega).
@@ -145,6 +145,7 @@ Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho seg
 Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
 Código: draw/layout.ts
 Reescrito: 2026-11-14, decisão do usuário ("Apagar os sem tarefas (Recomendado)"): o cartão do subagente terminado sem tarefas não vai para o histórico.
+Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): o lançamento num pedido ainda sem plano não vai à tarefa fechada do pedido anterior.
 Estado: coberto
 
 ### subagentes.reaberta-nao-fecha-pelo-subagente-antigo
@@ -275,4 +276,15 @@ O subagente terminado que não planejou tarefas é apagado quando o pedido dele 
 
 Origem: decisão do usuário, 2026-11-14 ("Apagar os sem tarefas (Recomendado)"), à pergunta sobre os cartões de subagentes terminados que ficavam guardados para sempre (uma sessão com 524 deles); limita ao trabalho atual subagentes.terminado-segue-cartao e subagentes.cartao-fica-com-a-origem-fechada.
 Código: hooks/panel.ts, hooks/tools.ts
+Estado: coberto
+
+### subagentes.lancado-antes-do-plan-e-adotado
+O subagente lançado antes do plan do pedido termina a lista, e o plan do pedido o adota.
+
+- Dado um pedido novo ainda sem plano e nada em andamento
+- Quando o modelo lança um subagente, e depois planeja o pedido
+- Então, até o plan, o cartão termina a lista, sem tarefa de pedido anterior; no primeiro plan do pedido, passa para a tarefa cujo título casa com a descrição ou o tipo dele, senão para a primeira pendente; o fim dele não fecha a tarefa que o adotou (subagentes.lancado-antes-da-tarefa-nao-conta)
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)").
+Código: hooks/tools.ts, hooks/panel.ts
 Estado: coberto

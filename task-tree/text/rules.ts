@@ -72,6 +72,10 @@ export const RULES = [
     'em que vai executar, e só então siga com start e done.',
   '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
     'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
+  '- Planeje antes de delegar: num pedido novo, chame mcp__task-tree__plan e marque com start a tarefa antes ' +
+    'de mandar mensagem a outra sessão (SendMessage), abrir sessão (start_session) ou lançar subagente (Agent). ' +
+    'O que for criado antes do plan do pedido fica solto no fim do painel, e o primeiro plan do pedido o ' +
+    'adota: vai para a tarefa cujo título casa com o nome da sessão ou do subagente, senão para a primeira pendente.',
   '- Uma mensagem a outra sessão (SendMessage) aparece como uma carta ✉ embaixo da tarefa em andamento ' +
     'de onde saiu: azul na fila, verde quando a sessão destino começa a tratar, sem você fazer nada. A ' +
     'tarefa continua uma tarefa comum, com ícone e contagem normais. Na entrega imediata ("delivered; ' +

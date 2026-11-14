@@ -76,7 +76,7 @@ Estado: coberto
 ### envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
 Sem nada em andamento, o envio vai à pendente planejada por último.
 
-- Dado nada em andamento no pedido atual
+- Dado nada em andamento no pedido atual, que já tem plano (sem plano: envios.antes-do-plan-fica-solta-e-o-plan-adota)
 - Quando sai uma mensagem
 - Então ela vai à pendente planejada por último; sem pendente, à última iniciada
 
@@ -84,6 +84,7 @@ Origem: decisão do usuário, 2026-10-23 ("Várias pendentes: a última planejad
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-09, decisão do usuário ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome"): com várias pendentes planejadas juntas, o envio vai à primeira delas ainda sem carta, na ordem do plano (antes, à última), depois de tentar o nome da sessão (envios.carta-pelo-nome-da-sessao).
+Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): vale para o pedido que já tem plano.
 Estado: coberto
 
 ### envios.carta-pelo-nome-da-sessao
@@ -222,4 +223,15 @@ O envio que falha não deixa carta nem rodada.
 - Então não há carta do envio que falhou, e as tarefas do turno seguinte seguem no cartão em que a filha já estava, não num cartão novo sob a tarefa do envio
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a rodada era gravada antes de saber se o envio falhou); aplica sessoes.um-cartao-por-mensagem, sem mudá-la.
+Estado: coberto
+
+### envios.antes-do-plan-fica-solta-e-o-plan-adota
+A carta enviada antes do plan do pedido fica solta no fim, e o plan do pedido a adota.
+
+- Dado um pedido novo ainda sem plano, com ou sem tarefas abertas de pedidos anteriores, e nada em andamento
+- Quando o modelo manda uma mensagem a outra sessão, e depois planeja o pedido
+- Então, até o plan, a carta fica no fim do painel, fora de qualquer tarefa, e nenhuma tarefa de pedido anterior ganha carta nem fecha na entrega; no primeiro plan do pedido, a carta passa para a tarefa dele escolhida como em qualquer envio (o nome da sessão, senão a primeira pendente ainda sem carta) e fica lá; a tarefa que a adotou não fecha sozinha na entrega
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"), sobre os achados da auditoria de 2026-11-10 (a carta ia a uma pendente do pedido anterior, que fechava sozinha). Refina "envio feito sem tarefa em andamento ancora na última iniciada do pedido atual" (2026-10-23) para o pedido ainda sem tarefas.
+Código: hooks/tools.ts, draw/layout.ts, text/rules.ts
 Estado: coberto
