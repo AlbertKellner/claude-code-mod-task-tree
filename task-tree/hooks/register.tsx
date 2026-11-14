@@ -12,7 +12,7 @@ import { permissionRequest } from './permission'
 import { turnComplete, turnStep, ultraAttachment } from './turn'
 import { toolCall } from './tool-call'
 import { press, render } from './render'
-import { agentSpawn } from './agents'
+import { agentReceive, agentSpawn } from './agents'
 
 export const register: Register = on => {
   on('session.start', sessionStart)
@@ -25,6 +25,7 @@ export const register: Register = on => {
   on('tool.call', { tool: 'mcp__task-tree__start' }, startTool)
   on('classic.PermissionRequest', permissionRequest)
   on('agent.spawn', agentSpawn)
+  on('session.receive', agentReceive)
   on('turn.step', turnStep)
   on('prompt.attachment', { type: 'ultra_effort_enter' }, ultraAttachment)
   on('prompt.attachment', { type: 'ultra_effort_exit' }, ultraAttachment)

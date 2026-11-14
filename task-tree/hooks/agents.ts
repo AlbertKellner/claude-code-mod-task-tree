@@ -12,7 +12,7 @@ import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
 import { MAIN, SUB_BATCH, flat, interrupt, subLive } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
-import { askingAnchors, change, dropWaits, sendAnchor, stamp, usedAnchors } from './panel'
+import { askingAnchors, change, dropWaits, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -63,6 +63,8 @@ export async function launchAnchor($: any, groups: Group[], parent: string, name
 // sessions, messages and questions that also decide the task are read before: launches do not write them.
 export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const r = await next(e)
+  // A resume carries the message a subagent that ended first was left with: it is delivered.
+  if (typeof e?.resume?.agentId === 'string' && e.resume.agentId !== '') await takeSubSend($, e.resume.agentId, String(e.prompt ?? ''), true).catch(() => {})
   const agent = r?.agentId
   if (typeof agent !== 'string' || agent === '' || e?.resume || e?.isTeammate) return r
   const now = (await stamp($)) ?? 0
@@ -303,4 +305,89 @@ export async function settleBySubs($: any) {
       return tasks === g.tasks ? g : { ...g, tasks }
     }),
   )
+}
+
+// A message the main loop queued to one of its subagents (SendMessage, Send.agent) is delivered when
+// that subagent receives it in its next round of tools (session.receive, agentReceive) or is resumed
+// with it after ending first (agent.spawn with `resume`, agentSpawn): its letter turns green (the
+// rule envios.fica-ate-entrega; the delivery to a subagent was never checked, and its letter stayed
+// blue even when received). Of the sends to it not taken yet (queued, or given up as not delivered),
+// the first whose text is in what it received; with none and `inOrder` (the main loop's own message,
+// a resume), the oldest. The task it was sent from closes, as at any delivery (watchSends), when it is
+// open, with nothing open under it and no subagent launched from it still running: then that
+// subagent's end closes it (subagentes.um-rodando-mantem-o-pai).
+const norm = (t: string) => t.replace(/\s+/g, ' ').trim()
+export async function takeSubSend($: any, agent: string, text: string, inOrder: boolean) {
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const got = norm(text)
+  const open = (sends as Send[]).map((s, i) => ({ s, i })).filter(x => x.s.agent === agent && !x.s.taken)
+  if (open.length === 0) return
+  const byText = open.find(x => (x.s.text ?? '') !== '' && got.includes(norm(x.s.text ?? '')))
+  const hit = byText ?? (inOrder ? [...open].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))[0] : undefined)
+  if (hit === undefined) return
+  await update($, sendsState, (cur: any) =>
+    (cur ?? []).map((s: Send, i: number) => (i === hit.i && s.agent === agent ? { ...s, taken: true, cut: false, lost: false, noted: false } : s)),
+  )
+  const id = hit.s.anchor
+  if (id !== undefined) {
+    const now = await stamp($)
+    await change($, all => {
+      const live = all.some(g => g.sub && subLive(g.sub) && (g.parent ?? MAIN) === MAIN && g.anchor === id)
+      return all.map(g => {
+        if (g.agent !== MAIN || live) return g
+        const t = flat(g.tasks).find(t => t.id === id)
+        if (!t || t.status !== 'open' || t.children.some(c => c.status === 'open')) return g
+        return { ...g, tasks: settle(edit(fillStarts(g.tasks, id, now), id, finish(now)), now) }
+      })
+    })
+  }
+  await publishPanel($)
+}
+
+// A delivery to one of this session's subagents (session.receive with its agentId): the main loop's
+// message it receives in its next round of tools. Only after it is queued; one consumed by another
+// hook was not delivered. It runs inside the subagent's turn: nothing here waits on a prompt.
+export async function agentReceive($: EngineInterface, e: any, next: any) {
+  const r = await next(e)
+  if (r?.consumed !== undefined || typeof e?.agentId !== 'string' || e.agentId === '') return r
+  await takeSubSend($, e.agentId, String(e.text ?? ''), e.origin?.kind === 'coordinator').catch(() => {})
+  return r
+}
+
+// A message queued to a subagent that ended without receiving it is not delivered (the person,
+// 2026-11-13: "Cinza \"não entregue\" (Recomendado)", as for a session archived with it): its letter
+// gray, "não entregue", its clock stopped, and its task stops waiting on it. Read by the poll, after
+// checkSubs: only SUB_CONFIRM ms after the card ended, and with the engine's list not showing the agent
+// at work, because at a normal end the engine resumes it with the message (agentSpawn delivers it
+// then), and a mark at once would paint the letter gray and then green. Received after all: green.
+// A subagent with no card is not judged; a list that fails judges nothing.
+const AT_WORK = ['running', 'pending', 'waiting', 'idle']
+export async function strandedSends($: any) {
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const open = (sends as Send[]).filter(s => s.agent !== undefined && !s.taken && !s.lost)
+  if (open.length === 0) return
+  const now = await stamp($)
+  if (now === undefined) return
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const ended = (agent: string) => {
+    const sub = (groups as Group[]).find(g => g.agent === agent)?.sub
+    return sub !== undefined && !subLive(sub) && now - (sub.end ?? sub.seen ?? sub.at) >= SUB_CONFIRM
+  }
+  const due = open.filter(s => ended(s.agent!))
+  if (due.length === 0) return
+  let list: AgentInfo[]
+  try {
+    const got = await $.agent.list()
+    if (!Array.isArray(got)) return
+    list = got
+  } catch {
+    return
+  }
+  const lost = new Set(due.map(s => s.agent!).filter(a => !list.some(x => x?.id === a && AT_WORK.includes(String(x.status)))))
+  if (lost.size === 0) return
+  await update($, sendsState, (cur: any) =>
+    (cur ?? []).map((s: Send) => (s.agent !== undefined && lost.has(s.agent) && !s.taken && !s.lost ? { ...s, cut: true, lost: true } : s)),
+  )
+  if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
+  await publishPanel($)
 }

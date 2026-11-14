@@ -218,7 +218,10 @@ export type Child = {
 // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
 // `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
 // (its letter gray, "não entregue"); undone if the session is listed again unarchived.
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean }
+// `agent`: the id of this session's subagent it went to (SendMessage to a subagent, not a session):
+// taken when that subagent receives it (its session.receive) or is resumed with it (agent.spawn with
+// `resume`); `lost` (with `cut`) when it ended without receiving it (hooks/agents, strandedSends).
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

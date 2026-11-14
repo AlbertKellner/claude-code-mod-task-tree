@@ -80,3 +80,11 @@ export const chamadaDoSubagente = ($: any, agente: string, tool: string, args: o
 // O fim do turno de um subagente com um motivo (erro, parado).
 export const fimDoSubagenteCom = ($: any, agente: string, como: { erro?: boolean; parado?: boolean }) =>
   $.turn.complete({ reason: como.erro ? 'error' : 'end_turn', answer: '', durationMs: 1, isAborted: como.parado === true, turnId: 't', agentId: agente })
+
+// A mensagem do loop principal recebida por um subagente na rodada seguinte dele (session.receive).
+export const recebidaPeloSubagente = ($: any, agente: string, texto: string) =>
+  $.session.receive({ text: texto, agentId: agente, origin: { kind: 'coordinator' } })
+
+// O subagente que terminou antes de receber é retomado pelo app com a mensagem (agent.spawn com resume).
+export const retomadaDoSubagente = ($: any, agente: string, texto: string) =>
+  $.agent.spawn({ prompt: texto, description: 'retomada', subagentType: 'Explore', resume: { agentId: agente } })

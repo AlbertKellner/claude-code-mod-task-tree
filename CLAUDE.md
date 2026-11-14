@@ -172,7 +172,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   lados; o conector da faixa chegando na altura do cabeçalho do cartão;
 - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
 - recarga a quente real (salvar um arquivo com o painel aberto);
-- sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); avisos do app;
+- sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); carta a subagente real
+  (recebida, parado antes de receber, retomado); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.
 
 ## Release e PR

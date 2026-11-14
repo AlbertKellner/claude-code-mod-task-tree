@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
-import { aviso, done, envio, esc, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, fixar, host, lancaveis, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
+import { aviso, done, envio, esc, ferramenta, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, mensagemDe, pedido, plan, recebidaPeloSubagente, retomadaDoSubagente, start, type No } from './kit/cenario'
 import { cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -535,4 +535,147 @@ test('carta não entregue não segura o pedido à vista: com tudo concluído, o 
   expect(p.some(l => l.titulo.startsWith('Para ')), emTexto(p)).toBe(false)
   expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
   esperarEstado(p, 'b1', 'pendente')
+})
+
+// O motor responde o SendMessage a um subagente que roda: na fila até a rodada seguinte dele.
+function filaDoSubagente(on: any) {
+  on('tool.call', { tool: 'SendMessage' }, (_$: any, e: any) => ({
+    result: `{"success":true,"message":"Message queued for delivery to ${e.to} at its next tool round. If it finishes first, it is resumed with the message and notifies again."}`,
+  }))
+}
+// Um subagente em segundo plano lançado de "Um", e a carta mandada a ele na fila.
+async function cartaAoSubagente($: any, para = 'sub-1', texto = 'olhe também o kit') {
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await envio($, para, texto)
+}
+
+// Regra: envios.subagente-parado-nao-entregue
+test('a carta para um subagente parado com Esc antes de recebê-la fica cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez; a tarefa fica interrompida', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await cartaAoSubagente($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
+  await esc($)
+  await fimDoSubagenteCom($, 'sub-1', { parado: true })
+  await relogio.advance(3000)
+  expect(await contexto(aviso($)), 'o aviso ao modelo').toContain(NAO_ENTREGUE)
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'interrompida')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
+  expect(cartaDe(p)?.texto, emTexto(p)).not.toMatch(/\d:\d\d/)
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(await contexto(aviso($)), 'o aviso vai uma vez só').not.toContain(NAO_ENTREGUE)
+})
+
+// Regra: envios.subagente-parado-nao-entregue
+test('carta para subagente que falha antes de recebê-la: não entregue, e o done da tarefa não avisa de fila', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await cartaAoSubagente($)
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  await relogio.advance(3000)
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'interrompida')
+  const r = await done($, ['1'])
+  expect(r.texto, 'o done de uma tarefa cuja carta não foi entregue').not.toContain('na fila')
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: envios.subagente-recebe-fica-verde
+test('subagente que termina antes da rodada seguinte e é retomado com a mensagem: a carta fica verde, sem passar por não entregue', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await cartaAoSubagente($, 'sub-1', 'olhe também o kit')
+  await fimDoSubagente($, 'sub-1')
+  await relogio.advance(1000)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  await retomadaDoSubagente($, 'sub-1', 'olhe também o kit')
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  await relogio.advance(3000)
+  await relogio.advance(3000)
+  expect(await contexto(aviso($)), 'o aviso da entrega').toContain('recebimento confirmado')
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  expect(cartaDe(p)?.texto, emTexto(p)).not.toContain('não entregue')
+})
+
+// Regra: envios.subagente-parado-nao-entregue
+test('subagente que termina sem ser retomado: depois da conferência a carta fica não entregue e a tarefa de onde ele saiu fecha pelo fim dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await cartaAoSubagente($)
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  await relogio.advance(3000)
+  await relogio.advance(3000)
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'interrompida')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
+  esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: envios.subagente-parado-nao-entregue
+test('subagente parado sem o fim chegar (some da lista do app): o cartão fica interrompido e a carta não entregue', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const app: { lista: any[] } = { lista: [{ id: 'sub-1', name: 'revisor', type: 'Explore', description: 'subagente sub-1', status: 'running' }] }
+  on('agent.spawn', () => ({ model: 'claude-haiku-5-5', agentId: 'sub-1' }))
+  on('agent.list', () => ({ value: app.lista }))
+  filaDoSubagente(on)
+  await cartaAoSubagente($, 'revisor')
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  app.lista = []
+  await fimDoTurno($)
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  p = await painel($)
+  expect(linha(p, 'Explore: varrer o repo').texto, emTexto(p)).toContain('interrompido')
+  esperarCartaSob(p, 'Um', 'interrompida')
+  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
+  esperarEstado(p, 'Um', 'interrompida')
+})
+
+// Regra: envios.subagente-recebe-fica-verde
+test('o subagente recebe a mensagem na rodada seguinte: a carta fica verde; a tarefa de onde ela saiu conclui sozinha, e a que lançou o subagente espera o fim dele', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await start($, ['2'])
+  await envio($, 'sub-1', 'primeira')
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  await recebidaPeloSubagente($, 'sub-1', 'primeira')
+  expect(await contexto(aviso($)), 'o aviso da entrega').toContain('recebimento confirmado')
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+  await envio($, 'sub-1', 'segunda')
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  await recebidaPeloSubagente($, 'sub-1', 'segunda')
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  esperarEstado(p, 'Um', 'andamento')
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
 })

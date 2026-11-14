@@ -110,6 +110,8 @@ Na ordem de `register.tsx`:
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
+| `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
+| `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
 | `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
@@ -118,6 +120,23 @@ Na ordem de `register.tsx`:
 
 Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
 elas (por isso cada uma marca `reminders.planned` por conta própria).
+
+Carta a um subagente (pendência 1, 2026-11-14; decisão do usuário 2026-11-13, "Cinza \"não entregue\"
+(Recomendado)"): o `SendMessage` cujo `to` não é `local_…` e casa com um agente de `$.agent.list()`
+(pelo `id` ou pelo `name`, sem teammate) grava `Send.agent`. `watchSends` pula esses envios (uma sessão de
+mesmo nome não os confirma nem os dá por arquivados). Entregue (`takeSubSend`): no `session.receive` do
+subagente ou na retomada dele (`agent.spawn` com `resume`, o `prompt` é a mensagem), casando o texto do
+envio com o recebido (sem casamento, o mais antigo, só para a mensagem do loop principal e a retomada); a
+tarefa de origem fecha como em `watchSends`, salvo se dela ainda roda um subagente (fecha com o fim dele,
+`settleBySubs`). Não entregue (`strandedSends`, na releitura, depois de `checkSubs`): o cartão do
+subagente encerrado há `SUB_CONFIRM` ms ou mais e a lista do motor sem ele `running`/`pending`/`waiting`/
+`idle` marcam `cut` e `lost`; com o turno terminado, roda `settleBySubs`. A espera existe porque no fim
+normal o motor retoma o subagente com a mensagem encalhada: marcar na hora pintaria cinza e logo verde.
+Fatos do motor (2.1.321, lidos no binário): na fila, a resposta diz "queued for delivery to X at its next
+tool round"; a drenagem chama o `session.receive` com o `agentId` do subagente; o subagente que conclui com
+mensagem pendente é retomado pelo `agent.spawn` com `resume`; o parado ou que falhou não é retomado
+(dedução, no checklist do app: `envios.subagente-no-app`). `takenNote` fala do subagente com
+`SESSION.takenSub` e `SESSION.lostSub`; o aviso da fila, `SEND.queuedSub`.
 
 ### Fluxo de dados
 

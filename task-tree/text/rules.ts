@@ -224,6 +224,10 @@ export const SEND = {
     PANEL + `a mensagem para ${to} ficou na fila, sem confirmação de recebimento. ` +
     `Mantenha em andamento a tarefa do envio${task ? ` (${task})` : ''}: o painel avisa quando a ` +
     'sessão começar a tratá-la, e então a conclui sozinho (pode encerrar o turno).',
+  queuedSub: (to: string, task: string | undefined) =>
+    PANEL + `a mensagem para o subagente ${to} ficou na fila, sem confirmação de recebimento. ` +
+    `Mantenha em andamento a tarefa do envio${task ? ` (${task})` : ''}: o painel avisa quando ele a ` +
+    'receber, ou quando ele parar sem recebê-la.',
 }
 export const UNPLANNED =
   PANEL + 'há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
@@ -241,6 +245,15 @@ export const SESSION = {
   lost: (what: string[]) =>
     PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
     'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa (mcp__task-tree__done quando concluída).',
+  // The same for a message to one of this session's subagents: it received it (in its next round of
+  // tools, or resumed with it), or it ended without receiving it.
+  takenSub: (what: string[]) =>
+    PANEL + `recebimento confirmado, o subagente recebeu a mensagem: ${what.join('; ')}. ` +
+    'A tarefa do envio deixou de esperar por ela: o painel a concluiu, ou a conclui com o fim do subagente lançado dela.',
+  lostSub: (what: string[]) =>
+    PANEL + `mensagem não entregue, o subagente parou antes de recebê-la: ${what.join('; ')}. ` +
+    'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa. Se a mensagem ainda importa, ' +
+    'mande de novo (um subagente concluído é retomado com ela).',
   ended: (sessions: string[], open: string) =>
     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
