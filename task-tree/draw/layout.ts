@@ -875,7 +875,9 @@ export function trimToWork(p: Panel, level: number): Panel {
 
 // What a session publishes of a child (hooks/panel publishPanel): its raw panel (rawPanel, not the
 // drawing's panelOf) cut to its current work by the rule of trimToWork, without `whole` (the rest is
-// not published) and with only the turns of the tasks kept; its own children cut the same way. The
+// not published) and with only the turns of the tasks kept; its own children cut the same way, down to
+// DEEP levels below the publisher (the children, grandchildren and great-grandchildren): the session
+// above draws the great-grandchildren with their header only, so their own children go empty. The
 // waits, `received` and `sends` go whole. The person, 2026-11-14: "Enxugar e esvaziar (Recomendado)".
 export function trimPublished(p: Panel, level = 1): Panel {
   const cut = trimToWork({ ...p, children: [] }, level)
@@ -890,7 +892,7 @@ export function trimPublished(p: Panel, level = 1): Panel {
   return {
     ...p,
     groups,
-    children: level >= DEEP ? (p.children ?? []) : (p.children ?? []).map(c => (c.panel || c.tasks ? { ...c, panel: trimPublished(rawPanel(c), level + 1), tasks: undefined } : c)),
+    children: level >= DEEP ? [] : (p.children ?? []).map(c => (c.panel || c.tasks ? { ...c, panel: trimPublished(rawPanel(c), level + 1), tasks: undefined } : c)),
   }
 }
 

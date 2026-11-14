@@ -106,6 +106,28 @@ Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
+### sessoes.arquivada-nao-e-relida
+O arquivo de uma filha arquivada não é relido enquanto ela segue arquivada.
+
+- Dado uma sessão filha arquivada, já lida uma vez nesse estado
+- Quando o painel relê as sessões
+- Então o arquivo dela não é aberto de novo, e o cartão segue como estava (as tarefas, a palavra "arquivada", o anel apagado); desarquivada, volta a ser lida
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: toda leitura de 3 s relia o arquivo de cada arquivada); higiene, sem mudar sessoes.filha-arquivada-interrompe.
+Código: io/host.ts
+Estado: coberto
+
+### sessoes.publicado-corta-a-profundidade
+O painel publicado leva só os níveis de sessões que a sessão de cima ainda usa.
+
+- Dado uma cadeia de sessões abertas umas pelas outras, com mais de três níveis abaixo desta
+- Quando esta sessão publica o painel
+- Então o arquivo leva as filhas, as netas e as bisnetas com as tarefas de cada uma, e nada abaixo das bisnetas; o painel desta sessão e o cartão dela na mãe mostram o mesmo de antes
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: as filhas eram republicadas aninhadas sem corte, além da profundidade que o desenho segue).
+Código: hooks/panel.ts, draw/layout.ts
+Estado: coberto
+
 ### sessoes.rodada-descartada-fora-da-contagem
 A rodada descartada sai da contagem.
 

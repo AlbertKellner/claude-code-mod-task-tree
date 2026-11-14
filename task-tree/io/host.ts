@@ -14,6 +14,7 @@ import type { Child, GitInfo, Panel, Published, Rate } from '../types'
 import type { Link } from '../state/durability'
 import { MAIN } from '../draw/layout'
 import { readPublished } from './publish'
+import { debugOnce } from './log'
 
 // A row of the app's list (list_sessions): what this module reads of it.
 export type HostRow = { sessionId: string; name?: string; title?: string; isRunning?: boolean; isArchived?: boolean; startedBy?: string }
@@ -27,11 +28,16 @@ export function parseSessions(r: { content: { type?: string; text?: string }[]; 
   if (r.isError) throw new Error(body)
   return /^\s*No .*sessions? found/i.test(body) ? [] : JSON.parse(body)
 }
-// The app's list of linked sessions (archived ones included), or why it could not be read.
+// The app's list of linked sessions (archived ones included), or why it could not be read. A list that
+// comes at the limit asked may leave sessions out: said once in the debug log.
+export const LIST_LIMIT = 100
 export async function listSessions($: any): Promise<{ rows: unknown } | { error: string }> {
   try {
-    const r = await $.mcp.call('ccd_session_mgmt', 'list_sessions', { linked: true, include_archived: true, limit: 100 })
-    return { rows: parseSessions(r) }
+    const r = await $.mcp.call('ccd_session_mgmt', 'list_sessions', { linked: true, include_archived: true, limit: LIST_LIMIT })
+    const rows = parseSessions(r)
+    if (Array.isArray(rows) && rows.length >= LIST_LIMIT)
+      await debugOnce($, `task-tree: a lista de sessões veio com ${LIST_LIMIT} linhas (o limite pedido); pode haver sessões fora dela`)
+    return { rows }
   } catch (err) {
     return { error: String(err).slice(0, 200) }
   }
@@ -55,7 +61,8 @@ export function deducedOwn(rows: HostRow[]): string | undefined {
 
 // What the sessions' published files say, by session id: which wait on the person, their panels,
 // the share of context used, their model and effort, their output rate, and their repository and branch.
-export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo> }
+// `skipped`: the archived sessions whose file was not read (see readFiles): they keep what they had.
+export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo>; skipped?: string[] }
 // A published file's panel: its groups (and the rest the file has), or, from before groups, its
 // `tasks` as the main group; none when the file has neither.
 export function panelOf(file: Published): Panel | undefined {
@@ -75,9 +82,16 @@ export function panelOf(file: Published): Panel | undefined {
 // Reads every session's published file. The host tells running from idle only; whether a session
 // waits on the person, its own task-tree publishes. No file, or one this version cannot read: the
 // session shows by the host's row alone. A file without the model asks the app for it (engineOf).
-export async function readFiles($: any, mine: HostRow[]): Promise<Read> {
-  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {} }
+// An archived session already read while archived (its entry in `known` says so) is not read again:
+// it keeps what it had (deriveChildren); unarchived, it is read again. After a restart the children
+// come back from the store without `archived`, so the first read reads them all.
+export async function readFiles($: any, mine: HostRow[], known: Child[] = []): Promise<Read> {
+  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {}, skipped: [] }
   for (const r of mine) {
+    if (r.isArchived === true && known.some(k => k.id === r.sessionId && k.archived === true)) {
+      read.skipped!.push(r.sessionId)
+      continue
+    }
     try {
       const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
       if (file.waiting) read.waiting.push(r.sessionId)
@@ -151,6 +165,8 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
   const children = mine.map(r => {
     const before = known.find(k => k.id === r.sessionId)
     const seen = r.isRunning === true || r.isArchived === true || read.waiting.includes(r.sessionId)
+    // Not read this time (archived, see readFiles): what its file said last time stays.
+    const skipped = read.skipped?.includes(r.sessionId) === true
     return {
       starting: before?.starting === true && !seen ? true : undefined,
       id: r.sessionId,
@@ -159,11 +175,11 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       running: r.isRunning === true,
       archived: r.isArchived === true,
       waiting: r.isArchived !== true && read.waiting.includes(r.sessionId),
-      aborted: read.aborted.includes(r.sessionId) || undefined,
+      aborted: (skipped ? before?.aborted === true : read.aborted.includes(r.sessionId)) || undefined,
       context: read.contexts[r.sessionId] ?? before?.context,
       engine: read.engines[r.sessionId] ?? before?.engine,
       // As its file says it at each read: off once it no longer does.
-      ultracode: read.ultras.includes(r.sessionId) || undefined,
+      ultracode: (skipped ? before?.ultracode === true : read.ultras.includes(r.sessionId)) || undefined,
       rate: read.rates[r.sessionId] ?? before?.rate,
       git: read.gits[r.sessionId] ?? before?.git,
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,

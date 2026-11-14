@@ -105,14 +105,14 @@ async function readChildren($: any) {
   const mine = mineOf(rows, self)?.filter(r => !isLeftBehind(r.sessionId))
   if (mine === undefined) return
   // 2. Their files.
-  const read = await readFiles($, mine)
+  const { value: cur } = await $.state.get(childrenState)
+  const read = await readFiles($, mine, cur ?? [])
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
   // it opened them on (see endedNote). The state is written only when the children changed: a poll
   // with nothing new (the usual one, every 3 s) derives the same list, and a write of it would cost
   // the whole value crossing to the host (220 KB in the real case) and a redraw. Compared first, then
   // written by `update`, derived again over the value it hands (a write made meanwhile, a send's
   // round, is not lost), and the sessions that just ended come from that same derivation.
-  const { value: cur } = await $.state.get(childrenState)
   const first = deriveChildren(mine, cur ?? [], read, keptLink, now)
   let ended = first.ended
   const changed = JSON.stringify(first.children) !== JSON.stringify(cur ?? [])

@@ -2245,6 +2245,16 @@
       "data": "2026-10-30",
       "motivo": "carta de recebimento na linha do pedido"
     },
+    "task-tree/tests/sessoes.test.ts::o arquivo de uma filha arquivada não é relido a cada leitura, e o cartão segue igual": {
+      "regras": [
+        "sessoes.arquivada-nao-e-relida"
+      ],
+      "hash": "540f3ae15791d4cb",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: higiene da leitura das filhas"
+    },
     "task-tree/tests/sessoes.test.ts::o arquivo publicado não leva a cópia antiga das tarefas": {
       "regras": [
         "sessoes.publicado-enxuto"
@@ -2304,6 +2314,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/sessoes.test.ts::o painel publicado leva três níveis de sessões abaixo desta e corta o resto": {
+      "regras": [
+        "sessoes.publicado-corta-a-profundidade"
+      ],
+      "hash": "17fd073da4c5b69f",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: higiene do arquivo publicado"
     },
     "task-tree/tests/sessoes.test.ts::o pedido que saiu do trabalho volta com o cartão da filha ao abrir \"+N pedidos anteriores\"": {
       "regras": [
@@ -3456,10 +3476,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "592be775a88ff109",
+      "hash": "aa300d98d6108ebb",
       "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "host serve o arquivo publicado da própria sessão"
+      "motivo": "host ganha leituras(id), a contagem de leituras do arquivo publicado; nada do que os testes existentes usam muda"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",

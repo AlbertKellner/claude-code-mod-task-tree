@@ -87,7 +87,8 @@ const CASA = 'C:/u'
 // `proprio()`: o último arquivo que esta sessão publicou (o que a sessão mãe lê e desenha no cartão).
 // `pedidosAoApp()`: as ferramentas do app que o mod chamou (mcp.call), na ordem.
 // `gravados()`: o último texto gravado em cada arquivo publicado, pelo id da sessão (as outras também).
-export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[]; gravados(): Record<string, string> }
+// `leituras(id)`: quantas vezes o arquivo publicado daquela sessão foi lido (fs.read).
+export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[]; gravados(): Record<string, string>; leituras(id: string): number }
 // `pasta`: o que o host lista na pasta dos arquivos publicados (fs.list); `listaFalha`: a lista de
 // todas as sessões (list_sessions sem `linked`) responde erro. O get_session de um id que não é
 // desta sessão nem de `sessoes` responde o erro do app ("Session <id> not found.").
@@ -116,6 +117,7 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
   const recebidas: Record<string, { from: string; at: number }[]> = {}
   const abertas: string[] = []
   const pedidos: string[] = []
+  const lidas: Record<string, number> = {}
   const texto = (t: string) => ({ value: { content: [{ type: 'text', text: t }] } })
   on('mcp.call', (_$: any, e: any) => {
     pedidos.push(String(e.tool))
@@ -137,6 +139,7 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
   on('fs.read', (_$: any, e: any) => {
     // O host devolve o caminho com a barra do sistema (\ no Windows).
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
+    if (m) lidas[m[1]!] = (lidas[m[1]!] ?? 0) + 1
     if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
@@ -185,6 +188,7 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     proprio: () => meu,
     pedidosAoApp: () => [...pedidos],
     gravados: () => ({ ...gravados }),
+    leituras: id => lidas[id] ?? 0,
   }
 }
 

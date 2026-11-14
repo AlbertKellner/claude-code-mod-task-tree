@@ -89,6 +89,56 @@ test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha c
   esperarEstado(p, 'Pai da filha', 'concluida')
 })
 
+// Regra: sessoes.arquivada-nao-e-relida
+test('o arquivo de uma filha arquivada não é relido a cada leitura, e o cartão segue igual', async ($: any, on: any) => {
+  const pai = tarefa('P', 'Pai da filha', 'aberta', [tarefa('P/1', 'Feita', 'feita'), tarefa('P/2', 'Aberta')])
+  const h = await abrir($, on, { rodando: false, arquivada: true, painel: { tasks: [pai] } })
+  const antes = await painel($)
+  const n = h.leituras(K1)
+  expect(n, 'a filha arquivada foi lida uma vez').toBeGreaterThan(0)
+  await aviso($)
+  await aviso($)
+  expect(h.leituras(K1)).toBe(n)
+  const depois = await painel($)
+  expect(emTexto(depois)).toBe(emTexto(antes))
+  esperarPalavra(depois, 'filha-um', 'arquivada')
+  h.filha(K1).arquivada = false
+  h.filha(K1).rodando = true
+  await aviso($)
+  expect(h.leituras(K1)).toBeGreaterThan(n)
+  const viva = await painel($)
+  expect(linha(viva, 'filha-um').texto, emTexto(viva)).not.toContain('arquivada')
+})
+
+// Regra: sessoes.publicado-corta-a-profundidade
+test('o painel publicado leva três níveis de sessões abaixo desta e corta o resto', async ($: any, on: any) => {
+  fixar(on)
+  const grupo = (titulo: string) => [{ agent: '', label: '', tasks: [tarefa('1', titulo, 'iniciada')] }]
+  const sessao = (id: string, children: any[]): any => ({ id, name: id, title: id, anchor: '1', running: true, archived: false, panel: { groups: grupo(`Tarefa ${id}`), waits: [], children } })
+  const c4 = sessao('C4', [])
+  const c3 = sessao('C3', [c4])
+  const c2 = sessao('C2', [c3])
+  const c1 = sessao('C1', [c2])
+  const arquivo = { version: 1, waiting: false, waits: [], groups: grupo('Tarefa K1'), children: [c1] }
+  const h = host(on, [{ id: K1, nome: 'K1', publicado: JSON.stringify(arquivo) }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const k1 = h.proprio().children[0]
+  expect(k1.id).toBe(K1)
+  const p1 = k1.panel.children[0]
+  expect(p1.id).toBe('C1')
+  expect(JSON.stringify(p1.panel.groups)).toContain('Tarefa C1')
+  const p2 = p1.panel.children[0]
+  expect(p2.id).toBe('C2')
+  expect(JSON.stringify(p2.panel.groups)).toContain('Tarefa C2')
+  expect(p2.panel.children).toEqual([])
+  const p = await painel($)
+  for (const nome of ['K1', 'C1', 'C2', 'C3']) expect(emTexto(p)).toContain(nome)
+})
+
 // Regra: sessoes.busto-so-no-pai
 test('o busto da sessão só na tarefa de que o cartão pende', async ($: any, on: any) => {
   await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }, '2.1')

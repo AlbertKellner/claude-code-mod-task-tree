@@ -204,7 +204,8 @@ principal porque a recarga do mod cancela o intervalo), depois de um `start_sess
 app, no envio a um `local_` que não está entre as filhas e quando a lista está velha (`refreshStale`).
 Uma leitura por vez: a pedida durante outra só marca `readAgain` e espera a em curso, que roda mais uma
 vez no fim (`reading`, `readAgain`, variáveis do módulo). Passos: (1) `listSessions` (`list_sessions` com
-`linked: true, include_archived: true, limit: 100`; falha vai para `childrenError`, mostrada só no app
+`linked: true, include_archived: true, limit: 100`, `LIST_LIMIT`; a lista que vem com 100 linhas ou
+mais vai ao log de depuração uma vez por módulo, porque pode haver sessões fora dela; falha vai para `childrenError`, mostrada só no app
 desktop, `inDesktopApp`, e gravada só quando o texto muda); `watchSends` antes de qualquer retorno
 (destino que publica `received`: cada envio pendente, do mais antigo ao mais novo, casa com a SUA
 mensagem recebida desta sessão, a mais antiga ainda não casada com `at` ≥ envio, uma vez só
@@ -213,7 +214,10 @@ parada-depois-rodando; um envio confirmado fecha a tarefa de origem se ela está
 sem subtarefa aberta); lista vazia zera `children` (uma vez, não a cada poll, e publica), salvo a
 recém-aberta ainda no prazo (`justOpened`); `mineOf` (as linhas
 cujo `startedBy` é um id que a lista não traz, o desta sessão); (2) `readFiles` (cada arquivo
-publicado por `readPublished`; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
+publicado por `readPublished`, salvo o da arquivada que a entrada conhecida já dava como arquivada:
+essa vai em `skipped` e o `deriveChildren` mantém o que ela tinha, inclusive `aborted` e `ultracode`;
+desarquivada, volta a ser lida; depois de um reinício as filhas voltam do store sem `archived` e a
+primeira leitura lê todas; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
 (3) `deriveChildren` (as filhas a partir das linhas, dos arquivos, das conhecidas antes e das
 ligações do store por `keptLink`; a entrada `starting` que a lista ainda não traz fica enquanto é
 recente, `STARTING_GRACE` = 120 s do `openedAt`; `ended` = as que corriam ou esperavam e pararam, exceto
@@ -321,6 +325,9 @@ leitores antigos), `groups`, `waits`, `children`, `context` (`{ percent, at }` d
 `engine`, `panes` (`$.ui.panes()`: id, `isPlaced`, `isShown`), `renderError`, `drawSize`, `rows`,
 `work`, `received`, `sends` (só os não tomados). `JSON.stringify` omite o que está `undefined`.
 `publishPanel` junta tudo do state (sete `$.state.get`) e de `drawn`, e qualquer falha vai só ao log.
+As filhas vão cortadas (`trimPublished`, `draw/layout.ts`) e só até `DEEP` níveis abaixo de quem publica
+(filhas, netas e bisnetas, com o painel de cada uma); o `children` das bisnetas vai vazio, porque a mãe
+de quem publica desenha as bisnetas só com o cabeçalho. O state desta sessão não é cortado.
 
 Gravado só quando muda (fase 6): `publishWait` monta o corpo sem `at`, `context.at` e `panes`, compara
 o JSON dele mais o `percent` do contexto com o último publicado para o caminho (`lastPublished`,
