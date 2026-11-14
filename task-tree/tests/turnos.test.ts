@@ -5,7 +5,7 @@ import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
 import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, painel } from './kit/leitura'
-import { aviso } from './kit/cenario'
+import { aviso, falha } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
 import { AGORA } from './kit/ambiente'
 import { comHistorico } from './kit/leitura'
@@ -629,4 +629,52 @@ test('o pedido só com resumo sai de vista com os pedidos antigos quando um pedi
   const h = await comHistorico($, 2)
   expect(h.some(l => l.titulo === 'Pergunta rápida'), emTexto(h)).toBe(true)
   expect(h.some(l => l.texto.includes('↩') && l.texto.includes('Resposta rápida')), emTexto(h)).toBe(true)
+})
+
+// O turno que morre por erro deixa ✕ "falhou". Origem: decisão do usuário de 2026-11-14 ("✕ \"falhou\"
+// (Recomendado)"): era tratado como fim normal (◷).
+
+// Regra: turnos.turno-que-falha-deixa-falhou
+test('o turno que morre por erro deixa a tarefa em andamento ✕ "falhou", fora da contagem, até o start nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await falha($)
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).toContain('falhou')
+  esperarEstado(p, 'Um', 'pendente')
+  esperarEstado(p, 'Dois.dois', 'pendente')
+  expect(cabecalho(p).total, emTexto(p)).toBe(2)
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(1)
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(0)
+  await aviso($)
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).toContain('falhou')
+  semNadaAceso(p)
+  await pedido($, 'segue')
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).not.toContain('falhou')
+  expect(cabecalho(p).total, emTexto(p)).toBe(3)
+})
+
+// Regra: turnos.turno-que-falha-deixa-falhou
+test('o done na tarefa que falhou, sem start, a conclui', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await falha($)
+  await pedido($, 'segue')
+  const r = await done($, ['2.1'])
+  expect(r.erro, r.texto).toBe(false)
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'concluida')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).not.toContain('falhou')
 })

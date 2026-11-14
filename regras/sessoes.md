@@ -21,12 +21,13 @@ Estado: coberto
 O cartão diz em uma palavra o estado da filha, quando ela não está só trabalhando.
 
 - Dado uma filha
-- Quando ela trabalha, espera a pessoa, para com tarefas abertas, para com a origem fechada e só pendentes, termina ou é arquivada
-- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "encerrada", "concluída" ou "arquivada"
+- Quando ela trabalha, espera a pessoa, para com tarefas abertas, para porque o turno dela morreu por erro, para com a origem fechada e só pendentes, termina ou é arquivada
+- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "falhou", "encerrada", "concluída" ou "arquivada"
 
 Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); o teste da filha arquivada, que cobre também esta regra, passa a ver o pai ✓.
 Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"): a palavra "encerrada".
+Reescrito: 2026-11-14, decisão do usuário ("✕ \"falhou\" (Recomendado)": "o cartão desta sessão na mãe indica a falha"): a palavra "falhou". Os testes existentes não mudam.
 Estado: coberto
 
 ### sessoes.um-cartao-por-mensagem

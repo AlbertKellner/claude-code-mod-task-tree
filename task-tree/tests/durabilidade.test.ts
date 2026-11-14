@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
 import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente } from './kit/ambiente'
+import { falha } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
@@ -1009,4 +1010,34 @@ test('a mensagem de outra sessão e o aviso do app não reabrem', async ($: any,
   await mensagemDe($, K1, 'oi')
   await aviso($)
   expect(j.aberturas).toBe(0)
+})
+
+// O turno que morreu por erro, num processo novo (decisão do usuário de 2026-11-14: "✕ \"falhou\" (Recomendado)").
+const FALHA: Record<string, unknown> = {}
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('turno que falhou no reinício, 1/2: o turno morre por erro com uma tarefa iniciada', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FALHA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2.1'])
+  await falha($)
+  expect(temPainel(FALHA), JSON.stringify(Object.keys(FALHA))).toBe(true)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('turno que falhou no reinício, 2/2: a iniciada segue ✕ "falhou" e o pedido seguinte pede para replanejar dizendo o erro', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FALHA)
+  exigir(temPainel(FALHA))
+  await iniciarSessao($)
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  expect(linha(p, 'Dois.um').texto, emTexto(p)).toContain('falhou')
+  semAndamento(p)
+  const r = await pedido($, 'segue')
+  expect((r?.context ?? []).join(' | ')).toContain('terminou com erro')
 })

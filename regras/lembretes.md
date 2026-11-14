@@ -137,3 +137,14 @@ Os textos ao modelo dizem que a tarefa que ficou aguardando no fim do turno só 
 
 Origem: decisão do usuário, 2026-11-14 ("Seguir ◷ até o start (Recomendado)").
 Estado: coberto
+
+### lembretes.replanejar-apos-turno-que-falhou
+Depois de um turno que morreu por erro, a mensagem seguinte pede para replanejar e diz o erro.
+
+- Dado um turno que terminou por erro de API, limite de contexto ou recusa, com tarefas abertas
+- Quando chega a mensagem seguinte da pessoa, ou um prompt que não abre pedido
+- Então a mensagem da pessoa traz o pedido de replanejar dizendo que o turno terminou com erro, com a lista das abertas, uma vez; o prompt que não abre pedido lista as tarefas que ficaram ✕ "falhou" e diz que só voltam com start nelas; a mensagem de outra sessão segue com o pedido de replanejar dela
+
+Origem: decisão do usuário, 2026-11-14 ("✕ \"falhou\" (Recomendado)": "a mensagem seguinte recebe o pedido de replanejar").
+Código: hooks/panel.ts, state/durability.ts
+Estado: coberto

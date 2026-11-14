@@ -185,3 +185,14 @@ O pedido respondido sem tarefa mostra o resumo dele numa linha própria, e não 
 
 Origem: decisão do usuário, 2026-11-14 ("Pedido próprio (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a resposta de um turno sem plano era gravada no último pedido com tarefas).
 Estado: coberto
+
+### turnos.turno-que-falha-deixa-falhou
+O turno que morre por erro deixa a tarefa em andamento ✕ "falhou", até o start nela.
+
+- Dado uma tarefa iniciada e aberta
+- Quando o turno da sessão termina por erro de API, limite de contexto ou recusa (não por Esc)
+- Então ela fica ✕ com a palavra "falhou", fora da contagem, como a parada com Esc: segue assim nos turnos seguintes até o start nela (que tira a palavra) ou o done (que a conclui); as pendentes seguem ○; a mensagem seguinte pede o replano (lembretes.replanejar-apos-turno-que-falhou); o cartão desta sessão na mãe diz "falhou" (sessoes.palavra-de-estado-do-cartao)
+
+Origem: decisão do usuário, 2026-11-14 ("✕ \"falhou\" (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o turno que morria por erro era tratado como fim normal, ◷). Aplica ao erro a decisão de 2026-11-12 do Esc ("Segue ✕ até novo start (Recomendado)").
+Código: state/tasks.ts, state/durability.ts, text/rules.ts
+Estado: coberto

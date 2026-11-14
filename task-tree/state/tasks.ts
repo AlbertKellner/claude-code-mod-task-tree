@@ -61,8 +61,11 @@ export const edit = (list: TaskNode[], id: string, fn: (t: TaskNode) => TaskNode
 export const finish =
   (now?: number) =>
   (t: TaskNode): TaskNode => {
-    // The mark of the person's stop goes with the close (see park).
-    const { stopped: _, ...rest } = t
+    // The mark of the person's stop goes with the close (see park), and the "falhou" of a turn that
+    // died by an error on an open task with it.
+    const { stopped: _, ...kept } = t
+    const { failed: __, ...open } = kept
+    const rest = t.status === 'open' ? open : kept
     return {
       ...rest,
       status: t.status === 'interrupted' ? 'interrupted' : 'done',
@@ -77,14 +80,16 @@ export const finish =
 // left it, interrupted, in every turn (halt and stay in draw/layout). A parent started itself is no
 // longer started (it lit its first open task again at the next prompt): only a start of it lights it
 // again. The person, 2026-11-12: "Segue ✕ até novo start (Recomendado)".
+// A turn that died by an error (an API failure, the context limit, a refusal) stops the same way, the
+// leaf marked `failed` too: drawn ✕ "falhou" (the person, 2026-11-14: "✕ \"falhou\" (Recomendado)").
 export const park =
-  (at?: number) =>
+  (at?: number, failed = false) =>
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
     // Only what is in progress now: a task an earlier normal end left waiting (rest) and no start
     // began again stays waiting (the person, 2026-11-14: "Seguir ◷ até o start (Recomendado)").
-    if (t.children.length === 0) return t.started !== undefined ? { ...t, stopped: true, endedAt: stop(t, at) } : t
-    return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(park(at)) }
+    if (t.children.length === 0) return t.started !== undefined ? { ...t, stopped: true, ...(failed ? { failed: true } : {}), endedAt: stop(t, at) } : t
+    return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(park(at, failed)) }
   }
 // The turn ended normally: what was in progress waits (◷) on the task itself, its clock stopped at the
 // end, until a start begins it again (begin) or a done closes it (finish); the next message, a turn
@@ -142,9 +147,10 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
 export function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
   return list.map(t => {
     if (t.id === id) {
-      // A task the person stopped (`stopped`) is in progress again: the mark goes, its clock goes on.
+      // A task the person stopped (`stopped`) is in progress again: the mark goes (and the "falhou" of a
+      // turn that died by an error), its clock goes on.
       if (t.status === 'open') {
-        const { stopped: _, ...open } = t
+        const { stopped: _, failed: __, ...open } = t
         return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
       }
       const { failed: _, stopped: __, ...rest } = t

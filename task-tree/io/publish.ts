@@ -65,7 +65,7 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
     ...(list<Send>(f.sends) ? { sends: list<Send>(f.sends) } : {}),
     ...(turn && typeof turn === 'object' && (typeof turn.ended === 'number' || turn.ended === null)
-      ? { turn: { ended: turn.ended as number | null, aborted: turn.aborted === true, replan: turn.replan === true } }
+      ? { turn: { ended: turn.ended as number | null, aborted: turn.aborted === true, replan: turn.replan === true, ...(turn.failed === true ? { failed: true } : {}) } }
       : {}),
   }
   return { ok: out }

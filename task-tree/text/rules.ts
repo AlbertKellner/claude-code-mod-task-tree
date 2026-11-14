@@ -55,7 +55,8 @@ export const RULES = [
   '- Uma tarefa em andamento quando o usuário para o turno (Esc) fica interrompida no painel até um novo ' +
     'mcp__task-tree__start nela. Nada mais a reacende: nem a mensagem seguinte, nem o start em outra tarefa, ' +
     'nem um turno aberto por aviso automático, por retorno de subagente ou por tarefa em segundo plano que ' +
-    'terminou. Para retomá-la, chame start nela antes de trabalhar; se ela já terminou, done a conclui sem start.',
+    'terminou. Para retomá-la, chame start nela antes de trabalhar; se ela já terminou, done a conclui sem start. ' +
+    'O mesmo vale quando o turno termina com erro (falha da API, limite de contexto): a tarefa fica ✕ "falhou" até o start nela.',
   '- Uma tarefa em andamento quando o turno termina normalmente fica aguardando (◷) no painel até um novo ' +
     'mcp__task-tree__start nela: nem a mensagem seguinte nem um turno aberto por aviso automático a reacende. ' +
     'Para seguir nela, chame start nela antes de trabalhar; se ela já terminou, done a conclui sem start.',
@@ -166,6 +167,23 @@ export const PROMPT = {
     `interrompidas no painel: ${list}. Um turno aberto por aviso automático ou por retorno de subagente, como ` +
     'este, não as retoma: cada uma só volta a andamento com mcp__task-tree__start nela. Se for seguir numa ' +
     'delas agora, chame start nela antes; a que já terminou, feche com mcp__task-tree__done.',
+  // Tasks in progress when a turn died by an error, still ✕ "falhou" (a turn that opens no request).
+  failedTasks: (list: string) =>
+    PANEL + 'estas tarefas estavam em andamento quando um turno terminou com erro e seguem ✕ "falhou" no ' +
+    `painel: ${list}. Cada uma só volta a andamento com mcp__task-tree__start nela; a que já terminou, feche ` +
+    'com mcp__task-tree__done.',
+  // The last turn died by an error (an API failure, the context limit) and the person wrote next (the
+  // person, 2026-11-14: "✕ \"falhou\" (Recomendado)": "a mensagem seguinte recebe o pedido de replanejar").
+  failedByError: (list: string, answered: boolean) =>
+    (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
+    PANEL + 'o turno anterior terminou com erro (falha da API ou limite de contexto) antes de concluir, e esta é a ' +
+    'mensagem seguinte. Antes de seguir, replaneje o painel; esta mensagem abre um pedido novo. O que estava em ' +
+    'andamento ficou ✕ "falhou" e só volta com mcp__task-tree__start nele. Se esta mensagem continua o trabalho ' +
+    `(tarefas abertas: ${list}), siga essas tarefas pelos ids que já têm, com mcp__task-tree__start e ` +
+    'mcp__task-tree__done, e planeje só o que ela pede de novo, com mcp__task-tree__plan e ids novos, na ordem em ' +
+    'que vai executar: um plan com o id de um nível 1 da lista o deixaria como histórico, com as abertas ' +
+    'interrompidas, e criaria uma cópia toda pendente. Se ela muda de rumo, feche ou cancele o que ela substitui ' +
+    'e planeje só o pedido novo. Depois siga etapa por etapa com start e done.',
   // The last turn was interrupted (stopped) and a message of another session came next (the
   // person's rule): the model replans the panel, joining what the interrupted work left open with
   // what the message asks, before going on. The person's own message gets interruptedByYou.

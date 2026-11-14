@@ -23,6 +23,7 @@ const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
+const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 
 // The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
@@ -129,6 +130,10 @@ function answeredTurn(g: Group, summary: boolean): Turn | undefined {
 export async function turnComplete($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   const agent = e.agentId
+  // A turn of the main loop that died by an error (an API failure, the context limit) or a refusal is
+  // stopped as the Esc stops it, its word "falhou" (the person, 2026-11-14: "✕ \"falhou\" (Recomendado)").
+  const failed = !agent && e.isAborted !== true && (e.reason === 'error' || e.reason === 'refusal')
+  const halted = e.isAborted === true || failed
   // A question or plan dialog never outlives the turn that opened it (one answered by a chat
   // message may end without the call returning here).
   await dropAsked($, agent ?? MAIN)
@@ -144,7 +149,7 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   const given = agent ? undefined : await lastBrief($)
   if (recap !== undefined) await $.state.set(recapState, '')
   if (given !== undefined) await $.state.set(briefState, '')
-  if (!agent && !e.isAborted) {
+  if (!agent && !halted) {
     const said = (recap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
     const short = given !== undefined ? brief(given) : undefined
     // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
@@ -169,7 +174,7 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
   if (!agent && !e.isAborted) await settleBySubs($)
   // What it left in progress waits on the task itself until its start (rest, state/tasks).
-  if (!agent && !e.isAborted) {
+  if (!agent && !halted) {
     await ensureGroups($)
     const { value: now = [] } = await $.state.get(groupsState)
     if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
@@ -178,20 +183,22 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // The turn's output rate stays as it is, lit (the person, 2026-11-10: "Fica aceso").
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.
-  if (!agent) await $.state.set(turnAbortedState, e.isAborted === true)
+  if (!agent) await $.state.set(turnAbortedState, halted)
+  // Why: an error (the next request's reminder says so), until the next request.
+  if (!agent) await $.state.set(turnFailedState, failed)
   // The replan the stop asks for waits on the next request (prompt.submit clears it there): a turn
   // that opened no request (the app's notice, a hand-back) and ended normally leaves it as it is
   // (the person, 2026-10-27: "precisa replanejar quando eu interrompo e envio nova mensagem").
-  if (!agent && e.isAborted === true) await $.state.set(replanDueState, true)
+  if (!agent && halted) await $.state.set(replanDueState, true)
   // What the stop found in progress is marked on the tasks themselves (park), in the state and the
   // store: it reads as interrupted until its next start, through the turns that open no request and
   // those that start another task (the person, 2026-11-12: "Segue ✕ até novo start (Recomendado)").
   // The groups come back from the store first (a respawn with no session.start).
-  if (!agent && e.isAborted === true) {
+  if (!agent && halted) {
     await ensureGroups($)
     const { value: now = [] } = await $.state.get(groupsState)
     if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
-      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(endedAt)) } : g)))
+      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(endedAt, failed)) } : g)))
   }
   // The end in the store too: a new process draws it as stopped (see saveTurn).
   if (!agent) await saveTurn($)

@@ -113,7 +113,7 @@ Na ordem de `register.tsx`:
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`) |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -270,6 +270,7 @@ A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o
 | `recap` | state | | none | | o `recap` do `wrap_up` até o fim do turno |
 | `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`) |
 | `turnEnded` | state | | none | | a hora em que o turno desta sessão terminou, até o próximo prompt (então `null`): o que ela deixou aberto é desenhado interrompido, sem relógio |
+| `turnFailed` | state+store | `turn` (campo) | current | start, resume, first-use | a última parada do loop principal foi um turno que morreu por erro (falha da API, limite de contexto, recusa), até o próximo pedido: o lembrete dele diz o erro (`PROMPT.failedByError`); falso em registro antigo e depois de `parkDeadTurn` |
 | `sessions` | store | `sessions` | none | | as sessões com painel guardado, a atual primeiro, `KEEP` = 30 |
 
 Fusões: `current` (o state vence; o store só com state vazio), `fill` (cada sessão do state ganha
@@ -1801,3 +1802,12 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   no próprio pedido quando há resumo (linha de pedido ✓ sem contagem, barra nem tempo, com o ↩ embaixo, fora
   do cabeçalho; fora de vista com os pedidos anteriores ao primeiro desenhado), e em nenhum sem resumo.
   `openTurn` guarda os 20 mais recentes; num cartão dividido em rodadas o ↩ vai à rodada dele.
+
+- Turno que morre por erro (2026-11-14, "✕ \"falhou\" (Recomendado)"): o turno do loop principal que
+  terminava com `reason` `error` ou `refusal` era tratado como fim normal (◷). Agora é parado como no Esc:
+  `park(at, true)` marca a folha em andamento `stopped` e `failed` (✕ "falhou", fora do x/y, até o start
+  ou o done, que tiram as duas marcas), `turnAborted` e `replanDue` ficam verdadeiros e `turnFailed` diz o
+  motivo até o pedido seguinte (no registro `turn` do store e no arquivo publicado, `turn.failed`; o
+  `parkDeadTurn` o deixa falso). A mensagem seguinte da pessoa recebe `PROMPT.failedByError`; os turnos que
+  não abrem pedido listam as que falharam em `PROMPT.failedTasks`; o cartão da filha parada assim diz
+  "falhou" (`anyFailed`).

@@ -76,6 +76,9 @@ export const halt =
   }
 // Whether a task the person stopped (`stopped`) is still waiting for its start: open as the state
 // keeps it, or read as interrupted by a drawing (halt and stay keep the mark on that copy).
+// A task a turn that died by an error stopped (`stopped` and `failed`, open as the state keeps it or read as interrupted by a drawing, as anyStopped): the card of a stopped
+// session says "falhou" instead of "parada" (the person, 2026-11-14: "✕ \"falhou\" (Recomendado)").
+export const anyFailed = (list: TaskNode[]): boolean => flat(list).some(t => (t.status === 'open' || t.halted === true) && t.stopped === true && t.failed === true)
 export const anyStopped = (list: TaskNode[]): boolean =>
   list.some(t => (t.stopped === true && (t.status === 'open' || t.halted === true)) || anyStopped(t.children))
 // The turn in course touches nothing but what the person stopped in an earlier one (`stopped`): until
@@ -1290,7 +1293,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
     // A card of one round (split) speaks for its group only: done, it shows the check, with no
     // word that would say the whole session ended.
-    const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? 'parada' : c.part !== undefined ? undefined : 'concluída'
+    const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? (anyFailed(tasksOf(rawPanel(c).groups ?? [])) ? 'falhou' : 'parada') : c.part !== undefined ? undefined : 'concluída'
     const [cd, cn] = total(p, level + 1)
     const header: Row = {
       key: `${scope}s:${c.id}#${c.partAt ?? c.part ?? 0}`,

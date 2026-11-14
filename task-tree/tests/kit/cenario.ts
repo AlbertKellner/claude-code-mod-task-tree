@@ -59,6 +59,10 @@ export const fimDoTurno = ($: any, resposta = '') =>
 export const fimDoSubagente = ($: any, agente: string) =>
   $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: agente })
 
+// O turno que morre por erro (falha da API, limite de contexto): não é Esc.
+export const falha = ($: any) =>
+  $.turn.complete({ reason: 'error', answer: '', durationMs: 1, isAborted: false, turnId: 't' })
+
 // O turno parado pela pessoa (Esc, stop).
 export const esc = ($: any) =>
   $.turn.complete({ reason: 'end_turn', answer: '', durationMs: 1, isAborted: true, turnId: 't' })

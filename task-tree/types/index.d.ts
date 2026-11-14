@@ -30,12 +30,14 @@ export type TaskNode = {
   // A message task left out of a replan while its message is still queued: kept, drawn until delivered.
   kept?: boolean
   // Closed by the panel as interrupted because the subagent launched from it failed (hooks/agents,
-  // settleBySubs): drawn ✕ with "falhou" instead of "interrompida".
+  // settleBySubs): drawn ✕ with "falhou" instead of "interrompida". Also on an open leaf with `stopped`:
+  // the turn it was in progress in died by an error (park), until a start or a done takes it away.
   failed?: boolean
   // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
   // by that stop (halt in draw/layout); never kept nor published.
   halted?: boolean
-  // A leaf started and open when the person stopped the turn (Esc). Kept on the task (state, store,
+  // A leaf started and open when the person stopped the turn (Esc), or when the turn died by an error
+  // (with `failed`). Kept on the task (state, store,
   // published panel) from that stop until a start begins it again, a done closes it or a plan
   // replaces it; its clock stopped at the stop (`endedAt`). Meanwhile every drawing reads it as
   // interrupted, in the turns that come after too (halt and stay in draw/layout; park in state/tasks).
@@ -155,9 +157,9 @@ export type Published = {
   received?: { from: string; at: number }[]
   sends?: Send[]
   // The turn's end as the store's `turn` record holds it (when it ended, null while going on; whether
-  // it was stopped; whether a replan is due), for the panel to come back from this file when the
-  // store no longer has it; absent from earlier versions.
-  turn?: { ended: number | null; aborted: boolean; replan: boolean }
+  // it was stopped; whether a replan is due; whether the stop was an error, `failed`), for the panel to
+  // come back from this file when the store no longer has it; absent from earlier versions.
+  turn?: { ended: number | null; aborted: boolean; replan: boolean; failed?: boolean }
 }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
@@ -254,12 +256,14 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // the person's or another session's, gets the reminder to replan the panel. A turn that opens no
 // request (the app's notice, a hand-back, a background task's notification) leaves it as it is,
 // though its normal end sets turnAborted back to false.
+// `turnFailed`: that stop was a turn that died by an error (an API failure, the context limit, a
+// refusal), until the next request: its reminder says so, and the tasks it stopped read "falhou".
 // `rate`: this session's output rate (turn.step measures it), for its own header and published for
 // its card; in the state so a reload mid-turn keeps the last value.
 // `git`: this session's repository and branch (refreshGit reads them), for its own header and
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

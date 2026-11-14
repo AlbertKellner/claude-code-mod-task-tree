@@ -44,7 +44,8 @@ export async function wake($: any) {
 // going, what the last turn had left stopped. Written only when it changes: wake runs at every prompt
 // and every call of the main loop.
 // A record of an earlier version has no `replan`: its `aborted` says it (no request came since the stop).
-type TurnRecord = { ended: number | null; aborted: boolean; replan: boolean }
+// `failed`: the stop was a turn that died by an error (absent in earlier records: false).
+type TurnRecord = { ended: number | null; aborted: boolean; replan: boolean; failed: boolean }
 let lastTurn: string | undefined
 const turnRecord = (v: unknown): TurnRecord | undefined =>
   v !== null && typeof v === 'object' && 'ended' in v
@@ -52,6 +53,7 @@ const turnRecord = (v: unknown): TurnRecord | undefined =>
         ended: typeof (v as any).ended === 'number' ? (v as any).ended : null,
         aborted: (v as any).aborted === true,
         replan: (v as any).replan === true || ((v as any).replan === undefined && (v as any).aborted === true),
+        failed: (v as any).failed === true,
       }
     : undefined
 export async function saveTurn($: any) {
@@ -59,7 +61,8 @@ export async function saveTurn($: any) {
     const ended = (await $.state.get(turnEndedState)).value
     const aborted = (await $.state.get(turnAbortedState)).value
     const replan = (await $.state.get(replanDueState)).value
-    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true })
+    const failed = (await $.state.get(turnFailedState)).value
+    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true, failed: failed === true })
     if (text === lastTurn) return
     if (await saveStore($, 'turnEnded', JSON.parse(text))) lastTurn = text
   } catch {}
@@ -84,6 +87,7 @@ export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
       await $.state.set(turnEndedState, saved.ended)
       await $.state.set(turnAbortedState, saved.aborted)
       await $.state.set(replanDueState, saved.replan)
+      await $.state.set(turnFailedState, saved.failed)
       loaded.add('turn')
     } catch {}
     return saved
@@ -107,6 +111,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
     await $.state.set(turnEndedState, saved.ended)
     await $.state.set(turnAbortedState, saved.aborted)
     await $.state.set(replanDueState, saved.replan)
+    await $.state.set(turnFailedState, saved.failed)
     lastTurn = JSON.stringify(saved)
   } catch (err) {
     await unread($, 'fim do turno', err)
@@ -134,6 +139,8 @@ export async function parkDeadTurn($: any) {
     await $.state.set(turnEndedState, at ?? 0)
     await $.state.set(turnAbortedState, true)
     await $.state.set(replanDueState, true)
+    // Died with the process, not by an error of its own: "interrompida".
+    await $.state.set(turnFailedState, false)
     await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(at)) } : g)))
     await saveTurn($)
   } catch {}
@@ -143,6 +150,7 @@ export async function clearTurn($: any) {
   await $.state.set(turnEndedState, null)
   await $.state.set(turnAbortedState, false)
   await $.state.set(replanDueState, false)
+  await $.state.set(turnFailedState, false)
   await saveTurn($)
 }
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
@@ -155,6 +163,7 @@ const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
+const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -498,6 +507,7 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
         await $.state.set(turnEndedState, file.turn.ended)
         await $.state.set(turnAbortedState, file.turn.aborted)
         await $.state.set(replanDueState, file.turn.replan)
+        await $.state.set(turnFailedState, file.turn.failed === true)
         loaded.add('turn')
       }
     } catch {
@@ -661,7 +671,8 @@ export async function publishPanel($: any) {
     // The turn's end as the store's `turn` record holds it, for the panel to come back from the file.
     const { value: ended } = await $.state.get(turnEndedState)
     const { value: replan } = await $.state.get(replanDueState)
-    const turn = { ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true }
+    const { value: failed } = await $.state.get(turnFailedState)
+    const turn = { ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true, ...(failed === true ? { failed: true } : {}) }
     const cut = (children as Child[]).map(c => (c.panel || c.tasks ? { ...c, panel: trimPublished(rawPanel(c)), tasks: undefined } : c))
     await publishWait($, id, { groups, waits, children: cut, turn, work, received, engine, ultracode: ultracode === true, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {

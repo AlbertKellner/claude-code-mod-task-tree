@@ -16,6 +16,7 @@ import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watc
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
+const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 
 // The main loop's group; a subagent's is keyed by its agentId.
@@ -88,7 +89,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     // (lembretes.parada-so-volta-com-start).
     await ensureGroups($)
     const { value: kept = [] } = await $.state.get(groupsState)
-    const parked = flat(kept.find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'open' && t.stopped)
+    const stoppedOpen = flat(kept.find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'open' && t.stopped)
+    // Those of a turn that died by an error say "falhou" (lembretes.replanejar-apos-turno-que-falhou).
+    const parked = stoppedOpen.filter(t => t.failed !== true)
+    const failedOpen = stoppedOpen.filter(t => t.failed === true)
     return next({
       ...e,
       context: [
@@ -97,6 +101,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
         ...(taken ? [taken] : []),
         it.handback ? PROMPT.handback : kind === 'task-notification' ? PROMPT.background : PROMPT.notice,
         ...(parked.length > 0 ? [PROMPT.parked(openList(parked))] : []),
+        ...(failedOpen.length > 0 ? [PROMPT.failedTasks(openList(failedOpen))] : []),
       ],
     })
   }
@@ -150,15 +155,18 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
+  // The stop was a turn that died by an error: the person's message is told so.
+  const failed = aborted && (await $.state.get(turnFailedState)).value === true
   if (aborted) {
     await $.state.set(turnAbortedState, false)
     await $.state.set(replanDueState, false)
+    await $.state.set(turnFailedState, false)
     await saveTurn($)
   }
   // After an interrupted turn, the message that comes next, the person's or another session's, asks
   // for a replan of the panel instead of the list of what was left open (the replan covers it).
   const left = aborted && hasOpen(tasks)
-    ? it.peer ? PROMPT.interrupted(openList(tasks)) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
+    ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), reminders.answeredInChat) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
     : aborted && it.peer ? PROMPT.interruptedEmpty
     : hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
   reminders.answeredInChat = false

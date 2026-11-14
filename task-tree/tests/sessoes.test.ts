@@ -859,3 +859,24 @@ test('no cartão da filha parada, a tarefa que aguardava mostra o tempo até o f
   esperarEstado(p, 'Longa', 'aguardando')
   expect(linha(p, 'Longa').texto, emTexto(p)).toContain('19:59')
 })
+
+// Regra: sessoes.palavra-de-estado-do-cartao
+test('a filha cujo turno morreu por erro: o cartão diz "falhou", a tarefa fica ✕ "falhou" e a rodada sai da contagem', async ($: any, on: any) => {
+  fixar(on)
+  const comecada = { ...noTurno(1, '2', 'Começada', 'iniciada'), stopped: true, failed: true, endedAt: AGORA - 500 }
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [noTurno(1, '1', 'Feita', 'feita'), comecada], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarPalavra(p, 'filha-um', 'falhou')
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('parada')
+  esperarEstado(p, 'Começada', 'interrompida')
+  expect(linha(p, 'Começada').texto, emTexto(p)).toContain('falhou')
+  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([0, 3])
+})

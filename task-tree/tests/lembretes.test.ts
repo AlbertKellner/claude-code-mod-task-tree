@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
-import { abrirSessao, aviso, mensagemDe } from './kit/cenario'
+import { abrirSessao, aviso, falha, mensagemDe } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -381,4 +381,28 @@ test('as regras e o lembrete da mensagem seguinte dizem que a tarefa que aguarda
   const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
   const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
   expect(regras).toContain('termina normalmente fica aguardando')
+})
+
+// Regra: lembretes.replanejar-apos-turno-que-falhou
+test('depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez', async ($: any, on: any) => {
+  await iniciar($, on)
+  await falha($)
+  const ctx = contexto(await pedido($, 'Agora segue'))
+  expect(ctx).toContain(REPLANEJAR)
+  expect(ctx).toContain('terminou com erro')
+  expect(ctx).not.toContain('o usuário interrompeu')
+  expect(ctx).not.toContain(ABERTAS)
+  await fimDoTurno($)
+  const depois = contexto(await pedido($, 'Mais uma'))
+  expect(depois).not.toContain(REPLANEJAR)
+  expect(depois).not.toContain('terminou com erro')
+})
+
+// Regra: lembretes.replanejar-apos-turno-que-falhou
+test('depois de um turno que morreu por erro, o aviso do app diz que a tarefa segue ✕ "falhou"', async ($: any, on: any) => {
+  await iniciar($, on)
+  await falha($)
+  const ctx = contexto(await aviso($))
+  expect(ctx).toContain('seguem ✕ "falhou"')
+  expect(ctx).not.toContain('o usuário parou (Esc)')
 })

@@ -913,6 +913,26 @@
       "data": "2026-11-14",
       "motivo": "auditoria: store cheio"
     },
+    "task-tree/tests/durabilidade.test.ts::turno que falhou no reinício, 1/2: o turno morre por erro com uma tarefa iniciada": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "9b17ef9e47c6601c",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::turno que falhou no reinício, 2/2: a iniciada segue ✕ \"falhou\" e o pedido seguinte pede para replanejar dizendo o erro": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "25fbb39a31aba984",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
     "task-tree/tests/durabilidade.test.ts::uma mensagem nova à filha de antes do /clear mostra a carta, sem cartão": {
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
@@ -1379,6 +1399,26 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez": {
+      "regras": [
+        "lembretes.replanejar-apos-turno-que-falhou"
+      ],
+      "hash": "b23668aff8e816d1",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, o aviso do app diz que a tarefa segue ✕ \"falhou\"": {
+      "regras": [
+        "lembretes.replanejar-apos-turno-que-falhou"
+      ],
+      "hash": "76a1e69b5b1ad0bd",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar": {
       "regras": [
         "lembretes.replanejar-apos-esc-com-aviso-no-meio"
@@ -1819,6 +1859,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha cujo turno morreu por erro: o cartão diz \"falhou\", a tarefa fica ✕ \"falhou\" e a rodada sai da contagem": {
+      "regras": [
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "f540b0c535d0f1ae",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::a filha encerrada não segura a visão no pedido novo": {
       "regras": [
@@ -2912,6 +2962,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
+    "task-tree/tests/turnos.test.ts::o done na tarefa que falhou, sem start, a conclui": {
+      "regras": [
+        "turnos.turno-que-falha-deixa-falhou"
+      ],
+      "hash": "052c29f0391252cd",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::o fim normal do turno vai no painel publicado: a tarefa que aguardava leva a hora do fim": {
       "regras": [
         "sessoes.cartao-parado-mostra-o-tempo-do-turno"
@@ -3021,6 +3081,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/turnos.test.ts::o turno que morre por erro deixa a tarefa em andamento ✕ \"falhou\", fora da contagem, até o start nela": {
+      "regras": [
+        "turnos.turno-que-falha-deixa-falhou"
+      ],
+      "hash": "05c8622d76df8111",
+      "assercoes": 17,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::o ↩ aparece mesmo quando o turno termina sem texto final": {
       "regras": [
@@ -3292,10 +3362,10 @@
       "motivo": "host serve o arquivo publicado da própria sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "308ce733c0579332",
+      "hash": "35279f1270f0562d",
       "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "roteiro novo: cancelar (done com cancel); nada do que os outros roteiros fazem muda"
+      "motivo": "roteiro novo: falha (turno que termina por erro); os outros roteiros não mudam"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "c6d8ba3b659d5b92",
