@@ -243,3 +243,15 @@ C-03 (selos: remoção e renome de teste, de que lotes A e C precisam), C-04 a C
 - Resumo das cinco rodadas: 1, o que depende da máquina (identidade do git, versões); 2, primeiro
   ensaio em clones novos (tipos do kit, lacunas das instruções); 3 e 4, lacunas menores e duas notas
   erradas da orquestradora; 5, confirmação.
+
+## Fim da revisão, 2026-11-14
+
+Aviso pelo `AskUserQuestion`, como pedido. Respostas:
+- Como seguir: "Encerrar aqui (Recomendado)". A máquina antiga para de vez.
+- Os dois commits antigos das notas, ainda abertos pelo hash: "Sim, redigir o pedido". A orquestradora
+  redige o pedido ao suporte do GitHub; quem envia é o usuário.
+- Data do `Reescrito:` num dia posterior: sem escolha; resposta livre, "vou rodar agora na outra
+  maquina". A regra da orquestradora (data do dia, com a data da decisão no texto) segue escrita e
+  pendente da decisão dele; se o trabalho passar para outro dia, a sessão nova pergunta antes do
+  primeiro lote que precisar dela.
+- Linha de atribuição dos commits dos agentes: "A da sessão do agente (Recomendado)".

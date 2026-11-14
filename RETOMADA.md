@@ -181,8 +181,11 @@ Regras que valem e não estão no `PROCESSO.md`:
 - Data do `Reescrito:`: os planos escrevem `Reescrito: 2026-11-14, …`, e o selo de decisão exige data
   igual ou posterior à do selo anterior do teste. Num dia posterior, a linha leva a data do dia e a data
   da decisão vai no texto: `Reescrito: <hoje>, decisão do usuário de 2026-11-14 ("palavras dele").` É
-  regra da orquestradora, escrita na revisão de 2026-11-14 para o trabalho não parar; o usuário pode
-  mudá-la. O caso certo de acontecer: o teste de `envios.test.ts` que muda nos lotes A-07 e A-18.
+  regra da orquestradora, escrita na revisão de 2026-11-14 para o trabalho não parar. Perguntado, o
+  usuário não escolheu: respondeu "vou rodar agora na outra maquina" (no mesmo dia, quando a regra
+  ainda não pesa). Se o trabalho passar para outro dia, a sessão pergunta a ele antes do primeiro lote
+  que precisar da regra, com esta como a recomendada. O caso certo de acontecer: o teste de
+  `envios.test.ts` que muda nos lotes A-07 e A-18.
 - Teste protegido que precise mudar sem decisão registrada: o lote para e vira pergunta ao usuário.
 - Sem `--no-verify`, sem `git add -A`, sem force-push. Nenhum push nem PR até o fim dos lotes.
 - Perguntas ao usuário pelo `AskUserQuestion`, até 4 por vez, cada uma legível sozinha, com a
@@ -234,7 +237,8 @@ escritas".
 O prompt não leva linha de atribuição: o implementador usa a que a sessão dele recebe do Claude Code,
 que diz o modelo de fato usado. Na máquina antiga as instruções fixavam
 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, e é o que está nos 19 commits; a regra mudou
-na revisão porque a orquestradora não tem como saber em que versão o apelido `opus` resolve.
+na revisão porque a orquestradora não tem como saber em que versão o apelido `opus` resolve. Decisão do
+usuário, 2026-11-14: "A da sessão do agente (Recomendado)".
 
 As linhas por lote das seções 7 e 10 não cobrem todos os lotes, nem tudo de cada um: são o que os
 ensaios acharam. Para os demais, valem os itens gerais, e o implementador adapta pelo cenário do plano e
