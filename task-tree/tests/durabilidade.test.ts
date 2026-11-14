@@ -467,3 +467,99 @@ test('recarga a quente, 2/2: o resumo do done chega ao ↩ e ao publicado', asyn
   expect(resposta(h, 'Resumo X'), JSON.stringify(h.proprio())).toBe(true)
 })
 
+
+// O processo morre no meio do turno (o app fechado, o processo morto): nada grava o fim do turno.
+const MORTO: Record<string, unknown> = {}
+const MORTO_SEGUINTE: Record<string, unknown> = {}
+const MORTO_RESPAWN: Record<string, unknown> = {}
+const MORTO_REPLAN: Record<string, unknown> = {}
+async function morrerNoTurno($: any, on: any, store: Record<string, unknown>, antes = false) {
+  fixar(on)
+  armazem(on, store)
+  if (antes) {
+    await pedido($, 'Pedido zero')
+    await plan($, B)
+    await start($, ['b1'])
+    await done($, ['b1', 'b2'])
+    await fimDoTurno($)
+  }
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2.1'])
+  esperarEstado(await painel($), 'Dois.um', 'andamento')
+  expect(temPainel(store), JSON.stringify(Object.keys(store))).toBe(true)
+}
+const contexto = (r: any) => (r?.context ?? []).join(' | ')
+async function reabrirMorto($: any, on: any, store: Record<string, unknown>) {
+  fixar(on)
+  armazem(on, store)
+  exigir(temPainel(store))
+  await iniciarSessao($)
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  esperarEstado(p, 'Dois.dois', 'pendente')
+  semAndamento(p)
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 2])
+  const ctx = contexto(await pedido($, 'Pedido dois'))
+  await start($, ['2.2'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.dois', 'andamento')
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  return ctx
+}
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('processo morto no meio do primeiro turno, 1/2: a tarefa fica em andamento no store', async ($: any, on: any) => {
+  await morrerNoTurno($, on, MORTO)
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('processo morto no meio do primeiro turno, 2/2: o processo novo a desenha interrompida até o start nela', async ($: any, on: any) => {
+  await reabrirMorto($, on, MORTO)
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('processo morto num turno seguinte, 1/2: a tarefa fica em andamento no store', async ($: any, on: any) => {
+  await morrerNoTurno($, on, MORTO_SEGUINTE, true)
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('processo morto num turno seguinte, 2/2: o processo novo a desenha interrompida até o start nela', async ($: any, on: any) => {
+  await reabrirMorto($, on, MORTO_SEGUINTE)
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('processo morto no meio do turno, 1/2: a tarefa fica em andamento no store', async ($: any, on: any) => {
+  await morrerNoTurno($, on, MORTO_REPLAN)
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('processo morto no meio do turno, 2/2: a mensagem seguinte pede para replanejar', async ($: any, on: any) => {
+  const ctx = await reabrirMorto($, on, MORTO_REPLAN)
+  expect(ctx).toContain('replaneje o painel')
+  expect(ctx).toContain('o usuário interrompeu')
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('respawn sem session.start com o turno em curso, 1/2: a tarefa fica em andamento no store', async ($: any, on: any) => {
+  await morrerNoTurno($, on, MORTO_RESPAWN)
+})
+
+// Regra: durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+test('respawn sem session.start com o turno em curso, 2/2: segue em andamento', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, MORTO_RESPAWN)
+  exigir(temPainel(MORTO_RESPAWN))
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  await start($, ['2.2'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.dois', 'andamento')
+  esperarEstado(p, 'Dois.um', 'andamento')
+})

@@ -363,6 +363,66 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do primeiro turno, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "34f7d2d436aa0325",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do primeiro turno, 2/2: o processo novo a desenha interrompida até o start nela": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "e9331e4712f46285",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do turno, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "f44bbc9216d83966",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do turno, 2/2: a mensagem seguinte pede para replanejar": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "7af718d5324780a8",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto num turno seguinte, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "8e9c40ff8e047f2f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto num turno seguinte, 2/2: o processo novo a desenha interrompida até o start nela": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "26e7489ae0ef30de",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
       "regras": [
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
@@ -462,6 +522,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start com o turno em curso, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "e67dfc384de931f3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start com o turno em curso, 2/2: segue em andamento": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "1d2c086c8a398e63",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
     },
     "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos e a visão resumida no store": {
       "regras": [

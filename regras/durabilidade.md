@@ -122,3 +122,14 @@ A retomada não herda o painel, as esperas nem o resumo da sessão anterior do m
 
 Origem: auditoria 2026-11-10 (a retomada sem cópia no store mantinha o painel anterior); estende durabilidade.reinicio-restaura-do-store, sem mudar nenhuma regra.
 Estado: coberto
+
+### durabilidade.turno-em-curso-no-reinicio-fica-interrompido
+O app fechado, ou o processo morto, no meio de um turno deixa a tarefa em andamento interrompida.
+
+- Dado um turno em curso com uma tarefa iniciada e aberta, e o processo que morre sem terminar o turno (o app fechado, o processo morto)
+- Quando um processo novo abre a sessão (session.start, ou a retomada dela)
+- Então a tarefa que estava em andamento aparece ✕ "interrompida", fora do x/y, com o relógio parado no último instante que o painel conhece; as pendentes seguem ○ e nada fica ◉; ela só volta a andamento com start nela, e o done a conclui sem start; a mensagem seguinte traz o pedido de replanejar, como depois do Esc; o processo que volta sem session.start, com o turno ainda vivo, segue em andamento
+
+Origem: decisão do usuário, 2026-11-14 ("✕ interrompida"), à pergunta "Se o app fechar, ou o processo morrer, no meio de um turno, como deve aparecer, ao reabrir, a tarefa que estava em andamento?"; aplica turnos.parada-segue-interrompida-ate-o-start.
+Código: hooks/turn.ts, state/tasks.ts, draw/layout.ts
+Estado: coberto

@@ -76,11 +76,11 @@ export const TABLE: readonly Row[] = [
   // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a
   // restart) does not draw as in progress what had already stopped.
   { key: 'turnEnded', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
-    note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock; in the store so a new process does not draw as in progress what had already stopped (saveTurn, ensureTurn, restoreTurn)' },
+    note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock; in the store so a new process does not draw as in progress what had already stopped (saveTurn, ensureTurn, restoreTurn); a record "going on" (ended null, or none) found by a new process (session.start, a resume) is a turn that died with the process before: it becomes a stop (parkDeadTurn)' },
   { key: 'turnAborted', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
-    note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan; what it left in progress is drawn interrupted, after a restart too' },
+    note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan; what it left in progress is drawn interrupted, after a restart too; set by parkDeadTurn when a new process finds the turn still going on' },
   { key: 'replanDue', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
-    note: 'a turn of the main loop was stopped (Esc) and no request came since: the next request gets the reminder to replan; a turn that opens no request (the app\'s notice, a hand-back) leaves it, though its end sets turnAborted back to false' },
+    note: 'a turn of the main loop was stopped (Esc) and no request came since: the next request gets the reminder to replan; a turn that opens no request (the app\'s notice, a hand-back) leaves it, though its end sets turnAborted back to false; set by parkDeadTurn too (a turn that died with the process)' },
   // The store alone.
   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
   // Variables of the module: a hot reload starts them over.

@@ -5,7 +5,7 @@
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, replace, restore, restoreLinks, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, parkDeadTurn, replace, restore, restoreLinks, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
 import { refreshChildren, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -53,10 +53,13 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   })
   // With nothing held (a new process), a resumed session's panel comes back from the store.
   await adopt($)
-  if ((await $.state.get(groupsState)).value === undefined) await restore($, await $.session.id())
+  const fresh = (await $.state.get(groupsState)).value === undefined
+  if (fresh) await restore($, await $.session.id())
   loaded.add('groups')
   await restoreWork($)
   await restoreTurn($)
+  // A turn the store holds as going on died with the process before this one: stopped (parkDeadTurn).
+  if (fresh) await parkDeadTurn($)
   await restoreLinks($)
   const r = await next(e)
   // Opens the panel with the session, so nobody has to type /task-tree.
@@ -81,6 +84,7 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     if (!(await restore($, e.session_id))) await replace($, [{ agent: MAIN, label: '', tasks: [] }])
     await restoreWorkOf($, e.session_id)
     await restoreTurn($, e.session_id, true)
+    await parkDeadTurn($)
   }
   return next(e)
 }

@@ -14,6 +14,7 @@ import { debug } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
 import { stayed } from '../draw/layout'
+import { park } from '../state/tasks'
 
 export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
@@ -106,6 +107,32 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
     await $.state.set(turnAbortedState, saved.aborted)
     await $.state.set(replanDueState, saved.replan)
     lastTurn = JSON.stringify(saved)
+  } catch {}
+}
+// A new process (session.start that brought the panel into an empty state, or a resume) finds the turn
+// still going on by the store (`ended: null`, or no record at all): no turn runs at that moment, so the
+// one the store has died with the process before it (the app closed, the process killed mid-turn). What
+// it left started and open is stopped as the Esc stops it (park): interrupted, out of the x/y, until a
+// start in it, and the next request is asked to replan (the person, 2026-11-14: "✕ interrompida"). The
+// clock stops at the last instant the panel knows (the newest start, end, plan or request of the main
+// group), not at the reopening: the time with the app closed is not counted. A respawn with no
+// session.start (ensureTurn) does not do this: its turn may still be alive.
+export async function parkDeadTurn($: any) {
+  try {
+    if (typeof (await $.state.get(turnEndedState)).value === 'number') return
+    const { value: groups = [] } = await $.state.get(groupsState)
+    const main = (groups as Group[]).find(g => g.agent === MAIN)
+    if (!main || !flat(main.tasks).some(t => t.status === 'open' && t.started !== undefined)) return
+    const times = [
+      ...flat(main.tasks).flatMap(t => [t.startedAt, t.endedAt, t.plannedAt]),
+      ...(main.turns ?? []).map(u => u.at),
+    ].filter((n): n is number => typeof n === 'number')
+    const at = times.length > 0 ? Math.max(...times) : undefined
+    await $.state.set(turnEndedState, at ?? 0)
+    await $.state.set(turnAbortedState, true)
+    await $.state.set(replanDueState, true)
+    await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(at)) } : g)))
+    await saveTurn($)
   } catch {}
 }
 // /clear: no turn end, in the state and in the store.
