@@ -243,6 +243,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13: \"Manter como rede (Recomendado)\""
     },
+    "task-tree/tests/durabilidade.test.ts::/clear com espera e carta: o arquivo publicado sai sem espera e sem cartas": {
+      "regras": [
+        "durabilidade.clear-publica-limpo"
+      ],
+      "hash": "1daeb7cdc8ebd33a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
         "durabilidade.clear-esvazia"
@@ -472,6 +482,46 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada com espera da sessão anterior, 1/2: uma escolha do wrap_up e um resumo no state": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "52ea885892d8d963",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada com espera da sessão anterior, 2/2: a espera e o resumo da anterior não passam": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "1a832e9facb80b04",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada sem painel guardado, 1/2: um painel no state": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "4b9fc5aeece05764",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada sem painel guardado, 2/2: a retomada esvazia o painel": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "c50665290902450b",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
     },
     "task-tree/tests/durabilidade.test.ts::retomada, 1/2: um painel diferente no state (o plano B)": {
       "regras": [

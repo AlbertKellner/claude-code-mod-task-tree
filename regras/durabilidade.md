@@ -101,3 +101,24 @@ O resumo do done chega à resposta do turno, mesmo com uma recarga no meio.
 Origem: commits 946f653, 2026-10-21, e 22650c9; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
 Código: hooks/turn.ts, hooks/tools.ts
 Estado: coberto
+
+### durabilidade.clear-publica-limpo
+Depois do /clear, o arquivo publicado da sessão sai sem espera e sem cartas.
+
+- Dado uma sessão com uma espera aberta (a escolha do wrap_up) e uma carta na fila
+- Quando a pessoa usa /clear
+- Então o painel fica "Nenhuma tarefa planejada." e o que a sessão publica para a que a abriu já não diz que ela espera nem traz as cartas: o cartão dela na mãe não fica "aguardando"
+
+Origem: auditoria 2026-11-10 (o /clear publicava antes de zerar as esperas e as cartas); aplica durabilidade.clear-esvazia, sem mudar nenhuma regra.
+Código: io/publish.ts
+Estado: coberto
+
+### durabilidade.retomada-nao-herda-a-sessao-anterior
+A retomada não herda o painel, as esperas nem o resumo da sessão anterior do mesmo processo.
+
+- Dado um painel de outra sessão no state, com uma espera aberta e um resumo do done ainda não usado
+- Quando uma sessão é retomada (resume) nesse processo
+- Então o painel é o guardado para a sessão retomada ou, sem painel guardado, "Nenhuma tarefa planejada."; as esperas, o resumo e o recap da anterior não aparecem nem são gravados sob a retomada
+
+Origem: auditoria 2026-11-10 (a retomada sem cópia no store mantinha o painel anterior); estende durabilidade.reinicio-restaura-do-store, sem mudar nenhuma regra.
+Estado: coberto

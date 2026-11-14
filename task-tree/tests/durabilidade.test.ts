@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
-import { armazem, estado, fixar, host, SESSAO } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, type No } from './kit/cenario'
+import { armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO } from './kit/ambiente'
+import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
@@ -130,6 +130,85 @@ test('/clear esvazia o painel', async ($: any, on: any) => {
   await limpar($)
   const p = await painel($)
   expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.clear-publica-limpo
+test('/clear com espera e carta: o arquivo publicado sai sem espera e sem cartas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  expect(h.proprio()?.waiting, JSON.stringify(h.proprio())).toBe(true)
+  await limpar($)
+  const pub = h.proprio()
+  expect(pub?.waiting, JSON.stringify(pub)).toBe(false)
+  expect(pub?.waits ?? [], JSON.stringify(pub)).toEqual([])
+  expect(pub?.sends ?? [], JSON.stringify(pub)).toEqual([])
+  const p = await painel($)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
+})
+
+const SEM_COPIA: Record<string, unknown> = {}
+const ESPERA: Record<string, unknown> = {}
+
+// Regra: durabilidade.retomada-nao-herda-a-sessao-anterior
+test('retomada sem painel guardado, 1/2: um painel no state', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, SEM_COPIA, 'captura')
+  await pedido($, 'Outro pedido')
+  await plan($, B)
+  await start($, ['b1'])
+  expect(Object.keys(SEM_COPIA).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: durabilidade.retomada-nao-herda-a-sessao-anterior
+test('retomada sem painel guardado, 2/2: a retomada esvazia o painel', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  estado(on, SEM_COPIA, 'semear')
+  exigir(Object.keys(SEM_COPIA).length > 0)
+  let p = await painel($)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  await retomar($, 'uuid-sem-copia')
+  p = await painel($)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(false)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.retomada-nao-herda-a-sessao-anterior
+test('retomada com espera da sessão anterior, 1/2: uma escolha do wrap_up e um resumo no state', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, ESPERA, 'captura')
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  await pedido($, 'Outro pedido')
+  await plan($, B)
+  await start($, ['b1'])
+  await done($, ['b1'], 'Resumo antigo')
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'Recap antigo', ask: 'Seguir?' })
+  const p = await painel($)
+  esperarEstado(p, 'Aguardando sua escolha', 'aguardando')
+})
+
+// Regra: durabilidade.retomada-nao-herda-a-sessao-anterior
+test('retomada com espera da sessão anterior, 2/2: a espera e o resumo da anterior não passam', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, REINICIO)
+  estado(on, ESPERA, 'semear')
+  const h = host(on, [])
+  exigir(temPainel(REINICIO) && Object.keys(ESPERA).length > 0)
+  await retomar($, SESSAO)
+  let p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Resumo antigo') || l.texto.includes('Recap antigo')), emTexto(p)).toBe(false)
+  expect(resposta(h, 'Resumo antigo') || resposta(h, 'Recap antigo'), JSON.stringify(h.proprio())).toBe(false)
 })
 
 // Regra: durabilidade.recarga-mantem-painel-ligacoes-e-resumo

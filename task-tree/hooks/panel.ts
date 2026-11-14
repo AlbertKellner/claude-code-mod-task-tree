@@ -97,7 +97,11 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
   try {
     if (!replaceHeld && (await $.state.get(turnEndedState)).value !== undefined) return
     const saved = turnRecord(await loadStore($, 'turnEnded', id))
-    if (saved === undefined) return
+    if (saved === undefined) {
+      // A resume with no turn end kept: none, not the previous session's.
+      if (replaceHeld) await clearTurn($)
+      return
+    }
     await $.state.set(turnEndedState, saved.ended)
     await $.state.set(turnAbortedState, saved.aborted)
     await $.state.set(replanDueState, saved.replan)
@@ -392,10 +396,18 @@ export async function keptGroups($: any, id: string): Promise<Group[] | undefine
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
 }
 
-// A resumed session's panel comes back.
-export async function restore($: any, id: string) {
+// A resumed session's panel comes back; answers whether the store had it.
+export async function restore($: any, id: string): Promise<boolean> {
   const groups = await keptGroups($, id)
   if (groups) await replace($, groups)
+  return groups !== undefined
+}
+// The waits, the done's summary and the wrap_up's recap belong to the session that set them: a /clear
+// or a resume drops them, without publishing (the replace that follows publishes).
+export async function dropHeld($: any) {
+  await $.state.set(waitsState, [])
+  await $.state.set(briefState, '')
+  await $.state.set(recapState, '')
 }
 
 // The groups' "first use" of the table (restoredAt): session.start brings them back from the store
@@ -727,7 +739,7 @@ export async function restoreWorkOf($: any, id: string) {
   loaded.add('work')
   try {
     const saved = await loadStore($, 'work', id)
-    if (Array.isArray(saved)) await setWork($, saved.map(String))
+    await setWork($, Array.isArray(saved) ? saved.map(String) : [])
   } catch {}
 }
 export async function restoreWork($: any) {

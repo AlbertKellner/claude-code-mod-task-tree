@@ -1,11 +1,11 @@
 // session.start: registers the command and the tools, brings the panel back from the store, opens
 // the pane and starts reading the linked sessions. classic.SessionStart: /clear empties the panel,
-// a resume brings the session's panel back.
+// a resume brings the session's panel back; a resume empties what the store does not hold.
 
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, replace, restore, restoreLinks, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, replace, restore, restoreLinks, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
 import { refreshChildren, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -14,7 +14,6 @@ import { level } from './tools'
 
 import type { EngineInterface } from 'claude-code'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
-const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 
 export async function sessionStart($: EngineInterface, e: any, next: any) {
@@ -69,15 +68,17 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
 }
 
 export async function classicSessionStart($: EngineInterface, e: any, next: any) {
+  // Everything emptied before the one publication (the replace), so it goes out clean.
   if (e.source === 'clear') {
-    await replace($, [{ agent: MAIN, label: '', tasks: [] }])
-    await $.state.set(waitsState, [])
+    await dropHeld($)
     await $.state.set(sendsState, [])
     await setWork($, [])
     await clearTurn($)
+    await replace($, [{ agent: MAIN, label: '', tasks: [] }])
   }
   if (e.source === 'resume') {
-    await restore($, e.session_id)
+    await dropHeld($)
+    if (!(await restore($, e.session_id))) await replace($, [{ agent: MAIN, label: '', tasks: [] }])
     await restoreWorkOf($, e.session_id)
     await restoreTurn($, e.session_id, true)
   }
