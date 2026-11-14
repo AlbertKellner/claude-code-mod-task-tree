@@ -15,6 +15,7 @@ import { level } from './tools'
 import type { EngineInterface } from 'claude-code'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const paneOpenedState = { plugin: 'task-tree', key: 'paneOpened' } as const
 
 export async function sessionStart($: EngineInterface, e: any, next: any) {
   await $.command.register({ name: 'task-tree', description: COMMAND })
@@ -63,8 +64,14 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   if (fresh) await parkDeadTurn($)
   await ensureLinks($)
   const r = await next(e)
-  // Opens the panel with the session, so nobody has to type /task-tree.
-  void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
+  // Opens the panel with the session, so nobody has to type /task-tree: once per process. The mark
+  // lives in the state, which dies with the process and survives a reload of the mod, so a reload
+  // (were it to run session.start) does not open again a panel the person closed (the person,
+  // 2026-11-14: "Só na sua mensagem (Recomendado)").
+  if ((await $.state.get(paneOpenedState)).value !== true) {
+    await $.state.set(paneOpenedState, true)
+    void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
+  }
   // The linked sessions' states change outside this session: polled while the session runs.
   void refreshChildren($).catch(() => {})
   watchSessions($)

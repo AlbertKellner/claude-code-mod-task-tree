@@ -689,7 +689,7 @@ export const act = (key: string, fn: () => void) => {
   return fn
 }
 
-// The panel opened with the session (session.start, plan) is opened unasked, and the app places an
+// The panel opened with the session (session.start, once per process) is opened unasked, and the app places an
 // unasked pane only in a window of 144 columns or more (110 once asked): after a restart of the
 // session's process (a /model change does one), in a narrower window, it stayed undrawn while the
 // tools went on answering (the person's words: "eu troquei o modelo de opus para sonnet na

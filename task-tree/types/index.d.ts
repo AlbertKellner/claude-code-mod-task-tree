@@ -256,6 +256,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

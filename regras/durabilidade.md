@@ -188,3 +188,14 @@ O painel de uma sessão parada há muito tempo volta inteiro enquanto a sessão 
 Origem: decisão do usuário, 2026-11-14 ("Enquanto a sessão existir (Recomendado)"), à pergunta "Por quanto tempo o painel de uma sessão parada deve ser guardado?".
 Código: io/publish.ts, io/host.ts
 Estado: coberto
+
+### durabilidade.painel-fechado-reabre-so-na-mensagem
+O painel que a pessoa fechou só reabre na próxima mensagem dela, em processo novo ou com /task-tree.
+
+- Dado o painel de tarefas fechado pela pessoa
+- Quando o modelo planeja ou replaneja, um subagente planeja, chega mensagem de outra sessão ou aviso do app, ou o mod recarrega
+- Então o painel segue fechado; ele volta quando a pessoa escreve a próxima mensagem na sessão, quando um processo novo abre a sessão, ou com /task-tree
+
+Origem: decisão do usuário, 2026-11-14 ("Só na sua mensagem (Recomendado)"), à pergunta "Quando você fecha o painel de tarefas, ele deve reabrir sozinho?".
+Código: hooks/tools.ts, hooks/prompt-submit.ts, hooks/command.ts
+Estado: coberto

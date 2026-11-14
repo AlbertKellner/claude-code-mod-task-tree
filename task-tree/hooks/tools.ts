@@ -9,7 +9,7 @@ import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { PANE, reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
+import { reminders, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -116,7 +116,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       // of the work before for what still holds the view.
       await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
     }
-    void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})
+    // The plan does not open the panel: one the person closed stays closed until their next message
+    // (the person, 2026-11-14: "Só na sua mensagem (Recomendado)").
     // What this plan sent (every level) and what is open in the caller's own group: not the
     // whole panel, which holds the other loops' tasks too.
     const [gd, gn] = count(groups.find(g => g.agent === agent)?.tasks ?? [])

@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
-import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO } from './kit/ambiente'
-import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, type No } from './kit/cenario'
+import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente } from './kit/ambiente'
+import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
@@ -938,4 +938,74 @@ test('fora do app, sem painel no store, o painel volta vazio', async ($: any, on
   await iniciarSessao($)
   const p = await painel($)
   expect(p.some(l => l.estado !== undefined), emTexto(p)).toBe(false)
+})
+
+// As aberturas do painel ($.ui.open) e se ele está colocado na tela ($.ui.panes). Antes da primeira chamada a $.
+function janela(on: any) {
+  const j = { aberturas: 0, colocado: false }
+  on('ui.open', () => {
+    j.aberturas++
+    return { value: { isPlaced: true } }
+  })
+  on('ui.panes', () => ({ value: [{ id: 'task-tree', isPlaced: j.colocado, isShown: j.colocado }] }))
+  return j
+}
+const SUB: No[] = [{ id: 's', title: 'Do subagente' }]
+
+// Regra: durabilidade.painel-fechado-reabre-so-na-mensagem
+test('o plan não reabre o painel que a pessoa fechou; a mensagem seguinte dela reabre', async ($: any, on: any) => {
+  fixar(on)
+  subagente(on, 'sub-1')
+  const j = janela(on)
+  await pedido($, 'Pedido um')
+  expect(j.aberturas).toBe(1)
+  j.colocado = true
+  await plan($, A)
+  await start($, ['1'])
+  j.colocado = false
+  await plan($, B)
+  await plan($, SUB, undefined, 'sub-1')
+  expect(j.aberturas).toBe(1)
+  await pedido($, 'Pedido dois')
+  expect(j.aberturas).toBe(2)
+})
+
+const JANELA_RECARGA: Record<string, unknown> = {}
+// Regra: durabilidade.painel-fechado-reabre-so-na-mensagem
+test('a recarga do mod não reabre o painel, 1/2: o processo abre', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, JANELA_RECARGA, 'captura')
+  armazem(on, {})
+  const j = janela(on)
+  await iniciarSessao($)
+  expect(j.aberturas).toBe(1)
+})
+
+// Regra: durabilidade.painel-fechado-reabre-so-na-mensagem
+test('a recarga do mod não reabre o painel, 2/2: o módulo novo com o state mantido não abre', async ($: any, on: any) => {
+  exigir(Object.keys(JANELA_RECARGA).length > 0)
+  fixar(on)
+  estado(on, JANELA_RECARGA, 'semear')
+  armazem(on, {})
+  const j = janela(on)
+  await iniciarSessao($)
+  expect(j.aberturas).toBe(0)
+})
+
+// Regra: durabilidade.painel-fechado-reabre-so-na-mensagem
+test('o processo novo abre o painel', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  const j = janela(on)
+  await iniciarSessao($)
+  expect(j.aberturas).toBe(1)
+})
+
+// Regra: durabilidade.painel-fechado-reabre-so-na-mensagem
+test('a mensagem de outra sessão e o aviso do app não reabrem', async ($: any, on: any) => {
+  fixar(on)
+  const j = janela(on)
+  await mensagemDe($, K1, 'oi')
+  await aviso($)
+  expect(j.aberturas).toBe(0)
 })

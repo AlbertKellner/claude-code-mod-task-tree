@@ -283,6 +283,36 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::a mensagem de outra sessão e o aviso do app não reabrem": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "1dc929aaeb67020f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::a recarga do mod não reabre o painel, 1/2: o processo abre": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "12ebae722bf12f60",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::a recarga do mod não reabre o painel, 2/2: o módulo novo com o state mantido não abre": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "54c945aa57723561",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
     "task-tree/tests/durabilidade.test.ts::a sessão que volta à lista regrava trabalho, fim do turno e ligações": {
       "regras": [
         "durabilidade.store-cheio-nao-perde-em-silencio"
@@ -412,6 +442,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/durabilidade.test.ts::o plan não reabre o painel que a pessoa fechou; a mensagem seguinte dela reabre": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "91af37ea93f6545a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::o processo novo abre o painel": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "2166f87f8395aacd",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
     },
     "task-tree/tests/durabilidade.test.ts::os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato": {
       "regras": [
