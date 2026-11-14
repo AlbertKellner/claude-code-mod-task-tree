@@ -27,8 +27,9 @@ jobs:
           fetch-depth: 0
 
       # A versão sobe sozinha pelo PR mesclado (ninguém edita o plugin.json à mão): "!" depois do
-      # tipo no título, ou "BREAKING CHANGE" no corpo → major; título "feat…" → minor; qualquer
-      # outro → patch. Título e corpo entram por env, nunca interpolados no script.
+      # tipo no título, ou uma linha "BREAKING CHANGE:" no rodapé do corpo → major; título "feat…"
+      # → minor; qualquer outro → patch. A conta fica em scripts/versao.mjs (testada nas travas).
+      # Título e corpo entram por env, nunca interpolados no script.
       - name: Calcular a versão nova
         id: version
         env:
@@ -36,23 +37,12 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
         run: |
           current=$(jq -r .version task-tree/.claude-plugin/plugin.json)
-          if ! printf '%s' "$current" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          if ! out=$(node scripts/versao.mjs "$current"); then
             echo "::error::Campo version ausente ou fora do formato X.Y.Z em task-tree/.claude-plugin/plugin.json: '$current'"
             exit 1
           fi
-          if printf '%s' "$TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' || printf '%s' "$BODY" | grep -q 'BREAKING CHANGE'; then
-            level=major
-          elif printf '%s' "$TITLE" | grep -Eq '^feat(\([^)]*\))?:'; then
-            level=minor
-          else
-            level=patch
-          fi
-          IFS=. read -r major minor patch <<< "$current"
-          case "$level" in
-            major) new="$((major + 1)).0.0" ;;
-            minor) new="$major.$((minor + 1)).0" ;;
-            patch) new="$major.$minor.$((patch + 1))" ;;
-          esac
+          level=$(printf '%s\n' "$out" | sed -n 's/^level=//p')
+          new=$(printf '%s\n' "$out" | sed -n 's/^new=//p')
           echo "::notice::Versão $current → $new ($level, pelo PR: $TITLE)"
           echo "new=$new" >> "$GITHUB_OUTPUT"
           echo "tag=v$new" >> "$GITHUB_OUTPUT"

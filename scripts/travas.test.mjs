@@ -8,6 +8,7 @@ import { after, test } from 'node:test'
 import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
 import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead } from './selos.mjs'
 import { impacto } from './impacto.mjs'
+import { versaoNova } from './versao.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
@@ -507,4 +508,22 @@ test('uma chave do state sem linha na tabela de durabilidade falha o check', () 
       rmSync(dir, { recursive: true, force: true })
     }
   }
+})
+
+// Release (.github/workflows/release.yml): a conta da versão nova.
+test('BREAKING CHANGE no meio do texto não sobe a major', () => {
+  assert.equal(versaoNova('fix: x', 'sem BREAKING CHANGE neste PR', '0.15.2').level, 'patch')
+  assert.equal(versaoNova('feat: x', 'A regra: `BREAKING CHANGE:` no rodapé sobe a major.', '0.15.2').level, 'minor')
+})
+
+test('uma linha BREAKING CHANGE: no rodapé sobe a major, com LF e com CRLF', () => {
+  assert.deepEqual(versaoNova('fix: x', 'texto\n\nBREAKING CHANGE: muda tudo', '0.15.2'), { level: 'major', nova: '1.0.0' })
+  assert.equal(versaoNova('fix: x', 'texto\r\n\r\nBREAKING CHANGE: muda tudo\r\n', '0.15.2').level, 'major')
+  assert.equal(versaoNova('fix: x', 'texto\n  BREAKING-CHANGE: muda tudo', '0.15.2').level, 'major')
+})
+
+test('o ! depois do tipo sobe a major, feat sobe a minor e o resto é patch', () => {
+  assert.equal(versaoNova('feat(task-tree)!: x', '', '0.15.2').nova, '1.0.0')
+  assert.equal(versaoNova('feat(task-tree): x', '', '0.15.2').nova, '0.16.0')
+  assert.equal(versaoNova('fix(task-tree): x', '', '0.15.2').nova, '0.15.3')
 })
