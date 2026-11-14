@@ -6,7 +6,7 @@
 // prompt.compose: the rules go in the system prompt while the panel's tools are there.
 
 import type { Child } from '../types'
-import { MAIN, hasOpen } from '../draw/layout'
+import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
 import { reminders, dropWaits, ensureGroups, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
@@ -83,6 +83,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     if (it.notice) await refreshChildren($).catch(() => {})
     const note = await endedNote($)
     const taken = await takenNote($)
+    // Tasks the person stopped (Esc) and no start took up since: only a start brings them back
+    // (lembretes.parada-so-volta-com-start).
+    await ensureGroups($)
+    const { value: kept = [] } = await $.state.get(groupsState)
+    const parked = flat(kept.find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'open' && t.stopped)
     return next({
       ...e,
       context: [
@@ -90,6 +95,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
         ...(note ? [note] : []),
         ...(taken ? [taken] : []),
         it.handback ? PROMPT.handback : kind === 'task-notification' ? PROMPT.background : PROMPT.notice,
+        ...(parked.length > 0 ? [PROMPT.parked(openList(parked))] : []),
       ],
     })
   }

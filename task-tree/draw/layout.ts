@@ -714,15 +714,36 @@ export const SHOWN_CARD_TURNS = 3
 // the recent ones, where the work is, stay. Far above a real panel (a long session drew 31 lines);
 // the open steps of a huge plan reached it. `max` below MAX_ROWS (2 or more): the same cut, asked by
 // the drawing's size limit when these lines pass it (hooks/render.tsx).
+// The line of an open history ("+N pedidos anteriores", opened) and the lines above it (its parents)
+// are never cut, so the person can close it (the person, 2026-11-13: "Preservar a linha
+// (Recomendado)"): they come right after "+N linhas anteriores", in their order, and are not counted
+// in it. With none open the cut is the same as before; kept lines alone past `max` stay all the same.
 export const MAX_ROWS = 400
 export function limitRows(rows: Row[], max = MAX_ROWS): Row[] {
   if (rows.length <= max) return rows
   const room = max - 1
   const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas', cut: n })
-  const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i <= room)
-  if (from > 0) return [before(from), ...rows.slice(from)]
-  // The last block alone is past the limit: what came before it goes whole, and the block is drawn
-  // to the limit, the rest counted at its end.
+  // The kept lines: each open history and its parents (the nearest earlier line less deep, up to depth 0).
+  const keep = new Set<number>()
+  rows.forEach((r, i) => {
+    if (!(r.key?.endsWith('sec:turns') === true && r.fold?.open === true)) return
+    keep.add(i)
+    let depth = r.depth
+    for (let j = i - 1; j >= 0 && depth > 0; j--) {
+      if (rows[j]!.depth < depth) {
+        keep.add(j)
+        depth = rows[j]!.depth
+      }
+    }
+  })
+  const keptBefore = (n: number) => rows.filter((_, i) => i < n && keep.has(i))
+  const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i + keptBefore(i).length <= room)
+  if (from > 0) {
+    const held = keptBefore(from)
+    return [before(from - held.length), ...held, ...rows.slice(from)]
+  }
+  // The last block alone is past the limit: what came before it goes whole (but its kept lines), and
+  // the block is drawn to the limit (its kept lines too), the rest counted at its end.
   let last = 0
   for (let i = rows.length - 1; i > 0; i--) {
     if (rows[i]!.depth === 0) {
@@ -730,9 +751,15 @@ export function limitRows(rows: Row[], max = MAX_ROWS): Row[] {
       break
     }
   }
-  const head = last > 0 ? [before(last)] : []
-  const kept = rows.slice(last, last + room - head.length)
-  const after = rows.length - last - kept.length
+  const held = keptBefore(last)
+  const gone = last - held.length
+  const head = [...(gone > 0 ? [before(gone)] : []), ...held]
+  const block = rows.slice(last)
+  const keptIn = (k: number) => block.filter((_, j) => j >= k && keep.has(last + j))
+  let k = Math.max(0, room - head.length)
+  while (k > 0 && head.length + k + keptIn(k).length > room) k--
+  const kept = [...block.slice(0, k), ...keptIn(k)]
+  const after = block.length - kept.length
   return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${after} linhas`, label: 'Linhas seguintes, não desenhadas', cut: after }]
 }
 

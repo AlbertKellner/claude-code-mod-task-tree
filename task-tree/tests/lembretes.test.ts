@@ -249,3 +249,82 @@ test('a resposta dada pelo chat a uma pergunta, entregue no meio do turno, é di
   // Uma vez só.
   expect(contexto(await digitadaNoMeio($, 'e mais isto'))).not.toContain('resposta do usuário')
 })
+
+// A frase dos prompts que não abrem pedido sobre a tarefa parada com Esc.
+const SO_COM_START = 'só volta a andamento com mcp__task-tree__start nela'
+const CURTO = 'mantenha o painel em dia'
+
+// Regra: lembretes.parada-so-volta-com-start
+test('depois do Esc, o turno de um aviso, de um hand-back ou de uma notificação diz que a tarefa parada só volta com start nela', async ($: any, on: any) => {
+  await iniciar($, on)
+  await esc($)
+  const prompts: Array<() => Promise<any>> = [
+    () => aviso($),
+    () => $.prompt.submit({ text: '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>' }),
+    () => $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } }),
+  ]
+  for (const prompt of prompts) {
+    const ctx = contexto(await prompt())
+    expect(ctx).toContain(SO_COM_START)
+    expect(ctx).toContain('o usuário parou (Esc)')
+    expect(ctx).toContain('Um')
+    expect(ctx).not.toContain('Dois')
+    await fimDoTurno($)
+  }
+})
+
+// Regra: lembretes.parada-so-volta-com-start
+test('a frase da tarefa parada com Esc segue nos avisos depois de outro pedido e some com o start nela', async ($: any, on: any) => {
+  await iniciar($, on)
+  await esc($)
+  await pedido($, 'segue')
+  await start($, ['2'])
+  await fimDoTurno($)
+  const primeira = contexto(await aviso($))
+  await fimDoTurno($)
+  await pedido($, 'volta')
+  await start($, ['1'])
+  await fimDoTurno($)
+  const segunda = contexto(await aviso($))
+  expect(primeira).toContain(SO_COM_START)
+  expect(primeira).toContain('Um')
+  expect(primeira).not.toContain('Dois')
+  expect(segunda).not.toContain(SO_COM_START)
+  expect(segunda).toContain(CURTO)
+})
+
+// Regra: lembretes.parada-so-volta-com-start
+test('sem tarefa parada com Esc, ou depois do done nela, o aviso leva só o lembrete curto', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const primeira = contexto(await aviso($))
+  await fimDoTurno($)
+  await pedido($, 'volta')
+  await start($, ['1'])
+  await esc($)
+  const segunda = contexto(await aviso($))
+  await fimDoTurno($)
+  await pedido($, 'fecha')
+  await done($, ['1'])
+  await fimDoTurno($)
+  const terceira = contexto(await aviso($))
+  expect(primeira).not.toContain(SO_COM_START)
+  expect(primeira).toContain(CURTO)
+  expect(segunda).toContain(SO_COM_START)
+  expect(segunda).toContain('Um')
+  expect(terceira).not.toContain(SO_COM_START)
+  expect(terceira).toContain(CURTO)
+})
+
+// Regra: lembretes.parada-so-volta-com-start
+test('as regras do prompt de sistema dizem que a tarefa parada com Esc só volta com start nela', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('para o turno (Esc)')
+  expect(regras).toContain('até um novo mcp__task-tree__start nela')
+  expect(regras).toContain('aviso automático')
+  expect(regras).toContain('retorno de subagente')
+})

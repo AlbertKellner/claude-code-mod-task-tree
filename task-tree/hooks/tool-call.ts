@@ -146,11 +146,14 @@ const sentMessage: Notes = async ($, c, notes) => {
   // person, 2026-10-28; the ✉ "para sinalizar que essa etapa esta em andamento", 2026-10-21). A failed
   // send keeps none.
   const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
+  // A message to one of this session's subagents (not a session): its delivery is that subagent's
+  // (hooks/agents), not a session's list or file.
+  const agent = to !== '' && !failed && !to.startsWith('local_') ? await subagentOf($, to) : undefined
   if (to !== '' && !failed) {
     const at = sentAt ?? (await stamp($))
     await update($, sendsState, cur => [
       ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
-      { to, anchor, at, text: said, ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
+      { to, anchor, at, text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
     ].slice(-20))
     // The task it went from stays a task like any other: the message is its letter, drawn below it.
     await publishPanel($)
@@ -158,7 +161,20 @@ const sentMessage: Notes = async ($, c, notes) => {
   if (waitsDelivery && to !== '') {
     const all = flat((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const t = all.find(t => t.id === anchor)
-    notes.push(SEND.queued(to, t ? `"${t.id}" ${t.title}` : undefined))
+    notes.push((agent !== undefined ? SEND.queuedSub : SEND.queued)(to, t ? `"${t.id}" ${t.title}` : undefined))
+  }
+}
+
+// The subagent of this session a SendMessage names, by its id or its name (the engine's list); a
+// teammate is not one (its messages go through its team). A list that fails: none, as before.
+async function subagentOf($: any, to: string): Promise<string | undefined> {
+  try {
+    const list = await $.agent.list()
+    if (!Array.isArray(list)) return undefined
+    const a = list.find((a: any) => a && (a.id === to || (typeof a.name === 'string' && a.name !== '' && a.name === to)) && a.type !== 'teammate' && a.teammateId === undefined)
+    return typeof a?.id === 'string' && a.id !== '' ? a.id : undefined
+  } catch {
+    return undefined
   }
 }
 

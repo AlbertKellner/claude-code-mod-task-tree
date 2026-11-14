@@ -110,6 +110,8 @@ Na ordem de `register.tsx`:
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
+| `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
+| `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
 | `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
@@ -118,6 +120,23 @@ Na ordem de `register.tsx`:
 
 Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
 elas (por isso cada uma marca `reminders.planned` por conta própria).
+
+Carta a um subagente (pendência 1, 2026-11-14; decisão do usuário 2026-11-13, "Cinza \"não entregue\"
+(Recomendado)"): o `SendMessage` cujo `to` não é `local_…` e casa com um agente de `$.agent.list()`
+(pelo `id` ou pelo `name`, sem teammate) grava `Send.agent`. `watchSends` pula esses envios (uma sessão de
+mesmo nome não os confirma nem os dá por arquivados). Entregue (`takeSubSend`): no `session.receive` do
+subagente ou na retomada dele (`agent.spawn` com `resume`, o `prompt` é a mensagem), casando o texto do
+envio com o recebido (sem casamento, o mais antigo, só para a mensagem do loop principal e a retomada); a
+tarefa de origem fecha como em `watchSends`, salvo se dela ainda roda um subagente (fecha com o fim dele,
+`settleBySubs`). Não entregue (`strandedSends`, na releitura, depois de `checkSubs`): o cartão do
+subagente encerrado há `SUB_CONFIRM` ms ou mais e a lista do motor sem ele `running`/`pending`/`waiting`/
+`idle` marcam `cut` e `lost`; com o turno terminado, roda `settleBySubs`. A espera existe porque no fim
+normal o motor retoma o subagente com a mensagem encalhada: marcar na hora pintaria cinza e logo verde.
+Fatos do motor (2.1.321, lidos no binário): na fila, a resposta diz "queued for delivery to X at its next
+tool round"; a drenagem chama o `session.receive` com o `agentId` do subagente; o subagente que conclui com
+mensagem pendente é retomado pelo `agent.spawn` com `resume`; o parado ou que falhou não é retomado
+(dedução, no checklist do app: `envios.subagente-no-app`). `takenNote` fala do subagente com
+`SESSION.takenSub` e `SESSION.lostSub`; o aviso da fila, `SEND.queuedSub`.
 
 ### Fluxo de dados
 
@@ -155,7 +174,8 @@ do app (`notice`: corpo vazio ou `<side-sessions-event>`) ou pedido. `noteReceiv
 das mensagens de outras sessões (os últimos 20) e publica. Um prompt de origem `NO_TURN`
 (`task-notification`, `observer`, `observer-activity`, `auto-continuation`, `unclassified`), um aviso
 ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete curto (`PROMPT.handback`,
-`.background` ou `.notice`). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
+`.background` ou `.notice`) e, com tarefa parada com Esc ainda sem `start` no grupo principal, também
+`PROMPT.parked` com a lista delas (2026-11-13, "Acrescentar (Recomendado)"). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
 principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: título com até 60
 caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
 tarefas), releem a lista se está velha e
@@ -581,7 +601,8 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
   mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
   por `stayed`. `wake` não mudou: o que um fim normal deixou ◷ volta a ◉ no prompt seguinte; só o que o
-  Esc parou espera o `start`.
+  Esc parou espera o `start`. Os textos ao modelo dizem a regra: um item das `RULES` e `PROMPT.parked`
+  nos avisos, hand-backs e notificações (`lembretes.parada-so-volta-com-start`).
 
 
 - **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa, verde concluído, cinza interrompido), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. A linha do terminal não muda.
@@ -598,12 +619,17 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
   `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
   último pedido sozinho, até o limite, com "+N linhas"). Cada tentativa mira 95% do limite pela média
-  de bytes por linha; depois de três, no máximo a metade das linhas, até 2. O mapa `fitted` (por
+  de bytes por linha; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
+  (abaixo do anterior e das linhas desenhadas, que as linhas guardadas de um histórico aberto podem
+  deixar acima dele). O mapa `fitted` (por
   superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
   seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
-  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com
-  o botão que fecha o que a pessoa abriu) fica como último recurso, para um desenho de duas linhas que
-  ainda passe do limite. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
+  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", em KB ou, pelo texto, em mil
+  caracteres) fica como último recurso: o desenho de duas linhas ainda passa de 600 KB ou, no desktop,
+  de `TEXT_LIMIT`, ou só o piso de duas linhas coube. O botão "Voltar" fecha o que a pessoa abriu e liga
+  a marca `sec:short` nas dobras: com ela, um desenho que não cabe inteiro é refeito com os títulos (das
+  linhas e do cabeçalho) em no máximo `SHORT_TEXT` = 200 caracteres, "…" no fim, com a sua entrada
+  própria em `fitted`; o aviso só sai se nem assim couber. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
   `drawn` guarda tamanho, linhas e erro do último desenho.
 - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
   último desenho registrou em `actions` (`act`).
@@ -1106,7 +1132,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   recentes ficam. Se o último bloco sozinho passa do limite, o que vinha antes sai contado, o bloco é
   desenhado até o limite e fecha com `+N linhas` (profundidade 1, alt "Linhas seguintes, não desenhadas").
   Total sempre ≤ 400. Corta-se por blocos inteiros do começo porque o trabalho atual fica no fim e cortar
-  dentro de um bloco quebraria as guias. O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
+  dentro de um bloco quebraria as guias. A linha de um histórico aberto (`sec:turns` com `fold.open`) e as
+  mães dela (a linha anterior menos funda, até o nível 0) nunca saem: vêm logo depois de `+N linhas
+  anteriores`, fora da contagem (decisão do usuário, 2026-11-13: "Preservar a linha (Recomendado)").
+  O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
   no tooltip). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
   linhas) não muda. O arquivo publicado ganha `drawRows` (`rows` em `Published`) e `drawSize`, informativos
   (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). 
@@ -1701,3 +1730,21 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `width` nem `height`, dentro de uma coluna com a largura da barra), para a leitura do kit seguir
   lendo um fim como fim. O kit lê a altura, o centro, os vãos, os respiros e o tom (`alturaDaLinha`,
   `centrada`, `vaosEntreLinhas`, `respirosDoApp`, `tom`).
+- Histórico aberto no corte (o usuário, 2026-11-13: "Preservar a linha (Recomendado)"). A linha
+  "+N pedidos anteriores" é a primeira do desenho, sozinha num bloco de nível 0, e todo corte que tira
+  blocos do começo (as 400 linhas ou o laço de tamanho e texto) a levava junto: aberto o histórico numa
+  sessão longa, não sobrava onde clicar para fechá-lo. Agora `limitRows` guarda cada linha de
+  histórico aberto e as mães dela, logo depois de "+N linhas anteriores" (a contagem segue a primeira
+  linha, para não mexer em teste selado), fora da contagem; sem histórico aberto, o corte é o mesmo de
+  antes. Como essas linhas podem deixar o desenho acima do máximo pedido, o laço do render baixa o
+  máximo a partir do menor entre ele e as linhas desenhadas. O histórico aberto num cartão de filha,
+  cortado, fica no checklist do app.
+- O aviso como rede e o "Voltar" que sempre volta (o usuário, 2026-11-13: "Manter como rede
+  (Recomendado)"). Depois do corte por tamanho, o aviso só aparecia se duas linhas ainda passassem de
+  600 KB, e o "Voltar" só fechava o que a pessoa abriu: sem nada aberto, não escrevia nada; com algo
+  aberto, o texto enorme seguia no desenho, e o aviso voltava. O que leva ao aviso é um texto enorme que
+  o corte não tira (o título de uma tarefa, sem limite de tamanho). Na prática, com um título assim o
+  laço descia até o piso de duas linhas: o desenho cabia, mas sem a tarefa (o cabeçalho dizia "Nenhuma
+  tarefa planejada"), e, quando o que passava era o texto (95.000 caracteres), sem aviso nem botão.
+  Agora o piso de duas linhas também não basta, o aviso sai também pelo texto, e o "Voltar" liga
+  `sec:short`: o painel volta com os títulos longos encurtados, e inteiros quando o desenho inteiro cabe.

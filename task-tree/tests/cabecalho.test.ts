@@ -4,6 +4,7 @@ import { aviso } from './kit/cenario'
 import { fixar, host, responderEnvio } from './kit/ambiente'
 import { done, envio, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { comHistorico, cabecalho, emTexto, esperarEstado, montar, noApp, painel } from './kit/leitura'
+import { linha, linhaDoApp, montarNoApp } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }, { id: 'b2', title: 'b2' }] }]
@@ -347,4 +348,102 @@ test('um pedido só acima de 600 KB é desenhado até caber e fecha com "+N linh
   expect(d.textos[d.textos.length - 1], d.textos.slice(-3).join('\n')).toBe(d.depois)
   expect(d.depois, d.textos.slice(-3).join('\n')).toBeDefined()
   expect(d.textos.some(a => a.includes('U0.0.0')), d.textos.slice(0, 6).join('\n')).toBe(true)
+})
+
+// Regra: cabecalho.corte-preserva-historico-aberto
+test('com "+N pedidos anteriores" aberto, o corte por tamanho deixa a linha à vista, e um clique nela fecha o histórico', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedidoPesado($, relogio, 0)
+  await pedidoPequeno($, relogio)
+  const m = await montarNoApp($)
+  await m.apertar('fold:sec:turns')
+  let d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
+  const antes = d.textos.findIndex(t => /\+\d+ linhas anteriores$/.test(t))
+  expect(antes, d.textos.slice(0, 3).join('\n')).toBeGreaterThanOrEqual(0)
+  expect(d.textos[antes + 1], d.textos.slice(0, 3).join('\n')).toContain('+1 pedidos anteriores')
+  expect(linhaDoApp(d, '+1 pedidos anteriores').botoes).toContain('fold:sec:turns')
+  expect(d.textos.some(a => a.includes('Pequeno um')), d.textos.slice(-5).join('\n')).toBe(true)
+  await m.apertar('fold:sec:turns')
+  d = await m.desenho()
+  expect(d.textos.some(t => /\+\d+ linhas anteriores$/.test(t)), d.textos.slice(0, 3).join('\n')).toBe(false)
+  expect(d.textos.some(a => a.includes('Pequeno um')), d.textos.slice(-5).join('\n')).toBe(true)
+  expect(d.textos.some(a => a.includes('U0')), d.textos.slice(0, 5).join('\n')).toBe(false)
+  await m.fim()
+})
+
+// Regra: cabecalho.corte-preserva-historico-aberto
+test('com "+N pedidos anteriores" aberto, o corte das 400 linhas deixa a linha à vista, logo depois de "+N linhas anteriores"', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, grande('U', 8, 8, 4))
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, grande('D', 8, 8, 4))
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, [{ id: 'P', title: 'Plano pequeno', children: [{ id: 'p1', title: 'Pequeno um' }, { id: 'p2', title: 'Pequeno dois' }] }])
+  const m = await montar($)
+  await m.recolher('+1 pedidos anteriores')
+  let p = await m.linhas()
+  const desenho = p.filter(l => !l.cabecalho)
+  expect(desenho.length, emTexto(p).slice(0, 500)).toBeLessThanOrEqual(400)
+  expect(desenho[0]?.texto, emTexto(p).slice(0, 500)).toMatch(/^\+\d+ linhas anteriores$/)
+  expect(desenho[1]?.titulo, emTexto(p).slice(0, 500)).toBe('+1 pedidos anteriores')
+  expect(desenho[1]?.texto, emTexto(p).slice(0, 500)).toContain('▾')
+  expect(p.some(l => l.titulo === 'Pequeno um'), emTexto(p).slice(-300)).toBe(true)
+  await m.recolher('+1 pedidos anteriores')
+  p = await m.linhas()
+  expect(linha(p, '+1 pedidos anteriores').texto, emTexto(p).slice(0, 300)).toContain('▸')
+  await m.fim()
+})
+
+// Um plano com o título da tarefa de nível 1 enorme: ele vai no cabeçalho (no texto e no `alt` da barra),
+// que o corte não tira.
+async function planoGigante($: any, tamanho: number) {
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'G', title: `G ${'x'.repeat(tamanho)}`, children: [{ id: 'g1', title: 'Folha um' }, { id: 'g2', title: 'Folha dois' }] }])
+  await start($, ['g1'])
+}
+
+// Regra: cabecalho.aviso-de-painel-grande-volta
+test('um título enorme no cabeçalho leva ao aviso, e "Voltar" traz o painel de volta com os textos encurtados', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await planoGigante($, 320000)
+  const m = await montarNoApp($)
+  let d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(true)
+  await m.apertar('back')
+  d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
+  expect(d.textos.some(t => t.includes('Folha um')), d.textos.join('\n')).toBe(true)
+  expect(d.cabecalho.texto, d.cabecalho.texto.slice(0, 300)).toContain('…')
+  expect(d.cabecalho.texto.length, d.cabecalho.texto.slice(0, 300)).toBeLessThan(1000)
+  // O título enorme sai (o plano é trocado): o desenho inteiro cabe, e os textos voltam inteiros.
+  await plan($, [{ id: 'G', title: 'Plano curto', children: [{ id: 'g1', title: 'Folha um' }, { id: 'g2', title: 'Folha dois' }] }])
+  d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.cabecalho.texto, d.cabecalho.texto.slice(0, 300)).toContain('Plano curto')
+  expect([d.cabecalho.texto, ...d.textos].some(t => t.includes('…')), emTexto([])).toBe(false)
+  await m.fim()
+})
+
+// Regra: cabecalho.aviso-de-painel-grande-volta
+test('um título que passa do limite de texto também leva ao aviso, e "Voltar" traz o painel de volta', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await planoGigante($, 150000)
+  const m = await montarNoApp($)
+  let d = await m.desenho()
+  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
+  expect(d.aviso, kb(d)).toBe(true)
+  await m.apertar('back')
+  d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.textos.some(t => t.includes('Folha um')), d.textos.join('\n')).toBe(true)
+  await m.fim()
 })

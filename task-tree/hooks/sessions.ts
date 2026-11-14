@@ -12,7 +12,7 @@ import { readPublished } from '../io/publish'
 import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
-import { checkSubs } from './agents'
+import { checkSubs, strandedSends } from './agents'
 import { change, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -36,6 +36,8 @@ export async function refreshChildren($: any) {
   // The subagents' cards still alive, against the engine's list: one whose end never came is ended
   // (hooks/agents, checkSubs). First, and whatever the sessions' list says below.
   await checkSubs($).catch(() => {})
+  // The messages queued to a subagent that ended without receiving them (hooks/agents).
+  await strandedSends($).catch(() => {})
   // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
   // outside the desktop app there are no sessions to show, so no line either.
   const listed = await listSessions($)
@@ -120,7 +122,8 @@ export async function watchSends($: any, rows: any[]) {
   // The sends still waiting, by the session they went to.
   const waiting = new Map<string, { i: number; s: Send; r: any }[]>()
   for (const [i, s] of (sends as Send[]).entries()) {
-    if (s.taken) continue
+    // A subagent's: its delivery is the subagent's (hooks/agents), whatever session has its name.
+    if (s.taken || s.agent !== undefined) continue
     const r = rows.find(r => r.sessionId === s.to || (r.name && r.name === s.to))
     const id = r?.sessionId ?? (String(s.to).startsWith('local_') ? s.to : undefined)
     if (id === undefined) continue
@@ -161,7 +164,7 @@ export async function watchSends($: any, rows: any[]) {
   // the main loop will be told again of what comes of it. Taken up after all (its receipt): delivered,
   // as any other, and the main loop is told so.
   for (const [i, s] of (sends as Send[]).entries()) {
-    if (s.taken) continue
+    if (s.taken || s.agent !== undefined) continue
     if (marks[i]?.taken) {
       if (s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
       continue
@@ -210,7 +213,14 @@ export async function takenNote($: any): Promise<string | undefined> {
       const t = all.find(t => t.id === s.anchor)
       return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
     })
-  return [...(taken.length > 0 ? [SESSION.taken(what(taken))] : []), ...(lost.length > 0 ? [SESSION.lost(what(lost))] : [])].join(' ')
+  // A subagent's (with `agent`) and a session's, each with its own words.
+  const sub = (list: Send[], mine: boolean) => list.filter(s => (s.agent !== undefined) === mine)
+  return [
+    ...(sub(taken, false).length > 0 ? [SESSION.taken(what(sub(taken, false)))] : []),
+    ...(sub(lost, false).length > 0 ? [SESSION.lost(what(sub(lost, false)))] : []),
+    ...(sub(taken, true).length > 0 ? [SESSION.takenSub(what(sub(taken, true)))] : []),
+    ...(sub(lost, true).length > 0 ? [SESSION.lostSub(what(sub(lost, true)))] : []),
+  ].join(' ')
 }
 
 // The list read again when it is older than the poll's period: a session drawn at work after

@@ -63,15 +63,16 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### cabecalho.aviso-de-painel-grande-volta
-O aviso de painel grande tem um botão que volta à visualização anterior.
+O aviso de painel grande tem um botão que traz o painel de volta.
 
-- Dado o painel trocado pelo aviso "Painel grande demais", depois de abrir "+N pedidos anteriores"
+- Dado o painel trocado pelo aviso "Painel grande demais", porque o corte não basta: reduzido a duas linhas, o desenho ainda passa de 600 KB (no app desktop, também de 95.000 caracteres de texto), ou só cabe nessas duas linhas; isso só acontece com um texto enorme que o corte não tira, como o título da tarefa do cabeçalho
 - Quando a pessoa aperta "Voltar à visualização anterior"
-- Então o que foi aberto fecha (os históricos abertos; sem nenhum, as linhas abertas) e o painel normal volta, com "+N pedidos anteriores" fechado
+- Então o que ela abriu fecha (os históricos abertos; sem nenhum, as linhas abertas); o painel volta, com as tarefas em andamento e os textos longos encurtados em "…" enquanto o desenho inteiro não couber; quando ele volta a caber, os textos voltam inteiros; na mesma sessão, um desenho grande demais já vem encurtado, sem o aviso
 
 Origem: decisão do usuário, 2026-11-04 ("coloque um botão para voltar a visualização anterior").
+Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): o aviso fica para o caso raro em que o corte não basta, e o botão sempre traz o painel de volta; desfaz o "Voltar" que só fechava o que foi aberto.
 Código: hooks/render.tsx
-Estado: checklist (com o corte por tamanho, de 2026-11-12, o aviso é só o último recurso: abrir "+N pedidos anteriores" não leva mais a ele, e nem o harness nem uma sessão comum chegam lá)
+Estado: coberto
 
 ### cabecalho.limites-de-linhas
 Os pedidos fora do trabalho viram "+N pedidos anteriores".
@@ -102,7 +103,7 @@ O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de cont
 
 - Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB (no app desktop, também acima de 95.000 caracteres de texto), com ou sem algo aberto pela pessoa
 - Quando é desenhado
-- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB
+- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB ou, no app desktop, de 95.000 caracteres de texto, ou só cabe nessas duas linhas (cabecalho.aviso-de-painel-grande-volta)
 
 Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
@@ -110,6 +111,7 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendado)"); acima de 600 KB o desenho perde os blocos mais antigos até caber, sem aviso; desfaz o aviso como saída do desenho grande (2026-11-04), que fica só como último recurso.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto das linhas no lugar do `alt` de cada imagem e usa títulos mais longos, porque a linha nativa pesa menos; a regra não muda.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG") com a mesma regra de corte ("Cortar os mais antigos (Recomendado)"): no app desktop o corte também conta os caracteres de texto desenhados (os textos, o `alt` e o rótulo), até 95.000, porque o app só desenha os primeiros 100.000 e a linha nativa leva o título no texto e no `alt`; o terminal não muda.
+Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): o aviso também sai quando o que não cabe é o texto, ou quando só as duas linhas do piso cabem.
 Código: hooks/render.tsx
 Estado: coberto
 
@@ -145,6 +147,17 @@ Estado: coberto
 Origem: decisão do usuário, 2026-11-03 ("Sim, fechado por padrão (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...".
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/svg.ts, hooks/render.tsx
+Estado: coberto
+
+### cabecalho.corte-preserva-historico-aberto
+O corte do desenho deixa à vista a linha do histórico aberto.
+
+- Dado "+N pedidos anteriores" aberto pela pessoa (no painel ou no cartão de uma sessão), e um desenho que passa do limite de linhas, de tamanho ou de texto
+- Quando é desenhado
+- Então a linha "+N pedidos anteriores" continua no desenho, com ▾, logo depois de "+N linhas anteriores" (num cartão, com o pedido, a tarefa e o cartão acima dela), e um clique nela fecha o histórico; o resto é cortado como antes (o histórico aberto num cartão de filha, cortado, é conferido no checklist do app)
+
+Origem: decisão do usuário, 2026-11-13 ("Preservar a linha (Recomendado)").
+Código: draw/layout.ts, hooks/render.tsx
 Estado: coberto
 
 ### cabecalho.historico-guarda-o-que-saiu

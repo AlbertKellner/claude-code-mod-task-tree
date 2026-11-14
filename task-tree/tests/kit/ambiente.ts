@@ -16,6 +16,8 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   on('ui.log', () => ({ value: undefined }))
   // Abaixo do mod, o prompt e o fim do turno só ecoam (o mod já fez a parte dele).
   on('prompt.submit', (_$: any, e: any) => e)
+  // A entrega a um subagente (session.receive): o núcleo a enfileira com o texto dela.
+  on('session.receive', (_$: any, e: any) => ({ text: e.text }))
   on('turn.complete', () => ({ text: '' }))
   // O início da sessão (processo novo) e o SessionStart (retomada, /clear): o mod já fez a parte dele.
   on('session.start', () => ({ cwd: '.' }))
@@ -186,7 +188,8 @@ export function responderDepois(on: any, relogio: { sleep(ms: number): Promise<v
 // chamada a $.
 export function lancaveis(on: any, ids: string[], modelo = 'claude-haiku-5-5') {
   let i = 0
-  on('agent.spawn', () => ({ model: modelo, agentId: ids[i++] ?? `sub-${i}` }))
+  // A retomada de um subagente (resume) segue com o id dele.
+  on('agent.spawn', (_$: any, e: any) => (e?.resume?.agentId ? { model: modelo, agentId: e.resume.agentId } : { model: modelo, agentId: ids[i++] ?? `sub-${i}` }))
   on('agent.list', () => ({ value: ids.map(id => ({ id, type: 'general-purpose', description: `subagente ${id}` })) }))
 }
 

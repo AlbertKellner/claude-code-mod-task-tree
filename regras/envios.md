@@ -9,12 +9,13 @@ O ✉ fica na tarefa até a entrega.
 
 - Dado uma tarefa de onde saiu uma mensagem a outra sessão, ainda na fila
 - Quando a tarefa é concluída antes da entrega
-- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou; se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue
+- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou; se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue; se o subagente destino parar antes de recebê-la, vale envios.subagente-parado-nao-entregue
 
 Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é uma linha própria sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o mesmo cinza "não entregue" vale para a carta ao subagente que para antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Estado: coberto
 
 ### envios.entrega-imediata-fica-verde
@@ -46,7 +47,7 @@ Estado: coberto
 O ✉ mantém o ícone e muda só a cor.
 
 - Dado uma tarefa de mensagem
-- Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la)
+- Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la, ou o subagente parado antes de recebê-la)
 - Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega ou não entregue); a tarefa tem o ícone comum e conta
 
 Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
@@ -54,6 +55,7 @@ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou um
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
+Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza "não entregue" vale também para o subagente parado antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
@@ -126,10 +128,11 @@ A carta de envio é uma linha sob a tarefa de onde a mensagem saiu.
 
 - Dado uma mensagem a outra sessão enviada de uma tarefa
 - Quando o painel é desenhado
-- Então uma linha "✉ Para <sessão>: <mensagem>" aparece sob a tarefa, antes do cartão da sessão, com "na fila" e o tempo de espera, depois "entregue" (ou "não entregue", sem tempo, se a sessão destino for arquivada antes de tomá-la); ela fica fora do x/y, das barras e dos chips, menos o de "aguardando sessão", que só conta a carta na fila; a tarefa segue com o ícone comum e conta
+- Então uma linha "✉ Para <sessão>: <mensagem>" aparece sob a tarefa, antes do cartão da sessão, com "na fila" e o tempo de espera, depois "entregue" (ou "não entregue", sem tempo, se a sessão destino for arquivada antes de tomá-la ou o subagente destino parar antes de recebê-la); ela fica fora do x/y, das barras e dos chips, menos o de "aguardando sessão", que só conta a carta na fila; a tarefa segue com o ícone comum e conta
 
 Origem: decisão do usuário, 2026-10-30 ("A: linha própria sob a tarefa (Recomendado)"; "a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a linha ganha a palavra "não entregue", sem tempo e fora do chip "aguardando sessão" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); "não entregue" também quando o subagente destino para antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts, hooks/render.tsx
 Estado: coberto
 
@@ -176,3 +179,36 @@ No app, arquivar a sessão destino com a mensagem na fila deixa a carta cinza "n
 Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.destino-arquivado-nao-entregue.
 Código: hooks/sessions.ts, draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: checklist (sessão real arquivada no app; o relógio de 1 s e a pintura não rodam no harness)
+
+### envios.subagente-parado-nao-entregue
+A carta para um subagente que para antes de recebê-la fica cinza, "não entregue".
+
+- Dado uma tarefa com a carta dela na fila para um subagente desta sessão
+- Quando o subagente termina sem recebê-la (Esc, TaskStop, falha, fim sem ser retomado com ela, ou o cartão encerrado pela lista do app)
+- Então em poucos segundos a carta fica cinza com "não entregue", sem tempo, e sai do chip "aguardando sessão"; a tarefa volta a ser comum (no Esc fica ✕; o done dela não avisa de fila; concluída, não segura o pedido à vista; com o turno terminado, reflete o fim do subagente lançado dela) e o modelo é avisado uma vez; recebida depois (retomado com ela), a carta fica verde e o modelo é avisado da entrega
+
+Origem: decisão do usuário, 2026-11-13 ("Cinza \"não entregue\" (Recomendado)"), à pendência "carta para subagente parado antes de receber"; aplica envios.destino-arquivado-nao-entregue ao subagente e limita envios.fica-ate-entrega, envios.fila-nao-interrompe-no-fim-do-turno e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila à mensagem que ainda pode ser entregue.
+Código: hooks/agents.ts, text/rules.ts
+Estado: coberto
+
+### envios.subagente-recebe-fica-verde
+A carta para um subagente fica verde quando ele a recebe.
+
+- Dado uma tarefa com a carta dela na fila para um subagente desta sessão
+- Quando ele a recebe na rodada seguinte de ferramentas, ou termina antes e o app o retoma com ela
+- Então a carta fica verde, "entregue", sem tempo e fora do chip; o painel conclui a tarefa de onde ela saiu, salvo se dela ainda roda um subagente: aí ela fecha com o fim dele; o modelo é avisado da entrega uma vez
+
+Origem: análise da pendência 1, 2026-11-14 (a entrega a um subagente nunca era conferida, e a carta ficava azul mesmo recebida); aplica envios.fica-ate-entrega ("na entrega, verde, e o painel conclui a tarefa que enviou") e subagentes.um-rodando-mantem-o-pai, sem mudar nenhuma delas.
+Código: hooks/agents.ts, text/rules.ts
+Estado: coberto
+
+### envios.subagente-no-app
+No app, a carta para um subagente real fica verde ao ser recebida e cinza "não entregue" quando ele para antes.
+
+- Dado uma mensagem na fila para um subagente real em segundo plano
+- Quando ele a recebe; noutra vez, é parado com TaskStop (ou Esc) antes da rodada seguinte; noutra, termina antes e é retomado
+- Então verde nos casos de recebimento e retomada, sem passar por cinza; cinza "não entregue" em poucos segundos no parado; nos dois temas, com o tempo parado
+
+Origem: decisão do usuário, 2026-11-13 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.subagente-parado-nao-entregue e envios.subagente-recebe-fica-verde.
+Código: hooks/agents.ts
+Estado: checklist (subagente real, o motor e o relógio de 1 s não rodam no harness)
