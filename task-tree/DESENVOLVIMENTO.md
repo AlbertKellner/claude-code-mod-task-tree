@@ -405,6 +405,16 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   mais antiga e caía em rodada descartada (`discarded`). A linha do cartão só leva `live` quando ele é
   o da frente (ou a sessão não foi dividida): uma sessão conta uma vez no chip de sessões ativas e no
   estado do cabeçalho; o cartão de uma rodada antiga segue desenhado como antes.
+- `cardsOf(p, me, sends?, now?, memo?)` (`draw/layout.ts`) dá os cartões das sessões de um painel como
+  se desenham e contam: cada uma dividida por rodada (`split`, com as irmãs e as tarefas principais do
+  painel; `me` é a sessão dona do painel) e com o `settle` ("encerrada") pelas cartas desse painel (no
+  principal, as desta sessão; num cartão, as `sends` publicadas da filha). Vale em todo nível até
+  `DEEP`: o `panel` desenha com ele em todo nível, e `total` (abaixo do principal) e `allTasks` contam
+  com ele, sem a rodada descartada e sem as ○ da "encerrada"; o x/y do cartão sai da mesma conta. No
+  principal, o `total` segue usando o `splitter` de quem chama (`render.tsx`; o `showStatus` não divide
+  o primeiro nível). O cartão vivo de pedido cortado (`strays`) e o solto vivo (`ends`, com `loosen`)
+  são desenhados também dentro de um cartão, no fim da lista dele. O `panelOf` de uma filha parada
+  passa ao `halt` as tarefas com carta dela ainda na fila: a tarefa fica ◷ também no cartão dela.
 - Os pedidos (turnos) com tarefa de nível 1 são achados por um `Set` dos turnos das tarefas (no
   `panel()`, para os cartões antigos, e em `openTurn`): uma passada por lista, não uma pelas tarefas
   por turno.

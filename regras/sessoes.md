@@ -352,3 +352,14 @@ Uma sessão conta uma vez no chip de sessões ativas, com um cartão ou vários.
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: cada cartão com tarefa aberta de uma sessão rodando contava como uma sessão ativa).
 Código: hooks/render.tsx
 Estado: coberto
+
+### sessoes.regras-de-cartao-valem-para-netas
+As regras de cartão valem também para os cartões dentro do cartão de uma filha.
+
+- Dado uma sessão aberta por uma filha (uma neta), desenhada dentro do cartão da filha
+- Quando ela para só com pendentes e a tarefa de origem dela na filha está fechada; ou trabalha sob um pedido da filha que saiu do trabalho; ou a filha, parada com Esc, tem uma carta na fila
+- Então vale o mesmo que no painel da filha: a neta fica "encerrada", com as ○ desenhadas e fora do x/y do cartão da filha, da tarefa de origem e do cabeçalho (sessoes.filha-parada-com-origem-fechada-sai-da-contagem); o cartão vivo aparece solto no fim do cartão da filha, com o pedido de origem no título (sessoes.cartao-vivo-nunca-some); a tarefa com carta na fila fica ◷ (envios.fila-nao-interrompe-no-fim-do-turno); a rodada da neta dividida por mensagem e a descartada contam como nas filhas diretas
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: "encerrada", cartão vivo solto e carta na fila só valiam para as filhas diretas); estende as três regras citadas, sem mudar nenhuma.
+Código: hooks/render.tsx, hooks/panel.ts
+Estado: coberto

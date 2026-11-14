@@ -936,6 +936,71 @@ test('uma rodada antiga da neta, de pedido cortado, não quebra o cartão', asyn
   expect(cartoes(p, 'neta').flatMap(c => c.tarefas), emTexto(p)).toContain('Neta nova')
 })
 
+// Uma neta como a filha a publica, com o grupo principal dela.
+const netaCom = (tasks: any[], extra: object = {}) => ({
+  id: NETA,
+  name: 'neta',
+  title: 'neta',
+  running: true,
+  archived: false,
+  panel: { groups: [{ agent: '', label: '', tasks, turns: [turno(1, AGORA + 20)] }], waits: [], children: [] },
+  ...extra,
+})
+
+// Regra: sessoes.regras-de-cartao-valem-para-netas
+test('a neta parada só com pendentes e origem fechada fica "encerrada" e sai da contagem da orquestradora', async ($: any, on: any) => {
+  fixar(on)
+  const filhas = [netaCom([noTurno(1, 'n1', 'Neta feita', 'feita'), noTurno(1, 'n2', 'Neta pendente', 'aberta')], { running: false, anchor: 'o' })]
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [noTurno(1, 'o', 'Origem da neta', 'feita')], turns: [turno(1, AGORA + 10)], filhas } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  esperarPalavra(p, 'neta', 'encerrada')
+  esperarEstado(p, 'Neta pendente', 'pendente')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([2, 5])
+})
+
+// Regra: sessoes.regras-de-cartao-valem-para-netas
+test('a neta que trabalha sob um pedido da filha fora do trabalho aparece solta no fim do cartão da filha', async ($: any, on: any) => {
+  fixar(on)
+  const filhas = [netaCom([noTurno(1, 'n1', 'Neta trabalhando', 'iniciada')], { anchor: 'a1' })]
+  host(on, [
+    {
+      id: K1,
+      nome: 'filha-um',
+      painel: { tasks: [noTurno(1, 'a1', 'Antiga', 'feita'), noTurno(2, 'a2', 'Atual', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 30)], work: ['a2'], filhas },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const i = p.findIndex(l => l.sessao === true && l.titulo.startsWith('neta'))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Atual')))
+  expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Dois')))
+  esperarEstado(p, 'Neta trabalhando', 'andamento')
+})
+
+// Regra: sessoes.regras-de-cartao-valem-para-netas
+test('a filha parada com Esc com carta na fila mostra a tarefa do envio aguardando', async ($: any, on: any) => {
+  // Vista rodando primeiro (deixa de ser recém-aberta); depois para com Esc.
+  const h = await abrir($, on, {
+    painel: { tasks: [{ ...tarefa('1', 'Avisar', 'iniciada'), stopped: true }] },
+    envios: [{ to: 'local_z', anchor: '1', at: AGORA }],
+  })
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Avisar', 'aguardando')
+})
+
 // Regra: sessoes.cartao-parado-mostra-o-tempo-do-turno
 test('no cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela', async ($: any, on: any) => {
   const longa = { id: '1', short: '1', title: 'Longa', status: 'open', startedAt: AGORA - 1_200_000, endedAt: AGORA - 1000, children: [] }

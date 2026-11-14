@@ -2000,6 +2000,16 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc com carta na fila mostra a tarefa do envio aguardando": {
+      "regras": [
+        "sessoes.regras-de-cartao-valem-para-netas"
+      ],
+      "hash": "ec2919204436987b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: regras de cartão dentro do cartão"
+    },
     "task-tree/tests/sessoes.test.ts::a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada": {
       "regras": [
         "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
@@ -2070,6 +2080,26 @@
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
+    },
+    "task-tree/tests/sessoes.test.ts::a neta parada só com pendentes e origem fechada fica \"encerrada\" e sai da contagem da orquestradora": {
+      "regras": [
+        "sessoes.regras-de-cartao-valem-para-netas"
+      ],
+      "hash": "48853ce62e08cf52",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: regras de cartão dentro do cartão"
+    },
+    "task-tree/tests/sessoes.test.ts::a neta que trabalha sob um pedido da filha fora do trabalho aparece solta no fim do cartão da filha": {
+      "regras": [
+        "sessoes.regras-de-cartao-valem-para-netas"
+      ],
+      "hash": "78bfa11e71809b00",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: regras de cartão dentro do cartão"
     },
     "task-tree/tests/sessoes.test.ts::a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada": {
       "regras": [
