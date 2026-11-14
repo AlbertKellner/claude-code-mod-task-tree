@@ -113,7 +113,7 @@ Na ordem de `register.tsx`:
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`) |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`) |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -180,7 +180,7 @@ ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete
 `PROMPT.parked` com a lista delas (2026-11-13, "Acrescentar (Recomendado)"). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
 principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: título com até 60
 caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
-tarefas), releem a lista se está velha e
+tarefas, salvo os 20 mais recentes que têm resumo: o pedido respondido sem tarefa, só com a linha ↩), releem a lista se está velha e
 levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensagem é a resposta") e
 `PROMPT.request`. A mensagem entregue com o turno em curso (`e.turnId` preenchido: o relato de uma
 sessão que esta abriu, `fromChildren`, ou a mensagem que a pessoa digita por cima do turno, que o app
@@ -1079,7 +1079,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   ("⑂ filha  aguardando", com as tarefas embaixo), como no esboço 7.3 da análise.
 - Resposta da sessão (↩; pedido do usuário: "adicione nos paineis de sessao, o que foi gerado como
   resposta, com um icone de resposta"): no fim de cada turno do loop principal da filha
-  (`turn.complete`, não abortado), ela grava em `Turn.reply` o `recap` do `wrap_up` desse turno (o
+  (`turn.complete`, não abortado), ela grava em `Turn.reply` (no pedido do turno; ver `answeredTurn`: o
+  pedido respondido sem tarefa fica com o seu ↩, numa linha de pedido própria no painel do topo) o `recap` do `wrap_up` desse turno (o
   mesmo texto que abre o aviso de fim de turno da principal) ou, sem ele, a mensagem final visível
   (`answer`), numa linha de até 600 caracteres, e publica com o painel. No cartão (cada cartão é uma
   rodada), depois das tarefas, uma linha ↩ por turno com resposta, na ordem dos turnos: ícone
@@ -1793,3 +1794,10 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   normal passa a gravar a espera na tarefa (`rest`), como o Esc grava a parada (`park`); o Esc de um turno
   seguinte não interrompe a tarefa que aguarda sem start. Com a hora do fim na tarefa, o cartão da filha
   parada deixa de parar o relógio no último carimbo do painel publicado (0:00).
+
+- Pedido sem tarefa (2026-11-14, "Pedido próprio (Recomendado)"): a resposta de um turno sem plano ia
+  para o último pedido com tarefas e trocava o ↩ dele. Agora vai ao pedido da mensagem; sem tarefa nele, ao
+  pedido anterior só quando o turno mexeu numa tarefa dele (start, done, plan desde a mensagem), senão fica
+  no próprio pedido quando há resumo (linha de pedido ✓ sem contagem, barra nem tempo, com o ↩ embaixo, fora
+  do cabeçalho; fora de vista com os pedidos anteriores ao primeiro desenhado), e em nenhum sem resumo.
+  `openTurn` guarda os 20 mais recentes; num cartão dividido em rodadas o ↩ vai à rodada dele.

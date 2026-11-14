@@ -2790,6 +2790,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
+    "task-tree/tests/turnos.test.ts::a mensagem que continua o plano anterior deixa o resumo no pedido dele": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "65cfaf054acb7fe9",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::a notificação de uma tarefa em segundo plano não abre pedido": {
       "regras": [
         "turnos.notificacao-de-tarefa-sem-turno"
@@ -2932,6 +2942,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Inicia a 1ª subtarefa (Recomendado)\"; a subtarefa iniciada pelo start no pai fica ✕ no Esc"
     },
+    "task-tree/tests/turnos.test.ts::o pedido só com resumo sai de vista com os pedidos antigos quando um pedido novo limpa o painel": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "bc66a82d3f7a5a75",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
       "regras": [
         "turnos.prompt-seguinte-retoma"
@@ -2951,6 +2971,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o resumo de um pedido respondido sem tarefa fica num pedido próprio e não troca o ↩ do anterior": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "65f94d3418abc0af",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::o resumo de um turno parado com Esc não vira o ↩ do pedido seguinte, e o done final sem resumo volta a avisar": {
       "regras": [
@@ -3031,6 +3061,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::sem resumo, a resposta de um pedido sem tarefa não é gravada em pedido nenhum": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "0d03df5fd0b2de64",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::sem start, plano novo fica todo pendente": {
       "regras": [

@@ -5,7 +5,8 @@
 import type { AgentInfo, EngineInterface } from 'claude-code'
 
 import { BRIEF } from '../text/rules'
-import { MAIN, hasOpen, interrupt } from '../draw/layout'
+import type { Group, Turn } from '../types'
+import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
 import { change, dropAsked, dropPermissions, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
@@ -108,6 +109,23 @@ export async function* turnStep($: EngineInterface, e: any, next: any) {
   return r
 }
 
+// The request a turn's answer goes to (the person, 2026-11-14: "Pedido próprio (Recomendado)"): the one the
+// last message opened (the last turn) when it has a level-1 task; with none, the last request with tasks
+// when the turn touched a task of it (a start, a done or a plan since the message: it continues that
+// plan), else the request itself when there is a summary (it becomes a request with only its ↩ line),
+// else none: the ↩ of the request before, over already, is not overwritten. Read before what the end
+// of the turn writes on the tasks (settleBySubs, rest). A turn with no time (an earlier version's) counts
+// as touched.
+function answeredTurn(g: Group, summary: boolean): Turn | undefined {
+  const turns = g.turns ?? []
+  const cur = turns[turns.length - 1]
+  const last = [...turns].reverse().find(u => g.tasks.some(t => t.turn === u.id))
+  if (cur === undefined || cur === last) return last
+  const since = cur.at
+  const touched = since === undefined || flat(g.tasks).some(t => [t.startedAt, t.endedAt, t.plannedAt].some(x => typeof x === 'number' && x >= since))
+  if (touched) return last
+  return summary ? cur : undefined
+}
 export async function turnComplete($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   const agent = e.agentId
@@ -136,7 +154,7 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
         all.map(g => {
           if (g.agent !== MAIN) return g
           const turns = g.turns ?? []
-          const last = [...turns].reverse().find(u => g.tasks.some(t => t.turn === u.id))
+          const last = answeredTurn(g, short !== undefined)
           return last
             ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, ...(said !== '' ? { reply: said } : {}), ...(short !== undefined ? { brief: short } : {}) } : u)) }
             : g

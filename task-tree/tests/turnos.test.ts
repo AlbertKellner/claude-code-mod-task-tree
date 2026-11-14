@@ -8,6 +8,7 @@ import { emTexto, esperarEstado, painel } from './kit/leitura'
 import { aviso } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
 import { AGORA } from './kit/ambiente'
+import { comHistorico } from './kit/leitura'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
 // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
@@ -538,4 +539,94 @@ test('o fim normal do turno vai no painel publicado: a tarefa que aguardava leva
   expect(de('Dois.um')?.started, json).toBe(undefined)
   expect(de('Dois')?.endedAt, json).toBe(AGORA + 3000)
   expect(de('Plano A')?.endedAt, json).toBe(AGORA + 3000)
+})
+
+// O pedido respondido sem tarefa guarda o seu ↩. Origem: decisão do usuário de 2026-11-14 ("Pedido
+// próprio (Recomendado)"): a resposta de um turno sem plano ia para o último pedido com tarefas.
+const SO_UM: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
+const indice = (p: Linha[], quem: (l: Linha) => boolean) => p.findIndex(quem)
+async function perguntaRapida($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo um')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pergunta rápida')
+  await done($, [], 'Resposta rápida')
+  await fimDoTurno($)
+  return { h, relogio }
+}
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('o resumo de um pedido respondido sem tarefa fica num pedido próprio e não troca o ↩ do anterior', async ($: any, on: any) => {
+  const { h } = await perguntaRapida($, on)
+  const p = await painel($)
+  const um = indice(p, l => l.texto.includes('↩') && l.texto.includes('Resumo um'))
+  const rapida = indice(p, l => l.texto.includes('↩') && l.texto.includes('Resposta rápida'))
+  const pedidoRapido = indice(p, l => l.titulo === 'Pergunta rápida')
+  const pedidoUm = indice(p, l => l.titulo === 'Pedido um')
+  expect(um, emTexto(p)).toBeGreaterThanOrEqual(0)
+  expect(rapida, emTexto(p)).toBeGreaterThanOrEqual(0)
+  expect(pedidoRapido, emTexto(p)).toBeGreaterThan(pedidoUm)
+  expect(pedidoRapido, emTexto(p)).toBeLessThan(rapida)
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(1)
+  expect(cabecalho(p).total, emTexto(p)).toBe(1)
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.brief === 'Resumo um'), JSON.stringify(turnos)).toBe(true)
+  expect(turnos.some(u => u.brief === 'Resposta rápida'), JSON.stringify(turnos)).toBe(true)
+})
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('sem resumo, a resposta de um pedido sem tarefa não é gravada em pedido nenhum', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo um')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pergunta')
+  await fimDoTurno($, 'texto da resposta')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Resumo um')), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Pergunta'), emTexto(p)).toBe(false)
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.reply === 'texto da resposta'), JSON.stringify(turnos)).toBe(false)
+})
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('a mensagem que continua o plano anterior deixa o resumo no pedido dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continua')
+  await start($, ['2.1'])
+  await done($, ['2.1'], 'Tudo feito')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Tudo feito')), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'continua'), emTexto(p)).toBe(false)
+})
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('o pedido só com resumo sai de vista com os pedidos antigos quando um pedido novo limpa o painel', async ($: any, on: any) => {
+  const { relogio } = await perguntaRapida($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }])
+  await start($, ['b1'])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Pergunta rápida'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(true)
+  const h = await comHistorico($, 2)
+  expect(h.some(l => l.titulo === 'Pergunta rápida'), emTexto(h)).toBe(true)
+  expect(h.some(l => l.texto.includes('↩') && l.texto.includes('Resposta rápida')), emTexto(h)).toBe(true)
 })

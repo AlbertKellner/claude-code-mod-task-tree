@@ -47,7 +47,9 @@ export type TaskNode = {
 // One message of the person in the main loop: its level-1 tasks are drawn under it, titled with
 // what was asked (the start of the message, until a plan names it with `request`).
 // `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
-// message), shown under the turn's tasks in its card; absent while the turn runs.
+// message), shown under the turn's tasks in its card; absent while the turn runs. A turn with no
+// level-1 task is dropped at the next message (openTurn) unless it has a `brief`: a request answered
+// with no plan, drawn with only its ↩ line (the 20 most recent are kept).
 // reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
 // `own`: a turn the person opened by typing in that session (not a message of another session): its
 // card goes at the end of the request that opened the session, not under the last message's task.

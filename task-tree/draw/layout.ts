@@ -458,10 +458,15 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     const b = k > 0 ? rounds[k - 1] : undefined
     return b?.peer === true && !b.known && now !== undefined && now - b.at < WAIT_ORIGIN
   }
-  return parts.filter(k => !waiting(k)).map(k => {
+  const cardParts = parts.filter(k => !waiting(k))
+  // A request answered with no task, only a summary: its ↩ goes to its round's card, else the leading one.
+  const briefPart = new Map(
+    turns.filter(u => hasBrief(u) && !main.tasks.some(t => t.turn === u.id)).map(u => [u.id, cardParts.includes(turnPart(u.id)) ? turnPart(u.id) : lead] as const),
+  )
+  return cardParts.map(k => {
     const tasks = tasksIn(k)
     const ids = new Set(tasks.map(t => t.id))
-    const turnsOf = new Set(tasks.map(t => t.turn))
+    const turnsOf = new Set([...tasks.map(t => t.turn), ...[...briefPart].filter(([, p]) => p === k).map(([id]) => id)])
     const at = k === lead
     return {
       ...c,
@@ -1261,6 +1266,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     return [row, ...inner, ...said]
   }
 
+  // A request answered with no task (only its summary): its line, done, with no count, bar nor time, and
+  // its ↩ below; it folds as the others and stands for nothing in the header (no nodes).
+  const briefRows = (u: Turn, top: number, scope: string): Row[] => {
+    const key = `${scope}T:${u.id}`
+    const open = opened(key, true)
+    const row: Row = { key, depth: top, tone: 'done', title: u.title, label: 'Pedido concluído', fold: { key, open }, nodes: [] }
+    return open ? [row, { key: `${scope}r:${u.id}`, depth: top + 1, tone: 'reply', title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta', nodes: [] }] : [row]
+  }
+
   // A session this one opened, in a card: "title · name", the count and time of its tasks, and
   // its state in a word once it is not just running. While it runs or waits its own panel is
   // drawn below it as it draws it (its waits under its task in progress, its subagents and
@@ -1462,7 +1476,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // "+1 pedidos anteriores" with nothing left out (audit, 2026-11-10).
       const shown = new Set(recentOnly.map(t => t.id))
       const out = whole.filter(t => !shown.has(t.id))
-      const left = new Set(out.map(t => t.turn ?? -1)).size
+      // The requests answered with no task, only a summary (the person, 2026-11-14: "Pedido próprio
+      // (Recomendado)"), on the top panel: in sight after the first request drawn (or with none drawn),
+      // the last SHOWN_TURNS of them; the rest are counted in the line and drawn with it open, so a new
+      // request that clears the panel takes the question answered before it along with the old ones.
+      const withTasks = new Set(whole.map(t => t.turn))
+      const briefOnly = g.agent === MAIN && level === 0 ? (g.turns ?? []).filter(u => !withTasks.has(u.id) && hasBrief(u)) : []
+      const firstDrawn = Math.min(...recentOnly.flatMap(t => (t.turn === undefined ? [] : [t.turn])))
+      const briefInSight = briefOnly.filter(u => u.id > firstDrawn || !Number.isFinite(firstDrawn)).slice(-keep)
+      const left = new Set(out.map(t => t.turn ?? -1)).size + briefOnly.length - briefInSight.length
       const cut = left > 0
       // The line of the requests left out opens with a click, closed by default, and draws them (the
       // person, 2026-11-03: "Sim, fechado por padrão (Recomendado)"); the limit of lines still holds.
@@ -1495,10 +1517,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           ? []
           : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || u.msg === true || drawn.filter(t => t.turn === u.id).length > 1))
       const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
+      const briefDrawn = history ? briefOnly : briefInSight
       // Only the main group's tasks send messages: a subagent's lines have none pending.
       const sent = g.agent === MAIN ? pending : []
       lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent))
-      for (const u of turns) lines.push(...turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0))
+      // In the requests' order (the turn's id), those answered with no task among the others.
+      const ordered = briefDrawn.length === 0 ? turns : (g.turns ?? []).filter(u => turns.includes(u) || briefDrawn.includes(u))
+      for (const u of ordered)
+        lines.push(...(turns.includes(u) ? turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0) : briefRows(u, top, inScope)))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       // A subagent with no task in sight to go under ends the list: launched on none, or still open
       // under a task left out.

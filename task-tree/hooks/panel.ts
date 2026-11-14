@@ -13,7 +13,7 @@ import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSi
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
-import { rawPanel, stayed, trimPublished } from '../draw/layout'
+import { hasBrief, rawPanel, stayed, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
 
 export const PANE = 'task-tree'
@@ -203,6 +203,8 @@ export const migrate = (t: LegacyNode): TaskNode => ({
 // used are dropped then, so only turns with tasks are kept.
 // A turn opened by another session's message (`from`) is marked `msg`, with who sent it: its level-1
 // tasks show the ✉ of a message received (see layout's rows).
+// The requests with no task and only a summary kept (openTurn): the most recent ones.
+const BRIEF_TURNS = 20
 export async function openTurn($: any, text: string, own = false, from?: { id: string; name?: string }) {
   // A message from another session comes wrapped in tags: its words are the title.
   const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
@@ -212,9 +214,11 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
     all.map(g => {
       if (g.agent !== MAIN) return g
       const turns = g.turns ?? []
-      // The turns still holding a level-1 task stay (by a set of the tasks' turns: one pass each).
+      // The turns still holding a level-1 task stay (by a set of the tasks' turns: one pass each), and
+      // the last BRIEF_TURNS with no task and a summary (a request answered with no plan: its ↩ line).
       const withTasks = new Set(g.tasks.map(t => t.turn))
-      const used = turns.filter(u => withTasks.has(u.id))
+      const briefOnly = new Set(turns.filter(u => !withTasks.has(u.id) && hasBrief(u)).slice(-BRIEF_TURNS).map(u => u.id))
+      const used = turns.filter(u => withTasks.has(u.id) || briefOnly.has(u.id))
       const id = turns.reduce((top, u) => Math.max(top, u.id), 0) + 1
       // The person's own prompt in this session is marked (`own`): the card of this turn, in the
       // session that opened this one, goes at the end of the request that opened it.

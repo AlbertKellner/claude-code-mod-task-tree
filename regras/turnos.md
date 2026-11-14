@@ -175,3 +175,13 @@ A tarefa que o fim normal do turno deixou aguardando segue aguardando até o mod
 Origem: decisão do usuário, 2026-11-14 ("Seguir ◷ até o start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a tarefa ◷ voltava a ◉ em qualquer prompt, com o relógio contando o tempo parado). Estende a decisão de 2026-11-12 do Esc ("Segue ✕ até novo start (Recomendado)") ao fim normal.
 Código: state/tasks.ts, hooks/tools.ts, text/rules.ts
 Estado: coberto
+
+### turnos.pedido-sem-tarefa-tem-o-seu-resumo
+O pedido respondido sem tarefa mostra o resumo dele numa linha própria, e não troca o do pedido anterior.
+
+- Dado um pedido anterior encerrado, com o seu ↩, e uma mensagem nova que o modelo responde sem planejar tarefa
+- Quando o turno termina, com resumo (o summary do done) ou sem
+- Então, com resumo, aparece a linha do pedido novo (o começo da mensagem, ✓, sem contagem nem tempo) com a linha ↩ embaixo, na ordem dos pedidos; sem resumo, nada aparece; o ↩ e a resposta do pedido anterior não mudam; quando a mensagem continua o plano anterior (start, done ou plan numa tarefa dele no turno), o resumo vai para esse pedido; o pedido só com resumo sai de vista com os anteriores ("+N pedidos anteriores") e não conta no cabeçalho; no cartão desta sessão na mãe, cada ↩ segue no seu lugar
+
+Origem: decisão do usuário, 2026-11-14 ("Pedido próprio (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a resposta de um turno sem plano era gravada no último pedido com tarefas).
+Estado: coberto
