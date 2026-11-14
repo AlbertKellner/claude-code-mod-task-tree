@@ -170,3 +170,14 @@ O replano aceita os ids das subtarefas como o painel os mostra nos lembretes.
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o replano com o id do lembrete duplicava o prefixo e perdia o estado); aplica pedidos.replano-preserva-estado (decisão do usuário, 2026-10-27), sem mudar nenhuma regra.
 Estado: coberto
+
+### pedidos.marca-so-no-comeco-do-prompt
+A mensagem só é de outra sessão, ou retorno de subagente, quando a marca abre o texto.
+
+- Dado um texto que a pessoa digita ou cola, com a tag de mensagem de outra sessão ou a marca "[Subagent hand-back]" no meio
+- Quando ele é enviado
+- Então abre um pedido comum, com o começo do texto no título, sem carta de recebida, com o lembrete de pedido novo, e nenhum recebimento é publicado por ele; a mensagem que começa pela tag (direto, ou depois da linha de abertura que o app põe antes dela) segue sendo de outra sessão, o retorno de subagente segue sem abrir pedido, e várias mensagens entregues juntas contam todas
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: as duas marcas valiam em qualquer posição do texto); forma real das mensagens medida nos transcritos em 2026-11-14 (a linha "Another Claude session sent a message:" antes da tag em parte delas). Aplica envios.pedido-recebido-mostra-carta e turnos.prompt-sem-turno, sem mudar nenhuma das duas.
+Código: hooks/sessions.ts
+Estado: coberto

@@ -1569,6 +1569,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
     },
+    "task-tree/tests/pedidos.test.ts::as formas reais seguem valendo: a linha de abertura do app antes da tag, o retorno de subagente e duas mensagens juntas": {
+      "regras": [
+        "pedidos.marca-so-no-comeco-do-prompt"
+      ],
+      "hash": "136202009e69c1d2",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: marcas só no começo do prompt"
+    },
     "task-tree/tests/pedidos.test.ts::cada mensagem abre o seu pedido, com o seu plano embaixo": {
       "regras": [
         "pedidos.uma-mensagem-um-pedido"
@@ -1638,6 +1648,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Não, vale o 1º (Recomendado)\""
+    },
+    "task-tree/tests/pedidos.test.ts::o texto colado com a tag de outra sessão no meio abre pedido da pessoa e não grava recebimento": {
+      "regras": [
+        "pedidos.marca-so-no-comeco-do-prompt"
+      ],
+      "hash": "7a50064e47780d62",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: marcas só no começo do prompt"
+    },
+    "task-tree/tests/pedidos.test.ts::o texto com a marca de retorno de subagente no meio abre pedido da pessoa": {
+      "regras": [
+        "pedidos.marca-so-no-comeco-do-prompt"
+      ],
+      "hash": "e36ee4d8eafb6167",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: marcas só no começo do prompt"
     },
     "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
       "regras": [

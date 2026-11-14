@@ -28,25 +28,59 @@ const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-con
 // What a prompt is, with the app's status blocks (`<system-reminder>…</system-reminder>`, put in
 // front of a session's first message and of queued deliveries) taken out: another session's message,
 // a subagent handing back, the app's own notice, or a request.
-export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string } }
+export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string }; froms: string[] }
 export function said(text: string): Said {
   const body = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
-  const peer = /<cross-session-message\b/.test(body)
-  const handback = !peer && (/^<agent-message from="(?!local_)/.test(body) || /\[Subagent hand-back\]/.test(body))
+  const head = lead(body)
+  const messages = topMessages(head)
+  const peer = messages.length > 0
+  const handback =
+    !peer && (/^<agent-message from="(?!local_)/.test(head) || /^\[Subagent hand-back\]/.test(head) || /^<agent-message\b[^>]*>\s*\[Subagent hand-back\]/.test(head))
   const notice = !peer && !handback && (body === '' || body.startsWith('<side-sessions-event>'))
-  const inner = /<cross-session-message[^>]*>([\s\S]*?)(<\/cross-session-message>|$)/.exec(body)?.[1]
   // Who sent it (the first message's tag): its id and the name the tag gives.
-  const tag = /<cross-session-message\b[^>]*>/.exec(body)?.[0] ?? ''
-  const id = /\bfrom="([^"]+)"/.exec(tag)?.[1]
-  const name = /\bname="([^"]*)"/.exec(tag)?.[1]
-  const from = peer && id ? { id, ...(name ? { name } : {}) } : undefined
-  return { body, peer, handback, notice, title: peer && inner !== undefined ? inner : body, ...(from ? { from } : {}) }
+  const first = messages[0]
+  const from = first?.id ? { id: first.id, ...(first.name ? { name: first.name } : {}) } : undefined
+  // Every top-level message's sender, for the receipts (noteReceived) and fromChildren.
+  const froms = messages.flatMap(m => (m.id ? [m.id] : []))
+  return { body, peer, handback, notice, title: first !== undefined ? first.inner : body, ...(from ? { from } : {}), froms }
+}
+
+// The marks of another session's message and of a subagent's hand-back count only where they open
+// the prompt (a tag quoted or pasted in the person's text is not one): at the start of the body, or
+// after one opening line the app puts before them ("Another Claude session sent a message:"), taken
+// by its form (short, no `<`, ending in ":"), not its words.
+const MARK = /^(<cross-session-message\b|<agent-message\b|\[Subagent hand-back\])/
+function lead(body: string): string {
+  const m = /^[^\n<]{0,79}:[ \t]*\r?\n\s*/.exec(body)
+  if (m === null) return body
+  const rest = body.slice(m[0].length)
+  return MARK.test(rest) ? rest : body
+}
+
+// The messages of other sessions at the top level, read in sequence from the start: a tag, its body
+// up to the first closing tag, blanks, the next tag; the reading stops at the first stretch that is
+// not a tag. A tag quoted inside a message does not count.
+export function topMessages(head: string): { id?: string; name?: string; inner: string }[] {
+  const out: { id?: string; name?: string; inner: string }[] = []
+  const CLOSE = '</cross-session-message>'
+  let rest = head
+  for (;;) {
+    const tag = /^<cross-session-message\b[^>]*>/.exec(rest)
+    if (tag === null) break
+    const id = /\bfrom="([^"]+)"/.exec(tag[0])?.[1]
+    const name = /\bname="([^"]*)"/.exec(tag[0])?.[1]
+    const after = rest.slice(tag[0].length)
+    const end = after.indexOf(CLOSE)
+    out.push({ ...(id ? { id } : {}), ...(name ? { name } : {}), inner: end < 0 ? after : after.slice(0, end) })
+    if (end < 0) break
+    rest = after.slice(end + CLOSE.length).trimStart()
+  }
+  return out
 }
 
 // Whether every message of other sessions in a prompt comes from a session this one opened (its
 // report), as the host lists them; an entry a send made, not yet seen by the host, is not one.
-async function fromChildren($: any, text: string): Promise<boolean> {
-  const froms = [...text.matchAll(/<cross-session-message[^>]*\bfrom="([^"]+)"/g)].map(m => m[1] as string)
+async function fromChildren($: any, froms: string[]): Promise<boolean> {
   if (froms.length === 0) return false
   const { value: children = [] } = await $.state.get(childrenState)
   return froms.every(id => (children as Child[]).some(c => c.id === id && c.starting !== true))
@@ -66,7 +100,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // Another session's messages are kept (from, when) and published, whatever this prompt turns out
   // to be: the sender confirms its queued SendMessage by them (watchSends).
   await ensureLinks($)
-  await noteReceived($, text)
+  await noteReceived($, it.froms)
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)
   // A turn of this session was interrupted (stopped) and no request came since: the next request, the
@@ -123,7 +157,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // A message of a session this one did not open (the one that opened it, a sister) still opens its
   // request: that session draws this one's card by the turns its messages open (the person,
   // 2026-10-21: "o novo vai sob a tarefa da principal que mandou a mensagem").
-  if (midTurn && !aborted && (!it.peer || (await fromChildren($, it.body)))) {
+  if (midTurn && !aborted && (!it.peer || (await fromChildren($, it.froms)))) {
     await ensureGroups($)
     const { value: held = [] } = await $.state.get(groupsState)
     if ((held.find(g => g.agent === MAIN)?.turns ?? []).length > 0) {

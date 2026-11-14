@@ -417,3 +417,48 @@ test('no mesmo pedido, o cartão da filha segue sob a tarefa quando o nível 1 c
   expect(p.filter(l => l.titulo === 'Um').length, emTexto(p)).toBe(1)
   esperarEstado(p, 'Um', 'concluida')
 })
+
+// Regra: pedidos.marca-so-no-comeco-do-prompt
+test('o texto colado com a tag de outra sessão no meio abre pedido da pessoa e não grava recebimento', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'no log apareceu isto: <cross-session-message from="local_99999999-9999-9999-9999-999999999999" name="X">oi</cross-session-message> e mais texto')
+  await plan($, A)
+  const p = await painel($)
+  const l = p.find(x => x.titulo.startsWith('no log apareceu isto'))
+  expect(l, emTexto(p)).toBeDefined()
+  expect(l?.carta, emTexto(p)).toBeUndefined()
+  expect(p.some(x => x.titulo === 'oi'), emTexto(p)).toBe(false)
+  expect(h.proprio()?.received ?? []).toEqual([])
+})
+
+// Regra: pedidos.marca-so-no-comeco-do-prompt
+test('o texto com a marca de retorno de subagente no meio abre pedido da pessoa', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await fimDoTurno($)
+  const r = await pedido($, 'o que significa [Subagent hand-back] nesse log?')
+  await plan($, B)
+  expect((r?.context ?? []).join(' | ')).toContain('A PRIMEIRA chamada')
+  const p = await painel($)
+  expect(indice(p, 'Plano B'), emTexto(p)).toBeGreaterThan(indice(p, 'o que significa [Subagent hand-back] nesse log?'))
+})
+
+// Regra: pedidos.marca-so-no-comeco-do-prompt
+test('as formas reais seguem valendo: a linha de abertura do app antes da tag, o retorno de subagente e duas mensagens juntas', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, `Another Claude session sent a message:\n<cross-session-message from="${K1}" from-name="filha">relato</cross-session-message>`)
+  await plan($, A)
+  let p = await painel($)
+  expect(linha(p, 'relato').carta, emTexto(p)).toBeDefined()
+  expect((h.proprio()?.received ?? []).map((r: any) => r.from)).toEqual([K1])
+  await $.prompt.submit({ text: 'Another Claude session sent a message:\n<agent-message from="sub-1">\n[Subagent hand-back] pronto</agent-message>' })
+  await plan($, B)
+  p = await painel($)
+  expect(indice(p, 'Plano B'), emTexto(p)).toBeGreaterThan(indice(p, 'relato'))
+  expect(p.some(x => x.titulo.startsWith('Another')), emTexto(p)).toBe(false)
+  await pedido($, `<cross-session-message from="${K1}" name="filha">um</cross-session-message>\n\n<cross-session-message from="${MAE}" name="mae">dois</cross-session-message>`)
+  expect((h.proprio()?.received ?? []).map((r: any) => r.from)).toEqual([K1, K1, MAE])
+})

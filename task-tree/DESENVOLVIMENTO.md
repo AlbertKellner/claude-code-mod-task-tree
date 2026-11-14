@@ -36,8 +36,8 @@ Quem recebe `$` (o engine) e quem não recebe:
     `anyRunning`) e `openSession`.
   - `session-start.ts` (80): `sessionStart` (registra o comando e as três ferramentas, traz o painel
     do store, abre o pane, lê as sessões) e `classicSessionStart` (`/clear` e `resume`).
-  - `prompt-submit.ts` (98): `said` (classificação pura do prompt), `promptSubmit`, `promptCompose`,
-    `NO_TURN`.
+  - `prompt-submit.ts` (98): `said` (classificação pura do prompt, pelas marcas no começo do corpo),
+    `topMessages` (os remetentes, só as tags de topo), `promptSubmit`, `promptCompose`, `NO_TURN`.
   - `command.ts` (34): `commandRun` (`/task-tree`).
   - `tools.ts` (208): `planTool`, `doneTool`, `startTool` e os schemas (`node`, `level`).
   - `permission.ts` (22): `permissionRequest`.
@@ -173,8 +173,11 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
 
 **Um prompt** (`hooks/prompt-submit.ts`): `said(text)` tira os `<system-reminder>` e classifica em
 mensagem de outra sessão (`peer`, `<cross-session-message`), volta de subagente (`handback`), aviso
-do app (`notice`: corpo vazio ou `<side-sessions-event>`) ou pedido. `noteReceived` guarda `from`/`at`
-das mensagens de outras sessões (os últimos 20) e publica. Um prompt de origem `NO_TURN`
+do app (`notice`: corpo vazio ou `<side-sessions-event>`) ou pedido. As marcas (`<cross-session-message`,
+`<agent-message`, `[Subagent hand-back]`) só valem no começo do corpo, ou depois de uma linha de
+abertura do app (curta, sem `<`, terminada em ":"); a marca colada no meio do texto é pedido comum.
+`noteReceived` recebe os remetentes das tags de topo (`topMessages`, lidas em sequência desde o
+começo; a tag citada dentro de uma mensagem não conta), guarda `from`/`at` (os últimos 20) e publica. Um prompt de origem `NO_TURN`
 (`task-notification`, `observer`, `observer-activity`, `auto-continuation`, `unclassified`), um aviso
 ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete curto (`PROMPT.handback`,
 `.background` ou `.notice`) e, com tarefa parada com Esc ainda sem `start` no grupo principal, também

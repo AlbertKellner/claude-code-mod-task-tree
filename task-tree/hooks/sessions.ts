@@ -91,10 +91,11 @@ export async function refreshChildren($: any) {
   await keepTime($)
 }
 
-// The messages of other sessions in a prompt (`<cross-session-message from="local_…">`), kept with
-// when they came (the last 20) and published, for the senders to confirm their queued SendMessage.
-export async function noteReceived($: any, text: string) {
-  const froms = [...text.matchAll(/<cross-session-message[^>]*\bfrom="(local_[^"]+)"/g)].map(m => m[1] as string)
+// The messages of other sessions in a prompt (the senders of its top-level `<cross-session-message
+// from="local_…">` tags, read by prompt-submit's said), kept with when they came (the last 20) and
+// published, for the senders to confirm their queued SendMessage.
+export async function noteReceived($: any, senders: string[]) {
+  const froms = senders.filter(id => id.startsWith('local_'))
   if (froms.length === 0) return
   const at = await stamp($)
   if (at === undefined) return
