@@ -34,6 +34,17 @@ start num pai concluído é recusado.
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
 Estado: coberto
 
+### arvore.start-no-pai-inicia-a-primeira-subtarefa
+start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta dela.
+
+- Dado um pai aberto com subtarefas abertas
+- Quando o modelo chama start no pai
+- Então a primeira subtarefa aberta, na ordem do plano, fica ◉ de verdade: o relógio conta desde o start, ela entra no chip "em andamento", fica ◷ no fim do turno e ✕ no Esc; o pai e o pedido ficam ◉ pelo caminho; a resposta do start diz qual foi iniciada; quando ela fecha, a seguinte segue ○ até o start dela; o pai fechado com subtarefas segue recusado (arvore.start-recusa-pai-concluido)
+
+Origem: decisão do usuário, 2026-11-14 ("Inicia a 1ª subtarefa (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a folha acendia sem início: relógio desde o plano, fora do chip, ○ no fim do turno).
+Código: draw/layout.ts, text/rules.ts
+Estado: coberto
+
 ### arvore.sem-start-nada-acende
 Sem start, nada fica em andamento.
 

@@ -108,7 +108,7 @@ Na ordem de `register.tsx`:
 | `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
 | `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` (que aceita a subtarefa já com o prefixo do nível 1, como os lembretes a mostram) + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno), e, no loop principal, também um concluído desse pedido (reabre mantendo os ✓); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), põe os níveis 1 no turno atual (que o `request` do primeiro plan do pedido renomeia, uma vez só: a marca `named` no turno), tira os `sends` do que foi replanejado, junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`), abre o pane |
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
-| `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos); `joinWork`; `keepTime` |
+| `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos; num pai aberto, inicia a primeira folha aberta, `firstOpen`); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
@@ -592,7 +592,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   do app, um hand-back ou o `start` em outra tarefa a reacendia: ◉ no prompt, relógio correndo, ◷ no fim
   do turno). No fim do turno parado (`turnComplete` com `isAborted`), `park(at)` (`state/tasks.ts`) marca
   `stopped` em cada folha aberta e iniciada do grupo principal e para ali o relógio (`endedAt`) dela e
-  dos pais abertos; o `started` de um pai iniciado diretamente é desfeito. A marca fica na própria tarefa
+  dos pais abertos; o `started` de um pai iniciado diretamente (só em painéis gravados antes de o start num pai iniciar a primeira folha aberta) é desfeito. A marca fica na própria tarefa
   (state, store e arquivo publicado, sem chave nova) até o `start` nela (`begin`), o `done` (`finish`) ou
   o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`). Enquanto existe, a
   folha é lida como interrompida em todo desenho: `halt` no fim de qualquer turno, e `stay` com o turno
@@ -1760,3 +1760,8 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   aviso do app ou do relato de uma filha, renomeava o pedido em curso. Agora o turno guarda `named` quando
   um plan o nomeia, e o `request` dos plans seguintes do mesmo pedido é ignorado; um pedido novo nasce sem
   a marca. Turno gravado antes desta versão pode ser renomeado uma vez.
+- start num pai aberto inicia a primeira subtarefa aberta (o usuário, 2026-11-14: "Inicia a 1ª subtarefa
+  (Recomendado)"). Antes, o pai ganhava `started` e `current` acendia a primeira folha sem início: relógio
+  desde o plano, fora do chip "em andamento", ○ no fim do turno, e a folha seguinte acendia sozinha. Agora
+  `startTool` chama `begin` na última folha de `firstOpen` e avisa qual foi; o ramo de `current` para o pai
+  com `started` só serve a painéis gravados antes.

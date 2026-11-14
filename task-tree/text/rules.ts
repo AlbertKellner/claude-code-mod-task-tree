@@ -47,7 +47,7 @@ export const RULES = [
     'seguinte: não há pedido novo no painel, e o replano do nível 1 em curso guarda o estado. Um nível 1 já concluído, ' +
     'replanejado na mesma mensagem com o mesmo id, reabre: os passos que mantêm o id seguem concluídos e só os ' +
     'novos entram pendentes; para refazer um passo concluído, dê a ele um id novo. Numa mensagem seguinte, o ' +
-    'nível 1 concluído fica como histórico e o plano com o mesmo id entra todo pendente. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
+    'nível 1 concluído fica como histórico e o plano com o mesmo id entra todo pendente. start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta dela. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
     'replaneje o nível 1 com ids novos para o que deve ser refeito.',
   '- Uma tarefa em andamento quando o usuário para o turno (Esc) fica interrompida no painel até um novo ' +
     'mcp__task-tree__start nela. Nada mais a reacende: nem a mensagem seguinte, nem o start em outra tarefa, ' +
@@ -102,6 +102,7 @@ export const TOOLS = {
   start:
     'Marca tarefas do painel como em andamento (destacadas em amarelo) ao começar cada uma. ' +
     'Várias podem estar em andamento; sem nenhuma marcada, nenhuma tarefa aparece em andamento. ' +
+    'Numa tarefa aberta com subtarefas, inicia a primeira subtarefa aberta dela; as seguintes não acendem sozinhas: dê start em cada uma. ' +
     'Em uma tarefa concluída sem subtarefas, reabre a tarefa e os pais dela; ' +
     'para refazer um pai concluído, replaneje o nível 1 com plan. Ids como no done.',
 }

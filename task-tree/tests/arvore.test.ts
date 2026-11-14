@@ -3,7 +3,7 @@ import { cabecalho, emTexto as noTexto, painel as desenho } from './kit/leitura'
 import { subagente } from './kit/ambiente'
 import { fixar, lancaveis } from './kit/ambiente'
 import { done, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { esperarEstado, painel } from './kit/leitura'
+import { esperarEstado, linha, painel } from './kit/leitura'
 
 const ARVORE: No[] = [
   {
@@ -157,4 +157,29 @@ test('com a tarefa atual interrompida e a de histórico concluída, o start pelo
   const r = (await start($, ['1'])).texto
   expect(r).toContain('Em andamento: Nova')
   esperarEstado(await painel($), 'Nova', 'andamento')
+})
+
+// Regra: arvore.start-no-pai-inicia-a-primeira-subtarefa
+test('start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta, de verdade', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, ARVORE)
+  await relogio.advance(5000)
+  const r = await start($, ['1.2'])
+  await relogio.advance(3000)
+  expect(r.texto).toContain('Em andamento: Editar')
+  let p = await painel($)
+  esperarEstado(p, 'Editar', 'andamento')
+  esperarEstado(p, 'Validar', 'pendente')
+  esperarEstado(p, 'Corrigir', 'andamento')
+  esperarEstado(p, 'Pedido', 'andamento')
+  expect(cabecalho(p).chips.andamento, noTexto(p)).toBe(1)
+  expect(linha(p, 'Editar').texto, noTexto(p)).toContain('0:03')
+  await done($, ['1.2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Validar', 'pendente')
+  await start($, ['1.2'])
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Validar', 'aguardando')
 })

@@ -61,6 +61,16 @@
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
     },
+    "task-tree/tests/arvore.test.ts::start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta, de verdade": {
+      "regras": [
+        "arvore.start-no-pai-inicia-a-primeira-subtarefa"
+      ],
+      "hash": "7c382fd01da8b1ba",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Inicia a 1ª subtarefa (Recomendado)\""
+    },
     "task-tree/tests/arvore.test.ts::start reabre os pais de uma tarefa concluída e recusa tarefa concluída com subtarefas": {
       "regras": [
         "arvore.start-reabre-pais",
@@ -2796,11 +2806,11 @@
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
-      "hash": "e2b5704f024ad3c1",
-      "assercoes": 7,
-      "tipo": "novo",
-      "data": "2026-11-12",
-      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+      "hash": "a80955c096a44124",
+      "assercoes": 10,
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Inicia a 1ª subtarefa (Recomendado)\"; a subtarefa iniciada pelo start no pai fica ✕ no Esc"
     },
     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
       "regras": [

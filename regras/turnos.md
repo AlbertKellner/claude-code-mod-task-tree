@@ -62,10 +62,11 @@ A tarefa parada com Esc segue interrompida até o modelo dar start nela.
 
 - Dado uma tarefa iniciada e aberta quando a pessoa para o turno (Esc), ✕ desde então
 - Quando chega um prompt que não abre pedido (aviso do app, hand-back de subagente, notificação de tarefa em segundo plano) e o turno dele termina, ou uma mensagem da pessoa em que o modelo dá start em outra tarefa
-- Então a parada segue ✕ e fora da contagem (no cabeçalho e na sessão inteira); não acende, o relógio dela não corre e o fim desses turnos não a deixa ◷; o pai e o pedido seguem como o Esc os deixou; só o start nela a reacende ◉ (ela volta a contar e, no fim do turno, aguarda como qualquer outra), e o done a conclui; o replano no mesmo pedido que a mantém a mantém ✕; o pai iniciado diretamente e parado com Esc também só reacende com o start nele; a marca da parada vai no painel publicado até esse start; a tarefa com carta na fila segue ◷ enquanto a carta espera (envios.fila-nao-interrompe-no-fim-do-turno)
+- Então a parada segue ✕ e fora da contagem (no cabeçalho e na sessão inteira); não acende, o relógio dela não corre e o fim desses turnos não a deixa ◷; o pai e o pedido seguem como o Esc os deixou; só o start nela a reacende ◉ (ela volta a contar e, no fim do turno, aguarda como qualquer outra), e o done a conclui; o replano no mesmo pedido que a mantém a mantém ✕; o start num pai inicia a primeira subtarefa aberta dele (arvore.start-no-pai-inicia-a-primeira-subtarefa): parada com Esc, ela segue ✕ como qualquer outra, e o start de novo no pai a retoma; a marca da parada vai no painel publicado até esse start; a tarefa com carta na fila segue ◷ enquanto a carta espera (envios.fila-nao-interrompe-no-fim-do-turno)
 
 Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (depois do Esc, um aviso automático ou o start em outra tarefa reacendia a parada: ◉ no prompt, relógio correndo, ◷ no fim do turno).
 Código: state/tasks.ts
+Reescrito: 2026-11-14, decisão do usuário ("Inicia a 1ª subtarefa (Recomendado)"); desfaz "o pai iniciado diretamente": o start num pai passa a iniciar a primeira subtarefa aberta, que o Esc deixa ✕.
 Estado: coberto
 
 ### turnos.pedido-anterior-parado-aguarda

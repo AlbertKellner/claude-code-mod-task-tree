@@ -5,7 +5,7 @@ import { update } from 'claude-code'
 
 import type { Group, Send, TaskNode, Turn } from '../types'
 import { DONE } from '../text/rules'
-import { MAIN, flat, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
+import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
@@ -223,9 +223,15 @@ export async function startTool($: EngineInterface, e: any, next: any) {
           else if (hit.status !== 'open' && hit.children.length > 0) {
             notes.push(`"${id}" já foi concluída e tem subtarefas: replaneje o nível 1 com plan`)
           } else {
-            tasks = begin(tasks, hit.id, seq++, now)
-            begun.push(hit.title)
-            roots.push(hit.id.split('/')[0] as string)
+            // An open parent starts its first open leaf, in plan order; the next ones wait for their own start.
+            const path = hit.children.length > 0 ? firstOpen(hit.children) : []
+            const leafId = path[path.length - 1]
+            const leaf = leafId !== undefined ? flat(hit.children).find(t => t.id === leafId) : undefined
+            const target = leaf ?? hit
+            if (leaf) notes.push(`"${id}" tem subtarefas: iniciei a primeira aberta, "${leaf.short}" ${leaf.title}`)
+            tasks = begin(tasks, target.id, seq++, now)
+            begun.push(target.title)
+            roots.push(target.id.split('/')[0] as string)
           }
         }
         return { ...g, tasks }
