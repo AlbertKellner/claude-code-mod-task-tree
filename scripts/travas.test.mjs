@@ -324,3 +324,47 @@ test('o núcleo tocado afeta todos os cenários cobertos e o checklist inteiro',
   }
 })
 
+
+const KIT_ARQ = 'task-tree/tests/kit/leitura.ts'
+const lerSelosJson = dir => JSON.parse(readFileSync(join(dir, 'regras', 'selos.json'), 'utf8'))
+
+test('um helper do kit que afirma conta como asserção', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), "import { expect } from 'claude-code/testing'\nexport function esperarX(v: number) {\n  expect(v).toBe(v)\n}\nexport const x = 1\n")
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'esperarX(2)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x')
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(lerSelosJson(dir).testes[UM].assercoes, 2)
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('tirar a única chamada a um helper do arquivo que afirma é perda de asserção', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nfunction duas() {\n  expect(1).toBe(1)\n  expect(2).toBe(2)\n}')
+  trocar(dir, ARQ, '  expect(3).toBe(3)\n', '  expect(3).toBe(3)\n  duas()\n')
+  assert.equal(selos(dir, '--selar', DOIS, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(lerSelosJson(dir).testes[DOIS].assercoes, 3)
+  trocar(dir, ARQ, '  duas()\n', '')
+  const r = selos(dir, '--selar', DOIS, '--tipo', 'refatoracao', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /refatoração não pode tirar asserções/)
+}))
+
+test('--recontar só mexe em assercoes, e recusa com teste mudado sem selo', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), 'export function esperarX(v: number) {\n  return v\n}\nexport const x = 1\n')
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  esperarX(5)\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'motivo um').status, 0)
+  writeFileSync(join(dir, KIT_ARQ), "import { expect } from 'claude-code/testing'\nexport function esperarX(v: number) {\n  expect(v).toBe(5)\n}\nexport const x = 1\n")
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const antes = lerSelosJson(dir).testes[UM]
+  assert.equal(antes.assercoes, 2)
+  const r = selos(dir, '--recontar')
+  assert.equal(r.status, 0, r.stderr)
+  const depois = lerSelosJson(dir).testes[UM]
+  assert.deepEqual(depois, { ...antes, assercoes: 3 })
+  trocar(dir, ARQ, 'expect(3).toBe(3)', 'expect(3).toBe(4)')
+  const recusa = selos(dir, '--recontar')
+  assert.equal(recusa.status, 1)
+  assert.match(recusa.stderr, /::dois/)
+  assert.deepEqual(lerSelosJson(dir).testes[UM], depois)
+}))

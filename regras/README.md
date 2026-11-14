@@ -54,7 +54,10 @@ nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pe
 
 `regras/selos.json` guarda, para cada teste que cita uma regra `coberto`, o hash do corpo (sem
 comentários nem espaços, com as declarações de topo que ele usa) e o número de asserções (`expect`,
-`esperarEstado`, `esperarCarta`, `linha`, `antes`). Cada arquivo de `tests/kit/` tem o seu hash.
+os helpers de `tests/kit/leitura.ts` que afirmam e as funções do próprio arquivo que o teste chama).
+Cada arquivo de `tests/kit/` tem o seu hash. Quando a contagem muda sem o teste mudar (um helper do kit
+passou a afirmar), `node scripts/selos.mjs --recontar` regrava só o campo `assercoes` dos selos que
+conferem com o teste; com algum teste mudado sem selo, ele recusa.
 
 ```json
 "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {

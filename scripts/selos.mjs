@@ -9,6 +9,7 @@
 //   node scripts/selos.mjs --kit <arquivo> --tipo … --motivo "…"
 //   node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"
 //   node scripts/selos.mjs --novos --motivo "…"             sela como "novo" todo teste e kit sem selo
+//   node scripts/selos.mjs --recontar                       regrava só "assercoes" dos selos que conferem
 // --raiz <pasta>: onde estão os arquivos (padrão: o repositório); --repo <pasta>: o git de HEAD
 // (padrão: a própria raiz); --base <ref>: compara com esse commit em vez de HEAD (a CI, a base do PR).
 import { createHash } from 'node:crypto'
@@ -18,8 +19,9 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
-// Chamadas que afirmam: expect e os helpers de leitura que falham com o painel em texto.
-export const ASSERCOES = ['expect', 'esperarEstado', 'esperarCarta', 'linha', 'antes']
+// Chamadas que afirmam: expect e as funções exportadas de tests/kit/leitura.ts que chamam expect ou
+// lançam erro (derivadas do arquivo, ver assercoesDoKit).
+export const KIT_LEITURA = 'task-tree/tests/kit/leitura.ts'
 const SELOS = 'regras/selos.json'
 const TIPOS = ['decisao', 'refatoracao', 'novo']
 
@@ -42,14 +44,70 @@ function nomesDeclarados(st) {
   if ((ts.isFunctionDeclaration(st) || ts.isClassDeclaration(st) || ts.isTypeAliasDeclaration(st) || ts.isInterfaceDeclaration(st)) && st.name) return [st.name.text]
   return []
 }
+// As funções de topo de um arquivo: declaração (function f) ou const com arrow/function expression.
+function funcoesDeTopo(sf) {
+  const saida = []
+  for (const st of sf.statements) {
+    const exportada = !!st.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)
+    if (ts.isFunctionDeclaration(st) && st.name && st.body) saida.push({ nome: st.name.text, corpo: st.body, exportada })
+    else if (ts.isVariableStatement(st))
+      for (const d of st.declarationList.declarations)
+        if (ts.isIdentifier(d.name) && d.initializer && (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer)))
+          saida.push({ nome: d.name.text, corpo: d.initializer.body, exportada })
+  }
+  return saida
+}
+const chama = (n, nome) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === nome
+// O corpo chama expect(...) ou tem throw, fora de funções aninhadas (que ele só cria, sem rodar).
+function afirma(no) {
+  let sim = false
+  const visitar = n => {
+    if (sim) return
+    if (chama(n, 'expect') || ts.isThrowStatement(n)) sim = true
+    else if (!ts.isFunctionLike(n)) ts.forEachChild(n, visitar)
+  }
+  visitar(no)
+  return sim
+}
+// Os nomes que afirmam: expect mais as funções exportadas do kit de leitura que afirmam.
+export function assercoesDoKit(texto) {
+  const sf = ts.createSourceFile(KIT_LEITURA, texto ?? '', ts.ScriptTarget.Latest, true)
+  return ['expect', ...funcoesDeTopo(sf).filter(f => f.exportada && afirma(f.corpo)).map(f => f.nome)]
+}
+const lerAssercoes = raiz => {
+  const p = join(raiz, KIT_LEITURA)
+  return assercoesDoKit(existsSync(p) ? readFileSync(p, 'utf8') : '')
+}
+
 const ehTeste = st =>
   ts.isExpressionStatement(st) && ts.isCallExpression(st.expression) && ts.isIdentifier(st.expression.expression) && st.expression.expression.text === 'test'
 
 // Os testes de um arquivo: nome, regras citadas no "// Regra:" acima, hash e asserções. O hash cobre o
 // corpo reimpresso sem comentários e as declarações de topo que ele usa (um plano A mudado muda o selo).
-export function testesDe(caminho, texto) {
+// As asserções somam as chamadas diretas a `nomes` e, por chamada, as de cada função de topo do
+// próprio arquivo que o corpo chama (com alcance por outras funções de topo; ciclo cortado).
+export function testesDe(caminho, texto, nomes = ['expect']) {
   const sf = ts.createSourceFile(caminho, texto, ts.ScriptTarget.Latest, true)
   const linhas = texto.split(/\r?\n/)
+  const funcoes = new Map(funcoesDeTopo(sf).map(f => [f.nome, f.corpo]))
+  const contaDe = new Map()
+  const contar = (no, pilha) => {
+    let n = 0
+    const visitar = x => {
+      if (ts.isCallExpression(x) && ts.isIdentifier(x.expression)) {
+        const nome = x.expression.text
+        if (nomes.includes(nome)) n++
+        else if (funcoes.has(nome) && !pilha.includes(nome)) n += daFuncao(nome, pilha)
+      }
+      ts.forEachChild(x, visitar)
+    }
+    visitar(no)
+    return n
+  }
+  const daFuncao = (nome, pilha) => {
+    if (!contaDe.has(nome)) contaDe.set(nome, contar(funcoes.get(nome), [...pilha, nome]))
+    return contaDe.get(nome)
+  }
   const topo = sf.statements.filter(st => !ts.isImportDeclaration(st) && !ehTeste(st)).map(st => ({ nomes: nomesDeclarados(st), texto: impressora.printNode(ts.EmitHint.Unspecified, st, sf) }))
   const saida = []
   for (const st of sf.statements) {
@@ -59,13 +117,12 @@ export function testesDe(caminho, texto) {
     const corpo = args[args.length - 1]
     if (!nome || !ts.isStringLiteralLike(nome) || !corpo) continue
     const usados = new Set()
-    let assercoes = 0
     const visitar = n => {
       if (ts.isIdentifier(n)) usados.add(n.text)
-      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && ASSERCOES.includes(n.expression.text)) assercoes++
       ts.forEachChild(n, visitar)
     }
     visitar(corpo)
+    const assercoes = contar(corpo, [])
     const corpoTexto = impressora.printNode(ts.EmitHint.Unspecified, corpo, sf)
     const decls = topo.filter(d => d.nomes.some(n => usados.has(n))).map(d => d.texto)
     const linha = sf.getLineAndCharacterOfPosition(st.getStart(sf)).line
@@ -109,11 +166,12 @@ export function catalogo(raiz) {
 // Tudo o que se sela, lido dos arquivos: testes cobertos por regra e o kit.
 export function extrair(raiz) {
   const regras = catalogo(raiz)
+  const nomes = lerAssercoes(raiz)
   const testes = {}
   const pastaTestes = join(raiz, 'task-tree', 'tests')
   for (const p of arquivos(pastaTestes, f => /\.test\.tsx?$/.test(f)).filter(p => !barra(p).includes('/kit/'))) {
     const rel = barra(relative(raiz, p))
-    for (const t of testesDe(p, readFileSync(p, 'utf8'))) {
+    for (const t of testesDe(p, readFileSync(p, 'utf8'), nomes)) {
       if (!t.regras.some(id => regras.get(id)?.estado === 'coberto')) continue
       testes[`${rel}::${t.nome}`] = t
     }
@@ -188,6 +246,15 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     else if (s.hash !== h) problemas.push(`o kit mudou sem selo novo: ${arq}`)
   }
   for (const arq of Object.keys(selos.kit)) if (!kit[arq]) problemas.push(`arquivo do kit selado sumiu: ${arq}`)
+  // A lista do que afirma é derivada do kit: um helper exportado com expect( fora dela é a derivação quebrada.
+  const pKit = join(raiz, KIT_LEITURA)
+  if (existsSync(pKit)) {
+    const nomes = lerAssercoes(raiz)
+    for (const m of readFileSync(pKit, 'utf8').matchAll(/^export (?:function (\w+)|const (\w+) =)[^\n]*\n(?:(?!export )[^\n]*\n)*?[^\n]*\bexpect\(/gm)) {
+      const nome = m[1] ?? m[2]
+      if (!nomes.includes(nome)) problemas.push(`helper do kit que afirma fora da contagem de asserções: ${nome}`)
+    }
+  }
   for (const [chave, s] of Object.entries(selos.testes)) {
     const antes = head.testes[chave]
     if (antes && (s.tipo === 'refatoracao' || s.tipo === 'novo') && s.assercoes < antes.assercoes)
@@ -212,6 +279,18 @@ function exigirReescrito(regras, ids, desde) {
 export function selar(raiz, repo, opcoes) {
   const { testes, kit, regras } = extrair(raiz)
   const selos = lerSelos(raiz)
+  if (opcoes.recontar) {
+    const divergentes = Object.keys(selos.testes).filter(c => testes[c]?.hash !== selos.testes[c].hash)
+    if (divergentes.length > 0) throw new Error(`teste selado com hash diferente (selar antes de recontar): ${divergentes.join('; ')}`)
+    let n = 0
+    for (const [chave, s] of Object.entries(selos.testes))
+      if (s.assercoes !== testes[chave].assercoes) {
+        s.assercoes = testes[chave].assercoes
+        n++
+      }
+    gravar(raiz, selos)
+    return `${n} contagens de asserções regravadas`
+  }
   const head = selosDeHead(repo)
   const { tipo, motivo = '' } = opcoes
   if (opcoes.novos) {
@@ -269,8 +348,8 @@ if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.a
   const raiz = valor('--raiz') ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const repo = valor('--repo') ?? raiz
   try {
-    if (args.some(a => ['--selar', '--kit', '--remover', '--novos'].includes(a))) {
-      console.log(selar(raiz, repo, { selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), novos: args.includes('--novos'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
+    if (args.some(a => ['--selar', '--kit', '--remover', '--novos', '--recontar'].includes(a))) {
+      console.log(selar(raiz, repo, { selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), novos: args.includes('--novos'), recontar: args.includes('--recontar'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
     } else {
       const problemas = conferir(raiz, repo, valor('--base') ?? 'HEAD')
       for (const p of problemas) console.error(`- ${p}`)

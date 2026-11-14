@@ -36,7 +36,7 @@
         "arvore.plan-recusa-ids-repetidos"
       ],
       "hash": "1f7d3902481e2d82",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
@@ -67,7 +67,7 @@
         "cabecalho.interrompida-fora-do-total"
       ],
       "hash": "8aa14ca32377c411",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -87,7 +87,7 @@
         "cabecalho.corte-preserva-historico-aberto"
       ],
       "hash": "fb85ab0316dd6316",
-      "assercoes": 9,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13: \"Preservar a linha (Recomendado)\""
@@ -107,7 +107,7 @@
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
       ],
       "hash": "b704ac6bedda88f4",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -117,7 +117,7 @@
         "cabecalho.titulo-desempata-pela-ordem-do-start"
       ],
       "hash": "e52851a6d5f8c107",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "empate de starts"
@@ -138,7 +138,7 @@
         "cabecalho.resumida-limpa-so-com-tudo-concluido"
       ],
       "hash": "256d158fc236b10b",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -148,7 +148,7 @@
         "cabecalho.titulo-e-a-ultima-iniciada"
       ],
       "hash": "6503053e909ba609",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "título do cabeçalho"
@@ -158,7 +158,7 @@
         "cabecalho.chips-contam-folhas"
       ],
       "hash": "030c448b1b4832a2",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -168,7 +168,7 @@
         "cabecalho.numeros-somam-o-desenhado"
       ],
       "hash": "c1f2a061ba734aca",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -198,7 +198,7 @@
         "cabecalho.limites-de-linhas"
       ],
       "hash": "c69adb9ab6c4d893",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -248,7 +248,7 @@
         "durabilidade.clear-esvazia"
       ],
       "hash": "5382f5e3df3ecf0d",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -258,7 +258,7 @@
         "durabilidade.ligacoes-com-lista-parcial-do-host"
       ],
       "hash": "f5cdbe079594ecb8",
-      "assercoes": 4,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -268,7 +268,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "ef1c12dd22f51a16",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -278,7 +278,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "f0a1b9ccc7bcd643",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -288,7 +288,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "dc18d783f4c01fca",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -298,7 +298,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "8dd62a248473dc11",
-      "assercoes": 3,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -308,7 +308,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "7a49d26f0933370c",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -318,7 +318,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "19504e1c5c185b8d",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -348,7 +348,7 @@
         "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
       ],
       "hash": "9f5e4bb85f70e481",
-      "assercoes": 4,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -358,7 +358,7 @@
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
       ],
       "hash": "b4d18df3dd38e88e",
-      "assercoes": 1,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -408,7 +408,7 @@
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
       ],
       "hash": "c9192dd061eebcd7",
-      "assercoes": 1,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -448,7 +448,7 @@
         "durabilidade.reinicio-restaura-do-store"
       ],
       "hash": "19fc5a0d8aba02de",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -498,7 +498,7 @@
         "envios.carta-sob-a-tarefa"
       ],
       "hash": "41c74aedb7fc71f1",
-      "assercoes": 7,
+      "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
@@ -508,7 +508,7 @@
         "envios.subagente-parado-nao-entregue"
       ],
       "hash": "d2c9f5c6a2b88968",
-      "assercoes": 7,
+      "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -518,7 +518,7 @@
         "envios.entrega-imediata-fica-verde"
       ],
       "hash": "7cd09c8cfc47af42",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -529,7 +529,7 @@
         "envios.entrega-imediata-fica-verde"
       ],
       "hash": "c7286b1fd5e15106",
-      "assercoes": 0,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -549,7 +549,7 @@
         "envios.destino-arquivado-nao-entregue"
       ],
       "hash": "57583c91834d0c56",
-      "assercoes": 11,
+      "assercoes": 17,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
@@ -559,7 +559,7 @@
         "envios.destino-arquivado-nao-entregue"
       ],
       "hash": "6a405bf5bc4817fa",
-      "assercoes": 7,
+      "assercoes": 13,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
@@ -569,7 +569,7 @@
         "pedidos.replano-mantem-envio-ate-entrega"
       ],
       "hash": "54a6d7c33c691091",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -579,7 +579,7 @@
         "envios.ancora-no-lote-recente"
       ],
       "hash": "07fbf8bdfaccb71d",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -589,7 +589,7 @@
         "envios.ancora-no-lote-recente"
       ],
       "hash": "e627da9783cd7a6f",
-      "assercoes": 0,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -609,7 +609,7 @@
         "envios.destino-arquivado-nao-entregue"
       ],
       "hash": "c9486d03627c776e",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
@@ -619,7 +619,7 @@
         "envios.subagente-parado-nao-entregue"
       ],
       "hash": "651b6fc9176a612a",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -629,7 +629,7 @@
         "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
       ],
       "hash": "6f79fbcf51559c64",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
@@ -639,7 +639,7 @@
         "envios.entrega-com-lista-de-sessoes-em-erro"
       ],
       "hash": "654719f8ad37cea0",
-      "assercoes": 2,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: carta na fila sem saída com a lista em erro"
@@ -649,7 +649,7 @@
         "envios.carta-pelo-nome-da-sessao"
       ],
       "hash": "76f4006b4e43bbc9",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
@@ -659,7 +659,7 @@
         "envios.esc-apos-entrega-imediata"
       ],
       "hash": "ea22dd3525fa71a4",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -669,7 +669,7 @@
         "envios.fila-nao-interrompe-no-fim-do-turno"
       ],
       "hash": "24bfd5c87e4ec60b",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -679,7 +679,7 @@
         "envios.ancora-no-lote-recente"
       ],
       "hash": "760f7fee90330c41",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -709,7 +709,7 @@
         "envios.subagente-recebe-fica-verde"
       ],
       "hash": "050f585f35f1dabf",
-      "assercoes": 5,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -720,7 +720,7 @@
         "envios.cor-por-estado"
       ],
       "hash": "7e7e763f380a5a10",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -730,7 +730,7 @@
         "envios.carta-pelo-nome-da-sessao"
       ],
       "hash": "4df388c4d16d47ba",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "carta pelo nome da sessão"
@@ -740,7 +740,7 @@
         "envios.carta-pelo-nome-da-sessao"
       ],
       "hash": "e5c3c175e6867dd4",
-      "assercoes": 3,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "carta pelo nome da sessão"
@@ -750,7 +750,7 @@
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
       ],
       "hash": "c45318e1469283ab",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -760,7 +760,7 @@
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
       ],
       "hash": "f0b780974c79d7ad",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -770,7 +770,7 @@
         "envios.subagente-parado-nao-entregue"
       ],
       "hash": "ff170d2a3a231f7e",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -780,7 +780,7 @@
         "envios.subagente-recebe-fica-verde"
       ],
       "hash": "3ac31e0b49b1ee17",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -790,7 +790,7 @@
         "envios.subagente-parado-nao-entregue"
       ],
       "hash": "2c2c0aec597c482a",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -821,7 +821,7 @@
         "visual.desenho-envios"
       ],
       "hash": "47a64c4d4d52d62e",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -832,7 +832,7 @@
         "visual.desenho-cartao-filha"
       ],
       "hash": "3d2e07586316bd36",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -843,7 +843,7 @@
         "visual.desenho-principal"
       ],
       "hash": "cb55842b2a59e403",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -854,7 +854,7 @@
         "visual.desenho-subagente"
       ],
       "hash": "4e328e88b87186dd",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -1044,7 +1044,7 @@
         "pedidos.uma-mensagem-um-pedido"
       ],
       "hash": "6e905cae820e7e06",
-      "assercoes": 4,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
@@ -1074,7 +1074,7 @@
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
       ],
       "hash": "c071ab99d11c2128",
-      "assercoes": 5,
+      "assercoes": 9,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "auditoria 2026-11-10: o trabalho atual segue a renomeação do nível 1"
@@ -1124,7 +1124,7 @@
         "arvore.pai-fecha-com-nada-aberto-embaixo"
       ],
       "hash": "f5fedec5bb7a2b71",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
@@ -1145,7 +1145,7 @@
         "pedidos.plano-anterior-vira-historico"
       ],
       "hash": "7b864af6a3bda605",
-      "assercoes": 7,
+      "assercoes": 11,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
@@ -1195,7 +1195,7 @@
         "pedidos.aviso-do-app-nao-abre-pedido"
       ],
       "hash": "420c5ea0f6dcd083",
-      "assercoes": 5,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
@@ -1295,7 +1295,7 @@
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
       "hash": "b59f9c09c6c595c0",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1305,7 +1305,7 @@
         "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
       ],
       "hash": "daa9d0de7629daa2",
-      "assercoes": 12,
+      "assercoes": 16,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -1315,7 +1315,7 @@
         "sessoes.filha-parada-com-esc-sem-pendente"
       ],
       "hash": "5192b3c7aaab1f70",
-      "assercoes": 8,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 10"
@@ -1325,7 +1325,7 @@
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
       "hash": "803c4b988f2d33ce",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1336,7 +1336,7 @@
         "sessoes.palavra-de-estado-do-cartao"
       ],
       "hash": "66466e5ea24a6212",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
@@ -1346,7 +1346,7 @@
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
       ],
       "hash": "f7682742a3205841",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -1366,7 +1366,7 @@
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
       "hash": "16c24433fac7332c",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -1376,7 +1376,7 @@
         "pedidos.rodada-descartada-nao-segura-a-visao"
       ],
       "hash": "f94c71923380ffd5",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "bug: rodada descartada segurava a visão"
@@ -1386,7 +1386,7 @@
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
       "hash": "f85f9c636dd02b2a",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
@@ -1406,7 +1406,7 @@
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
       "hash": "62b3999dd25a1a2e",
-      "assercoes": 1,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1416,7 +1416,7 @@
         "sessoes.rodada-descartada-fora-da-contagem-do-pai"
       ],
       "hash": "b2311e892e2c3b19",
-      "assercoes": 4,
+      "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -1426,7 +1426,7 @@
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
       "hash": "644d317efe2777f7",
-      "assercoes": 1,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1467,7 +1467,7 @@
         "cabecalho.limites-de-linhas"
       ],
       "hash": "55ff4d54724ac0b2",
-      "assercoes": 4,
+      "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -1488,7 +1488,7 @@
         "sessoes.palavra-de-estado-do-cartao"
       ],
       "hash": "6aa91734264e0fba",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
@@ -1499,7 +1499,7 @@
         "sessoes.palavra-de-estado-do-cartao"
       ],
       "hash": "62b398fcdb2907f3",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1510,7 +1510,7 @@
         "sessoes.palavra-de-estado-do-cartao"
       ],
       "hash": "a6daa2ae418d2a4a",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
@@ -1560,7 +1560,7 @@
         "sessoes.cartao-parado-sem-pedidos-anteriores-a-mais"
       ],
       "hash": "248169b9efc52c6b",
-      "assercoes": 4,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 11"
@@ -1570,7 +1570,7 @@
         "sessoes.toks-e-repo-branch-no-cartao"
       ],
       "hash": "12b4ee175c622db6",
-      "assercoes": 0,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
@@ -1651,7 +1651,7 @@
         "sessoes.pasta-sem-git"
       ],
       "hash": "f56b7836e2f1d360",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
@@ -1671,7 +1671,7 @@
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
       "hash": "3e40470cceec5936",
-      "assercoes": 9,
+      "assercoes": 13,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
@@ -1723,7 +1723,7 @@
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
       "hash": "dcf3324b22fa9b03",
-      "assercoes": 9,
+      "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
@@ -1734,7 +1734,7 @@
         "subagentes.cartao-desde-o-lancamento"
       ],
       "hash": "5a3b24ac7a65efa1",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
@@ -1744,7 +1744,7 @@
         "subagentes.cartao-desde-o-lancamento"
       ],
       "hash": "fbba245f620e37e8",
-      "assercoes": 3,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
@@ -1756,7 +1756,7 @@
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
       "hash": "84b14e55521ab203",
-      "assercoes": 13,
+      "assercoes": 15,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
@@ -1767,7 +1767,7 @@
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
       "hash": "817255071a5c660b",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
@@ -1818,7 +1818,7 @@
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
       "hash": "42efd176ce0a2c8b",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
@@ -1828,7 +1828,7 @@
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
       ],
       "hash": "c0b20540ce69bea0",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -1839,7 +1839,7 @@
         "subagentes.cartao-mostra-modelo-e-estado"
       ],
       "hash": "a507f9a316496285",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1849,7 +1849,7 @@
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
       "hash": "ceb28a25e16202f5",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1860,7 +1860,7 @@
         "subagentes.na-filha"
       ],
       "hash": "054c68659e3829c4",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -1871,7 +1871,7 @@
         "subagentes.na-filha"
       ],
       "hash": "b757df2f32a678de",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
@@ -1881,7 +1881,7 @@
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
       ],
       "hash": "a9abd158b2baa2e4",
-      "assercoes": 3,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -1911,7 +1911,7 @@
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
       "hash": "cffe7014737cdf05",
-      "assercoes": 8,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "pai reflete subagente"
@@ -1921,7 +1921,7 @@
         "subagentes.na-filha"
       ],
       "hash": "193c0a0eb20399b1",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1931,7 +1931,7 @@
         "subagentes.fora-da-contagem"
       ],
       "hash": "fb2224452e081978",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1951,7 +1951,7 @@
         "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
       ],
       "hash": "52c688c58731da3c",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1971,7 +1971,7 @@
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
       "hash": "1f9ab07523f6d89a",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1981,7 +1981,7 @@
         "subagentes.id-reusado-nao-herda-cartao"
       ],
       "hash": "d0f6d6507649d1b0",
-      "assercoes": 8,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
@@ -1992,7 +1992,7 @@
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
       "hash": "fd2fe6b546f2f744",
-      "assercoes": 5,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
@@ -2002,7 +2002,7 @@
         "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
       ],
       "hash": "3958e84470188da1",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 6"
@@ -2023,7 +2023,7 @@
         "subagentes.cartao-desde-o-lancamento"
       ],
       "hash": "dacf75940df84246",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
@@ -2033,7 +2033,7 @@
         "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
       ],
       "hash": "ad391ebfaeca3d63",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -2053,7 +2053,7 @@
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
       "hash": "92f3787112d51a39",
-      "assercoes": 6,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
@@ -2063,7 +2063,7 @@
         "subagentes.sem-fim-vira-interrompido"
       ],
       "hash": "4fc95bc4364ef71e",
-      "assercoes": 14,
+      "assercoes": 15,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
@@ -2074,7 +2074,7 @@
         "subagentes.cartao-mostra-modelo-e-estado"
       ],
       "hash": "3900f9332c92caf8",
-      "assercoes": 9,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -2084,7 +2084,7 @@
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
       ],
       "hash": "50b93caa4b324c31",
-      "assercoes": 12,
+      "assercoes": 16,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -2185,7 +2185,7 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "bb51313001f09f62",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2237,7 +2237,7 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "7a6b3470304ded7e",
-      "assercoes": 7,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2247,7 +2247,7 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "249729534296de32",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2267,7 +2267,7 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "e2b5704f024ad3c1",
-      "assercoes": 6,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2287,7 +2287,7 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "91f0030b5002b6dc",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2297,7 +2297,7 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "a8aa4e6e735fad31",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2448,7 +2448,7 @@
         "visual.guias-na-faixa-do-cartao"
       ],
       "hash": "a94c38b5313c925a",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
@@ -2458,7 +2458,7 @@
         "visual.guias-em-caixas-nativas"
       ],
       "hash": "35bd17dfc1d7ffeb",
-      "assercoes": 9,
+      "assercoes": 19,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
@@ -2478,7 +2478,7 @@
         "visual.cartao-e-cabecalho-destacados"
       ],
       "hash": "36bb10f6461a57aa",
-      "assercoes": 3,
+      "assercoes": 12,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "cabeçalho com o fundo e a borda do cartão (decisão do usuário, 2026-11-13: Sim, junto do cartão)"
@@ -2488,7 +2488,7 @@
         "visual.guias-na-faixa-do-cartao"
       ],
       "hash": "fe81980bf620596b",
-      "assercoes": 3,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
@@ -2498,7 +2498,7 @@
         "visual.cartao-e-cabecalho-destacados"
       ],
       "hash": "c2527794687deed8",
-      "assercoes": 0,
+      "assercoes": 18,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "cartão destacado do painel: fundo e borda próprios (decisão do usuário, 2026-11-13: nao aparece nenhum card)"
