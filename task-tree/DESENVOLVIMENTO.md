@@ -397,6 +397,14 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   (`tasksByPart`, `flatIn`) e a parte de cada tarefa (`partOfTask`, usada por `holder`) ficam em mapas
   montados uma vez por chamada; o dono de cada agente (`ownerOf`) é lembrado; `turns` e `work` dos
   cartões são filtrados por `Set`.
+- A rodada da frente (`lead`) de `split()` é escolhida pelo instante em que cada parte começou, não
+  pela chave: a mensagem da rodada para as rodadas da mãe e das irmãs, o `at` do turno para a parte
+  digitada na filha (chave negativa), a parte 0 antes de todas; a mais recente com tarefa aberta e
+  iniciada, senão a mais recente, e no empate a ordem das chaves. As chaves não mudam (a dobra e a
+  posição do cartão dependem delas). O turno digitado depois da rodada da mãe era lido como a rodada
+  mais antiga e caía em rodada descartada (`discarded`). A linha do cartão só leva `live` quando ele é
+  o da frente (ou a sessão não foi dividida): uma sessão conta uma vez no chip de sessões ativas e no
+  estado do cabeçalho; o cartão de uma rodada antiga segue desenhado como antes.
 - Os pedidos (turnos) com tarefa de nível 1 são achados por um `Set` dos turnos das tarefas (no
   `panel()`, para os cartões antigos, e em `openTurn`): uma passada por lista, não uma pelas tarefas
   por turno.

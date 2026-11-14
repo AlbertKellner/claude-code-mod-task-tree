@@ -331,3 +331,24 @@ A sessão aberta antes do plan do pedido fica solta no fim, e o plan do pedido a
 Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"; antes, na resposta livre: "Se existe uma sessão filha ou subagente criados antes do plan, eles deveriam se planejadas para mostrar corretamente na lista").
 Código: hooks/tools.ts, hooks/panel.ts
 Estado: coberto
+
+### sessoes.rodada-da-frente-e-a-mais-recente
+A rodada atual de uma filha é a mais recente, seja de mensagem da mãe, seja de turno digitado nela.
+
+- Dado uma filha com uma rodada da mãe já concluída e, depois, um turno que a pessoa digitou direto nela
+- Quando esse turno tem tarefas abertas, com ou sem uma iniciada, e a filha está parada ou rodando
+- Então o cartão desse turno é o da rodada atual: as tarefas dele contam no cabeçalho e nos chips, e o pedido onde ele está segue à vista enquanto a filha trabalha; a rodada descartada segue sendo a anterior deixada com tarefa aberta (sessoes.rodada-descartada-fora-da-contagem)
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o turno digitado na filha era sempre lido como a rodada mais antiga); cumpre sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-28: "a rodada descartada é a anterior, não a que está trabalhando") e sessoes.turno-proprio-da-filha-no-pedido-vigente (2026-11-03).
+Estado: coberto
+
+### sessoes.sessao-conta-uma-vez-no-chip
+Uma sessão conta uma vez no chip de sessões ativas, com um cartão ou vários.
+
+- Dado uma filha rodando com mais de um cartão (uma rodada antiga deixada com tarefa aberta e a rodada atual)
+- Quando o cabeçalho conta as sessões ativas
+- Então conta 1 para ela, pelo cartão da rodada atual; os cartões seguem desenhados
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: cada cartão com tarefa aberta de uma sessão rodando contava como uma sessão ativa).
+Código: hooks/render.tsx
+Estado: coberto

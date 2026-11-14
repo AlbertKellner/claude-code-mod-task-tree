@@ -438,9 +438,13 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   const tasksIn = (k: number) => tasksByPart.get(k) ?? []
   const flatIn = new Map(parts.map(k => [k, flat(tasksIn(k))] as const))
   // The card at work: the latest round with a task in progress (an earlier one left with a task started
-  // is the abandoned one, discarded), else the last.
-  const busy = [...parts].reverse().find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
-  const lead = busy ?? parts[parts.length - 1]
+  // is the abandoned one, discarded), else the latest. Latest by when each part began, not by its key
+  // (a turn typed in that session is keyed below zero, and was read as the oldest round): a round of a
+  // message by that message, a typed turn by its own time, part 0 before all; a tie keeps the key order.
+  const startOf = (k: number) => (k > 0 ? (rounds[k - 1]?.at ?? -Infinity) : k < 0 ? (ownTurns[-1 - k]?.at ?? -Infinity) : -Infinity)
+  const byTime = [...parts].sort((a, b) => (startOf(a) === startOf(b) ? a - b : startOf(a) - startOf(b)))
+  const busy = [...byTime].reverse().find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
+  const lead = busy ?? byTime[byTime.length - 1]
   // What hangs from a task goes to that task's card (the first part holding the task, in part order,
   // as the search was); with no such task, to the leading card.
   const partOfTask = new Map<string, number>()
@@ -1319,7 +1323,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       rate: c.rate ? { toks: c.rate.toks, live: c.rate.live } : undefined,
       git: c.git ? gitLabel(c.git) : undefined,
       ring: ringOf(c),
-      live: live(c),
+      // A session counts once among those at work, by its leading card (or its only one); an older
+      // round's card is drawn as it is but is not one more session at work.
+      live: live(c) && (c.part === undefined || c.lead === true),
       pending,
     }
     if (level >= DEEP) return [header]

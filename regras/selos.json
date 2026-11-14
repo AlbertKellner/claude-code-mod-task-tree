@@ -2396,6 +2396,16 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 3"
     },
+    "task-tree/tests/sessoes.test.ts::o turno digitado na filha depois da rodada da mãe é a rodada atual: conta no cabeçalho, parado ou entre um done e o start seguinte": {
+      "regras": [
+        "sessoes.rodada-da-frente-e-a-mais-recente"
+      ],
+      "hash": "0dcb83312470d372",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: rodada da frente pelo tempo"
+    },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
@@ -2465,6 +2475,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/sessoes.test.ts::uma sessão rodando com uma rodada antiga deixada aberta conta uma vez em sessões ativas": {
+      "regras": [
+        "sessoes.sessao-conta-uma-vez-no-chip"
+      ],
+      "hash": "88ab034a21832a6d",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: a sessão conta uma vez no chip"
     },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [

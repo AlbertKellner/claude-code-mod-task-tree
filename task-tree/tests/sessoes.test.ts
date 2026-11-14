@@ -222,6 +222,13 @@ test('cada mensagem à filha, em turnos diferentes, tem o seu cartão sob a tare
   ])
 })
 
+// Regra: sessoes.sessao-conta-uma-vez-no-chip
+test('uma sessão rodando com uma rodada antiga deixada aberta conta uma vez em sessões ativas', async ($: any, on: any) => {
+  const p = await duasRodadas($, on, [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')])
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+  expect(cartoes(p, 'filha-um').length, emTexto(p)).toBe(2)
+})
+
 // Regra: sessoes.mensagens-juntas-vao-a-ultima
 test('mensagens entregues juntas: o cartão do turno vai à tarefa da última', async ($: any, on: any) => {
   const { relogio } = fixar(on)
@@ -508,6 +515,37 @@ test('com o turno próprio da filha trabalhando no pedido antigo, o pedido segue
   expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Reescrita'])
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
   expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+})
+
+// Regra: sessoes.rodada-da-frente-e-a-mais-recente
+test('o turno digitado na filha depois da rodada da mãe é a rodada atual: conta no cabeçalho, parado ou entre um done e o start seguinte', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Feita na filha', 'feita'), noTurno(2, '3', 'Pendente na filha', 'aberta')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'pode reescrever', at: AGORA + 500, own: true }],
+  }
+  h.filha(K1).rodando = false
+  await aviso($)
+  let p = await painel($)
+  let c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
+  expect(c.chips.pendentes, emTexto(p)).toBe(2)
+  esperarPalavra(p, PROPRIO, 'parada')
+  h.filha(K1).rodando = true
+  await aviso($)
+  p = await painel($)
+  c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
+  expect(c.chips.ativas, emTexto(p)).toBe(1)
+  esperarEstado(p, 'Reescrita', 'andamento')
 })
 
 // ---- Cartão vivo nunca some.
