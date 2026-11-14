@@ -137,12 +137,13 @@ Fechada a tarefa de onde saiu o subagente, o cartão dele segue embaixo dela.
 
 - Dado uma tarefa de onde saiu um subagente, à vista no trabalho atual
 - Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela
-- Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; sai junto com o pedido da tarefa, quando ele sai do trabalho ("+N pedidos anteriores"), como o cartão da sessão e a carta
+- Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; quando o pedido da tarefa sai do trabalho ("+N pedidos anteriores"), o subagente terminado que não planejou tarefas é apagado (do painel, do que é guardado e do que é publicado), e o que tem tarefas próprias vai guardado com o pedido, como o cartão da sessão e a carta; ao abrir "+N pedidos anteriores", as tarefas antigas aparecem sem os cartões de subagente
 
 Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho segue sem ser desenhado solto no fim (depende de o cartão vivo terminar quando o fim do subagente não chega).
 
 Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
 Código: draw/layout.ts
+Reescrito: 2026-11-14, decisão do usuário ("Apagar os sem tarefas (Recomendado)"): o cartão do subagente terminado sem tarefas não vai para o histórico.
 Estado: coberto
 
 ### subagentes.reaberta-nao-fecha-pelo-subagente-antigo
@@ -170,6 +171,7 @@ Um subagente lançado antes de a tarefa ser planejada não a fecha.
 Fora deste cenário: nesse painel antigo, o cartão segue desenhado sob a tarefa nova.
 
 Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores; a defesa por tempo para os dados já gravados, proposta com a correção da âncora); aplica subagentes.id-reusado-nao-herda-cartao ("sem fechar pelo subagente antigo") ao que já estava gravado.
+Reescrito: 2026-11-14, decisão do usuário ("Sim, ajustar a preparação (Recomendado)"): o subagente terminado sem tarefas do pedido anterior já sai com o pedido (subagentes.terminado-sem-tarefas-sai-com-o-pedido), então o teste monta ele mesmo o grupo antigo gravado; o que se afirma não muda.
 Estado: coberto
 
 ### subagentes.lancados-juntos-se-veem
@@ -262,3 +264,14 @@ No app, o cartão do subagente que morreu com o processo fica "interrompido"; o 
 
 Origem: decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)"); o teste simula a lista de agentes do app, não o reinício real nem o que o app lista depois dele.
 Estado: checklist (reinício real do app e /model com subagente em segundo plano)
+
+### subagentes.terminado-sem-tarefas-sai-com-o-pedido
+O subagente terminado que não planejou tarefas é apagado quando o pedido dele sai do trabalho atual.
+
+- Dado um pedido com subagentes já terminados, uns sem tarefas no painel e outros com tarefas próprias
+- Quando o pedido sai do trabalho atual (a mensagem seguinte começa trabalho novo, sem nada aberto à vista nele)
+- Então os subagentes sem tarefas saem do painel, do que é guardado e do que é publicado: ao abrir "+N pedidos anteriores" as tarefas antigas aparecem sem eles, e um start que reabra uma tarefa antiga não os traz de volta; os que têm tarefas próprias seguem guardados e publicados com o pedido; o que ainda roda, ou tem quem dependa dele, fica até terminar e sai com o trabalho novo seguinte; no trabalho atual nada muda
+
+Origem: decisão do usuário, 2026-11-14 ("Apagar os sem tarefas (Recomendado)"), à pergunta sobre os cartões de subagentes terminados que ficavam guardados para sempre (uma sessão com 524 deles); limita ao trabalho atual subagentes.terminado-segue-cartao e subagentes.cartao-fica-com-a-origem-fechada.
+Código: hooks/panel.ts, hooks/tools.ts
+Estado: coberto

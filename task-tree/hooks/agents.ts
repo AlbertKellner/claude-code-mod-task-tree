@@ -4,6 +4,9 @@
 // model and effort, output rate, the tool in use, its state). Its steps (turn.step), calls (tool.call)
 // and end (turn.complete) keep it current; the panel is published with the groups, so a session's
 // subagents show in its card in the session that opened it.
+// The group lasts from the launch until its request leaves the work: then, if it ended without
+// planning a task and nothing alive depends on it, it is deleted (joinWork, dropSettledSubs); one with
+// tasks of its own stays with its request in "+N pedidos anteriores".
 
 import { update } from 'claude-code'
 import type { AgentInfo, EngineInterface } from 'claude-code'

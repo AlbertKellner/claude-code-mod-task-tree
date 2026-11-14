@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { cabecalho, emTexto, linha, montar, painel } from './kit/leitura'
+import { cabecalho, comHistorico, emTexto, linha, montar, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
 
@@ -503,8 +503,15 @@ test('âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tar
   await plan($, [{ id: 'A', title: 'Plano B', children: [{ id: '1', title: 'Corrigir' }, { id: '2', title: 'Revisar' }] }])
   const p = await painel($)
   expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
+  // O subagente do pedido um, terminado sem tarefas, já saiu com o pedido (subagentes.terminado-sem-
+  // tarefas-sai-com-o-pedido): o teste monta ele mesmo o grupo como uma versão anterior o deixava
+  // gravado (decisão do usuário, 2026-11-14: "Sim, ajustar a preparação (Recomendado)").
+  const grupos = ((ANTIGO.groups ??= []) as any[])
+  if (!grupos.some(g => g.agent === 'sub-1')) {
+    grupos.push({ agent: 'sub-1', label: 'Explore: ler o kit', parent: '', anchor: 'mdcl:A/1', tasks: [], sub: { at: AGORA, state: 'done', calls: 0, batch: AGORA, engine: 'Haiku 5.5', end: AGORA } })
+  }
   // Como uma versão anterior deixava o grupo: a âncora no id reusado, não na cópia antiga.
-  const sub = ((ANTIGO.groups ?? []) as any[]).find(g => g.agent === 'sub-1')
+  const sub = grupos.find(g => g.agent === 'sub-1')
   expect(sub?.anchor).not.toBe('A/1')
   sub.anchor = 'A/1'
 })
@@ -513,7 +520,7 @@ test('âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tar
 test('âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela', async ($: any, on: any) => {
   fixar(on, { agora: AGORA + 1000 })
   estado(on, ANTIGO, 'semear')
-  if (((ANTIGO.groups ?? []) as any[]).every(g => g.anchor !== 'A/1')) throw new Error('rode o par inteiro: o 1/2 não gravou')
+  if (((ANTIGO.groups ?? []) as any[]).every(g => g.anchor !== 'A/1')) throw new Error('rode o par inteiro: o 1/2 não montou o subagente antigo')
   await fimDoTurno($)
   const p = await painel($)
   expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
@@ -955,4 +962,84 @@ test('agentes de workflow e o processo novo, 3/3: sem sinal há mais de 30 minut
   expect(linha(p, 'Workflow · 2 agentes').texto).not.toContain('trabalhando')
   expect(pilula(p)).not.toContain('▸')
   expect(linha(p, 'Investigar').estado).toBe('interrompida')
+})
+
+const SO_UM: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }]
+const DEPOIS: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Depois' }] }]
+const TERCEIRO: No[] = [{ id: 'C', title: 'Plano C', children: [{ id: 'c1', title: 'Mais tarde' }] }]
+// Os agentes dos grupos no arquivo que esta sessão publica ('' é o loop principal).
+const publicados = (h: { proprio(): any }): string[] => ((h.proprio()?.groups ?? []) as any[]).map(g => String(g.agent))
+// O pedido um com um subagente que termina (e, com `tarefa`, planeja uma tarefa própria antes), fechado;
+// depois o pedido dois, que começa trabalho novo.
+async function doisPedidos($: any, tarefa = false) {
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  if (tarefa) await plan($, [{ id: 's', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  await done($, ['1'], 'Resumo um')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, DEPOIS)
+}
+
+// Regra: subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o subagente terminado sem tarefas sai quando o pedido dele sai do trabalho', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [])
+  await doisPedidos($)
+  const p = await comHistorico($, 1)
+  expect(p.some(l => l.titulo === 'Investigar'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Explore: ler o kit'), emTexto(p)).toBe(false)
+  expect(publicados(h)).toEqual([''])
+})
+
+// Regra: subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o subagente com tarefas próprias fica no histórico', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [])
+  await doisPedidos($, true)
+  // O grupo dele segue guardado e publicado com o pedido um, com a tarefa dele.
+  const sub = ((h.proprio()?.groups ?? []) as any[]).find(g => g.agent === 'sub-1')
+  expect(sub?.tasks?.map((t: any) => t.title), JSON.stringify(h.proprio()?.groups)).toEqual(['Tarefa do sub'])
+})
+
+// Regra: subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o subagente ainda em segundo plano não sai com o pedido', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await done($, ['1'], 'Lançado em segundo plano')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, DEPOIS)
+  await start($, ['b1'])
+  expect(publicados(h)).toContain('sub-1')
+  await fimDoSubagente($, 'sub-1')
+  await done($, ['b1'], 'Resumo dois')
+  await fimDoTurno($)
+  expect(publicados(h)).toContain('sub-1')
+  await pedido($, 'Pedido três')
+  await plan($, TERCEIRO)
+  expect(publicados(h)).toEqual([''])
+})
+
+// Regra: subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('start numa tarefa antiga não traz o cartão de volta', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [])
+  await doisPedidos($)
+  await start($, ['1'])
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('andamento')
+  expect(p.some(l => l.titulo === 'Explore: ler o kit'), emTexto(p)).toBe(false)
+  expect(publicados(h)).toEqual([''])
 })

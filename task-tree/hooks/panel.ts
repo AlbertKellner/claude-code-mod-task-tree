@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
@@ -764,6 +764,8 @@ export async function setWork($: any, ids: string[]) {
 // letter still queued from it, holds its request in sight, the card under the task it came from and
 // not loose at the end (the person, 2026-11-12: "Sim, fica à vista (Recomendado)"); with nothing open
 // in sight, it leaves with its request.
+// New work also deletes the subagents' groups that ended with no tasks, once their request is out of
+// it (dropSettledSubs).
 export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: string) => string = id => id) {
   if (ids.length === 0) return
   const { value = [] } = await $.state.get(workState)
@@ -775,7 +777,49 @@ export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: 
   const { value: children = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
   const kept = openInSight({ groups: withMain(groups as Group[]), waits: [], children }, cur, sends as Send[], knownId()) ? cur : []
-  await setWork($, [...new Set([...kept, ...ids])])
+  const work = [...new Set([...kept, ...ids])]
+  await setWork($, work)
+  await dropSettledSubs($, work)
+}
+// A subagent's group lives from its launch until its request leaves the work (the person,
+// 2026-11-14: "Apagar os sem tarefas (Recomendado)"): when new work starts, the groups of the
+// subagents that ended without planning a task are deleted, once their request is out of the work
+// and nothing alive depends on them. A group with tasks of its own stays, with its request, in "+N
+// pedidos anteriores". Before, every launch added a group for good: the panel, the store and the
+// published file grew with every workflow.
+export function settledSubs(groups: Group[], work: string[], waits: Wait[], sends: Send[]): string[] {
+  const byAgent = new Map(groups.map(g => [g.agent, g]))
+  // The level-1 task of the main group the group came from, up through who launched it.
+  const origin = (g: Group): string | undefined => {
+    const seen = new Set<string>()
+    let at: Group | undefined = g
+    while (at && at.parent !== undefined && at.parent !== MAIN) {
+      if (seen.has(at.agent)) return undefined
+      seen.add(at.agent)
+      at = byAgent.get(at.parent)
+    }
+    return at?.anchor?.split('/')[0]
+  }
+  return groups
+    .filter(g => g.agent !== MAIN && g.tasks.length === 0 && !subLive(g.sub))
+    .filter(g => {
+      const from = origin(g)
+      return from === undefined || !work.includes(from)
+    })
+    .filter(g => !groups.some(c => c.parent === g.agent && subLive(c.sub)))
+    .filter(g => !waits.some(w => w.agent === g.agent))
+    .filter(g => !sends.some(s => s.agent === g.agent && !s.taken && !s.lost))
+    .map(g => g.agent)
+}
+async function dropSettledSubs($: any, work: string[]) {
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const { value: waits = [] } = await $.state.get(waitsState)
+  const { value: sends = [] } = await $.state.get(sendsState)
+  if (settledSubs(groups as Group[], work, waits as Wait[], sends as Send[]).length === 0) return
+  await change($, all => {
+    const gone = settledSubs(all, work, waits as Wait[], sends as Send[])
+    return all.filter(g => !gone.includes(g.agent))
+  })
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
 // rounds of their messages; the sends still waiting; the messages received; the subagents'

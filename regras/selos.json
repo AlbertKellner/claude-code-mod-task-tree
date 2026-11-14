@@ -2336,6 +2336,26 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
     },
+    "task-tree/tests/subagentes.test.ts::o subagente ainda em segundo plano não sai com o pedido": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "168f30b221d357a2",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente com tarefas próprias fica no histórico": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "9f6fd754a6e7bb0f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
     "task-tree/tests/subagentes.test.ts::o subagente concluído fecha a tarefa de onde saiu no fim do turno; o pai e a contagem seguem": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -2385,6 +2405,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente terminado sem tarefas sai quando o pedido dele sai do trabalho": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "a679071a67405d61",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
     },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
       "regras": [
@@ -2468,6 +2498,16 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::start numa tarefa antiga não traz o cartão de volta": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "589ef493e7c9b56e",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
     "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 1/3: o cartão vivo vai ao store": {
       "regras": [
         "subagentes.sem-fim-vira-interrompido"
@@ -2523,21 +2563,21 @@
       "regras": [
         "subagentes.lancado-antes-da-tarefa-nao-conta"
       ],
-      "hash": "694665aa2925dddb",
+      "hash": "f764a0ce5f9f3980",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-11",
-      "motivo": "auditoria 2026-11-10, achado alto 6"
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, ajustar a preparação (Recomendado)\": o teste monta o subagente antigo"
     },
     "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela": {
       "regras": [
         "subagentes.lancado-antes-da-tarefa-nao-conta"
       ],
-      "hash": "13e907247ecc1ae2",
+      "hash": "79e83de682f25261",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-11-11",
-      "motivo": "auditoria 2026-11-10, achado alto 6"
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, ajustar a preparação (Recomendado)\": a preparação vem do 1/2, que passa a montar o subagente antigo"
     },
     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
       "regras": [
