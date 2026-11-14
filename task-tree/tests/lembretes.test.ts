@@ -365,3 +365,20 @@ test('os lembretes de mensagem nova, as regras e a descrição do done mandam ca
   expect(regras).toContain('`cancel`')
   expect(descricoes['done'] ?? '').toContain('cancel')
 })
+
+// Regra: lembretes.aguardando-so-volta-com-start
+test('as regras e o lembrete da mensagem seguinte dizem que a tarefa que aguardava só volta com start nela', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  const ctx = contexto(await pedido($, 'Próximo'))
+  expect(ctx).toContain('seguem aguardando (◷)')
+  expect(ctx).toContain(ABERTAS)
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('termina normalmente fica aguardando')
+})

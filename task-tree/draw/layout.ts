@@ -60,6 +60,9 @@ export const halt =
     if (t.status !== 'open') return t
     if (t.children.length === 0) {
       const begun = t.started !== undefined || t.startedAt !== undefined
+      // Already waiting since an earlier normal end (rest, state/tasks), no start since: it stays so,
+      // a stop included (the person, 2026-11-14: "Seguir ◷ até o start (Recomendado)").
+      if (t.started === undefined && t.startedAt !== undefined && t.endedAt !== undefined && t.stopped !== true) return t
       // A task whose letter is still queued (`sent`) waits on that session, not on this turn: a stop
       // leaves it waiting (◷), as a normal end does (the person, 2026-10-30: "Não, fica ◷ enquanto a
       // carta está na fila"). Delivered, it is a task like any other: a stop interrupts it.
@@ -680,9 +683,12 @@ export function pathTo(items: TaskNode[], id: string): string[] {
 // (the person's decision after the visual test: "sem start, nada aceso"). The first open task used
 // to light up by default, and a message sent between two tasks was anchored to the next pending
 // one, which then closed on delivery; a never-started step ran a clock.
+// A leaf the person stopped (`stopped`) is not in progress, though it keeps its start's order until
+// a start begins it again (stay reads it interrupted): with the normal end leaving the rest waiting
+// with no start (rest, state/tasks), it took the header and a notice's place from the task started last.
 export function current(list: TaskNode[]): { lit: string[]; anchor?: string } {
   const started = flat(list)
-    .filter(t => t.status === 'open' && t.started !== undefined)
+    .filter(t => t.status === 'open' && t.started !== undefined && !(t.stopped === true && t.children.length === 0))
     .sort((a, b) => (a.started ?? 0) - (b.started ?? 0))
   if (started.length === 0) return { lit: [], anchor: undefined }
   let lit: string[] = []

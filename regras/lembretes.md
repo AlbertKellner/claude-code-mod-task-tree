@@ -127,3 +127,13 @@ Os textos ao modelo mandam cancelar, não concluir, o que a mensagem nova substi
 Origem: decisão do usuário, 2026-11-14 ("✕ fora do x/y (Recomendado)"); antes, os três lembretes mandavam done no que a mensagem "substitui".
 Código: hooks/tools.ts, hooks/session-start.ts
 Estado: coberto
+
+### lembretes.aguardando-so-volta-com-start
+Os textos ao modelo dizem que a tarefa que ficou aguardando no fim do turno só volta com start nela.
+
+- Dado uma tarefa em andamento quando o turno terminou normalmente
+- Quando o modelo lê as regras do painel e o lembrete da mensagem seguinte
+- Então eles dizem que ela segue aguardando (◷) até o start nela, que a mensagem seguinte não a reacende e que o done a conclui sem start
+
+Origem: decisão do usuário, 2026-11-14 ("Seguir ◷ até o start (Recomendado)").
+Estado: coberto

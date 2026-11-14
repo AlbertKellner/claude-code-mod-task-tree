@@ -225,6 +225,8 @@ test('depois de uma entrega imediata, o fim do turno e o Esc não interrompem a 
   await envio($, 'local_x')
   await fimDoTurno($)
   esperarCartaSob(await painel($), 'Um', 'entregue')
+  await pedido($, 'segue')
+  await start($, ['1'])
   await esc($)
   const p = await painel($)
   // A carta segue verde; a tarefa, entregue a mensagem, é como qualquer outra: o Esc a interrompe.

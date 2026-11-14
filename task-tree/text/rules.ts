@@ -56,6 +56,9 @@ export const RULES = [
     'mcp__task-tree__start nela. Nada mais a reacende: nem a mensagem seguinte, nem o start em outra tarefa, ' +
     'nem um turno aberto por aviso automático, por retorno de subagente ou por tarefa em segundo plano que ' +
     'terminou. Para retomá-la, chame start nela antes de trabalhar; se ela já terminou, done a conclui sem start.',
+  '- Uma tarefa em andamento quando o turno termina normalmente fica aguardando (◷) no painel até um novo ' +
+    'mcp__task-tree__start nela: nem a mensagem seguinte nem um turno aberto por aviso automático a reacende. ' +
+    'Para seguir nela, chame start nela antes de trabalhar; se ela já terminou, done a conclui sem start.',
   '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
   '- Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a tarefa a ' +
     'que a pergunta pertence e feche-a só depois da resposta; se a resposta vier pelo chat, feche-a no ' +
@@ -140,7 +143,8 @@ export const PROMPT = {
     PANEL + `tarefas abertas antes desta mensagem: ${list}. Feche com ` +
     'mcp__task-tree__done as que esta mensagem conclui (por exemplo, a de perguntar ou de esperar a ' +
     'resposta) e cancele as que ela substitui e não serão feitas (mcp__task-tree__done com `cancel`: ficam ✕, ' +
-    'fora da contagem) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam.',
+    'fora da contagem) antes de seguir ou de planejar o pedido novo; deixe abertas só as que continuam. ' +
+    'As que estavam em andamento seguem aguardando (◷): chame mcp__task-tree__start na que for continuar.',
   // A message delivered into a running turn that continues the request in progress, with no request
   // of its own in the panel (the person, 2026-11-12: "Entra no pedido em curso (Recomendado)").
   // `list`: the open tasks, if any; `answered`: the message answers the last question.

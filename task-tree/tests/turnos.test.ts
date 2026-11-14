@@ -7,6 +7,7 @@ import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenar
 import { emTexto, esperarEstado, painel } from './kit/leitura'
 import { aviso } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
+import { AGORA } from './kit/ambiente'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
 // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
@@ -435,4 +436,106 @@ test('o resumo de um turno parado com Esc não vira o ↩ do pedido seguinte, e 
   expect(p.some(l => l.texto.includes('Resumo A')), emTexto(p)).toBe(false)
   const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
   expect(turnos.some(u => u.brief === 'Resumo A'), JSON.stringify(h.proprio())).toBe(false)
+})
+
+// A tarefa que o fim normal deixou ◷ segue ◷ até o start nela. Origem: decisão do usuário de
+// 2026-11-14 ("Seguir ◷ até o start (Recomendado)"), que estende ao fim normal a do Esc de 2026-11-12.
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await fimDoTurno($)
+  const noFim = await painel($)
+  await relogio.advance(5000)
+  await pedido($, 'segue')
+  await relogio.advance(5000)
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  semNadaAceso(p)
+  for (const t of ['Dois.um', 'Dois', 'Plano A', 'Pedido um']) expect(umaLinha(p, t).texto, emTexto(p)).toBe(umaLinha(noFim, t).texto)
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(0)
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(2)
+})
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('um turno que não abre pedido não reacende a tarefa que aguardava', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await fimDoTurno($)
+  for (const [nome, prompt] of PROMPTS_SEM_PEDIDO) {
+    await relogio.advance(5000)
+    await prompt($)
+    let p = await painel($)
+    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no turno:\n${emTexto(p)}`).toBe('aguardando')
+    semNadaAceso(p)
+    await fimDoTurno($)
+    p = await painel($)
+    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no fim do turno:\n${emTexto(p)}`).toBe('aguardando')
+  }
+})
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('o Esc num turno seguinte não interrompe a tarefa que aguardava sem start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await fimDoTurno($)
+  await pedido($, 'segue')
+  await start($, ['1'])
+  await esc($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(1)
+})
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('o done em tarefas que aguardavam as conclui sem o aviso de etapas sem start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1', '2.1'])
+  await fimDoTurno($)
+  await pedido($, 'segue')
+  const r = await done($, ['1', '2.1'])
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Dois.um', 'concluida')
+  expect(r.texto).not.toContain('fecharam juntas sem start')
+})
+
+// Regra: sessoes.cartao-parado-mostra-o-tempo-do-turno
+test('o fim normal do turno vai no painel publicado: a tarefa que aguardava leva a hora do fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await fimDoTurno($)
+  const todas = (l: any[]): any[] => l.flatMap(t => [t, ...todas(t.children ?? [])])
+  const tarefas = todas((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.tasks ?? [])
+  const de = (titulo: string) => tarefas.find(t => t.title === titulo)
+  const json = JSON.stringify(h.proprio())
+  expect(de('Dois.um')?.endedAt, json).toBe(AGORA + 3000)
+  expect(de('Dois.um')?.startedAt, json).toBe(AGORA)
+  expect(de('Dois.um')?.started, json).toBe(undefined)
+  expect(de('Dois')?.endedAt, json).toBe(AGORA + 3000)
+  expect(de('Plano A')?.endedAt, json).toBe(AGORA + 3000)
 })

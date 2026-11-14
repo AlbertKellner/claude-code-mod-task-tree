@@ -547,11 +547,11 @@
       "regras": [
         "durabilidade.painel-volta-do-arquivo-publicado"
       ],
-      "hash": "5e90046e1095b1d9",
+      "hash": "84397dfe1d9f6b98",
       "assercoes": 3,
-      "tipo": "novo",
+      "tipo": "decisao",
       "data": "2026-11-14",
-      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\"; a tarefa que o fim do turno deixou ◷ segue ◷ no aviso do app"
     },
     "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim": {
       "regras": [
@@ -1098,11 +1098,11 @@
       "regras": [
         "envios.esc-apos-entrega-imediata"
       ],
-      "hash": "ea22dd3525fa71a4",
+      "hash": "ccb2f8dcfb90f6ea",
       "assercoes": 6,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\"; o Esc só interrompe o que está em andamento, e o teste dá start antes dele"
     },
     "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
       "regras": [
@@ -1358,6 +1358,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras e o lembrete da mensagem seguinte dizem que a tarefa que aguardava só volta com start nela": {
+      "regras": [
+        "lembretes.aguardando-so-volta-com-start"
+      ],
+      "hash": "eb6cf42d28e5421e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::as regras e o lembrete depois do Esc dizem que o estado só fica no replano da mesma mensagem": {
       "regras": [
@@ -2064,6 +2074,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela": {
+      "regras": [
+        "sessoes.cartao-parado-mostra-o-tempo-do-turno"
+      ],
+      "hash": "35ab618ee6779ee3",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o fim do turno vai na tarefa publicada"
     },
     "task-tree/tests/sessoes.test.ts::no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo com uma tarefa só": {
       "regras": [
@@ -2780,6 +2800,16 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "84a68d850bf21234",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando": {
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
@@ -2842,6 +2872,26 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
+    "task-tree/tests/turnos.test.ts::o Esc num turno seguinte não interrompe a tarefa que aguardava sem start": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "763827e7db596d55",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o done em tarefas que aguardavam as conclui sem o aviso de etapas sem start": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "29179cca3fe95df5",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::o done na tarefa parada com Esc, sem start, a conclui": {
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
@@ -2851,6 +2901,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o fim normal do turno vai no painel publicado: a tarefa que aguardava leva a hora do fim": {
+      "regras": [
+        "sessoes.cartao-parado-mostra-o-tempo-do-turno"
+      ],
+      "hash": "3b583b7dee2d7c40",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o fim do turno vai na tarefa publicada"
     },
     "task-tree/tests/turnos.test.ts::o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual": {
       "regras": [
@@ -2981,6 +3041,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::um turno que não abre pedido não reacende a tarefa que aguardava": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "5305f6a2750de4c1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
     },
     "task-tree/tests/ultracode.test.ts::a palavra digitada num prompt e o attachment de um subagente não acendem": {
       "regras": [

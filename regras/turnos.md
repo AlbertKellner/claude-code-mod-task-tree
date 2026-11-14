@@ -51,10 +51,11 @@ A mensagem seguinte retoma o trabalho.
 
 - Dado um turno terminado, normal ou com Esc
 - Quando chega a mensagem seguinte e o modelo chama start
-- Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕
+- Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕; a que o fim normal deixou ◷ segue ◷ até o start nela (turnos.aguardando-segue-ate-o-start)
 
 Origem: commit 55a2dd1, 2026-10-23.
 Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"); desfaz "nada fica ✕" para a tarefa parada com Esc em que o modelo ainda não deu start: antes, o prompt seguinte a reacendia sozinho.
+Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); antes, o prompt seguinte reacendia sozinho a tarefa que o fim normal deixara ◷. O teste não muda.
 Estado: coberto
 
 ### turnos.parada-segue-interrompida-ate-o-start
@@ -162,4 +163,15 @@ O resumo de um turno parado com Esc não passa ao pedido seguinte.
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o resumo e o recap só eram zerados no fim normal); aplica turnos.resumo-sem-resposta-final ("o summary é a linha ↩" do turno dele), sem mudar nenhuma regra.
 Código: hooks/tools.ts, hooks/tool-call.ts
+Estado: coberto
+
+### turnos.aguardando-segue-ate-o-start
+A tarefa que o fim normal do turno deixou aguardando segue aguardando até o modelo dar start nela.
+
+- Dado uma tarefa iniciada e aberta quando o turno termina normalmente, ◷ desde então
+- Quando chega a mensagem seguinte, ou um prompt que não abre pedido (aviso do app, hand-back, notificação), ou o modelo dá start em outra tarefa, ou a pessoa para com Esc um turno em que ela não recebeu start
+- Então ela segue ◷, com o tempo parado no fim do turno, o pai e o pedido como estavam, no chip "aguardando" e fora do "em andamento"; só o start nela a reacende ◉, e o done a conclui sem aviso de falta de start; com uma sessão filha trabalhando sob ela, segue ◉ enquanto a filha trabalha (sessoes.filha-trabalhando-mantem-pais-em-andamento); o estado vai no painel publicado, e o cartão desta sessão na mãe mostra o mesmo
+
+Origem: decisão do usuário, 2026-11-14 ("Seguir ◷ até o start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a tarefa ◷ voltava a ◉ em qualquer prompt, com o relógio contando o tempo parado). Estende a decisão de 2026-11-12 do Esc ("Segue ✕ até novo start (Recomendado)") ao fim normal.
+Código: state/tasks.ts, hooks/tools.ts, text/rules.ts
 Estado: coberto

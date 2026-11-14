@@ -34,12 +34,13 @@ Estado: coberto
 Depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem.
 
 - Dado uma tarefa de mensagem em andamento cuja mensagem foi entregue na hora
-- Quando o turno termina, normal ou com Esc
+- Quando o turno em que ela está em andamento termina, normal ou com Esc
 - Então a carta segue verde; a tarefa iniciada fica ✕ no Esc, como qualquer outra (entregue a mensagem, ela é uma tarefa comum)
 
 Origem: decisão do usuário, 2026-10-28 ("a mensagem foi entregue; não é interrompida"; o ✉ verde igual com a tarefa aberta ou concluída está bom).
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); só a carta ficava verde no Esc; a tarefa passa a ser tratada como qualquer outra.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); a tarefa que um fim normal deixou ◷ não é interrompida por um Esc posterior sem start nela; o teste passa a dar start antes do Esc.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 

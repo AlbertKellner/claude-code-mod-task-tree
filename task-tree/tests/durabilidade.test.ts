@@ -915,7 +915,8 @@ test('painel fora do store, sem session.start: o primeiro uso o traz do arquivo'
   host(on, [FILHA_PARADA], { arquivoProprio: PUBLICADO.texto })
   await aviso($)
   const p = await painel($)
-  esperarEstado(p, 'Tarefa x', 'andamento')
+  // O fim do turno deixou a tarefa ◷, e o aviso não a reacende (decisão de 2026-11-14).
+  esperarEstado(p, 'Tarefa x', 'aguardando')
   expect(tem(p, '+1 pedidos anteriores'), emTexto(p)).toBe(true)
   expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Tarefa x'])
 })

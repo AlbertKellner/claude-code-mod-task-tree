@@ -113,7 +113,7 @@ Na ordem de `register.tsx`:
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`) |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -604,8 +604,13 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   filha trabalhando). Com a carta dela na fila, segue ◷. `trail` não acende o caminho de uma tarefa
   parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
   mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
-  por `stayed`. `wake` não mudou: o que um fim normal deixou ◷ volta a ◉ no prompt seguinte; só o que o
-  Esc parou espera o `start`. Os textos ao modelo dizem a regra: um item das `RULES` e `PROMPT.parked`
+  por `stayed`. O fim normal também espera o `start` (2026-11-14, "Seguir ◷ até o start (Recomendado)"):
+  `turnComplete` grava na própria tarefa o estado de espera (`rest`, em `state/tasks.ts`: a folha em
+  andamento perde `started` e ganha `endedAt`, os pais abertos também), e só o `start` a reacende; `wake`
+  segue igual, porque o estado já não depende de `turnEnded`. O `park` só marca o que está em andamento
+  (`started`), o `halt` deixa como está a folha que já aguarda, o `current` não conta a folha parada com
+  Esc, e o aviso de etapas sem start do `done` ignora a que tem `startedAt`. A hora do fim vai no arquivo
+  publicado dentro de `groups`: o cartão da filha parada mostra o tempo até o fim do turno dela. Os textos ao modelo dizem a regra: um item das `RULES` e `PROMPT.parked`
   nos avisos, hand-backs e notificações (`lembretes.parada-so-volta-com-start`).
 
 
@@ -1782,3 +1787,9 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   chamada da ferramenta em curso (`inCall`) e no fim do turno do loop principal; a escolha do `wrap_up`
   só vira espera depois de a chamada dar certo. A pergunta opcional segue contando como espera (o
   usuário, 2026-11-14: "Toda pergunta espera").
+
+- Tarefa ◷ até o start (2026-11-14, "Seguir ◷ até o start (Recomendado)"): a tarefa que o fim normal
+  deixou aguardando voltava a ◉ em qualquer prompt seguinte, com o relógio contando o tempo parado. O fim
+  normal passa a gravar a espera na tarefa (`rest`), como o Esc grava a parada (`park`); o Esc de um turno
+  seguinte não interrompe a tarefa que aguarda sem start. Com a hora do fim na tarefa, o cartão da filha
+  parada deixa de parar o relógio no último carimbo do painel publicado (0:00).

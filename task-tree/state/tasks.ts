@@ -81,8 +81,23 @@ export const park =
   (at?: number) =>
   (t: TaskNode): TaskNode => {
     if (t.status !== 'open') return t
-    if (t.children.length === 0) return t.started !== undefined || t.startedAt !== undefined ? { ...t, stopped: true, endedAt: stop(t, at) } : t
+    // Only what is in progress now: a task an earlier normal end left waiting (rest) and no start
+    // began again stays waiting (the person, 2026-11-14: "Seguir ◷ até o start (Recomendado)").
+    if (t.children.length === 0) return t.started !== undefined ? { ...t, stopped: true, endedAt: stop(t, at) } : t
     return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(park(at)) }
+  }
+// The turn ended normally: what was in progress waits (◷) on the task itself, its clock stopped at the
+// end, until a start begins it again (begin) or a done closes it (finish); the next message, a turn
+// opened by a notice and a stop of a later turn leave it as it is (the person, 2026-11-14: "Seguir ◷
+// até o start (Recomendado)"). What the drawing showed at the end (halt with no stop), kept in the
+// state and published: the card of this session shows the same time. A task the person stopped
+// (`stopped`) keeps its mark; one never started and the closed ones do not change.
+export const rest =
+  (at?: number) =>
+  (t: TaskNode): TaskNode => {
+    if (t.status !== 'open') return t
+    if (t.children.length === 0) return t.started !== undefined && t.stopped !== true ? { ...t, started: undefined, endedAt: stop(t, at) } : t
+    return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(rest(at)) }
   }
 // A task closed with no start (done without start) gets one, so its time shows: the end of the
 // closed sibling before it, else its parent's start, else when it was planned (never before it was

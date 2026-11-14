@@ -31,9 +31,10 @@ O fim do turno sobrevive ao reinício.
 
 - Dado um turno que terminou (normal ou com Esc) com uma tarefa iniciada e aberta
 - Quando um processo novo desenha o painel (session.start, respawn sem ele, ou retomada)
-- Então nada fica ◉: a iniciada fica ◷ (✕ se o turno foi parado), o pai fica ◷, e o relógio não anda até o próximo pedido
+- Então nada fica ◉: a iniciada fica ◷ (✕ se o turno foi parado), o pai fica ◷, e o relógio não anda até o start nela
 
 Origem: decisões do usuário de 2026-10-27 (◉ só no caminho da última iniciada no turno atual; no fim do turno, a iniciada aguarda) aplicadas ao reinício; achado da tarefa 7, 2026-10-28.
+Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); antes, o relógio voltava a andar no próximo pedido. Os testes não mudam.
 Código: hooks/turn.ts, hooks/sessions.ts, hooks/render.tsx
 Estado: coberto
 
@@ -183,9 +184,10 @@ O painel de uma sessão parada há muito tempo volta inteiro enquanto a sessão 
 
 - Dado uma sessão do app desktop cujo painel já saiu do store (só as 30 que gravaram por último ficam lá) e que ainda existe no app
 - Quando um processo novo a abre (session.start, ou o primeiro uso sem ele)
-- Então o painel volta do arquivo que ela mesma publicou: pedidos, estados, trabalho atual, cartas, cartões das filhas sob as mesmas tarefas e o fim do turno como estava; ele volta ao store, e o cartão dela na sessão que a abriu mantém o histórico; com o painel no store, vale o do store; fora do app desktop valem as 30 últimas
+- Então o painel volta do arquivo que ela mesma publicou: pedidos, estados, trabalho atual, cartas, cartões das filhas sob as mesmas tarefas e o fim do turno como estava (a tarefa que ele deixou ◷ segue ◷ num aviso do app, até o start nela); ele volta ao store, e o cartão dela na sessão que a abriu mantém o histórico; com o painel no store, vale o do store; fora do app desktop valem as 30 últimas
 
 Origem: decisão do usuário, 2026-11-14 ("Enquanto a sessão existir (Recomendado)"), à pergunta "Por quanto tempo o painel de uma sessão parada deve ser guardado?".
+Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); a tarefa que o fim do turno deixou ◷ aparecia ◉ no aviso do app que abre o processo novo; o teste sem session.start passa a esperá-la aguardando.
 Código: io/publish.ts, io/host.ts
 Estado: coberto
 

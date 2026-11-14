@@ -264,3 +264,14 @@ O arquivo que a sessão publica leva o painel dela inteiro e as filhas cortadas 
 Origem: decisão do usuário, 2026-11-14 ("Enxugar e esvaziar (Recomendado)"); limita, para as netas vistas pela avó, a decisão de 2026-11-04 ("Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: hooks/panel.ts
 Estado: coberto
+
+### sessoes.cartao-parado-mostra-o-tempo-do-turno
+No cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela.
+
+- Dado uma filha que deu start numa tarefa, trabalhou sem outro start nem done e terminou o turno com ela aberta
+- Quando a mãe desenha o cartão da filha parada
+- Então a tarefa aparece ◷ com o tempo do início ao fim do turno da filha, o mesmo do painel dela, e o tempo do cartão e o do pedido da mãe o seguem; o arquivo publicado leva a hora do fim na própria tarefa; para um arquivo de versão anterior do mod, o relógio para no último início ou fim publicado
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o relógio do cartão parava no último carimbo do painel publicado, 0:00 ou tempo cortado); cumpre turnos.iniciada-aguarda-no-fim ("◷ com o relógio parado"). Corrigido junto com turnos.aguardando-segue-ate-o-start, que grava a hora do fim na tarefa.
+Código: state/tasks.ts, hooks/turn.ts
+Estado: coberto

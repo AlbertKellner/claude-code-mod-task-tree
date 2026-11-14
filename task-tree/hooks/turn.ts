@@ -10,7 +10,7 @@ import { engineText } from '../io/host'
 import { change, dropAsked, dropPermissions, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { ensureGroups } from './panel'
-import { park } from '../state/tasks'
+import { park, rest } from '../state/tasks'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -150,6 +150,13 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   if (!agent) await $.state.set(turnEndedState, endedAt ?? 0)
   // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
   if (!agent && !e.isAborted) await settleBySubs($)
+  // What it left in progress waits on the task itself until its start (rest, state/tasks).
+  if (!agent && !e.isAborted) {
+    await ensureGroups($)
+    const { value: now = [] } = await $.state.get(groupsState)
+    if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
+      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(rest(endedAt)) } : g)))
+  }
   // The turn's output rate stays as it is, lit (the person, 2026-11-10: "Fica aceso").
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.

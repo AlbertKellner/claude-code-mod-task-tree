@@ -847,3 +847,15 @@ test('uma rodada antiga da neta, de pedido cortado, não quebra o cartão', asyn
   expect(p.some(l => l.titulo === 'Velha'), emTexto(p)).toBe(false)
   expect(cartoes(p, 'neta').flatMap(c => c.tarefas), emTexto(p)).toContain('Neta nova')
 })
+
+// Regra: sessoes.cartao-parado-mostra-o-tempo-do-turno
+test('no cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela', async ($: any, on: any) => {
+  const longa = { id: '1', short: '1', title: 'Longa', status: 'open', startedAt: AGORA - 1_200_000, endedAt: AGORA - 1000, children: [] }
+  const curta = { id: '2', short: '2', title: 'Curta', status: 'done', startedAt: AGORA - 1_200_000, endedAt: AGORA - 900_000, children: [] }
+  const h = await abrir($, on, { painel: { tasks: [longa, curta] } })
+  h.filha(K1).rodando = false
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Longa', 'aguardando')
+  expect(linha(p, 'Longa').texto, emTexto(p)).toContain('19:59')
+})

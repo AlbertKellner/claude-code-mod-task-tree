@@ -163,7 +163,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
           else if (hit.status === 'interrupted') notes.push(`"${id}" foi interrompida`)
           else {
-            unstarted.push(...flat([hit]).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined).map(t => t.id))
+            unstarted.push(...flat([hit]).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && t.startedAt === undefined).map(t => t.id))
             tasks = settle(edit(fillStarts(tasks, hit.id, now), hit.id, finish(now)), now)
             closed.push(...flat([hit]).filter(t => t.status === 'open').map(t => t.id))
           }
