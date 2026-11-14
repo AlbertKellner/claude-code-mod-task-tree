@@ -29,8 +29,8 @@ O que só o usuário faz está marcado com (usuário); o resto a sessão confere
 3. Ferramentas: git, Node com npm e o `gh`. Na máquina antiga os agentes usavam o Git Bash e, às vezes,
    `python3` para editar arquivos; nenhum script do repositório depende de Python.
 4. (usuário) App desktop do Claude Code instalado e aberto ao menos uma vez: o check usa o binário do
-   app, em `%APPDATA%\Claude\claude-code\<versão>\` (na máquina antiga, a 2.1.321). Fora do Windows, ou
-   com o binário em outro lugar, a variável `CLAUDE_BIN` aponta para ele.
+   app, em `%APPDATA%\Claude\claude-code\<versão>\`. Fora do Windows, ou com o binário em outro lugar,
+   a variável `CLAUDE_BIN` aponta para ele.
 5. (usuário) Mod carregado DESTE clone, e não do marketplace. Na máquina antiga isso estava em
    `~/.claude/settings.json`:
    - em `env`: `CLAUDE_CODE_PLUGIN_DIRS` com o caminho de `<repo>\task-tree` (outros mods, se houver,
@@ -44,13 +44,28 @@ O que só o usuário faz está marcado com (usuário); o resto a sessão confere
 6. (usuário) `gh` autenticado na conta **AlbertKellner**, e só nela (`gh api user -q .login` tem de
    responder `AlbertKellner`). Push sempre com
    `git -c credential.helper= -c credential.helper='!gh auth git-credential' push origin <branch>`.
-7. No clone do trabalho: `npm install` (ativa o hook de pré-commit; `git config core.hooksPath` passa a
+7. (usuário) **Identidade do git, nos DOIS clones (trabalho e notas).** Na máquina antiga, o nome e o
+   e-mail do autor estavam gravados só na configuração local do clone (`.git/config`), porque a
+   identidade global daquela máquina era a de outra conta. Um clone novo não traz isso: sem este passo,
+   os commits saem com a identidade global da máquina. Em cada um dos dois clones:
+   `git config user.name "<o mesmo nome dos commits>"` e `git config user.email "<o mesmo e-mail>"`,
+   iguais aos do último commit da branch (`git log -1 --format="%an <%ae>"`).
+   A sessão confere, e não segue se falhar: `git config user.email` tem de ser igual a
+   `git log -1 --format=%ae`, nos dois clones. Nenhum commit, de nenhuma branch, pode sair com outra
+   identidade: o usuário não quer rastro da outra conta neste repositório.
+8. Fim de linha: na máquina antiga o git usava `core.autocrlf=true` (padrão do Git para Windows). O
+   resultado do ensaio com outra configuração está na seção 10.
+9. No clone do trabalho: `npm install` (ativa o hook de pré-commit; `git config core.hooksPath` passa a
    responder `.githooks`) e `npm run check` (tem de dar tudo `ok`, com mais de 300 testes; ele também
    gera `task-tree/.claude-plugin/types/`, que o git ignora).
-8. (usuário) Sessão do app aberta no clone do trabalho, em modo automático de permissões, como na
-   máquina antiga: sem isso os agentes param a cada comando para pedir autorização. A orquestradora
-   terminou lá em Fable 5.2 (antes, Opus 5.5); o modelo e o esforço da sessão são escolha do usuário.
-9. Colar o prompt da seção 12.
+10. (usuário) Sessão do app aberta no clone do trabalho, em modo automático de permissões, como na
+    máquina antiga: sem isso os agentes param a cada comando para pedir autorização. A orquestradora
+    terminou lá em Fable 5.2 (antes, Opus 5.5); o modelo e o esforço da sessão são escolha do usuário.
+11. Colar o prompt da seção 12.
+
+Versões na máquina antiga, para comparar se algo se comportar diferente: Node 24.14.1, npm 11.11.0,
+git 2.56.1 (Windows), `gh` 2.89.0, e o binário do app na 2.1.325 (a 2.1.321 também estava instalada; o
+check usa a mais nova).
 
 Não viajaram, e não são necessários para os lotes: `node_modules`, os tipos gerados, os outros mods da
 máquina antiga (barra de progresso, faixa de sessão e semelhantes), a memória local do Claude Code e o
@@ -65,7 +80,20 @@ máquina antiga (barra de progresso, faixa de sessão e semelhantes), a memória
 - `<notas>/orq-decisoes-medios.local.md` e `<notas>/orq-decisoes-pendencias.local.md`: todas as
   decisões do usuário, com as palavras dele. São a fonte dos `Reescrito:` e dos motivos dos selos.
 
-**Quem faz o quê.** A sessão que recebe o prompt é a orquestradora: não escreve código nem planos. O
+**Como o usuário trabalha com a sessão.**
+- Tudo em português do Brasil: conversa, perguntas, relatos, mensagens de commit e descrição de PR.
+- Antes de começar algo grande, ele pede as dúvidas "em loop": perguntar em rodadas, até não sobrar
+  nenhuma, e só então agir.
+- Ele manda mensagens no meio do trabalho. "Pare tudo" é parar todos os agentes e deixar o clone como
+  no último commit. "Comece do zero" é descartar o trabalho parcial, sem que o agente novo o leia.
+- Quando a sessão erra, ele quer saber com todas as letras, com o que foi feito para corrigir.
+- Ele pergunta "o que falta?" e "quanto tempo?": a resposta traz contagem (feitos, faltando) e a conta
+  da estimativa.
+- Painel de tarefas errado é bug do mod, a corrigir no mod; nunca se muda o jeito de usar o painel.
+
+**Quem faz o quê.** A sessão que recebe o prompt é a orquestradora: não escreve código nem planos. Ela
+pergunta, registra, lança os agentes, confere os commits e relata; e faz ela mesma as operações de git
+que não são commit de código (criar branch, push, abrir e atualizar o PR). O
 planejamento e a implementação são feitos por SUBAGENTES lançados por ela com a ferramenta `Agent`, em
 segundo plano, e não por sessões filhas. É pedido do usuário para este trabalho ("quero que você faca
 do zero o planejamento e a implementacao dos 4 itens, em subagentes separados"; "A implementação deve
@@ -84,7 +112,11 @@ Regras que valem e não estão no `PROCESSO.md`:
   sobrar de um agente parado, a orquestradora a remove (`rmdir`) depois de conferir que nenhum agente
   está rodando.
 - O check não é repetido à mão no clone: roda na cópia e no hook do commit.
-- Golden: o implementador regrava com `--motivo "\"Validar só no fim (Recomendado)\", 2026-11-14"`.
+- Golden: o implementador regrava com `--motivo "\"Validar só no fim (Recomendado)\", 2026-11-14"`. A
+  data do motivo é a das palavras do usuário e não muda com o dia.
+- Selos e datas: o selo grava a data do relógio em que foi feito, e a regressão local só aceita a falha
+  de um teste antigo quando o selo de decisão (ou o golden aprovado) é do dia. Selar e fazer o commit
+  no mesmo dia; se virar o dia no meio de um lote, selar de novo antes do commit.
 - Teste protegido que precise mudar sem decisão registrada: o lote para e vira pergunta ao usuário.
 - Sem `--no-verify`, sem `git add -A`, sem force-push. Nenhum push nem PR até o fim dos lotes.
 - Perguntas ao usuário pelo `AskUserQuestion`, até 4 por vez, cada uma legível sozinha, com a
@@ -211,8 +243,12 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
 
 ## 9. Fechamento, quando o último lote estiver em commit
 
-1. Conferir a árvore limpa e o check verde na ponta.
-2. Push de `fix/achados-medios` e UM PR para o `main`:
+1. Um agente (Opus, esforço baixo) roda, numa cópia, o check do PR inteiro,
+   `npm run check -- --base origin/main`, e `npm run testes:alterados -- --pr`, e relata: as etapas, a
+   contagem de testes, quantos testes da base rodaram contra o código novo, quantos falharam e se todos
+   têm decisão registrada, e a lista dos testes existentes que mudaram. Esses números vão para a
+   descrição do PR. Falha sem decisão registrada é regressão: corrige-se no código antes do PR.
+2. A orquestradora confere a árvore limpa e faz o push de `fix/achados-medios` e UM PR para o `main`:
    - título no formato Conventional Commits, `fix(task-tree): …`. Com o "Release" ativo, o merge sobe a
      versão de patch (0.15.1 para 0.15.2);
    - descrição com o que muda (um item por commit ou por grupo), a validação (check, contagem de testes,
@@ -263,8 +299,9 @@ O usuário retoma com um prompt de uma linha (seção 12). Ao recebê-lo, a sess
 3. Descobre os caminhos reais desta máquina (o clone, a pasta irmã de notas e o próprio scratchpad),
    para usá-los nos prompts no lugar dos marcadores.
 4. Confere a seção 2: branch `fix/achados-medios`, ponta `0716717` ou depois, árvore limpa, `gh` na
-   conta AlbertKellner, `core.hooksPath` em `.githooks`, painel de tarefas presente, e `npm install`
-   seguido de `npm run check` verde. Se algo falhar, para e relata; não contorna.
+   conta AlbertKellner, a identidade do git igual à dos commits nos dois clones, `core.hooksPath` em
+   `.githooks`, painel de tarefas presente, e `npm install` seguido de `npm run check` verde. Se algo
+   falhar, para e relata; não contorna.
 5. Grava na memória dela as duas regras da seção 8.
 6. Diz ao usuário, em poucas linhas, o que entendeu e o que conferiu, confirma com ele o modelo e o
    esforço dos agentes (seção 3) e pergunta o que estiver em dúvida.

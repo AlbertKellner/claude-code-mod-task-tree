@@ -33,7 +33,9 @@ um estado intermediário que não compila aparece ao usuário como "reload faile
 ## Passos
 
 1. Confira `git status` limpo e a branch `fix/achados-medios`; anote a ponta. Se a árvore não estiver
-   limpa, pare e relate.
+   limpa, pare e relate. Confira também a identidade do git no clone real: `git config user.email` tem
+   de ser igual a `git log -1 --format=%ae`. Se for diferente, pare e relate, sem fazer commit: nenhum
+   commit pode sair com outra identidade.
 2. Faça uma cópia sua no scratchpad (`git clone` local, na ponta atual da branch), `npm install`, e copie
    `task-tree/.claude-plugin/types/` do repositório real se o validate não a gerar.
 3. Na cópia, escreva primeiro os testes novos (e as mudanças do kit, se o plano pedir) e prove que eles
@@ -46,8 +48,8 @@ um estado intermediário que não compila aparece ao usuário como "reload faile
    commit). NÃO rode o `npm run check` inteiro à mão no real: ele já passou na cópia (passo 4) e o hook
    de pré-commit roda as mesmas etapas no commit (decisão do usuário, 2026-11-14: "Sim", ao ajuste de
    tirar o check repetido). Exceção: se o golden foi regravado no real, rode o check à mão antes do commit.
-   Outro agente pode estar com mudanças em `scripts/` e `.github/` na árvore (trilha paralela dos lotes
-   de release): ignore arquivos fora dos seus caminhos, não os inclua no seu commit e não pare por eles.
+   A trilha paralela dos lotes de release terminou em 2026-11-14: hoje há um implementador por vez, e
+   arquivo alterado que não é seu, na árvore do clone, é motivo para parar e relatar.
 7. Commit local só dos arquivos que você alterou: `git commit -F <arquivo de mensagem> -- <caminhos>`
    (nunca `git add -A`, nunca `--no-verify`). Um commit por decisão do usuário; um lote de correções
    diretas pode ir num commit só. Mensagem em Conventional Commits, em português, dizendo o que muda para

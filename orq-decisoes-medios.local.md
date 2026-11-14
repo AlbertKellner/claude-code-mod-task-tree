@@ -177,3 +177,18 @@ C-03 (selos: remoção e renome de teste, de que lotes A e C precisam), C-04 a C
   todo prompt; o que a orquestradora faz quando um agente termina; as duas regras da memória local que
   não estavam no repositório; as regras de PR do `CLAUDE.md` global; os candidatos a próximos passos.
 - Não viajaram, por serem do usuário: a memória local do Claude Code e o `CLAUDE.md` global.
+
+## Revisão em loop da passagem, 2026-11-14
+
+- Pedido: "revise em loop e veja se faltou algo para continuarmos o que paramos, exatamente do mesmo
+  jeito, até que não falte mais nada".
+- Rodada 1 (o que depende da máquina). Achado grave, erro da orquestradora: a identidade do git (nome e
+  e-mail do autor) está só na configuração local do clone antigo; a identidade global daquela máquina é
+  a de outra conta. Os dois primeiros commits da branch de notas saíram com a identidade global. A
+  branch foi apagada do remoto e republicada com um commit só, com a identidade certa; os dois commits
+  antigos ficam sem referência, mas ainda podem ser abertos pelo hash até o GitHub os recolher (só o
+  suporte do GitHub apaga antes). A branch do trabalho nunca teve commit com outra identidade.
+- Entraram no `RETOMADA.md`: a identidade do git nos dois clones, com conferência obrigatória; as versões
+  das ferramentas; a regra das datas dos selos; o check do PR inteiro antes do PR; como o usuário
+  trabalha com a sessão; o que a orquestradora faz de git. Nas instruções do implementador: a
+  conferência da identidade antes de qualquer commit, e o fim da trilha paralela.
