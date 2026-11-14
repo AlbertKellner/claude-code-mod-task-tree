@@ -1720,6 +1720,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::com duas chamadas da mesma ferramenta em curso, o aviso de permissão fica até a última terminar": {
+      "regras": [
+        "perguntas.permissao-sai-com-a-ultima-chamada"
+      ],
+      "hash": "46828cc6ae18b180",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: aviso de permissão por chamadas em curso"
+    },
     "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
       "regras": [
         "perguntas.mensagem-no-meio-do-turno-mantem-espera"
@@ -1730,6 +1740,16 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: a mensagem entregue no meio do turno derrubava a pergunta ou o plano ainda abertos"
     },
+    "task-tree/tests/perguntas.test.ts::o fim do turno tira o aviso de permissão que sobrou": {
+      "regras": [
+        "perguntas.permissao-sai-com-a-ultima-chamada"
+      ],
+      "hash": "591903569d5d8e84",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: rede de segurança do aviso de permissão"
+    },
     "task-tree/tests/perguntas.test.ts::o pedido de permissão aparece como espera; o de pergunta, não": {
       "regras": [
         "perguntas.permissao-espera"
@@ -1739,6 +1759,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/perguntas.test.ts::o wrap_up com pergunta que falha não deixa \"Aguardando sua escolha\"": {
+      "regras": [
+        "perguntas.wrapup-que-falha-nao-espera"
+      ],
+      "hash": "dc2e114dd794ac0b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: espera do wrap_up só depois de a chamada dar certo"
     },
     "task-tree/tests/perguntas.test.ts::respondida pelo chat, a espera some na hora e a tarefa segue em andamento": {
       "regras": [
@@ -2861,6 +2891,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o resumo de um turno parado com Esc não vira o ↩ do pedido seguinte, e o done final sem resumo volta a avisar": {
+      "regras": [
+        "turnos.resumo-de-turno-parado-nao-passa-adiante"
+      ],
+      "hash": "6b0c125af9218e2b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: resumo e recap zerados em todo fim de turno"
     },
     "task-tree/tests/turnos.test.ts::o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra": {
       "regras": [

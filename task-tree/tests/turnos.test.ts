@@ -414,3 +414,25 @@ test('o ↩ que o summary já traz não se repete na linha da resposta', async (
   expect(linha?.texto.includes('↩ ↩'), emTexto(p)).toBe(false)
   expect(linha?.texto.includes('↩'), emTexto(p)).toBe(true)
 })
+
+// Regra: turnos.resumo-de-turno-parado-nao-passa-adiante
+test('o resumo de um turno parado com Esc não vira o ↩ do pedido seguinte, e o done final sem resumo volta a avisar', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo A')
+  await esc($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê' }] }])
+  await start($, ['b1'])
+  const r = await done($, ['b1'])
+  await fimDoTurno($)
+  expect(r.texto).toContain('falta o summary')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('Resumo A')), emTexto(p)).toBe(false)
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.brief === 'Resumo A'), JSON.stringify(h.proprio())).toBe(false)
+})

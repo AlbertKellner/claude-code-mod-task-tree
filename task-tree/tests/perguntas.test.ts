@@ -150,3 +150,54 @@ test('o pedido de permissão aparece como espera; o de pergunta, não', async ($
   p = await painel($)
   expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
 })
+// Regra: perguntas.permissao-sai-com-a-ultima-chamada
+test('com duas chamadas da mesma ferramenta em curso, o aviso de permissão fica até a última terminar', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  on('classic.PermissionRequest', () => ({}))
+  on('tool.call', { tool: 'Bash' }, async (_$: any, e: any) => {
+    await relogio.sleep(((e.input ?? e) as { command?: string }).command === 'rápido' ? 500 : 2000)
+    return { result: 'ok' }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const rapida = ferramenta($, 'Bash', { command: 'rápido' })
+  const lenta = ferramenta($, 'Bash', { command: 'lento' })
+  await relogio.settle()
+  await $.classic.PermissionRequest({ tool_name: 'Bash' })
+  await relogio.advance(500)
+  await rapida
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
+  await relogio.advance(1500)
+  await lenta
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão')), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.permissao-sai-com-a-ultima-chamada
+test('o fim do turno tira o aviso de permissão que sobrou', async ($: any, on: any) => {
+  fixar(on)
+  on('classic.PermissionRequest', () => ({}))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.classic.PermissionRequest({ tool_name: 'Bash' })
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão')), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.wrapup-que-falha-nao-espera
+test('o wrap_up com pergunta que falha não deixa "Aguardando sua escolha"', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'erro', isError: true }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
+})

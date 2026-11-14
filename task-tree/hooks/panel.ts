@@ -714,6 +714,16 @@ export async function dropWaits($: any, keep: (w: Wait) => boolean) {
   const after = await update($, waitsState, cur => (cur ?? []).filter(keep))
   if (after.length !== before.length) await publishPanel($)
 }
+// The calls in progress by `<agent>:<tool>`: a permission wait goes when the last of them ends
+// (a reload mid-call starts it over: the end of that call drops the wait, as before).
+export const inCall = new Map<string, number>()
+// The end of the main loop's turn: a permission wait left over (its call never ended here) goes.
+export async function dropPermissions($: any, agent: string) {
+  for (const k of [...inCall.keys()]) if (k.startsWith(`${agent}:`)) inCall.delete(k)
+  const left = (w: Wait) => w.agent === agent && w.kind === 'permission'
+  const { value = [] } = await $.state.get(waitsState)
+  if ((value as Wait[]).some(left)) await dropWaits($, w => !left(w))
+}
 // The agent's open question or plan dialog, once the agent has gone on without it.
 export async function dropAsked($: any, agent: string) {
   const asked = (w: Wait) => w.agent === agent && (w.kind === 'question' || w.kind === 'plan')

@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool } from './agents'
 
@@ -76,10 +76,16 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
 // The desktop app's end-of-turn box with a question and buttons (wrap_up with `ask`): the call
 // returns at once and the turn ends, but the person is still asked. The notice stays until the next
 // prompt (prompt.submit drops it) or a wrap_up with no question. The recap is kept for the card.
+async function wrapUpRecap($: any, c: Call) {
+  if (String(c.e.tool) !== 'mcp__ccd_turn__wrap_up') return
+  const input = (c.e.input ?? c.e) as { recap?: unknown }
+  if (c.agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
+}
+// After the call, only one that went through: the earlier choice goes and, with `ask`, the new one waits.
 async function wrapUpAsk($: any, c: Call) {
   if (String(c.e.tool) !== 'mcp__ccd_turn__wrap_up') return
-  const input = (c.e.input ?? c.e) as { ask?: unknown; recap?: unknown }
-  if (c.agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
+  if (c.r?.isError === true || c.r?.deny !== undefined) return
+  const input = (c.e.input ?? c.e) as { ask?: unknown }
   const key = `${c.agent}:wrap_up:ask`
   await dropWaits($, w => w.key !== key)
   if (typeof input.ask === 'string' && input.ask.trim() !== '') {
@@ -231,13 +237,22 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered
-  await wrapUpAsk($, c)
+  await wrapUpRecap($, c)
   c.sentAt = String(e.tool) === 'SendMessage' ? await stamp($) : undefined
+  // The permission wait of this tool stays while another call of it, by the same agent, is in progress.
+  const busy = `${c.agent}:${e.tool}`
+  inCall.set(busy, (inCall.get(busy) ?? 0) + 1)
   try {
     c.r = await next(e)
   } finally {
-    await dropWaits($, w => w.key !== `${c.agent}:${e.tool}`)
+    const left = Math.max(0, (inCall.get(busy) ?? 0) - 1)
+    if (left > 0) inCall.set(busy, left)
+    else {
+      inCall.delete(busy)
+      await dropWaits($, w => w.key !== busy)
+    }
   }
+  await wrapUpAsk($, c)
   if (c.agent !== MAIN) return c.r
   // After a reload the clock is gone with the old module: the next call starts it again.
   await keepTime($)

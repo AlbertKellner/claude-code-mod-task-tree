@@ -72,7 +72,7 @@ A escolha do wrap_up fica até a próxima mensagem.
 - Quando o turno termina
 - Então "Aguardando sua escolha" fica até a próxima mensagem da pessoa
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); confirmada pelo usuário em 2026-11-14 ("Toda pergunta espera"): a pergunta opcional, que não bloqueia o trabalho, também fica como espera.
 Estado: coberto
 
 ### perguntas.permissao-espera
@@ -84,4 +84,25 @@ O pedido de permissão aparece como espera.
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o hook passou para hooks/permission.ts no commit c442523, 2026-10-22 ("hooks em arquivos próprios").
 Código: hooks/permission.ts
+Estado: coberto
+
+### perguntas.permissao-sai-com-a-ultima-chamada
+O aviso de permissão fica enquanto houver chamada daquela ferramenta em curso, e não sobrevive ao turno.
+
+- Dado "Aguardando permissão: <ferramenta>" no painel
+- Quando termina uma chamada dessa ferramenta com outra do mesmo agente ainda em curso; quando termina a última; quando o turno do loop principal termina com o aviso ainda lá
+- Então o aviso fica no primeiro caso e some nos outros dois; a mensagem seguinte não o tira (o diálogo pode estar aberto com o turno em curso)
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o fim de qualquer chamada da mesma ferramenta tirava o aviso, e um aviso órfão durava até a chamada seguinte); completa perguntas.permissao-espera, que só cobre o aviso aparecer.
+Código: hooks/turn.ts, hooks/permission.ts
+Estado: coberto
+
+### perguntas.wrapup-que-falha-nao-espera
+O wrap_up com pergunta que falha não vira espera.
+
+- Dado um wrap_up com pergunta (ask)
+- Quando a chamada falha
+- Então o painel não mostra "Aguardando sua escolha", e a espera que já havia fica como estava
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a espera era criada antes de a chamada dar certo); aplica perguntas.escolha-do-wrapup-ate-proxima-mensagem, sem mudá-la.
 Estado: coberto

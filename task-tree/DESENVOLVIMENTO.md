@@ -113,7 +113,7 @@ Na ordem de `register.tsx`:
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão, mas entrega a carta que esperava por ele (`takeSubSend` com o `prompt`) |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
 | `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief`, zera `recap` e `brief`, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava no último turno com tarefas o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -153,9 +153,11 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    laço que lançou, com a descrição; o grupo do subagente a reclama em `identify`); `asked` (uma
    `AskUserQuestion` do loop principal sem tarefa aberta é recusada com `deny`; senão a pergunta ou o
    `ExitPlanMode` vira um aviso enquanto `next(e)` roda, e a resposta volta com `ASK.answered` ou
-   `ASK.inChat`); `wrapUpAsk` (um `mcp__ccd_turn__wrap_up` grava o `recap` no state e, com `ask`, o
-   aviso `choice`, chave `<agente>:wrap_up:ask`).
-2. `sentAt` é lido antes de um `SendMessage`; a chamada roda; o aviso `<agente>:<tool>` sai.
+   `ASK.inChat`); `wrapUpRecap` (um `mcp__ccd_turn__wrap_up` grava o `recap` no state).
+2. `sentAt` é lido antes de um `SendMessage`; a chamada roda (`inCall` conta as chamadas em curso por
+   `<agente>:<tool>`); o aviso `<agente>:<tool>` sai quando a última delas termina. Depois, `wrapUpAsk`:
+   só no `wrap_up` que deu certo (sem `isError` nem `deny`), tira a escolha anterior e, com `ask`, cria o
+   aviso `choice`, chave `<agente>:wrap_up:ask`.
 3. Só no loop principal, depois da chamada: `keepTime`, `watchSessions`, `refreshStale` (a lista do
    host de novo, se tem mais de `POLL` ms); um `mcp__ccd_session__start_session` passa por
    `recordStart` (o id `local_…` do resultado entra em `children` com a tarefa em andamento como
@@ -283,7 +285,9 @@ arquivo publicado por caminho, sem relógios nem `panes`; o último registro de 
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
 vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo) e
 `usedReceipts` (as mensagens recebidas por outras sessões que já casaram com um envio desta, chave
-`<id da sessão>|<at>`; uma recarga recomeça). Duas linhas
+`<id da sessão>|<at>`; uma recarga recomeça) e `inCall` (as chamadas em curso por `<agente>:<tool>`, em
+`hooks/panel.ts`: o aviso de permissão sai com a última; uma recarga recomeça, e o fim da chamada então
+tira o aviso, como antes). Duas linhas
 sobraram da fase 2 e não têm mais variável no código: `drawNow` e `breaksMemo` (o `layout()` recebe
 `now` e cria um `BreaksMemo` por desenho).
 
@@ -1771,3 +1775,10 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   pai sem nada aberto fecha por `settle`. Os lembretes de mensagem nova, depois do Esc e no meio do turno
   mandam cancelar o que a mensagem substitui, em vez de concluir. Sessão aberta antes da atualização só
   vê o `cancel` no schema depois de um `session.start`.
+
+- Fim do turno (correções diretas da auditoria de 2026-11-10, triagem de 2026-11-13): `recap` e `brief`
+  são zerados em todo fim de turno do loop principal, parado também (o resumo de um turno parado virava o
+  ↩ do pedido seguinte e calava o aviso de falta do summary); o aviso de permissão sai com a última
+  chamada da ferramenta em curso (`inCall`) e no fim do turno do loop principal; a escolha do `wrap_up`
+  só vira espera depois de a chamada dar certo. A pergunta opcional segue contando como espera (o
+  usuário, 2026-11-14: "Toda pergunta espera").

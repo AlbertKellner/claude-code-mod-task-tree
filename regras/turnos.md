@@ -152,3 +152,14 @@ O ↩ que o resumo já traz não se repete.
 Origem: achado da sessão orquestradora no app, 2026-11-09 (a linha aparecia "↩ ↩").
 Código: hooks/tools.ts
 Estado: coberto
+
+### turnos.resumo-de-turno-parado-nao-passa-adiante
+O resumo de um turno parado com Esc não passa ao pedido seguinte.
+
+- Dado um done com summary (ou um wrap_up com recap) num turno que a pessoa para com Esc antes do fim
+- Quando o pedido seguinte termina, com ou sem resumo próprio
+- Então a linha ↩ do pedido seguinte mostra só o resumo dele (nenhuma, sem resumo), o done final sem summary avisa a falta, e o resumo antigo não vai ao arquivo publicado
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o resumo e o recap só eram zerados no fim normal); aplica turnos.resumo-sem-resposta-final ("o summary é a linha ↩" do turno dele), sem mudar nenhuma regra.
+Código: hooks/tools.ts, hooks/tool-call.ts
+Estado: coberto

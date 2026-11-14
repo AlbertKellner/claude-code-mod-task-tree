@@ -7,7 +7,7 @@ import type { AgentInfo, EngineInterface } from 'claude-code'
 import { BRIEF } from '../text/rules'
 import { MAIN, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
-import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
+import { change, dropAsked, dropPermissions, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { ensureGroups } from './panel'
 import { park } from '../state/tasks'
@@ -114,17 +114,21 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // A question or plan dialog never outlives the turn that opened it (one answered by a chat
   // message may end without the call returning here).
   await dropAsked($, agent ?? MAIN)
+  // A permission wait the main loop left over (its call never ended here) does not outlive the turn.
+  if (!agent) await dropPermissions($, MAIN)
   // What the turn answered, kept on its turn (the last one of the main group) and published: the
   // card of this session in the one that opened it shows it under the turn's tasks (the person's
   // words: "adicione nos paineis de sessao, o que foi gerado como resposta"). The end-of-turn
   // recap (wrap_up), which is what the opener's notice carries; else the final message.
+  // The summary and the recap go at the end of every turn, stopped too: a stopped turn records no ↩,
+  // and what it left must not become the next request's.
+  const recap = agent ? undefined : await lastRecap($)
+  const given = agent ? undefined : await lastBrief($)
+  if (recap !== undefined) await $.state.set(recapState, '')
+  if (given !== undefined) await $.state.set(briefState, '')
   if (!agent && !e.isAborted) {
-    const recap = await lastRecap($)
     const said = (recap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
-    const given = await lastBrief($)
     const short = given !== undefined ? brief(given) : undefined
-    if (recap !== undefined) await $.state.set(recapState, '')
-    if (given !== undefined) await $.state.set(briefState, '')
     // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
     // (the model stopped right after a tool), the answer in its tooltip only when there is one.
     if (said !== '' || short !== undefined) {
