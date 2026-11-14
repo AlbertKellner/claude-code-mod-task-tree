@@ -216,7 +216,9 @@ test('a entrega imediata aparece entregue na hora e a tarefa segue em andamento 
 // Regra: envios.esc-apos-entrega-imediata
 test('depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem', async ($: any, on: any) => {
   fixar(on)
-  host(on, [{ id: 'local_x' }])
+  // A sessão destino já terminou o turno: trabalhando sob a tarefa, ela poupa a tarefa do Esc
+  // (turnos.esc-com-trabalho-delegado-vivo).
+  host(on, [{ id: 'local_x', rodando: false }])
   const env = responderEnvio(on)
   env.modo = 'entregue'
   await pedido($, 'Pedido um')

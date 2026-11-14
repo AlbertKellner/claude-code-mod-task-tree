@@ -102,6 +102,21 @@ export const stay =
 // A list of groups with the main loop's tasks read by `stay`; the same list when nothing is stopped.
 export const stayed = (groups: Group[], sent: string[] = []): Group[] =>
   groups.some(g => g.agent === MAIN && anyStopped(g.tasks)) ? groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(stay(sent)) } : g)) : groups
+// The tasks a turn's end spares (halt, stay): the ones with a letter still queued (not taken, not
+// cut), and those with delegated work alive below them: where each session of the panel at work
+// (live) has its current round (roundAt), and where each subagent of the main loop still running or in
+// the background (subLive) was launched from. The person, 2026-11-14: "Segue ◉/◷ (Recomendado)" (the
+// Esc stops the main loop, not the delegated work): one stays ◉ while its session works there, ◷
+// while its subagent runs; once that work is over it reads by the stop's mark again.
+export function spared(groups: Group[], sends: { anchor?: string; taken?: boolean; cut?: boolean }[] = [], children: Child[] = []): string[] {
+  const letters = sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  const kids = children.filter(live).flatMap(c => {
+    const a = roundAt(c)
+    return a === undefined ? [] : [a]
+  })
+  const subs = groups.filter(g => g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && subLive(g.sub) && g.anchor !== undefined).map(g => g.anchor as string)
+  return [...letters, ...kids, ...subs]
+}
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
 // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
 export const leftWaiting = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt !== undefined
@@ -179,13 +194,13 @@ export const panelOf = (c: Child): Panel => {
   // At work: as it is, but for what the person stopped there and it has not started again (stay).
   if (!c.archived && (live(c) || c.starting)) {
     const groups = p.groups ?? []
-    const read = stayed(groups, (p.sends ?? []).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor])))
+    const read = stayed(groups, spared(groups, p.sends, p.children))
     return read === groups ? p : { ...p, groups: read }
   }
   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
   const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
-  // Its letters still queued spare their tasks, as in its own panel: a stop leaves them waiting (◷).
-  const sent = (p.sends ?? []).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  // Its letters still queued and its delegated work alive spare their tasks, as in its own panel (spared).
+  const sent = spared(p.groups ?? [], p.sends, p.children)
   return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, sent, c.aborted === true)) })) }
 }
 // A card whose session is done with it (the person, 2026-11-04: "Origem fechada (Recomendado)"):
@@ -1099,7 +1114,8 @@ export type Choices = Record<string, boolean>
 export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined, maxRows = MAX_ROWS): Row[] {
   const ended = model.ended
   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
-  const sentFrom = model.sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  // So are those with delegated work alive below them (spared).
+  const sentFrom = spared(model.groups, model.sends, model.children)
   // With the turn in course, only what the person stopped before and was not started again (stay).
   const held = ended === undefined ? stayed(model.groups, sentFrom) : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
   const waits = model.waits

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, type Filha } from './kit/ambiente'
-import { abrirSessao, aviso, done, pedido, plan, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, done, esc, pedido, plan, start, type No } from './kit/cenario'
 import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
@@ -999,6 +999,36 @@ test('a filha parada com Esc com carta na fila mostra a tarefa do envio aguardan
   await aviso($)
   const p = await painel($)
   esperarEstado(p, 'Avisar', 'aguardando')
+})
+
+// Regra: turnos.esc-com-trabalho-delegado-vivo
+test('no Esc, a tarefa com a filha trabalhando embaixo segue em andamento; quando a filha para, fica interrompida até o start', async ($: any, on: any) => {
+  const h = await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  await esc($)
+  let p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(0)
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('parada')
+  h.filha(K1).rodando = false
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Tarefa da filha', 'feita')] }
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  await pedido($, 'segue')
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+})
+
+// Regra: turnos.esc-com-trabalho-delegado-vivo
+test('no cartão de uma filha parada com Esc, a tarefa com neta trabalhando segue em andamento', async ($: any, on: any) => {
+  const filhas = [netaCom([noTurno(1, 'n1', 'Neta trabalhando', 'iniciada')], { anchor: 'd' })]
+  const h = await abrir($, on, { painel: { tasks: [{ ...tarefa('d', 'Delegada', 'iniciada'), stopped: true }], filhas } })
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Delegada', 'andamento')
 })
 
 // Regra: sessoes.cartao-parado-mostra-o-tempo-do-turno

@@ -5,7 +5,7 @@
 
 import { atom, read, update } from 'claude-code'
 
-import type { Send } from '../types'
+import type { Child, Send } from '../types'
 import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, split, newBreaksMemo, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
@@ -15,7 +15,7 @@ import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
-import { stayed } from '../draw/layout'
+import { spared, stayed } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -218,7 +218,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const ownTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
   // What the person stopped and was not started again is out of it too, as in the drawing (stay): the
   // tooltip said "sessão inteira" with one task more than the header, nothing being out of sight.
-  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  // So does delegated work alive below a task (spared).
+  const queuedFrom = spared(withMain(held ?? []), sends as Send[], sessions as Child[])
   const [ad, an] = total({ groups: stayed(withMain(held ?? []), queuedFrom), waits, children: sessions }, 0, c =>
     split(c, sessions, knownId(), ownTasks, undefined, newBreaksMemo()).map(r => settle(r, ownTasks, sends as Send[])),
   )

@@ -13,7 +13,7 @@ import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSi
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
-import { hasBrief, rawPanel, stayed, trimPublished } from '../draw/layout'
+import { hasBrief, rawPanel, spared, stayed, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
 
 export const PANE = 'task-tree'
@@ -401,7 +401,8 @@ export async function showStatus($: any, groups: Group[]) {
   // What the person stopped and was not started again counts as the panel draws it, interrupted
   // (stay); a letter of it still queued keeps it open.
   const { value: sends = [] } = await $.state.get(sendsState)
-  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+  // So does delegated work alive below a task (spared).
+  const queuedFrom = spared(groups, sends as Send[], children as Child[])
   const [d, n] = total({ groups: stayed(groups, queuedFrom), waits: [], children })
   const text = d === n ? undefined : `Tarefas ${d}/${n}`
   if (lastStatus !== null && lastStatus === text) return

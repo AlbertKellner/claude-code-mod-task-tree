@@ -1148,11 +1148,11 @@
       "regras": [
         "envios.esc-apos-entrega-imediata"
       ],
-      "hash": "ccb2f8dcfb90f6ea",
+      "hash": "01a7914597aae8b0",
       "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-14",
-      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\"; o Esc só interrompe o que está em andamento, e o teste dá start antes dele"
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\"; o destino do teste passa a parado, porque com ele trabalhando a tarefa não é interrompida"
     },
     "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
       "regras": [
@@ -2295,6 +2295,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
+    "task-tree/tests/sessoes.test.ts::no Esc, a tarefa com a filha trabalhando embaixo segue em andamento; quando a filha para, fica interrompida até o start": {
+      "regras": [
+        "turnos.esc-com-trabalho-delegado-vivo"
+      ],
+      "hash": "b6a0791874d22219",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::no cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela": {
       "regras": [
         "sessoes.cartao-parado-mostra-o-tempo-do-turno"
@@ -2314,6 +2324,16 @@
       "tipo": "novo",
       "data": "2026-10-30",
       "motivo": "carta de recebimento na linha do pedido"
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão de uma filha parada com Esc, a tarefa com neta trabalhando segue em andamento": {
+      "regras": [
+        "turnos.esc-com-trabalho-delegado-vivo"
+      ],
+      "hash": "c7da19452dc80e59",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::o arquivo de uma filha arquivada não é relido a cada leitura, e o cartão segue igual": {
       "regras": [
@@ -2703,6 +2723,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::no Esc, a tarefa com subagente em segundo plano aguarda enquanto ele roda": {
+      "regras": [
+        "turnos.esc-com-trabalho-delegado-vivo"
+      ],
+      "hash": "f3bdde9403470d70",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::no mesmo pedido, com tudo concluído, o lançamento vai à última tarefa iniciada, já fechada": {
       "regras": [

@@ -645,7 +645,12 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`). Enquanto existe, a
   folha é lida como interrompida em todo desenho: `halt` no fim de qualquer turno, e `stay` com o turno
   em curso (só as marcadas; `stayed` aplica ao grupo principal, na própria sessão e no cartão de uma
-  filha trabalhando). Com a carta dela na fila, segue ◷. `trail` não acende o caminho de uma tarefa
+  filha trabalhando). Com a carta dela na fila, segue ◷; o mesmo com trabalho delegado vivo embaixo
+  (2026-11-14, "Segue ◉/◷ (Recomendado)": `spared`, em `draw/layout.ts`, junta às cartas na fila a tarefa
+  da rodada atual de cada filha viva, `roundAt`, e a de onde saiu cada subagente do loop principal ainda
+  rodando ou em segundo plano, `subLive`; vale no `layout()`, no `panelOf` do cartão de uma filha, no
+  `showStatus` e na conta da sessão inteira). Com a filha trabalhando embaixo, `w.busy` a desenha ◉; com
+  o subagente, fica ◷; acabado o trabalho, a tarefa sai da lista e volta a ser lida pela marca. `trail` não acende o caminho de uma tarefa
   parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
   mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
   por `stayed`. O fim normal também espera o `start` (2026-11-14, "Seguir ◷ até o start (Recomendado)"):
@@ -1862,3 +1867,7 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `parkDeadTurn` o deixa falso). A mensagem seguinte da pessoa recebe `PROMPT.failedByError`; os turnos que
   não abrem pedido listam as que falharam em `PROMPT.failedTasks`; o cartão da filha parada assim diz
   "falhou" (`anyFailed`).
+- Esc com trabalho delegado vivo (2026-11-14, "Segue ◉/◷ (Recomendado)"): só a carta na fila poupava a
+  tarefa do Esc; a filha trabalhando sob ela e o subagente em segundo plano lançado dela a deixavam ✕.
+  `spared` estende a lista das tarefas poupadas por `halt` e `stay`; `park` segue marcando `stopped`. O
+  teste de `envios.test.ts` da entrega imediata passou a ter o destino parado.

@@ -348,6 +348,21 @@ test('a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue 
   expect(abaixo(p, 'Outra').map(l => l.titulo), emTexto(p)).toContain('Explore: achar o teste')
 })
 
+// Regra: turnos.esc-com-trabalho-delegado-vivo
+test('no Esc, a tarefa com subagente em segundo plano aguarda enquanto ele roda', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await esc($)
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
+  expect(linha(p, 'Explore: varrer o repo').texto, emTexto(p)).toContain('em segundo plano')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(0)
+})
+
 // Regra: subagentes.cartao-fica-com-a-origem-fechada
 test('com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar', async ($: any, on: any) => {
   fixar(on)

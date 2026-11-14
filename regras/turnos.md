@@ -40,10 +40,11 @@ O Esc interrompe só a tarefa iniciada.
 
 - Dado uma tarefa iniciada e outras pendentes
 - Quando a pessoa para o turno (Esc)
-- Então só a iniciada fica ✕; as pendentes seguem ○; o pai com pendentes e nada feito embaixo fica ○
+- Então só a iniciada fica ✕; as pendentes seguem ○; o pai com pendentes e nada feito embaixo fica ○; a iniciada com trabalho delegado vivo embaixo não é interrompida (turnos.esc-com-trabalho-delegado-vivo)
 
 Origem: decisão do usuário, 2026-10-27; commit d57807e.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
+Reescrito: 2026-11-14, decisão do usuário ("Segue ◉/◷ (Recomendado)").
 Estado: coberto
 
 ### turnos.prompt-seguinte-retoma
@@ -195,4 +196,15 @@ O turno que morre por erro deixa a tarefa em andamento ✕ "falhou", até o star
 
 Origem: decisão do usuário, 2026-11-14 ("✕ \"falhou\" (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o turno que morria por erro era tratado como fim normal, ◷). Aplica ao erro a decisão de 2026-11-12 do Esc ("Segue ✕ até novo start (Recomendado)").
 Código: state/tasks.ts, state/durability.ts, text/rules.ts
+Estado: coberto
+
+### turnos.esc-com-trabalho-delegado-vivo
+O Esc não interrompe a tarefa que tem trabalho delegado vivo embaixo.
+
+- Dado uma tarefa iniciada com uma sessão filha trabalhando sob ela (a rodada atual da filha) ou um subagente ainda rodando lançado dela
+- Quando a pessoa para o turno (Esc)
+- Então ela segue ◉ enquanto a filha trabalha, com o tempo correndo, e ◷ enquanto o subagente roda, como a tarefa com carta na fila (envios.fila-nao-interrompe-no-fim-do-turno); quando a filha para, a tarefa fica ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start); quando o subagente termina, ela fecha como no fim normal; o mesmo dentro do cartão de uma filha; sem trabalho delegado vivo, o Esc a interrompe (turnos.esc-interrompe-so-a-iniciada)
+
+Origem: decisão do usuário, 2026-11-14 ("Segue ◉/◷ (Recomendado)": "o Esc para a principal, não o trabalho delegado"). Reescreve, para a tarefa com trabalho delegado vivo, a decisão de 2026-10-28 e 2026-10-30 ("a tarefa iniciada fica ✕ no Esc, como qualquer outra").
+Código: hooks/render.tsx, hooks/agents.ts
 Estado: coberto
