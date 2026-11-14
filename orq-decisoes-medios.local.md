@@ -212,3 +212,14 @@ C-03 (selos: remoção e renome de teste, de que lotes A e C precisam), C-04 a C
     ao ler) e a 12 (o prompt).
   - A regra da data do `Reescrito:` num dia posterior a 2026-11-14 (data do dia, com a data da decisão
     no texto) é da orquestradora, escrita nesta revisão; o usuário ainda não a decidiu.
+- Rodada 3 (dois ensaios novos, com outros lotes de amostra): nenhum bloqueio. Lacunas corrigidas nas
+  instruções do implementador (lote que depende de outro que falta; passagem entre lotes com arquivo
+  novo; falha depois de aplicar no clone; virada do dia; teste que falha e o plano não cita; prova só
+  para os testes que o plano diz que falham) e no `RETOMADA.md` (quem roda o comando que gera os tipos;
+  confirmar modelo e esforço antes do primeiro agente; push, PR e notas pela orquestradora mesmo com
+  regra geral em contrário; a pasta de notas fora da pasta da sessão; mudanças do código não citadas;
+  notas por lote, com a frase de que não são completas).
+  - Uma nota da orquestradora estava errada e foi corrigida: `PER_SESSION` é lista de prefixos do store,
+    e os lotes B-10 e B-25 não precisam mexer nela.
+  - A linha de atribuição do commit passa a ser a que a sessão do implementador recebe do Claude Code
+    (antes, as instruções fixavam "Claude Opus 5.5"). Regra da orquestradora, escrita nesta revisão.

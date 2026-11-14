@@ -25,8 +25,20 @@ caminhos reais nos arquivos da pasta de notas.
 - Os planos foram escritos a partir de `6d5e026`. A ponta já tem commits de outros lotes: adapte o plano
   ao código atual e diga no relato o que adaptou. Há testes novos desde a base: uma conferência do plano
   do tipo "nenhum outro teste faz X" tem de ser refeita na ponta.
-- Se algo no plano não fechar com o código, escolha o caminho mais fiel ao plano e relate. Se o plano
-  trouxer BLOQUEIO, não implemente a parte bloqueada: relate.
+- Se algo no plano não fechar com o código, escolha o caminho mais fiel ao plano e relate. O que manda
+  é o cenário do plano (Dado, Quando, Então) e a decisão do usuário que ele cita; os nomes de função, os
+  arquivos e as linhas são o caminho sugerido sobre o código antigo. Uma nota da lista "o que os planos
+  não conhecem" que só informa um fato não pede mudança por si: use-a ao adaptar.
+- Se o plano trouxer BLOQUEIO, não implemente a parte bloqueada: relate.
+- As palavras do usuário valem como estão em `orq-decisoes-medios.local.md` (as de rodadas anteriores,
+  em `orq-decisoes-altos.local.md`, `orq-decisoes-ajustes-nativo.local.md` e
+  `orq-decisoes-pendencias.local.md`, e na origem dos cenários do catálogo). Se o plano grafar uma
+  resposta de outro jeito, use a do arquivo no `Reescrito:` e no motivo do selo. Os números de linha
+  dos planos são da base antiga e não valem mais em vários arquivos: ache o trecho pelo nome.
+- Teste existente que falha e o plano não cita. Se o plano tiver a cláusula que cobre o caso ("se outro
+  teste falhar pelo mesmo motivo…"), siga-a: só sele como decisão o teste cujo cenário esta decisão do
+  usuário reescreve, com o `Reescrito:` dela, e diga o nome do teste no relato. Se o plano não tiver a
+  cláusula, ou o teste afirmar outra coisa, pare no lote e relate: vira pergunta ao usuário.
 - Decisão do usuário mais nova vale sobre texto mais antigo. Em especial, nesta rodada, "Validar só no
   fim (Recomendado)" vale sobre o trecho "Golden do desenho" do `CLAUDE.md` (que manda deixar a mudança
   sem commit até a validação no app), e "Um PR só no fim" vale sobre "valida no app e só então libera
@@ -48,6 +60,9 @@ usuário como "reload failed".
      sair com outra identidade.
    - o hook e o ambiente: `git config core.hooksPath` responde `.githooks`; existem `node_modules` e
      `task-tree/.claude-plugin/types/` (com `tsconfig.json`). Sem isso o commit sairia sem validação.
+   - a ordem: os lotes que o plano pede antes ("Depois do lote N", na seção de dependências) já estão em
+     commit (`git log --oneline`; os títulos dos commits batem com os do índice da triagem), fora os que
+     você mesmo vai fazer antes neste prompt. Se faltar um, pare e relate.
 2. Faça uma cópia sua no scratchpad: `git clone` local do clone real, na ponta atual da branch, numa
    pasta só sua (outros agentes usam o mesmo scratchpad); `npm install` na cópia; e copie para ela a pasta
    `task-tree/.claude-plugin/types/` do clone real. O `validate` não gera essa pasta: quem gera é o motor
@@ -60,6 +75,10 @@ usuário como "reload failed".
      raiz da cópia;
    - a prova: `"<binário>" plugin test task-tree`, na raiz da cópia. Ele roda todos os arquivos de teste;
      leia as linhas dos testes novos que falharam e o motivo.
+   - A prova é para os testes que o plano diz que falham hoje. Teste que o plano marca "passa hoje" (está
+     lá para travar o comportamento) não precisa falhar: diga no relato que passou na base, como previsto.
+     O `CLAUDE.md` diz que o teste "não precisa estar vermelho antes"; aqui a prova é pedida porque o
+     usuário quis a validação pelo implementador.
 4. Na cópia, implemente o resto: código, cenários, documentação e selos (`npm run regras:selar …`, como
    o plano lista). Rode `npm run check`, com a trava.
    - Se um teste falhar por tempo (5 s), rode de novo uma vez.
@@ -69,6 +88,15 @@ usuário como "reload failed".
      `Reescrito:` com data igual ou posterior à do selo anterior do teste, e todo selo grava a data do
      dia em que é feito. Se hoje não é mais 2026-11-14, escreva a linha com a data de hoje e ponha a
      data da decisão no texto: `Reescrito: <hoje>, decisão do usuário de 2026-11-14 ("palavras dele").`
+     Vale para toda linha `Reescrito:` nova, qualquer que seja o texto depois da vírgula. As datas
+     dentro de `Origem:` e do `--motivo` dos selos são as da decisão e ficam em 2026-11-14.
+   - Virada do dia. A regressão (no check e no hook) só aceita a falha de um teste antigo quando o selo
+     de decisão, o registro de remoção ou o golden aprovado é do dia em que ela roda. Se o dia virar
+     entre o selo e o commit, refaça os selos de decisão na cópia, leve o `regras/selos.json` novo ao
+     clone real (desfazendo o do real antes, como no passo 7) e, no lote de desenho, aprove o golden de
+     novo no real.
+   - `npm run regras:selar -- …` é `node scripts/selos.mjs --selar …`: use a segunda forma se o
+     `npm run` estragar as aspas de um nome de teste ou de um motivo.
    - Arquivo novo: `git add -N <arquivo>` na cópia, para ele entrar no diff.
 5. Leve tudo ao clone real de uma vez: `git diff --binary` na cópia e `git apply` no real.
 6. No clone real:
@@ -81,17 +109,26 @@ usuário como "reload failed".
    - Se o desenho não mudou: NÃO rode o `npm run check` à mão no real. Ele já passou na cópia e o hook
      de pré-commit roda as mesmas etapas no commit (decisão do usuário, 2026-11-14: "Sim", ao ajuste de
      tirar o check repetido).
-   - Nos dois casos, antes do commit: `npm run testes:alterados` e `npm run impacto`.
+   - Nos dois casos, antes do commit: `npm run testes:alterados` e `npm run impacto` (o modelo de relato
+     do `regras/README.md` diz "depois do commit"; os dois jeitos funcionam, e aqui vale antes).
 7. Commit local só dos arquivos do lote, com a trava (o hook roda testes):
    `git commit -F <arquivo de mensagem> -- <caminhos>`. Arquivo novo precisa de `git add <arquivo>` antes.
    Nunca `git add -A`, nunca `--no-verify`. Um commit por decisão do usuário; as correções diretas de um
    lote podem ir num commit só, como o plano disser. Mensagem em Conventional Commits, em português,
    dizendo o que muda para o usuário; tipo `fix(task-tree): …`, salvo o plano dizer outro (`fix(scripts)`,
-   `docs`). A última linha é a de atribuição: a que o seu prompt trouxer; se ele não trouxer, a que a
-   sua sessão recebeu do Claude Code. Se o hook falhar, corrija e tente de novo.
+   `docs`). A última linha é a de atribuição: a que a sua sessão recebeu do Claude Code (ela diz o
+   modelo que de fato escreveu o commit); se a sua sessão não recebeu nenhuma, a que o prompt trouxer;
+   sem as duas, `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+   Se o hook falhar, ou o check à mão do lote de desenho falhar: corrija NA CÓPIA, nunca direto no clone
+   real (ele recarrega o mod a cada arquivo salvo). Rode o check na cópia de novo. No clone real,
+   desfaça o lote: `git checkout -- <arquivos do lote>` e apague um a um os arquivos novos que você
+   criou (nada de `git clean` nem de `git reset --hard` no clone real). Depois reaplique o diff novo
+   inteiro da cópia e tente o commit de novo. O mesmo desfazer vale se você parar o lote depois do
+   passo 5: o clone real tem de ficar como no último commit.
 8. Entre um lote e o seguinte, ponha a cópia na ponta nova do clone real: na cópia,
-   `git checkout -- . && git clean -fd && git pull`, e confira que `git log -1` é o commit que você
-   acabou de fazer (o `node_modules` e os tipos são ignorados pelo git e ficam).
+   `git reset --hard && git clean -fd && git pull`, e confira que `git log -1` é o commit que você
+   acabou de fazer (o `node_modules` e os tipos são ignorados pelo git e ficam). No lote de desenho, o
+   "check verde" que vale é o do clone real; a cópia, depois do `git pull`, já está com o golden novo.
 9. Não faça push. No fim, apague a sua cópia e os arquivos que você criou no scratchpad. Exceção: se
    parou num lote, guarde o que fez em `<scratchpad>/<lote>-parcial.patch` (`git diff --binary` da
    cópia), não apague esse arquivo e diga o caminho no relato. O clone real fica como no último commit.
@@ -100,10 +137,11 @@ usuário como "reload failed".
 
 Comece, em até 400 caracteres, com: os hashes dos commits (ou onde parou), o resultado do check, a
 contagem de testes, se os testes novos falharam na base e passaram com a mudança, se o golden mudou e o
-que ficou de fora. Depois, um bloco por lote: as linhas `ok` do check, a saída de `testes:alterados`, o
-resumo do `impacto`, os arquivos do commit, os itens do checklist do app (os da seção 9 do plano, mais
-os que a sua adaptação criar), o que você adaptou ou decidiu fora do plano, e o que mudou no código que
-os planos seguintes não conhecem (funções criadas, renomeadas ou removidas, campos novos, mudanças no kit).
+que ficou de fora. Depois, um bloco por lote, no modelo de relato do `regras/README.md` (com os selos
+regravados e a regressão), mais: as linhas `ok` do check, a saída de `testes:alterados`, o resumo do
+`impacto`, os arquivos do commit, os itens do checklist do app (os da seção 9 do plano, mais os que a
+sua adaptação criar), o que você adaptou ou decidiu fora do plano, e o que mudou no código que os planos
+seguintes não conhecem (funções criadas, renomeadas ou removidas, campos novos, mudanças no kit).
 
 ## Trava dos testes (pedido do usuário, 2026-11-14: não estourar os 5 s)
 
@@ -120,4 +158,4 @@ trava nunca ficar presa se você for interrompido entre dois comandos. Vale tamb
 scratchpad: o que pesa é a máquina, não a pasta. O check inteiro leva alguns minutos: peça o tempo máximo
 do shell ou rode em segundo plano e espere o aviso. Se o ambiente recusar o `sleep` em primeiro plano,
 rode o mesmo comando em segundo plano. Se a trava parecer presa há mais de 15 minutos (veja a data da
-pasta), relate em vez de apagar.
+pasta), não a apague: pare o lote como no passo 9, com o patch parcial, e relate.
