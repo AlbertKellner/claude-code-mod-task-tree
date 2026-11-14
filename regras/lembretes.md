@@ -148,3 +148,14 @@ Depois de um turno que morreu por erro, a mensagem seguinte pede para replanejar
 Origem: decisão do usuário, 2026-11-14 ("✕ \"falhou\" (Recomendado)": "a mensagem seguinte recebe o pedido de replanejar").
 Código: hooks/panel.ts, state/durability.ts
 Estado: coberto
+
+### lembretes.filha-terminou-o-turno
+Quando uma sessão filha termina o turno, o modelo é lembrado da tarefa de origem daquele trabalho.
+
+- Dado uma filha aberta de uma tarefa, que depois recebeu mensagens enviadas de outras tarefas
+- Quando ela termina um turno
+- Então, uma vez, o modelo recebe o lembrete de conferir o relato e fechar o que o trabalho delegado concluiu, citando a tarefa da última mensagem que a filha já tratou, se ela segue aberta, senão a tarefa em que a filha foi aberta; a mensagem ainda na fila não muda a tarefa citada; sem nenhuma das duas aberta, não há lembrete
+
+Origem: regra do painel desde a entrada do mod (o lembrete, sem cenário até aqui); auditoria 2026-11-10 (triagem de 2026-11-13: o lembrete olhava só a tarefa de abertura, enquanto o painel já tratava a tarefa da última rodada como a origem). Aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
+Código: hooks/sessions.ts, hooks/tool-call.ts
+Estado: coberto

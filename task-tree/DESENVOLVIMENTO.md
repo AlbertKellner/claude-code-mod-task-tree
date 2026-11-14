@@ -166,7 +166,8 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
    `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
    `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
-   host listar a sessão), `sessionNotes` (`endedNote`,
+   host listar a sessão), `sessionNotes` (`endedNote`, que cita
+   a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
 

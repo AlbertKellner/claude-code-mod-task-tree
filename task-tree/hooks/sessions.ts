@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, flat, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf } from '../draw/layout'
+import { MAIN, flat, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -265,13 +265,27 @@ export async function endedNote($: any): Promise<string | undefined> {
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
   const open = flat(tasks).filter(t => t.status === 'open')
+  const { value: sends = [] } = await $.state.get(sendsState)
+  // The task the reminder names: that of the last message the session already took up (its newest
+  // round with no send to it still queued from that task), if still open; else the one it was opened
+  // from. A message still queued does not move it: the turn that ended was not on it.
+  const queued = (c: Child, anchor: string | undefined) =>
+    (sends as Send[]).some(s => (s.to === c.id || (c.name !== '' && s.to === c.name)) && s.anchor === anchor && !s.taken && !s.cut)
+  const originOf = (c: Child) => {
+    const round = [...(c.rounds ?? [])].sort((a, b) => b.at - a.at).find(r => !queued(c, r.anchor))
+    const cands = [resolveAnchor(tasks, round?.anchor, round?.at), c.anchor]
+    for (const id of cands) {
+      const t = id === undefined ? undefined : open.find(t => t.id === id)
+      if (t !== undefined) return t
+    }
+    return undefined
+  }
   const lines = (kids as Child[])
     .filter(c => ids.includes(c.id))
-    .map(c => ({ c, t: open.find(t => t.id === c.anchor) }))
+    .map(c => ({ c, t: originOf(c) }))
     .filter(x => x.t !== undefined)
     .map(x => `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title})`)
   // One that stopped with its task closed here: its pending tasks left the count (settle), said once.
-  const { value: sends = [] } = await $.state.get(sendsState)
   const left = (kids as Child[])
     .filter(c => ids.includes(c.id))
     .flatMap(c => split(c, kids as Child[], knownId(), tasks, undefined, newBreaksMemo()).map(r => settleCard(r, tasks, sends as Send[])))

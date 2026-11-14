@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
-import { AGORA, fixar, host } from './kit/ambiente'
+import { AGORA, fixar, host, responderEnvio } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
-import { abrirSessao, aviso, falha, mensagemDe } from './kit/cenario'
+import { abrirSessao, aviso, envio, falha, mensagemDe } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -405,4 +405,51 @@ test('depois de um turno que morreu por erro, o aviso do app diz que a tarefa se
   const ctx = contexto(await aviso($))
   expect(ctx).toContain('seguem ✕ "falhou"')
   expect(ctx).not.toContain('o usuário parou (Esc)')
+})
+
+// A filha aberta da tarefa 1 que recebe uma mensagem enviada da 2. `entregue`: a filha trata a
+// mensagem (a entrega e o received dela); senão a mensagem fica na fila. `fecha`: as tarefas
+// concluídas antes do turno da filha terminar.
+async function filhaComMensagem($: any, on: any, entregue: boolean, fecha: { antes?: string[]; depois?: string[] }) {
+  const { relogio } = fixar(on)
+  const env = responderEnvio(on)
+  if (entregue) env.modo = 'entregue'
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [], turns: [] } }])
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  if (fecha.antes) await done($, fecha.antes)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  if (entregue) {
+    h.recebeu(K1, AGORA + 1500)
+    await aviso($)
+  }
+  if (fecha.depois) await done($, fecha.depois)
+  h.filha(K1).rodando = false
+  return contexto(await aviso($))
+}
+
+// Regra: lembretes.filha-terminou-o-turno
+test('quando a filha termina o turno de uma mensagem, o lembrete cita a tarefa de onde a mensagem saiu', async ($: any, on: any) => {
+  const ctx = await filhaComMensagem($, on, true, { antes: ['1'] })
+  expect(ctx).toContain('terminou o turno a sessão')
+  expect(ctx).toContain('tarefa de origem "A/2" Dois')
+})
+
+// Regra: lembretes.filha-terminou-o-turno
+test('com a mensagem nova ainda na fila, o lembrete do turno que terminou cita a tarefa de abertura', async ($: any, on: any) => {
+  const ctx = await filhaComMensagem($, on, false, {})
+  expect(ctx).toContain('tarefa de origem "A/1" Um')
+  expect(ctx).not.toContain('tarefa de origem "A/2"')
+})
+
+// Regra: lembretes.filha-terminou-o-turno
+test('com a tarefa da rodada já fechada e a de abertura aberta, o lembrete cita a de abertura', async ($: any, on: any) => {
+  const ctx = await filhaComMensagem($, on, true, { depois: ['2'] })
+  expect(ctx).toContain('tarefa de origem "A/1" Um')
 })

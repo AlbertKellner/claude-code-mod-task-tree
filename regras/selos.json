@@ -1399,6 +1399,26 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::com a mensagem nova ainda na fila, o lembrete do turno que terminou cita a tarefa de abertura": {
+      "regras": [
+        "lembretes.filha-terminou-o-turno"
+      ],
+      "hash": "2533145bf7f0844e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::com a tarefa da rodada já fechada e a de abertura aberta, o lembrete cita a de abertura": {
+      "regras": [
+        "lembretes.filha-terminou-o-turno"
+      ],
+      "hash": "b45cbf36ef29d2be",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
     "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez": {
       "regras": [
         "lembretes.replanejar-apos-turno-que-falhou"
@@ -1518,6 +1538,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::quando a filha termina o turno de uma mensagem, o lembrete cita a tarefa de onde a mensagem saiu": {
+      "regras": [
+        "lembretes.filha-terminou-o-turno"
+      ],
+      "hash": "d662637d26498250",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: lembrete pela tarefa da rodada"
     },
     "task-tree/tests/lembretes.test.ts::sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar": {
       "regras": [
