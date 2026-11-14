@@ -10,10 +10,10 @@ import { SESSION } from '../text/rules'
 import { MAIN, flat, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
-import { allSessionIds, deducedOwn, deriveChildren, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
+import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -31,10 +31,36 @@ const receivedState = { plugin: 'task-tree', key: 'received' } as const
 // calls stay here (the kit wants the state keys literal in the hooks module).
 // When the list was last read (clock ms), by the 10 s poll or otherwise.
 export let refreshedAt: number | undefined
-export async function refreshChildren($: any) {
+// One read at a time (the 3 s clock, the app's notice, a start_session, a message, refreshStale): a
+// read asked while one runs only marks `readAgain` and waits for the one in progress, which then
+// runs once more; every caller gets the end of the last one. Two reads at once wrote the children
+// out of order (the older last: the session running again, and a second "ended its turn" for the
+// same end). Variables of the module: a reload starts them over.
+let reading: Promise<void> | undefined
+let readAgain = false
+export async function refreshChildren($: any): Promise<void> {
+  if (reading !== undefined) {
+    readAgain = true
+    return reading
+  }
+  reading = readChildrenLoop($)
+  return reading
+}
+async function readChildrenLoop($: any) {
+  try {
+    do {
+      readAgain = false
+      await readChildren($)
+    } while (readAgain)
+  } finally {
+    reading = undefined
+  }
+}
+async function readChildren($: any) {
   // The links come back from the store before this reread writes the children (a new process).
   await ensureLinks($)
-  refreshedAt = (await stamp($)) ?? refreshedAt
+  const now = await stamp($)
+  refreshedAt = now ?? refreshedAt
   // The subagents' cards still alive, against the engine's list: one whose end never came is ended
   // (hooks/agents, checkSubs). First, and whatever the sessions' list says below.
   await checkSubs($).catch(() => {})
@@ -57,10 +83,16 @@ export async function refreshChildren($: any) {
   }
   if (shownError !== '') await $.state.set(childrenErrorState, '')
   if (!Array.isArray(rows)) return
-  // No linked session at all: this one opened none (the state is cleared once, not every poll).
+  // No linked session at all: this one opened none (the state is cleared once, not every poll), but
+  // one just opened that the list does not hold yet (still in its grace, see deriveChildren). Cleared,
+  // the pane is published: the file the mother reads loses the cards too.
   if (rows.length === 0) {
     const { value: cur } = await $.state.get(childrenState)
-    if ((cur ?? []).length > 0) await $.state.set(childrenState, [])
+    const keep = (c: Child[] | undefined) => (c ?? []).filter(k => justOpened(k, now))
+    if (keep(cur).length !== (cur ?? []).length) {
+      await update($, childrenState, keep)
+      await publishPanel($)
+    }
     return
   }
   // By this session's own id; in the app, a read waits for it (after a reload it is asked again)
@@ -77,17 +109,26 @@ export async function refreshChildren($: any) {
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
   // it opened them on (see endedNote). The state is written only when the children changed: a poll
   // with nothing new (the usual one, every 3 s) derives the same list, and a write of it would cost
-  // the whole value crossing to the host (220 KB in the real case) and a redraw.
+  // the whole value crossing to the host (220 KB in the real case) and a redraw. Compared first, then
+  // written by `update`, derived again over the value it hands (a write made meanwhile, a send's
+  // round, is not lost), and the sessions that just ended come from that same derivation.
   const { value: cur } = await $.state.get(childrenState)
-  const derived = deriveChildren(mine, cur ?? [], read, keptLink)
-  const ended = derived.ended
-  if (JSON.stringify(derived.children) !== JSON.stringify(cur ?? [])) await $.state.set(childrenState, derived.children)
+  const first = deriveChildren(mine, cur ?? [], read, keptLink, now)
+  let ended = first.ended
+  const changed = JSON.stringify(first.children) !== JSON.stringify(cur ?? [])
+  if (changed) {
+    await update($, childrenState, c => {
+      const d = deriveChildren(mine, c ?? [], read, keptLink, now)
+      ended = d.ended
+      return d.children
+    })
+  }
   if (ended.length > 0) await update($, endedState, cur => [...(cur ?? []).filter(id => !ended.includes(id)), ...ended])
   // 4. The sessions' tasks are in this session's count, and in what it publishes to the one that
-  // opened it.
+  // opened it (also when the children changed to none: the mother's card loses them).
   const { value: groups = [] } = await $.state.get(groupsState)
   await showStatus($, groups)
-  if (mine.length > 0) await publishPanel($)
+  if (mine.length > 0 || changed) await publishPanel($)
   await keepTime($)
 }
 
@@ -253,6 +294,9 @@ export async function recordStart($: any, resultText: string, names: string[] = 
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor, openedAt: c.openedAt ?? openedAt } : c))
     return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor, openedAt: openedAt ?? keptLink(id)?.openedAt }]
   })
+  // The tie goes to the store before the first read: a session the list does not hold yet, dropped
+  // after its grace, gets its task back from there once listed (keptLink).
+  await saveLinks($)
   await refreshChildren($)
 }
 

@@ -276,3 +276,24 @@ No cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o relógio do cartão parava no último carimbo do painel publicado, 0:00 ou tempo cortado); cumpre turnos.iniciada-aguarda-no-fim ("◷ com o relógio parado"). Corrigido junto com turnos.aguardando-segue-ate-o-start, que grava a hora do fim na tarefa.
 Código: state/tasks.ts, hooks/turn.ts
 Estado: coberto
+
+### sessoes.destino-que-nao-e-filha-nao-vira-cartao
+A mensagem a uma sessão que esta não abriu não cria cartão.
+
+- Dado uma mensagem enviada à sessão mãe, a uma irmã ou a qualquer sessão que esta não abriu
+- Quando o painel é desenhado, aqui e no cartão desta sessão na mãe
+- Então só a carta ✉ aparece sob a tarefa do envio: nenhum cartão "Sessão…", nenhuma sessão ativa a mais no cabeçalho, nenhuma filha a mais no painel publicado
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: todo destino `local_…` fora das filhas ganhava uma entrada "Sessão…" trabalhando); aplica sessoes.mensagem-entre-filhas-no-cartao-da-remetente ("o cartão da destinatária não fica dentro do cartão da remetente").
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### sessoes.leitura-das-filhas-uma-por-vez
+A leitura das sessões filhas roda uma de cada vez.
+
+- Dado leituras pedidas ao mesmo tempo (o relógio de 3 s, um aviso do app, a abertura de uma sessão)
+- Quando uma já está em curso
+- Então as outras esperam e, no fim, roda mais uma só; uma leitura mais antiga nunca grava por cima de uma mais nova, e o fim de turno de uma filha gera um lembrete só
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: leituras sobrepostas gravavam sem conferir a versão).
+Estado: coberto

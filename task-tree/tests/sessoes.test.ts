@@ -880,3 +880,17 @@ test('a filha cujo turno morreu por erro: o cartão diz "falhou", a tarefa fica 
   expect(linha(p, 'Começada').texto, emTexto(p)).toContain('falhou')
   expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([0, 3])
 })
+
+// Regra: sessoes.leitura-das-filhas-uma-por-vez
+test('leituras pedidas ao mesmo tempo rodam uma de cada vez', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um' }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const antes = h.pedidosAoApp().filter(t => t === 'list_sessions').length
+  await Promise.all([aviso($), aviso($), aviso($)])
+  expect(h.pedidosAoApp().filter(t => t === 'list_sessions').length - antes).toBeLessThanOrEqual(2)
+})

@@ -323,6 +323,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
     },
+    "task-tree/tests/durabilidade.test.ts::a filha recém-aberta que a lista do host ainda não traz segue sob a tarefa de origem quando passa a ser listada": {
+      "regras": [
+        "durabilidade.filha-recem-aberta-ainda-nao-listada"
+      ],
+      "hash": "fdee08a25efeaf0c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
+    },
     "task-tree/tests/durabilidade.test.ts::a lista do host deixa uma filha de fora e depois a lista de novo: o cartão volta sob a mesma tarefa": {
       "regras": [
         "durabilidade.ligacoes-com-lista-parcial-do-host"
@@ -994,6 +1004,16 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/envios.test.ts::a mensagem a uma sessão que esta não abriu deixa só a carta: sem cartão e sem sessão ativa": {
+      "regras": [
+        "sessoes.destino-que-nao-e-filha-nao-vira-cartao"
+      ],
+      "hash": "6b01caecb1f9c406",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
+    },
     "task-tree/tests/envios.test.ts::a mensagem de um plano interrompido fica cinza depois da entrega": {
       "regras": [
         "envios.cor-por-estado"
@@ -1143,6 +1163,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::o envio que falha não grava rodada: o turno seguinte da filha segue no cartão dela": {
+      "regras": [
+        "envios.envio-que-falha-nao-deixa-rastro"
+      ],
+      "hash": "63645d5b07655b98",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
     },
     "task-tree/tests/envios.test.ts::o mesmo plano num pedido da pessoa não mostra carta nenhuma": {
       "regras": [
@@ -2164,6 +2194,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::leituras pedidas ao mesmo tempo rodam uma de cada vez": {
+      "regras": [
+        "sessoes.leitura-das-filhas-uma-por-vez"
+      ],
+      "hash": "5dd8a115efb6a7b4",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
     },
     "task-tree/tests/sessoes.test.ts::mensagens entregues juntas: o cartão do turno vai à tarefa da última": {
       "regras": [

@@ -96,6 +96,8 @@ export const TABLE: readonly Row[] = [
   { key: 'leftBehind', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the sessions this one opened before a /clear (the last 200), with no card from then on; kept in the links record (`left`), refilled whenever it is read or written, as keptLinks' },
   { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (asked again after a reload)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
+  { key: 'reading', lives: 'module', merge: 'none', restoredAt: [], note: 'the read of the sessions in progress (refreshChildren): one at a time; a reload starts it over' },
+  { key: 'readAgain', lives: 'module', merge: 'none', restoredAt: [], note: 'a read asked while one ran: the one in progress runs once more; a reload starts it over' },
   { key: 'drawSize', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s size, published' },
   { key: 'drawRows', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s lines, published' },
   { key: 'renderError', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s error, published' },

@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, lancaveis, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
 import { aviso, done, envio, esc, ferramenta, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, mensagemDe, pedido, plan, recebidaPeloSubagente, retomadaDoSubagente, start, type No } from './kit/cenario'
-import { cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
+import { cabecalho, cartaSob, cartoes, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const PERGUNTA = {
@@ -680,4 +680,50 @@ test('o subagente recebe a mensagem na rodada seguinte: a carta fica verde; a ta
   await fimDoTurno($)
   p = await painel($)
   esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: sessoes.destino-que-nao-e-filha-nao-vira-cartao
+test('a mensagem a uma sessão que esta não abriu deixa só a carta: sem cartão e sem sessão ativa', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_99999999-9999-9999-9999-999999999999')
+  const p = await painel($)
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe('fila')
+  expect(p.some(l => l.sessao), emTexto(p)).toBe(false)
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(0)
+  expect(h.proprio()?.children ?? []).toEqual([])
+})
+
+// Regra: envios.envio-que-falha-nao-deixa-rastro
+test('o envio que falha não grava rodada: o turno seguinte da filha segue no cartão dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  on('tool.call', { tool: 'SendMessage' }, () => ({ result: '{"success":false,"message":"no such session"}' }))
+  const K1 = 'local_11111111-1111-1111-1111-111111111111'
+  const tarefaDoTurno = (turn: number, id: string, title: string) => ({ id, short: id, title, status: 'open', started: 1, startedAt: AGORA, children: [], turn })
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefaDoTurno(1, '1', 'f1')], turns: [{ id: 1, title: 'turno 1', at: AGORA + 10 }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }])
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_session__start_session', { title: 'filha' })
+  await aviso($)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [tarefaDoTurno(1, '1', 'f1'), tarefaDoTurno(2, '2', 'f2')],
+    turns: [{ id: 1, title: 'turno 1', at: AGORA + 10 }, { id: 2, title: 'turno 2', at: AGORA + 1500 }],
+  }
+  await aviso($)
+  const p = await painel($)
+  const cs = cartoes(p, 'filha-um')
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  // O turno 1 da filha fica dobrado em "+1 pedidos anteriores" no mesmo cartão; o 2 vem aberto nele.
+  expect(cs[0]?.tarefas, emTexto(p)).toContain('f2')
+  expect(cs[0]?.tarefas.some(t => t.startsWith('+1 pedidos anteriores')), emTexto(p)).toBe(true)
+  expect(cartaSob(p, 'Dois'), emTexto(p)).toBeUndefined()
 })

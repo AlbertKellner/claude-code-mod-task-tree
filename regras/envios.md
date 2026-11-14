@@ -213,3 +213,13 @@ No app, a carta para um subagente real fica verde ao ser recebida e cinza "não 
 Origem: decisão do usuário, 2026-11-13 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.subagente-parado-nao-entregue e envios.subagente-recebe-fica-verde.
 Código: hooks/agents.ts
 Estado: checklist (subagente real, o motor e o relógio de 1 s não rodam no harness)
+
+### envios.envio-que-falha-nao-deixa-rastro
+O envio que falha não deixa carta nem rodada.
+
+- Dado uma mensagem a uma sessão filha cujo envio falha
+- Quando a filha abre o turno seguinte
+- Então não há carta do envio que falhou, e as tarefas do turno seguinte seguem no cartão em que a filha já estava, não num cartão novo sob a tarefa do envio
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a rodada era gravada antes de saber se o envio falhou); aplica sessoes.um-cartao-por-mensagem, sem mudá-la.
+Estado: coberto

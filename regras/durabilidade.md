@@ -201,3 +201,14 @@ O painel que a pessoa fechou só reabre na próxima mensagem dela, em processo n
 Origem: decisão do usuário, 2026-11-14 ("Só na sua mensagem (Recomendado)"), à pergunta "Quando você fecha o painel de tarefas, ele deve reabrir sozinho?".
 Código: hooks/tools.ts, hooks/prompt-submit.ts, hooks/command.ts
 Estado: coberto
+
+### durabilidade.filha-recem-aberta-ainda-nao-listada
+A filha recém-aberta que a lista do host ainda não traz mantém a tarefa de origem.
+
+- Dado uma sessão filha aberta de uma tarefa, que a lista do host ainda não lista
+- Quando o painel relê as sessões, e depois a lista passa a trazê-la
+- Então, enquanto é recente, ela segue no painel como sessão iniciando, sob a tarefa de origem; quando a lista a traz, o cartão dela fica sob a mesma tarefa; a ligação vai ao store antes da primeira leitura
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a primeira leitura descartava a filha recém-registrada e a ligação dela); estende durabilidade.ligacoes-com-lista-parcial-do-host à filha que ainda não foi listada nenhuma vez.
+Código: hooks/sessions.ts, io/host.ts
+Estado: coberto

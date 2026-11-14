@@ -12,8 +12,8 @@ import { update } from 'claude-code'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
-import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
+import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool } from './agents'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -109,6 +109,9 @@ const sentMessage: Notes = async ($, c, notes) => {
   const { e, r, sentAt } = c
   if (String(e.tool) !== 'SendMessage') return
   const out = JSON.stringify(r.result ?? r)
+  // A failed send leaves no trace: no letter, no round, no entry (its session's next turn stays in the
+  // card it was in, not one under the task of the failed send).
+  const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   const to = String(e.to ?? e.input?.to ?? '')
   // The message's start, its letter's title.
   const said = String(e.message ?? e.input?.message ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
@@ -126,20 +129,31 @@ const sentMessage: Notes = async ($, c, notes) => {
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
-    // sent from once the session takes it up (see split). A session the host's list does not hold
-    // yet (just opened, or listed late) gets its entry here, with the round, as recordStart does:
-    // the round was lost, and the card of the turn the message opened had no task to go under.
+    // sent from once the session takes it up (see split). A session not among the children yet gets
+    // its round only if it is this session's (see below): the round was lost, and the card of the
+    // turn the message opened had no task to go under.
     const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
+    const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
     // A session left behind by a /clear gets no card: only the letter (forgetChildren).
-    if (to !== '' && !isLeftBehind(to)) {
+    if (to !== '' && !failed && !isLeftBehind(to)) {
+      // A local_ id not among the children: the host's list read now. Listed as one of this
+      // session's, it gets the round as any child (and the send's task as its origin, if it had
+      // none); else, one this session opened that the list leaves out (its tie kept, keptLink), an
+      // entry with its kept ties and the round. Any other (the mother, a sister, a session this one did
+      // not open) gets no entry: only the letter under the task.
+      const fresh = to.startsWith('local_') && !(kids0 as Child[]).some(mine)
+      if (fresh) await refreshChildren($).catch(() => {})
+      const kept = keptLink(to)
       await update($, childrenState, cur => {
         const list = cur ?? []
-        const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
         if (list.some(mine)) {
-          return list.map(ch => (mine(ch) ? { ...ch, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
+          return list.map(ch => (mine(ch) ? { ...ch, ...(fresh && ch.anchor === undefined && anchor !== undefined ? { anchor } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
         }
-        if (!to.startsWith('local_')) return list
-        return [...list, { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: round }]
+        if (!to.startsWith('local_') || kept === undefined) return list
+        return [
+          ...list,
+          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(kept.rounds ?? []), ...round].slice(-20), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
+        ]
       })
     }
   }
@@ -152,7 +166,6 @@ const sentMessage: Notes = async ($, c, notes) => {
   // is kept taken, the ✉ green at once, and the task stays in progress until the model's done (the
   // person, 2026-10-28; the ✉ "para sinalizar que essa etapa esta em andamento", 2026-10-21). A failed
   // send keeps none.
-  const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   // A message to one of this session's subagents (not a session): its delivery is that subagent's
   // (hooks/agents), not a session's list or file.
   const agent = to !== '' && !failed && !to.startsWith('local_') ? await subagentOf($, to) : undefined

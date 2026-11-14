@@ -31,7 +31,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     com uma tarefa fechada renomeada pelo `plan`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
     `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
   - `sessions.ts` (233): as sessões que esta abriu: `refreshChildren` (os quatro passos de
-    `io/host.ts`), `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`,
+    `io/host.ts`; uma leitura por vez, `reading`/`readAgain`, e `children` gravado por `update`), `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`,
     `endedNote`, os relógios (`ticker`/`tick`/`keepTime`, `POLL`/`poller`/`watchSessions`,
     `anyRunning`) e `openSession`.
   - `session-start.ts` (80): `sessionStart` (registra o comando e as três ferramentas, traz o painel
@@ -201,21 +201,27 @@ por mensagem").
 **As sessões filhas** (`hooks/sessions.ts` + `io/host.ts`): `refreshChildren` roda no
 `session.start`, a cada `POLL` = 3 000 ms (`watchSessions`, recriado a cada chamada e prompt do loop
 principal porque a recarga do mod cancela o intervalo), depois de um `start_session`, num aviso do
-app e quando a lista está velha (`refreshStale`). Passos: (1) `listSessions` (`list_sessions` com
+app, no envio a um `local_` que não está entre as filhas e quando a lista está velha (`refreshStale`).
+Uma leitura por vez: a pedida durante outra só marca `readAgain` e espera a em curso, que roda mais uma
+vez no fim (`reading`, `readAgain`, variáveis do módulo). Passos: (1) `listSessions` (`list_sessions` com
 `linked: true, include_archived: true, limit: 100`; falha vai para `childrenError`, mostrada só no app
 desktop, `inDesktopApp`, e gravada só quando o texto muda); `watchSends` antes de qualquer retorno
 (destino que publica `received`: cada envio pendente, do mais antigo ao mais novo, casa com a SUA
 mensagem recebida desta sessão, a mais antiga ainda não casada com `at` ≥ envio, uma vez só
 (`usedReceipts`); destino sem `received`: um turno dele depois do envio, senão
 parada-depois-rodando; um envio confirmado fecha a tarefa de origem se ela está aberta
-sem subtarefa aberta); lista vazia zera `children` (uma vez, não a cada poll); `mineOf` (as linhas
+sem subtarefa aberta); lista vazia zera `children` (uma vez, não a cada poll, e publica), salvo a
+recém-aberta ainda no prazo (`justOpened`); `mineOf` (as linhas
 cujo `startedBy` é um id que a lista não traz, o desta sessão); (2) `readFiles` (cada arquivo
 publicado por `readPublished`; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
 (3) `deriveChildren` (as filhas a partir das linhas, dos arquivos, das conhecidas antes e das
-ligações do store por `keptLink`; `ended` = as que corriam ou esperavam e pararam, exceto
+ligações do store por `keptLink`; a entrada `starting` que a lista ainda não traz fica enquanto é
+recente, `STARTING_GRACE` = 120 s do `openedAt`; `ended` = as que corriam ou esperavam e pararam, exceto
 `starting`); `children` só é gravado no state quando a lista derivada difere da atual (JSON): o poll
-sem novidade, o de sempre a cada 3 s, não faz o valor inteiro cruzar para o host nem redesenha;
-(4) `showStatus` e `publishPanel`; `keepTime`.
+sem novidade, o de sempre a cada 3 s, não faz o valor inteiro cruzar para o host nem redesenha; a
+gravação é por `update`, derivando de novo sobre o valor que ele entrega (e `ended` sai dessa
+derivação); (4) `showStatus` e `publishPanel` (também quando `children` mudou para nenhuma);
+`keepTime`. `recordStart` grava as ligações no store (`saveLinks`) antes da primeira leitura.
 
 **Relógios**: `ticker` (`$.clock.every(1000)`, `tick` invalida o `ui.render` enquanto `running`; cancela
 quando nada roda) e `poller` (3 s). Os dois são variáveis de módulo: uma recarga os perde e a próxima
@@ -283,7 +289,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 `replace` (o store substitui, usado no resume), `none`.
 
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
-`refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
+`refreshedAt`, `reading`/`readAgain` (a leitura das filhas em curso, em `hooks/sessions.ts`), `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
 `actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
@@ -472,8 +478,11 @@ mantida), em `draw/layout.ts`:
   do lote ia para a tarefa da PRIMEIRA mensagem; o caso real que a derrubou: "uma rodada basta" e o bug
   dos cliques foram entregues juntos, o cartão com o trabalho apareceu sob a primeira e o pedido dos
   cliques ficou sem cartão.)
-- Rodadas perdidas: se a sessão não estava na lista do host quando a mensagem saiu, `sentMessage` cria a
-  entrada com a rodada (como `recordStart`), e `unsent()` abre uma rodada órfã por mensagem recebida
+- Rodadas perdidas: se a sessão não estava entre as filhas quando a mensagem saiu, `sentMessage` lê a
+  lista na hora; listada como filha desta, ganha a rodada (e a tarefa do envio como origem, se não tinha);
+  fora da lista mas com ligação guardada (`keptLink`), ganha a entrada com as ligações e a rodada; outra
+  sessão (a mãe, uma irmã) não ganha entrada nem rodada, só a carta. O envio que falha não toca
+  `children`. E `unsent()` abre uma rodada órfã por mensagem recebida
   mesmo com zero rodadas registradas (âncora: a tarefa aberta na hora, senão a iniciada por último
   antes, senão sem âncora). Sem isso o cartão do turno caía na parte 0, sem tarefa para ficar embaixo, e
   a resumida o cortava.
@@ -1296,7 +1305,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `unsent()` devolvia nada com zero rodadas, e os turnos abertos por elas caíram na parte 0 do cartão,
   sem tarefa para ficar embaixo: cartões soltos, cortados pela resumida): (1) `sentMessage`
   (`hooks/tool-call.ts`) cria a entrada da sessão com a rodada quando o destino ainda não está em
-  `children` (ver "Fluxo de dados"); (2) `unsent()` (`draw/layout.ts`) não exige mais rodada registrada:
+  `children` (ver "Fluxo de dados"; desde a correção da leitura das filhas, 2026-11-14, só para sessão
+  que esta abriu: a lista lida no envio, ou a ligação guardada; a mãe e as irmãs ficam só com a carta); (2) `unsent()` (`draw/layout.ts`) não exige mais rodada registrada:
   com zero rodadas, cada mensagem recebida desta sessão (o `received` publicado pela outra) abre uma
   rodada órfã, com a âncora na tarefa da principal aberta na hora da mensagem, senão a iniciada por
   último antes dela (a mesma regra de um envio sem tarefa em andamento), senão sem âncora (fim do

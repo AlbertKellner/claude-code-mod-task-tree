@@ -133,7 +133,14 @@ export async function engineOf($: any, id: string): Promise<string | undefined> 
 // counts only once the host has seen it run: right after start_session the host may still list it
 // idle. A session the host lists again after leaving it out gets its ties (anchor, lastAnchor,
 // rounds) back from the store's copy (`kept`); a session whose file went missing keeps its last panel.
-export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept: (id: string) => Link | undefined): { children: Child[]; ended: string[] } {
+// A session just opened (start_session) that the host's list does not hold yet stays in the children
+// while recent (STARTING_GRACE from its `openedAt`), with the task it was opened on: dropped at the
+// first read, its tie was lost and its card, once listed, went to the end. One with no `openedAt` (an
+// earlier version) has no grace.
+export const STARTING_GRACE = 120_000
+export const justOpened = (c: Child, now: number | undefined) =>
+  c.starting === true && typeof c.openedAt === 'number' && now !== undefined && now - c.openedAt < STARTING_GRACE
+export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept: (id: string) => Link | undefined, now?: number): { children: Child[]; ended: string[] } {
   const ended = mine
     .filter(r => {
       const before = known.find(k => k.id === r.sessionId)
@@ -167,7 +174,8 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       tasks: read.panels[r.sessionId] ? undefined : before?.tasks,
     } as Child
   })
-  return { children, ended }
+  const waiting = known.filter(k => !mine.some(r => r.sessionId === k.id) && justOpened(k, now))
+  return { children: [...children, ...waiting], ended }
 }
 
 // ---- The published files of sessions the app no longer has (hooks/sessions, sweepPublished)

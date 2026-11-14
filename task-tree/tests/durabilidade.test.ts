@@ -1041,3 +1041,31 @@ test('turno que falhou no reinício, 2/2: a iniciada segue ✕ "falhou" e o pedi
   const r = await pedido($, 'segue')
   expect((r?.context ?? []).join(' | ')).toContain('terminou com erro')
 })
+
+// Regra: durabilidade.filha-recem-aberta-ainda-nao-listada
+test('a filha recém-aberta que a lista do host ainda não traz segue sob a tarefa de origem quando passa a ser listada', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', listada: false, painel: { tasks: [TAREFA] } },
+    { id: K2, nome: 'filha-dois', listada: false, painel: { tasks: [{ ...TAREFA, title: 'Tarefa da segunda' }] } },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  // A lista vem vazia: a recém-aberta segue como sessão iniciando, sob a tarefa.
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, 'Sessão iniciando…').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  // Uma segunda filha, listada logo: a lista não vem vazia, e a primeira segue fora dela.
+  await done($, ['1'])
+  await start($, ['2.1'])
+  await abrirSessao($)
+  h.filha(K2).listada = true
+  await aviso($)
+  h.filha(K1).listada = true
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(cartoes(p, 'filha-dois').map(c => c.sob), emTexto(p)).toEqual(['Dois.um'])
+})
