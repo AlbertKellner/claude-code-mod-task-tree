@@ -45,7 +45,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
     // (replaced in its place, the tasks that keep their id keeping their state: carry) when it is of
-    // the request open now; a closed one stays as history,
+    // the request open now, and so is a done one of the main loop; otherwise a closed one stays as history,
     // renamed if its id collides. An open one of an earlier request (the person sent another
     // message since) is not replanned: the new plan's task goes to the new request, and the old one,
     // abandoned, stays in its request interrupted and renamed (the person's panel: a new "1" took
@@ -59,7 +59,11 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     // The request open now (the person's last message): the main group's last turn.
     const nowTurn = beforeMain?.turns?.[beforeMain.turns.length - 1]?.id
     const sameRequest = (t: TaskNode) => agent !== MAIN || nowTurn === undefined || t.turn === undefined || t.turn === nowTurn
-    const replanned = (t: TaskNode) => t.status === 'open' && ids.includes(t.id) && sameRequest(t)
+    // A level-1 task of the main loop already done is replanned too, in the same request: it opens
+    // again with the done steps kept (carry) and only the new ones open (the person, 2026-11-14:
+    // "Reabre mantendo os ✓ (Recomendado)"). A subagent's done task stays as history.
+    const replanned = (t: TaskNode) =>
+      (t.status === 'open' || (t.status === 'done' && agent === MAIN)) && ids.includes(t.id) && sameRequest(t)
     // The sends still queued: a message task a replan leaves out stays until delivered (carry).
     const { value: sendsNow = [] } = await $.state.get(sendsState)
     const queued = (sendsNow as Send[]).filter(s => !s.taken).map(s => String(s.anchor ?? ''))

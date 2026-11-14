@@ -43,8 +43,10 @@ export const RULES = [
     'interrompidas, e a cópia nova entra toda pendente. Para seguir numa mensagem seguinte com tarefas de uma ' +
     'anterior, use start e done nos ids delas e planeje só o que é novo, com ids novos. Quando o lembrete de ' +
     'uma mensagem diz que ela chegou no meio do turno e continua o pedido em curso, ela não é mensagem ' +
-    'seguinte: não há pedido novo no painel, e o replano do nível 1 em curso guarda o estado. Um nível 1 já concluído ' +
-    'fica como histórico. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
+    'seguinte: não há pedido novo no painel, e o replano do nível 1 em curso guarda o estado. Um nível 1 já concluído, ' +
+    'replanejado na mesma mensagem com o mesmo id, reabre: os passos que mantêm o id seguem concluídos e só os ' +
+    'novos entram pendentes; para refazer um passo concluído, dê a ele um id novo. Numa mensagem seguinte, o ' +
+    'nível 1 concluído fica como histórico e o plano com o mesmo id entra todo pendente. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
     'replaneje o nível 1 com ids novos para o que deve ser refeito.',
   '- Uma tarefa em andamento quando o usuário para o turno (Esc) fica interrompida no painel até um novo ' +
     'mcp__task-tree__start nela. Nada mais a reacende: nem a mensagem seguinte, nem o start em outra tarefa, ' +
@@ -77,7 +79,7 @@ export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele'
 export const TOOLS = {
   plan:
     'Adiciona um plano à árvore de tarefas do painel lateral do usuário. As tarefas de nível 1 anteriores são mantidas. ' +
-    'Na mesma mensagem do usuário, uma aberta com o mesmo id é substituída no mesmo lugar (replanejamento): as ' +
+    'Na mesma mensagem do usuário, uma com o mesmo id, aberta ou já concluída, é substituída no mesmo lugar (replanejamento): as ' +
     'tarefas que mantêm o id guardam o estado, e só as novas entram pendentes. Numa mensagem seguinte, uma aberta ' +
     'com o mesmo id fica como histórico do pedido anterior, com as abertas interrompidas, e o plano novo entra ' +
     'todo pendente: para continuar tarefas de uma mensagem anterior, use start e done nos ids delas. ' +

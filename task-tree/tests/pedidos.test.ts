@@ -199,17 +199,25 @@ test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a 
 
 // Regra: pedidos.nivel1-concluido-e-historico
 test('plan com o id de um nível 1 concluído deixa o concluído como histórico e põe um plano novo ao lado', async ($: any, on: any) => {
-  fixar(on)
+  // No pedido seguinte (no mesmo pedido, o concluído reabre: decisão do usuário, 2026-11-14,
+  // "Reabre mantendo os ✓ (Recomendado)").
+  const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A2)
   for (const id of ['1', '2.1', '2.2']) {
     await start($, [id])
     await done($, [id])
   }
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
   await plan($, A2)
-  const p = await painel($)
+  const p = await comHistorico($, 1)
   const planos = p.filter(l => l.titulo === 'Plano A')
   expect(planos.map(l => l.estado), emTexto(p)).toEqual(['concluida', 'pendente'])
+  const dois = p.findIndex(l => l.titulo === 'Pedido dois')
+  expect(p.indexOf(planos[0]!), emTexto(p)).toBeLessThan(dois)
+  expect(p.indexOf(planos[1]!), emTexto(p)).toBeGreaterThan(dois)
 })
 
 
@@ -342,4 +350,43 @@ test('replano com os ids completos que os lembretes mostram mantém a concluída
   expect(p.filter(l => l.titulo === 'Um').length, emTexto(p)).toBe(1)
   expect(emTexto(p)).toContain('1 de 4')
   expect((await start($, ['3'])).texto).toContain('Em andamento: Três')
+})
+
+// Regra: pedidos.nivel1-concluido-e-historico
+test('no mesmo pedido, o plan com o id de um nível 1 concluído e um passo a mais o reabre mantendo os concluídos', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  for (const id of ['1', '2.1', '2.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  await plan($, comTres())
+  const p = await painel($)
+  expect(p.filter(l => l.titulo === 'Plano A').length, emTexto(p)).toBe(1)
+  expect(['andamento', 'aguardando']).toContain(linha(p, 'Plano A').estado)
+  for (const t of ['Um', 'Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'concluida')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(emTexto(p)).toContain('3 de 4')
+})
+
+// Regra: pedidos.nivel1-concluido-e-historico
+test('no mesmo pedido, o cartão da filha segue sob a tarefa quando o nível 1 concluído é replanejado', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false, painel: { tasks: [{ id: '1', short: '1', title: 'Tarefa da filha', status: 'done', children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  for (const id of ['1', '2.1', '2.2']) {
+    if (id !== '1') await start($, [id])
+    await done($, [id])
+  }
+  await plan($, comTres())
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.filter(l => l.titulo === 'Um').length, emTexto(p)).toBe(1)
+  esperarEstado(p, 'Um', 'concluida')
 })

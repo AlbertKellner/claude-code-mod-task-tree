@@ -92,13 +92,15 @@ Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluido
 Estado: coberto
 
 ### pedidos.nivel1-concluido-e-historico
-Um nível 1 concluído fica como histórico.
+Um nível 1 concluído reabre no replano do mesmo pedido e fica como histórico no pedido seguinte.
 
-- Dado um nível 1 ✓
-- Quando o modelo chama plan com o mesmo id
-- Então o ✓ fica como histórico e o plano novo entra ○ ao lado
+- Dado um nível 1 ✓ (fechou sozinho, com todos os passos ✓, ou foi fechado com done)
+- Quando o modelo chama plan com o mesmo id, no mesmo pedido com um passo a mais, ou num pedido seguinte
+- Então, no mesmo pedido, o mesmo nível 1 volta a aberto no lugar, os passos que mantêm o id seguem ✓ e só o passo novo nasce ○; cartões e cartas seguem sob as tarefas; um plano igual, sem passo novo, não muda nada; para refazer um passo, o modelo usa um id novo. Num pedido seguinte, o ✓ fica como histórico e o plano novo entra ○ sob o pedido novo. O replano de um subagente sobre as tarefas dele segue deixando a concluída como histórico (subagentes.id-reusado-nao-herda-cartao)
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Reescrito: 2026-11-14, decisão do usuário ("Reabre mantendo os ✓ (Recomendado)"); desfaz, só para o replano no mesmo pedido do loop principal, "o ✓ fica como histórico e o plano novo entra ○ ao lado".
+Código: text/rules.ts
 Estado: coberto
 
 ### pedidos.rodada-descartada-nao-segura-a-visao

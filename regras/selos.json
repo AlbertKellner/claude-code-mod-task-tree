@@ -1479,6 +1479,26 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
+    "task-tree/tests/pedidos.test.ts::no mesmo pedido, o cartão da filha segue sob a tarefa quando o nível 1 concluído é replanejado": {
+      "regras": [
+        "pedidos.nivel1-concluido-e-historico"
+      ],
+      "hash": "2f1061b38e89ce51",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\""
+    },
+    "task-tree/tests/pedidos.test.ts::no mesmo pedido, o plan com o id de um nível 1 concluído e um passo a mais o reabre mantendo os concluídos": {
+      "regras": [
+        "pedidos.nivel1-concluido-e-historico"
+      ],
+      "hash": "6985c16d07f2246e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\""
+    },
     "task-tree/tests/pedidos.test.ts::o pedido concluído cujo id o pedido novo reusa segue à vista enquanto outro pedido do trabalho tem algo aberto": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
@@ -1543,11 +1563,11 @@
       "regras": [
         "pedidos.nivel1-concluido-e-historico"
       ],
-      "hash": "9329fee4a72268c3",
-      "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "c6596dd8dfc1d58c",
+      "assercoes": 3,
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\"; o teste passa ao pedido seguinte, onde o histórico segue valendo"
     },
     "task-tree/tests/pedidos.test.ts::plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o anterior em pedido novo": {
       "regras": [

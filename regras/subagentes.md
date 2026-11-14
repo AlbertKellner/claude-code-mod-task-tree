@@ -125,11 +125,12 @@ Estado: coberto
 Um plano que reusa o id de uma tarefa com subagente não herda o cartão dele.
 
 - Dado uma tarefa de onde saiu um subagente (o cartão sob ela), fechada, ou aberta de um pedido anterior
-- Quando um plan com o mesmo id a renomeia (pedido novo, nível 1 concluído, ou o replano de um subagente sobre as tarefas dele)
+- Quando um plan com o mesmo id a renomeia (pedido novo, ou o replano de um subagente sobre as tarefas dele; no mesmo pedido do loop principal, o nível 1 concluído reabre e o cartão segue sob a mesma tarefa: pedidos.nivel1-concluido-e-historico)
 - Então o cartão fica com a cópia antiga, como o da sessão e a carta; não aparece sob a tarefa nova, que no fim do turno segue como o turno a deixou, sem fechar pelo subagente antigo
 
 Origem: auditoria 2026-11-10 (plano que reusa um id não renomeia a âncora dos grupos de subagente); aplica subagentes.cartao-desde-o-lancamento ("o cartão aparece embaixo dessa tarefa") e pedidos.plano-anterior-vira-historico, como a renomeação já fazia com sessões, cartas e lançamentos, sem mudar subagentes.pai-conclui-no-fim-do-turno.
 Código: hooks/tools.ts, hooks/panel.ts
+Reescrito: 2026-11-14, decisão do usuário ("Reabre mantendo os ✓ (Recomendado)"); o nível 1 concluído do loop principal, replanejado no mesmo pedido, deixa de ser renomeado. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### subagentes.cartao-fica-com-a-origem-fechada
