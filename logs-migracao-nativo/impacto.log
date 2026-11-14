@@ -1,0 +1,174 @@
+Arquivos do mod tocados: draw/desktop.tsx, draw/geometry.ts, draw/head.tsx, draw/icons.ts, draw/layout.ts, draw/svg.ts, hooks/render.tsx, hooks/sessions.ts
+Núcleo tocado (hooks/render.tsx): todos os cenários cobertos (o check roda todos)
+Cenários afetados (167):
+  arvore.pai-fecha-com-os-filhos                                 coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.start-reabre-pais                                       coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.start-recusa-pai-concluido                              coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.sem-start-nada-acende                                   coberto   task-tree/tests/turnos.test.ts: 1 teste
+  arvore.pai-em-andamento-no-caminho-da-ultima-iniciada          coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.ids-curtos-e-avisos                                     coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.done-sem-summary-e-varias-sem-start                     coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.plan-recusa-ids-repetidos                               coberto   task-tree/tests/arvore.test.ts: 1 teste
+  arvore.pai-fecha-com-nada-aberto-embaixo                       coberto   task-tree/tests/pedidos.test.ts: 3 testes
+  cabecalho.numeros-somam-o-desenhado                            coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.resumida-exclui-pedido-finalizado                    coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.resumida-limpa-so-com-tudo-concluido                 coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.interrompida-fora-do-total                           coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.chips-contam-folhas                                  coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.aviso-de-painel-grande-volta                         checklist —
+  cabecalho.limites-de-linhas                                    coberto   task-tree/tests/cabecalho.test.ts: 1 teste; task-tree/tests/sessoes.test.ts: 1 teste
+  cabecalho.limite-de-cartoes-antigos                            coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.limite-de-linhas-do-desenho                          coberto   task-tree/tests/cabecalho.test.ts: 5 testes
+  cabecalho.titulo-e-a-ultima-iniciada                           coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.titulo-desempata-pela-ordem-do-start                 coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.historico-abre-com-clique                            coberto   task-tree/tests/cabecalho.test.ts: 1 teste
+  cabecalho.historico-guarda-o-que-saiu                          coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  durabilidade.reinicio-restaura-do-store                        coberto   task-tree/tests/durabilidade.test.ts: 4 testes
+  durabilidade.respawn-sem-session-start                         coberto   task-tree/tests/durabilidade.test.ts: 2 testes
+  durabilidade.fim-do-turno-sobrevive-ao-reinicio                coberto   task-tree/tests/durabilidade.test.ts: 6 testes
+  durabilidade.parada-com-esc-sobrevive-ao-reinicio              coberto   task-tree/tests/durabilidade.test.ts: 2 testes
+  durabilidade.clear-esvazia                                     coberto   task-tree/tests/durabilidade.test.ts: 1 teste
+  durabilidade.formatos-antigos-do-publicado                     coberto   task-tree/tests/durabilidade.test.ts: 1 teste
+  durabilidade.recarga-mantem-painel-ligacoes-e-resumo           coberto   task-tree/tests/durabilidade.test.ts: 6 testes
+  durabilidade.ligacoes-com-lista-parcial-do-host                coberto   task-tree/tests/durabilidade.test.ts: 1 teste
+  durabilidade.resumo-do-done-na-recarga                         coberto   task-tree/tests/durabilidade.test.ts: 2 testes
+  envios.fica-ate-entrega                                        coberto   task-tree/tests/envios.test.ts: 2 testes
+  envios.entrega-imediata-fica-verde                             coberto   task-tree/tests/envios.test.ts: 2 testes
+  envios.esc-apos-entrega-imediata                               coberto   task-tree/tests/envios.test.ts: 1 teste
+  envios.cor-por-estado                                          coberto   task-tree/tests/envios.test.ts: 2 testes
+  envios.ancora-no-lote-recente                                  coberto   task-tree/tests/envios.test.ts: 3 testes
+  envios.sem-andamento-vai-a-pendente-planejada-por-ultimo       coberto   task-tree/tests/envios.test.ts: 2 testes
+  envios.carta-pelo-nome-da-sessao                               coberto   task-tree/tests/envios.test.ts: 3 testes
+  envios.fila-nao-interrompe-no-fim-do-turno                     coberto   task-tree/tests/envios.test.ts: 1 teste
+  envios.pedido-recebido-mostra-carta                            coberto   task-tree/tests/envios.test.ts: 3 testes
+  envios.carta-sob-a-tarefa                                      coberto   task-tree/tests/envios.test.ts: 1 teste
+  envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila   coberto   task-tree/tests/envios.test.ts: 1 teste
+  envios.entrega-com-lista-de-sessoes-em-erro                    coberto   task-tree/tests/envios.test.ts: 1 teste
+  envios.destino-arquivado-nao-entregue                          coberto   task-tree/tests/envios.test.ts: 4 testes
+  envios.destino-arquivado-no-app                                checklist —
+  fumaca.plan-mostra-tarefa                                      coberto   task-tree/tests/fumaca.test.ts: 1 teste
+  lembretes.replanejar-apos-esc-pessoa                           coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.fim-normal-lista-abertas                             coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.outra-sessao-apos-esc                                coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.esc-sem-abertas                                      coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.replanejar-vale-uma-vez                              coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.replanejar-apos-esc-com-aviso-no-meio                coberto   task-tree/tests/lembretes.test.ts: 2 testes
+  lembretes.primeira-chamada-sem-plano                           coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.regras-no-prompt-de-sistema                          coberto   task-tree/tests/lembretes.test.ts: 1 teste
+  lembretes.estado-guardado-so-no-mesmo-pedido                   coberto   task-tree/tests/lembretes.test.ts: 2 testes
+  lembretes.mensagem-no-meio-do-turno                            coberto   task-tree/tests/lembretes.test.ts: 3 testes
+  pedidos.titulo-vem-do-request                                  coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.uma-mensagem-um-pedido                                 coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.mensagem-no-meio-do-turno-continua-o-pedido            coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.aviso-do-app-nao-abre-pedido                           coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.replano-no-lugar                                       coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.replano-preserva-estado                                coberto   task-tree/tests/pedidos.test.ts: 4 testes
+  pedidos.replano-mantem-envio-ate-entrega                       coberto   task-tree/tests/envios.test.ts: 1 teste
+  pedidos.plano-anterior-vira-historico                          coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.nivel1-concluido-e-historico                           coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.rodada-descartada-nao-segura-a-visao                   coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  pedidos.resumida-mantem-anteriores-com-algo-aberto             coberto   task-tree/tests/cabecalho.test.ts: 1 teste; task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.id-reusado-nao-segura-pedido-concluido                 coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  pedidos.id-reusado-segura-pedido-com-cartao-aberto             coberto   task-tree/tests/sessoes.test.ts: 2 testes
+  pedidos.id-reusado-segura-pedido-com-sessao-viva               coberto   task-tree/tests/sessoes.test.ts: 3 testes
+  perguntas.sem-tarefa-recusada                                  coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.espera-sob-a-tarefa                                  coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.resposta-por-opcao-tira-espera                       coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.resposta-pelo-chat-tira-espera                       coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.exitplanmode-espera                                  coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.mensagem-no-meio-do-turno-mantem-espera              coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.escolha-do-wrapup-ate-proxima-mensagem               coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  perguntas.permissao-espera                                     coberto   task-tree/tests/perguntas.test.ts: 1 teste
+  sessoes.cartao-sob-a-tarefa-de-origem                          coberto   task-tree/tests/sessoes.test.ts: 2 testes
+  sessoes.palavra-de-estado-do-cartao                            coberto   task-tree/tests/sessoes.test.ts: 4 testes
+  sessoes.um-cartao-por-mensagem                                 coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.cadeia-sem-cartao-dentro-de-cartao                     coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.mensagem-entre-filhas-no-cartao-da-remetente           coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.filha-trabalhando-mantem-pais-em-andamento             coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.filha-parada-com-origem-fechada-sai-da-contagem        coberto   task-tree/tests/sessoes.test.ts: 7 testes
+  sessoes.filha-parada-pendentes-seguem-pendentes                coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.filha-arquivada-interrompe                             coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.rodada-descartada-fora-da-contagem                     coberto   task-tree/tests/sessoes.test.ts: 2 testes
+  sessoes.filha-parada-com-esc-sem-pendente                      coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.filha-parada-com-esc-segue-descartada-ate-o-start      coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.cartao-parado-sem-pedidos-anteriores-a-mais            coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.rodada-descartada-fora-da-contagem-do-pai              coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.busto-so-no-pai                                        coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.pasta-sem-git                                          coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.toks-e-repo-branch-no-cartao                           coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.mensagens-juntas-vao-a-ultima                          coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.pedido-recebido-aparece-no-cartao                      coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  sessoes.turno-proprio-da-filha-no-pedido-vigente               coberto   task-tree/tests/sessoes.test.ts: 3 testes
+  sessoes.turno-de-abertura-da-filha-sob-a-origem                coberto   task-tree/tests/sessoes.test.ts: 2 testes
+  sessoes.cartao-vivo-nunca-some                                 coberto   task-tree/tests/sessoes.test.ts: 1 teste
+  subagentes.cartao-desde-o-lancamento                           coberto   task-tree/tests/subagentes.test.ts: 4 testes
+  subagentes.cartao-mostra-modelo-e-estado                       coberto   task-tree/tests/subagentes.test.ts: 2 testes
+  subagentes.corpo-e-as-tarefas-ou-a-ferramenta                  coberto   task-tree/tests/subagentes.test.ts: 2 testes
+  subagentes.terminado-segue-cartao                              coberto   task-tree/tests/subagentes.test.ts: 1 teste
+  subagentes.varios-juntos-num-cartao-de-grupo                   coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.fora-da-contagem                                    coberto   task-tree/tests/subagentes.test.ts: 1 teste
+  subagentes.na-filha                                            coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.cartao-no-app                                       checklist —
+  subagentes.pai-conclui-no-fim-do-turno                         coberto   task-tree/tests/subagentes.test.ts: 5 testes
+  subagentes.pai-reflete-falha-ou-interrupcao                    coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.um-rodando-mantem-o-pai                             coberto   task-tree/tests/subagentes.test.ts: 2 testes
+  subagentes.id-reusado-nao-herda-cartao                         coberto   task-tree/tests/subagentes.test.ts: 2 testes
+  subagentes.cartao-fica-com-a-origem-fechada                    coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.reaberta-nao-fecha-pelo-subagente-antigo            coberto   task-tree/tests/subagentes.test.ts: 5 testes
+  subagentes.lancado-antes-da-tarefa-nao-conta                   coberto   task-tree/tests/subagentes.test.ts: 2 testes
+  subagentes.lancados-juntos-se-veem                             coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.lancados-juntos-no-app                              checklist —
+  subagentes.neto-segue-o-cartao-de-quem-o-lancou                coberto   task-tree/tests/subagentes.test.ts: 4 testes
+  subagentes.neto-no-app                                         checklist —
+  subagentes.sem-fim-vira-interrompido                           coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.vivo-de-verdade-segue-vivo                          coberto   task-tree/tests/subagentes.test.ts: 4 testes
+  subagentes.workflow-sem-sinal-vira-interrompido                coberto   task-tree/tests/subagentes.test.ts: 3 testes
+  subagentes.sem-fim-no-app                                      checklist —
+  taxa.velocidade-de-geracao                                     coberto   task-tree/tests/taxa.test.ts: 2 testes
+  taxa.filtros                                                   coberto   task-tree/tests/taxa.test.ts: 1 teste
+  taxa.fim-do-turno-fica-aceso                                   coberto   task-tree/tests/taxa.test.ts: 1 teste
+  taxa.subagente-mesma-medida                                    coberto   task-tree/tests/taxa.test.ts: 1 teste
+  turnos.iniciada-aguarda-no-fim                                 coberto   task-tree/tests/turnos.test.ts: 2 testes
+  turnos.pendentes-seguem-pendentes                              coberto   task-tree/tests/turnos.test.ts: 3 testes
+  turnos.pai-e-pedido-aguardam-no-fim                            coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.esc-interrompe-so-a-iniciada                            coberto   task-tree/tests/subagentes.test.ts: 1 teste; task-tree/tests/turnos.test.ts: 1 teste
+  turnos.prompt-seguinte-retoma                                  coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.parada-segue-interrompida-ate-o-start                   coberto   task-tree/tests/turnos.test.ts: 7 testes
+  turnos.pedido-anterior-parado-aguarda                          coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.continuacao-sem-start-aguarda                           coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.pai-com-filha-concluida-nunca-interrompido              coberto   task-tree/tests/pedidos.test.ts: 1 teste
+  turnos.subagente-que-termina-interrompe                        coberto   task-tree/tests/turnos.test.ts: 2 testes
+  turnos.prompt-sem-turno                                        coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.notificacao-de-tarefa-sem-turno                         coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.resumo-sem-resposta-final                               coberto   task-tree/tests/turnos.test.ts: 1 teste
+  turnos.resumo-sem-seta-duplicada                               coberto   task-tree/tests/turnos.test.ts: 1 teste
+  ultracode.cartao-da-filha                                      coberto   task-tree/tests/ultracode.test.ts: 1 teste
+  ultracode.so-o-interruptor-real                                coberto   task-tree/tests/ultracode.test.ts: 2 testes
+  ultracode.cabecalho                                            coberto   task-tree/tests/ultracode.test.ts: 1 teste
+  ultracode.cor-e-corte                                          checklist —
+  ultracode.subagente-sem-palavra                                coberto   task-tree/tests/ultracode.test.ts: 1 teste
+  visual.largura-real                                            checklist —
+  visual.cliques-no-icone-e-no-anel                              checklist —
+  visual.botoes-por-chave                                        coberto   task-tree/tests/visual.test.ts: 1 teste
+  visual.tooltip                                                 coberto   task-tree/tests/visual.test.ts: 1 teste
+  visual.titulo-sem-contagem-vai-ate-o-tempo                     coberto   task-tree/tests/visual.test.ts: 3 testes
+  visual.animacao-de-linha-nova                                  checklist —
+  visual.cores-dos-temas                                         checklist —
+  visual.cabecalho-em-cartao                                     checklist —
+  visual.status-embaixo-da-caixa                                 checklist —
+  visual.cartao-modelo-e-esforco                                 checklist —
+  visual.cartao-posicao-de-toks-e-repo                           checklist —
+  visual.cartoes-ordem-e-espera                                  checklist —
+  visual.recarga-real-e-respawn                                  checklist —
+  visual.cabecalho-barra-e-chips-desenhados                      checklist —
+  visual.golden-gera-desenho                                     coberto   task-tree/tests/golden.test.ts: 4 testes
+  visual.desenho-principal                                       coberto   task-tree/tests/golden.test.ts: 1 teste
+  visual.desenho-cartao-filha                                    coberto   task-tree/tests/golden.test.ts: 1 teste
+  visual.desenho-envios                                          coberto   task-tree/tests/golden.test.ts: 1 teste
+  visual.desenho-subagente                                       coberto   task-tree/tests/golden.test.ts: 1 teste
+  visual.faixa-de-estado-geral                                   coberto   task-tree/tests/visual.test.ts: 2 testes
+  visual.secao-sem-traco                                         checklist —
+Checklist do app: cabecalho.aviso-de-painel-grande-volta, envios.destino-arquivado-no-app, subagentes.cartao-no-app, subagentes.lancados-juntos-no-app, subagentes.neto-no-app, subagentes.sem-fim-no-app, ultracode.cor-e-corte, visual.largura-real, visual.cliques-no-icone-e-no-anel, visual.animacao-de-linha-nova, visual.cores-dos-temas, visual.cabecalho-em-cartao, visual.status-embaixo-da-caixa, visual.cartao-modelo-e-esforco, visual.cartao-posicao-de-toks-e-repo, visual.cartoes-ordem-e-espera, visual.recarga-real-e-respawn, visual.cabecalho-barra-e-chips-desenhados, visual.secao-sem-traco
+Golden: visual.desenho-principal, visual.desenho-cartao-filha, visual.desenho-envios, visual.desenho-subagente
+Fora do mapa: task-tree/draw/geometry.ts
+O impacto orienta o que ler, citar e validar no app; o check roda todos os testes.

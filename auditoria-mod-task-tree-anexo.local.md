@@ -1,0 +1,394 @@
+# Notado na leitura e não aprofundado
+
+Itens que os leitores da auditoria notaram de passagem e não investigaram. Não foram verificados; servem de lista para uma próxima rodada.
+
+- plan e start na mesma mensagem: planTool lê o estado fora do change (grupos, sends, startsWork); se o motor rodar as duas chamadas em paralelo, o start pode resolver o id curto contra o plano antigo e reabrir uma tarefa ✓ do pedido anterior, que o plan em seguida marca ✕.
+- start ou done de um agente sem grupo (teammate antes do primeiro plan, subagente depois de um /clear) responde "Nada marcado" ou "0/0" sem avisar que os ids não existem; só o plan cria o grupo.
+- Subagente retomado: o lançamento com resume não mexe no cartão, que segue "concluído" enquanto ele trabalha, e cada fim de turno dele interrompe de novo o que está aberto.
+- Os grupos de subagente nunca saem do estado (só no /clear): crescem a sessão inteira e vão ao store e ao arquivo publicado a cada mudança.
+- toolCall lê `c.r.deny` e `c.r.result` sem conferir se next devolveu algo, e o hook genérico não tem `.catch`; não verifiquei o que o motor faz quando ele lança depois de next já ter rodado.
+- Replano que transforma um pai aberto em folha deixa a folha ○ com startedAt herdado: o relógio dela corre, e no fim do turno ela é lida como iniciada (◷, ou ✕ no Esc) sem nunca ter tido start.
+- Replano no lugar que tira uma tarefa com sessão filha, subagente ou pergunta pendurada: só os sends são tratados no planTool; o destino dos outros fica com o desenho.
+- As âncoras antigas de subagente (não renomeadas) também entram em usedAnchors e marcam como "já usada" a tarefa pendente nova de mesmo id na escolha de onde vai a próxima carta ou cartão.
+- O /clear zera grupos, waits, sends, trabalho e turno, mas não brief, recap, launches nem children.
+- Todo plan (também o de subagente) chama `$.ui.open`, reabrindo o painel que a pessoa tenha fechado de propósito.
+- A contagem "Concluídas d/n no seu grupo" do done soma o histórico inteiro da sessão, não o pedido atual.
+- A tag de renomeação vem de Math.random em base 36 cortado em 4 caracteres e pode, raramente, sair mais curta ou vazia; resolveAnchor ignora prefixo vazio.
+- Subagente retomado (agent.spawn com resume é ignorado em agents.ts): depois do primeiro turn.complete o cartão fica "concluído" e as tarefas ✕, mesmo que ele volte a trabalhar; não verifiquei como o engine numera os turnos de um subagente continuado.
+- promptSubmit, toolCall e turnComplete não têm try/catch (plan/start/done e o render têm): uma exceção no meio deixa o estado pela metade e o prompt entra sem os lembretes; o engine pula o hook que falha, então não derruba o fluxo.
+- turnStep (gerador) não tem try/finally para devolver o iterador de baixo quando o consumidor aborta o stream; não verifiquei se o engine cobre isso.
+- No /clear, replace grava o painel vazio sob $.session.id(); se nesse momento o id ainda é o da sessão antiga, a cópia dela no store é apagada. Depende da ordem dos eventos do engine.
+- saveGroups só apaga a cópia 'groups' das sessões além das 30 guardadas; as cópias 'work', 'links' e 'turn' dessas sessões ficam no store para sempre.
+- reminders.answeredInChat é variável de módulo: uma recarga a quente entre a resposta pelo chat e a mensagem perde o aviso; e uma mensagem de outra sessão que chegue antes consome a marca e recebe "esta mensagem é a resposta do usuário".
+- Chamada de ferramenta sem agentId feita por outro plugin ($.tool.call) é tratada como do loop principal e acorda o painel (wake) fora de turno.
+- /compact e a compactação automática no meio do turno: não verifiquei se geram turn.complete ou prompt.submit e o que o painel faz.
+- showPane reabre o painel em todo prompt que não é aviso nem de outra sessão, inclusive disparos agendados, mesmo que a pessoa o tenha fechado de propósito.
+- O ramo "(último turno)" do alt do cabeçalho (render.tsx 303) nunca é alcançado: rate.live é sempre true em turn.ts.
+- promptCompose lança se e.tools vier indefinido (e.tools.includes); o engine pula o hook e as regras não entram naquele prompt.
+- Mensagem de sessão que chegue como <\agent-message from="local_…"> (o código a exclui do hand-back) cai como pedido da pessoa e não entra em received; não sei se esse formato existe no app.
+- O título do pedido tira tudo entre < e > do texto (openTurn): uma mensagem com código ou HTML perde trechos no título até o plan passar request.
+- Depois do trimToWork, rawPanel(c) já é o painel cortado ao trabalho da filha: parked, discarded e settle só veem as tarefas do trabalho atual dela; tarefa aberta em pedido antigo da filha não entra na palavra de estado (task-tree/draw/layout.ts 724-758, 1160).
+- Turn.own marca como "pedido do usuário na filha" todo prompt que não é mensagem de outra sessão, aviso, hand-back nem origem NO_TURN: um despertar agendado (ScheduleWakeup, cron, /loop) na filha pode virar cartão de pedido do usuário (task-tree/hooks/prompt-submit.ts 21, 88).
+- recordStart pega o primeiro id local_ do texto do resultado; se o resultado citar outro id antes (a própria sessão, uma irmã), a ligação iria para a sessão errada (task-tree/hooks/sessions.ts 198).
+- start_session com initiation "offer" bloqueia esperando a resposta do usuário e o painel não mostra aviso de espera (só pergunta, plano, permissão e wrap_up com ask viram aviso).
+- parsePublished valida só o primeiro nível do arquivo publicado: um grupo sem tasks ou uma tarefa sem children (JSON válido, forma errada) lançaria exceção em layout, total e endedNote; endedNote roda dentro de prompt.submit e tool.call sem try/catch (task-tree/io/publish.ts 22-63; task-tree/hooks/tool-call.ts 166-171).
+- Documentação e comentários desatualizados vistos de passagem: io/publish.ts 100-103, types/index.d.ts 89 e DESENVOLVIMENTO 268 dizem que `sends` publicado traz só os não tomados (o código publica todos e o desenho usa os tomados para a carta verde); a tabela de durabilidade do DESENVOLVIMENTO (214-232, 251-255) ainda lista `view`, ensureView/restoreView e turnEnded só no state; mineOf descrito só como dedução (167, 794); rules.ts e io/host.ts citam tests/textos.test.ts e tests/host.test.ts, que não existem; o comentário de SHOWN_CARD_TURNS diz "the last request" com valor 3; TaskNode.kept e o parâmetro queued de carry não têm mais efeito.
+- settleBySubs considera "sessão viva sob a tarefa" por c.anchor e running || starting, ignorando waiting e a rodada vigente (lastAnchor): a tarefa pode fechar sozinha com uma filha esperando o usuário ali (task-tree/hooks/agents.ts 165-169).
+- Custo do poll: os arquivos de todas as filhas, arquivadas incluídas, são relidos a cada 3 s e o modelo das que não o publicam é perguntado ao app a cada minuto; refreshChildren não tem trava contra execuções sobrepostas se uma leitura passar de 3 s (task-tree/io/host.ts 78-126; task-tree/hooks/sessions.ts 249-257).
+- Ultracode no cartão de filha parada ou arquivada: a palavra fica como no último arquivo publicado, e todos os cartões de rodadas antigas da mesma sessão a mostram; o interruptor vive só no state, então some depois de reinício do processo até o próximo attachment (regras/ultracode.md não trata desses casos).
+- Confirmação de envio para sessão que não publica `received` (versão antiga do mod): heurística de parada-depois-rodando, não conferida a fundo (task-tree/hooks/sessions.ts 141-148).
+- O texto do lembrete e do catálogo usa "tarefa de origem" ora como a tarefa de abertura (c.anchor), ora como a da última mensagem (lastAnchor): vale fixar o termo no regras/README.md.
+- Destino dado por nome com homônimo na lista (uma sessão arquivada de mesmo nome): watchSends usa a primeira linha que casa e sentMessage grava a rodada em todas as filhas com aquele nome.
+- sentMessage casa a tarefa só pelo `name` da filha; recordStart casa por `name` e `title` do start_session: uma sessão aberta só com título pode ter o cartão numa tarefa e a carta em outra.
+- No /clear, `sends` é zerado depois do replace que já publicou e gravou as ligações: o store fica com os envios antigos até a próxima publicação; numa retomada (resume) os envios e ligações da sessão retomada não são trazidos.
+- O merge 'union' de `sends` compara por JSON inteiro: com o store defasado em `idle` ou `noted`, uma recarga pode devolver o mesmo envio duplicado, e o aviso de recebimento sair de novo.
+- `message` do SendMessage que não seja texto (objeto estruturado) viraria '[object Object]' no título da carta; não conferi o schema da ferramenta.
+- A destinatária guarda só os 20 últimos recibos: uma remetente que ficou fora do ar enquanto um hub recebia muitas mensagens pode nunca ver o seu recibo.
+- Tarefa pendente (nunca iniciada) com carta na fila fica como pendente enquanto o pai fica em andamento, e passa direto a concluída na entrega; o cenário de 'aguarda a sessão' só fala de tarefa iniciada.
+- Em watchSends o recibo entra em `usedReceipts` antes do update do state; se o update falhar (o poll engole a exceção), a marca se perde até a próxima recarga.
+- io/host.ts cita tests/host.test.ts, que não existe em task-tree/tests.
+- Não medi quanto tempo o cartão fantasma 'Sessão…' fica de fato visível no app (depende do intervalo entre o envio, o poll de 3 s e a publicação seguinte da filha).
+- Replano no mesmo pedido que tira a folha de origem: o cartão vivo vai para o fim da lista e o terminado some (draw/layout.ts 749-752 e 1384); se a folha vira pai, o cartão fica sob o pai e nunca fecha por subagente (agents.ts 173). Sem cenário no catálogo.
+- Fork: `agentSpawn` não olha `e.fork` (cartão 'fork: descrição' como qualquer outro); os forks internos do motor (compactação, memória) não têm spawn mas passam por `subTool`/`subEnd`, e `setSub` chama `change` (store + publicação) mesmo sem grupo com aquele id.
+- Ordem das gravações no store com subagentes em paralelo: `persist` grava a fotografia do próprio `update`, e duas escritas concorrentes podem chegar ao store fora de ordem (a mais antiga por último).
+- Registros de `launches` de chamadas Agent negadas ou que falharam antes do spawn ficam na lista (até 20) e sobrevivem ao /clear; `identify` pode reclamar um registro velho com a mesma descrição; `renameAnchors` renomeia âncoras de `launches` sem olhar `parent`.
+- Agentes de workflow: o kit diz que descrição e tipo 'não se aplicam' a eles; não verifiquei o que chega em `e.description`/`e.subagentType` (as linhas do cartão 'Workflow · N agentes' podem sair com títulos iguais ou vazios).
+- Filha parada com subagente em segundo plano ainda rodando: `live`, `alive` e `settle` do cartão da filha não consideram `subLive`; o cartão pode sair 'concluída'/'encerrada' com um agente trabalhando dentro.
+- A faixa de estado geral do cabeçalho (`headerState`, render.tsx 291) não recebe os subagentes vivos: só subagente rodando com tarefas pendentes dá 'aguardando'.
+- O kit de teste encerra turnos com `reason: 'end_turn'`, valor que não existe no tipo do motor ('answer' | 'aborted' | 'refusal' | 'error'); hoje inofensivo porque o código só compara com 'error' e 'refusal'.
+- `settleBySubs` lê o estado, decide e só depois grava por id, sem reconferir dentro do `change` que a folha segue aberta; a chave `dono|id` é partida por '|' e quebra com id de tarefa contendo '|'.
+- Quando o hand-back chega junto com o fim de um subagente em segundo plano, a tarefa aparece ✓ ou ◉ durante o turno do hand-back conforme `wake` rode antes ou depois da leitura de `turnEnded` em `subEnd`.
+- O cartão de grupo usa `sub: [terminados, total]`, desenhado como o x/y e a barra de tarefas; não conferi no SVG se isso se confunde com contagem de tarefas (a regra diz 'fora da contagem').
+- O primeiro prompt de uma filha (o resumo de abertura do start_session) vira turno `own` se não chegar como <\cross-session-message> (prompt-submit.ts:88); nesse caso split() o trataria como "pedido do usuário na filha" e o penduraria no fim do pedido vigente. Os testes usam turnos sem `own`; só o app confirma.
+- breaks() devolve `own` sem ordenar quando corta a recursão (layout.ts:246-247), e quem chama pega o último como se estivesse ordenado; com envio não visto intercalado entre rodadas, a âncora do cartão de mensagem de irmã pode sair errada.
+- O cartão líder de uma rodada aberta por mensagem de irmã fica sob a âncora derivada da irmã, mas a tarefa acesa e com busto é a de `lastAnchor` (última mensagem desta sessão): tarefa em andamento com busto num lugar e cartão em outro.
+- Rodada recém-entregue sem plano ainda: o cartão continua sob a tarefa da mensagem anterior enquanto a tarefa nova já aparece em andamento com busto (split só cria cartão para rodada com tarefa).
+- session() calcula o x/y do cartão com total() sem dividir as netas em rodadas nem aplicar settle, e o cartão recolhido usa allTasks sem tirar netas descartadas: o número do cartão e o do cabeçalho podem divergir com neta de rodada descartada.
+- Num cartão `settled`, withoutPending é aplicado também às linhas das netas dentro dele, enquanto o x/y da tarefa de origem (inCount) conta as pendentes das netas.
+- trimToWork só reconhece âncora de subagente entre as tarefas do grupo principal: um subagente lançado por outro subagente, já terminado, é filtrado mesmo com o pai desenhado.
+- Aviso de permissão de um agente sem grupo (teammate, ou lançamento não ouvido) nunca é desenhado nem conta na pílula: os avisos só saem pelos grupos existentes (layout.ts:1298, permission.ts).
+- Carta enviada sem nenhuma tarefa no painel não tem onde pendurar (levelOne devolve undefined): nem linha nem pílula "aguardando sessão".
+- O texto alternativo do cabeçalho diz "Nenhuma tarefa planejada" quando n + x = 0, mas o desenho só mostra o vazio quando também não há pílulas (aviso ou sessão viva sem tarefas): alt e desenho divergem.
+- O cartão de grupo de subagentes mostra "terminados/total" com barra verde mesmo quando todos falharam; a mesma notação significa "concluídas/total" nas tarefas.
+- Subagente com tarefas planejadas e nenhuma iniciada não mostra tempo no cartão (usa span das tarefas, não o tempo desde o lançamento).
+- No terminal, tempo nulo vira "—" em qualquer linha (inclusive carta entregue); no desktop só em linhas com colunas. Os testes leem o terminal.
+- Plural fixo nos textos de seção: "+1 pedidos anteriores", "+1 linhas anteriores", "+1 cartões antigos de sessões" (os testes travam esses textos).
+- A espera de até 10 s pela origem de uma mensagem de irmã pode esconder o cartão líder, e depois dos 10 s nada força o redesenho se nenhum relógio estiver correndo.
+- Dentro de um cartão, pedidos de uma tarefa só (sem linha de pedido) são desenhados antes dos pedidos com linha, fora da ordem; só ocorre com turnos sem `own` nem `msg` (arquivos de versões anteriores).
+- Math.max e Math.min com spread sobre todas as tarefas (panelOf, span, begins) estouram o limite de argumentos com dezenas de milhares de tarefas; fora do uso real, mas sem guarda.
+- Chaves de dobra das cartas repetem quando duas mensagens saem da mesma tarefa para a mesma sessão (`m:<sessão>:<âncora>`); hoje sem efeito, pois carta não dobra.
+- Em render.tsx, o total da "sessão inteira" cria um memo de rodadas novo por filha, sem o reaproveitamento que o layout tem; custo com muitas irmãs trocando mensagens em anel.
+- As linhas do desktop usam chave por índice (r0, r1…) e não Row.key: inserir uma linha no meio troca o source de todas as seguintes, o que pode repintar todas (o item "nada pisca à toa" do checklist).
+- As cores dependem de prefers-color-scheme dentro de um SVG usado como imagem: se o tema escolhido no app diferir do tema do sistema, o SVG pode seguir o sistema.
+- turnStep percorre o stream com it.next() manual, sem try/finally: se o consumidor encerrar cedo (Esc), o gerador de baixo pode não receber return().
+- drawn.size mede caracteres UTF-16 do JSON, não bytes: títulos com acento ou CJK pesam mais em bytes do que o limite supõe.
+- Com o desenho acima do limite, cada tique de 1 s monta todos os SVGs e o JSON só para descartar, e grava uma linha no log de debug por desenho.
+- O foreignObject do título não tem largura mínima: em linha muito profunda com painel estreito o calc pode dar zero ou negativo e o título some (as outras medidas têm piso de 24 px).
+- Título do cabeçalho, nome do cartão, repositório, branch e pílulas ainda cortam contra a largura estimada (7,2 px por coluna), não contra a largura real como os títulos das linhas.
+- No cabeçalho, uma branch longa demais some inteira (repositório, depois só branch, depois nada), enquanto no cartão ela é cortada com "…".
+- Pílulas que não cabem no cabeçalho são descartadas em silêncio, sem "+N".
+- No cartão de subagente a palavra "modelo · taxa · estado" nunca é cortada: com barra e contagem, a 60 colunas, o título fica com poucos px.
+- O percentual do anel vai ao alt e ao terminal sem arredondar nem limitar (só o arco é limitado a 0–100).
+- O mapa de ações por chave (actions) e a tabela de dobras nunca são podados; as closures seguram as Rows antigas com as árvores de tarefas.
+- deriveChildren apaga ultracode (e "aguardando") por um ciclo quando a leitura do arquivo da filha falha, o que também pode gerar um falso "sessão terminou o turno".
+- Uma tarefa aberta cujo único filho é uma tarefa de mensagem mantida (kept) sem envio pendente fica com a dobra marcada como fechada, e o clique não muda nada.
+- Duas mensagens para a mesma sessão a partir da mesma tarefa geram duas linhas de carta com a mesma Row.key (o comentário diz uma linha por sessão e tarefa).
+- Branch no cabeçalho de sessão parada e sem filhas: refreshGit só roda em publicação e no relógio com tarefa correndo (hooks/sessions.ts 271-279, hooks/panel.ts 475-487); um checkout feito com a sessão ociosa só aparece no próximo evento, enquanto sessões com filhas atualizam a cada 3 s.
+- Custo do readGit: a cada segundo com tarefa correndo e a cada publicação sobe até 40 pastas com `$.fs.exists`, sem cache nem tempo-limite (io/git.ts 46-93); em caminho UNC testa `\\servidor/.git`, que pode ser lento; uma falha passageira ao ler HEAD vira "pasta" por um tique.
+- Contador de chamadas do subagente (`calls`, mapa de módulo em hooks/agents.ts 32-33, 122-132) recomeça do 1 depois de uma recarga e sobrescreve o valor do cartão.
+- Publicações concorrentes sem fila: `void publishPanel` do turn.step e do ultracode (hooks/turn.ts 62, 79, 103) pode terminar depois da publicação do fim do turno e deixar no arquivo o painel sem a resposta; numa filha sem filhas o poll não republica.
+- engineOf chama `get_session` a cada 60 s para cada filha cujo arquivo não traz o modelo, arquivadas inclusive, e usa `Date.now()` em vez do relógio do kit (io/host.ts 113-126).
+- O store é por instalação do plugin (há dois arquivos: o do marketplace e o do clone): trocar a origem do mod entre clone e instalado faz a sessão retomada não achar o painel; não verifiquei como o host decide o nome.
+- `/clear`: não verifiquei se `$.session.id()` já é o id novo quando o classic.SessionStart roda; se ainda for o antigo, o `replace` com painel vazio apaga do store o painel da sessão anterior ao clear.
+- Processo que morre no meio do turno: o registro `turn` tem `ended: null`, e o painel volta com a tarefa em andamento e o relógio contando desde o início antigo até o próximo pedido; o catálogo só cobre o turno que terminou.
+- A lista `sessions` do store é global e gravada com leitura seguida de escrita por todas as sessões (state/durability.ts 174-177); duas sessões salvando juntas podem tirar uma da lista, e o painel dela nunca é podado. Não verifiquei como o host serializa gravações de processos diferentes no mesmo arquivo.
+- deriveChildren mantém para sempre git, taxa, contexto e modelo antigos quando a filha deixa de publicá-los (io/host.ts 156-161), ao contrário de ultracode, que apaga.
+- Recarga a quente zera `reminders` (hooks/panel.ts 137): um lembrete de planejar pode sair a mais no meio do pedido.
+- O catálogo de durabilidade não tem cenário para envios, recebidas e lançamentos depois de reinício com session.start (só a recarga é coberta), nem para o `/clear` no store e no registro do turno.
+- `badPublished` (io/publish.ts 77-97) guarda uma chave por texto de erro; erros de JSON com posição diferente geram linhas novas no log a cada leitura truncada.
+- `$.ui.open` sem pedido a cada plan (hooks/tools.ts 115) e no session.start: se a pessoa fechou o pane de propósito, ele reabre; não verifiquei se há decisão registrada sobre isso.
+- Se o tool.call genérico roda ou não para plan, start e done: DESENVOLVIMENTO.md (1253-1256) diz que não, mas reminder() e subTool têm ramos para 'mcp__task-tree__' e o cabeçalho de tool-call.ts diz que essas chamadas zeram a contagem; se não roda, os avisos de sessão (ended, taken) nunca saem no resultado dessas três ferramentas.
+- O comentário em hooks/tool-call.ts (linha 54, 'plan mode may hold the panel's tools') contradiz DESENVOLVIMENTO.md (1261-1262, 'não é que o modo de plano bloqueie as ferramentas do painel').
+- plan, start e done não conferem o tipo da entrada: `ids` como string (por exemplo um JSON em texto) seria percorrido caractere a caractere e poderia fechar as tarefas '1' e '2'; depende de o motor validar o inputSchema antes do hook.
+- Ids de nível 1 com '/' ou ':' não são recusados: start usa id.split('/')[0] como raiz do trabalho e o renomeio usa 'tag:id'; id vazio e título ausente também passam.
+- Um id curto que só existe num plano antigo renomeado (short mantido) é resolvido para a tarefa do histórico: start a reabre e a põe no trabalho atual; done numa já concluída responde sem aviso.
+- A detecção de fila do SendMessage é /queued|held|pending/ sobre o JSON inteiro do resultado: um nome de sessão ou texto com 'pending' poderia marcar como fila uma entrega feita.
+- plan e start, ou start e Agent/SendMessage, no mesmo bloco paralelo: a âncora do lançamento é lida antes da chamada e o start pode responder 'não existe'; as regras só pedem start antes de start_session, não antes de Agent nem de SendMessage.
+- SESSION.taken diz 'o painel já concluiu a tarefa do envio' mesmo quando a tarefa já estava fechada, tinha subtarefa aberta ou o envio não tinha âncora.
+- Sem nada em andamento, o envio ancora numa pendente e a entrega confirmada a fecha ✓ sem trabalho; SEND.queued diz 'mantenha em andamento' de uma tarefa que nunca foi iniciada.
+- Depois de Esc, um turno automático (aviso do app, notificação) que termina normalmente apaga turnAborted: a mensagem seguinte da pessoa recebe a lista das abertas, não o pedido de replanejar; o catálogo não diz qual vale.
+- Fora do app desktop não há wrap_up: nenhum lembrete de fim de turno (tarefas abertas, falta de resumo) existe na CLI.
+- request num plan feito depois de um aviso ou hand-back renomeia o título do pedido anterior; num pedido de outra sessão, troca o texto da dica 'Mensagem de X'.
+- Mensagens de teammate ('<\agent-message from=...>' sem hand-back) recebem 'o subagente terminou'.
+- A marca `failed` continua na tarefa depois de reaberta com start e concluída.
+- Duas chamadas paralelas da mesma ferramenta com permissão pendente compartilham a chave da espera: a primeira que termina tira as duas.
+- Depois de uma recarga a quente, planned e unplanned recomeçam: a primeira chamada com tudo fechado recebe o lembrete 'sem plano aberto' fora de hora.
+- Nos cinco arquivos desta frente (arvore, pedidos, lembretes, perguntas, fumaca) todos os cenários estão como coberto; não há nenhum pendente nem checklist a reavaliar.
+- A escolha do wrap_up não sai quando o prompt seguinte é de origem que não abre pedido (prompt-submit.ts 66-80); se o clique num botão do wrap_up chegar com uma dessas origens, "Aguardando sua escolha" fica preso. Depende do app; não verifiquei.
+- A escolha do wrap_up de um subagente nunca é tirada pelo prompt.submit (só pelo fim do subagente no turn.complete); não verifiquei se subagentes chamam wrap_up.
+- O arquivo publicado diz `waiting` com qualquer aviso (publish.ts 133): a escolha do wrap_up pendente mantém o cartão da filha como 'aguardando' na mãe até alguém escrever na filha; não conferi se é o efeito desejado nas regras de sessões.
+- A detecção de 'respondeu pelo chat' depende do texto em inglês do resultado do AskUserQuestion (tool-call.ts 66); se o app mudar a frase, o lembrete de que a mensagem é a resposta deixa de sair.
+- openTurn marca como `own` (digitado pela pessoa) todo prompt que não é de outra sessão, inclusive de plugin ou tarefa agendada (prompt-submit.ts 88); o efeito no cartão da sessão mãe é da frente de sessões.
+- renameAnchors só roda para o loop principal (tools.ts 103-105): um subagente que reaproveita o id de uma tarefa fechada deixa as âncoras dos subagentes lançados dela apontando para a tarefa nova.
+- O replano que tira do plano uma tarefa com sessão filha, subagente ou espera ancorados nela: só a carta de envio tem regra (pende do nível 1); o destino dos outros não foi conferido.
+- A tag de renomeação vem de Math.random com 4 caracteres (tools.ts 55): colisão ou tag vazia são improváveis, mas não há verificação.
+- panel.ts 622-625 diz que uma recarga do mod esvazia o state; a tabela de durabilidade (durability.ts 65) diz que as chaves do state sobrevivem à recarga. Não conferi qual vale.
+- turnos.prompt-seguinte-retoma: o ✕ do Esc é só de desenho (halt); o state mantém a tarefa aberta e iniciada, e ela volta a ◉ já na chegada da mensagem seguinte, antes de qualquer start. O cenário mistura a chegada da mensagem com o start; é da frente de turnos.
+- migrate() de painéis antigos calcula `short` tirando só o prefixo até ':' (panel.ts 149-155), o que deixa 'D/1.2' como id curto de subtarefas; só afeta estado legado.
+- O teste de fumaça não fixa o relógio nem os stubs do kit (fumaca.test.ts 17-26); não avaliei se isso o torna sensível à máquina.
+- O título do request é cortado em 80 caracteres sem reticências e o da mensagem em 60 com reticências (tools.ts 41; panel.ts 163-164); não conferi o recorte no desenho.
+- DESENVOLVIMENTO.md tem mais de 1500 linhas; só conferi os trechos de textos ao modelo, permissão, origem dos prompts e pergunta sem tarefa. O resto ficou para a frente de documentação.
+- prompt.submit trata corpo vazio como aviso do app (hooks/prompt-submit.ts, linha 31): um prompt da pessoa só com imagem ou anexo pode não abrir pedido; depende de como o engine entrega e.text.
+- O hand-back é reconhecido por "[Subagent hand-back]" em qualquer ponto do texto (prompt-submit.ts, linha 30): uma mensagem da pessoa que cole esse trecho (comum neste repositório) não abre pedido.
+- As origens observer, observer-activity, auto-continuation e unclassified de NO_TURN não têm cenário nem teste; só task-notification e o hand-back têm.
+- turn.complete grava reply no último pedido com tarefas mesmo quando o turno que terminou é de um pedido sem tarefas: o tooltip do ↩ de um pedido pode mostrar a resposta de outro.
+- turn.step sem agentId de chamadas internas do engine (compactação, título) poderia trocar engine e taxa do cabeçalho e do cartão; não verifiquei se o engine emite turn.step nesses casos.
+- A gravação do arquivo publicado não é atômica: uma leitura da mãe no meio da escrita cai como arquivo ausente (waiting, aborted e ultracode falsos por um ciclo de 3 s); não medi o efeito em `ended`.
+- Subagente em segundo plano ainda rodando no fim do turno: a tarefa de origem aparece ◷ com o cartão dele trabalhando embaixo; não conferi contra regras/subagentes.md.
+- saveGroups faz três operações de store a cada mudança do painel (grava o painel inteiro, lê e regrava a lista de sessões); custo em painéis grandes não medido.
+- rate.at só muda quando o número muda e ninguém o lê; campo morto no contrato publicado.
+- ensureTurn/ensureGroups/ensureWork marcam `loaded` só quando o state aceita a escrita; no render (que não pode escrever) cada desenho relê o store até a primeira escrita, a cada segundo com o relógio ligado.
+- Limites exatos dos filtros da taxa (20 tokens, 0,5 s, 1000 toks/s depois do arredondamento) são aceitos pelo código, mas o cenário não diz se são inclusivos e o teste não os exercita.
+- A dobra de uma linha é guardada pelo id da tarefa: um plano que reusa o id de uma tarefa fechada (a antiga é renomeada) herda a dobra da antiga, mesmo sem /clear.
+- SendMessage por id a uma irmã ou à mãe cria no estado da remetente uma filha provisória 'Sessão…' (running, starting) até a próxima leitura da lista (até 3 s); nesse intervalo ela é publicada e pode aparecer como cartão dentro do cartão da remetente, e a ligação fica guardada no store (task-tree/hooks/tool-call.ts 126-137).
+- takenNote grava `sends` com get seguido de set, sem `update`: se o poll marcar outra entrega entre os dois, a marca se perde e, como o recibo já foi consumido em usedReceipts, a carta fica na fila (task-tree/hooks/sessions.ts 170-176).
+- usedReceipts é variável de módulo: depois de uma recarga a quente com duas cartas na fila para a mesma sessão, um recibo já usado pode confirmar a segunda carta (o próprio comentário admite 'a reload starts it over').
+- Uma filha que nunca é vista rodando entre duas leituras (turno muito curto, ou sessão que não chegou a iniciar) fica `starting` para sempre: não gera lembrete de fim, nunca vira 'encerrada' e segura o fechamento da tarefa pelos subagentes (task-tree/io/host.ts 137-148; task-tree/hooks/agents.ts 168).
+- O id da sessão nova é o primeiro `local_…` do resultado do start_session: se o app ecoar o resumo de abertura (que nas sequências traz o id da sessão seguinte) antes do id novo, a origem é gravada na sessão errada; depende do texto do app.
+- 'O envio nunca vai à tarefa com pergunta aberta': com uma única tarefa em andamento e uma escolha de wrap_up pendente, um aviso do app (que não derruba a espera) deixa o envio ir justamente a ela (task-tree/hooks/panel.ts 228-245; task-tree/hooks/prompt-submit.ts 66-82).
+- Segunda mensagem à mesma sessão a partir da mesma tarefa substitui o registro da primeira (uma carta por sessão e tarefa): o texto e o estado mostrados são só os da última; mandar por id e depois por nome cria duas cartas para a mesma sessão.
+- SendMessage a um destino que não é sessão (subagente ou teammate por nome) é tratado como carta para sessão; se o resultado disser 'queued', cai no caso da carta que nunca sai da fila.
+- Registros de `launches` de chamadas Agent negadas ou que falharam ficam até 20 e podem ser reclamados por outro subagente com a mesma descrição; com agent.spawn criando o grupo, a âncora gravada no tool.call nem é usada (é recalculada no spawn).
+- A filha concluída com mais de uma rodada não mostra a palavra 'concluída' em nenhum cartão (só o ✓); o cenário da palavra de estado não registra essa exceção (task-tree/draw/layout.ts 1164).
+- Netas (sessões abertas por filhas) nunca viram 'encerrada': a regra só é aplicada no primeiro nível (task-tree/draw/layout.ts 1237-1238).
+- A carta de um plano interrompido fica cinza 'interrompida' mesmo depois de a sessão destino tomar a mensagem; o cenário fala em 'descartada antes da entrega', mas nada cancela a mensagem no app.
+- Os três cenários que descrevem a mesma regra de âncora (envios.ancora-no-lote-recente, sessoes.cartao-sob-a-tarefa-de-origem, subagentes.cartao-desde-o-lancamento) dizem conjuntos diferentes do que conta como 'uso' da tarefa (envio; sessão e mensagem; carta e cartão); o código usa um só conjunto.
+- O mapa de código de subagentes não inclui hooks/panel.ts (sendAnchor, usedAnchors, namedFor), e o de sessões não inclui hooks/tool-call.ts (recordStart e as rodadas): a matriz de impacto não lista esses cenários quando esses arquivos mudam.
+- Comentários desatualizados sobre tarefa de mensagem: TaskNode.msg e kept e o comentário de count() ainda dizem que ela não conta; publish.ts diz que os envios tomados são retirados da publicação (são publicados); DESENVOLVIMENTO descreve Model com `view` e só envios não tomados; `kept` não é mais gravado, mas ainda é lido no desenho.
+- A chave interna de settleBySubs junta agente e id da tarefa com '|' e separa com split: um id de tarefa com '|' quebraria o fechamento (o plan não valida caracteres de id).
+- Concordância: "+1 pedidos anteriores" e "+1 cartões antigos de sessões" (layout.ts 1356 e 1529); o usuário escreveu "+1 pedido anterior" e os testes travam a forma atual.
+- O corte de três pedidos filtra por tarefa de nível 1 e conta por pedido (layout.ts 1341-1343): um pedido antigo com um nível 1 aberto e outro concluído fica desenhado em parte e ainda entra no N de "+N pedidos anteriores".
+- Pílulas que não cabem no cabeçalho estreito são descartadas sem indicação (svg.ts 689, break); com os 7 chips a 60 colunas a última some.
+- Cabeçalho vazio com três critérios: alt usa n + x === 0 (render.tsx 298), o SVG usa n === 0 e sem chips (svg.ts 645) e o terminal descarta os chips (render.tsx 313-319); com filha viva sem tarefas, cada superfície diz uma coisa.
+- O alt da tarefa que espera uma carta usa o id cru ("Aguardando confirmação de local_x", layout.ts 1007 e 1042), enquanto a carta usa o nome da sessão (nameOf).
+- O mapa 'actions' (panel.ts 534) e o atom 'collapsed' (render.tsx 19) nunca são podados; chaves de linhas que não existem mais ficam para sempre, e um histórico aberto volta aberto quando o corte reaparece.
+- Classes sem uso ou herdadas das animações removidas (ln, lnf, ic, bar, cr, ch-<tom>) seguem no SVG; visual.test.ts 24 trava class="ch-current" "que a animação lê".
+- Nomes de testes selados ainda falam de "completa" e "nas duas visões" (cabecalho.test.ts 36 e 152; sessoes.test.ts 388), embora só exista uma visão.
+- TaskNode.msg parece vestigial (types/index.d.ts 26) e o comentário de count() diz que tarefa de mensagem não conta, mas o código não a exclui (layout.ts 89-104); tarefa 'kept' fica fora do desenho e dentro do total da sessão.
+- Se o prefers-color-scheme dentro do SVG acompanha o tema do app ou o do sistema operacional (visual.cores-dos-temas) não dá para ver pelo código.
+- Custo por desenho: JSON.stringify do painel inteiro a cada render (render.tsx 343) e um BreaksMemo novo por sessão na contagem da sessão inteira (render.tsx 224-226); não medi.
+- O golden só desenha a 60 colunas: o cabeçalho largo (bloco de 130 px, % em 26 px) e os cortes por falta de espaço do cartão (repositório, modelo, taxa) não têm desenho travado.
+- Com o painel acima de 400 linhas e o histórico fechado, a linha "▸ +N pedidos anteriores" também é cortada, e o histórico não pode ser aberto (mesma causa do achado do histórico aberto).
+- Comentários do código ainda citam o que saiu: "its tooltip layer, the view toggle" (render.tsx 57), "left to the view icons" (svg.ts 628), a visão em layout.ts 3 e 'view: {}' nas PROPS do kit.
+- CI: test.yml fixa CLAUDE_CODE_VERSION 2.1.308 e o app local já tem 2.1.321; hooks novos (prompt.attachment, agent.spawn, turn.step em stream) podem não existir na versão fixada se a CI for ligada.
+- tests/fixtures/publicados.ts diz que o último formato é 'o que esta versão escreve', mas é de 2026-10-28: campos publicados depois (rate, git, aborted, grupos de subagente com sub, ultracode) não têm fixture nem mudança de PUBLISHED_VERSION.
+- turnos.esc-interrompe-so-a-iniciada (pai com ✕ e ○ embaixo fica ○) e arvore.pai-fecha-com-nada-aberto-embaixo ('◷ fica para o pai com algo ainda aberto embaixo') dizem coisas diferentes para o pai com uma ✕ e pendentes; o teste fixa ○.
+- Entrega de carta da fila conclui a tarefa sozinha (envios.fica-ate-entrega, envios.tarefa-aguarda-a-sessao...) e a entrega imediata não (envios.entrega-imediata-fica-verde): assimetria registrada como decisão, não aprofundei o código.
+- scripts/travas.test.mjs não testa as regras do próprio regras.mjs (id repetido, teste sem // Regra:, coberto sem teste, pendente citado), só o mapa de código.
+- npm run impacto só lista o golden pelos cenários visual.desenho-* do mapa: mudança em hooks/sessions.ts, hooks/panel.ts ou state/tasks.ts muda o desenho e não aparece em 'Golden'.
+- scripts/regressao.mjs não confere se todos os testes de HEAD apareceram na saída do plugin test: um arquivo de teste de HEAD que não carrega contra o código novo pode sumir sem falha se outra falha estiver liberada.
+- liberaTeste e liberaGolden exigem selo com a data de hoje: selar num dia e fazer o commit no seguinte (ou virar a meia-noite) falha a regressão sem mensagem que explique.
+- scripts/testes.mjs: rodarJunto e a coluna 'junto' são código morto (nenhuma etapa marca junto) e o comentário ainda fala em paralelo.
+- Comentário de sendAnchor (hooks/panel.ts 224-227) ainda diz 'the one planned last (a tie, the later in order)', o contrário do que o código abaixo faz desde 2026-11-09.
+- tests/kit/cenario.ts linha 40 tem um comentário órfão ('Troca a visão, como /task-tree resumida | completa') sem função embaixo.
+- Ids com 'resumida' (cabecalho.resumida-*, pedidos.resumida-*) ficaram depois de 'não há mais visões'; ids são estáveis por regra, mas o nome engana.
+- ultracode.cabecalho cita a resposta 'Cabeçalho do painel, Cartão de subagente' e a parte do subagente foi desfeita no mesmo dia (ultracode.subagente-sem-palavra) sem a origem dizer o que desfaz.
+- O mapa de código só detecta arquivo que nenhum cenário cita: state/durability.ts foi tocado pelo commit do ultracode e não está no 'Código da área' de regras/ultracode.md, sem aviso possível.
+- Aviso de permissão (`<agente>:<tool>`) só sai no `finally` do `tool.call` genérico: para `plan`/`done`/`start` (que não passam por ele) e para um diálogo de permissão abortado com Esc, não confirmei quem tira o aviso; o `prompt.submit` mantém de propósito os avisos de permissão (hooks/prompt-submit.ts linha 82), e `perguntas.permissao-espera` só cobre a entrada.
+- O lembrete de sessão que terminou (`ended`) e o de mensagem tomada não saem em chamadas `plan`/`done`/`start`, só na próxima chamada comum ou no próximo prompt (divergência registrada no documento, linhas 701-702, sem cenário no catálogo).
+- `calls` e `wrote` de hooks/agents.ts são variáveis de módulo: uma recarga a quente no meio de um subagente recomeça a contagem de chamadas em 1 e sobrescreve o número maior no cartão.
+- `cabecalho.titulo-e-a-ultima-iniciada` e `cabecalho.titulo-desempata-pela-ordem-do-start` declaram `Código: state/tasks.ts, hooks/tools.ts`, mas a escolha do título está em hooks/render.tsx (linhas 264-270) e em `startedLast` de draw/layout.ts; a matriz de impacto pode apontar os arquivos errados.
+- `agentSpawn` recalcula a âncora com `launchAnchor` em vez de usar a que o `launch` do `tool.call` gravou em `launches`; com vários `Agent` em paralelo as duas contas podem divergir, e o registro de `launches` de um teammate ou de um `resume` nunca é reclamado (fica até os 20 mais novos o empurrarem).
+- `engineOf` (io/host.ts linha 115) usa `Date.now()` em vez do relógio do engine (`$.clock.now`), ao contrário do resto do mod; com o relógio parado do kit o cache de 60 s não se comporta como no app.
+- Janela entre o `/clear` e a publicação seguinte: uma recarga a quente nesse intervalo faz o `restoreLinks` unir de volta os envios que o `/clear` zerou no state (o store ainda tem a cópia antiga).
+- `publishPanel` chama `refreshGit` (até 40 `fs.exists` subindo as pastas quando não há repositório) a cada publicação e a cada tique de 1 s; não medi o custo numa sessão aberta numa pasta sem `.git`.
+- Comentário de hooks/sessions.ts linha 31 fala em "10 s poll" com `POLL` = 3 000; e o de hooks/panel.ts linha 577 ainda cita `goingOn`, que saiu.
+- A segunda metade do documento (linha 800 em diante) repete várias afirmações já vencidas (`mineOf(rows)` na linha 798, `setView`/`restoreView` na 822, "os mesmos 14 hooks" na 855); ficou fora desta frente.
+- Nomes dos testes de durabilidade ainda falam em "a visão resumida" e "a visão" (tests/durabilidade.test.ts linhas 64 e 81), embora as visões tenham saído; não conferi se as asserções ainda dizem algo sobre isso.
+- ensureGroups, ensureWork e ensureTurn marcam a chave como carregada logo depois do $.state.set dentro do desenho sem reler o estado nem olhar isSet (hooks/panel.ts 62-84, 395-442): se o kit recusar a escrita sem lançar exceção, a próxima escrita parte de vazio e sobrescreve o store.
+- O /clear esvazia grupos, avisos, envios, trabalho e fim de turno (hooks/session-start.ts 72-78), mas não children, launches, received, rate, ultracode, dobras nem as ligações do store; não conferi o que o painel desenha com cartões de filhas depois de um /clear.
+- ultracode, rate, engine e git vivem só no estado (state/durability.ts 67-70): depois de um respawn do worker a palavra 'ultracode' e o toks/s somem até o engine reenviar o attachment ou vir uma nova chamada; não conferi se há cenário para isso.
+- list_sessions é chamado com limit: 100 e arquivadas incluídas (io/host.ts 33): com mais de 100 sessões ligadas, as excedentes sairiam do painel.
+- Uma lista vazia do host zera children (hooks/sessions.ts 51-55); não segui o que acontece com starting e ended numa lista vazia transitória.
+- scripts/regras.mjs só reconhece linhas que começam com 'test(' (linha 20): test.skip( ou test.only( escapariam da exigência do comentário de regra; não conferi se o kit aceita essas formas.
+- No check manual, a etapa regressao só compara quando há mudança não commitada em task-tree/ (scripts/regressao.mjs 34-45); com a árvore limpa e a CI desligada, os testes do main nunca rodam contra o código da branch a não ser com --base.
+- O hook de pré-commit só existe depois do npm install (package.json, script prepare); num clone novo sem npm install, e com a CI desligada, nada confere os commits.
+- O cenário visual.cores-dos-temas tem id de cores e texto sobre o status embaixo da caixa de mensagem (regras/visual.md 84-91); não há cenário de checklist para as cores nos dois temas, citadas no CLAUDE.md.
+- Dois testes de cabecalho.test.ts ainda falam em 'a completa' nos nomes (linhas 36 e 152), visão removida em 2026-11-04; não conferi se os corpos ainda afirmam algo sobre ela.
+- O ramo '(último turno)' do toks/s em hooks/render.tsx 303 e draw/svg.ts 731 parece morto: hooks/turn.ts 102 sempre grava live: true.
+- No toolCall genérico, um resultado undefined de next(e) para start_session lançaria exceção em JSON.stringify(c.r.result ?? c.r) (hooks/tool-call.ts 227-232); não conferi se o kit garante objeto.
+- A regra do release sobe a versão em todo PR mesclado, inclusive os que só tocam docs, scripts ou CI (.github/workflows/release.yml); bate com o CLAUDE.md, mas gera versões do plugin sem mudança no mod.
+- A primeira metade do DESENVOLVIMENTO.md (Módulos, tabela dos hooks, contagens de linhas e de chaves) tem as mesmas defasagens apontadas aqui; li só os trechos 1-112 e 586-675 para cruzar com a segunda metade.
+- Os hashes dos selos dependem da saída do printer do TypeScript (scripts/selos.mjs, linhas 26-27 e 69): subir a versão do TypeScript pode invalidar os 164 selos de uma vez, e não há comando de regravar em lote nem fluxo descrito.
+- O golden compara o JSON do SVG gerado no harness; não verifiquei se o desenho é idêntico no Ubuntu da CI (fontes, separadores), o que faria o teste de golden falhar só lá.
+- O hook pula o `plugin validate` quando só mudam arquivos de task-tree/tests/ (scripts/mudou.mjs, linha 11); não verifiquei se o validate `--strict` também lê os arquivos de teste.
+- Nenhum `spawnSync` do check tem tempo limite (scripts/testes.mjs e regressao.mjs): se o binário travar (atualização, pedido de login), o commit fica preso sem mensagem.
+- `npm run regras:selar -- "<arquivo>::<nome>"` com nomes de teste que contêm aspas, ✉ ou → (ex.: '"+N pedidos anteriores" abre com um clique…') passa por npm e cmd no Windows; não testei se a chave chega inteira ao script.
+- O release.yml publica versão em todo merge sem rodar o check, e a CI de testes está desligada por decisão do usuário: uma main quebrada por dois PRs que passam sozinhos é publicada mesmo assim.
+- O hook executa scripts/testes.mjs, mudou.mjs e binario.mjs da pasta de trabalho, e as demais etapas da cópia do índice: um commit que muda esses três arquivos é conferido pela versão que está no disco, não pela que vai no commit.
+- scripts/testes.mjs ainda tem o mecanismo de etapas em paralelo (`rodarJunto`, coluna `junto`, linhas 47-56 e 102-112) sem nenhuma etapa marcada, e o comentário da linha 47 diz que o plugin test e a regressão rodam em paralelo no hook, o contrário do CLAUDE.md.
+- Um teste que estoura os 5 s do kit com a máquina carregada vira 'REGRESSÃO OU DECISÃO NÃO REGISTRADA' na regressão, sem nova tentativa; a única saída é repetir o commit.
+- Mudança de código que exija kit novo (ex.: um stub obrigatório a mais): a regressão roda os testes e o kit de HEAD contra o código novo e todos falhariam, sem forma de liberar que não seja selar cada teste como decisão.
+- O selo de teste aceita `--motivo` vazio (scripts/selos.mjs, linha 216), enquanto o golden exige aspas e data; não medi quantos selos atuais têm motivo vazio.
+- A branch `main` local está parada em v0.8.1; `npm run testes:alterados -- --pr` usa `origin/main` quando existe e, se o merge-base falhar, lista todos os testes como 'Novos' e diz 'nenhum' alterado, com saída 0 (scripts/alterados.mjs, linhas 18-21 e 26-39).
+- `golden:aprovar` recolhe o desenho da pasta de trabalho (scripts/golden.mjs, linhas 21-38), e o hook confere o índice: com mudanças não adicionadas ao índice, o golden aprovado pode não corresponder ao código que entra no commit (o teste de golden do hook acusaria, mas a mensagem não explica a causa).
+- scripts/regras.mjs não exige `Origem:` nem Dado/Quando/Então nos cenários; hoje todos os 137 têm, mas um cenário novo sem origem passa no check.
+- O store é um arquivo por origem do plugin (nesta máquina há um para a instalação do marketplace e outro para a pasta do clone): trocar a forma de carregar o mod (pasta de entrega, marketplace) pode deixar os painéis guardados inacessíveis para retomada; não verifiquei como o nome do arquivo é derivado.
+- Na retomada (resume), restoreTurn carrega o fim do turno da sessão retomada mas não o grava sob o id atual (lastTurn fica igual e saveTurn não escreve): se o id mudar na retomada e o processo reiniciar antes de um prompt, o que estava parado volta desenhado em andamento.
+- No session.start de processo novo, restore publica o painel antes de restoreTurn: o arquivo publicado sai sem `aborted` e só é corrigido na próxima publicação (em sessão sem filhas, só no próximo evento).
+- A escolha do wrap_up (espera `choice`) vive só no state: um reinício do processo (/model, app) apaga 'Aguardando sua escolha' antes da próxima mensagem da pessoa, contra o cenário perguntas.escolha-do-wrapup-ate-proxima-mensagem.
+- As dobras que a pessoa fez (`collapsed`) e o interruptor ultracode vivem só no state: somem no reinício; o ultracode só volta quando o engine reenviar o anexo, alguns turnos depois. `collapsed` também nunca é podado.
+- O que acontece com um hook em voo quando o ambiente antigo é descartado na recarga (turn.step no meio do stream, tool.call parado em next) não está documentado nem no kit nem no repositório; se o stream for cortado, a chamada do modelo em curso poderia falhar em todas as sessões.
+- Editar as descrições das ferramentas (TOOLS em text/rules.ts) pode não chegar às sessões abertas se a recarga não rodar session.start; a seção de regras entra com scope 'session' e pode ficar em cache.
+- A CI está fixada no Claude Code 2.1.308 e os tipos gerados no disco são do 2.1.321: o CLAUDE.md manda subir junto com o app.
+- saveGroups lê e regrava a lista `sessions` sem trava entre processos: duas sessões gravando ao mesmo tempo podem tirar uma da lista e deixar o `session:<id>` dela órfão; também não verifiquei como o host serializa gravações concorrentes no arquivo único do store.
+- engineOf (io/host.ts) usa Date.now() em vez de $.clock.now(), fora do relógio do kit; e fora do app desktop o poll de 3 s chama list_sessions e $.tool.list a cada ciclo só para descobrir que não há sessões.
+- No planTool e nos handlers próprios do painel o tool.call genérico não roda: o ramo de reminder() que zera a contagem para ferramentas mcp__task-tree__ parece código morto, e o lembrete de sessão que terminou não sai nessas chamadas (já anotado como divergência no DESENVOLVIMENTO).
+- O campo `live` da taxa nunca volta a false ('Fica aceso'): o texto alternativo '(último turno)' do cabeçalho e o comentário do tipo ficaram sem uso.
+- usedReceipts é variável de módulo: depois de uma recarga a quente, um recibo já usado pode casar com um envio posterior à mesma sessão e fechar a tarefa com a mensagem ainda na fila (task-tree/hooks/sessions.ts 94-103).
+- Chamada Agent interrompida (Esc ou permissão negada) antes do agent.spawn deixa um registro em launches que um subagente posterior com a mesma descrição pode reclamar, com a âncora errada (task-tree/hooks/tool-call.ts 37-43; task-tree/hooks/panel.ts 305-317).
+- Esc durante start_session ou SendMessage: recordStart e sentMessage não rodam, então a filha pode nascer sem tarefa de origem e a mensagem sem carta, dependendo só da recuperação por received (task-tree/hooks/tool-call.ts 216-235).
+- Mensagem da pessoa entregue no meio de um turno em curso (se o app disparar prompt.submit antes do turn.complete): abriria um pedido novo no meio do trabalho e o replano seguinte interromperia o plano atual; não verifiquei como o app entrega.
+- /clear esvazia grupos, waits, sends, work e o fim do turno, mas não children, ended, launches, received, brief nem recap (task-tree/hooks/session-start.ts 71-78).
+- Duas permissões da mesma ferramenta em paralelo usam a mesma chave: a primeira chamada que termina tira as duas esperas (task-tree/hooks/permission.ts 14-19; task-tree/hooks/tool-call.ts 217-221).
+- Espera de permissão não é limpa no fim do turno nem no prompt; se o finally da chamada não rodar (recarga do mod com o diálogo aberto), a sessão publica 'aguardando' até outra chamada da mesma ferramenta terminar.
+- settleBySubs fecha qualquer folha aberta que tenha subagentes terminados, mesmo que o modelo ainda estivesse trabalhando nela por conta própria; a regra fala em tarefa 'cujo trabalho era só subagentes', o que o código não tem como saber.
+- A marca aborted publicada para a mãe só é atualizada na publicação seguinte ao prompt (openTurn publica antes de turnAborted ser zerado em task-tree/hooks/prompt-submit.ts 88-100).
+- Os lembretes do módulo (planned, unplanned, answeredInChat) recomeçam numa recarga no meio do turno: o lembrete de planejar pode repetir e o aviso de resposta pelo chat se perde.
+- O kit simula fim normal e Esc com reason 'end_turn', valor que o motor não emite; nenhum teste usa reason 'aborted' (task-tree/tests/kit/cenario.ts 52-62).
+- ensureTurn, no processo de hooks reiniciado sem session.start, traz do store o fim de turno anterior; não verifiquei o caso em que o motor segue no meio de um turno e o store ainda tem a hora do turno passado (só seria corrigido na próxima chamada da principal).
+- O store é um arquivo por origem de instalação (clone 'inline' x plugin instalado): trocar de um para o outro faz as sessões antigas voltarem sem painel; medido: dois arquivos de store distintos na máquina.
+- Filha marcada `starting` que o host nunca mostra rodando entre dois polls fica `starting` para sempre: cartão diz "concluída" sem ter trabalhado, nunca vira "encerrada" e settleBySubs trata a tarefa de origem como ocupada (io/host.ts 146-148, hooks/agents.ts 168).
+- kidsState usa o painel cru (rawPanel) para `open`: uma filha arquivada com tarefas que ficaram abertas mantém o ícone de sessão da tarefa da mãe como "parada" para sempre, embora o cartão as mostre interrompidas (draw/layout.ts 514, 797-798).
+- saveGroups faz leitura-modificação-escrita da lista global `sessions` sem trava: sessões gravando ao mesmo tempo podem perder a entrada uma da outra e deixar registros session:<id> órfãos, nunca podados.
+- Arquivo publicado acima de 4 MiB: a escrita é recusada e tentada de novo a cada poll de 3 s (serialização inteira + log a cada vez), e a leitura pela mãe falha em silêncio.
+- `ended` vive só no state: se o processo da mãe reinicia entre o fim do turno da filha e o próximo prompt, o lembrete "terminou o turno" se perde.
+- `ownId` (id local_) fica em variável de módulo para sempre: não foi verificado se alguma troca de sessão no mesmo processo (resume no app desktop) muda o id local.
+- No /clear, `$.session.id()` já é o da sessão nova quando classic.SessionStart roda? Se ainda fosse o antigo, o replace gravaria painel vazio sobre o store da conversa anterior (não verificável pela leitura).
+- `usedReceipts` recomeça na recarga: não foi verificado se um recibo já usado pode casar com um envio posterior ao mesmo destino depois de recarga a quente.
+- `engineSeen` e `lastPublished` (mapas de módulo) crescem por id de sessão e guardam a chave JSON inteira do último arquivo; sem poda enquanto o módulo vive.
+- Sessão movida para a nuvem: não foi verificado como o host a lista (isRunning, isArchived) nem se o mod roda lá.
+- O evento session.end (com prazo de 1,5 s) não é usado: poderia publicar o estado final e gravar o fim do turno; não avaliado o que cabe no prazo.
+- Uma tarefa iniciada e deixada aberta volta a ◉ a cada prompt seguinte (wake zera o fim do turno, panel.ts 31-37) e o relógio conta do início original, somando o tempo parado entre turnos, porque o fim do turno não grava endedAt no state (halt é só do desenho); o cenário turnos.pedido-anterior-parado-aguarda só testa pedido anterior sem tarefa iniciada.
+- O ramo de reminder() que zera a contagem para ferramentas mcp__task-tree__ (tool-call.ts 188-191) parece código morto: a doc diz que o tool.call genérico não roda para elas (DESENVOLVIMENTO.md 110-111); o comentário do arquivo diz o contrário.
+- Depois de uma recarga a quente ou de um reinício do processo, reminders.planned volta a false e o state pode estar vazio até a primeira escrita: asked() e reminder() leem os grupos sem ensureGroups (tool-call.ts 56, 192), o que pode recusar uma pergunta ou lembrar de planejar com o painel cheio no store.
+- A espera de permissão do loop principal só sai no fim da chamada daquela ferramenta (tool-call.ts 217-221) e é preservada de propósito no prompt seguinte (prompt-submit.ts 82); se uma permissão negada não passa pelo tool.call, 'Aguardando permissão' pode ficar no painel entre turnos.
+- renameAnchors renomeia âncoras de sessões, lançamentos e envios, mas não as das esperas (Wait.anchor): depois de um plan que reaproveita um id, a espera 'choice' pode apontar para a tarefa nova de mesmo id (afeta sendAnchor e settleBySubs).
+- A etiqueta de renomeação vem de Math.random().toString(36).slice(2, 6) (tools.ts 55): pode sair curta e não há conferência de colisão com uma etiqueta já usada no mesmo id.
+- plan com lista vazia é aceito ('0 tarefas neste plano'), marca o pedido como planejado e pode renomear o pedido pelo request; filhos de um quarto nível são descartados em silêncio por build().
+- Ids de nível 1 com '/' ou ':' não são recusados e confundem roots em startTool (split('/')) e o prefixo de renameAnchors.
+- done e start iteram input.ids sem conferir que é lista (tools.ts 147, 208): se o host não validar o schema, uma string seria percorrida caractere a caractere.
+- O summary passado por um subagente é ignorado sem aviso (tools.ts 134), embora as regras do prompt de sistema, que o subagente também recebe, mandem passá-lo.
+- A marca 'respondeu pelo chat' (reminders.answeredInChat) é zerada por qualquer prompt que abre turno, inclusive mensagem de outra sessão que chegue antes da resposta da pessoa (prompt-submit.ts 103-107), e se perde numa recarga.
+- A detecção de 'respondeu pelo chat' e de entrega na fila depende de frases em inglês do app (tool-call.ts 66, 141, 148); uma mudança de redação no app desliga os dois comportamentos sem erro.
+- Chamadas em paralelo na mesma mensagem (Read antes do plan) podem receber o lembrete 'sem plano aberto' na primeira, se o motor as executa em série na ordem da mensagem.
+- wrapUpAsk grava a espera 'choice' e o recap antes de a chamada do wrap_up rodar (tool-call.ts 79-88): se a chamada falhar ou for negada, a espera e o recap ficam.
+- O aviso do done para tarefa interrompida ('foi interrompida', tools.ts 151) não diz que start a reabre.
+- Uma origem 'unclassified' com texto de verdade (canal que o engine não consegue atestar, segundo os tipos do kit) seria tratada como aviso e não abriria pedido; não foi possível conferir se isso ocorre no app.
+- Várias mensagens de outras sessões entregues num prompt só abrem um único pedido, com o título e o remetente da primeira (prompt-submit.ts 32-38).
+- O store do mod é um arquivo só para todas as sessões da máquina, cada uma num processo: não verifiquei se o host trava ou mescla gravações concorrentes; sem isso, uma sessão pode sobrescrever a chave que outra acabou de gravar.
+- Existem dois arquivos de store (um do mod carregado do clone, outro do instalado pelo marketplace): trocar a forma de instalação deixa os painéis antigos fora de alcance na retomada.
+- O /clear não limpa children, launches, ended, received, brief, recap nem as ligações guardadas: filhas vivas devem continuar com cartão depois do /clear, o que pode contradizer a regra de que o painel fica "Nenhuma tarefa planejada.".
+- O aviso de escolha do wrap_up só sai num pedido da pessoa: num prompt automático (aviso do app, retorno de subagente) o retorno antecipado do prompt.submit vem antes do dropWaits, e o painel pode mostrar "Aguardando sua escolha" com a sessão trabalhando.
+- xml() em draw/svg.ts escapa &, <, > e aspas, mas não caracteres de controle; os cortes por slice em openTurn, toolText e nas cartas podem partir um par substituto (emoji). Um título com ESC colado do terminal pode gerar SVG inválido naquela linha.
+- Uma única falha passageira de list_sessions faz a linha "Sessões indisponíveis" aparecer e sumir no poll seguinte (sem espera mínima), deslocando o painel inteiro uma linha.
+- Mapas e conjuntos de módulo sem poda (usedReceipts, badPublished, engineSeen, lastPublished, actions; wrote e calls quando o fim do subagente não roda): crescem pela vida do processo.
+- Os lembretes do prompt.submit e do tool.call são injetados mesmo quando as ferramentas do painel não estão disponíveis (registro falhou, contexto sem as ferramentas); só o prompt.compose confere a lista de ferramentas.
+- Como os registros aninham na ordem (o primeiro por fora), plan, done e start respondem sem chamar next: os ramos de `mcp__task-tree__` em reminder() e subTool() do tool.call genérico podem ser código morto; não verifiquei no harness.
+- O arquivo publicado leva os painéis das filhas aninhados sem limite de profundidade (o limite de 3 níveis é só do desenho): numa orquestração longa pode passar dos 4 MiB do fs, e então a publicação falha a cada tentativa, com uma linha de log por vez.
+- O kit diz que todo $.state.get de um mesmo disparo lê um único momento: não verifiquei se as leituras feitas depois de uma escrita do próprio hook (por exemplo em change seguido de get) enxergam o valor novo.
+- Cada chamada de ferramenta de subagente (até uma por segundo por agente) passa por change e persist antes de next(e): regrava o store inteiro (555 KB hoje) e o arquivo publicado, atrasando a ferramenta; com um workflow de dez agentes são dez gravações por segundo.
+- No erro de desenho, drawn.size e drawn.rows ficam com os valores do último desenho bom (o /task-tree informa um tamanho que não é o atual), e o renderError só é publicado na próxima publicação disparada por outro hook.
+- O catch do próprio ui.render chama $.ui.resolve(e) de novo: se foi essa chamada que lançou, a exceção escapa e o host desenha o painel padrão dele.
+- Não sei se o engine roda em série as ferramentas plan, start e done quando o modelo as chama na mesma mensagem: em paralelo, um start que chega depois do done reabre a tarefa e um start antes do plan responde "não existe".
+- A frase do kit "every get of one dispatch reads one moment" não foi conferida contra o uso do mod (ler o que o próprio hook acabou de gravar, como o `brief` no done).
+- Depois de um respawn do worker no meio de uma resposta, vários leitores de `groups` não passam por ensureGroups (pergunta, agentSpawn, recordStart, lembrete de plano, anyRunning): a primeira AskUserQuestion pode ser recusada, a âncora sair vazia e o relógio não ligar.
+- Recarga a quente com hook em voo: o `change` pode ter gravado sem o persist, e watchSends pode ter marcado `taken` sem fechar a tarefa; `calls`, `wrote` e `usedReceipts` zeram (o contador de chamadas do cartão anda para trás).
+- Os registros de lançamento sem dono (19 no store real) podem ser reclamados por `identify` para outro agente com o mesmo pai e a mesma descrição, com uma âncora velha.
+- Há dois arquivos de store, um do mod carregado do clone e outro do marketplace: trocar a origem do mod deixa os painéis guardados para trás.
+- Ids de tarefa com "/" ou "|": o start usa `split('/')[0]` para o nível 1 e settleBySubs usa `split('|')` na chave.
+- `received` guarda só as 20 últimas mensagens: uma sessão que recebe mais de 20 antes do poll do remetente deixa um envio sem confirmação.
+- Um subagente que chama plan antes de o hook do agent.spawn terminar fica com a âncora do registro de lançamento, que pode diferir da calculada no spawn.
+- Com `get_session` falhando, cada poll e cada publicação pede o id de novo e escreve no log; o painel fica sem filhas e sem publicar enquanto durar.
+- Uma sessão retomada em duas janelas grava as duas na mesma chave do store (mesmo uuid).
+- As causas dos dois subagentes reais presos em "em segundo plano" não foram determinadas (reinício do processo, tarefa parada ou evento não entregue).
+- Cortes por slice(0, n) em títulos (pedido, carta, ferramenta, request, resumo) podem partir um emoji ao meio e deixar um surrogate solto no SVG; não verifiquei como o app codifica o source.
+- DRAW_LIMIT compara o comprimento em unidades UTF-16 do JSON, não bytes, e o limite real do app entre 600 e 950 KB nunca foi medido.
+- O comentário de Published.rate em types/index.d.ts (média dos últimos ~10 s) e a linha samples da tabela de durabilidade descrevem a medição antiga de toks/s.
+- /clear esvazia grupos, avisos, envios, trabalho e fim de turno, mas não children, received, launches, dobras nem keptLinks.
+- Os mapas calls e wrote de agents.ts recomeçam do zero numa recarga a quente: o "N chamadas" do cartão pode regredir.
+- sentMessage substitui o envio anterior com o mesmo destino e a mesma tarefa, mesmo ainda na fila: duas mensagens da mesma tarefa viram um registro só.
+- O cartão de grupo de um workflow nasce aberto, com uma linha por agente (30 linhas), e continua assim depois de terminar enquanto a tarefa estiver aberta.
+- saveGroups lê e regrava a lista sessions do store a cada mudança (três idas ao store por evento).
+- Conjuntos de módulo usedReceipts, engineSeen e badPublished crescem sem poda (pequenos).
+- Depois dos cortes, o total da sessão inteira só aparece no alt do cabeçalho; não verifiquei se o app mostra o alt como tooltip.
+- A linha "+N cartões antigos de sessões" não abre; não conferi se isso foi decisão registrada.
+- O 'primeiro chunk' do toks/s é qualquer chunk, inclusive os de tipo 'engine' (envelope, marcador de retry): um passo com retry/backoff ou com ferramenta de servidor pode dar um número baixo que fica aceso até o próximo passo válido (task-tree/hooks/turn.ts 83-95).
+- turnStep itera o stream com it.next() manual, sem try/finally: se o consumidor encerrar cedo (Esc), o stream de baixo não recebe return(); não verifiquei se o engine depende disso.
+- publishPanel é disparado com void em turn.step e no attachment de ultracode e pode correr junto com outro publishPanel aguardado; o mais antigo pode gravar o arquivo por último (io/publish.ts 116-183).
+- percent() arredonda: 199 de 200 mostra 100% sem estar concluído; o anel de contexto escreve o percentual cru no terminal e no alt (pode vir fracionado ou acima de 100).
+- Row.whole (a resposta inteira do turno) e Row.active são calculados e nunca lidos; Turn.reply (até 600 caracteres por turno) é guardado e publicado sem uso desde a retirada do tooltip, e o catálogo ainda cita o tooltip 'sessão inteira' (cabecalho.md 81, visual.md 138).
+- O contador de chamadas do subagente (Map do módulo em hooks/agents.ts) zera numa recarga a quente e o 'N chamadas' do cartão regride.
+- engineOf consulta o app para toda filha sem arquivo publicado (arquivadas incluídas) a cada 60 s e usa Date.now() em vez do relógio do mod.
+- A CI fixa o Claude Code 2.1.308 e o app nesta máquina está em 2.1.321; os nomes ultra_effort_enter/exit não constam dos tipos gerados e foram achados no binário 2.1.321 (dependência de nome interno do engine).
+- Cartão de filha arquivada mantém 'ultracode' e toks/s do último arquivo publicado para sempre.
+- Cabeçalho vazio: o SVG usa n === 0 sem chips, o alt e o terminal usam n + x === 0; com uma sessão viva solta e nenhuma tarefa, o terminal diz 'Nenhuma tarefa planejada' e o alt diverge do desenho.
+- Comentários de count() e de TaskNode.msg dizem que tarefa de mensagem não conta, mas o código não olha `msg` (coerente com a decisão de 2026-10-30); `kept` e o parâmetro `queued` de carry são código morto.
+- O resultado de plan/done ao modelo ('Concluídas: d/n no seu grupo') conta todos os pedidos do grupo desde o início da sessão, não o pedido atual.
+- Um rate com live: false deixado no state por uma versão anterior só é regravado quando um passo válido dá um número diferente; com o mesmo número, o cabeçalho fica esmaecido.
+- Corrida na escolha da âncora com chamadas paralelas: `launch`/`agentSpawn`, `recordStart` e `sentMessage` leem o state, calculam a âncora e gravam em passos separados; duas chamadas simultâneas podem escolher a mesma tarefa livre (depende de o host rodar os hooks em paralelo).
+- SendMessage ou start_session feitos por um subagente: os tratadores de depois da chamada só rodam para o loop principal (tool-call.ts 222), então não há carta, rodada nem âncora; a filha aberta por subagente nasce solta.
+- Carta já entregue fica cinza "interrompida" quando a tarefa vira ✕ por um subagente que falhou (`cutHere` em layout.ts 1228/1273 foi pensado só para tarefa interrompida por plano novo).
+- `settleBySubs`: o ramo "concluído" usa `fillStarts` e ignora `x.at` (início do subagente), o ramo de falha usa `x.at`; tempos da tarefa fechada sem start ficam diferentes nos dois casos.
+- `split`: o grupo de um sub-subagente (âncora numa tarefa do subagente pai) cai no cartão líder da filha por `ownerOf`, podendo ficar em cartão diferente do pai dele.
+- Contador `calls` do cartão vive num Map do módulo: depois de uma recarga a quente recomeça de 1 e sobrescreve o valor maior gravado no state.
+- `Send.cut`, `TaskNode.msg` e `TaskNode.kept` não têm mais quem os grave; `carry` mantém código morto (`void queued; void parentOf; void ids`).
+- Comentário de io/publish.ts (100-103) diz que os envios tomados são descartados na publicação, mas `publishWait` publica todos; types/index.d.ts descreve `Published.sends` como "ainda não tomados".
+- `namedFor` aplicado ao subagente usa as palavras da descrição e do tipo (4+ letras), bem mais genéricas que um nome de sessão; um casamento único por acaso manda o cartão para a tarefa errada.
+- Com uma tarefa em andamento e uma pendente planejada depois do start dela, o lançamento vai à pendente (regra herdada da carta) e `settleBySubs` fecha essa pendente no fim do turno.
+- Registros de `launches` de teammates e de lançamentos ignorados nunca são reclamados; `identify` casa só por pai + descrição e pode entregar a âncora a outro agente com a mesma descrição.
+- Grupos de subagente nunca saem de `groups` (state, store e arquivo publicado para a mãe): crescem a cada lançamento até o /clear.
+- `askingAnchors` só considera perguntas do loop principal: um subagente pode ancorar um sub-subagente numa tarefa dele com pergunta aberta.
+- `startTool` recusa pai interrompido com a mensagem "já foi concluída e tem subtarefas".
+- DESENVOLVIMENTO.md ainda cita `ensureView`/`restoreView`/`setView`, que não existem mais no código (só restou a menção no comentário de `ensureTurn`).
+- Mensagem da pessoa enfileirada no meio do turno: se o app dispara prompt.submit na entrega, abre turno com o trabalho em curso e o replano seguinte cai em 'pedido novo'; depende do comportamento do app, não visto no código.
+- Corrida entre o plan e o poll: planTool calcula renamed e sendsNow fora do change (tools.ts 58-67) e o watchSends pode fechar uma tarefa entre a leitura e a escrita; a tarefa seria renomeada sem as ligações irem junto.
+- Dois cartões da mesma filha (um 'parada' com '+1 pedidos anteriores' dentro e outro com o turno novo): é o desenho de um cartão por mensagem (split em draw/layout.ts 298-435) somado à renomeação das âncoras; não conferi se a palavra de estado e a linha de pedidos anteriores dentro de um cartão que não é o principal estão cobertas por cenário.
+- turn.complete grava a resposta (reply e brief) no último turno que tem tarefas (turn.ts 128-136): numa mensagem que só continua o plano com start e done, a resposta nova sobrescreve o resumo do pedido anterior.
+- O cabeçalho e o status 'Tarefas d/n' contam o histórico renomeado e a cópia nova: depois do replano em pedido novo, as mesmas etapas concluídas contam duas vezes; não conferi contra as regras do cabeçalho.
+- carry mantém o estado 'interrompida' de uma tarefa replanejada, e o done nela é recusado com 'foi interrompida' sem dizer que é preciso start antes; as RULES só falam de concluída e em andamento.
+- Plan de subagente (agent !== MAIN): renamed é calculado sobre as tarefas do grupo principal (tools.ts 67) e renameAnchors só roda para o principal; âncoras de subagentes lançados por um subagente não são renomeadas quando ele reusa um id fechado.
+- A etiqueta de renomeação vem de Math.random (tools.ts 55) e resolveAnchor supõe um só ':' no id (layout.ts 217-228); um id do próprio modelo com ':' não foi analisado.
+- usedAnchors conta o grupo de subagente antigo como uso da tarefa nova de mesmo id (panel.ts 286-293), o que pode desviar a âncora da próxima carta ou sessão; consequência do achado da âncora de subagente, não traçada até o fim.
+- Arquivos lidos por trechos, não inteiros: task-tree/draw/layout.ts (lidas as linhas 15-180, 180-450, 640-765, 956-1075, 1195-1539), task-tree/DESENVOLVIMENTO.md (só os trechos sobre replano), tests/sessoes.test.ts, tests/envios.test.ts e tests/subagentes.test.ts (só por busca).
+- Formato real do aviso do app quando uma filha termina o turno: se não começar por <side-sessions-event> nem vier com origem das listadas em NO_TURN (prompt-submit.ts 21 e 31), cada aviso abre um pedido novo e multiplica o caso do replano; depende do app, não verifiquei.
+- Uma mensagem de uma filha desta sessão (SendMessage para a mãe) abre pedido novo na mãe como qualquer mensagem de outra sessão (decisão registrada em envios.pedido-recebido-mostra-carta); com a continuação resolvida isso deixa de zerar tarefas, mas vale avaliar se o relato de uma filha deveria continuar o pedido em curso.
+- list_sessions com limit 100 e arquivadas incluídas (io/host.ts 33): uma orquestradora com mais de 100 sessões ligadas pode perder filhas da lista, e o cartão some; as ligações ficam só em keptLinks.
+- SendMessage por nome com sessões homônimas (uma arquivada e uma nova com o mesmo nome): a rodada e o lastAnchor são gravados em todas as de mesmo nome (tool-call.ts 130-132) e watchSends usa a primeira linha com o nome (sessions.ts 118).
+- takenNote e endedNote citam ao modelo ids renomeados (ex.: "ab12:64/64.1") e SESSION.taken afirma que o painel concluiu a tarefa do envio mesmo quando ela estava interrompida (watchSends só fecha tarefa aberta, sessions.ts 163); um start nesse id reabre a cópia histórica.
+- TaskNode.kept e TaskNode.msg nunca são gravados (carry termina com void queued/parentOf/ids, state/tasks.ts 133-137); os comentários de types/index.d.ts 23-28 e de count() em layout.ts 89-90 descrevem um comportamento que não existe mais.
+- Grupos de subagente nunca saem de groups: crescem a sessão inteira e vão no store e no arquivo publicado a cada mudança.
+- Dois envios à mesma sessão a partir da mesma tarefa: o segundo substitui o registro do primeiro (tool-call.ts 152), então há uma carta só e o estado 'na fila' do primeiro se perde.
+- A carta de um envio ainda na fila cuja tarefa foi interrompida por pedido novo aparece cinza 'interrompida' (layout.ts 1273) embora a mensagem continue na fila e vá ser entregue; está coberto por envios.cor-por-estado, mas a palavra pode enganar.
+- trimToWork aplica panelOf (halt) e o corte ao trabalho no painel de cada filha antes de split/settle no nível 0 (layout.ts 753-756 e 1233-1239): discarded, settle e 'parada' passam a olhar só as tarefas do trabalho do cartão já cortado; não verifiquei se isso muda algum estado de cartão.
+- Entre o change do plan e o renameAnchors (tools.ts 69 e 105) há um desenho possível com a carta sob a tarefa nova de mesmo id (a carta não passa por resolveAnchor); transitório de um quadro.
+- sendAnchor considera 'pedido atual' o último turno que tem tarefas (panel.ts 247-249): um SendMessage ou start_session antes do primeiro plan da mensagem nova ancora no pedido anterior.
+- unsent() ignora as mensagens recebidas com hora anterior à primeira rodada gravada (layout.ts 189-190): um envio cuja rodada se perdeu antes da primeira gravada junta o turno dele ao cartão de abertura.
+- Um SendMessage que falha ainda grava rodada e lastAnchor, e cria a entrada da sessão quando o destino começa com local_ (tool-call.ts 126-137, antes do teste de falha na linha 148); o efeito no lugar dos cartões seguintes não foi traçado.
+- turnComplete grava o resumo ↩ no último turno que tem tarefas (turn.ts 131-135): um turno que não planejou nada entrega o seu ↩ a um pedido mais antigo.
+- O work guarda ids que não existem mais (por exemplo '4' e '5' no arquivo real da filha de governança); trimToWork filtra, mas não conferi os outros leitores do work.
+- Qual e.origin.kind chega no texto de abertura do start_session e num prompt digitado no app desktop ('coordinator', 'sdk', 'composer'?): precisa de um registro no log dentro do app; define a correção do turno próprio.
+- Duas mensagens da mãe à mesma filha saídas da mesma tarefa geram dois cartões vizinhos sob a mesma tarefa (split não funde por âncora); não apareceu nos dados reais.
+- resolveAnchor depende de plannedAt para laços anteriores à renomeação; com carry o plannedAt é herdado: não conferi se isso muda a resolução depois de um replano.
+- A simulação usou cópias de draw/layout.ts e draw/geometry.ts na pasta temporária da sessão, com os arquivos reais de ~/.claude/task-tree-waits; nada foi rodado nem alterado no repositório.
+- Origens de prompt: 'scheduled-trigger', 'channel', 'coordinator', 'slack-ping' e 'projects-relay' abrem pedido marcado como da pessoa (own); no cartão da mãe viram 'pedido do usuário na filha'. Não conferi o texto real que o app manda em cada origem.
+- rounds e sends são cortados nos últimos 20: com mais de 20 mensagens a uma filha as rodadas antigas somem (os cartões antigos voltam para a tarefa da abertura) e uma carta ainda na fila pode ser descartada sem aviso.
+- Os ids do plano não são validados: ids com '/', ':' ou vazios confundem startTool (split('/')), o prefixo de renomeação e a heurística de resolveAnchor (um id 'A:1' parece uma tarefa renomeada de '1').
+- Grupos de subagente nunca saem de groups: cada Agent ou workflow acrescenta um grupo que é gravado no store e publicado a cada mudança; não medi o crescimento numa sessão longa.
+- turnComplete grava reply e brief no último turno COM tarefas: um turno sem plano (continuação só com start, ou resposta direta) sobrescreve a linha ↩ do pedido anterior.
+- O título do cabeçalho usa startedLast sobre todas as tarefas, inclusive as abandonadas e renomeadas: depois do abandono, até o primeiro start, o cabeçalho mostra o título da tarefa antiga.
+- A linha '+N pedidos anteriores' conta pedidos desenhados em parte (só a tarefa aberta de um pedido antigo fica) e é usada também quando o que ficou de fora é um pedido mais novo que o trabalho publicado.
+- O catálogo não tem cenários para os lembretes de sessão (SESSION.ended, SESSION.taken, SESSION.stopped, SEND.queued) nem para um plan de subagente com id reutilizado (renameAnchors só roda para o loop principal).
+- No ramo 'nada em andamento' de sendAnchor, usedAnchors não tem guarda de tempo: âncoras antigas (de subagentes ou sessões de pedidos anteriores com o mesmo id) marcam a pendente nova como já usada e empurram a carta para a tarefa seguinte.
+- Os dois cartões de 'auditoria-mod' do print: a leitura do código explica dois cartões pela regra de um cartão por mensagem mais a rodada descartada, mas sem o arquivo publicado da sessão não deu para confirmar qual rodada era qual, nem de onde veio o '+1 pedidos anteriores' dentro do cartão.
+- wake roda em todo prompt, inclusive aviso do app e notificação de tarefa em segundo plano: o que o turno anterior deixou ◷ volta a aparecer em andamento com o relógio correndo antes de o modelo fazer qualquer coisa; não avaliei se isso é desejado para avisos que não geram trabalho.

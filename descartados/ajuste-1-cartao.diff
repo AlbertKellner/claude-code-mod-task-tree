@@ -1,0 +1,287 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 7585b87..97929d9 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -165,7 +165,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
+   nova sem animação; nada pisca à toa;
+ - desenho nativo: guias de caixa alinhadas entre linhas e ao lado do cartão; corte do título no fim;
+   alturas do título e do percentual do cabeçalho; a faixa de 1 coluna do cabeçalho; pílulas com borda;
+-  cores cruas (`rgba(...)`) e as chaves de tema nos dois temas;
++  cores cruas (`rgba(...)`: o fundo e a borda dos cartões, o trilho das barras) e as chaves de tema
++  nos dois temas;
+ - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
+ - recarga a quente real (salvar um arquivo com o painel aberto);
+ - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); avisos do app;
+diff --git a/regras/selos.json b/regras/selos.json
+index bae3e18..5d7623a 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -2303,6 +2303,26 @@
+       "data": "2026-11-13",
+       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
+     },
++    "task-tree/tests/visual.test.ts::no app, o cartão da filha se destaca do painel; o do subagente dentro dele tem a mesma borda e fica com o fundo dela": {
++      "regras": [
++        "visual.cartao-se-destaca-do-painel"
++      ],
++      "hash": "fe028be4a40a25a3",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-13",
++      "motivo": "decisão do usuário, 2026-11-13: \"nao aparece nenhum card\"; o cartão da filha com fundo e borda próprios, e o cartão de dentro sem repetir o fundo"
++    },
++    "task-tree/tests/visual.test.ts::no app, o cartão de subagente e o de grupo têm fundo e borda que se destacam do painel nos dois temas": {
++      "regras": [
++        "visual.cartao-se-destaca-do-painel"
++      ],
++      "hash": "608c4e513b8d9a0e",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-13",
++      "motivo": "decisão do usuário, 2026-11-13: \"nao aparece nenhum card\"; o cartão de subagente e o de grupo com fundo e borda próprios"
++    },
+     "task-tree/tests/visual.test.ts::no app, o ícone da linha que recolhe e o anel do cartão são botões com chave": {
+       "regras": [
+         "visual.botoes-por-chave"
+diff --git a/regras/visual.md b/regras/visual.md
+index c680a6f..7cf172d 100644
+--- a/regras/visual.md
++++ b/regras/visual.md
+@@ -75,9 +75,10 @@ As cores seguem o tema.
+ 
+ - Dado o tema claro ou escuro
+ - Quando o painel é desenhado
+-- Então os textos e fundos usam as cores do tema do app; os `Svg` que restam levam as suas, claro e escuro
++- Então os textos e fundos usam as cores do tema do app; onde não há chave de tema que sirva (o fundo e a borda dos cartões, o trilho das barras, a faixa do cabeçalho em dois tons), uma cor crua e translúcida, a mesma nos dois temas; os `Svg` que restam levam as suas, claro e escuro
+ 
+ Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
++Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o fundo e a borda dos cartões deixam a chave de tema e a borda padrão do app e passam a um cinza cru e translúcido (visual.cartao-se-destaca-do-painel).
+ Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
+ 
+ ### visual.cabecalho-em-cartao
+@@ -124,6 +125,26 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
+ Origem: commits 1987482 e 689d569, 2026-10-24.
+ Estado: checklist (posição na linha; o desenho fica travado por visual.desenho-*; a pintura real, no app)
+ 
++### visual.cartao-se-destaca-do-painel
++O cartão de sessão e o de subagente se destacam do painel, nos dois temas.
++
++- Dado um cartão de sessão filha, de subagente ou de grupo, na raiz ou dentro de outro cartão
++- Quando o painel é desenhado no app desktop
++- Então o cartão de fora tem fundo próprio e todo cartão tem borda de cor própria: um cinza cru e translúcido, o mesmo nos dois temas, que clareia o painel escuro e escurece o claro (o fundo a 5 níveis ou mais do painel, a borda a 20 ou mais do fundo); nenhum dos dois é chave de tema; o cartão de dentro de outro tem a mesma borda e não repete o fundo: fica com o do cartão de fora
++
++Origem: decisão do usuário, 2026-11-13 ("nao aparece nenhum card", sobre o cartão de subagente no desenho nativo: o fundo era a chave `userMessageBackground`, que no app é a superfície do próprio painel, e a borda era a padrão do app, branco a 4%). Retoma as cores do cartão em SVG, que ele decidiu ("calcule qual seria a terceira cor"; "use a mesma cor da borda"): fundo #20201f no escuro e #f9f9f7 no claro, borda #373736 e #e1e1df.
++Estado: coberto
++
++### visual.cartao-cores-pintadas
++A cor que o app pinta no fundo e na borda do cartão, nos dois temas.
++
++- Dado um cartão de sessão filha, um de subagente e um cartão dentro de outro
++- Quando o painel é desenhado no app desktop, no tema escuro e no claro
++- Então o fundo do cartão é um tom à parte do painel (perto de #20201f no escuro e de #f8f8f7 no claro) e a borda arredondada se vê inteira (perto de #373634 e de #dfdfdd); o cartão de dentro de outro tem a mesma borda e o fundo do de fora
++
++Origem: decisão do usuário, 2026-11-13 ("nao aparece nenhum card").
++Estado: checklist (pintura real, nos dois temas)
++
+ ### visual.cartoes-ordem-e-espera
+ Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
+ 
+diff --git a/task-tree/DESENVOLVIMENTO.md b/task-tree/DESENVOLVIMENTO.md
+index d91f84b..b2284a2 100644
+--- a/task-tree/DESENVOLVIMENTO.md
++++ b/task-tree/DESENVOLVIMENTO.md
+@@ -1640,6 +1640,17 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
+   de um espaço largo (U+2003) e `plain`, num `Box` absoluto 0/0/0/0 dentro de um `Box` relativo com
+   o `Svg`.
+ - O rótulo de sessão estima a largura em 0,8 célula por caractere de `caption`.
++- Fundo e borda do cartão (2026-11-13, "nao aparece nenhum card"): no app, a chave
++  `userMessageBackground` é a primeira superfície, a do próprio painel (#191919 no escuro, branco no
++  claro), e a borda sem `borderColor` é a do app (branco a 4% no escuro, preto a 8% no claro); o cartão
++  ficava da cor do painel. No tema claro as outras superfícies do app também são brancas, então
++  nenhuma chave destaca o cartão nos dois temas, e o mod não sabe o tema. O cartão leva um cinza cru e
++  translúcido, o do trilho das barras: fundo `rgba(136,135,128,0.06)` e borda `rgba(136,135,128,0.22)`,
++  que clareiam o painel escuro e escurecem o claro. Dão as cores do cartão em SVG: fundo #20201f e
++  #f8f8f7 (antes #f9f9f7), borda, pintada sobre o fundo, #373634 e #dfdfdd (antes #373736 e #e1e1df).
++  O cartão de dentro de outro não repete o fundo (dois translúcidos somariam um tom por nível). O app
++  só pinta cor crua em `#hex` ou `rgb()`/`rgba()`/`hsl()`/`hsla()` de números; outro texto que não seja
++  chave conhecida não pinta nada. O cabeçalho segue com a chave e a borda do app.
+ - Corte por texto: o harness desenha só os primeiros 100 000 caracteres de texto (strings, `alt` e
+   `label`); no desktop o laço de corte (`hooks/render.tsx`) também refaz o desenho com menos linhas
+   acima de `TEXT_LIMIT` = 95 000 caracteres, além do `DRAW_LIMIT` de 600 KB. Num pedido pesado medido,
+diff --git a/task-tree/draw/desktop.tsx b/task-tree/draw/desktop.tsx
+index 2632fe6..6f47b60 100644
+--- a/task-tree/draw/desktop.tsx
++++ b/task-tree/draw/desktop.tsx
+@@ -296,9 +296,19 @@ export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts,
+   )
+ }
+ 
+-// A card: a session's or subagent's header and every line after it deeper than it. Its border and
+-// fill are the app's (borderStyle round, the first surface).
+-const CARD = { borderStyle: 'round', paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: 'userMessageBackground' }
++// A card: a session's or subagent's header and every line after it deeper than it, in the app's
++// round border. Its fill and its border's color are the mod's: the person, 2026-11-13, "nao aparece
++// nenhum card". The key the card had, userMessageBackground, is in the app the pane's own surface
++// (#191919 dark, white light), and the app's own border is white at 4% (black at 8% light). The
++// app's other surfaces are white too in the light theme, so no key sets a card off in both, and the
++// mod is not told the theme: one raw gray (the bars' track's), see-through, lightens the dark pane and
++// darkens the light one. At these two strengths it gives the colors the card had as an Svg, the
++// person's ("calcule qual seria a terceira cor", "use a mesma cor da borda"): the fill #20201f dark
++// and #f8f8f7 light (#f9f9f7 then); the border, painted over the fill, #373634 and #dfdfdd (#373736
++// and #e1e1df then).
++const CARD_FILL = 'rgba(136,135,128,0.06)'
++const CARD_LINE = 'rgba(136,135,128,0.22)'
++const CARD = { borderStyle: 'round', borderColor: CARD_LINE, paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0 }
+ // What a card takes of its container's columns besides its strip: the two sides of its border and
+ // padding (2 ch of padding and 2 px of border, counted 3).
+ const CARD_COLS = 3
+@@ -319,8 +329,9 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
+       .map(c => c.text)
+       .join('')
+   // The children of a container whose content starts at column `base`, for the lines [a, b), in
+-  // `room` columns.
+-  const block = (a: number, b: number, base: number, room: number): any[] => {
++  // `room` columns. `nested`: the container is a card; a card in it takes no fill of its own (two
++  // see-through fills would add up to a tone a level), it shows the outer card's, as the Svg did.
++  const block = (a: number, b: number, base: number, room: number, nested = false): any[] => {
+     const out: any[] = []
+     for (let i = a; i < b; ) {
+       const r = lines[i]!
+@@ -343,9 +354,9 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
+               </Text>
+             </Box>
+           ) : null}
+-          <Box {...CARD}>
++          <Box {...CARD} backgroundColor={nested ? undefined : CARD_FILL}>
+             {desktopRow(ui, r, i, '', acts, inner)}
+-            {block(i + 1, j, r.depth, inner)}
++            {block(i + 1, j, r.depth, inner, true)}
+           </Box>
+         </Box>,
+       )
+diff --git a/task-tree/tests/visual.test.ts b/task-tree/tests/visual.test.ts
+index ea7c1c2..9404cb8 100644
+--- a/task-tree/tests/visual.test.ts
++++ b/task-tree/tests/visual.test.ts
+@@ -1,7 +1,7 @@
+ import { expect, test } from 'claude-code/testing'
+-import { AGORA, fixar, host } from './kit/ambiente'
+-import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+-import { estadoGeral, montarNoApp, noApp, pedacosDepois } from './kit/leitura'
++import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
++import { abrirSessao, aviso, done, esc, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
++import { estadoGeral, montarNoApp, noApp, pedacosDepois, type DesenhoDoApp } from './kit/leitura'
+ 
+ // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
+ 
+@@ -158,3 +158,110 @@ test('no app, o ícone da linha que recolhe e o anel do cartão são botões com
+   expect(d.linhas.some(l => l.texto.includes('Tarefa única')), d.textos.join('\n')).toBe(false)
+   await m.fim()
+ })
++
++// O fundo e a borda dos cartões no app desktop, lidos na árvore do desenho: o que a cor de cada um dá
++// sobre a superfície do painel, no tema escuro e no claro.
++
++// A superfície do painel no app, por tema (lida no app em 2026-11-13: #191919 no escuro, branco no claro).
++type Rgb = readonly number[]
++const PAINEL: Record<string, Rgb> = { escuro: [25, 25, 25], claro: [255, 255, 255] }
++// Uma cor crua e translúcida, a única que o app pinta igual nos dois temas e que muda os dois fundos.
++const CRUA = /^rgba\((\d+),(\d+),(\d+),(0?\.\d+)\)$/
++// O tom que o app pinta com a cor sobre `sob`; undefined se ela não é crua e translúcida (uma chave
++// de tema, nada).
++function sobre(cor: unknown, sob: Rgb): Rgb | undefined {
++  const m = typeof cor === 'string' ? CRUA.exec(cor) : null
++  if (!m) return undefined
++  return sob.map((v, i) => v + (Number(m[i + 1]) - v) * Number(m[4]))
++}
++// A maior distância entre dois tons, em níveis de 0 a 255.
++const niveis = (a: Rgb, b: Rgb) => Math.max(...a.map((v, i) => Math.abs(v - (b[i] ?? 0))))
++// Os cartões do desenho: o Box com borda dentro de cada Box key="c<i>", com o texto da linha que o
++// abre (r<i>) e quantos cartões há em volta dele.
++type CartaoDoApp = { titulo: string; dentro: number; fundo: unknown; borda: unknown }
++function cartoesDoApp(d: DesenhoDoApp): CartaoDoApp[] {
++  const out: CartaoDoApp[] = []
++  const andar = (x: any, dentro: number) => {
++    if (typeof x !== 'object' || x === null) return
++    const k = x.key ?? x.props?.key
++    const m = x.type === 'Box' && typeof k === 'string' ? /^c(\d+)$/.exec(k) : null
++    const caixa = m ? (x.children ?? []).find((c: any) => c?.props?.borderStyle !== undefined) : undefined
++    if (m && caixa) {
++      out.push({ titulo: d.linhas.find(l => l.key === `r${m[1]}`)?.texto ?? '', dentro, fundo: caixa.props.backgroundColor, borda: caixa.props.borderColor })
++      for (const c of caixa.children ?? []) andar(c, dentro + 1)
++      return
++    }
++    for (const c of x.children ?? []) andar(c, dentro)
++  }
++  andar(d.raiz, 0)
++  return out
++}
++// O cartão se destaca nos dois temas: o fundo (o dele ou, sem um, o do cartão de fora) a 5 níveis ou
++// mais do painel, e a borda a 20 ou mais do fundo.
++function esperarDestaque(c: CartaoDoApp, fundoDeFora?: unknown) {
++  for (const [tema, painel] of Object.entries(PAINEL)) {
++    const fundo = sobre(c.fundo ?? fundoDeFora, painel)
++    expect(fundo, `${c.titulo}: o fundo (${String(c.fundo ?? fundoDeFora)}) não é uma cor crua e translúcida`).toBeDefined()
++    expect(niveis(fundo!, painel), `${c.titulo}: o fundo contra o painel, no tema ${tema}`).toBeGreaterThanOrEqual(5)
++    const borda = sobre(c.borda, fundo!)
++    expect(borda, `${c.titulo}: a borda (${String(c.borda)}) não é uma cor crua e translúcida`).toBeDefined()
++    expect(niveis(borda!, fundo!), `${c.titulo}: a borda contra o fundo, no tema ${tema}`).toBeGreaterThanOrEqual(20)
++  }
++}
++
++// Regra: visual.cartao-se-destaca-do-painel
++test('no app, o cartão de subagente e o de grupo têm fundo e borda que se destacam do painel nos dois temas', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  host(on, [])
++  lancaveis(on, ['s1', 's2', 's3', 's4', 's5'])
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Revisar' }] }])
++  await start($, ['1'])
++  await lancar($, { descricao: 'buscar usos de hover' })
++  await relogio.advance(5000)
++  // Quatro lançados juntos de outra tarefa: o cartão de grupo.
++  await start($, ['2'])
++  for (const x of ['ler o diff', 'ler os testes', 'segurança', 'correção']) await lancar($, { descricao: x })
++  const d = await noApp($)
++  const cs = cartoesDoApp(d)
++  expect(cs.length, d.textos.join('\n')).toBe(2)
++  expect(cs[0]!.titulo).toContain('Explore: buscar usos de hover')
++  expect(cs[1]!.titulo).toContain('4 subagentes')
++  for (const c of cs) {
++    expect(c.dentro, c.titulo).toBe(0)
++    esperarDestaque(c)
++  }
++})
++
++// Regra: visual.cartao-se-destaca-do-painel
++test('no app, o cartão da filha se destaca do painel; o do subagente dentro dele tem a mesma borda e fica com o fundo dela', async ($: any, on: any) => {
++  fixar(on)
++  host(on, [
++    {
++      id: 'local_11111111-1111-1111-1111-111111111111',
++      nome: 'filha',
++      painel: {
++        tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }],
++        agentes: [{ agent: 'fs-1', label: 'Explore: achar o teste', parent: '', anchor: '1', tasks: [], sub: { at: AGORA - 500, state: 'running', calls: 3, tool: 'Grep "x"', batch: AGORA - 500, engine: 'Haiku 5.5' } }],
++      },
++    },
++  ])
++  await pedido($, 'Pedido um')
++  await plan($, UM)
++  await start($, ['1'])
++  await abrirSessao($)
++  await aviso($)
++  const d = await noApp($)
++  const cs = cartoesDoApp(d)
++  expect(cs.length, d.textos.join('\n')).toBe(2)
++  const [filha, sub] = cs as [CartaoDoApp, CartaoDoApp]
++  expect(filha.titulo).toContain('filha')
++  expect(filha.dentro).toBe(0)
++  esperarDestaque(filha)
++  // O cartão de dentro: a mesma borda, e nenhum fundo dele por cima do fundo do cartão de fora.
++  expect(sub.titulo).toContain('Explore: achar o teste')
++  expect(sub.dentro).toBe(1)
++  expect(sub.borda).toBe(filha.borda)
++  expect(sub.fundo, 'o cartão de dentro não repete o fundo').toBeUndefined()
++  esperarDestaque(sub, filha.fundo)
++})

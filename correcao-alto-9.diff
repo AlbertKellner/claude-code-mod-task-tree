@@ -1,0 +1,275 @@
+diff --git a/regras/lembretes.md b/regras/lembretes.md
+index 5c68082..002f3b6 100644
+--- a/regras/lembretes.md
++++ b/regras/lembretes.md
+@@ -54,6 +54,17 @@ O pedido de replanejar vale uma vez só.
+ Origem: decisão do usuário, 2026-10-27; commit d3ff1be.
+ Estado: coberto
+ 
++### lembretes.replanejar-apos-esc-com-aviso-no-meio
++Um aviso que não abre pedido, entre o Esc e a mensagem seguinte, não tira o pedido de replanejar.
++
++- Dado um turno parado pela pessoa, com tarefas abertas
++- Quando, antes da mensagem dela, chegam o aviso do app, o hand-back de um subagente ou a notificação de uma tarefa em segundo plano, e o turno deles termina normalmente
++- Então a mensagem seguinte, da pessoa ou de outra sessão, ainda traz o pedido de replanejar com a lista das abertas, uma vez só
++
++Origem: auditoria 2026-11-10 (o fim normal do turno do aviso apagava a marca do Esc); aplica lembretes.replanejar-apos-esc-pessoa ("precisa replanejar quando eu interrompo e envio nova mensagem") e lembretes.outra-sessao-apos-esc, sem mudar nenhuma regra nem o desenho.
++Código: hooks/panel.ts, state/durability.ts
++Estado: coberto
++
+ ### lembretes.primeira-chamada-sem-plano
+ O lembrete de planejar na primeira ferramenta sem plano.
+ 
+diff --git a/regras/selos.json b/regras/selos.json
+index 1d0d7b4..5e088a6 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -699,6 +699,16 @@
+       "data": "2026-11-10",
+       "motivo": "auditoria 2026-11-10, achado alto 1"
+     },
++    "task-tree/tests/lembretes.test.ts::depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar": {
++      "regras": [
++        "lembretes.replanejar-apos-esc-com-aviso-no-meio"
++      ],
++      "hash": "abed49138f309bc5",
++      "assercoes": 2,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
++    },
+     "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
+       "regras": [
+         "lembretes.esc-sem-abertas"
+@@ -729,6 +739,16 @@
+       "data": "2026-10-28",
+       "motivo": "linha de base"
+     },
++    "task-tree/tests/lembretes.test.ts::depois do Esc, avisos que não abrem pedido no meio não tiram o pedido de replanejar da mensagem da pessoa": {
++      "regras": [
++        "lembretes.replanejar-apos-esc-com-aviso-no-meio"
++      ],
++      "hash": "2788a08468f0bdcc",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
++    },
+     "task-tree/tests/lembretes.test.ts::depois do fim normal do turno, a mensagem da pessoa só lista o que ficou aberto": {
+       "regras": [
+         "lembretes.fim-normal-lista-abertas"
+diff --git a/task-tree/hooks/panel.ts b/task-tree/hooks/panel.ts
+index 978b0be..6bc45b9 100644
+--- a/task-tree/hooks/panel.ts
++++ b/task-tree/hooks/panel.ts
+@@ -36,21 +36,27 @@ export async function wake($: any) {
+   }
+ }
+ 
+-// The turn's end (turnEnded, turnAborted) is kept in the store too, one record (`turn`): a new
++// The turn's end (turnEnded, turnAborted, replanDue) is kept in the store too, one record (`turn`): a new
+ // process (the worker respawned, /model, a restart of the app) drew as in progress, with its clock
+ // going, what the last turn had left stopped. Written only when it changes: wake runs at every prompt
+ // and every call of the main loop.
+-type TurnRecord = { ended: number | null; aborted: boolean }
++// A record of an earlier version has no `replan`: its `aborted` says it (no request came since the stop).
++type TurnRecord = { ended: number | null; aborted: boolean; replan: boolean }
+ let lastTurn: string | undefined
+ const turnRecord = (v: unknown): TurnRecord | undefined =>
+   v !== null && typeof v === 'object' && 'ended' in v
+-    ? { ended: typeof (v as any).ended === 'number' ? (v as any).ended : null, aborted: (v as any).aborted === true }
++    ? {
++        ended: typeof (v as any).ended === 'number' ? (v as any).ended : null,
++        aborted: (v as any).aborted === true,
++        replan: (v as any).replan === true || ((v as any).replan === undefined && (v as any).aborted === true),
++      }
+     : undefined
+ export async function saveTurn($: any) {
+   try {
+     const ended = (await $.state.get(turnEndedState)).value
+     const aborted = (await $.state.get(turnAbortedState)).value
+-    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true })
++    const replan = (await $.state.get(replanDueState)).value
++    const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true })
+     if (text === lastTurn) return
+     await saveStore($, 'turnEnded', JSON.parse(text))
+     lastTurn = text
+@@ -75,6 +81,7 @@ export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
+     try {
+       await $.state.set(turnEndedState, saved.ended)
+       await $.state.set(turnAbortedState, saved.aborted)
++      await $.state.set(replanDueState, saved.replan)
+       loaded.add('turn')
+     } catch {}
+     return saved
+@@ -92,6 +99,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
+     if (saved === undefined) return
+     await $.state.set(turnEndedState, saved.ended)
+     await $.state.set(turnAbortedState, saved.aborted)
++    await $.state.set(replanDueState, saved.replan)
+     lastTurn = JSON.stringify(saved)
+   } catch {}
+ }
+@@ -99,6 +107,7 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
+ export async function clearTurn($: any) {
+   await $.state.set(turnEndedState, null)
+   await $.state.set(turnAbortedState, false)
++  await $.state.set(replanDueState, false)
+   await saveTurn($)
+ }
+ const childrenState = { plugin: 'task-tree', key: 'children' } as const
+@@ -110,6 +119,7 @@ const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
+ const rateState = { plugin: 'task-tree', key: 'rate' } as const
+ const gitState = { plugin: 'task-tree', key: 'git' } as const
+ const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
++const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
+ const briefState = { plugin: 'task-tree', key: 'brief' } as const
+ const recapState = { plugin: 'task-tree', key: 'recap' } as const
+ // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
+diff --git a/task-tree/hooks/prompt-submit.ts b/task-tree/hooks/prompt-submit.ts
+index a152f85..4997b6a 100644
+--- a/task-tree/hooks/prompt-submit.ts
++++ b/task-tree/hooks/prompt-submit.ts
+@@ -13,6 +13,7 @@ import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watc
+ // file that calls $.state (../state/durability has a row for every one).
+ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+ const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
++const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
+ 
+ // The main loop's group; a subagent's is keyed by its agentId.
+ // Prompt origins (`prompt.submit`'s `e.origin.kind`) that continue the request in progress rather
+@@ -54,9 +55,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
+   await noteReceived($, text)
+   // A prompt starts a turn: what the last one left open is in progress again.
+   await wake($)
+-  // The last turn of this session was interrupted (stopped): a message of another session that comes
+-  // next gets the reminder to replan the panel (the person's rule); any request clears the mark.
+-  const aborted = (await $.state.get(turnAbortedState)).value === true
++  // A turn of this session was interrupted (stopped) and no request came since: the next request, the
++  // person's or another session's, gets the reminder to replan the panel (the person's rule), and
++  // clears the mark. A turn that opened no request in between (the app's notice, a hand-back) does
++  // not take it away (replanDue; turnAborted, the last turn's end, for a state from before it).
++  const aborted = (await $.state.get(turnAbortedState)).value === true || (await $.state.get(replanDueState)).value === true
+   watchSessions($)
+   // The person's own prompt: the panel comes back if it is not on screen (see showPane).
+   if (!it.peer && !it.notice && !it.handback && !NO_TURN.includes(kind)) await showPane($)
+@@ -96,6 +99,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
+   const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
+   if (aborted) {
+     await $.state.set(turnAbortedState, false)
++    await $.state.set(replanDueState, false)
+     await saveTurn($)
+   }
+   // After an interrupted turn, the message that comes next, the person's or another session's, asks
+diff --git a/task-tree/hooks/turn.ts b/task-tree/hooks/turn.ts
+index 22d0991..367546b 100644
+--- a/task-tree/hooks/turn.ts
++++ b/task-tree/hooks/turn.ts
+@@ -20,6 +20,7 @@ const briefState = { plugin: 'task-tree', key: 'brief' } as const
+ const recapState = { plugin: 'task-tree', key: 'recap' } as const
+ const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
+ const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
++const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
+ 
+ // The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
+ // that names the limit): the summary the session gave, else the first sentence of the answer;
+@@ -146,6 +147,10 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
+   // Interrupted (stopped) before it was over: the next message of another session is reminded to
+   // replan (prompt.submit); the person's own next prompt clears it.
+   if (!agent) await $.state.set(turnAbortedState, e.isAborted === true)
++  // The replan the stop asks for waits on the next request (prompt.submit clears it there): a turn
++  // that opened no request (the app's notice, a hand-back) and ended normally leaves it as it is
++  // (the person, 2026-10-27: "precisa replanejar quando eu interrompo e envio nova mensagem").
++  if (!agent && e.isAborted === true) await $.state.set(replanDueState, true)
+   // The end in the store too: a new process draws it as stopped (see saveTurn).
+   if (!agent) await saveTurn($)
+   // The turn's answer grew the context: publish its share for the session that opened this one.
+diff --git a/task-tree/state/durability.ts b/task-tree/state/durability.ts
+index fbcf2e1..590fa9b 100644
+--- a/task-tree/state/durability.ts
++++ b/task-tree/state/durability.ts
+@@ -79,6 +79,8 @@ export const TABLE: readonly Row[] = [
+     note: 'when this session\'s turn ended, until the next prompt: what it left open is drawn with no close and no clock; in the store so a new process does not draw as in progress what had already stopped (saveTurn, ensureTurn, restoreTurn)' },
+   { key: 'turnAborted', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+     note: 'the main loop\'s last turn ended interrupted (isAborted), until the next request: a message of another session then gets the reminder to replan; what it left in progress is drawn interrupted, after a restart too' },
++  { key: 'replanDue', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
++    note: 'a turn of the main loop was stopped (Esc) and no request came since: the next request gets the reminder to replan; a turn that opens no request (the app\'s notice, a hand-back) leaves it, though its end sets turnAborted back to false' },
+   // The store alone.
+   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
+   // Variables of the module: a hot reload starts them over.
+diff --git a/task-tree/tests/lembretes.test.ts b/task-tree/tests/lembretes.test.ts
+index 0bbfafe..5b2c66f 100644
+--- a/task-tree/tests/lembretes.test.ts
++++ b/task-tree/tests/lembretes.test.ts
+@@ -2,6 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
+ import { painel as desenho } from './kit/leitura'
+ import { AGORA, fixar } from './kit/ambiente'
+ import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
++import { aviso, mensagemDe } from './kit/cenario'
+ 
+ // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
+ // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
+@@ -73,6 +74,41 @@ test('o lembrete de replanejar vale uma vez só', async ($: any, on: any) => {
+   expect(ctx).not.toContain(REPLANEJAR)
+ })
+ 
++// Regra: lembretes.replanejar-apos-esc-com-aviso-no-meio
++test('depois do Esc, avisos que não abrem pedido no meio não tiram o pedido de replanejar da mensagem da pessoa', async ($: any, on: any) => {
++  await iniciar($, on)
++  await esc($)
++  // O aviso do app, o hand-back de um subagente e a notificação de uma tarefa em segundo plano, cada
++  // um com o seu turno terminado normalmente.
++  expect(contexto(await aviso($))).not.toContain(REPLANEJAR)
++  await fimDoTurno($)
++  await $.prompt.submit({ text: '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>' })
++  await fimDoTurno($)
++  await $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } })
++  await fimDoTurno($)
++  const ctx = contexto(await pedido($, 'Agora faça outra coisa'))
++  expect(ctx).toContain(REPLANEJAR)
++  expect(ctx).toContain('o usuário interrompeu')
++  expect(ctx).toContain('Um')
++  expect(ctx).not.toContain(ABERTAS)
++  // E vale uma vez só.
++  await fimDoTurno($)
++  const depois = contexto(await pedido($, 'Mais uma'))
++  expect(depois).toContain(ABERTAS)
++  expect(depois).not.toContain(REPLANEJAR)
++})
++
++// Regra: lembretes.replanejar-apos-esc-com-aviso-no-meio
++test('depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar', async ($: any, on: any) => {
++  await iniciar($, on)
++  await esc($)
++  await aviso($)
++  await fimDoTurno($)
++  const ctx = contexto(await mensagemDe($, 'local_x', 'oi'))
++  expect(ctx).toContain('esta mensagem de outra sessão')
++  expect(ctx).toContain(REPLANEJAR)
++})
++
+ // Regra: lembretes.primeira-chamada-sem-plano
+ test('sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar', async ($: any, on: any) => {
+   fixar(on)
+diff --git a/task-tree/types/index.d.ts b/task-tree/types/index.d.ts
+index 2b499e1..df4a6a3 100644
+--- a/task-tree/types/index.d.ts
++++ b/task-tree/types/index.d.ts
+@@ -225,12 +225,16 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
+ // meanwhile what it left open is drawn with no close and no clock (see layout's Model.ended).
+ // `turnAborted`: the last turn of the main loop ended interrupted (turn.complete with isAborted), until
+ // the next request; a message of another session that comes then gets a reminder to replan the panel.
++// `replanDue`: a turn of the main loop was stopped (Esc) and no request came since: the next request,
++// the person's or another session's, gets the reminder to replan the panel. A turn that opens no
++// request (the app's notice, a hand-back, a background task's notification) leaves it as it is,
++// though its normal end sets turnAborted back to false.
+ // `rate`: this session's output rate (turn.step measures it), for its own header and published for
+ // its card; in the state so a reload mid-turn keeps the last value.
+ // `git`: this session's repository and branch (refreshGit reads them), for its own header and
+ // published for its card; null outside a repository.
+ declare module 'claude-code' {
+   interface PluginState {
+-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean }
++    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean }
+   }
+ }

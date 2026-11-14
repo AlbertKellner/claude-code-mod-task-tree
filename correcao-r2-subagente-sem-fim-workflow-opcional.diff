@@ -1,0 +1,206 @@
+diff --git a/regras/selos.json b/regras/selos.json
+index 3965f9c..097ab98 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -1407,6 +1407,37 @@
+       "data": "2026-11-11",
+       "motivo": "auditoria 2026-11-10, achado alto 6"
+     },
++    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 1/3: os cartões vivos vão ao store": {
++      "regras": [
++        "subagentes.workflow-sem-sinal-vira-interrompido"
++      ],
++      "hash": "7256ee402ee4767c",
++      "assercoes": 3,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, <AAAA-MM-DD>: \"<palavras do usuário>\" (agentes de workflow: tempo sem sinal)"
++    },
++    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 2/3: com sinal há 20 minutos, os cartões seguem vivos": {
++      "regras": [
++        "subagentes.workflow-sem-sinal-vira-interrompido",
++        "subagentes.vivo-de-verdade-segue-vivo"
++      ],
++      "hash": "0359fc4117ac74a8",
++      "assercoes": 3,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, <AAAA-MM-DD>: \"<palavras do usuário>\" (agentes de workflow: tempo sem sinal)"
++    },
++    "task-tree/tests/subagentes.test.ts::agentes de workflow e o processo novo, 3/3: sem sinal há mais de 30 minutos, os cartões ficam \"interrompido\" e a tarefa de origem reflete o fim": {
++      "regras": [
++        "subagentes.workflow-sem-sinal-vira-interrompido"
++      ],
++      "hash": "58319f7ebb6d846a",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, <AAAA-MM-DD>: \"<palavras do usuário>\" (agentes de workflow: tempo sem sinal)"
++    },
+     "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
+       "regras": [
+         "subagentes.cartao-fica-com-a-origem-fechada"
+diff --git a/regras/subagentes.md b/regras/subagentes.md
+index 6e912a6..c5e4c0a 100644
+--- a/regras/subagentes.md
++++ b/regras/subagentes.md
+@@ -223,7 +223,7 @@ O cartão vivo de um subagente cujo fim não chegou é encerrado pela lista de a
+ - Quando a releitura de 3 s (a mesma das sessões) não o acha na lista de agentes do app, ou o acha listado como terminado, em duas releituras seguidas
+ - Então o cartão fica "interrompido" (listado como terminado, com o fim que a lista diz: "concluído", "falhou" ou "interrompido"), com o tempo parado no último sinal dele (a última chamada ou passo que o cartão registrou; sem nenhum, o lançamento); sai da pílula "N subagentes"; o que ele deixou aberto fica interrompido, como em qualquer fim; e, com o turno terminado, a tarefa de onde saiu reflete esse fim (✕ "interrompida", ✕ "falhou" ou ✓), se nada mais está em execução nela. Um fim que chegue depois vale sobre este
+ 
+-Fora deste cenário: os agentes de workflow e o que eles lançam (o app não os lista: seguem como estão, à espera do critério deles); o cartão gravado por versão anterior, sem o último sinal, para no lançamento; o subagente de uma sessão filha é conferido pela filha, enquanto o processo dela roda.
++Fora deste cenário: os agentes de workflow e o que eles lançam (o app não os lista: ver subagentes.workflow-sem-sinal-vira-interrompido); o cartão gravado por versão anterior, sem o último sinal, para no lançamento; o subagente de uma sessão filha é conferido pela filha, enquanto o processo dela roda.
+ 
+ Origem: auditoria 2026-11-10 (subagente fica "trabalhando" ou "em segundo plano" para sempre quando o fim dele não chega); decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)", para "O cartão vivo é conferido contra a lista de agentes do app. Os agentes de workflow, que não aparecem nessa lista, usam outro critério. O órfão vira "interrompido" com o tempo parado, e a tarefa de origem pode fechar."); aplica subagentes.pai-reflete-falha-ou-interrupcao e subagentes.pai-conclui-no-fim-do-turno ao fim dado pela lista, sem mudar nenhuma delas.
+ Código: hooks/sessions.ts
+@@ -233,13 +233,26 @@ Estado: coberto
+ Um subagente que ainda roda nunca tem o cartão encerrado pela conferência.
+ 
+ - Dado um subagente rodando, com o cartão "trabalhando" ou "em segundo plano"
+-- Quando o worker de hooks volta sem reinício do app (o painel vem do store e o app segue listando o subagente como rodando, à espera ou ocioso); ou a lista do app falha, vem sem o estado, ou uma só releitura não o acha (recém-lançado, lista lida na hora errada) e a seguinte volta a achá-lo; ou ele é um agente de workflow, ou foi lançado por um, que a lista não traz
++- Quando o worker de hooks volta sem reinício do app (o painel vem do store e o app segue listando o subagente como rodando, à espera ou ocioso); ou a lista do app falha, vem sem o estado, ou uma só releitura não o acha (recém-lançado, lista lida na hora errada) e a seguinte volta a achá-lo; ou ele é um agente de workflow, ou foi lançado por um, que a lista não traz, e deu sinal há menos de 30 minutos
+ - Então o cartão segue vivo, na pílula "N subagentes", e a tarefa de onde saiu não fecha por ele
+ 
+ Origem: auditoria 2026-11-10, ajuste da verificação (o worker de hooks pode voltar com os subagentes ainda rodando no motor; os agentes de workflow não são listados); decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)": "O cartão vivo é conferido contra a lista de agentes do app. Os agentes de workflow, que não aparecem nessa lista, usam outro critério.").
+ Código: hooks/sessions.ts
+ Estado: coberto
+ 
++### subagentes.workflow-sem-sinal-vira-interrompido
++O cartão vivo de um agente de workflow sem sinal há 30 minutos é encerrado.
++
++- Dado um agente de workflow (ou um subagente lançado por ele), que o app não lista, com o cartão "trabalhando" ou "em segundo plano"
++- Quando passam 30 minutos sem chamada nem passo dele, nem de nada ainda vivo que ele lançou (o processo reiniciou, o run foi parado, a tentativa travou)
++- Então o cartão fica "interrompido", com o tempo parado no último sinal dele, sai da pílula, e a tarefa de onde saiu reflete o fim como em subagentes.sem-fim-vira-interrompido; com sinal há menos de 30 minutos, segue vivo
++
++Fora deste cenário: uma chamada única que dure mais de 30 minutos é lida como sem sinal (o fim real, quando chega, vale sobre este; a tarefa de origem já fechada não reabre).
++
++Origem: auditoria 2026-11-10, ajuste da verificação ("para eles usar outro critério (fim do run, ou tempo sem chamadas)"); decisão do usuário, <AAAA-MM-DD> ("<palavras do usuário>").
++Código: hooks/sessions.ts
++Estado: coberto
++
+ ### subagentes.sem-fim-no-app
+ No app, o cartão do subagente que morreu com o processo fica "interrompido"; o que segue rodando, não.
+ 
+diff --git a/task-tree/hooks/agents.ts b/task-tree/hooks/agents.ts
+index 48b0d90..a3c820c 100644
+--- a/task-tree/hooks/agents.ts
++++ b/task-tree/hooks/agents.ts
+@@ -177,10 +177,15 @@ export async function subEnd($: any, agent: string, e: any) {
+ // the list fails, has no `status` (an earlier engine: unknown, so alive) or says anything else
+ // (pending, running, waiting, idle). After a respawn of the hooks worker the subagents go on in the
+ // engine, listed as running: their cards stay. A late turn.complete still writes the true end over
+-// this one (subEnd). A workflow's agents are not in the list, so they are left as they are, and so
+-// is what one of them launched (the list may file it under the run too).
++// this one (subEnd).
++// A workflow's agents are not in the list, nor may be what one of them launched (the list may file
++// it under the run too): theirs is the time with no word (the person, <AAAA-MM-DD>: "<palavras do
++// usuário>"). With no call nor step for SUB_IDLE ms, of its own or of anything alive it launched,
++// the card ends "interrompido", its time stopped at its last word. A call that takes longer than
++// that is read as gone; its real end, when it comes, is written over (subEnd).
+ const ENDED: Record<string, Sub['state']> = { completed: 'done', failed: 'failed', killed: 'interrupted' }
+ export const SUB_CONFIRM = 3000
++export const SUB_IDLE = 30 * 60_000
+ // When each card's agent was first seen gone, by this module (a reload starts over: one check more).
+ const gone = new Map<string, number>()
+ export async function checkSubs($: any) {
+@@ -188,21 +193,29 @@ export async function checkSubs($: any) {
+   const byAgent = new Map((value as Group[]).map(g => [g.agent, g] as const))
+   const ofRun = (g: Group | undefined, seen: string[] = []): boolean =>
+     g !== undefined && !seen.includes(g.agent) && (g.sub?.run !== undefined || ofRun(byAgent.get(g.parent ?? MAIN), [...seen, g.agent]))
+-  const live = (value as Group[]).filter(g => g.agent !== MAIN && subLive(g.sub) && !ofRun(g))
++  const alive = (value as Group[]).filter(g => g.agent !== MAIN && subLive(g.sub))
++  const live = alive.filter(g => !ofRun(g))
+   for (const id of [...gone.keys()]) if (!live.some(g => g.agent === id)) gone.delete(id)
+-  if (live.length === 0) return
++  if (alive.length === 0) return
+   const now = await stamp($)
+   if (now === undefined) return
+-  let list: AgentInfo[]
+-  try {
+-    const got = await $.agent.list()
+-    if (!Array.isArray(got)) return
+-    list = got
+-  } catch {
+-    return
+-  }
+   const ends = new Map<string, Sub['state']>()
+-  for (const g of live) {
++  // A workflow's: when it, or anything alive it launched, was last heard.
++  const heard = (g: Group, seen: string[] = []): number =>
++    Math.max(g.sub?.seen ?? g.sub?.at ?? -Infinity, ...alive.filter(k => (k.parent ?? MAIN) === g.agent && !seen.includes(k.agent)).map(k => heard(k, [...seen, g.agent])))
++  for (const g of alive) if (ofRun(g) && now - heard(g) >= SUB_IDLE) ends.set(g.agent, 'interrupted')
++  let list: AgentInfo[] = []
++  let listed = false
++  if (live.length > 0) {
++    try {
++      const got = await $.agent.list()
++      if (Array.isArray(got)) {
++        list = got
++        listed = true
++      }
++    } catch {}
++  }
++  for (const g of listed ? live : []) {
+     const info = list.find(a => a?.id === g.agent)
+     const state = info === undefined ? 'interrupted' : ENDED[String(info.status)]
+     if (state === undefined) {
+diff --git a/task-tree/tests/subagentes.test.ts b/task-tree/tests/subagentes.test.ts
+index 9646373..8128330 100644
+--- a/task-tree/tests/subagentes.test.ts
++++ b/task-tree/tests/subagentes.test.ts
+@@ -904,3 +904,55 @@ test('os agentes de um workflow e o que um deles lança, que o app não lista, n
+   expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
+   expect(linha(p, 'Explore: achar o kit').texto, emTexto(p)).toContain('trabalhando')
+ })
++
++// O trio do workflow: como o de cima, com o store abaixo.
++const WF_SEM_SINAL: Record<string, unknown> = {}
++
++// Regra: subagentes.workflow-sem-sinal-vira-interrompido
++test('agentes de workflow e o processo novo, 1/3: os cartões vivos vão ao store', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  armazem(on, WF_SEM_SINAL)
++  listaDoApp(on, ['w1', 'w2'])
++  await pedido($, 'Pedido um')
++  await plan($, UM)
++  await start($, ['1'])
++  await lancar($, { descricao: 'ler o diff', run: 'wf_1' })
++  await lancar($, { descricao: 'ler os testes', run: 'wf_1' })
++  await relogio.advance(2000)
++  await chamadaDoSubagente($, 'w1', 'Read', { file_path: 'C:/x/kit/leitura.ts' })
++  await fimDoTurno($)
++  const p = await painel($)
++  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
++  expect(gravou(WF_SEM_SINAL), JSON.stringify(Object.keys(WF_SEM_SINAL))).toBe(true)
++})
++
++// Regra: subagentes.workflow-sem-sinal-vira-interrompido, subagentes.vivo-de-verdade-segue-vivo
++test('agentes de workflow e o processo novo, 2/3: com sinal há 20 minutos, os cartões seguem vivos', async ($: any, on: any) => {
++  const { relogio } = fixar(on, { agora: AGORA + 20 * 60_000 })
++  armazem(on, WF_SEM_SINAL)
++  host(on, [])
++  listaDoApp(on)
++  if (!gravou(WF_SEM_SINAL)) throw new Error('rode o trio inteiro: o 1/3 não gravou')
++  await iniciarSessao($)
++  await relogio.advance(3000)
++  await relogio.advance(3000)
++  const p = await painel($)
++  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('2 trabalhando')
++  expect(pilula(p)).toContain('▸ 2')
++})
++
++// Regra: subagentes.workflow-sem-sinal-vira-interrompido
++test('agentes de workflow e o processo novo, 3/3: sem sinal há mais de 30 minutos, os cartões ficam "interrompido" e a tarefa de origem reflete o fim', async ($: any, on: any) => {
++  const { relogio } = fixar(on, { agora: AGORA + 31 * 60_000 })
++  armazem(on, WF_SEM_SINAL)
++  host(on, [])
++  listaDoApp(on)
++  if (!gravou(WF_SEM_SINAL)) throw new Error('rode o trio inteiro: o 1/3 não gravou')
++  await iniciarSessao($)
++  await relogio.advance(3000)
++  const p = await painel($)
++  expect(linha(p, 'Workflow · 2 agentes').texto, emTexto(p)).toContain('interrompido')
++  expect(linha(p, 'Workflow · 2 agentes').texto).not.toContain('trabalhando')
++  expect(pilula(p)).not.toContain('▸')
++  expect(linha(p, 'Investigar').estado).toBe('interrompida')
++})

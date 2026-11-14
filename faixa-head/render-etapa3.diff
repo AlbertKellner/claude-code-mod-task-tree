@@ -1,0 +1,58 @@
+diff --git a/task-tree/hooks/render.tsx b/task-tree/hooks/render.tsx
+index f5db39c..ab556e7 100644
+--- a/task-tree/hooks/render.tsx
++++ b/task-tree/hooks/render.tsx
+@@ -6,10 +6,11 @@ import { atom, read, update } from 'claude-code'
+ 
+ import type { Send } from '../types'
+ import { lineWidth, overlays } from '../draw/geometry'
++import { desktopHead } from '../draw/head'
+ import type { Placed } from '../draw/geometry'
+ import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+ import type { Row } from '../draw/layout'
+-import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
++import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+ import { debug } from '../io/log'
+ import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
+ import { keepTime, openSession, watchSessions } from './sessions'
+@@ -69,7 +70,7 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
+ // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
+ // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
+ // the last one drawn is on top.
+-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
++function drawDesktop($: any, ui: any, lines: Row[], W: number, top: any, chrome: { errorLine: any }) {
+   const { Box, Svg, Button } = ui
+   const lanes = guides(lines)
+   const hides = labelCols(lines)
+@@ -91,9 +92,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
+   const drawing = (
+     <Box flexDirection="column">
+       {chrome.errorLine}
+-      <Box key="head" position="relative" flexDirection="column">
+-        <Svg source={top.source} alt={alt} height={top.height} />
+-      </Box>
++      {top}
+       {lines.map((r, i) => (
+         <Box key={`r${i}`} flexDirection="column">
+           {(source => {
+@@ -307,8 +306,8 @@ export async function render($: EngineInterface, e: any, next: any) {
+   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
+ 
+   if (e.surface === 'desktop' && 'Svg' in ui) {
+-    const W = lineWidth((e.props as any).bodyColumns || 40)
+-    const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state, ultracode === true)
++    const cols = (e.props as any).bodyColumns || 40
++    const W = lineWidth(cols)
+     const alt =
+       (n + x === 0
+         ? 'Nenhuma tarefa planejada'
+@@ -320,7 +319,8 @@ export async function render($: EngineInterface, e: any, next: any) {
+             ...(headGit ? [gitAlt(headGit)] : []),
+             ...list.map(c => c.text),
+           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
+-    return drawDesktop($, ui, lines, W, top, alt, { errorLine })
++    const top = desktopHead(ui, { title: head, d, n, chips: list, time: headTime, rate: headRate, git: headGit, state, ultracode: ultracode === true, alt, whole, cols })
++    return drawDesktop($, ui, lines, W, top, { errorLine })
+   }
+ 
+   // Terminal: the same lines as text, the guides in box-drawing characters, color only on

@@ -1,0 +1,102 @@
+diff --git a/regras/perguntas.md b/regras/perguntas.md
+index 986fa7f..687c502 100644
+--- a/regras/perguntas.md
++++ b/regras/perguntas.md
+@@ -54,6 +54,17 @@ O ExitPlanMode mostra a espera da aprovação do plano.
+ Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+ Estado: coberto
+ 
++### perguntas.mensagem-no-meio-do-turno-mantem-espera
++A mensagem que chega com o turno em curso não tira a espera da pergunta ou do plano que segue aberto.
++
++- Dado uma pergunta (AskUserQuestion) ou uma aprovação de plano (ExitPlanMode) aberta sob uma tarefa ◉
++- Quando chega, com o turno em curso, uma mensagem de outra sessão ou uma que a pessoa digitou por cima do turno
++- Então a espera segue até a resposta, e a tarefa segue ◉; a escolha do wrap_up e a permissão seguem como antes
++
++Origem: auditoria 2026-11-10 (mensagem entregue no meio do turno derrubava a pergunta aberta); aplica perguntas.espera-sob-a-tarefa e perguntas.exitplanmode-espera ("até a resposta"), sem mudar quando a mensagem abre o seu pedido (pedidos.uma-mensagem-um-pedido).
++Código: hooks/prompt-submit.ts
++Estado: coberto
++
+ ### perguntas.escolha-do-wrapup-ate-proxima-mensagem
+ A escolha do wrap_up fica até a próxima mensagem.
+ 
+diff --git a/regras/selos.json b/regras/selos.json
+index c4f6dd7..a7d3fcc 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -950,6 +950,16 @@
+       "data": "2026-10-28",
+       "motivo": "linha de base"
+     },
++    "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
++      "regras": [
++        "perguntas.mensagem-no-meio-do-turno-mantem-espera"
++      ],
++      "hash": "124bf584a42f5897",
++      "assercoes": 5,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10: a mensagem entregue no meio do turno derrubava a pergunta ou o plano ainda abertos"
++    },
+     "task-tree/tests/perguntas.test.ts::o pedido de permissão aparece como espera; o de pergunta, não": {
+       "regras": [
+         "perguntas.permissao-espera"
+diff --git a/task-tree/hooks/prompt-submit.ts b/task-tree/hooks/prompt-submit.ts
+index 4997b6a..753b9d4 100644
+--- a/task-tree/hooks/prompt-submit.ts
++++ b/task-tree/hooks/prompt-submit.ts
+@@ -81,8 +81,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
+       ],
+     })
+   }
+-  // Safety net: a new message means the main loop has no question open.
+-  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission')
++  // Safety net: a new message means the main loop has no question open. Not one delivered into a
++  // running turn (`e.turnId`: another session's message, or one typed over the turn): the question or
++  // plan dialog may still be on screen, and its call drops its wait when it returns (and the turn's end).
++  const midTurn = typeof e.turnId === 'string' && e.turnId !== ''
++  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission' || (midTurn && (w.kind === 'question' || w.kind === 'plan')))
+   // A new request gets its own reminder at its first tool call without a plan.
+   reminders.unplanned = 0
+   reminders.planned = false
+diff --git a/task-tree/tests/perguntas.test.ts b/task-tree/tests/perguntas.test.ts
+index d2a5f20..12a0aa6 100644
+--- a/task-tree/tests/perguntas.test.ts
++++ b/task-tree/tests/perguntas.test.ts
+@@ -88,6 +88,36 @@ test('ExitPlanMode mostra a espera da aprovação do plano até a resposta', asy
+   expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
+ })
+ 
++// Regra: perguntas.mensagem-no-meio-do-turno-mantem-espera
++test('mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
++  responderDepois(on, relogio, 'ExitPlanMode', 'aprovado')
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
++  await relogio.settle()
++  const de = 'local_11111111-1111-1111-1111-111111111111'
++  await $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">relato</cross-session-message>`, turnId: 't', origin: { kind: 'peer', from: de } })
++  let p = await painel($)
++  esperarEstado(p, RESPOSTA, 'aguardando')
++  esperarEstado(p, 'Um', 'andamento')
++  await relogio.advance(1000)
++  await resp
++  p = await painel($)
++  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
++  const aprovar = ferramenta($, 'ExitPlanMode', { plan: 'o plano' })
++  await relogio.settle()
++  await $.prompt.submit({ text: 'mais uma coisa', turnId: 't', origin: { kind: 'composer' }, wait: true })
++  p = await painel($)
++  esperarEstado(p, 'Aguardando aprovação do plano', 'aguardando')
++  await relogio.advance(1000)
++  await aprovar
++  p = await painel($)
++  expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
++})
++
+ // Regra: perguntas.escolha-do-wrapup-ate-proxima-mensagem
+ test('a escolha do wrap_up fica até a próxima mensagem', async ($: any, on: any) => {
+   const { relogio } = fixar(on)

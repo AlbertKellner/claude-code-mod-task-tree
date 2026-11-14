@@ -1,0 +1,65 @@
+diff --git a/task-tree/hooks/render.tsx b/task-tree/hooks/render.tsx
+index f5db39c..70251bd 100644
+--- a/task-tree/hooks/render.tsx
++++ b/task-tree/hooks/render.tsx
+@@ -10,6 +10,8 @@ import type { Placed } from '../draw/geometry'
+ import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+ import type { Row } from '../draw/layout'
+ import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
++import { desktopRow, leadOf } from '../draw/desktop'
++import type { Acts } from '../draw/desktop'
+ import { debug } from '../io/log'
+ import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
+ import { keepTime, openSession, watchSessions } from './sessions'
+@@ -69,12 +71,21 @@ const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (
+ // open_session_in, focus, and says in a toast what it refuses), and the tooltip layer over a cut
+ // name. A Box is placed in whole cells, the line's whole height, and centers its Button both ways;
+ // the last one drawn is on top.
+-function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
++function drawDesktop($: any, ui: any, lines: Row[], W: number, cols: number, top: { source: string; height: number }, alt: string, chrome: { errorLine: any }) {
+   const { Box, Svg, Button } = ui
+   const lanes = guides(lines)
+   const hides = labelCols(lines)
+   const cards = frames(lines)
+-  const sources = lines.map((r, i) => rowSvg(r, lanes[i]!, cards[i]!, W, hides[i]))
++  // The presses of the native lines (../draw/desktop takes no `$`): the same keys and actions as the
++  // Buttons laid over the Svgs below.
++  const acts: Acts = {
++    fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
++    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
++  }
++  // Etapa 1: a line outside every card is drawn native; a card's lines keep their Svg (only those
++  // are built).
++  const native = (i: number) => cards[i]!.cards.length === 0
++  const sources = lines.map((r, i) => (native(i) ? '' : rowSvg(r, lanes[i]!, cards[i]!, W, hides[i])))
+   const over = (r: Row, p: Placed) =>
+     p.kind === 'icon' ? (
+       <Box position="absolute" top={0} bottom={0} left={p.left} width={p.width} flexDirection="row" alignItems="center" justifyContent="center">
+@@ -94,7 +105,7 @@ function drawDesktop($: any, ui: any, lines: Row[], W: number, top: { source: st
+       <Box key="head" position="relative" flexDirection="column">
+         <Svg source={top.source} alt={alt} height={top.height} />
+       </Box>
+-      {lines.map((r, i) => (
++      {lines.map((r, i) => native(i) ? desktopRow(ui, r, i, leadOf(r, lanes[i]!, hides[i]), acts, cols) : (
+         <Box key={`r${i}`} flexDirection="column">
+           {(source => {
+             const H = rowHeight(r, cards[i])
+@@ -307,7 +318,8 @@ export async function render($: EngineInterface, e: any, next: any) {
+   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
+ 
+   if (e.surface === 'desktop' && 'Svg' in ui) {
+-    const W = lineWidth((e.props as any).bodyColumns || 40)
++    const cols = (e.props as any).bodyColumns || 40
++    const W = lineWidth(cols)
+     const top = headerSvg(head, d, n, list, W, headTime, headRate, headGit, state, ultracode === true)
+     const alt =
+       (n + x === 0
+@@ -320,7 +332,7 @@ export async function render($: EngineInterface, e: any, next: any) {
+             ...(headGit ? [gitAlt(headGit)] : []),
+             ...list.map(c => c.text),
+           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
+-    return drawDesktop($, ui, lines, W, top, alt, { errorLine })
++    return drawDesktop($, ui, lines, W, cols, top, alt, { errorLine })
+   }
+ 
+   // Terminal: the same lines as text, the guides in box-drawing characters, color only on

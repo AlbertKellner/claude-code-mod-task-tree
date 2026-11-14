@@ -1,0 +1,98 @@
+diff --git a/regras/envios.md b/regras/envios.md
+index a47da6d..c9f60d1 100644
+--- a/regras/envios.md
++++ b/regras/envios.md
+@@ -138,3 +138,14 @@ Enquanto a carta está na fila, a tarefa de onde saiu espera a sessão.
+ Origem: decisão do usuário, 2026-10-30 ("Não, fica ◷ enquanto a carta está na fila"; "Sim, conclusão automática como hoje").
+ Código: draw/layout.ts, hooks/sessions.ts
+ Estado: coberto
++
++### envios.entrega-com-lista-de-sessoes-em-erro
++A entrega é confirmada mesmo quando a lista de sessões do app falha.
++
++- Dado uma tarefa com a carta dela na fila
++- Quando a lista de sessões do app volta com erro e a sessão destino já publicou que recebeu a mensagem
++- Então a carta fica verde, sai do chip "aguardando sessão" e o painel conclui a tarefa, como na entrega com a lista lida
++
++Origem: auditoria 2026-11-10 (carta na fila sem saída: com a lista em erro, o envio nunca era conferido); aplica envios.fica-ate-entrega ("na entrega, verde, e o painel conclui a tarefa que enviou"), sem mudar nenhuma regra.
++Código: hooks/sessions.ts
++Estado: coberto
+diff --git a/regras/selos.json b/regras/selos.json
+index f150b55..1d0d7b4 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -484,6 +484,16 @@
+       "data": "2026-11-03",
+       "motivo": "carta de envio sob a tarefa"
+     },
++    "task-tree/tests/envios.test.ts::com a lista de sessões em erro, a entrega publicada pela sessão deixa a carta verde e conclui a tarefa": {
++      "regras": [
++        "envios.entrega-com-lista-de-sessoes-em-erro"
++      ],
++      "hash": "654719f8ad37cea0",
++      "assercoes": 2,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10: carta na fila sem saída com a lista em erro"
++    },
+     "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
+       "regras": [
+         "envios.carta-pelo-nome-da-sessao"
+diff --git a/task-tree/hooks/sessions.ts b/task-tree/hooks/sessions.ts
+index 2cbdefc..e91e9f2 100644
+--- a/task-tree/hooks/sessions.ts
++++ b/task-tree/hooks/sessions.ts
+@@ -35,6 +35,11 @@ export async function refreshChildren($: any) {
+   // 1. The list. A failure is shown in the panel, else the sessions would silently drop out;
+   // outside the desktop app there are no sessions to show, so no line either.
+   const listed = await listSessions($)
++  const rows = 'error' in listed ? undefined : listed.rows
++  // Messages queued to any session (its children, its mother, its sisters): before any return, a list
++  // that failed included (with no rows, a session that publishes the messages it got still confirms
++  // them by its file; the list's error kept the letter blue after the delivery).
++  await watchSends($, Array.isArray(rows) ? rows : [])
+   // The error line is written only when it changes (every poll cleared it before).
+   const { value: shownError = '' } = await $.state.get(childrenErrorState)
+   if ('error' in listed) {
+@@ -43,10 +48,7 @@ export async function refreshChildren($: any) {
+     return
+   }
+   if (shownError !== '') await $.state.set(childrenErrorState, '')
+-  const rows = listed.rows
+   if (!Array.isArray(rows)) return
+-  // Messages queued to any session (its children, its mother, its sisters): before the returns below.
+-  await watchSends($, rows)
+   // No linked session at all: this one opened none (the state is cleared once, not every poll).
+   if (rows.length === 0) {
+     const { value: cur } = await $.state.get(childrenState)
+diff --git a/task-tree/tests/envios.test.ts b/task-tree/tests/envios.test.ts
+index d75c695..ff60934 100644
+--- a/task-tree/tests/envios.test.ts
++++ b/task-tree/tests/envios.test.ts
+@@ -389,3 +389,26 @@ test('com duas em andamento, a carta vai à tarefa com uma palavra do nome da se
+   // "hora" está nas duas: decide a ordem, a primeira ainda sem carta.
+   expect(cartasDe(p, 'Subagente da hora na orquestradora').join(' | '), emTexto(p)).toContain('para a hora')
+ })
++
++// Regra: envios.entrega-com-lista-de-sessoes-em-erro
++test('com a lista de sessões em erro, a entrega publicada pela sessão deixa a carta verde e conclui a tarefa', async ($: any, on: any) => {
++  fixar(on)
++  const lista = { falha: false }
++  on('mcp.call', { tool: 'list_sessions' }, (_$: any, e: any, next: any) =>
++    lista.falha ? { value: { content: [{ type: 'text', text: 'list_sessions indisponível' }], isError: true } } : next(e),
++  )
++  const h = host(on, [{ id: 'local_x' }])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  lista.falha = true
++  h.recebeu('local_x', AGORA)
++  await aviso($)
++  const p = await painel($)
++  esperarCartaSob(p, 'Um', 'entregue')
++  // O cartão da sessão, que a lista em erro deixa abrindo, segura "Um" ◉; o painel já a concluiu.
++  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 2])
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
++})

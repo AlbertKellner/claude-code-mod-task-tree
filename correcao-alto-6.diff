@@ -1,0 +1,375 @@
+diff --git a/regras/selos.json b/regras/selos.json
+index 0fafae5..65a5300 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -1296,6 +1296,17 @@
+       "data": "2026-11-10",
+       "motivo": "auditoria 2026-11-10, achado alto 5"
+     },
++    "task-tree/tests/subagentes.test.ts::a tarefa ✕ \"falhou\" reaberta com start e refeita por outro subagente que conclui fica ✓": {
++      "regras": [
++        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
++        "subagentes.pai-reflete-falha-ou-interrupcao"
++      ],
++      "hash": "3c67d422b2a88ef6",
++      "assercoes": 8,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
+     "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
+       "regras": [
+         "subagentes.cartao-fica-com-a-origem-fechada"
+@@ -1337,6 +1348,27 @@
+       "data": "2026-11-09",
+       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+     },
++    "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
++      "regras": [
++        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
++      ],
++      "hash": "9e1ed3b72ccc2bb0",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
++    "task-tree/tests/subagentes.test.ts::lançado da pendente, o subagente que termina antes do primeiro start ainda fecha a tarefa no fim do turno": {
++      "regras": [
++        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
++        "subagentes.pai-conclui-no-fim-do-turno"
++      ],
++      "hash": "894586017d8a00ec",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
+     "task-tree/tests/subagentes.test.ts::lançado de uma pendente (sem start), o subagente concluído fecha a pendente também": {
+       "regras": [
+         "subagentes.pai-conclui-no-fim-do-turno"
+@@ -1458,6 +1490,27 @@
+       "data": "2026-11-10",
+       "motivo": "auditoria 2026-11-10, achado alto 4"
+     },
++    "task-tree/tests/subagentes.test.ts::reaberta com start depois de fechar pelo subagente, a tarefa aguarda no fim do turno seguinte; o subagente antigo não a fecha de novo": {
++      "regras": [
++        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
++      ],
++      "hash": "3958e84470188da1",
++      "assercoes": 5,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
++    "task-tree/tests/subagentes.test.ts::reaberta com start, a tarefa que tinha falhado e é parada com Esc diz \"interrompida\", não \"falhou\"": {
++      "regras": [
++        "subagentes.reaberta-nao-fecha-pelo-subagente-antigo",
++        "turnos.esc-interrompe-so-a-iniciada"
++      ],
++      "hash": "e7fe3eef8ba9a35c",
++      "assercoes": 6,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
+     "task-tree/tests/subagentes.test.ts::sem nada em andamento, o cartão vai à pendente do pedido atual": {
+       "regras": [
+         "subagentes.cartao-desde-o-lancamento"
+@@ -1489,6 +1542,26 @@
+       "data": "2026-11-09",
+       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+     },
++    "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tarefa de onde saiu o subagente do pedido um": {
++      "regras": [
++        "subagentes.lancado-antes-da-tarefa-nao-conta"
++      ],
++      "hash": "694665aa2925dddb",
++      "assercoes": 3,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
++    "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela": {
++      "regras": [
++        "subagentes.lancado-antes-da-tarefa-nao-conta"
++      ],
++      "hash": "13e907247ecc1ae2",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10, achado alto 6"
++    },
+     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
+       "regras": [
+         "taxa.fim-do-turno-fica-aceso"
+diff --git a/regras/subagentes.md b/regras/subagentes.md
+index 053fce0..a6ebf91 100644
+--- a/regras/subagentes.md
++++ b/regras/subagentes.md
+@@ -144,3 +144,30 @@ Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho seg
+ Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
+ Código: draw/layout.ts
+ Estado: coberto
++
++### subagentes.reaberta-nao-fecha-pelo-subagente-antigo
++Reaberta com start, a tarefa não fecha de novo pelos subagentes que terminaram antes.
++
++- Dado uma tarefa fechada (✓ sozinha pelo fim dos subagentes, ✕ "falhou", ou pelo `done` do modelo) com subagentes já terminados embaixo
++- Quando o modelo a reabre com start (e a replaneja no mesmo pedido ou não) e o turno termina, normal ou com Esc
++- Então os subagentes que terminaram antes do start não contam: sem subagente novo, ela fica ◷ como toda iniciada no fim do turno (com Esc, ✕ "interrompida", sem o "falhou" de antes); com um subagente que termina depois do start, reflete o fim dele, como sempre; os cartões antigos seguem embaixo dela
++
++Também: a tarefa (pendente ou iniciada) cujo subagente terminou antes do primeiro start dela não foi reaberta e segue fechando no fim do turno ("Fecha também").
++
++Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (segue valendo o pior); o fim de um subagente depois do Esc.
++
++Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores); aplica turnos.iniciada-aguarda-no-fim ("salvo a tarefa cujo trabalho era só subagentes") e subagentes.pai-conclui-no-fim-do-turno ("Fecha de fato (Recomendado)", "Fecha também") ao fim que já foi refletido, sem mudar nenhuma delas nem subagentes.pai-reflete-falha-ou-interrupcao.
++Código: state/tasks.ts
++Estado: coberto
++
++### subagentes.lancado-antes-da-tarefa-nao-conta
++Um subagente lançado antes de a tarefa ser planejada não a fecha.
++
++- Dado um painel gravado por uma versão anterior, em que o cartão de um subagente do pedido anterior ficou com o id que um plano novo reusou (antes de a âncora ser renomeada com a tarefa)
++- Quando o turno termina com a tarefa nova aberta
++- Então ela segue como o turno a deixou, sem fechar pelo subagente lançado antes de ela ser planejada
++
++Fora deste cenário: nesse painel antigo, o cartão segue desenhado sob a tarefa nova.
++
++Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores; a defesa por tempo para os dados já gravados, proposta com a correção da âncora); aplica subagentes.id-reusado-nao-herda-cartao ("sem fechar pelo subagente antigo") ao que já estava gravado.
++Estado: coberto
+diff --git a/task-tree/hooks/agents.ts b/task-tree/hooks/agents.ts
+index 8335fb1..18ee949 100644
+--- a/task-tree/hooks/agents.ts
++++ b/task-tree/hooks/agents.ts
+@@ -8,7 +8,7 @@
+ import { update } from 'claude-code'
+ import type { EngineInterface } from 'claude-code'
+ 
+-import type { Child, Group, Send, Sub, Wait } from '../types'
++import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
+ import { MAIN, flat } from '../draw/layout'
+ import { edit, fillStarts, finish, settle } from '../state/tasks'
+ import { engineText } from '../io/host'
+@@ -155,6 +155,13 @@ export async function subEnd($: any, agent: string, e: any) {
+ // under it (no session alive, no message queued, no question open), closes: done when they all
+ // were, else interrupted, "falhou" when one failed (the worse end decides, failed over interrupted
+ // over done). Its parents close by the usual rule; the subagents' cards stay out of the count.
++// A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not launched before the leaf
++// was planned (an earlier task's with the same id, in a state written before the anchor was renamed
++// with it), and, once a start reopened the leaf after a close, still running or ended since: one
++// that ended before was reflected in that close.
++const ofLeaf = (s: Sub, leaf: TaskNode) =>
++  !(leaf.plannedAt !== undefined && s.at < leaf.plannedAt) &&
++  (leaf.reopenedAt === undefined || s.end === undefined || s.end >= leaf.reopenedAt)
+ export async function settleBySubs($: any) {
+   const { value: groups = [] } = await $.state.get(groupsState)
+   const { value: kids = [] } = await $.state.get(childrenState)
+@@ -171,7 +178,7 @@ export async function settleBySubs($: any) {
+   for (const owner of groups as Group[]) {
+     for (const leaf of flat(owner.tasks)) {
+       if (leaf.status !== 'open' || leaf.children.length > 0) continue
+-      const mine = subs.filter(g => (g.parent ?? MAIN) === owner.agent && g.anchor === leaf.id).map(g => g.sub!)
++      const mine = subs.filter(g => (g.parent ?? MAIN) === owner.agent && g.anchor === leaf.id).map(g => g.sub!).filter(s => ofLeaf(s, leaf))
+       if (mine.length === 0 || mine.some(s => s.state === 'running' || s.state === 'background') || busy(owner.agent, leaf.id)) continue
+       const state = mine.some(s => s.state === 'failed') ? 'failed' : mine.some(s => s.state === 'interrupted') ? 'interrupted' : 'done'
+       ends.set(`${owner.agent}|${leaf.id}`, { state, end: Math.max(...mine.map(s => s.end ?? s.at)), at: Math.min(...mine.map(s => s.at)) })
+diff --git a/task-tree/state/tasks.ts b/task-tree/state/tasks.ts
+index 05824b0..00fc17c 100644
+--- a/task-tree/state/tasks.ts
++++ b/task-tree/state/tasks.ts
+@@ -98,11 +98,14 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
+ 
+ // Start marks the task in progress, reopening it and its parents when it was closed. Its clock
+ // starts (again, when it was closed); a parent's starts with its first child's and goes on.
++// Reopened, the task keeps when (`reopenedAt`) and drops the "falhou" of its earlier close: the
++// subagents that ended before were reflected in that close (hooks/agents, settleBySubs).
+ export function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
+   return list.map(t => {
+     if (t.id === id) {
+-      const startedAt = t.status === 'open' ? (t.startedAt ?? now) : now
+-      return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt, endedAt: undefined }
++      if (t.status === 'open') return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
++      const { failed: _, ...rest } = t
++      return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now } : {}) }
+     }
+     if (!flat(t.children).some(c => c.id === id)) return t
+     return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now) }
+@@ -117,7 +120,9 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
+   const byId = new Map(flat([old]).map(t => [t.id, t] as const))
+   const merge = (n: TaskNode): TaskNode => {
+     const o = byId.get(n.id)
+-    const kept = o ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg } : {}
++    const kept = o
++      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}) }
++      : {}
+     return { ...n, ...kept, children: n.children.map(merge) }
+   }
+   let out = merge(fresh)
+diff --git a/task-tree/tests/subagentes.test.ts b/task-tree/tests/subagentes.test.ts
+index 106e440..8df3dd8 100644
+--- a/task-tree/tests/subagentes.test.ts
++++ b/task-tree/tests/subagentes.test.ts
+@@ -1,6 +1,6 @@
+ import { expect, test } from 'claude-code/testing'
+-import { AGORA, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
+-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
++import { AGORA, estado, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
++import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+ import { cabecalho, emTexto, linha, painel } from './kit/leitura'
+ 
+ // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
+@@ -383,3 +383,139 @@ test('lançado num pedido sem plano depois de um pedido todo concluído, o cart
+   expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+   expect(linha(p, 'Explore: conferir o diff').texto).toContain('trabalhando')
+ })
++
++// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo
++test('reaberta com start depois de fechar pelo subagente, a tarefa aguarda no fim do turno seguinte; o subagente antigo não a fecha de novo', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  lancaveis(on, ['sub-1'])
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
++  await start($, ['1'])
++  await lancar($, { descricao: 'ler o kit' })
++  await fimDoSubagente($, 'sub-1')
++  await fimDoTurno($)
++  let p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await start($, ['1'])
++  await fimDoTurno($)
++  p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
++  expect(cabecalho(p).feitas).toBe(0)
++})
++
++// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo
++test('fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  lancaveis(on, ['sub-1'])
++  await pedido($, 'Pedido um')
++  await plan($, UM)
++  await start($, ['1'])
++  await lancar($, { descricao: 'ler o kit' })
++  await fimDoSubagente($, 'sub-1')
++  await done($, ['1'], 'Lido')
++  await relogio.advance(1000)
++  await start($, ['1'])
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Outra' }, { id: '3', title: 'Revisar' }] }])
++  await fimDoTurno($)
++  const p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
++  expect(linha(p, 'Revisar').estado).toBe('pendente')
++})
++
++// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo, subagentes.pai-reflete-falha-ou-interrupcao
++test('a tarefa ✕ "falhou" reaberta com start e refeita por outro subagente que conclui fica ✓', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  lancaveis(on, ['f1', 's2'])
++  await pedido($, 'Pedido um')
++  await plan($, UM)
++  await start($, ['1'])
++  await lancar($, { descricao: 'tentar' })
++  await fimDoSubagenteCom($, 'f1', { erro: true })
++  await fimDoTurno($)
++  let p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('interrompida')
++  expect(linha(p, 'Investigar').texto).toContain('falhou')
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await start($, ['1'])
++  await lancar($, { descricao: 'tentar de novo' })
++  await fimDoSubagente($, 's2')
++  await fimDoTurno($)
++  p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
++  expect(linha(p, 'Investigar').texto).not.toContain('falhou')
++})
++
++// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo, turnos.esc-interrompe-so-a-iniciada
++test('reaberta com start, a tarefa que tinha falhado e é parada com Esc diz "interrompida", não "falhou"', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  lancaveis(on, ['f1'])
++  await pedido($, 'Pedido um')
++  await plan($, UM)
++  await start($, ['1'])
++  await lancar($, { descricao: 'tentar' })
++  await fimDoSubagenteCom($, 'f1', { erro: true })
++  await fimDoTurno($)
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await start($, ['1'])
++  await esc($)
++  const p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('interrompida')
++  expect(linha(p, 'Investigar').texto).toContain('interrompida')
++  expect(linha(p, 'Investigar').texto).not.toContain('falhou')
++})
++
++// Regra: subagentes.reaberta-nao-fecha-pelo-subagente-antigo, subagentes.pai-conclui-no-fim-do-turno
++test('lançado da pendente, o subagente que termina antes do primeiro start ainda fecha a tarefa no fim do turno', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  lancaveis(on, ['sub-1'])
++  await pedido($, 'Pedido um')
++  await plan($, UM)
++  await lancar($, { descricao: 'ler o kit' })
++  await fimDoSubagente($, 'sub-1')
++  await relogio.advance(1000)
++  await start($, ['1'])
++  await fimDoTurno($)
++  const p = await painel($)
++  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
++  expect(linha(p, 'Outra').estado).toBe('pendente')
++})
++
++// O state de uma versão anterior à âncora renomeada com a tarefa (o par abaixo).
++const ANTIGO: Record<string, unknown> = {}
++
++// Regra: subagentes.lancado-antes-da-tarefa-nao-conta
++test('âncora gravada por versão anterior, 1/2: o pedido dois reusa o id da tarefa de onde saiu o subagente do pedido um', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  estado(on, ANTIGO, 'captura')
++  lancaveis(on, ['sub-1'])
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
++  await start($, ['1'])
++  await lancar($, { descricao: 'ler o kit' })
++  await fimDoSubagente($, 'sub-1')
++  await fimDoTurno($)
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await plan($, [{ id: 'A', title: 'Plano B', children: [{ id: '1', title: 'Corrigir' }, { id: '2', title: 'Revisar' }] }])
++  const p = await painel($)
++  expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
++  // Como uma versão anterior deixava o grupo: a âncora no id reusado, não na cópia antiga.
++  const sub = ((ANTIGO.groups ?? []) as any[]).find(g => g.agent === 'sub-1')
++  expect(sub?.anchor).not.toBe('A/1')
++  sub.anchor = 'A/1'
++})
++
++// Regra: subagentes.lancado-antes-da-tarefa-nao-conta
++test('âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela', async ($: any, on: any) => {
++  fixar(on, { agora: AGORA + 1000 })
++  estado(on, ANTIGO, 'semear')
++  if (((ANTIGO.groups ?? []) as any[]).every(g => g.anchor !== 'A/1')) throw new Error('rode o par inteiro: o 1/2 não gravou')
++  await fimDoTurno($)
++  const p = await painel($)
++  expect(linha(p, 'Corrigir').estado, emTexto(p)).toBe('pendente')
++  expect(linha(p, 'Plano B').estado).not.toBe('concluida')
++})
+diff --git a/task-tree/types/index.d.ts b/task-tree/types/index.d.ts
+index d9ea0b9..2b499e1 100644
+--- a/task-tree/types/index.d.ts
++++ b/task-tree/types/index.d.ts
+@@ -18,6 +18,9 @@ export type TaskNode = {
+   endedAt?: number
+   // When the task was planned: where a task closed with no start starts, at the latest.
+   plannedAt?: number
++  // When a start last reopened it after it closed: the subagents that ended before were already
++  // reflected in that close and no longer close it (hooks/agents, settleBySubs).
++  reopenedAt?: number
+   // A level-1 task of the main group: the turn (the person's message) it was planned in.
+   turn?: number
+   // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in

@@ -1,0 +1,421 @@
+diff --git a/regras/cabecalho.md b/regras/cabecalho.md
+index 8e1da3b..1cf186d 100644
+--- a/regras/cabecalho.md
++++ b/regras/cabecalho.md
+@@ -71,7 +71,7 @@ O aviso de painel grande tem um botão que volta à visualização anterior.
+ 
+ Origem: decisão do usuário, 2026-11-04 ("coloque um botão para voltar a visualização anterior").
+ Código: hooks/render.tsx
+-Estado: checklist (o harness limita cada valor do state a 4 MB, e o aviso só aparece acima de 20 MB)
++Estado: checklist (com o corte por tamanho, de 2026-11-12, o aviso é só o último recurso: abrir "+N pedidos anteriores" não leva mais a ele, e nem o harness nem uma sessão comum chegam lá)
+ 
+ ### cabecalho.limites-de-linhas
+ Os pedidos fora do trabalho viram "+N pedidos anteriores".
+@@ -97,15 +97,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
+ Estado: coberto
+ 
+ ### cabecalho.limite-de-linhas-do-desenho
+-O desenho tem no máximo 400 linhas; o que passa vira uma linha de contagem.
++O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de contagem.
+ 
+-- Dado um painel com mais de 400 linhas
++- Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB, com ou sem algo aberto pela pessoa
+ - Quando é desenhado
+-- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas
++- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB
+ 
+ Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
+ Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
+ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
++Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendado)"); acima de 600 KB o desenho perde os blocos mais antigos até caber, sem aviso; desfaz o aviso como saída do desenho grande (2026-11-04), que fica só como último recurso.
++Código: hooks/render.tsx
+ Estado: coberto
+ 
+ ### cabecalho.titulo-e-a-ultima-iniciada
+diff --git a/regras/selos.json b/regras/selos.json
+index 39a7b6e..9ea3070 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -72,6 +72,16 @@
+       "data": "2026-11-04",
+       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+     },
++    "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha": {
++      "regras": [
++        "cabecalho.limite-de-linhas-do-desenho"
++      ],
++      "hash": "31a66c08ed35c344",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
++    },
+     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
+       "regras": [
+         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
+@@ -153,6 +163,16 @@
+       "data": "2026-11-04",
+       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+     },
++    "task-tree/tests/cabecalho.test.ts::sem nada aberto, um desenho acima de 600 KB perde os pedidos mais antigos até caber, sem aviso": {
++      "regras": [
++        "cabecalho.limite-de-linhas-do-desenho"
++      ],
++      "hash": "fe1935331e9018ca",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
++    },
+     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
+       "regras": [
+         "cabecalho.limites-de-linhas"
+@@ -173,6 +193,16 @@
+       "data": "2026-11-04",
+       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+     },
++    "task-tree/tests/cabecalho.test.ts::um pedido só acima de 600 KB é desenhado até caber e fecha com \"+N linhas\", sem aviso": {
++      "regras": [
++        "cabecalho.limite-de-linhas-do-desenho"
++      ],
++      "hash": "f69aa37cc356be0f",
++      "assercoes": 6,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "achado alto 12 da auditoria: acima de 600 KB o desenho perde os blocos mais antigos até caber (decisão do usuário, 2026-11-12: \"Cortar os mais antigos (Recomendado)\")"
++    },
+     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
+       "regras": [
+         "durabilidade.clear-esvazia"
+diff --git a/task-tree/DESENVOLVIMENTO.md b/task-tree/DESENVOLVIMENTO.md
+index 73000bf..789b703 100644
+--- a/task-tree/DESENVOLVIMENTO.md
++++ b/task-tree/DESENVOLVIMENTO.md
+@@ -238,7 +238,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
+ 
+ Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
+ `refreshedAt`, `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
+-`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
++`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+ (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
+ arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
+ último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
+@@ -300,7 +300,8 @@ sessões, erro da lista, envios pendentes, `folds`), monta o `Model` e chama `la
+ (`draw/layout.ts`, puro): `panel()` percorre os grupos, os turnos (`turnRows`), as tarefas (`rows`),
+ os cartões das sessões (`session`, cada uma dividida por mensagem em `split`) e os grupos de
+ subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `limitRows` corta em
+-`MAX_ROWS` = 400. Daí `Row[]`: profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
++`MAX_ROWS` = 400, ou em menos linhas quando o limite de tamanho pede (abaixo). Daí `Row[]`:
++profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
+ `running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
+ `fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
+ cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
+@@ -559,8 +560,18 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
+   CSS que usa (`slim`), claro e escuro.
+ - **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
+   (`GLYPH`), o glifo como `Button` quando a linha recolhe; os botões de visão `[≡] ▤`.
+-- Um desenho acima de `DRAW_LIMIT` = 600 KB vira uma linha de aviso; um que lança exceção vira uma
+-  linha de erro e publica `renderError`. `drawn` guarda tamanho, linhas e erro do último desenho.
++- Um desenho acima de `DRAW_LIMIT` = 600 KB é refeito com menos linhas até caber (decisão do usuário,
++  2026-11-12: "Cortar os mais antigos (Recomendado)"): o render lê o state uma vez e a função `paint`
++  (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
++  `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
++  último pedido sozinho, até o limite, com "+N linhas"). Cada tentativa mira 95% do limite pela média
++  de bytes por linha; depois de três, no máximo a metade das linhas, até 2. O mapa `fitted` (por
++  superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
++  seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
++  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com
++  o botão que fecha o que a pessoa abriu) fica como último recurso, para um desenho de duas linhas que
++  ainda passe do limite. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
++  `drawn` guarda tamanho, linhas e erro do último desenho.
+ - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
+   último desenho registrou em `actions` (`act`).
+ 
+@@ -1572,3 +1583,7 @@ desenho aprovado não mudar. Os relógios seguem no seu tique.
+ a 600 KB nas seções de histórico ficam como eram. Um desenho de 1,3 MB já não foi mostrado pelo app.
+ 
+ O limite de 20 MB travou o painel: a tela ficou congelada no último desenho aceito (o aviso de 948 KB) enquanto o tamanho publicado mudava (950 a 953 KB), o que indica que o app não aplica um desenho de ~950 KB. `DRAW_LIMIT` voltou a 600 KB, e o aviso pequeno chega ao app com o botão "Voltar à visualização anterior". Palavras do usuário: "eu quero ver as tarefas em andamento, e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens em andamento".
++
++## Corte por tamanho no lugar do aviso (2026-11-12)
++
++Com até 400 linhas o desenho de uma sessão longa passava de 600 KB (cerca de 950 KB no app) sem a pessoa abrir nada: o painel virava o aviso, e o botão "Voltar à visualização anterior" não tinha o que fechar. Decisão do usuário: "Cortar os mais antigos (Recomendado)". Acima de 600 KB o desenho é refeito com menos linhas, os blocos mais antigos fora e contados em "+N linhas anteriores", como no corte das 400 linhas; o aviso fica só como último recurso. Os três limites, em ordem: `SHOWN_TURNS` (3 pedidos) → `MAX_ROWS` (400 linhas) → `DRAW_LIMIT` (600 KB, com menos linhas até caber). O texto do aviso nas seções de histórico acima fica como era.
+diff --git a/task-tree/draw/layout.ts b/task-tree/draw/layout.ts
+index e0b0bb3..b2bec86 100644
+--- a/task-tree/draw/layout.ts
++++ b/task-tree/draw/layout.ts
+@@ -668,13 +668,14 @@ export const SHOWN_CARD_TURNS = 3
+ 
+ // The most lines a drawing holds, decided on the rows before any SVG is made: past it, whole blocks
+ // (a level-0 line and what hangs under it) go from the start, the oldest, and one line counts them;
+-// the recent ones, where the work is, stay. The size limit above stays as the last resort. Far
+-// above a real panel (a long session drew 31 lines); the open steps of a huge plan reached it.
++// the recent ones, where the work is, stay. Far above a real panel (a long session drew 31 lines);
++// the open steps of a huge plan reached it. `max` below MAX_ROWS (2 or more): the same cut, asked by
++// the drawing's size limit when these lines pass it (hooks/render.tsx).
+ export const MAX_ROWS = 400
+-export function limitRows(rows: Row[]): Row[] {
+-  if (rows.length <= MAX_ROWS) return rows
+-  const room = MAX_ROWS - 1
+-  const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas' })
++export function limitRows(rows: Row[], max = MAX_ROWS): Row[] {
++  if (rows.length <= max) return rows
++  const room = max - 1
++  const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas', cut: n })
+   const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i <= room)
+   if (from > 0) return [before(from), ...rows.slice(from)]
+   // The last block alone is past the limit: what came before it goes whole, and the block is drawn
+@@ -688,7 +689,8 @@ export function limitRows(rows: Row[]): Row[] {
+   }
+   const head = last > 0 ? [before(last)] : []
+   const kept = rows.slice(last, last + room - head.length)
+-  return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${rows.length - last - kept.length} linhas`, label: 'Linhas seguintes, não desenhadas' }]
++  const after = rows.length - last - kept.length
++  return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${after} linhas`, label: 'Linhas seguintes, não desenhadas', cut: after }]
+ }
+ 
+ // A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
+@@ -883,6 +885,8 @@ export type Row = {
+   // A session's card: its repository (folder name) and branch, drawn right of its name with their
+   // icons (the repository goes first when the line is short).
+   git?: GitLabel
++  // A line that counts the lines a limit left out (limitRows): how many.
++  cut?: number
+ }
+ 
+ // With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
+@@ -972,7 +976,7 @@ export type Choices = Record<string, boolean>
+ 
+ // The panel's lines from the model and the person's choices, against `now` (the times) and for
+ // `ownId` (this session's id, for the sisters' messages). Pure: it reads nothing but its arguments.
+-export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined): Row[] {
++export function layout(model: Model, choices: Choices, now: number | undefined, ownId: string | undefined, maxRows = MAX_ROWS): Row[] {
+   const ended = model.ended
+   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
+   const sentFrom = model.sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+@@ -1581,5 +1585,5 @@ export function layout(model: Model, choices: Choices, now: number | undefined,
+   // under the task of the session's last message).
+   const base = { groups: withMain(held ?? []), waits, work: work as string[] }
+   const cards = sessions.flatMap(c => split(c, sessions, ownId, base.groups.find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
+-  return limitRows(panel(trimToWork({ ...base, children: cards }, 0), 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined))
++  return limitRows(panel(trimToWork({ ...base, children: cards }, 0), 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined), maxRows)
+ }
+diff --git a/task-tree/hooks/panel.ts b/task-tree/hooks/panel.ts
+index 11003d4..4167c59 100644
+--- a/task-tree/hooks/panel.ts
++++ b/task-tree/hooks/panel.ts
+@@ -530,9 +530,10 @@ export async function publishPanel($: any) {
+ // handler already gone, and nothing happened (the person's words: "as vezes clico nas acoes e nao
+ // faz nada, preciso clicar algumas vezes para funcionar"). The ui.press hook below answers by key
+ // with the latest action instead.
+-// The last drawing's size (serialized), and the most a drawing may be before the pane shows only a
+-// warning line: a 1.3 MB one was not shown by the app (the person's words: "resumir os 57 pedidos
+-// anteriores resolveu"). 20 MB was tried on 2026-11-04 and froze the pane: the app did not apply a
++// The last drawing's size (serialized), and the most a drawing may be: past it the render draws fewer
++// lines and, as the last resort, only a warning line (hooks/render.tsx). A 1.3 MB one was not shown by
++// the app (the person's words: "resumir os 57 pedidos anteriores resolveu"). 20 MB was tried on
++// 2026-11-04 and froze the pane: the app did not apply a
+ // drawing of ~950 KB and kept the last one it took (the person: "eu quero ver as tarefas em andamento,
+ // e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens
+ // em andamento"). Back to 600 KB: the small warning, with its button, reaches the app.
+diff --git a/task-tree/hooks/render.tsx b/task-tree/hooks/render.tsx
+index b71cc5a..430c00b 100644
+--- a/task-tree/hooks/render.tsx
++++ b/task-tree/hooks/render.tsx
+@@ -7,7 +7,7 @@ import { atom, read, update } from 'claude-code'
+ import type { Send } from '../types'
+ import { lineWidth, overlays } from '../draw/geometry'
+ import type { Placed } from '../draw/geometry'
+-import { MAIN, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
++import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, frames, split, newBreaksMemo, gitLabel } from '../draw/layout'
+ import type { Row } from '../draw/layout'
+ import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, headerSvg, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm, rowAlt, rowHeight, rowSvg } from '../draw/svg'
+ import { debug } from '../io/log'
+@@ -31,6 +31,12 @@ async function closeOpened($: any) {
+   })
+ }
+ 
++// The line limit the last drawing fitted in when its lines passed the size limit (see render), by
++// surface and width, with the lines the panel had then: the pane is drawn again every second while a
++// task runs, and each of those drawings would be made two or more times to reach the same limit.
++// Taken only while it still fits and the panel has the same lines; a reload starts over.
++const fitted = new Map<string, { lines: number; max: number }>()
++
+ // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
+ // file that calls $.state (../state/durability has a row for every one).
+ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+@@ -194,7 +200,6 @@ import type { EngineInterface } from 'claude-code'
+ export async function render($: EngineInterface, e: any, next: any) {
+  try {
+   drawn.error = undefined
+-  const made = await (async () => {
+   const ui = $.ui.resolve(e) as any
+   const { Box, Text } = ui
+   // After a restart without session.start, the groups and the work come from the store
+@@ -248,8 +253,14 @@ export async function render($: EngineInterface, e: any, next: any) {
+   const { value: git } = await $.state.get(gitState)
+   const headGit = git ? gitLabel(git) : undefined
+   const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
+-  const lines = layout(model, chosen, now, knownId())
++  // One drawing of what was read above, in at most `maxRows` lines: nothing below reads the state or
++  // waits, so the size limit can ask for it again with fewer lines. `all`: the lines it stands for,
++  // the ones a limit left out too.
++  let all = 0
++  const paint = (maxRows: number) => {
++  const lines = layout(model, chosen, now, knownId(), maxRows)
+   drawn.rows = lines.length
++  all = lines.reduce((a, r) => a + (r.cut ?? 0), lines.length)
+ 
+   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
+   // is in progress, waiting, interrupted and the sessions at work.
+@@ -337,10 +348,36 @@ export async function render($: EngineInterface, e: any, next: any) {
+           </Text>,
+         ]
+   return drawTerminal($, ui, lines, header, errorLine)
+-  })()
++  }
+   // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
+-  // long session's history, 1.3 MB): an emergency drawing says so in one line instead.
+-  drawn.size = JSON.stringify(made ?? null).length
++  // long session's history, 1.3 MB). A drawing past it is made again with fewer lines, the oldest
++  // blocks out first and counted in "+N linhas anteriores", as the 400-line cut does (limitRows),
++  // until it fits (the person, 2026-11-12: "Cortar os mais antigos (Recomendado)"): 400 lines of a
++  // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.
++  // Each try aims a little under the limit by the bytes a line took; after three, at half the lines
++  // at most, so it ends. The emergency drawing below is the last resort (two lines still too big).
++  const sized = (maxRows: number) => {
++    const made = paint(maxRows)
++    drawn.size = JSON.stringify(made ?? null).length
++    return made
++  }
++  const pane = `${e.surface}:${(e.props as any)?.bodyColumns}`
++  const kept = fitted.get(pane)
++  let max = kept?.max ?? MAX_ROWS
++  let made = sized(max)
++  // The limit kept no longer serves (the panel has other lines, or these no longer fit): from the
++  // whole drawing again.
++  if (kept && (drawn.size > DRAW_LIMIT || all !== kept.lines)) {
++    fitted.delete(pane)
++    max = MAX_ROWS
++    made = sized(max)
++  }
++  for (let i = 0; drawn.size > DRAW_LIMIT && max > 2; i++) {
++    const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
++    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? byBytes : Math.min(byBytes, drawn.rows >> 1)))
++    made = sized(max)
++  }
++  if (max < MAX_ROWS && drawn.size <= DRAW_LIMIT) fitted.set(pane, { lines: all, max })
+   if (drawn.size > DRAW_LIMIT) {
+     await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
+     const { Box, Button, Text } = $.ui.resolve(e) as any
+diff --git a/task-tree/tests/cabecalho.test.ts b/task-tree/tests/cabecalho.test.ts
+index bb731f9..3507c35 100644
+--- a/task-tree/tests/cabecalho.test.ts
++++ b/task-tree/tests/cabecalho.test.ts
+@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
+ import { AGORA } from './kit/ambiente'
+ import { aviso } from './kit/cenario'
+ import { fixar, host, responderEnvio } from './kit/ambiente'
++import { PROPS } from './kit/ambiente'
+ import { done, envio, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+ import { comHistorico, cabecalho, emTexto, esperarEstado, montar, painel } from './kit/leitura'
+ 
+@@ -256,3 +257,99 @@ test('"+N pedidos anteriores" abre com um clique, fechado por padrão, e fecha d
+   await m.fim()
+ })
+ 
++// O painel do app desktop montado: se virou o aviso de painel grande, o tamanho do desenho e o texto
++// alternativo de cada linha (o harness não vê a pintura: checklist do app).
++const AVISO = 'Painel grande demais'
++const LIMITE = 600 * 1024
++const LONGO = 'com um título comprido, como os de uma sessão real, que passa da largura do painel'
++const mostradoNoApp = (el: any): string => (typeof el === 'string' ? el : (el?.children ?? []).map(mostradoNoApp).join(''))
++const altsNoApp = (el: any): string[] => (typeof el !== 'object' || el === null ? [] : [...(el.type === 'Svg' ? [String(el.props?.alt ?? '')] : []), ...(el.children ?? []).flatMap(altsNoApp)])
++async function noApp($: any) {
++  const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'desktop', component: 'Pane', props: PROPS(60), requestId: 'task-tree' })
++  const raiz = await ui.drawn()
++  await ui.unmount()
++  const alts = altsNoApp(raiz)
++  // A linha que conta o que o corte tirou do começo, e a que conta o que tirou do fim do último pedido.
++  return { aviso: mostradoNoApp(raiz).includes(AVISO), bytes: JSON.stringify(raiz).length, alts, antes: alts.find(a => /\+\d+ linhas anteriores$/.test(a)), depois: alts.find(a => /\+\d+ linhas$/.test(a)) }
++}
++const kb = (d: { bytes: number }) => `${Math.round(d.bytes / 1024)} KB`
++// "Pedido um": 1 + 8 + 64 + 320 linhas de títulos longos, todas as folhas iniciadas e com tempo; `abertas`
++// delas ficam abertas, as outras concluídas. São menos de 400 linhas e mais de 600 KB no app desktop: o
++// corte que os testes abaixo veem é o do tamanho, não o das 400 linhas.
++async function pedidoPesado($: any, relogio: any, abertas: number) {
++  const plano: No[] = grande('U', 8, 8, 5).map(a => ({ ...a, children: (a.children ?? []).map(b => ({ ...b, title: `${b.title} ${LONGO}`, children: (b.children ?? []).map(c => ({ ...c, title: `${c.title} ${LONGO}` })) })) }))
++  const folhas = plano.flatMap(a => (a.children ?? []).flatMap(b => (b.children ?? []).map(c => c.id)))
++  await pedido($, 'Pedido um')
++  await plan($, plano)
++  await start($, folhas)
++  await relogio.advance(65000)
++  await done($, folhas.slice(0, folhas.length - abertas))
++}
++// "Pedido dois", pequeno, depois do fim do turno do pedido um.
++async function pedidoPequeno($: any, relogio: any) {
++  await fimDoTurno($)
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await plan($, [{ id: 'P', title: 'Plano pequeno', children: [{ id: 'p1', title: 'Pequeno um' }, { id: 'p2', title: 'Pequeno dois' }] }])
++  await start($, ['p1'])
++}
++
++// Regra: cabecalho.limite-de-linhas-do-desenho
++test('sem nada aberto, um desenho acima de 600 KB perde os pedidos mais antigos até caber, sem aviso', { timeoutMs: 15000 }, async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  host(on, [])
++  // Uma folha do pedido um segue aberta: os dois pedidos ficam à vista, sem a pessoa abrir nada.
++  await pedidoPesado($, relogio, 1)
++  await pedidoPequeno($, relogio)
++  let d = await noApp($)
++  expect(d.aviso, kb(d)).toBe(false)
++  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
++  expect(d.antes, d.alts.slice(0, 3).join('\n')).toBeDefined()
++  expect(d.alts.some(a => a.includes('Pequeno um')), d.alts.slice(-5).join('\n')).toBe(true)
++  // Um segundo depois (o relógio redesenha o painel), o corte é o mesmo.
++  const antes = d.antes
++  await relogio.advance(1000)
++  d = await noApp($)
++  expect(d.aviso, kb(d)).toBe(false)
++  expect(d.antes, d.alts.slice(0, 3).join('\n')).toBe(antes)
++  // O terminal, bem abaixo do limite, segue com o desenho inteiro.
++  const p = await painel($)
++  expect(p.some(l => l.texto.includes('linhas anteriores')), emTexto(p).slice(0, 300)).toBe(false)
++})
++
++// Regra: cabecalho.limite-de-linhas-do-desenho
++test('com "+N pedidos anteriores" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha', { timeoutMs: 15000 }, async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  host(on, [])
++  await pedidoPesado($, relogio, 0)
++  await pedidoPequeno($, relogio)
++  let d = await noApp($)
++  expect(d.antes, d.alts.slice(0, 3).join('\n')).toBeUndefined()
++  // A linha é aberta e fechada pelo terminal, que a desenha inteira; a escolha vale para os dois desenhos.
++  const m = await montar($)
++  await m.recolher('+1 pedidos anteriores')
++  d = await noApp($)
++  expect(d.aviso, kb(d)).toBe(false)
++  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
++  expect(d.antes, d.alts.slice(0, 3).join('\n')).toBeDefined()
++  expect(d.alts.some(a => a.includes('Pequeno um')), d.alts.slice(-5).join('\n')).toBe(true)
++  await m.recolher('+1 pedidos anteriores')
++  await m.fim()
++  d = await noApp($)
++  expect(d.antes, d.alts.slice(0, 3).join('\n')).toBeUndefined()
++  expect(d.alts.some(a => a.includes('Pequeno um')), d.alts.slice(-5).join('\n')).toBe(true)
++})
++
++// Regra: cabecalho.limite-de-linhas-do-desenho
++test('um pedido só acima de 600 KB é desenhado até caber e fecha com "+N linhas", sem aviso', { timeoutMs: 15000 }, async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  host(on, [])
++  await pedidoPesado($, relogio, 1)
++  const d = await noApp($)
++  expect(d.aviso, kb(d)).toBe(false)
++  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
++  expect(d.antes, d.alts.slice(0, 3).join('\n')).toBeUndefined()
++  expect(d.alts[d.alts.length - 1], d.alts.slice(-3).join('\n')).toBe(d.depois)
++  expect(d.depois, d.alts.slice(-3).join('\n')).toBeDefined()
++  expect(d.alts.some(a => a.includes('U0.0.0')), d.alts.slice(0, 6).join('\n')).toBe(true)
++})

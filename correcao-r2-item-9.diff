@@ -1,0 +1,883 @@
+diff --git a/regras/durabilidade.md b/regras/durabilidade.md
+index 247c929..8078c0e 100644
+--- a/regras/durabilidade.md
++++ b/regras/durabilidade.md
+@@ -37,6 +37,17 @@ Origem: decisões do usuário de 2026-10-27 (◉ só no caminho da última inici
+ Código: hooks/turn.ts, hooks/sessions.ts, hooks/render.tsx
+ Estado: coberto
+ 
++### durabilidade.parada-com-esc-sobrevive-ao-reinicio
++A tarefa parada com Esc segue interrompida num processo novo.
++
++- Dado uma tarefa parada com Esc e, depois, um turno que não abriu pedido terminado normalmente
++- Quando um processo novo desenha o painel (session.start)
++- Então a parada segue ✕ e nada fica ◉; o pedido seguinte com start em outra tarefa não a reacende, e o start nela sim (turnos.parada-segue-interrompida-ate-o-start)
++
++Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), aplicada ao reinício: a marca da parada fica na própria tarefa, que o store guarda com o painel.
++Código: hooks/turn.ts, state/tasks.ts, draw/layout.ts
++Estado: coberto
++
+ ### durabilidade.clear-esvazia
+ O /clear esvazia o painel.
+ 
+diff --git a/regras/selos.json b/regras/selos.json
+index 39a7b6e..28741e2 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -263,6 +263,26 @@
+       "data": "2026-11-04",
+       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+     },
++    "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim": {
++      "regras": [
++        "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
++      ],
++      "hash": "5797ef0ab073501e",
++      "assercoes": 2,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
++    "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 2/2: o processo novo a desenha interrompida até o start nela": {
++      "regras": [
++        "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
++      ],
++      "hash": "9f5e4bb85f70e481",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
+     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
+       "regras": [
+         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+@@ -1030,6 +1050,16 @@
+       "data": "2026-11-04",
+       "motivo": "filha encerrada com origem fechada"
+     },
++    "task-tree/tests/sessoes.test.ts::a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada": {
++      "regras": [
++        "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
++      ],
++      "hash": "daa9d0de7629daa2",
++      "assercoes": 12,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
+     "task-tree/tests/sessoes.test.ts::a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o cartão diz \"parada\"": {
+       "regras": [
+         "sessoes.filha-parada-com-esc-sem-pendente"
+@@ -1746,6 +1776,16 @@
+       "data": "2026-10-28",
+       "motivo": "linha de base"
+     },
++    "task-tree/tests/turnos.test.ts::a marca da parada com Esc vai no painel publicado até o start nela": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "600b4efe66d5a53a",
++      "assercoes": 3,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
+     "task-tree/tests/turnos.test.ts::a notificação de uma tarefa em segundo plano não abre pedido": {
+       "regras": [
+         "turnos.notificacao-de-tarefa-sem-turno"
+@@ -1756,6 +1796,16 @@
+       "data": "2026-10-28",
+       "motivo": "subagente, hand-back e limites do desenho"
+     },
++    "task-tree/tests/turnos.test.ts::depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "bb51313001f09f62",
++      "assercoes": 6,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
+     "task-tree/tests/turnos.test.ts::fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes": {
+       "regras": [
+         "turnos.iniciada-aguarda-no-fim",
+@@ -1798,6 +1848,26 @@
+       "data": "2026-10-28",
+       "motivo": "linha de base"
+     },
++    "task-tree/tests/turnos.test.ts::numa mensagem da pessoa em que o modelo dá start em outra tarefa, a parada com Esc segue interrompida, também no fim do turno": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "7a6b3470304ded7e",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
++    "task-tree/tests/turnos.test.ts::o done na tarefa parada com Esc, sem start, a conclui": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "249729534296de32",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
+     "task-tree/tests/turnos.test.ts::o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual": {
+       "regras": [
+         "turnos.prompt-sem-turno"
+@@ -1808,15 +1878,45 @@
+       "data": "2026-10-28",
+       "motivo": "subagente, hand-back e limites do desenho"
+     },
++    "task-tree/tests/turnos.test.ts::o pai iniciado e parado com Esc não reacende no prompt seguinte; o start nele o reacende": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "e2b5704f024ad3c1",
++      "assercoes": 6,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
+     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
+       "regras": [
+         "turnos.prompt-seguinte-retoma"
+       ],
+-      "hash": "51e1a0678150e269",
+-      "assercoes": 2,
++      "hash": "1cfc71d3b5f3ab8a",
++      "assercoes": 4,
++      "tipo": "decisao",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\""
++    },
++    "task-tree/tests/turnos.test.ts::o replano no mesmo pedido que mantém a tarefa parada com Esc a mantém interrompida, com o relógio parado": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "91f0030b5002b6dc",
++      "assercoes": 3,
+       "tipo": "novo",
+-      "data": "2026-10-28",
+-      "motivo": "linha de base"
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
++    },
++    "task-tree/tests/turnos.test.ts::o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra": {
++      "regras": [
++        "turnos.parada-segue-interrompida-ate-o-start"
++      ],
++      "hash": "a8aa4e6e735fad31",
++      "assercoes": 6,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+     },
+     "task-tree/tests/turnos.test.ts::o subagente lançado sem tarefa de origem que termina segue desenhado": {
+       "regras": [
+diff --git a/regras/sessoes.md b/regras/sessoes.md
+index 2222ac8..e441ed4 100644
+--- a/regras/sessoes.md
++++ b/regras/sessoes.md
+@@ -129,6 +129,17 @@ Origem: auditoria 2026-11-10 (filha parada com Esc: o descarte era decidido depo
+ Código: draw/layout.ts
+ Estado: coberto
+ 
++### sessoes.filha-parada-com-esc-segue-descartada-ate-o-start
++A filha parada com Esc segue rodada descartada até dar start na tarefa parada.
++
++- Dado uma filha parada com Esc com uma tarefa iniciada, que depois tratou outro turno (um aviso, ou o start em outra tarefa) e o terminou normalmente
++- Quando a mãe desenha o cartão dela, parada
++- Então a tarefa parada segue ✕ e a rodada segue descartada (fora do cabeçalho, do chip "interrompidas" e do x/y da tarefa de origem; o cartão diz "parada"), e a outra iniciada aguarda ◷; enquanto a filha trabalha, o cartão já mostra a parada ✕; quando a filha dá start na tarefa parada, a rodada volta a contar
++
++Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (depois do turno de um aviso, o cartão da filha parada com Esc voltava a contar, com a tarefa ◷); aplica sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-24: "as tarefas dessa sessão foram descartadas"), sem mudá-la.
++Código: draw/layout.ts, state/tasks.ts, hooks/turn.ts
++Estado: coberto
++
+ ### sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
+ O cartão da filha parada só mostra "+N pedidos anteriores" quando há pedido dela fora do desenho.
+ 
+diff --git a/regras/turnos.md b/regras/turnos.md
+index b4474e4..68cf957 100644
+--- a/regras/turnos.md
++++ b/regras/turnos.md
+@@ -51,9 +51,21 @@ A mensagem seguinte retoma o trabalho.
+ 
+ - Dado um turno terminado, normal ou com Esc
+ - Quando chega a mensagem seguinte e o modelo chama start
+-- Então nada fica ✕ e a tarefa iniciada acende ◉
++- Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕
+ 
+ Origem: commit 55a2dd1, 2026-10-23.
++Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"); desfaz "nada fica ✕" para a tarefa parada com Esc em que o modelo ainda não deu start: antes, o prompt seguinte a reacendia sozinho.
++Estado: coberto
++
++### turnos.parada-segue-interrompida-ate-o-start
++A tarefa parada com Esc segue interrompida até o modelo dar start nela.
++
++- Dado uma tarefa iniciada e aberta quando a pessoa para o turno (Esc), ✕ desde então
++- Quando chega um prompt que não abre pedido (aviso do app, hand-back de subagente, notificação de tarefa em segundo plano) e o turno dele termina, ou uma mensagem da pessoa em que o modelo dá start em outra tarefa
++- Então a parada segue ✕ e fora da contagem (no cabeçalho e na sessão inteira); não acende, o relógio dela não corre e o fim desses turnos não a deixa ◷; o pai e o pedido seguem como o Esc os deixou; só o start nela a reacende ◉ (ela volta a contar e, no fim do turno, aguarda como qualquer outra), e o done a conclui; o replano no mesmo pedido que a mantém a mantém ✕; o pai iniciado diretamente e parado com Esc também só reacende com o start nele; a marca da parada vai no painel publicado até esse start; a tarefa com carta na fila segue ◷ enquanto a carta espera (envios.fila-nao-interrompe-no-fim-do-turno)
++
++Origem: decisão do usuário, 2026-11-12 ("Segue ✕ até novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (depois do Esc, um aviso automático ou o start em outra tarefa reacendia a parada: ◉ no prompt, relógio correndo, ◷ no fim do turno).
++Código: state/tasks.ts
+ Estado: coberto
+ 
+ ### turnos.pedido-anterior-parado-aguarda
+diff --git a/regras/visual.md b/regras/visual.md
+index 9227b4d..c3990ac 100644
+--- a/regras/visual.md
++++ b/regras/visual.md
+@@ -163,6 +163,7 @@ O desenho do painel principal é o validado no app.
+ Origem: desenho validado pelo usuário no app em 2026-10-29 ('sim, correto'); golden decidido em 2026-10-28 ("Sim, validar antes do commit (Recomendado)").
+ Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px). O golden é regravado com a validação dele no app.
+ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
++Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"): a tarefa parada com Esc no primeiro pedido segue ✕, fora da contagem e com o relógio parado, depois do pedido seguinte (antes, ◷); o pai dela, sem mais nada aberto embaixo, fica ✓. O golden é regravado com a validação dele no app.
+ Código: draw/layout.ts
+ Estado: coberto
+ 
+diff --git a/task-tree/DESENVOLVIMENTO.md b/task-tree/DESENVOLVIMENTO.md
+index 73000bf..fb6da2e 100644
+--- a/task-tree/DESENVOLVIMENTO.md
++++ b/task-tree/DESENVOLVIMENTO.md
+@@ -548,6 +548,20 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
+   turno terminado, e o relógio de 1 s para.
+ - Efeitos: uma filha parada com tarefa em andamento passa a ter essa tarefa fora do total (ex.: "3 de 4"
+   → "3 de 3 · 100%" ).
++- A parada com Esc espera o `start` (2026-11-12, "Segue ✕ até novo start (Recomendado)"; antes, um aviso
++  do app, um hand-back ou o `start` em outra tarefa a reacendia: ◉ no prompt, relógio correndo, ◷ no fim
++  do turno). No fim do turno parado (`turnComplete` com `isAborted`), `park(at)` (`state/tasks.ts`) marca
++  `stopped` em cada folha aberta e iniciada do grupo principal e para ali o relógio (`endedAt`) dela e
++  dos pais abertos; o `started` de um pai iniciado diretamente é desfeito. A marca fica na própria tarefa
++  (state, store e arquivo publicado, sem chave nova) até o `start` nela (`begin`), o `done` (`finish`) ou
++  o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`). Enquanto existe, a
++  folha é lida como interrompida em todo desenho: `halt` no fim de qualquer turno, e `stay` com o turno
++  em curso (só as marcadas; `stayed` aplica ao grupo principal, na própria sessão e no cartão de uma
++  filha trabalhando). Com a carta dela na fila, segue ◷. `trail` não acende o caminho de uma tarefa
++  parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
++  mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
++  por `stayed`. `wake` não mudou: o que um fim normal deixou ◷ volta a ◉ no prompt seguinte; só o que o
++  Esc parou espera o `start`.
+ 
+ 
+ - **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa, verde concluído, cinza interrompido), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. A linha do terminal não muda.
+diff --git a/task-tree/draw/layout.ts b/task-tree/draw/layout.ts
+index e0b0bb3..bc293a0 100644
+--- a/task-tree/draw/layout.ts
++++ b/task-tree/draw/layout.ts
+@@ -26,12 +26,14 @@ export const withMain = (groups: Group[]): Group[] =>
+ export const stop = (t: TaskNode, now?: number) => (t.startedAt !== undefined ? (t.endedAt ?? now) : t.endedAt)
+ 
+ // What a subagent left open when it ended.
++// The mark of the person's stop (`stopped`) goes with the close: it says the task waits for a start.
+ export const interrupt =
+   (now?: number) =>
+-  (t: TaskNode): TaskNode =>
+-    t.status === 'open'
+-      ? { ...t, status: 'interrupted', started: undefined, endedAt: stop(t, now), children: t.children.map(interrupt(now)) }
+-      : t
++  (t: TaskNode): TaskNode => {
++    if (t.status !== 'open') return t
++    const { stopped: _, ...rest } = t
++    return { ...rest, status: 'interrupted', started: undefined, endedAt: stop(t, now), children: t.children.map(interrupt(now)) }
++  }
+ 
+ // A turn that ended (or a session that ended its turn) touches only what was in progress: a task
+ // started and not closed is left open waiting (◷ "Aguardando", see leftWaiting), its clock stopped at `at`
+@@ -50,6 +52,9 @@ export const interrupt =
+ // session, a subagent that ended and a plan replaced read their pending tasks as interrupted. A message
+ // task (its message delivered) is not interrupted by a stopped turn: it is left as a normal end leaves
+ // it, ✉ green (the person, 2026-10-28).
++// A task the person stopped in an earlier turn (`stopped`, kept until its next start) reads as
++// interrupted at a normal end too: the turns that came since did not start it again (the person,
++// 2026-11-12: "Segue ✕ até novo start (Recomendado)"; it came out ◷ after the turn of a notice).
+ export const halt =
+   (at?: number, sent: string[] = [], aborted = true) =>
+   (t: TaskNode): TaskNode => {
+@@ -59,13 +64,39 @@ export const halt =
+       // A task whose letter is still queued (`sent`) waits on that session, not on this turn: a stop
+       // leaves it waiting (◷), as a normal end does (the person, 2026-10-30: "Não, fica ◷ enquanto a
+       // carta está na fila"). Delivered, it is a task like any other: a stop interrupts it.
+-      if (begun && (!aborted || sent.includes(t.id))) return { ...t, started: undefined, endedAt: stop(t, at) }
++      if (begun && (sent.includes(t.id) || (!aborted && t.stopped !== true))) return { ...t, started: undefined, endedAt: stop(t, at) }
+       // Marked (`halted`): it was open until the stop, which a card's discard and word go by (leftOpen).
+-      return begun ? { ...interrupt(at)(t), halted: true } : t
++      // The mark of an earlier stop (`stopped`) stays on the copy: the discard goes by it too (anyStopped).
++      return begun ? { ...interrupt(at)(t), halted: true, ...(t.stopped === true ? { stopped: true } : {}) } : t
+     }
+     const children = t.children.map(halt(at, sent, aborted))
+     return { ...t, ...(hasOpen(children) ? {} : { status: 'done' as const }), started: undefined, endedAt: stop(t, at), children }
+   }
++// Whether a task the person stopped (`stopped`) is still waiting for its start: open as the state
++// keeps it, or read as interrupted by a drawing (halt and stay keep the mark on that copy).
++export const anyStopped = (list: TaskNode[]): boolean =>
++  list.some(t => (t.stopped === true && (t.status === 'open' || t.halted === true)) || anyStopped(t.children))
++// The turn in course touches nothing but what the person stopped in an earlier one (`stopped`): until
++// a start begins it again it reads as that stop left it, interrupted (waiting, while a letter of it
++// is queued), its clock stopped at the stop; a parent with nothing open left below it reads done, as
++// at a turn's end. The rest works again. A notice of the app, a subagent's hand-back or a start of
++// another task used to light it again, its clock running (the person, 2026-11-12: "Segue ✕ até novo
++// start (Recomendado)").
++export const stay =
++  (sent: string[] = []) =>
++  (t: TaskNode): TaskNode => {
++    if (t.status !== 'open') return t
++    if (t.children.length === 0) {
++      if (t.stopped !== true) return t
++      return sent.includes(t.id) ? { ...t, started: undefined } : { ...interrupt(t.endedAt)(t), halted: true, stopped: true }
++    }
++    const children = t.children.map(stay(sent))
++    if (children.every((c, i) => c === t.children[i])) return t
++    return { ...t, ...(hasOpen(children) ? {} : { status: 'done' as const }), children }
++  }
++// A list of groups with the main loop's tasks read by `stay`; the same list when nothing is stopped.
++export const stayed = (groups: Group[], sent: string[] = []): Group[] =>
++  groups.some(g => g.agent === MAIN && anyStopped(g.tasks)) ? groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(stay(sent)) } : g)) : groups
+ // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
+ // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
+ export const leftWaiting = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt !== undefined
+@@ -120,10 +151,14 @@ export const live = (c: Child) => !c.archived && (c.running || c.waiting === tru
+ // lines above it and in the header; the card itself is drawn as it is. A session that merely ended
+ // its turn with pending tasks is not discarded (its pending tasks count, see settle), nor an archived one
+ // (history, its interrupted ones out of the total as before).
++// The stop holds until the session starts the task it stopped again (`stopped`): a turn it ran since
++// (a notice of the app, another task) does not bring the round back into the count (the person,
++// 2026-11-12: "Segue ✕ até novo start (Recomendado)").
+ export const discarded = (c: Child): boolean => {
+-  if (c.archived || !leftOpen(tasksOf(rawPanel(c).groups ?? []))) return false
++  const tasks = tasksOf(rawPanel(c).groups ?? [])
++  if (c.archived || !leftOpen(tasks)) return false
+   if (c.part !== undefined && !c.lead) return true
+-  return !live(c) && c.aborted === true
++  return !live(c) && (c.aborted === true || anyStopped(tasks))
+ }
+ // A session's panel; earlier versions published only its main group's tasks. An archived session
+ // stays in the tree as history (its last published panel): what it left open will not be done,
+@@ -136,7 +171,12 @@ export const rawPanel = (c: Child): Panel => c.panel ?? { groups: [{ agent: MAIN
+ // stopped (`aborted`) reads it as interrupted.
+ export const panelOf = (c: Child): Panel => {
+   const p = rawPanel(c)
+-  if (!c.archived && (live(c) || c.starting)) return p
++  // At work: as it is, but for what the person stopped there and it has not started again (stay).
++  if (!c.archived && (live(c) || c.starting)) {
++    const groups = p.groups ?? []
++    const read = stayed(groups, (p.sends ?? []).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor])))
++    return read === groups ? p : { ...p, groups: read }
++  }
+   if (c.archived) return { ...p, waits: [], groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(interrupt(undefined)) })) }
+   const last = Math.max(0, ...flat(tasksOf(p.groups ?? [])).flatMap(t => [t.startedAt ?? 0, t.endedAt ?? 0]))
+   return { ...p, groups: (p.groups ?? []).map(g => ({ ...g, tasks: g.tasks.map(halt(last > 0 ? last : undefined, [], c.aborted === true)) })) }
+@@ -616,6 +656,10 @@ export function startedLast(list: TaskNode[]): TaskNode | undefined {
+ export function trail(list: TaskNode[], since?: number): string[] {
+   const s = since === undefined ? undefined : startedLast(list)
+   if (s === undefined || (s.startedAt as number) < (since as number)) return []
++  // The task started last was stopped by the person and not started again (open with its clock
++  // stopped, as park leaves it, a parent started itself too; or read as interrupted by stay): nothing
++  // is on its way.
++  if ((s.status === 'open' && s.endedAt !== undefined) || (s.stopped === true && s.halted === true)) return []
+   const open = new Set(flat(list).filter(t => t.status === 'open').map(t => t.id))
+   return pathTo(list, s.id).filter(id => open.has(id))
+ }
+@@ -976,7 +1020,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined,
+   const ended = model.ended
+   // The tasks of the sends still queued are spared by the halt (they wait on a session, not on the turn).
+   const sentFrom = model.sends.filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
+-  const held = ended === undefined ? model.groups : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
++  // With the turn in course, only what the person stopped before and was not started again (stay).
++  const held = ended === undefined ? stayed(model.groups, sentFrom) : model.groups.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(halt(ended, sentFrom, model.aborted === true)) } : g))
+   const waits = model.waits
+   const sessions = model.children
+   // The sends still waiting to be taken up (a task's wait), and all of them (the letters).
+diff --git a/task-tree/hooks/panel.ts b/task-tree/hooks/panel.ts
+index 11003d4..c8243d3 100644
+--- a/task-tree/hooks/panel.ts
++++ b/task-tree/hooks/panel.ts
+@@ -13,6 +13,7 @@ import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSi
+ import { debug } from '../io/log'
+ import { readGit } from '../io/git'
+ import { publishWait } from '../io/publish'
++import { stayed } from '../draw/layout'
+ 
+ export const PANE = 'task-tree'
+ // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
+@@ -340,7 +341,11 @@ export async function ensureGroup($: any, agent: string) {
+ let lastStatus: string | undefined | null = null
+ export async function showStatus($: any, groups: Group[]) {
+   const { value: children = [] } = await $.state.get(childrenState)
+-  const [d, n] = total({ groups, waits: [], children })
++  // What the person stopped and was not started again counts as the panel draws it, interrupted
++  // (stay); a letter of it still queued keeps it open.
++  const { value: sends = [] } = await $.state.get(sendsState)
++  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
++  const [d, n] = total({ groups: stayed(groups, queuedFrom), waits: [], children })
+   const text = d === n ? undefined : `Tarefas ${d}/${n}`
+   if (lastStatus !== null && lastStatus === text) return
+   lastStatus = text
+diff --git a/task-tree/hooks/render.tsx b/task-tree/hooks/render.tsx
+index b71cc5a..fc5f92b 100644
+--- a/task-tree/hooks/render.tsx
++++ b/task-tree/hooks/render.tsx
+@@ -13,6 +13,7 @@ import { GLYPH, MSG_TERM, RING_LABEL, ULTRA, chips, clockText, gitAlt, gitTerm,
+ import { debug } from '../io/log'
+ import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
+ import { keepTime, openSession, watchSessions } from './sessions'
++import { stayed } from '../draw/layout'
+ 
+ // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
+ // press (a render may not write).
+@@ -221,7 +222,10 @@ export async function render($: EngineInterface, e: any, next: any) {
+   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
+   // discarded round is left out here too (the clock is not needed for the cut).
+   const ownTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
+-  const [ad, an] = total({ groups: withMain(held ?? []), waits, children: sessions }, 0, c =>
++  // What the person stopped and was not started again is out of it too, as in the drawing (stay): the
++  // tooltip said "sessão inteira" with one task more than the header, nothing being out of sight.
++  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
++  const [ad, an] = total({ groups: stayed(withMain(held ?? []), queuedFrom), waits, children: sessions }, 0, c =>
+     split(c, sessions, knownId(), ownTasks, undefined, newBreaksMemo()).map(r => settle(r, ownTasks, sends as Send[])),
+   )
+   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
+diff --git a/task-tree/hooks/turn.ts b/task-tree/hooks/turn.ts
+index 367546b..e1fcf61 100644
+--- a/task-tree/hooks/turn.ts
++++ b/task-tree/hooks/turn.ts
+@@ -9,6 +9,8 @@ import { MAIN, hasOpen, interrupt } from '../draw/layout'
+ import { engineText } from '../io/host'
+ import { change, dropAsked, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
+ import { settleBySubs, subEnd, subStep } from './agents'
++import { ensureGroups } from './panel'
++import { park } from '../state/tasks'
+ 
+ // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
+ // file that calls $.state (../state/durability has a row for every one).
+@@ -140,7 +142,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
+   }
+   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
+   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
+-  if (!agent) await $.state.set(turnEndedState, (await stamp($)) ?? 0)
++  const endedAt = agent ? undefined : await stamp($)
++  if (!agent) await $.state.set(turnEndedState, endedAt ?? 0)
+   // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
+   if (!agent && !e.isAborted) await settleBySubs($)
+   // The turn's output rate stays as it is, lit (the person, 2026-11-10: "Fica aceso").
+@@ -151,6 +154,16 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
+   // that opened no request (the app's notice, a hand-back) and ended normally leaves it as it is
+   // (the person, 2026-10-27: "precisa replanejar quando eu interrompo e envio nova mensagem").
+   if (!agent && e.isAborted === true) await $.state.set(replanDueState, true)
++  // What the stop found in progress is marked on the tasks themselves (park), in the state and the
++  // store: it reads as interrupted until its next start, through the turns that open no request and
++  // those that start another task (the person, 2026-11-12: "Segue ✕ até novo start (Recomendado)").
++  // The groups come back from the store first (a respawn with no session.start).
++  if (!agent && e.isAborted === true) {
++    await ensureGroups($)
++    const { value: now = [] } = await $.state.get(groupsState)
++    if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
++      await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(endedAt)) } : g)))
++  }
+   // The end in the store too: a new process draws it as stopped (see saveTurn).
+   if (!agent) await saveTurn($)
+   // The turn's answer grew the context: publish its share for the session that opened this one.
+diff --git a/task-tree/state/tasks.ts b/task-tree/state/tasks.ts
+index 00fc17c..726598d 100644
+--- a/task-tree/state/tasks.ts
++++ b/task-tree/state/tasks.ts
+@@ -4,7 +4,7 @@
+ // time the engine's clock gives; nothing of the kit here.
+ 
+ import type { Status, TaskNode } from '../types'
+-import { flat, stop } from '../draw/layout'
++import { flat, stop, timing } from '../draw/layout'
+ 
+ export type InNode = { id: string; title: string; children?: InNode[] }
+ 
+@@ -53,13 +53,30 @@ export const edit = (list: TaskNode[], id: string, fn: (t: TaskNode) => TaskNode
+ // closes too.
+ export const finish =
+   (now?: number) =>
+-  (t: TaskNode): TaskNode => ({
+-    ...t,
+-    status: t.status === 'interrupted' ? 'interrupted' : 'done',
+-    started: undefined,
+-    endedAt: t.status === 'open' ? stop(t, now) : t.endedAt,
+-    children: t.children.map(finish(now)),
+-  })
++  (t: TaskNode): TaskNode => {
++    // The mark of the person's stop goes with the close (see park).
++    const { stopped: _, ...rest } = t
++    return {
++      ...rest,
++      status: t.status === 'interrupted' ? 'interrupted' : 'done',
++      started: undefined,
++      endedAt: t.status === 'open' ? stop(t, now) : t.endedAt,
++      children: t.children.map(finish(now)),
++    }
++  }
++// The person stopped the turn (Esc): a leaf the main loop had started and open is marked `stopped`,
++// and the clocks of the open tasks stop there. The mark stays until a start begins the task again
++// (begin), a done closes it (finish) or a plan replaces it: meanwhile the panel reads it as the stop
++// left it, interrupted, in every turn (halt and stay in draw/layout). A parent started itself is no
++// longer started (it lit its first open task again at the next prompt): only a start of it lights it
++// again. The person, 2026-11-12: "Segue ✕ até novo start (Recomendado)".
++export const park =
++  (at?: number) =>
++  (t: TaskNode): TaskNode => {
++    if (t.status !== 'open') return t
++    if (t.children.length === 0) return t.started !== undefined || t.startedAt !== undefined ? { ...t, stopped: true, endedAt: stop(t, at) } : t
++    return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(park(at)) }
++  }
+ // A task closed with no start (done without start) gets one, so its time shows: the end of the
+ // closed sibling before it, else its parent's start, else when it was planned (never before it was
+ // planned, never after now).
+@@ -103,8 +120,12 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
+ export function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
+   return list.map(t => {
+     if (t.id === id) {
+-      if (t.status === 'open') return { ...t, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
+-      const { failed: _, ...rest } = t
++      // A task the person stopped (`stopped`) is in progress again: the mark goes, its clock goes on.
++      if (t.status === 'open') {
++        const { stopped: _, ...open } = t
++        return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
++      }
++      const { failed: _, stopped: __, ...rest } = t
+       return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now } : {}) }
+     }
+     if (!flat(t.children).some(c => c.id === id)) return t
+@@ -121,7 +142,7 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
+   const merge = (n: TaskNode): TaskNode => {
+     const o = byId.get(n.id)
+     const kept = o
+-      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}) }
++      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}), ...(o.status === 'open' && o.stopped === true ? { stopped: true } : {}) }
+       : {}
+     return { ...n, ...kept, children: n.children.map(merge) }
+   }
+@@ -144,7 +165,7 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
+   const reopen = (t: TaskNode): TaskNode => {
+     const children = t.children.map(reopen)
+     return children.length > 0 && flat(children).some(k => k.status === 'open')
+-      ? { ...t, status: 'open' as Status, started: undefined, endedAt: undefined, children }
++      ? { ...t, status: 'open' as Status, started: undefined, endedAt: t.status === 'open' && !timing(children) ? t.endedAt : undefined, children }
+       : { ...t, children }
+   }
+   return settle([reopen(out)], now)[0] as TaskNode
+diff --git a/task-tree/tests/durabilidade.test.ts b/task-tree/tests/durabilidade.test.ts
+index 81a8bae..21c55b9 100644
+--- a/task-tree/tests/durabilidade.test.ts
++++ b/task-tree/tests/durabilidade.test.ts
+@@ -325,6 +325,43 @@ test('fim do turno com Esc no reinício, 2/2: a iniciada segue interrompida', as
+   semAndamento(p)
+ })
+ 
++// A parada com Esc, depois de um aviso tratado até o fim (o último turno terminou normalmente).
++const PARADA: Record<string, unknown> = {}
++
++// Regra: durabilidade.parada-com-esc-sobrevive-ao-reinicio
++test('parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  armazem(on, PARADA)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await esc($)
++  await relogio.advance(1000)
++  await aviso($)
++  await fimDoTurno($)
++  esperarEstado(await painel($), 'Dois.um', 'interrompida')
++  expect(temPainel(PARADA), JSON.stringify(Object.keys(PARADA))).toBe(true)
++})
++
++// Regra: durabilidade.parada-com-esc-sobrevive-ao-reinicio
++test('parada com Esc no reinício, 2/2: o processo novo a desenha interrompida até o start nela', async ($: any, on: any) => {
++  fixar(on)
++  armazem(on, PARADA)
++  exigir(temPainel(PARADA))
++  await iniciarSessao($)
++  let p = await painel($)
++  esperarEstado(p, 'Dois.um', 'interrompida')
++  semAndamento(p)
++  await pedido($, 'Pedido dois')
++  await start($, ['2.2'])
++  p = await painel($)
++  esperarEstado(p, 'Dois.dois', 'andamento')
++  esperarEstado(p, 'Dois.um', 'interrompida')
++  await start($, ['2.1'])
++  p = await painel($)
++  esperarEstado(p, 'Dois.um', 'andamento')
++})
++
+ // O resumo do done, gravado antes de uma recarga, chega à linha ↩ e ao arquivo publicado.
+ const RESUMO: Record<string, unknown> = {}
+ 
+diff --git a/task-tree/tests/sessoes.test.ts b/task-tree/tests/sessoes.test.ts
+index 3a859a2..a6db87d 100644
+--- a/task-tree/tests/sessoes.test.ts
++++ b/task-tree/tests/sessoes.test.ts
+@@ -253,6 +253,45 @@ test('a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o ca
+   expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
+ })
+ 
++// A filha parou "Parada" com Esc, tratou um aviso e nele iniciou "Outra"; o último turno dela terminou
++// normalmente (o arquivo não diz `aborted`): a marca vai na tarefa.
++// Regra: sessoes.filha-parada-com-esc-segue-descartada-ate-o-start
++test('a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada', async ($: any, on: any) => {
++  fixar(on)
++  const parada = { ...noTurno(1, '2', 'Parada', 'iniciada'), stopped: true, endedAt: AGORA - 500 }
++  const tarefas = (p: any) => [noTurno(1, '1', 'Feita', 'feita'), p, noTurno(1, '3', 'Outra', 'iniciada')]
++  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas(parada), turns: [turno(1, AGORA + 10)] } }])
++  await pedido($, 'Pedido um')
++  await plan($, A3)
++  await start($, ['1'])
++  await abrirSessao($)
++  await aviso($)
++  // Trabalhando (o turno do aviso): a parada já é desenhada ✕ no cartão, fora da contagem dele.
++  let p = await painel($)
++  esperarEstado(p, 'Parada', 'interrompida')
++  esperarEstado(p, 'Outra', 'andamento')
++  expect(cabecalho(p).total, emTexto(p)).toBe(5)
++  // Parada de novo, o turno terminado normalmente: a rodada segue descartada.
++  h.filha(K1).rodando = false
++  await aviso($)
++  p = await painel($)
++  esperarEstado(p, 'Feita', 'concluida')
++  esperarEstado(p, 'Parada', 'interrompida')
++  esperarEstado(p, 'Outra', 'aguardando')
++  let c = cabecalho(p)
++  expect([c.feitas, c.total, c.chips.interrompidas], emTexto(p)).toEqual([0, 3, 0])
++  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
++  esperarPalavra(p, 'filha-um', 'parada')
++  // O start na tarefa parada tira a marca: a rodada volta a contar e as iniciadas aguardam.
++  h.filha(K1).painel = { tasks: tarefas(noTurno(1, '2', 'Parada', 'iniciada')), turns: [turno(1, AGORA + 10)] }
++  await aviso($)
++  p = await painel($)
++  esperarEstado(p, 'Parada', 'aguardando')
++  esperarEstado(p, 'Outra', 'aguardando')
++  c = cabecalho(p)
++  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 6])
++})
++
+ // Três filhas paradas, cada uma com um turno só: K1 com um pai aberto (só pendente embaixo), K2 com
+ // uma folha iniciada, K3 com um pai aberto e parada com Esc. Nada delas está fora do desenho.
+ // Regra: sessoes.cartao-parado-sem-pedidos-anteriores-a-mais
+diff --git a/task-tree/tests/turnos.test.ts b/task-tree/tests/turnos.test.ts
+index 23136a5..90f0071 100644
+--- a/task-tree/tests/turnos.test.ts
++++ b/task-tree/tests/turnos.test.ts
+@@ -5,6 +5,8 @@ import { linha as umaLinha } from './kit/leitura'
+ import { fixar } from './kit/ambiente'
+ import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+ import { emTexto, esperarEstado, painel } from './kit/leitura'
++import { aviso } from './kit/cenario'
++import { cabecalho, type Linha } from './kit/leitura'
+ 
+ // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
+ // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
+@@ -140,9 +142,186 @@ test('o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tar
+   await relogio.advance(1000)
+   await pedido($, 'segue')
+   await start($, ['2.1'])
+-  const p = await painel($)
++  let p = await painel($)
++  esperarEstado(p, 'Dois.um', 'andamento')
++  // A que o Esc parou segue ✕ até o start nela (decisão de 2026-11-12); com ele, nada fica ✕.
++  esperarEstado(p, 'Um', 'interrompida')
++  await start($, ['1'])
++  p = await painel($)
++  esperarEstado(p, 'Um', 'andamento')
++  expect(emTexto(p)).not.toContain('✕')
++})
++
++// A parada com Esc segue ✕ até o start nela. Origem: decisão do usuário de 2026-11-12 ("Segue ✕ até
++// novo start (Recomendado)"), sobre o achado da auditoria de 2026-11-10: um aviso automático, ou o
++// start em outra tarefa, reacendia a parada (◉, relógio correndo, ◷ no fim do turno).
++const semNadaAceso = (p: Linha[]) => expect(p.filter(l => !l.cabecalho && l.estado === 'andamento').map(l => l.titulo), emTexto(p)).toEqual([])
++const PROMPTS_SEM_PEDIDO: [string, ($: any) => Promise<unknown>][] = [
++  ['aviso do app', $ => aviso($)],
++  ['hand-back de subagente', $ => $.prompt.submit({ text: '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>' })],
++  ['notificação de tarefa em segundo plano', $ => $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } })],
++]
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await relogio.advance(3000)
++  await esc($)
++  const noEsc = await painel($)
++  esperarEstado(noEsc, 'Dois.um', 'interrompida')
++  for (const [nome, prompt] of PROMPTS_SEM_PEDIDO) {
++    await relogio.advance(5000)
++    await prompt($)
++    await relogio.advance(5000)
++    let p = await painel($)
++    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no turno:\n${emTexto(p)}`).toBe('interrompida')
++    semNadaAceso(p)
++    // O relógio da parada, o do pai e o do pedido ficam onde o Esc os deixou.
++    for (const t of ['Dois.um', 'Dois', 'Plano A', 'Pedido um']) expect(umaLinha(p, t).texto, `${nome}, no turno:\n${emTexto(p)}`).toBe(umaLinha(noEsc, t).texto)
++    await fimDoTurno($)
++    p = await painel($)
++    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no fim do turno:\n${emTexto(p)}`).toBe('interrompida')
++    expect(emTexto(p), nome).not.toContain('◷')
++    const c = cabecalho(p)
++    // Fora da contagem, como interrompida: no cabeçalho e na sessão inteira (sem a nota do tooltip).
++    expect([c.total, c.chips.interrompidas, c.chips.aguardando, c.chips.andamento, c.inteira], `${nome}:\n${emTexto(p)}`).toEqual([2, 1, 0, 0, undefined])
++  }
++})
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('numa mensagem da pessoa em que o modelo dá start em outra tarefa, a parada com Esc segue interrompida, também no fim do turno', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await esc($)
++  await relogio.advance(1000)
++  await pedido($, 'segue')
++  await start($, ['1'])
++  let p = await painel($)
++  esperarEstado(p, 'Um', 'andamento')
++  esperarEstado(p, 'Dois.um', 'interrompida')
++  // O pai da parada não acende com ela: só o caminho da tarefa iniciada agora.
++  esperarEstado(p, 'Dois', 'pendente')
++  esperarEstado(p, 'Plano A', 'andamento')
++  await fimDoTurno($)
++  p = await painel($)
++  esperarEstado(p, 'Um', 'aguardando')
++  esperarEstado(p, 'Dois.um', 'interrompida')
++  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(1)
++})
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await esc($)
++  await relogio.advance(1000)
++  await aviso($)
++  await fimDoTurno($)
++  await relogio.advance(1000)
++  await aviso($)
++  await start($, ['2.1'])
++  let p = await painel($)
+   esperarEstado(p, 'Dois.um', 'andamento')
++  esperarEstado(p, 'Dois', 'andamento')
+   expect(emTexto(p)).not.toContain('✕')
++  expect([cabecalho(p).total, cabecalho(p).chips.andamento], emTexto(p)).toEqual([3, 1])
++  await fimDoTurno($)
++  p = await painel($)
++  esperarEstado(p, 'Dois.um', 'aguardando')
++  expect(emTexto(p)).not.toContain('✕')
++})
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('o done na tarefa parada com Esc, sem start, a conclui', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await esc($)
++  await relogio.advance(1000)
++  await pedido($, 'segue')
++  const r = await done($, ['2.1'])
++  expect(r.erro, r.texto).toBe(false)
++  const p = await painel($)
++  esperarEstado(p, 'Dois.um', 'concluida')
++  expect(emTexto(p)).not.toContain('✕')
++  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 3])
++})
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('o pai iniciado e parado com Esc não reacende no prompt seguinte; o start nele o reacende', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2'])
++  esperarEstado(await painel($), 'Dois', 'andamento')
++  await esc($)
++  await relogio.advance(1000)
++  await aviso($)
++  let p = await painel($)
++  semNadaAceso(p)
++  for (const t of ['Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
++  await fimDoTurno($)
++  await pedido($, 'segue')
++  await start($, ['1'])
++  p = await painel($)
++  esperarEstado(p, 'Um', 'andamento')
++  esperarEstado(p, 'Dois', 'pendente')
++  await start($, ['2'])
++  p = await painel($)
++  esperarEstado(p, 'Dois', 'andamento')
++  esperarEstado(p, 'Dois.um', 'andamento')
++})
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('o replano no mesmo pedido que mantém a tarefa parada com Esc a mantém interrompida, com o relógio parado', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await relogio.advance(3000)
++  await esc($)
++  const noEsc = await painel($)
++  await relogio.advance(5000)
++  // O aviso não abre pedido: o plano com o mesmo id replaneja no lugar.
++  await aviso($)
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.3', title: 'Dois.três' }] }] }])
++  await relogio.advance(5000)
++  const p = await painel($)
++  esperarEstado(p, 'Dois.um', 'interrompida')
++  esperarEstado(p, 'Dois.três', 'pendente')
++  semNadaAceso(p)
++  for (const t of ['Dois.um', 'Dois', 'Plano A']) expect(umaLinha(p, t).texto, emTexto(p)).toBe(umaLinha(noEsc, t).texto)
++})
++
++// Regra: turnos.parada-segue-interrompida-ate-o-start
++test('a marca da parada com Esc vai no painel publicado até o start nela', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  const h = host(on, [])
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['2.1'])
++  await esc($)
++  await relogio.advance(1000)
++  await aviso($)
++  await fimDoTurno($)
++  const publicadas = (): any[] => {
++    const andar = (l: any[]): any[] => l.flatMap(t => [t, ...andar(t.children ?? [])])
++    return andar((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.tasks ?? [])
++  }
++  // O último turno terminou normalmente: o que diz que a tarefa foi parada é a marca nela.
++  expect(h.proprio()?.aborted, JSON.stringify(h.proprio())).toBe(undefined)
++  expect(publicadas().filter(t => t.stopped === true).map(t => t.title), JSON.stringify(publicadas())).toEqual(['Dois.um'])
++  await aviso($)
++  await start($, ['2.1'])
++  expect(publicadas().filter(t => t.stopped === true).map(t => t.title), JSON.stringify(publicadas())).toEqual([])
+ })
+ 
+ // Regra: turnos.subagente-que-termina-interrompe
+diff --git a/task-tree/types/index.d.ts b/task-tree/types/index.d.ts
+index 9507c0d..ab8241e 100644
+--- a/task-tree/types/index.d.ts
++++ b/task-tree/types/index.d.ts
+@@ -35,6 +35,12 @@ export type TaskNode = {
+   // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
+   // by that stop (halt in draw/layout); never kept nor published.
+   halted?: boolean
++  // A leaf started and open when the person stopped the turn (Esc). Kept on the task (state, store,
++  // published panel) from that stop until a start begins it again, a done closes it or a plan
++  // replaces it; its clock stopped at the stop (`endedAt`). Meanwhile every drawing reads it as
++  // interrupted, in the turns that come after too (halt and stay in draw/layout; park in state/tasks).
++  // The person, 2026-11-12: "Segue ✕ até novo start (Recomendado)".
++  stopped?: boolean
+   children: TaskNode[]
+ }
+ 

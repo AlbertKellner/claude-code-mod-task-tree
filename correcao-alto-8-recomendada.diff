@@ -1,0 +1,284 @@
+diff --git a/regras/envios.md b/regras/envios.md
+index c9f60d1..e93670c 100644
+--- a/regras/envios.md
++++ b/regras/envios.md
+@@ -149,3 +149,14 @@ A entrega é confirmada mesmo quando a lista de sessões do app falha.
+ Origem: auditoria 2026-11-10 (carta na fila sem saída: com a lista em erro, o envio nunca era conferido); aplica envios.fica-ate-entrega ("na entrega, verde, e o painel conclui a tarefa que enviou"), sem mudar nenhuma regra.
+ Código: hooks/sessions.ts
+ Estado: coberto
++
++### envios.destino-arquivado-nao-entregue
++A carta cuja sessão destino foi arquivada antes de tomá-la fica cinza, "não entregue".
++
++- Dado uma tarefa com a carta dela na fila
++- Quando a lista de sessões do app mostra a sessão destino arquivada antes de tomar a mensagem
++- Então a carta fica cinza com "não entregue", sem tempo, e sai do chip "aguardando sessão"; a tarefa volta a ser comum (no Esc fica ✕, como qualquer outra) e o modelo é avisado uma vez; desarquivada antes de tomá-la, a carta volta a azul "na fila"
++
++Origem: decisão do usuário, AAAA-MM-DD ("<palavras dele>"), à pergunta da auditoria 2026-11-10 "Carta na fila cujo destino foi arquivado ou sumiu"; aplica envios.cor-por-estado ("cinza descartada antes da entrega") e limita envios.fica-ate-entrega à mensagem que ainda pode ser entregue.
++Código: hooks/sessions.ts, draw/layout.ts, draw/svg.ts, text/rules.ts
++Estado: coberto
+diff --git a/regras/selos.json b/regras/selos.json
+index 1d0d7b4..35d95b0 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -444,6 +444,26 @@
+       "data": "2026-11-04",
+       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+     },
++    "task-tree/tests/envios.test.ts::a sessão destino arquivada com a carta na fila: carta cinza \"não entregue\", a tarefa deixa de esperar e o modelo é avisado uma vez": {
++      "regras": [
++        "envios.destino-arquivado-nao-entregue"
++      ],
++      "hash": "4e68fc850a10fa88",
++      "assercoes": 5,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10: carta na fila com destino arquivado (decisão pendente)"
++    },
++    "task-tree/tests/envios.test.ts::a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul \"na fila\"": {
++      "regras": [
++        "envios.destino-arquivado-nao-entregue"
++      ],
++      "hash": "e18eb030b3b65bde",
++      "assercoes": 1,
++      "tipo": "novo",
++      "data": "2026-11-11",
++      "motivo": "auditoria 2026-11-10: carta na fila com destino arquivado (decisão pendente)"
++    },
+     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
+       "regras": [
+         "pedidos.replano-mantem-envio-ate-entrega"
+diff --git a/task-tree/draw/layout.ts b/task-tree/draw/layout.ts
+index a9f693a..8312eb7 100644
+--- a/task-tree/draw/layout.ts
++++ b/task-tree/draw/layout.ts
+@@ -710,7 +710,7 @@ export function openInSight(p: Panel, ids: string[], sends: { to?: string; ancho
+   const seen = tasks.filter(t => ids.includes(t.id) || (t.turn !== undefined && turns.includes(t.turn)))
+   if (hasOpen(seen)) return true
+   const all = flat(seen).map(t => t.id)
+-  if (sends.some(s => !s.taken && s.anchor !== undefined && all.includes(s.anchor))) return true
++  if (sends.some(s => !s.taken && !s.cut && s.anchor !== undefined && all.includes(s.anchor))) return true
+   // A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
+   const anchors = (c: Child) =>
+     [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
+@@ -780,8 +780,9 @@ export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'runni
+ // A message task's state, as its ✉ is colored and its word on the right says: still queued for the
+ // session (blue), taken up by it (green, the session may still be at work), interrupted or
+ // discarded (gray).
+-export type MsgState = 'queued' | 'delivered' | 'cut'
+-export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida' }
++// `lost`: the session it went to was archived with it still queued (Send.lost).
++export type MsgState = 'queued' | 'delivered' | 'cut' | 'lost'
++export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida', lost: 'não entregue' }
+ // A subagent's card (hooks/agents): its word of state, as a session's card says its own.
+ export const SUB_WORD: Record<Sub['state'], string> = {
+   running: 'trabalhando',
+@@ -1283,7 +1284,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined,
+       mail
+         .filter(s => hostOf(s) === t.id)
+         .map(s => {
+-          const state: MsgState = s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
++          const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
+           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
+           return {
+             key: `${scope}m:${s.to}:${s.anchor ?? ''}`,
+diff --git a/task-tree/draw/svg.ts b/task-tree/draw/svg.ts
+index b87dba0..ab4ebf6 100644
+--- a/task-tree/draw/svg.ts
++++ b/task-tree/draw/svg.ts
+@@ -311,8 +311,8 @@ export function envelope(x: number, y: number, cls: string): string {
+ }
+ // A message task's ✉ by state: blue while queued, green once taken up, gray interrupted; in the
+ // terminal, the same glyph in the theme's color for each.
+-export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy' }
+-export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive' }
++export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy', lost: 'gy' }
++export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive', lost: 'inactive' }
+ 
+ // One icon, 14 px across, centered on (x, y).
+ export function icon(tone: Tone, x: number, y: number): string {
+diff --git a/task-tree/hooks/sessions.ts b/task-tree/hooks/sessions.ts
+index e91e9f2..2f51699 100644
+--- a/task-tree/hooks/sessions.ts
++++ b/task-tree/hooks/sessions.ts
+@@ -149,6 +149,23 @@ export async function watchSends($: any, rows: any[]) {
+       else if (r && r.isRunning === true && s.idle) marks[i] = { taken: true }
+     }
+   }
++  // A session archived with the message still queued will not take it up: the letter is not delivered
++  // (gray, "não entregue") and its task stops waiting on it (the clock, the Esc, what holds the view).
++  // Only by what the list says: a session the list leaves out (a partial list) is not judged; one with
++  // the name of an archived one and not archived itself still waits. Listed again unarchived, it waits
++  // again, and the main loop will be told again of what comes of it.
++  for (const [i, s] of (sends as Send[]).entries()) {
++    if (s.taken) continue
++    if (marks[i]?.taken) {
++      if (s.lost) marks[i] = { ...marks[i], cut: false, lost: false }
++      continue
++    }
++    const same = rows.filter(r => r.sessionId === s.to || (r.name && r.name === s.to))
++    if (same.length === 0) continue
++    const archived = same.every(r => r.isArchived === true)
++    if (archived && !s.lost) marks[i] = { ...marks[i], cut: true, lost: true }
++    else if (!archived && s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
++  }
+   if (Object.keys(marks).length === 0) return
+   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
+   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
+@@ -168,23 +185,26 @@ export async function watchSends($: any, rows: any[]) {
+     }),
+   )
+ }
+-// Once: the sessions that took up a queued message, with the task it was sent from.
++// Once: the sessions that took up a queued message, with the task it was sent from; and those archived
++// with a message still queued (not delivered).
+ export async function takenNote($: any): Promise<string | undefined> {
+   const { value: sends = [] } = await $.state.get(sendsState)
+   const done = (sends as Send[]).filter(s => s.taken && !s.noted)
+-  if (done.length === 0) return undefined
+-  // Kept, its letter green under its task (the last 20); the reminder goes once.
+-  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken ? { ...s, noted: true } : s)).slice(-20))
++  const lost = (sends as Send[]).filter(s => s.lost && !s.taken && !s.noted)
++  if (done.length === 0 && lost.length === 0) return undefined
++  // Kept, its letter green (gray when not delivered) under its task (the last 20); the reminder goes once.
++  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken || s.lost ? { ...s, noted: true } : s)).slice(-20))
+   // A delivery at once needs no reminder: the model saw it delivered.
+   const taken = done.filter(s => !s.delivered)
+-  if (taken.length === 0) return undefined
++  if (taken.length === 0 && lost.length === 0) return undefined
+   const { value: groups = [] } = await $.state.get(groupsState)
+   const all = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+-  const what = taken.map(s => {
+-    const t = all.find(t => t.id === s.anchor)
+-    return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
+-  })
+-  return SESSION.taken(what)
++  const what = (list: Send[]) =>
++    list.map(s => {
++      const t = all.find(t => t.id === s.anchor)
++      return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
++    })
++  return [...(taken.length > 0 ? [SESSION.taken(what(taken))] : []), ...(lost.length > 0 ? [SESSION.lost(what(lost))] : [])].join(' ')
+ }
+ 
+ // The list read again when it is older than the poll's period: a session drawn at work after
+@@ -261,13 +281,14 @@ export async function anyRunning($: any): Promise<boolean> {
+   const { value: groups = [] } = await $.state.get(groupsState)
+   const { value: children = [] } = await $.state.get(childrenState)
+   // With this session's turn ended, its own tasks run no clock (see turnEnded), except the task of a
+-  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait. After a
++  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait (not one
++  // that will not be delivered, `cut`). After a
+   // restart the end comes back from the store first (ensureTurn): no clock for what had stopped.
+   const brought = await ensureTurn($)
+   const { value: heldEnded } = await $.state.get(turnEndedState)
+   const ended = heldEnded !== undefined ? heldEnded : brought?.ended
+   const { value: sends = [] } = await $.state.get(sendsState)
+-  if ((sends as Send[]).some(s => !s.taken)) return true
++  if ((sends as Send[]).some(s => !s.taken && !s.cut)) return true
+   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
+ }
+ export async function tick($: any) {
+diff --git a/task-tree/hooks/tools.ts b/task-tree/hooks/tools.ts
+index 34feacb..7aaa596 100644
+--- a/task-tree/hooks/tools.ts
++++ b/task-tree/hooks/tools.ts
+@@ -170,7 +170,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
+     if (agent === MAIN) {
+       const { value: sends = [] } = await $.state.get(sendsState)
+       const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
+-      for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
++      for (const s of (sends as Send[]).filter(s => !s.taken && !s.cut && closed.includes(s.anchor ?? ''))) {
+         const t = main.find(t => t.id === s.anchor)
+         if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
+       }
+diff --git a/task-tree/tests/envios.test.ts b/task-tree/tests/envios.test.ts
+index ff60934..6a37d2a 100644
+--- a/task-tree/tests/envios.test.ts
++++ b/task-tree/tests/envios.test.ts
+@@ -1,5 +1,5 @@
+ import { expect, test } from 'claude-code/testing'
+-import { AGORA, fixar, host, responderDepois, responderEnvio } from './kit/ambiente'
++import { AGORA, fixar, host, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
+ import { aviso, done, envio, esc, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
+ import { comHistorico, cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
+ 
+@@ -412,3 +412,49 @@ test('com a lista de sessões em erro, a entrega publicada pela sessão deixa a
+   expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 2])
+   expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+ })
++
++// Regra: envios.destino-arquivado-nao-entregue
++test('a sessão destino arquivada com a carta na fila: carta cinza "não entregue", a tarefa deixa de esperar e o modelo é avisado uma vez', async ($: any, on: any) => {
++  fixar(on)
++  const x: Filha = { id: 'local_x' }
++  host(on, [x])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  x.arquivada = true
++  x.rodando = false
++  expect(JSON.stringify((await aviso($))?.context ?? [])).toContain('mensagem não entregue')
++  let p = await painel($)
++  esperarCartaSob(p, 'Um', 'interrompida')
++  expect(p.find(l => l.titulo.startsWith('Para '))?.texto, emTexto(p)).toContain('não entregue')
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
++  expect(JSON.stringify((await aviso($))?.context ?? [])).not.toContain('mensagem não entregue')
++  // Sem a carta na fila, o Esc trata a tarefa como qualquer outra.
++  await esc($)
++  p = await painel($)
++  esperarEstado(p, 'Um', 'interrompida')
++  esperarCartaSob(p, 'Um', 'interrompida')
++})
++
++// Regra: envios.destino-arquivado-nao-entregue
++test('a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul "na fila"', async ($: any, on: any) => {
++  fixar(on)
++  const x: Filha = { id: 'local_x' }
++  host(on, [x])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  x.arquivada = true
++  x.rodando = false
++  await aviso($)
++  esperarCartaSob(await painel($), 'Um', 'interrompida')
++  x.arquivada = false
++  await aviso($)
++  const p = await painel($)
++  esperarCartaSob(p, 'Um', 'fila')
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
++})
+diff --git a/task-tree/text/rules.ts b/task-tree/text/rules.ts
+index 9918cec..9071d5a 100644
+--- a/task-tree/text/rules.ts
++++ b/task-tree/text/rules.ts
+@@ -212,6 +212,9 @@ export const SESSION = {
+   taken: (what: string[]) =>
+     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
+     'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
++  lost: (what: string[]) =>
++    PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
++    'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa (mcp__task-tree__done quando concluída).',
+   ended: (sessions: string[], open: string) =>
+     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
+     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
+diff --git a/task-tree/types/index.d.ts b/task-tree/types/index.d.ts
+index 2b499e1..30c8cbb 100644
+--- a/task-tree/types/index.d.ts
++++ b/task-tree/types/index.d.ts
+@@ -204,7 +204,9 @@ export type Child = {
+ // its task shows ✉ meanwhile, with no reminder when taken.
+ // `text`: the message's start (its letter's title); `noted`: the main loop was told it was taken up
+ // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
+-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean }
++// `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
++// (its letter gray, "não entregue"); undone if the session is listed again unarchived.
++export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean }
+ 
+ // The shape of `tasks` before groups: migrated into the main group once.
+ export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

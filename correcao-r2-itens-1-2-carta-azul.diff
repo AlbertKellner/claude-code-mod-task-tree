@@ -1,0 +1,112 @@
+diff --git a/regras/envios.md b/regras/envios.md
+index 184dc85..ec4b645 100644
+--- a/regras/envios.md
++++ b/regras/envios.md
+@@ -46,13 +46,14 @@ O ✉ mantém o ícone e muda só a cor.
+ 
+ - Dado uma tarefa de mensagem
+ - Quando a mensagem está na fila, é entregue ou fica num plano interrompido
+-- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega); a tarefa tem o ícone comum e conta
++- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega); a carta de uma tarefa cortada por um pedido novo segue azul enquanto está na fila e fica cinza quando a sessão a toma; a tarefa tem o ícone comum e conta
+ 
+ Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
+ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
+ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+-Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
++Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha.
++Reescrito: 2026-11-12, decisão do usuário ("<palavras dele>"); a carta da tarefa cortada por um pedido novo segue azul "na fila" até a sessão a tomar, e só então fica cinza "interrompida"; desfaz o cinza já no corte da tarefa.
+ Código: draw/layout.ts, draw/svg.ts
+ Estado: coberto
+ 
+diff --git a/regras/pedidos.md b/regras/pedidos.md
+index 579ff84..32e1a4c 100644
+--- a/regras/pedidos.md
++++ b/regras/pedidos.md
+@@ -140,7 +140,7 @@ O pedido anterior cujo nível 1 foi reusado segue à vista enquanto a sessão so
+ 
+ - Dado um nível 1 aberto de um pedido anterior, com uma sessão filha trabalhando sob uma tarefa dele (mesmo sem tarefa própria aberta) ou uma carta ainda na fila saída dela
+ - Quando um pedido novo traz plan com o mesmo id
+-- Então o antigo vira histórico como em pedidos.plano-anterior-vira-historico, mas o pedido anterior segue à vista, acima do novo, com o cartão sob a tarefa de origem, nunca solto, e a carta sob ela (cinza "interrompida", envios.cor-por-estado); o nível 1 novo nasce ○ sob o pedido novo. A linha "+N pedidos anteriores" só leva o pedido antigo num pedido seguinte, depois que a sessão parou e a carta foi entregue, como quando o id não é reusado (pedidos.resumida-mantem-anteriores-com-algo-aberto)
++- Então o antigo vira histórico como em pedidos.plano-anterior-vira-historico, mas o pedido anterior segue à vista, acima do novo, com o cartão sob a tarefa de origem, nunca solto, e a carta sob ela (azul na fila e, entregue, cinza "interrompida", envios.cor-por-estado); o nível 1 novo nasce ○ sob o pedido novo. A linha "+N pedidos anteriores" só leva o pedido antigo num pedido seguinte, depois que a sessão parou e a carta foi entregue, como quando o id não é reusado (pedidos.resumida-mantem-anteriores-com-algo-aberto)
+ 
+ Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1, cartão solto); decisão do usuário, 2026-11-12 ("Sim, fica à vista (Recomendado)"). Desfaz, para o id reusado, "sessão trabalhando sem tarefa própria aberta, ou só carta na fila, não segura" (2026-11-10) e o cartão vivo solto no fim desse caso (sessoes.cartao-vivo-nunca-some segue valendo para o pedido que já saiu do trabalho).
+ Código: draw/layout.ts, hooks/sessions.ts
+diff --git a/regras/selos.json b/regras/selos.json
+index 39a7b6e..4e238a8 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -413,6 +413,16 @@
+       "data": "2026-11-03",
+       "motivo": "carta de envio sob a tarefa"
+     },
++    "task-tree/tests/envios.test.ts::a carta de um plano interrompido segue azul enquanto está na fila e fica cinza na entrega": {
++      "regras": [
++        "envios.cor-por-estado"
++      ],
++      "hash": "95b8e4d99752a11d",
++      "assercoes": 3,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, <AAAA-MM-DD>: \"<palavras dele>\""
++    },
+     "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
+       "regras": [
+         "envios.entrega-imediata-fica-verde"
+diff --git a/task-tree/draw/layout.ts b/task-tree/draw/layout.ts
+index e0b0bb3..df1fb2c 100644
+--- a/task-tree/draw/layout.ts
++++ b/task-tree/draw/layout.ts
+@@ -1270,6 +1270,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined,
+     // própria sob a tarefa (Recomendado)"): one line per (session, task) under the task it went from,
+     // before the session's card: "Para <session>: <message>", blue queued, green taken up, gray when
+     // dropped before its delivery (its task cut by a new request); the time it has waited while queued.
++    // A dropped one still queued stays blue until the session takes it up, then gray: the message is
++    // still on its way (the person, <AAAA-MM-DD>: "<palavras dele>").
+     // Out of every count and chip but the one of what waits on a session. A send whose task left the plan
+     // (a replan) hangs from the level-1 task of the request it was sent in.
+     const levelOne = (s: Send): string | undefined => {
+@@ -1289,7 +1291,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined,
+       mail
+         .filter(s => hostOf(s) === t.id)
+         .map(s => {
+-          const state: MsgState = s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
++          const state: MsgState = s.cut ? 'cut' : !s.taken ? 'queued' : cutHere.has(hostOf(s) ?? '') ? 'cut' : 'delivered'
+           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
+           return {
+             key: `${scope}m:${s.to}:${s.anchor ?? ''}`,
+diff --git a/task-tree/tests/envios.test.ts b/task-tree/tests/envios.test.ts
+index d0b008b..5f74dc4 100644
+--- a/task-tree/tests/envios.test.ts
++++ b/task-tree/tests/envios.test.ts
+@@ -51,6 +51,30 @@ test('a mensagem de um plano interrompido fica cinza depois da entrega', async (
+   expect(cartas[0]!.texto).toContain('interrompida')
+ })
+ 
++// Regra: envios.cor-por-estado
++test('a carta de um plano interrompido segue azul enquanto está na fila e fica cinza na entrega', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  const h = host(on, [{ id: 'local_x' }])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  await fimDoTurno($)
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
++  await aviso($)
++  let p = await painel($)
++  const cartas = (linhas: typeof p) => linhas.filter(l => l.titulo.startsWith('Para ') && l.carta !== undefined)
++  expect(cartas(p).map(l => l.carta), emTexto(p)).toEqual(['fila'])
++  expect(cartas(p)[0]!.texto).toContain('na fila')
++  h.recebeu('local_x', AGORA)
++  await aviso($)
++  p = await painel($)
++  expect(cartas(p).map(l => l.carta), emTexto(p)).toEqual(['interrompida'])
++})
++
+ // Regra: envios.fila-nao-interrompe-no-fim-do-turno
+ test('o envio na fila não vira interrompido no fim do turno, normal ou com Esc', async ($: any, on: any) => {
+   fixar(on)

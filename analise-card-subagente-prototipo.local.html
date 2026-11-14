@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card de subagente</title>
+<style>
+:root{--bg:#f4f4f1;--card:#f9f9f7;--line:#e1e1df;--p:#2c2c2a;--s:#5f5e5a;--blue:#378add;--amber:#ba7517;--green:#639922;--gray:#888780}
+@media (prefers-color-scheme: dark){:root{--bg:#161615;--card:#20201f;--line:#373736;--p:#e8e6dc;--s:#b4b2a9;--blue:#5aa5ee;--amber:#ef9f27;--green:#97c459;--gray:#9c9a92}}
+body{margin:0;padding:24px 16px;background:var(--bg);color:var(--p);font:13px/1.4 system-ui,-apple-system,'Segoe UI',sans-serif}
+main{max-width:460px;margin:0 auto}
+h1{font-size:18px;margin:0 0 4px}
+h2{font-size:14px;margin:28px 0 8px}
+p.n{color:var(--s);margin:0 0 8px}
+.row{display:flex;align-items:center;gap:8px;height:28px;white-space:nowrap}
+.row .t{flex:1;overflow:hidden;text-overflow:ellipsis}
+.row .m{color:var(--s);font-size:12px}
+.row .c{color:var(--s);font-size:12px;font-variant-numeric:tabular-nums}
+.i{width:14px;text-align:center;flex:none}
+.run{color:var(--amber)}.ok{color:var(--green)}.cut{color:var(--gray)}.ag{color:var(--blue)}.wait{color:var(--amber);opacity:.7}
+.d1{padding-left:20px}.d2{padding-left:40px}.d3{padding-left:60px}
+.card{border:1px solid var(--line);background:var(--card);border-radius:6px;margin:3px 0 3px 20px;padding:2px 8px 2px 10px;border-left:4px solid var(--blue)}
+.card.done{border-left-color:var(--green)}.card.fail{border-left-color:var(--gray)}.card.w{border-left-color:var(--amber)}
+.card .card{margin-left:24px}
+.tool{color:var(--s);font-size:12px}
+.q{color:var(--s)}
+b{font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>Card de subagente</h1>
+<p class="n">Esboço das opções, para comparar a forma. Não é o desenho do mod: cores e medidas são aproximadas.</p>
+
+<h2>Opção 1: linha rica</h2>
+<div class="row"><span class="i run">◉</span><span class="t"><b>Investigar o hover</b></span><span class="c">1/2</span><span class="c">0:42</span></div>
+<div class="row d1"><span class="i ag">◆</span><span class="t">Explore: buscar usos de hover</span><span class="m">Haiku 5.5 · Grep</span><span class="c">0:12</span></div>
+<div class="row d1"><span class="i ok">✓</span><span class="t q">Ler o kit</span><span class="c">0:30</span></div>
+
+<h2>Opção 2 (recomendada): cartão igual ao da filha</h2>
+<p class="n">Rodando, sem usar o painel.</p>
+<div class="row"><span class="i run">◉</span><span class="t"><b>Investigar o hover</b></span><span class="c">1/2</span><span class="c">0:42</span></div>
+<div class="card">
+  <div class="row"><span class="i ag">◆</span><span class="t"><b>Explore: buscar usos de hover</b></span><span class="m">Haiku 5.5 · low</span><span class="m">84 tok/s</span><span class="m">trabalhando</span><span class="c">0:12</span></div>
+  <div class="row d1 tool"><span class="t">▸ Grep "hover" em draw/ · 7 chamadas</span></div>
+</div>
+<p class="n">Rodando, usando o painel.</p>
+<div class="card">
+  <div class="row"><span class="i ag">◆</span><span class="t"><b>general-purpose: revisar testes</b></span><span class="m">Opus 5.5 · high</span><span class="m">trabalhando</span><span class="c">1/3</span><span class="c">1:05</span></div>
+  <div class="row d1"><span class="i ok">✓</span><span class="t q">Ler os testes</span><span class="c">0:20</span></div>
+  <div class="row d1"><span class="i run">◉</span><span class="t">Rodar o check</span><span class="c">0:45</span></div>
+  <div class="row d1"><span class="i cut">○</span><span class="t">Relatar</span></div>
+</div>
+<p class="n">Terminado, com o resultado.</p>
+<div class="card done">
+  <div class="row"><span class="i ok">✓</span><span class="t q">Explore: buscar usos de hover</span><span class="m">Haiku 5.5</span><span class="m">concluído</span><span class="c">0:31</span></div>
+  <div class="row d1 tool"><span class="t">↩ 14 usos em 3 arquivos; nenhum no cabeçalho</span></div>
+</div>
+<p class="n">Aguardando, e interrompido.</p>
+<div class="card w">
+  <div class="row"><span class="i wait">◷</span><span class="t">Plan: desenhar a mudança</span><span class="m">Opus 5.5</span><span class="m">aguardando</span><span class="c">0:50</span></div>
+</div>
+<div class="card fail">
+  <div class="row"><span class="i cut">✕</span><span class="t q">Explore: ler o changelog</span><span class="m">Haiku 5.5</span><span class="m">interrompido</span><span class="c">0:08</span></div>
+</div>
+
+<h2>Opção 3: cartão com as últimas ferramentas</h2>
+<div class="card">
+  <div class="row"><span class="i ag">◆</span><span class="t"><b>Explore: buscar usos de hover</b></span><span class="m">Haiku 5.5 · low</span><span class="m">trabalhando</span><span class="c">0:12</span></div>
+  <div class="row d1 tool"><span class="t">✓ Glob draw/**/*.ts</span></div>
+  <div class="row d1 tool"><span class="t">✓ Read draw/svg.ts</span></div>
+  <div class="row d1 tool"><span class="t">▸ Grep "hover" em draw/</span></div>
+</div>
+
+<h2>Opção 4: cartão de grupo, vários em paralelo</h2>
+<div class="row"><span class="i run">◉</span><span class="t"><b>Revisar o PR</b></span><span class="c">0/1</span><span class="c">2:10</span></div>
+<div class="card">
+  <div class="row"><span class="i ag">◆</span><span class="t"><b>Workflow · 5 agentes</b></span><span class="m">2 trabalhando</span><span class="c">3/5</span><span class="c">2:10</span></div>
+  <div class="row d1"><span class="i ok">✓</span><span class="t q">Explore: ler o diff</span><span class="m">Haiku 5.5</span><span class="c">0:40</span></div>
+  <div class="row d1"><span class="i ok">✓</span><span class="t q">Explore: ler os testes</span><span class="m">Haiku 5.5</span><span class="c">0:52</span></div>
+  <div class="row d1"><span class="i ok">✓</span><span class="t q">general-purpose: segurança</span><span class="m">Opus 5.5</span><span class="c">1:30</span></div>
+  <div class="row d1"><span class="i run">◉</span><span class="t">general-purpose: correção</span><span class="m">▸ Read src/api.ts</span><span class="c">2:10</span></div>
+  <div class="row d1"><span class="i wait">◷</span><span class="t">Plan: consolidar</span><span class="m">aguardando 2 agentes</span><span class="c">2:10</span></div>
+</div>
+
+<h2>Aninhado: subagente dentro de uma sessão filha</h2>
+<div class="row"><span class="i run">◉</span><span class="t"><b>Delegar a análise</b></span><span class="c">0/1</span><span class="c">3:00</span></div>
+<div class="card">
+  <div class="row"><span class="i ag">◍</span><span class="t"><b>analise-plano</b></span><span class="m">Fable 5.1 · low</span><span class="m">trabalhando</span><span class="c">1/2</span><span class="c">3:00</span></div>
+  <div class="row d1"><span class="i ok">✓</span><span class="t q">Ler o código</span><span class="c">1:10</span></div>
+  <div class="row d1"><span class="i run">◉</span><span class="t">Reproduzir</span><span class="c">1:50</span></div>
+  <div class="card">
+    <div class="row"><span class="i ag">◆</span><span class="t"><b>Explore: achar o teste</b></span><span class="m">Haiku 5.5</span><span class="m">trabalhando</span><span class="c">0:20</span></div>
+    <div class="row d1 tool"><span class="t">▸ Grep "esperarCartaSob"</span></div>
+  </div>
+</div>
+</main>
+</body>
+</html>

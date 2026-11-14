@@ -1,0 +1,456 @@
+diff --git a/regras/envios.md b/regras/envios.md
+index 184dc85..47800c1 100644
+--- a/regras/envios.md
++++ b/regras/envios.md
+@@ -9,11 +9,12 @@ O ✉ fica na tarefa até a entrega.
+ 
+ - Dado uma tarefa de onde saiu uma mensagem a outra sessão, ainda na fila
+ - Quando a tarefa é concluída antes da entrega
+-- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou
++- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou; se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue
+ 
+ Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
+ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é uma linha própria sob a tarefa.
+ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
++Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+ Estado: coberto
+ 
+ ### envios.entrega-imediata-fica-verde
+@@ -45,14 +46,15 @@ Estado: coberto
+ O ✉ mantém o ícone e muda só a cor.
+ 
+ - Dado uma tarefa de mensagem
+-- Quando a mensagem está na fila, é entregue ou fica num plano interrompido
+-- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega); a tarefa tem o ícone comum e conta
++- Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la)
++- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega ou não entregue); a tarefa tem o ícone comum e conta
+ 
+ Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
+ Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
+ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+ Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
++Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+ Código: draw/layout.ts, draw/svg.ts
+ Estado: coberto
+ 
+@@ -123,9 +125,10 @@ A carta de envio é uma linha sob a tarefa de onde a mensagem saiu.
+ 
+ - Dado uma mensagem a outra sessão enviada de uma tarefa
+ - Quando o painel é desenhado
+-- Então uma linha "✉ Para <sessão>: <mensagem>" aparece sob a tarefa, antes do cartão da sessão, com "na fila" e o tempo de espera, depois "entregue"; ela fica fora do x/y, das barras e dos chips, menos o de "aguardando sessão"; a tarefa segue com o ícone comum e conta
++- Então uma linha "✉ Para <sessão>: <mensagem>" aparece sob a tarefa, antes do cartão da sessão, com "na fila" e o tempo de espera, depois "entregue" (ou "não entregue", sem tempo, se a sessão destino for arquivada antes de tomá-la); ela fica fora do x/y, das barras e dos chips, menos o de "aguardando sessão", que só conta a carta na fila; a tarefa segue com o ícone comum e conta
+ 
+ Origem: decisão do usuário, 2026-10-30 ("A: linha própria sob a tarefa (Recomendado)"; "a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria").
++Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a linha ganha a palavra "não entregue", sem tempo e fora do chip "aguardando sessão" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+ Código: draw/layout.ts, draw/svg.ts, hooks/render.tsx
+ Estado: coberto
+ 
+@@ -150,3 +153,25 @@ A entrega é confirmada mesmo quando a lista de sessões do app falha.
+ Origem: auditoria 2026-11-10 (carta na fila sem saída: com a lista em erro, o envio nunca era conferido); aplica envios.fica-ate-entrega ("na entrega, verde, e o painel conclui a tarefa que enviou"), sem mudar nenhuma regra.
+ Código: hooks/sessions.ts
+ Estado: coberto
++
++### envios.destino-arquivado-nao-entregue
++A carta cuja sessão destino foi arquivada antes de tomá-la fica cinza, "não entregue".
++
++- Dado uma tarefa com a carta dela na fila
++- Quando a lista de sessões do app mostra a sessão destino arquivada antes de tomar a mensagem
++- Então a carta fica cinza com "não entregue", sem tempo, e sai do chip "aguardando sessão"; a tarefa volta a ser comum (no Esc fica ✕, como qualquer outra; o done dela não avisa de carta na fila; concluída, não segura o pedido à vista) e o modelo é avisado uma vez; desarquivada antes de tomá-la, a carta volta a azul "na fila" e a tarefa volta a esperar a sessão; tomada mesmo assim, a carta fica verde e o modelo é avisado da entrega, como em qualquer entrega
++
++Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"), à pergunta da auditoria 2026-11-10 "Carta na fila cujo destino foi arquivado ou sumiu"; limita envios.fica-ate-entrega, envios.fila-nao-interrompe-no-fim-do-turno e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila à mensagem que ainda pode ser entregue. Só a sessão que a lista do app mostra arquivada: o destino que some da lista (ou a lista em erro) segue "na fila".
++Código: hooks/sessions.ts, hooks/tools.ts, draw/layout.ts, draw/svg.ts, text/rules.ts
++Estado: coberto
++
++### envios.destino-arquivado-no-app
++No app, arquivar a sessão destino com a mensagem na fila deixa a carta cinza "não entregue" e para o tempo da espera.
++
++- Dado uma mensagem na fila para uma sessão real, com o painel aberto
++- Quando a sessão destino é arquivada no app antes de tomar a mensagem, e depois desarquivada
++- Então em poucos segundos a carta fica cinza com "não entregue", nos dois temas, e o tempo da espera para de contar; desarquivada, a carta volta a azul "na fila" com o tempo de espera
++
++Origem: decisão do usuário, 2026-11-12 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.destino-arquivado-nao-entregue.
++Código: hooks/sessions.ts, draw/layout.ts, draw/svg.ts
++Estado: checklist (sessão real arquivada no app; o relógio de 1 s e a pintura não rodam no harness)
+diff --git a/regras/selos.json b/regras/selos.json
+index 39a7b6e..8d3ee8b 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -444,6 +444,26 @@
+       "data": "2026-11-12",
+       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\"; o pedido de id reusado segue à vista, o teste deixa de abrir \"+1 pedidos anteriores\""
+     },
++    "task-tree/tests/envios.test.ts::a sessão destino arquivada com a carta na fila: carta cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez e o Esc interrompe a tarefa": {
++      "regras": [
++        "envios.destino-arquivado-nao-entregue"
++      ],
++      "hash": "57583c91834d0c56",
++      "assercoes": 11,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
++    },
++    "task-tree/tests/envios.test.ts::a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul, na fila, a tarefa volta a esperar e a entrega a conclui": {
++      "regras": [
++        "envios.destino-arquivado-nao-entregue"
++      ],
++      "hash": "6a405bf5bc4817fa",
++      "assercoes": 7,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
++    },
+     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
+       "regras": [
+         "pedidos.replano-mantem-envio-ate-entrega"
+@@ -474,6 +494,26 @@
+       "data": "2026-11-04",
+       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+     },
++    "task-tree/tests/envios.test.ts::carta não entregue não segura o pedido à vista: com tudo concluído, o pedido novo fica só": {
++      "regras": [
++        "envios.destino-arquivado-nao-entregue"
++      ],
++      "hash": "8fb262a54a2a0966",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
++    },
++    "task-tree/tests/envios.test.ts::carta não entregue: o done da tarefa não avisa de fila; tomada mesmo assim, fica verde e o modelo é avisado da entrega": {
++      "regras": [
++        "envios.destino-arquivado-nao-entregue"
++      ],
++      "hash": "c9486d03627c776e",
++      "assercoes": 6,
++      "tipo": "novo",
++      "data": "2026-11-12",
++      "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
++    },
+     "task-tree/tests/envios.test.ts::com a carta na fila, o Esc deixa a tarefa aguardando; a entrega a conclui": {
+       "regras": [
+         "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
+diff --git a/task-tree/draw/layout.ts b/task-tree/draw/layout.ts
+index e0b0bb3..4e473e7 100644
+--- a/task-tree/draw/layout.ts
++++ b/task-tree/draw/layout.ts
+@@ -716,7 +716,7 @@ export function openInSight(p: Panel, ids: string[], sends: { to?: string; ancho
+   const seen = tasks.filter(t => ids.includes(t.id) || (t.turn !== undefined && turns.includes(t.turn)))
+   if (hasOpen(seen)) return true
+   const all = flat(seen).map(t => t.id)
+-  if (sends.some(s => !s.taken && s.anchor !== undefined && all.includes(s.anchor))) return true
++  if (sends.some(s => !s.taken && !s.cut && s.anchor !== undefined && all.includes(s.anchor))) return true
+   // A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
+   const anchors = (c: Child) =>
+     [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
+@@ -786,8 +786,9 @@ export type Tone = 'open' | 'current' | 'done' | 'interrupted' | 'wait' | 'runni
+ // A message task's state, as its ✉ is colored and its word on the right says: still queued for the
+ // session (blue), taken up by it (green, the session may still be at work), interrupted or
+ // discarded (gray).
+-export type MsgState = 'queued' | 'delivered' | 'cut'
+-export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida' }
++// `lost`: the session it went to was archived with it still queued (Send.lost).
++export type MsgState = 'queued' | 'delivered' | 'cut' | 'lost'
++export const MSG_WORD: Record<MsgState, string> = { queued: 'na fila', delivered: 'entregue', cut: 'interrompida', lost: 'não entregue' }
+ // A subagent's card (hooks/agents): its word of state, as a session's card says its own.
+ export const SUB_WORD: Record<Sub['state'], string> = {
+   running: 'trabalhando',
+@@ -1289,7 +1290,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined,
+       mail
+         .filter(s => hostOf(s) === t.id)
+         .map(s => {
+-          const state: MsgState = s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
++          const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
+           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
+           return {
+             key: `${scope}m:${s.to}:${s.anchor ?? ''}`,
+diff --git a/task-tree/draw/svg.ts b/task-tree/draw/svg.ts
+index b87dba0..ab4ebf6 100644
+--- a/task-tree/draw/svg.ts
++++ b/task-tree/draw/svg.ts
+@@ -311,8 +311,8 @@ export function envelope(x: number, y: number, cls: string): string {
+ }
+ // A message task's ✉ by state: blue while queued, green once taken up, gray interrupted; in the
+ // terminal, the same glyph in the theme's color for each.
+-export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy' }
+-export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive' }
++export const MSG_CLASS: Record<MsgState, string> = { queued: 'bl', delivered: 'gr', cut: 'gy', lost: 'gy' }
++export const MSG_TERM: Record<MsgState, string> = { queued: 'permission', delivered: 'success', cut: 'inactive', lost: 'inactive' }
+ 
+ // One icon, 14 px across, centered on (x, y).
+ export function icon(tone: Tone, x: number, y: number): string {
+diff --git a/task-tree/hooks/sessions.ts b/task-tree/hooks/sessions.ts
+index e91e9f2..3dee6d9 100644
+--- a/task-tree/hooks/sessions.ts
++++ b/task-tree/hooks/sessions.ts
+@@ -149,6 +149,25 @@ export async function watchSends($: any, rows: any[]) {
+       else if (r && r.isRunning === true && s.idle) marks[i] = { taken: true }
+     }
+   }
++  // A session archived with the message still queued will not take it up: the letter is not delivered
++  // (gray, "não entregue") and its task stops waiting on it (the clock, the Esc, what holds the view;
++  // the person, 2026-11-12: "Cinza \"não entregue\" (Recomendado)"). Only by what the list says: a
++  // session the list leaves out (a partial list, a list that failed) is not judged; one with the name of
++  // an archived one and not archived itself still waits. Listed again unarchived, it waits again, and
++  // the main loop will be told again of what comes of it. Taken up after all (its receipt): delivered,
++  // as any other, and the main loop is told so.
++  for (const [i, s] of (sends as Send[]).entries()) {
++    if (s.taken) continue
++    if (marks[i]?.taken) {
++      if (s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
++      continue
++    }
++    const same = rows.filter(r => r.sessionId === s.to || (r.name && r.name === s.to))
++    if (same.length === 0) continue
++    const archived = same.every(r => r.isArchived === true)
++    if (archived && !s.lost) marks[i] = { ...marks[i], cut: true, lost: true }
++    else if (!archived && s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
++  }
+   if (Object.keys(marks).length === 0) return
+   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
+   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
+@@ -168,23 +187,26 @@ export async function watchSends($: any, rows: any[]) {
+     }),
+   )
+ }
+-// Once: the sessions that took up a queued message, with the task it was sent from.
++// Once: the sessions that took up a queued message, with the task it was sent from; and those archived
++// with a message still queued (not delivered).
+ export async function takenNote($: any): Promise<string | undefined> {
+   const { value: sends = [] } = await $.state.get(sendsState)
+   const done = (sends as Send[]).filter(s => s.taken && !s.noted)
+-  if (done.length === 0) return undefined
+-  // Kept, its letter green under its task (the last 20); the reminder goes once.
+-  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken ? { ...s, noted: true } : s)).slice(-20))
++  const lost = (sends as Send[]).filter(s => s.lost && !s.taken && !s.noted)
++  if (done.length === 0 && lost.length === 0) return undefined
++  // Kept, its letter green (gray when not delivered) under its task (the last 20); the reminder goes once.
++  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken || s.lost ? { ...s, noted: true } : s)).slice(-20))
+   // A delivery at once needs no reminder: the model saw it delivered.
+   const taken = done.filter(s => !s.delivered)
+-  if (taken.length === 0) return undefined
++  if (taken.length === 0 && lost.length === 0) return undefined
+   const { value: groups = [] } = await $.state.get(groupsState)
+   const all = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+-  const what = taken.map(s => {
+-    const t = all.find(t => t.id === s.anchor)
+-    return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
+-  })
+-  return SESSION.taken(what)
++  const what = (list: Send[]) =>
++    list.map(s => {
++      const t = all.find(t => t.id === s.anchor)
++      return `${s.to}${t ? ` (tarefa do envio "${t.id}" ${t.title})` : ''}`
++    })
++  return [...(taken.length > 0 ? [SESSION.taken(what(taken))] : []), ...(lost.length > 0 ? [SESSION.lost(what(lost))] : [])].join(' ')
+ }
+ 
+ // The list read again when it is older than the poll's period: a session drawn at work after
+@@ -261,13 +283,14 @@ export async function anyRunning($: any): Promise<boolean> {
+   const { value: groups = [] } = await $.state.get(groupsState)
+   const { value: children = [] } = await $.state.get(childrenState)
+   // With this session's turn ended, its own tasks run no clock (see turnEnded), except the task of a
+-  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait. After a
+-  // restart the end comes back from the store first (ensureTurn): no clock for what had stopped.
++  // send still queued: its ✉ outlives the turn (halt spares it) and its clock counts the wait (not one
++  // that will not be delivered, `cut`: its session was archived). After a restart the end comes back
++  // from the store first (ensureTurn): no clock for what had stopped.
+   const brought = await ensureTurn($)
+   const { value: heldEnded } = await $.state.get(turnEndedState)
+   const ended = heldEnded !== undefined ? heldEnded : brought?.ended
+   const { value: sends = [] } = await $.state.get(sendsState)
+-  if ((sends as Send[]).some(s => !s.taken)) return true
++  if ((sends as Send[]).some(s => !s.taken && !s.cut)) return true
+   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
+ }
+ export async function tick($: any) {
+diff --git a/task-tree/hooks/tools.ts b/task-tree/hooks/tools.ts
+index 8467a4d..8cd78e8 100644
+--- a/task-tree/hooks/tools.ts
++++ b/task-tree/hooks/tools.ts
+@@ -166,7 +166,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
+     if (agent === MAIN) {
+       const { value: sends = [] } = await $.state.get(sendsState)
+       const main = flat(groups.find(g => g.agent === MAIN)?.tasks ?? [])
+-      for (const s of (sends as Send[]).filter(s => !s.taken && closed.includes(s.anchor ?? ''))) {
++      for (const s of (sends as Send[]).filter(s => !s.taken && !s.cut && closed.includes(s.anchor ?? ''))) {
+         const t = main.find(t => t.id === s.anchor)
+         if (t && t.status === 'done') notes.push(DONE.queued(s.to, t.id))
+       }
+diff --git a/task-tree/tests/envios.test.ts b/task-tree/tests/envios.test.ts
+index d0b008b..7e498e3 100644
+--- a/task-tree/tests/envios.test.ts
++++ b/task-tree/tests/envios.test.ts
+@@ -1,5 +1,5 @@
+ import { expect, test } from 'claude-code/testing'
+-import { AGORA, fixar, host, responderDepois, responderEnvio } from './kit/ambiente'
++import { AGORA, fixar, host, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
+ import { aviso, done, envio, esc, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
+ import { cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
+ 
+@@ -412,3 +412,127 @@ test('com a lista de sessões em erro, a entrega publicada pela sessão deixa a
+   expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 2])
+   expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
+ })
++
++// A linha da carta ("Para <sessão>: …") sob a tarefa.
++const cartaDe = (linhas: any[]) => linhas.find(l => l.titulo.startsWith('Para '))
++const NAO_ENTREGUE = 'mensagem não entregue'
++const contexto = async (r: Promise<any>) => JSON.stringify((await r)?.context ?? [])
++
++// Regra: envios.destino-arquivado-nao-entregue
++test('a sessão destino arquivada com a carta na fila: carta cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez e o Esc interrompe a tarefa', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
++  host(on, [x])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  await relogio.advance(1000)
++  let p = await painel($)
++  esperarCartaSob(p, 'Um', 'fila')
++  expect(cartaDe(p)?.texto, emTexto(p)).toContain('na fila')
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
++  x.arquivada = true
++  expect(await contexto(aviso($)), 'o aviso ao modelo').toContain(NAO_ENTREGUE)
++  p = await painel($)
++  esperarCartaSob(p, 'Um', 'interrompida')
++  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
++  expect(cartaDe(p)?.texto, emTexto(p)).not.toMatch(/\d:\d\d/)
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
++  // A tarefa segue uma tarefa comum, em andamento e na contagem.
++  esperarEstado(p, 'Um', 'andamento')
++  expect(cabecalho(p).total, emTexto(p)).toBe(2)
++  expect(await contexto(aviso($)), 'o aviso vai uma vez só').not.toContain(NAO_ENTREGUE)
++  // Sem a carta na fila, o Esc trata a tarefa como qualquer outra.
++  await esc($)
++  p = await painel($)
++  esperarEstado(p, 'Um', 'interrompida')
++  esperarCartaSob(p, 'Um', 'interrompida')
++  expect(cartaDe(p)?.texto, emTexto(p)).toContain('não entregue')
++})
++
++// Regra: envios.destino-arquivado-nao-entregue
++test('a sessão destino desarquivada antes de tomar a mensagem: a carta volta a azul, na fila, a tarefa volta a esperar e a entrega a conclui', async ($: any, on: any) => {
++  fixar(on)
++  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
++  const h = host(on, [x])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  x.arquivada = true
++  await aviso($)
++  let p = await painel($)
++  esperarCartaSob(p, 'Um', 'interrompida')
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(0)
++  x.arquivada = false
++  expect(await contexto(aviso($)), 'desarquivada, nada a avisar').not.toContain(NAO_ENTREGUE)
++  p = await painel($)
++  esperarCartaSob(p, 'Um', 'fila')
++  expect(cartaDe(p)?.texto, emTexto(p)).toContain('na fila')
++  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
++  // Com a carta de novo na fila, a tarefa volta a esperar a sessão: no Esc fica ◷, não ✕.
++  await esc($)
++  p = await painel($)
++  esperarEstado(p, 'Um', 'aguardando')
++  esperarCartaSob(p, 'Um', 'fila')
++  h.recebeu('local_x', AGORA)
++  expect(await contexto(aviso($)), 'o aviso da entrega').toContain('recebimento confirmado')
++  p = await painel($)
++  esperarCartaSob(p, 'Um', 'entregue')
++  esperarEstado(p, 'Um', 'concluida')
++})
++
++// Regra: envios.destino-arquivado-nao-entregue
++test('carta não entregue: o done da tarefa não avisa de fila; tomada mesmo assim, fica verde e o modelo é avisado da entrega', async ($: any, on: any) => {
++  fixar(on)
++  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
++  const h = host(on, [x])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  x.arquivada = true
++  expect(await contexto(aviso($)), 'o aviso ao modelo').toContain(NAO_ENTREGUE)
++  const r = await done($, ['1'])
++  expect(r.texto, 'o done de uma tarefa cuja carta não foi entregue').not.toContain('na fila')
++  let p = await painel($)
++  esperarEstado(p, 'Um', 'concluida')
++  esperarCartaSob(p, 'Um', 'interrompida')
++  // A sessão arquivada publica que recebeu: a mensagem foi tomada, como em qualquer entrega.
++  h.recebeu('local_x', AGORA)
++  expect(await contexto(aviso($)), 'o aviso da entrega').toContain('recebimento confirmado')
++  p = await painel($)
++  esperarCartaSob(p, 'Um', 'entregue')
++  expect(cartaDe(p)?.texto, emTexto(p)).toContain('entregue')
++  expect(cartaDe(p)?.texto, emTexto(p)).not.toContain('não entregue')
++})
++
++// Regra: envios.destino-arquivado-nao-entregue
++test('carta não entregue não segura o pedido à vista: com tudo concluído, o pedido novo fica só', async ($: any, on: any) => {
++  const { relogio } = fixar(on)
++  const x: Filha = { id: 'local_x', nome: 'outra', rodando: false }
++  host(on, [x])
++  responderEnvio(on)
++  await pedido($, 'Pedido um')
++  await plan($, A)
++  await start($, ['1'])
++  await envio($, 'local_x')
++  await done($, ['1'])
++  await start($, ['2'])
++  await done($, ['2'])
++  x.arquivada = true
++  await aviso($)
++  await fimDoTurno($)
++  await relogio.advance(1000)
++  await pedido($, 'Pedido dois')
++  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }])
++  const p = await painel($)
++  expect(p.some(l => ['Pedido um', 'Plano A', 'Um'].includes(l.titulo)), emTexto(p)).toBe(false)
++  expect(p.some(l => l.titulo.startsWith('Para ')), emTexto(p)).toBe(false)
++  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
++  esperarEstado(p, 'b1', 'pendente')
++})
+diff --git a/task-tree/text/rules.ts b/task-tree/text/rules.ts
+index 9918cec..8ddd746 100644
+--- a/task-tree/text/rules.ts
++++ b/task-tree/text/rules.ts
+@@ -206,12 +206,16 @@ export const UNPLANNED =
+   'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.'
+ 
+ // The sessions this one opened: one took up a queued message (`what`: each session, with the task
+-// it was sent from); one ended its turn with the task it was opened on still open (`sessions`: each
+-// with that task; `open`: the panel's open tasks).
++// it was sent from); one was archived with a message still queued, which is not delivered (`lost`);
++// one ended its turn with the task it was opened on still open (`sessions`: each with that task;
++// `open`: the panel's open tasks).
+ export const SESSION = {
+   taken: (what: string[]) =>
+     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
+     'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
++  lost: (what: string[]) =>
++    PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
++    'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa (mcp__task-tree__done quando concluída).',
+   ended: (sessions: string[], open: string) =>
+     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
+     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
+diff --git a/task-tree/types/index.d.ts b/task-tree/types/index.d.ts
+index 9507c0d..034aa7f 100644
+--- a/task-tree/types/index.d.ts
++++ b/task-tree/types/index.d.ts
+@@ -207,7 +207,9 @@ export type Child = {
+ // its task shows ✉ meanwhile, with no reminder when taken.
+ // `text`: the message's start (its letter's title); `noted`: the main loop was told it was taken up
+ // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
+-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean }
++// `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
++// (its letter gray, "não entregue"); undone if the session is listed again unarchived.
++export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean }
+ 
+ // The shape of `tasks` before groups: migrated into the main group once.
+ export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

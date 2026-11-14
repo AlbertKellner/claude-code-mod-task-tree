@@ -1,0 +1,538 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 7585b87..3058540 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -163,7 +163,7 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
+ - largura real e recorte na borda, nos dois temas;
+ - cliques no ícone e no anel (botão transparente sobre o `Svg`) e na linha; realce do botão; linha
+   nova sem animação; nada pisca à toa;
+-- desenho nativo: guias de caixa alinhadas entre linhas e ao lado do cartão; corte do título no fim;
++- desenho nativo: guias em caixas finas, contínuas e alinhadas com os ícones e ao lado do cartão; corte do título no fim;
+   alturas do título e do percentual do cabeçalho; a faixa de 1 coluna do cabeçalho; pílulas com borda;
+   cores cruas (`rgba(...)`) e as chaves de tema nos dois temas;
+ - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
+diff --git a/regras/selos.json b/regras/selos.json
+index bae3e18..8a7b8fd 100644
+--- a/regras/selos.json
++++ b/regras/selos.json
+@@ -2303,6 +2303,46 @@
+       "data": "2026-11-13",
+       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
+     },
++    "task-tree/tests/visual.test.ts::no app, as guias são caixas finas com fundo, sem caracteres de caixa, também ao lado do cartão": {
++      "regras": [
++        "visual.guias-continuas"
++      ],
++      "hash": "4d2eac598c925f54",
++      "assercoes": 5,
++      "tipo": "novo",
++      "data": "2026-11-13",
++      "motivo": "guias em caixas finas nativas (\"Caixas finas nativas (Recomendado)\", 2026-11-13)"
++    },
++    "task-tree/tests/visual.test.ts::no app, as linhas da árvore ficam num bloco recuado uma coluna da borda do painel": {
++      "regras": [
++        "visual.arvore-afastada-da-margem"
++      ],
++      "hash": "6c58b2265f396a57",
++      "assercoes": 4,
++      "tipo": "novo",
++      "data": "2026-11-13",
++      "motivo": "correção dos ícones cortados na margem no desenho nativo (\"outro exemplo de comportamento estranho\", 2026-11-13)"
++    },
++    "task-tree/tests/visual.test.ts::no app, as linhas têm 1,3 de altura, o título fica a 1,5 coluna do ícone e o cartão tem recuo interno": {
++      "regras": [
++        "visual.espaco-interno"
++      ],
++      "hash": "4952dc0ac6d46a53",
++      "assercoes": 5,
++      "tipo": "novo",
++      "data": "2026-11-13",
++      "motivo": "contraste por nível e espaço interno (\"aumente um pouco o contraste do card... aumente um pouco o padding interno tambem\", 2026-11-13)"
++    },
++    "task-tree/tests/visual.test.ts::no app, o cartão de sessão tem fundo e borda próprios, translúcidos, que se destacam do painel": {
++      "regras": [
++        "visual.cartao-destaca-do-painel"
++      ],
++      "hash": "e20f5e7572ba348e",
++      "assercoes": 3,
++      "tipo": "novo",
++      "data": "2026-11-13",
++      "motivo": "contraste por nível e espaço interno (\"aumente um pouco o contraste do card... aumente um pouco o padding interno tambem\", 2026-11-13)"
++    },
+     "task-tree/tests/visual.test.ts::no app, o ícone da linha que recolhe e o anel do cartão são botões com chave": {
+       "regras": [
+         "visual.botoes-por-chave"
+diff --git a/regras/visual.md b/regras/visual.md
+index c680a6f..14c6ca1 100644
+--- a/regras/visual.md
++++ b/regras/visual.md
+@@ -35,6 +35,52 @@ Origem: decisão do usuário, 2026-10-21 ("quero que o botao de colapse nao apar
+ Código: hooks/render.tsx
+ Estado: coberto
+ 
++### visual.cartao-destaca-do-painel
++No app desktop, o cartão de sessão e de subagente se destaca do painel, nos dois temas.
++
++- Dado um cartão de sessão ou de subagente
++- Quando o painel é desenhado no app desktop
++- Então o cartão tem fundo próprio, um cinza translúcido (10%) um passo acima do painel, e borda visível, um cinza translúcido mais forte (30%); os dois acompanham o tema claro e o escuro (no escuro o cartão clareia, no claro escurece), e cada cartão dentro de um cartão soma mais um passo
++
++Origem: decisão do usuário, 2026-11-13, sobre o desenho nativo ("nao aparece nenhum card"): o fundo `userMessageBackground` e a borda padrão saíam iguais ao painel.
++Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card"): fundo de 6% para 10% e borda de 22% para 30%, um passo a mais por nível de cartão.
++Código: draw/desktop.tsx
++Estado: coberto
++
++### visual.arvore-afastada-da-margem
++No app desktop, as linhas da árvore começam uma coluna para dentro da borda do painel.
++
++- Dado o painel aberto no app desktop, com linhas de primeiro nível e cartões soltos
++- Quando o painel é desenhado
++- Então as linhas e os cartões ficam num bloco recuado uma coluna, e nenhum ícone do primeiro nível (nem o ▸ de "+N pedidos anteriores") fica cortado na borda esquerda
++
++Origem: decisão do usuário, 2026-11-13, sobre o desenho nativo ("outro exemplo de comportamento estranho"): no print, os ícones do primeiro nível e o cartão solto encostavam na margem e saíam cortados pela metade.
++Código: hooks/render.tsx
++Estado: coberto
++
++### visual.guias-continuas
++No app desktop, as guias da árvore são caixas finas nativas, contínuas de uma linha à outra.
++
++- Dado tarefas em mais de um nível e um cartão de sessão com tarefas
++- Quando o painel é desenhado no app desktop
++- Então as guias (│, ├─ e └─) são caixas nativas finas com fundo cinza translúcido, sem caracteres e sem Svg, uma célula por nível alinhada com o ícone do pai; ao lado de um cartão, a guia desce sem interrupção pela altura inteira dele
++
++Origem: decisão do usuário, 2026-11-13, na migração para o desenho nativo ("Caracteres (Recomendado)"): guias em caracteres de caixa, como no terminal.
++Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): o │ em caracteres deixava falhas entre as linhas; as guias passam a caixas nativas contínuas.
++Código: draw/desktop.tsx
++Estado: coberto
++
++### visual.espaco-interno
++No app desktop, as linhas e os cartões têm espaço interno para os textos não ficarem colados.
++
++- Dado tarefas fora e dentro de um cartão
++- Quando o painel é desenhado no app desktop
++- Então cada linha tem 1,3 linha de texto de altura, o título fica a 1,5 coluna do ícone, e o cartão tem 1,5 coluna de recuo nas laterais e 0,3 linha em cima e embaixo; as guias seguem contínuas e alinhadas
++
++Origem: decisão do usuário, 2026-11-13 ("aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora").
++Código: draw/desktop.tsx
++Estado: coberto
++
+ ### visual.tooltip
+ Texto cortado não tem tooltip.
+ 
+diff --git a/task-tree/DESENVOLVIMENTO.md b/task-tree/DESENVOLVIMENTO.md
+index d91f84b..c934cdb 100644
+--- a/task-tree/DESENVOLVIMENTO.md
++++ b/task-tree/DESENVOLVIMENTO.md
+@@ -68,8 +68,8 @@ Quem recebe `$` (o engine) e quem não recebe:
+     `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
+     só existe com resumo, `hasBrief`).
+   - `desktop.tsx` (357): a árvore do app desktop em componentes nativos (`desktopTree`,
+-    `desktopRow`, `iconCell`, `cells`/`leadOf`): cada linha é um `Box` em linha com as guias em
+-    caracteres de caixa (`Text mono`), o ícone de estado num `Svg` de 16 px com um `Button`
++    `desktopRow`, `iconCell`, `cells`, `guideCell`): cada linha é um `Box` em linha com as guias em
++    caixas finas nativas (uma célula de 3 colunas por nível, contínuas entre as linhas), o ícone de estado num `Svg` de 16 px com um `Button`
+     transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo;
+     os cartões de sessão são `Box` com borda, o busto e o anel em `Svg`.
+   - `head.tsx` (157): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
+@@ -1633,6 +1633,10 @@ vai para nativo mesmo com diferença visual), "Caracteres (Recomendado)" (guias
+ mono, como no terminal), "Remover de vez (Recomendado)" (sem chave para o desenho antigo), "Não, fica
+ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
+ 
++- Guias: primeiro em caracteres de caixa mono ("Caracteres (Recomendado)"); no app o │ deixava
++  falhas entre as linhas, e passaram a caixas finas nativas com fundo cinza translúcido, contínuas,
++  inclusive na faixa ao lado do cartão, que cresce pela altura dele ("Caixas finas nativas
++  (Recomendado)", 2026-11-13).
+ - Saíram `draw/geometry.ts` (px, células de 8 px, `overlay`/`overlays`/`crossings`), a medição de
+   texto à mão (`fit`/`textW`), `rowSvg`, `labelSvg`, `headerSvg` e `frames`/`Card`/`Frame` de
+   `layout.ts`. As seções de histórico acima que falam deles ficam como eram.
+diff --git a/task-tree/draw/desktop.tsx b/task-tree/draw/desktop.tsx
+index 2632fe6..796bf7b 100644
+--- a/task-tree/draw/desktop.tsx
++++ b/task-tree/draw/desktop.tsx
+@@ -1,8 +1,9 @@
+ // The desktop's lines and cards in the app's own elements (Box, Text, Button), with an Svg only where
+ // a drawing is needed: the state icon, the envelope, the bust of a session, the context ring
+ // (./icons). The person, 2026-11-13: "migrar todo o Mod para o hibrido de nativo e mantendo somente o
+-// que for obrigatório em SVG"; the tree's guides in box-drawing characters, as in the terminal; no
+-// tooltip and no hover; the same keys to press (fold:<key>, open:<sid>).
++// que for obrigatório em SVG"; the tree's guides in thin native Boxes, unbroken from line to line
++// (the person, 2026-11-13: "Caixas finas nativas (Recomendado)", in place of the box-drawing
++// characters, whose │ left gaps between the lines); no tooltip and no hover; the same keys to press (fold:<key>, open:<sid>).
+ // No `$` here: the presses come ready from hooks/render.tsx (`acts`), where `$` is.
+ //
+ // The contract with the tests' reading of the drawing (tests/kit/leitura.ts): each line is a
+@@ -23,26 +24,25 @@ export type Acts = { fold: (r: Row) => () => void; open: (r: Row) => () => void
+ // The label of a Button laid over an icon: an em space, so the native highlight covers the icon.
+ const OVER = ' '
+ 
+-// The tree's guides of a line, one cell of three mono characters per column, the bar in the cell's
+-// middle (under the middle of the parent's icon): the ancestors' bars, then the connector to the line
+-// (├─ or └─). `col`: the column each cell stands for, so a card can take the cells of its own columns
++// The tree's guides of a line, one cell of three columns per tree column (the icon's cell), the bar in
++// the cell's middle (under the middle of the parent's icon): the ancestors' bars (`bar`, or `none`
++// where nothing passes), then the connector to the line (`mid` ├─ or `end` └─). `col`: the column each cell stands for, so a card can take the cells of its own columns
+ // and leave the outer ones to the strip at its left (desktopTree). `hide`: a session label's columns
+ // (labelCols), left out as in the terminal: the card's tasks start under the label's bust. A
+ // session's label has its connector like any line: it is the branch into its card.
++export type GuideKind = 'bar' | 'none' | 'mid' | 'end'
++export type GuideCell = { col: number; kind: GuideKind }
+ export const cells = (r: Row, g: Guide, hide: number[] = []) => {
+-  const out: { col: number; text: string }[] = []
++  const out: GuideCell[] = []
+   if (r.depth === 0) return out
+   g.bars.forEach((on, k) => {
+-    if (!hide.includes(k)) out.push({ col: k, text: on ? ' │ ' : '   ' })
++    if (!hide.includes(k)) out.push({ col: k, kind: on ? 'bar' : 'none' })
+   })
+-  if (!hide.includes(r.depth - 1)) out.push({ col: r.depth - 1, text: g.last ? ' └─' : ' ├─' })
++  if (!hide.includes(r.depth - 1)) out.push({ col: r.depth - 1, kind: g.last ? 'end' : 'mid' })
+   return out
+ }
+-// All of a line's guides as one text: a line outside every card (desktopRow's `lead`).
+-export const leadOf = (r: Row, g: Guide, hide: number[] = []) =>
+-  cells(r, g, hide)
+-    .map(c => c.text)
+-    .join('')
++// The columns a cell takes: three, the icon's cell.
++const CELL = 3
+ 
+ // The cell of an icon: as wide as three mono characters (the guides' cell), the Svg centered in it,
+ // and over it, when the line folds, a Button with an empty label the same size (the Button takes no
+@@ -74,14 +74,45 @@ const cutStart = (s: string, max: number) => (len(s) <= max ? s : '…' + Array.
+ // the repository left out, "▭ folder" (left out whole with the repository).
+ const gitText = (g: GitLabel, repo: boolean) => (g.folder ? (repo ? `▭ ${cutStart(g.repo, FOLDER_MAX)}` : '') : repo ? gitTerm(g) : `⑂ ${g.branch ?? ''}`)
+ 
+-// The guides before a line's icon, mono and dim, never cut.
+-function guidesOf(ui: any, lead: string) {
+-  const { Box, Text } = ui
+-  return lead ? (
+-    <Box flexShrink={0}>
+-      <Text mono color="inactive" dimColor wrap="truncate-end">
+-        {lead}
+-      </Text>
++// A line's height, a little more than one text line, so the lines breathe (the person, 2026-11-13:
++// "aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao,
++// quanto fora"); every line has it, so the guides of one line meet the next one's.
++const ROW = 1.3
++// The gap between the icon and the title, in columns.
++const GAP = 1.5
++// The guides' color: a translucent gray, like the card's, that lands on both themes; a little
++// stronger than the card's border, a line being thinner.
++const GUIDE = 'rgba(128,128,128,0.4)'
++// The thickness of a line: the vertical one a share of the cell's width, the horizontal one a share of
++// a line's height (about 2 px each).
++const THICK = '8%'
++const THIN = 0.1
++// One cell of guides, as tall as its line (or as the Box it fills): the vertical line in the middle,
++// the top half and the bottom half each drawn or not, and the horizontal line from the middle to the
++// cell's right edge, at half height. bar │: both halves; mid ├─: both and the horizontal; end └─: the
++// top half and the horizontal; none: nothing. Lines one under the other meet: no gap between them.
++function guideCell(ui: any, kind: GuideKind, key: string, grow = false) {
++  const { Box } = ui
++  const half = (on: boolean) => (on ? <Box flexGrow={1} backgroundColor={GUIDE} /> : <Box flexGrow={1} />)
++  return (
++    <Box key={key} flexShrink={0} width={CELL} flexDirection="row" {...(grow ? { flexGrow: 1 } : {})}>
++      <Box width="46%" />
++      <Box width={THICK} flexDirection="column">
++        {half(kind !== 'none')}
++        {half(kind === 'bar' || kind === 'mid')}
++      </Box>
++      <Box flexGrow={1} flexDirection="column" justifyContent="center">
++        {kind === 'mid' || kind === 'end' ? <Box height={THIN} backgroundColor={GUIDE} /> : null}
++      </Box>
++    </Box>
++  )
++}
++// The guides before a line's icon, never cut.
++function guidesOf(ui: any, lead: GuideCell[]) {
++  const { Box } = ui
++  return lead.length > 0 ? (
++    <Box key="guides" flexShrink={0} flexDirection="row">
++      {lead.map(c => guideCell(ui, c.kind, `g${c.col}`))}
+     </Box>
+   ) : null
+ }
+@@ -95,13 +126,13 @@ function guidesOf(ui: any, lead: string) {
+ // columns with room left for them); the branch and then the name are cut by the app.
+ const CAPTION = 0.8
+ const cap = (s: string) => len(s) * CAPTION
+-function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: number) {
++function labelRow(ui: any, r: Row, i: number, lead: GuideCell[], acts: Acts, cols: number) {
+   const { Box, Text, Svg, Button } = ui
+   const ringed = r.ring !== undefined
+   const engLen = r.engine || r.ultracode ? (r.engine ? cap(r.engine) + 1 : 0) + (r.ultracode ? cap(ULTRA) + 1 : 0) : 0
+   const rateLen = r.rate ? cap(rateText(r.rate.toks)) + 1 : 0
+   // The guides, the bust's cell, the paddings, the name and its ⋯, the word, the ring's cell.
+-  const room = cols - len(lead) - 3 - 2 - len(r.title) - (folded(r) ? 2 : 0) - (r.meta ? cap(r.meta) + 1 : 0) - (ringed ? 4 : 0)
++  const room = cols - lead.length * CELL - 3 - 1 - GAP - len(r.title) - (folded(r) ? 2 : 0) - (r.meta ? cap(r.meta) + 1 : 0) - (ringed ? 4 : 0)
+   const need = (repo: boolean, eng: boolean, rate: boolean) => (r.git ? cap(gitText(r.git, repo)) + 1 : 0) + (eng ? engLen : 0) + (rate ? rateLen : 0)
+   let repo = r.git !== undefined
+   let eng = engLen > 0
+@@ -112,10 +143,10 @@ function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: nu
+   const git = r.git ? gitText(r.git, repo) : ''
+   const ring = r.ring
+   return (
+-    <Box key={`r${i}`} height={1}>
++    <Box key={`r${i}`} height={ROW}>
+       {guidesOf(ui, lead)}
+       {iconCell(ui, bustIcon(sessionState(r.tone)), rowAlt(r), foldPress(r, acts))}
+-      <Box flexShrink={1} minWidth={0} paddingLeft={1}>
++      <Box flexShrink={1} minWidth={0} paddingLeft={GAP}>
+         <Text size="footnote" weight="semibold" color="inactive" wrap="truncate-end">
+           {r.title}
+         </Text>
+@@ -182,7 +213,7 @@ function labelRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: nu
+ // card; desktopTree passes the cells of the columns inside the card). `cols`: the columns the line has
+ // (the pane's, less the strips and the cards around it), for what fits on a session's label.
+ // Every line one `lh` high, so the guides and the cards' strips line up.
+-export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts, cols: number): any {
++export function desktopRow(ui: any, r: Row, i: number, lead: GuideCell[], acts: Acts, cols: number): any {
+   if (r.session) return labelRow(ui, r, i, lead, acts, cols)
+   const { Box, Text, Svg, Button } = ui
+   const section = r.tone === 'section'
+@@ -272,10 +303,10 @@ export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts,
+   }
+   const shown = right.filter(x => x !== null)
+   return (
+-    <Box key={`r${i}`} height={1}>
++    <Box key={`r${i}`} height={ROW}>
+       {guidesOf(ui, lead)}
+       {icon}
+-      <Box flexGrow={1} flexShrink={1} minWidth={0} paddingLeft={icon ? 1 : 0}>
++      <Box flexGrow={1} flexShrink={1} minWidth={0} paddingLeft={icon ? GAP : 0}>
+         <Text wrap="truncate-end" color={quiet ? 'inactive' : undefined} dimColor={dim || undefined} weight={r.strong ? 'semibold' : undefined}>
+           {r.title}
+         </Text>
+@@ -296,12 +327,26 @@ export function desktopRow(ui: any, r: Row, i: number, lead: string, acts: Acts,
+   )
+ }
+ 
+-// A card: a session's or subagent's header and every line after it deeper than it. Its border and
+-// fill are the app's (borderStyle round, the first surface).
+-const CARD = { borderStyle: 'round', paddingX: 1, paddingY: 0, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: 'userMessageBackground' }
+-// What a card takes of its container's columns besides its strip: the two sides of its border and
+-// padding (2 ch of padding and 2 px of border, counted 3).
+-const CARD_COLS = 3
++// A card: a session's or subagent's header and every line after it deeper than it. It must stand
++// out from the pane in both themes (the person, 2026-11-13, of the app's `userMessageBackground` and
++// default border, which came out the pane's own: "nao aparece nenhum card"), a step more for each card
++// inside a card (the person, 2026-11-13: "aumente um pouco o contraste do card, deixando ele um pouco
++// mais claro, e repita isso para cada card dentro de card"). No theme key names a surface past the
++// pane, so the fill is a translucent gray, which lands on either theme and adds up over itself: each
++// card inside a card is one more step. Dark (pane #1a1a19): #242423, then #2d2d2c, #353534, lighter
++// at each level; light (pane white): #f2f2f2, #e6e6e6, #dbdbdb, darker at each level, the same
++// contrast. The border, 30% on the card's own fill: about #40403f dark and #c9c9c9 light at the first
++// level.
++const CARD_FILL = 'rgba(128,128,128,0.1)'
++const CARD_LINE = 'rgba(128,128,128,0.3)'
++// The room inside the card: across, a column and a half each side; down, a third of a line above and
++// below the lines.
++const PAD_X = 1.5
++const PAD_Y = 0.3
++const CARD = { borderStyle: 'round', borderColor: CARD_LINE, paddingX: PAD_X, paddingY: PAD_Y, flexDirection: 'column', flexGrow: 1, minWidth: 0, backgroundColor: CARD_FILL }
++// What a card takes of its container's columns besides its strip: the two sides of its padding and of
++// its border (the border counted a column for both).
++const CARD_COLS = 2 * PAD_X + 1
+ 
+ // The whole list of lines, the cards nested in Boxes. Inside a container every line starts at its
+ // content's edge and its guides go three mono characters a column, so they line up with one another
+@@ -310,14 +355,10 @@ const CARD_COLS = 3
+ // left, one text line per line of the card, in a Box in a row with it. Only the strip's first line
+ // must meet a line (the connector, at the header's height); the rest are bars or blanks.
+ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): any[] {
+-  const { Box, Text } = ui
++  const { Box } = ui
+   const lanes = guides(lines)
+   const hides = labelCols(lines)
+-  const cut = (i: number, from: number, to: number) =>
+-    cells(lines[i]!, lanes[i]!, hides[i])
+-      .filter(c => c.col >= from && c.col < to)
+-      .map(c => c.text)
+-      .join('')
++  const cut = (i: number, from: number, to: number) => cells(lines[i]!, lanes[i]!, hides[i]).filter(c => c.col >= from && c.col < to)
+   // The children of a container whose content starts at column `base`, for the lines [a, b), in
+   // `room` columns.
+   const block = (a: number, b: number, base: number, room: number): any[] => {
+@@ -331,20 +372,35 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
+       }
+       let j = i + 1
+       while (j < b && lines[j]!.depth > r.depth) j++
+-      const strip = Array.from({ length: j - i }, (_, k) => cut(i + k, base, r.depth))
+-      const wide = strip.reduce((w, s) => Math.max(w, len(s)), 0)
++      // The strip: per column outside the card, the header line's cell (its connector or a bar) on the
++      // card's first line, and under it, down the card's whole height, what passes by the card's
++      // other lines in that column (a bar or nothing), one Box that grows: unbroken whatever the
++      // card's height.
++      const head = cut(i, base, r.depth)
++      const below = j > i + 1 ? cut(i + 1, base, r.depth) : []
++      const wide = head.length * CELL
+       const inner = Math.max(10, room - wide - CARD_COLS)
+       out.push(
+         <Box key={`c${i}`}>
+           {wide > 0 ? (
+-            <Box flexShrink={0}>
+-              <Text mono color="inactive" dimColor wrap="truncate-end">
+-                {strip.join('\n')}
+-              </Text>
++            <Box key="strip" flexShrink={0} flexDirection="row">
++              {head.map(c => (
++                <Box key={`s${c.col}`} flexDirection="column" width={CELL}>
++                  <Box height={PAD_Y} flexDirection="row">
++                    {guideCell(ui, c.kind === 'none' ? 'none' : 'bar', 't', true)}
++                  </Box>
++                  <Box height={ROW} flexDirection="row">
++                    {guideCell(ui, c.kind, 'h', true)}
++                  </Box>
++                  <Box flexGrow={1} flexDirection="row">
++                    {guideCell(ui, below.find(b => b.col === c.col)?.kind ?? 'none', 'b', true)}
++                  </Box>
++                </Box>
++              ))}
+             </Box>
+           ) : null}
+           <Box {...CARD}>
+-            {desktopRow(ui, r, i, '', acts, inner)}
++            {desktopRow(ui, r, i, [], acts, inner)}
+             {block(i + 1, j, r.depth, inner)}
+           </Box>
+         </Box>,
+diff --git a/task-tree/hooks/render.tsx b/task-tree/hooks/render.tsx
+index c59d658..210ef6a 100644
+--- a/task-tree/hooks/render.tsx
++++ b/task-tree/hooks/render.tsx
+@@ -95,7 +95,12 @@ function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: any, chro
+     <Box flexDirection="column">
+       {chrome.errorLine}
+       {top}
+-      {desktopTree(ui, lines, acts, cols)}
++      {/* The lines one column in from the pane's edge: with the icon as a row's first cell, the app
++          drew the top-level icons and a loose card half past the left border (the person,
++          2026-11-13: "outro exemplo de comportamento estranho"). */}
++      <Box key="tree" flexDirection="column" paddingLeft={1}>
++        {desktopTree(ui, lines, acts, cols - 1)}
++      </Box>
+     </Box>
+   )
+ }
+diff --git a/task-tree/tests/visual.test.ts b/task-tree/tests/visual.test.ts
+index ea7c1c2..444c930 100644
+--- a/task-tree/tests/visual.test.ts
++++ b/task-tree/tests/visual.test.ts
+@@ -1,7 +1,7 @@
+ import { expect, test } from 'claude-code/testing'
+ import { AGORA, fixar, host } from './kit/ambiente'
+ import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+-import { estadoGeral, montarNoApp, noApp, pedacosDepois } from './kit/leitura'
++import { desenhoDoApp, estadoGeral, montarNoApp, noApp, pedacosDepois } from './kit/leitura'
+ 
+ // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
+ 
+@@ -158,3 +158,108 @@ test('no app, o ícone da linha que recolhe e o anel do cartão são botões com
+   expect(d.linhas.some(l => l.texto.includes('Tarefa única')), d.textos.join('\n')).toBe(false)
+   await m.fim()
+ })
++
++// Regra: visual.cartao-destaca-do-painel
++test('no app, o cartão de sessão tem fundo e borda próprios, translúcidos, que se destacam do painel', async ($: any, on: any) => {
++  fixar(on)
++  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha-um', painel: { tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Tarefa única' }] }])
++  await start($, ['1'])
++  await abrirSessao($)
++  await aviso($)
++  const { arvore } = await desenhoDoApp($)
++  const textos = (n: any): string => (typeof n === 'string' ? n : (n?.c ?? []).map(textos).join(' '))
++  const cartoes: any[] = []
++  const andar = (n: any) => {
++    if (typeof n !== 'object' || n === null) return
++    if (n.t === 'Box' && n.k === undefined && n.p?.borderStyle === 'round') cartoes.push(n)
++    for (const c of n.c ?? []) andar(c)
++  }
++  andar(arvore)
++  const cartao = cartoes.find(c => textos(c).includes('filha-um'))
++  expect(cartao, JSON.stringify(arvore).slice(0, 2000)).toBeDefined()
++  expect(cartao.p.backgroundColor).toBe('rgba(128,128,128,0.1)')
++  expect(cartao.p.borderColor).toBe('rgba(128,128,128,0.3)')
++})
++
++// Regra: visual.arvore-afastada-da-margem
++test('no app, as linhas da árvore ficam num bloco recuado uma coluna da borda do painel', async ($: any, on: any) => {
++  fixar(on)
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Tarefa única' }] }])
++  await start($, ['1'])
++  const { arvore } = await desenhoDoApp($)
++  const textos = (n: any): string => (typeof n === 'string' ? n : (n?.c ?? []).map(textos).join(' '))
++  const blocos: any[] = []
++  const andar = (n: any) => {
++    if (typeof n !== 'object' || n === null) return
++    if (n.t === 'Box' && n.k === 'tree') blocos.push(n)
++    for (const c of n.c ?? []) andar(c)
++  }
++  andar(arvore)
++  expect(blocos.length, JSON.stringify(arvore).slice(0, 2000)).toBe(1)
++  expect(blocos[0].p?.paddingLeft).toBe(1)
++  expect(textos(blocos[0])).toContain('Plano A')
++  expect(textos(blocos[0])).toContain('Tarefa única')
++})
++
++// Regra: visual.guias-continuas
++test('no app, as guias são caixas finas com fundo, sem caracteres de caixa, também ao lado do cartão', async ($: any, on: any) => {
++  fixar(on)
++  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha-um', painel: { tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Tarefa um' }, { id: '2', title: 'Tarefa dois' }] }])
++  await start($, ['1'])
++  await abrirSessao($)
++  await aviso($)
++  const { arvore } = await desenhoDoApp($)
++  const todos: any[] = []
++  const andar = (n: any) => {
++    if (typeof n === 'string') return void todos.push(n)
++    if (typeof n !== 'object' || n === null) return
++    todos.push(n)
++    for (const c of n.c ?? []) andar(c)
++  }
++  andar(arvore)
++  // Nenhum texto desenha guia.
++  expect(todos.filter(n => typeof n === 'string' && /[│├└]/.test(n))).toEqual([])
++  // As linhas com guias: um Box "guides" com uma célula por nível, e as células pintam com fundo.
++  const guias = todos.filter(n => typeof n === 'object' && n.t === 'Box' && n.k === 'guides')
++  expect(guias.length, JSON.stringify(arvore).slice(0, 2000)).toBeGreaterThan(0)
++  const pintadas = (n: any): number => (typeof n !== 'object' || n === null ? 0 : (n.p?.backgroundColor ? 1 : 0) + (n.c ?? []).reduce((s: number, c: any) => s + pintadas(c), 0))
++  for (const g of guias) expect(pintadas(g)).toBeGreaterThan(0)
++  // Ao lado do cartão, a faixa: o primeiro trecho na altura da linha do cartão e o resto crescendo pela altura dele.
++  const faixas = todos.filter(n => typeof n === 'object' && n.t === 'Box' && n.k === 'strip')
++  expect(faixas.length).toBeGreaterThan(0)
++  const temCresce = (n: any): boolean => typeof n === 'object' && n !== null && ((n.t === 'Box' && n.p?.flexGrow === 1 && pintadas(n) > 0) || (n.c ?? []).some(temCresce))
++  expect(faixas.some(temCresce)).toBe(true)
++})
++
++// Regra: visual.espaco-interno
++test('no app, as linhas têm 1,3 de altura, o título fica a 1,5 coluna do ícone e o cartão tem recuo interno', async ($: any, on: any) => {
++  fixar(on)
++  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha-um', painel: { tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
++  await pedido($, 'Pedido um')
++  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Tarefa única' }] }])
++  await start($, ['1'])
++  await abrirSessao($)
++  await aviso($)
++  const { arvore } = await desenhoDoApp($)
++  const todos: any[] = []
++  const andar = (n: any) => {
++    if (typeof n !== 'object' || n === null) return
++    todos.push(n)
++    for (const c of n.c ?? []) andar(c)
++  }
++  andar(arvore)
++  const textos = (n: any): string => (typeof n === 'string' ? n : (n?.c ?? []).map(textos).join(' '))
++  const linhas = todos.filter(n => n.t === 'Box' && typeof n.k === 'string' && /^r\d+$/.test(n.k))
++  expect(linhas.length).toBeGreaterThan(2)
++  for (const l of linhas) expect(l.p?.height, textos(l)).toBe(1.3)
++  const tarefa = linhas.find(l => textos(l).includes('Tarefa única'))
++  expect(tarefa.c.some((c: any) => c.p?.paddingLeft === 1.5 && textos(c).includes('Tarefa única')), JSON.stringify(tarefa)).toBe(true)
++  const cartao = todos.find(n => n.t === 'Box' && n.k === undefined && n.p?.borderStyle === 'round' && textos(n).includes('filha-um'))
++  expect(cartao?.p?.paddingX).toBe(1.5)
++  expect(cartao?.p?.paddingY).toBe(0.3)
++})
