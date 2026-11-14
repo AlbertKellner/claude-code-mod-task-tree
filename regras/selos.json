@@ -72,6 +72,26 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o corte das 400 linhas deixa a linha à vista, logo depois de \"+N linhas anteriores\"": {
+      "regras": [
+        "cabecalho.corte-preserva-historico-aberto"
+      ],
+      "hash": "120cf7c60ed444cf",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13: \"Preservar a linha (Recomendado)\""
+    },
+    "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o corte por tamanho deixa a linha à vista, e um clique nela fecha o histórico": {
+      "regras": [
+        "cabecalho.corte-preserva-historico-aberto"
+      ],
+      "hash": "fb85ab0316dd6316",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13: \"Preservar a linha (Recomendado)\""
+    },
     "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"

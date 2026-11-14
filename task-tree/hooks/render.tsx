@@ -371,7 +371,10 @@ export async function render($: EngineInterface, e: any, next: any) {
     const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
     const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
     const aim = Math.min(byBytes, byText)
-    max = Math.max(2, Math.min(drawn.rows - 1, i < 3 ? aim : Math.min(aim, drawn.rows >> 1)))
+    // Below the last limit every time: the lines of an open history the cut keeps (limitRows) can
+    // leave more lines than the limit asked.
+    const rows = Math.min(max, drawn.rows)
+    max = Math.max(2, Math.min(rows - 1, i < 3 ? aim : Math.min(aim, rows >> 1)))
     made = sized(max)
   }
   if (max < MAX_ROWS && !over()) fitted.set(pane, { lines: all, max })

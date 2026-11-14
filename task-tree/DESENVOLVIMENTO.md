@@ -600,7 +600,9 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
   `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
   último pedido sozinho, até o limite, com "+N linhas"). Cada tentativa mira 95% do limite pela média
-  de bytes por linha; depois de três, no máximo a metade das linhas, até 2. O mapa `fitted` (por
+  de bytes por linha; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
+  (abaixo do anterior e das linhas desenhadas, que as linhas guardadas de um histórico aberto podem
+  deixar acima dele). O mapa `fitted` (por
   superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
   seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
   de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com
@@ -1108,7 +1110,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   recentes ficam. Se o último bloco sozinho passa do limite, o que vinha antes sai contado, o bloco é
   desenhado até o limite e fecha com `+N linhas` (profundidade 1, alt "Linhas seguintes, não desenhadas").
   Total sempre ≤ 400. Corta-se por blocos inteiros do começo porque o trabalho atual fica no fim e cortar
-  dentro de um bloco quebraria as guias. O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
+  dentro de um bloco quebraria as guias. A linha de um histórico aberto (`sec:turns` com `fold.open`) e as
+  mães dela (a linha anterior menos funda, até o nível 0) nunca saem: vêm logo depois de `+N linhas
+  anteriores`, fora da contagem (decisão do usuário, 2026-11-13: "Preservar a linha (Recomendado)").
+  O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
   no tooltip). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
   linhas) não muda. O arquivo publicado ganha `drawRows` (`rows` em `Published`) e `drawSize`, informativos
   (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). 
@@ -1703,3 +1708,12 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `width` nem `height`, dentro de uma coluna com a largura da barra), para a leitura do kit seguir
   lendo um fim como fim. O kit lê a altura, o centro, os vãos, os respiros e o tom (`alturaDaLinha`,
   `centrada`, `vaosEntreLinhas`, `respirosDoApp`, `tom`).
+- Histórico aberto no corte (o usuário, 2026-11-13: "Preservar a linha (Recomendado)"). A linha
+  "+N pedidos anteriores" é a primeira do desenho, sozinha num bloco de nível 0, e todo corte que tira
+  blocos do começo (as 400 linhas ou o laço de tamanho e texto) a levava junto: aberto o histórico numa
+  sessão longa, não sobrava onde clicar para fechá-lo. Agora `limitRows` guarda cada linha de
+  histórico aberto e as mães dela, logo depois de "+N linhas anteriores" (a contagem segue a primeira
+  linha, para não mexer em teste selado), fora da contagem; sem histórico aberto, o corte é o mesmo de
+  antes. Como essas linhas podem deixar o desenho acima do máximo pedido, o laço do render baixa o
+  máximo a partir do menor entre ele e as linhas desenhadas. O histórico aberto num cartão de filha,
+  cortado, fica no checklist do app.

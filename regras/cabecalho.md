@@ -147,6 +147,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: draw/svg.ts, hooks/render.tsx
 Estado: coberto
 
+### cabecalho.corte-preserva-historico-aberto
+O corte do desenho deixa à vista a linha do histórico aberto.
+
+- Dado "+N pedidos anteriores" aberto pela pessoa (no painel ou no cartão de uma sessão), e um desenho que passa do limite de linhas, de tamanho ou de texto
+- Quando é desenhado
+- Então a linha "+N pedidos anteriores" continua no desenho, com ▾, logo depois de "+N linhas anteriores" (num cartão, com o pedido, a tarefa e o cartão acima dela), e um clique nela fecha o histórico; o resto é cortado como antes (o histórico aberto num cartão de filha, cortado, é conferido no checklist do app)
+
+Origem: decisão do usuário, 2026-11-13 ("Preservar a linha (Recomendado)").
+Código: draw/layout.ts, hooks/render.tsx
+Estado: coberto
+
 ### cabecalho.historico-guarda-o-que-saiu
 O que saiu do trabalho fica em "+N pedidos anteriores", com os cartões das filhas.
 
