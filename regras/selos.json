@@ -1,5 +1,15 @@
 {
   "testes": {
+    "task-tree/tests/arvore.test.ts::com a tarefa atual interrompida e a de histórico concluída, o start pelo id curto reabre a atual": {
+      "regras": [
+        "arvore.id-curto-nao-alcanca-o-historico"
+      ],
+      "hash": "0f12578658e5982d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: id curto fora do histórico"
+    },
     "task-tree/tests/arvore.test.ts::id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve": {
       "regras": [
         "arvore.ids-curtos-e-avisos"
@@ -19,6 +29,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/arvore.test.ts::o id curto não alcança as tarefas de histórico: start numa concluída não é ambíguo e o id que só existe no histórico não existe": {
+      "regras": [
+        "arvore.id-curto-nao-alcanca-o-historico"
+      ],
+      "hash": "5126c2fcd8bff804",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: id curto fora do histórico"
     },
     "task-tree/tests/arvore.test.ts::pai fecha sozinho quando todos os filhos fecham": {
       "regras": [
@@ -1549,6 +1569,16 @@
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
+    "task-tree/tests/pedidos.test.ts::replano com os ids completos que os lembretes mostram mantém a concluída e a em andamento": {
+      "regras": [
+        "pedidos.replano-aceita-o-id-completo"
+      ],
+      "hash": "978e4923dbc5f404",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o plan aceita o id completo dos lembretes"
     },
     "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
       "regras": [

@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import { cabecalho, emTexto as noTexto, painel as desenho } from './kit/leitura'
 import { subagente } from './kit/ambiente'
-import { fixar } from './kit/ambiente'
-import { done, pedido, plan, start, type No } from './kit/cenario'
+import { fixar, lancaveis } from './kit/ambiente'
+import { done, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { esperarEstado, painel } from './kit/leitura'
 
 const ARVORE: No[] = [
@@ -108,4 +108,53 @@ test('plan com ids repetidos é recusado e nada muda no painel', async ($: any, 
   expect(r.texto).toContain('ids repetidos')
   const p = await desenho($)
   expect(cabecalho(p).vazio, noTexto(p)).toBe(true)
+})
+
+// Regra: arvore.id-curto-nao-alcanca-o-historico
+test('o id curto não alcança as tarefas de histórico: start numa concluída não é ambíguo e o id que só existe no histórico não existe', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Antigo', children: [{ id: '1.1', title: 'Antiga um' }, { id: '1.3', title: 'Só no antigo' }] }])
+  await start($, ['1.1'])
+  await done($, ['1.1'])
+  await start($, ['1.3'])
+  await done($, ['1.3'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '1', title: 'Novo', children: [{ id: '1.1', title: 'Nova um' }] }])
+  await start($, ['1.1'])
+  await done($, ['1.1'])
+  const r = (await start($, ['1.1'])).texto
+  expect(r).not.toContain('ambíguo')
+  expect(r).toContain('Em andamento: Nova um')
+  esperarEstado(await painel($), 'Nova um', 'andamento')
+  const r2 = (await start($, ['1.3'])).texto
+  expect(r2).toContain('"1.3" não existe')
+  expect(r2).toContain('Nada marcado')
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Só no antigo' || l.titulo === 'Antigo'), noTexto(p)).toBe(false)
+})
+
+// Regra: arvore.id-curto-nao-alcanca-o-historico
+test('com a tarefa atual interrompida e a de histórico concluída, o start pelo id curto reabre a atual', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Antiga' }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '1', title: 'Nova' }])
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  const r = (await start($, ['1'])).texto
+  expect(r).toContain('Em andamento: Nova')
+  esperarEstado(await painel($), 'Nova', 'andamento')
 })

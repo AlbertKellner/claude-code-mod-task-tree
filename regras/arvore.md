@@ -97,3 +97,13 @@ Pai e pedido sem nada aberto embaixo ficam ✓.
 Origem: decisão do usuário, 2026-11-04 ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); mantém "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido" (95b1a21).
 Código: draw/layout.ts, state/tasks.ts
 Estado: coberto
+
+### arvore.id-curto-nao-alcanca-o-historico
+O id curto de start e done não alcança as tarefas de histórico.
+
+- Dado um nível 1 de um pedido anterior que virou histórico porque um plan novo reusou o id dele
+- Quando o modelo chama start ou done com um id curto que as duas cópias têm, ou que só a de histórico tem
+- Então vale a tarefa do plano atual (sem aviso de ambíguo); o id que só existe no histórico "não existe"; a tarefa de histórico só responde pelo id completo
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o id curto reabria tarefa de histórico e expunha o id interno); aplica arvore.ids-curtos-e-avisos ("a tarefa aberta vence") e pedidos.plano-anterior-vira-historico, sem mudar nenhuma das duas.
+Estado: coberto

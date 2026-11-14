@@ -315,3 +315,31 @@ test('mensagem entregue no meio do turno continua o pedido em curso: sem pedido 
   expect(pedidosECartas(p), emTexto(p)).toEqual(['Pedido um', 'Recado de outra sessão', 'Pedido dois'])
   expect(linha(p, 'Plano C').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Pedido dois').nivel)
 })
+
+// Regra: pedidos.replano-aceita-o-id-completo
+test('replano com os ids completos que os lembretes mostram mantém a concluída e a em andamento', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2.1'])
+  await plan($, [
+    {
+      id: 'A',
+      title: 'Plano A',
+      children: [
+        { id: 'A/1', title: 'Um' },
+        { id: 'A/2', title: 'Dois', children: [{ id: 'A/2.1', title: 'Dois.um' }, { id: 'A/2.2', title: 'Dois.dois' }] },
+        { id: 'A/3', title: 'Três' },
+      ],
+    },
+  ])
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Dois.um', 'andamento')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(p.filter(l => l.titulo === 'Um').length, emTexto(p)).toBe(1)
+  expect(emTexto(p)).toContain('1 de 4')
+  expect((await start($, ['3'])).texto).toContain('Em andamento: Três')
+})

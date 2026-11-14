@@ -9,16 +9,20 @@ import { flat, stop, timing } from '../draw/layout'
 export type InNode = { id: string; title: string; children?: InNode[] }
 
 // A level-1 task keeps its id; the ids below it are prefixed with it ("D/1.1"), so two
-// plans may both use "1.1".
+// plans may both use "1.1". A subtask that already comes with the prefix, as the reminders list it
+// ("D/1.1"), is taken as its short id: a replan copied from a reminder keeps the states.
 export function build(list: InNode[], depth: number, root?: string, now?: number): TaskNode[] {
-  return list.map(t => ({
-    id: root === undefined ? t.id : `${root}/${t.id}`,
-    short: t.id,
-    title: t.title,
-    status: 'open' as Status,
-    ...(now === undefined ? {} : { plannedAt: now }),
-    children: depth < 3 ? build(t.children ?? [], depth + 1, root ?? t.id, now) : [],
-  }))
+  return list.map(t => {
+    const id = root !== undefined && t.id.startsWith(`${root}/`) ? t.id.slice(root.length + 1) : t.id
+    return {
+      id: root === undefined ? id : `${root}/${id}`,
+      short: id,
+      title: t.title,
+      status: 'open' as Status,
+      ...(now === undefined ? {} : { plannedAt: now }),
+      children: depth < 3 ? build(t.children ?? [], depth + 1, root ?? t.id, now) : [],
+    }
+  })
 }
 
 
@@ -29,11 +33,14 @@ export function duplicates(list: TaskNode[]): string[] {
 
 // The task an id names in one group: the full id, or the short one when it is
 // unambiguous, an open task preferred over a closed one.
+// The tasks of history (the subtree of a level-1 task a plan renamed to "<tag>:<id>", whose id no
+// longer equals its short one) answer only by the full id: a short id never reopens nor closes them.
 export function resolve(list: TaskNode[], id: string): { node?: TaskNode; error?: string } {
+  const history = new Set(list.filter(t => t.id !== t.short).flatMap(t => flat([t])))
   const all = flat(list)
   // A closed level-1 task from an old plan ("1") must not win over the open "D/1" of the plan
   // in progress: the open tasks come first, by full or short id alike.
-  const same = all.filter(t => t.id === id || t.short === id)
+  const same = all.filter(t => t.id === id || (t.short === id && !history.has(t)))
   if (same.length === 1) return { node: same[0] }
   for (const status of ['open', 'done', 'interrupted'] as Status[]) {
     const hits = same.filter(t => t.status === status)

@@ -157,3 +157,13 @@ O pedido anterior cujo nível 1 foi reusado segue à vista enquanto a sessão so
 Origem: auditoria 2026-11-10 (o trabalho atual não acompanha a renomeação do nível 1, cartão solto); decisão do usuário, 2026-11-12 ("Sim, fica à vista (Recomendado)"). Desfaz, para o id reusado, "sessão trabalhando sem tarefa própria aberta, ou só carta na fila, não segura" (2026-11-10) e o cartão vivo solto no fim desse caso (sessoes.cartao-vivo-nunca-some segue valendo para o pedido que já saiu do trabalho).
 Código: draw/layout.ts, hooks/sessions.ts
 Estado: coberto
+
+### pedidos.replano-aceita-o-id-completo
+O replano aceita os ids das subtarefas como o painel os mostra nos lembretes.
+
+- Dado um nível 1 aberto com uma tarefa ✓ e outra ◉
+- Quando o modelo replaneja o nível 1 passando as subtarefas com o id completo ("A/1", "A/2.1"), como os lembretes as listam
+- Então o id completo vale como o curto: quem mantém o id mantém o estado, só o passo novo nasce ○, e o prefixo não se repete no id
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o replano com o id do lembrete duplicava o prefixo e perdia o estado); aplica pedidos.replano-preserva-estado (decisão do usuário, 2026-10-27), sem mudar nenhuma regra.
+Estado: coberto
