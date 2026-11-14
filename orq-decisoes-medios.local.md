@@ -192,3 +192,23 @@ C-03 (selos: remoção e renome de teste, de que lotes A e C precisam), C-04 a C
   das ferramentas; a regra das datas dos selos; o check do PR inteiro antes do PR; como o usuário
   trabalha com a sessão; o que a orquestradora faz de git. Nas instruções do implementador: a
   conferência da identidade antes de qualquer commit, e o fim da trilha paralela.
+- Rodada 2 (ensaios em clones novos, por agentes sem o contexto da conversa):
+  - O check de um clone novo falha no `tsc`: a pasta `task-tree/.claude-plugin/types/` não é gerada pelo
+    `validate`, e sim pelo motor do Claude Code quando carrega o mod de uma pasta. Com a pasta presente,
+    o check passa inteiro num clone novo (306 testes). Fim de linha (LF ou CRLF) não muda nada.
+  - A sessão nova e o implementador ensaiados apontaram lacunas nas instruções: a prova de que o teste
+    novo falha, sem comando; a cópia entre um lote e o seguinte; o golden na cópia e no clone; a data do
+    `Reescrito:` num dia posterior; a conferência do hook; o que fazer com trabalho parcial; quatro
+    planos que contavam com a triagem C vindo depois. Tudo entrou no `RETOMADA.md` e nas instruções do
+    implementador, reescritas.
+- Notas sobre registros anteriores deste arquivo, para quem lê de cima para baixo:
+  - A nota da decisão 43 ("passam pela validação dele no app antes do commit") e o parágrafo "Situação"
+    ("antes de regravar o golden") foram substituídos por "Validar só no fim (Recomendado)" (seção "Como
+    entregar"): o implementador regrava o golden e faz o commit, e o usuário valida tudo antes do merge.
+  - Em "Situação" e "Como entregar", o planejador aparece como "Fable, esforço alto". A configuração
+    atual é a última troca registrada em `orq-decisoes-pendencias.local.md`: planejador Fable, esforço
+    médio; implementador Opus, esforço baixo.
+  - Em "Mudança de máquina", as seções do `RETOMADA.md` citadas como 9 e 10 são hoje a 11 (o que fazer
+    ao ler) e a 12 (o prompt).
+  - A regra da data do `Reescrito:` num dia posterior a 2026-11-14 (data do dia, com a data da decisão
+    no texto) é da orquestradora, escrita nesta revisão; o usuário ainda não a decidiu.
