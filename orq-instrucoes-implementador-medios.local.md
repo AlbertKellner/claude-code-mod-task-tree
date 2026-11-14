@@ -1,6 +1,6 @@
 # Instruções comuns aos implementadores dos lotes dos achados médios
 
-Escrito pela orquestradora "Orq - TaskTree" em 2026-11-14 e revisto no mesmo dia, depois de dois ensaios
+Escrito pela orquestradora "Orq - TaskTree" em 2026-11-14 e revisto no mesmo dia, em rodadas de ensaio
 da retomada em outra máquina. Só ela escreve aqui.
 
 Você é o IMPLEMENTADOR de um ou mais lotes (até três, um depois do outro; o seu prompt diz quais). Outro
@@ -29,7 +29,10 @@ caminhos reais nos arquivos da pasta de notas.
   é o cenário do plano (Dado, Quando, Então) e a decisão do usuário que ele cita; os nomes de função, os
   arquivos e as linhas são o caminho sugerido sobre o código antigo. Uma nota da lista "o que os planos
   não conhecem" que só informa um fato não pede mudança por si: use-a ao adaptar.
-- Se o plano trouxer BLOQUEIO, não implemente a parte bloqueada: relate.
+- Quando parar. BLOQUEIO que o próprio plano declara para uma parte do lote: implemente o resto, não
+  implemente a parte bloqueada e relate. Bloqueio que você descobre (teste protegido que precisa mudar
+  sem decisão registrada, decisão do usuário que falta, lote anterior que falta): pare o lote inteiro,
+  como no passo 9, e relate. É este segundo caso que o prompt chama de "pare nesse lote".
 - As palavras do usuário valem como estão em `orq-decisoes-medios.local.md` (as de rodadas anteriores,
   em `orq-decisoes-altos.local.md`, `orq-decisoes-ajustes-nativo.local.md` e
   `orq-decisoes-pendencias.local.md`, e na origem dos cenários do catálogo). Se o plano grafar uma
@@ -56,17 +59,24 @@ usuário como "reload failed".
 1. No clone real, confira, e pare e relate (sem commit) se algo falhar:
    - `git status --short` vazio e a branch `fix/achados-medios`; anote a ponta. Arquivo alterado que não
      é seu é motivo para parar: há um implementador por vez.
-   - a identidade do git: `git config user.email` igual a `git log -1 --format=%ae`. Nenhum commit pode
-     sair com outra identidade.
+   - a identidade do git: `git config user.email` igual a `git log -1 --format=%ae`, e
+     `git config user.name` igual a `git log -1 --format=%an`. Nenhum commit pode sair com outra
+     identidade.
    - o hook e o ambiente: `git config core.hooksPath` responde `.githooks`; existem `node_modules` e
      `task-tree/.claude-plugin/types/` (com `tsconfig.json`). Sem isso o commit sairia sem validação.
    - a ordem: os lotes que o plano pede antes ("Depois do lote N", na seção de dependências) já estão em
-     commit (`git log --oneline`; os títulos dos commits batem com os do índice da triagem), fora os que
-     você mesmo vai fazer antes neste prompt. Se faltar um, pare e relate.
+     commit, fora os que você mesmo vai fazer antes neste prompt. A lista dos lotes em commit vem no
+     prompt (ou está na seção 5 de `<notas>/RETOMADA.md`, com os hashes); os títulos dos commits nem
+     sempre repetem os do índice. Se faltar um, pare e relate. Não contam os lotes que ficaram fora da
+     rodada: A-21 (absorvido pelo A-07), B-26 e C-13.
 2. Faça uma cópia sua no scratchpad: `git clone` local do clone real, na ponta atual da branch, numa
    pasta só sua (outros agentes usam o mesmo scratchpad); `npm install` na cópia; e copie para ela a pasta
-   `task-tree/.claude-plugin/types/` do clone real. O `validate` não gera essa pasta: quem gera é o motor
-   do Claude Code quando carrega o mod de uma pasta, e o `tsc` do check depende dela.
+   `task-tree/.claude-plugin/types/` do clone real, inteira, com o `.gitignore` que há dentro dela (é
+   ele, com `*`, que faz o git ignorar a pasta; sem ele o `git status` da cópia fica sujo e o
+   `git clean` do passo 8 apaga os tipos). O `validate` não gera essa pasta: quem gera é o motor do
+   Claude Code quando carrega o mod de uma pasta, e o `tsc` do check depende dela. Se o `npm install`
+   mudar o `package-lock.json` da cópia, volte-o (`git checkout -- package-lock.json`): ele não entra
+   no diff de nenhum lote.
 3. Na cópia, escreva primeiro os testes novos (e as mudanças do kit, se o plano pedir) e prove que eles
    falham no código de hoje, pelo motivo que o plano diz. O `npm run check` não serve para a prova (para
    antes, em `regras` e `selos`). Rode os testes direto pelo binário do app, com a trava, guardando a
@@ -92,11 +102,14 @@ usuário como "reload failed".
      dentro de `Origem:` e do `--motivo` dos selos são as da decisão e ficam em 2026-11-14.
    - Virada do dia. A regressão (no check e no hook) só aceita a falha de um teste antigo quando o selo
      de decisão, o registro de remoção ou o golden aprovado é do dia em que ela roda. Se o dia virar
-     entre o selo e o commit, refaça os selos de decisão na cópia, leve o `regras/selos.json` novo ao
-     clone real (desfazendo o do real antes, como no passo 7) e, no lote de desenho, aprove o golden de
-     novo no real.
-   - `npm run regras:selar -- …` é `node scripts/selos.mjs --selar …`: use a segunda forma se o
-     `npm run` estragar as aspas de um nome de teste ou de um motivo.
+     entre o selo e o commit: na cópia, volte o `regras/selos.json` ao de `HEAD`
+     (`git checkout -- regras/selos.json`) e refaça TODOS os comandos de selo do lote (selar, `--kit`,
+     `--remover`, `--renomear`), atualizando para a data do dia as linhas `Reescrito:` que o lote
+     escreveu; leve o resultado ao clone real (desfazendo o do real antes, como no passo 7) e, no lote
+     de desenho, aprove o golden de novo no real.
+   - `npm run regras:selar -- …` é `node scripts/selos.mjs --selar …`, e `npm run golden:aprovar -- …`
+     é `node scripts/golden.mjs --aprovar …`: use a segunda forma se o `npm run` estragar as aspas de
+     um nome de teste ou de um motivo.
    - Arquivo novo: `git add -N <arquivo>` na cópia, para ele entrar no diff.
 5. Leve tudo ao clone real de uma vez: `git diff --binary` na cópia e `git apply` no real.
 6. No clone real:
@@ -119,19 +132,24 @@ usuário como "reload failed".
    `docs`). A última linha é a de atribuição: a que a sua sessão recebeu do Claude Code (ela diz o
    modelo que de fato escreveu o commit); se a sua sessão não recebeu nenhuma, a que o prompt trouxer;
    sem as duas, `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
-   Se o hook falhar, ou o check à mão do lote de desenho falhar: corrija NA CÓPIA, nunca direto no clone
-   real (ele recarrega o mod a cada arquivo salvo). Rode o check na cópia de novo. No clone real,
-   desfaça o lote: `git checkout -- <arquivos do lote>` e apague um a um os arquivos novos que você
-   criou (nada de `git clean` nem de `git reset --hard` no clone real). Depois reaplique o diff novo
-   inteiro da cópia e tente o commit de novo. O mesmo desfazer vale se você parar o lote depois do
-   passo 5: o clone real tem de ficar como no último commit.
+   Se o hook falhar só por tempo de teste (5 s), tente o commit de novo uma vez.
+   Se o hook falhar por outro motivo, ou o check à mão do lote de desenho falhar, ou a diferença do
+   desenho não for a que o plano espera: corrija NA CÓPIA, nunca direto no clone real (ele recarrega o
+   mod a cada arquivo salvo). Rode o check na cópia de novo. No clone real, desfaça o lote:
+   `git checkout -- <arquivos do lote>` (inclusive `desenho.ts` e `regras/selos.json`, se o golden foi
+   regravado) e, para cada arquivo novo que você criou, `git reset -q -- <arquivo>` e depois apague-o
+   (nada de `git clean` nem de `git reset --hard` no clone real). Confira `git status --short` vazio.
+   Depois refaça os passos 5 a 7 inteiros com o diff novo da cópia (no lote de desenho, isso inclui
+   aprovar o golden de novo). O mesmo desfazer vale se você parar o lote depois do passo 5: o clone
+   real tem de ficar como no último commit.
 8. Entre um lote e o seguinte, ponha a cópia na ponta nova do clone real: na cópia,
    `git reset --hard && git clean -fd && git pull`, e confira que `git log -1` é o commit que você
    acabou de fazer (o `node_modules` e os tipos são ignorados pelo git e ficam). No lote de desenho, o
    "check verde" que vale é o do clone real; a cópia, depois do `git pull`, já está com o golden novo.
 9. Não faça push. No fim, apague a sua cópia e os arquivos que você criou no scratchpad. Exceção: se
-   parou num lote, guarde o que fez em `<scratchpad>/<lote>-parcial.patch` (`git diff --binary` da
-   cópia), não apague esse arquivo e diga o caminho no relato. O clone real fica como no último commit.
+   parou num lote, guarde o que fez em `<scratchpad>/<código do lote>-parcial.patch` (por exemplo,
+   `A-05-parcial.patch`; na cópia, `git add -N` nos arquivos novos e depois `git diff --binary`), não
+   apague esse arquivo e diga o caminho no relato. O clone real fica como no último commit.
 
 ## Relato
 

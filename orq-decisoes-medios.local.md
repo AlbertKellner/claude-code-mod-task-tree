@@ -223,3 +223,15 @@ C-03 (selos: remoção e renome de teste, de que lotes A e C precisam), C-04 a C
     e os lotes B-10 e B-25 não precisam mexer nela.
   - A linha de atribuição do commit passa a ser a que a sessão do implementador recebe do Claude Code
     (antes, as instruções fixavam "Claude Opus 5.5"). Regra da orquestradora, escrita nesta revisão.
+- Pedido durante a revisão, 2026-11-14: "Quando você finalizar, me avise usando o AskQuestions". Ao fim
+  das rodadas de revisão, a orquestradora avisa pelo `AskUserQuestion`, com o resultado e os próximos
+  passos como opções.
+- Rodada 4 (dois ensaios novos): nenhum bloqueio. Corrigido: uma afirmação errada da orquestradora
+  sobre o plano do A-14 (ele manda renomear o teste, porque a correção de renome já entrou); o checklist
+  do app, agora copiado da seção 9 dos planos dos 18 lotes; a regra do lote parado por bloqueio (a
+  orquestradora pergunta na hora e segue com os lotes que não dependem dele); os grupos sempre de três;
+  o que fazer com um agente sem notícia; a regressão achada na conferência final (análise e depois
+  correção); e, nas instruções do implementador, nove casos de borda (a pasta de tipos copiada com o
+  `.gitignore` de dentro, o `package-lock.json`, o desfazer com arquivo novo, o hook que falha por
+  tempo, o golden depois de uma falha, a virada do dia com remoção ou renome de teste, o bloqueio
+  parcial, o patch parcial, a lista dos lotes em commit no prompt).

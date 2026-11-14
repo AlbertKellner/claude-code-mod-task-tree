@@ -47,8 +47,10 @@ O que só o usuário faz está marcado com (usuário); o resto a sessão confere
    `mcp__task-tree__plan`, `start` e `done` têm de existir; e a pasta do item 6 tem de existir. Se algo
    faltar, ela avisa o usuário e espera. Essas conferências não mostram se a versão do marketplace
    está desligada: a sessão pergunta isso ao usuário.
-6. **Tipos do kit.** A pasta `task-tree/.claude-plugin/types/` (ignorada pelo git) é gravada pelo motor
-   do Claude Code quando ele carrega o mod de uma pasta, e regravada a cada atualização do app. Não é o
+6. **Tipos do kit.** A pasta `task-tree/.claude-plugin/types/` é gravada pelo motor do Claude Code
+   quando ele carrega o mod de uma pasta, e regravada a cada atualização do app. O git a ignora por
+   causa de um `.gitignore` com `*` que o motor grava dentro dela (com a pasta presente, o
+   `git status --short` do clone tem de seguir vazio). Não é o
    `claude plugin validate` que a gera, ao contrário do que dizem hoje o `CLAUDE.md` do repositório e
    dois comentários de `scripts/testes.mjs` (ver seção 10). Sem ela, o `npm run check` falha na etapa
    `tsc` com centenas de erros (ensaiado num clone novo em 2026-11-14). Com o passo 5 feito e uma sessão
@@ -103,7 +105,9 @@ máquina antiga (barra de progresso, faixa de sessão e semelhantes), a memória
 - `PROCESSO.md` e `CLAUDE.md`, na raiz do repositório: papéis, lotes, paralelismo, golden, testes.
 - `<notas>/orq-instrucoes-implementador-medios.local.md`: instruções que todo implementador lê.
 - `<notas>/orq-instrucoes-planejador-medios.local.md`: instruções dos planejadores (os planos já estão
-  prontos; só serve para um replano).
+  prontos; só serve para um replano ou para analisar uma regressão). Elas falam da ponta `6d5e026` e da
+  data 2026-11-14: se um planejador for lançado, o prompt dele diz a ponta atual, a regra da data do
+  `Reescrito:` (abaixo) e o nome do arquivo de plano a escrever.
 - `<notas>/orq-decisoes-medios.local.md` e `<notas>/orq-decisoes-pendencias.local.md`: as decisões do
   usuário desta rodada, com as palavras dele. São a fonte dos `Reescrito:` e dos motivos dos selos.
   Decisões de rodadas anteriores que alguns planos citam estão em `<notas>/orq-decisoes-altos.local.md`
@@ -150,15 +154,15 @@ No arquivo de decisões, a nota da decisão 43 e o parágrafo "Situação" ainda
 commit: são anteriores e foram substituídos pela mesma resposta.
 
 Configuração dos agentes na hora da parada (o usuário trocou três vezes num dia: confirme no início e
-registre cada troca no arquivo de decisões; uma troca vale a partir do próximo agente lançado):
+registre cada troca em `<notas>/orq-decisoes-medios.local.md`; as trocas antigas estão em
+`orq-decisoes-pendencias.local.md`; uma troca vale a partir do próximo agente lançado):
 - implementador: `model: "opus"`, `effort: "low"`;
 - planejador (só se precisar de replano): `model: "fable"`, `effort: "medium"`.
 
 Regras que valem e não estão no `PROCESSO.md`:
 - Até três lotes por agente, na ordem da seção 6, um commit por decisão, check verde na cópia entre
-  eles. O grupo pode juntar o fim de uma triagem com o começo da seguinte. Três é o teto: a
-  orquestradora manda menos quando o índice mostra um lote grande. Na máquina antiga os grupos foram
-  sempre de três, e os lotes feitos eram pequenos ou médios.
+  eles. O grupo pode juntar o fim de uma triagem com o começo da seguinte. Os grupos são sempre de
+  três, como na máquina antiga; só o último grupo pode ter menos. O C-31 vai sozinho, por último.
 - A prova de que o teste novo falha antes da mudança é pedida a todo implementador (o `CLAUDE.md` diz
   que o teste "não precisa estar vermelho antes"; o usuário quis a validação pelo implementador). Vale
   para os testes que o plano diz que falham hoje; os que o plano marca "passa hoje" só são relatados.
@@ -211,9 +215,10 @@ O prompt, trocando os caminhos pelos reais desta máquina e a lista de lotes:
 > (índice: `medios-A-indice.local.md`, só para contexto; as deduções do planejador listadas no índice
 > valem como estão escritas.)
 >
-> A ponta é (o hash do último commit) ou depois. O que os planos (escritos sobre `6d5e026`) não
-> conhecem: (copiar os itens gerais da seção 7 do RETOMADA, atualizados, e as linhas por lote das
-> seções 7 e 10 que citem estes lotes, se houver). Adapte.
+> A ponta é (o hash do último commit) ou depois. Lotes já em commit: (a lista da seção 5 do RETOMADA,
+> atualizada; hoje, C-01 a C-12, C-14, C-28, C-29, A-01, A-02 e A-03). O que os planos (escritos sobre
+> `6d5e026`) não conhecem: (copiar os itens gerais da seção 7 do RETOMADA, atualizados, e as linhas por
+> lote das seções 7 e 10 que citem estes lotes, se houver). Adapte.
 >
 > Se um teste existente protegido precisar mudar sem que o plano traga a decisão registrada (as decisões
 > estão em `orq-decisoes-medios.local.md`), ou houver BLOQUEIO, pare nesse lote, guarde o patch parcial
@@ -233,8 +238,10 @@ relata. A orquestradora não precisa analisar o plano antes de lançar.
 Quando o agente termina, a orquestradora, no mesmo turno:
 1. confere o que ele relatou (`git log --oneline`, `git status --short`; a árvore tem de estar limpa, a
    trava solta, e o autor de cada commit novo com a identidade certa);
-2. acrescenta à seção 7 o que o relato disser que mudou e que os planos seguintes não conhecem, e à
-   seção 9 os itens do checklist do app que o relato trouxer (eles vêm da seção 9 de cada plano);
+2. atualiza este arquivo: a ponta (seção 1 e começo da seção 7), os lotes em commit com os hashes
+   (seção 5), o que falta (seção 6), o que o relato disser que mudou e que os planos seguintes não
+   conhecem (seção 7) e os itens do checklist do app que o relato trouxer (seção 9; eles vêm da seção 9
+   de cada plano);
 3. lança o agente dos próximos lotes;
 4. relata ao usuário, em poucas linhas: o que cada commit muda para ele no painel, o resultado do check,
    a contagem de testes, se o desenho mudou, o que entra no checklist do app e quantos lotes faltam.
@@ -254,10 +261,25 @@ sozinho: o usuário não tem o plano na frente.
    que o agente deixou no scratchpad. Nenhum agente lê a pasta `descartados\`.
 4. O lote interrompido recomeça do zero, pelo plano. Foi o que se fez com o A-04 em 2026-11-14 (o
    usuário escolheu "Recomeça do zero (Recomendado)", e aquele patch nem foi guardado).
+Dois cuidados nesse desfazer: arquivo novo que já estava no índice (`git status` mostra `A`) sai antes
+com `git reset -q -- <arquivo>`; e o `git diff --binary HEAD` não leva arquivo que o git não conhece,
+então copie esses arquivos para `<notas>/descartados/` antes de apagá-los. Antes de remover a trava e de
+lançar outro agente, espere o comando de testes do agente parado terminar (um minuto, e `git status`
+sem mudar entre duas leituras).
+
 Diferente disso é o lote que o próprio implementador para, por bloqueio ou teste protegido: o clone fica
-limpo, o patch parcial fica no scratchpad dele e o relato diz o caminho. Com a decisão do usuário, o
-implementador seguinte recebe no prompt o caminho do patch e a decisão, e pode aproveitá-lo (foi assim
-com a poda dos subagentes, o C-10).
+limpo, o patch parcial fica no scratchpad dele e o relato diz o caminho. A orquestradora faz a pergunta
+ao usuário na hora, pelo `AskUserQuestion`, e não fica parada: lança os lotes seguintes que não dependem
+do parado (a seção de dependências de cada plano diz; na triagem A quase todos dependem dos anteriores,
+e aí o que resta é esperar a resposta). Com a decisão do usuário, registrada no arquivo de decisões, o
+implementador seguinte recebe no prompt o caminho do patch e a decisão, e pode aproveitá-lo. Foi assim
+com a poda dos subagentes (C-10): parou, os três lotes seguintes foram lançados, a pergunta foi
+respondida e o lote voltou depois.
+
+**Agente sem notícia.** Na máquina antiga, um agente com três lotes levou de 25 a 45 minutos, e o app
+avisou sozinho quando um agente travou (10 minutos sem progresso). Passada uma hora sem aviso, a
+orquestradora olha `git log`, `git status` e a data da pasta da trava; se nada mudou em 15 minutos, para
+o agente e segue o procedimento acima.
 
 ## 5. O que já está em commit (18 lotes de 80, 19 commits, tudo no remoto)
 
@@ -405,8 +427,9 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
 
 ## 9. Fechamento, quando o último lote estiver em commit
 
-1. Um agente roda o check do PR inteiro e relata os números. Parâmetros: `general-purpose`,
-   `model: "opus"`, `effort: "low"`. Prompt:
+1. Um agente roda o check do PR inteiro e relata os números. Parâmetros: `general-purpose`, o modelo e
+   o esforço do implementador, `description: "Conferir o PR inteiro antes de abrir"`, em segundo plano
+   como os outros. Prompt:
 
    > Marcadores: `<repo>` = (caminho do clone do trabalho); `<notas>` = (caminho da pasta de notas).
    > Tarefa de conferência, sem mudar nada: não edite arquivos, não sele, não faça commit nem push.
@@ -417,9 +440,12 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
    > contagem de testes, quantos testes da base rodaram contra o código novo, quantos falharam e, para
    > cada um, se há decisão registrada (o check diz), e a lista dos testes existentes que mudaram.
 
-   Esses números vão para a descrição do PR. Falha sem decisão registrada é regressão: corrige-se no
-   código, por um implementador, antes do PR. Com `--base`, a regressão aceita o selo de decisão de
-   qualquer dia. O plano do C-31 avisa que, depois dele, a comparação dos hashes dos selos com a base
+   Se o `main` do GitHub tiver andado desde `6d5e026`, a base é o ponto comum da branch com ele:
+   troque `origin/main` por `$(git merge-base origin/main HEAD)` no comando do check.
+   Esses números vão para a descrição do PR. Falha sem decisão registrada é regressão, e corrige-se no
+   código antes do PR, pelo caminho de sempre: um planejador (só leitura) analisa a causa e escreve um
+   plano curto na pasta de notas, e um implementador corrige, num commit depois do C-31; a conferência
+   final roda de novo. Com `--base`, a regressão aceita o selo de decisão de qualquer dia. O plano do C-31 avisa que, depois dele, a comparação dos hashes dos selos com a base
    fica pulada para o PR inteiro (o jeito de calcular o selo muda): leia os números com isso em mente.
 2. A orquestradora confere a árvore limpa e faz o push de `fix/achados-medios` e UM PR para o `main`
    (PR comum, não rascunho, como os anteriores; o merge é do usuário, depois de validar no app):
@@ -434,30 +460,49 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
      conferir que não há equivalente; conferir que ficaram no PR; dizer ao usuário quais foram aplicadas;
    - a cada push posterior na mesma branch: reler o título e a descrição, atualizar a descrição e rever
      as labels, e dizer ao usuário o que mudou.
-3. O usuário valida no app, pelo checklist acumulado. Dos 18 lotes já em commit, ele tem:
-   - `/clear` numa filha que terminou o turno com pergunta aberta: o cartão dela na mãe deixa de ficar
-     âmbar em até 3 segundos;
-   - app fechado, ou `/model`, no meio do turno: ao voltar, a tarefa em andamento aparece ✕
-     "interrompida", com o relógio parado, e a mensagem seguinte replaneja ou dá start;
-   - recarga a quente com uma carta entregue e o lembrete já dado: uma só linha "Para …", sem lembrete
-     repetido;
-   - `/clear` numa sessão com filha trabalhando: o painel fica vazio e segue vazio; mensagem à filha
-     antiga mostra só a carta, verde na entrega;
-   - `/task-tree` sem a linha do store em uso normal;
-   - "+N pedidos anteriores" sem os cartões dos subagentes que não planejaram tarefas;
-   - o cartão de uma neta visto na sessão avó;
-   - o painel de uma sessão antiga voltando inteiro;
-   - o arquivo de uma sessão apagada esvaziado depois de um dia;
-   - o painel fechado seguindo fechado nos plans e na recarga, voltando na mensagem seguinte, e
-     abrindo com `/model`;
-   - no merge do PR: a nota do workflow "Release" diz patch ou minor conforme o título.
+3. O usuário valida no app, pelo checklist acumulado. Dos 18 lotes já em commit, tirado da seção 9 dos
+   planos (os lotes de scripts e os três da triagem A não têm item):
+   - `/clear` numa filha (C-04): numa filha real, terminar o turno com pergunta do wrap_up, dar `/clear`
+     nela, e conferir na mãe que o cartão deixa de ficar âmbar "aguardando" em até 3 segundos;
+   - app fechado no meio do turno (C-05): com uma tarefa ◉ e o turno rodando, fechar o app e reabrir a
+     sessão: a tarefa aparece ✕ "interrompida", com o relógio parado e a faixa do cabeçalho sem "em
+     andamento". Trocar o modelo com `/model` no meio de um turno dá o mesmo resultado. A mensagem
+     seguinte: o modelo replaneja ou dá start na tarefa;
+   - recarga a quente (C-06): com uma carta entregue e o lembrete já dado, salvar um arquivo do mod e
+     esperar a publicação seguinte: uma só linha "Para …" e nenhum lembrete repetido no turno seguinte;
+   - `/clear` com filha trabalhando (C-07): o painel fica vazio e segue vazio depois de alguns segundos;
+     planejar de novo com o id `1`: nenhum cartão antigo aparece. Mandar uma mensagem à filha antiga:
+     aparece só a carta, que fica verde na entrega;
+   - store (C-08): `/task-tree` num uso normal não ganha a linha do store. Depois do primeiro uso, o
+     arquivo do store (`~/.claude/plugins/store/task-tree_inline-….json`) fica sem chaves `asks:` e
+     `view:`, e sem `work:`, `turn:`, `links:` de sessões fora da lista (só leitura do arquivo);
+   - poda dos subagentes (C-10): um pedido com um workflow ou vários subagentes; na mensagem seguinte,
+     com tudo concluído, abrir "+N pedidos anteriores": as tarefas antigas sem os cartões dos subagentes
+     sem tarefas. `/task-tree` antes e depois numa sessão antiga com muitos subagentes: o tamanho do
+     desenho cai;
+   - arquivo publicado (C-11): numa sessão avó real (principal, filha, neta), o cartão da neta dentro do
+     cartão da filha mostra o trabalho atual e não tem "+N pedidos anteriores"; o cartão da filha segue
+     com o histórico dela. Um dia depois de apagar uma sessão e reabrir o app, o arquivo dela em
+     `~/.claude/task-tree-waits` fica com poucas dezenas de bytes; os das sessões vivas e arquivadas não
+     mudam;
+   - painel de sessão antiga (C-12): abrir uma sessão fora das 30 últimas (o arquivo do store mostra
+     quais ids estão em `sessions`) e mandar uma mensagem: o painel volta com o histórico, e o cartão
+     dela na mãe não perde as rodadas;
+   - painel fechado (C-14): fechar o painel com o modelo trabalhando: ele não volta nos plans seguintes
+     e volta na próxima mensagem. Com o painel fechado, salvar um arquivo do mod: segue fechado, nesta e
+     nas outras sessões abertas. Trocar o modelo (`/model`, processo novo): o painel abre;
+   - release (C-28 e C-29), no GitHub: no merge do PR desta rodada, a nota do passo diz "patch" ou
+     "minor" conforme o título, mesmo com a expressão "BREAKING CHANGE" citada na descrição; num merge
+     com título fora do formato, o resumo do workflow "Release" mostra o aviso e a release sai como patch.
    Cada lote acrescenta os seus itens (seção 9 do plano e o relato do implementador); a orquestradora
    mantém a lista aqui.
 4. Com tudo pronto, nenhum agente rodando e o passo seguinte dependendo dele, a pergunta com os
    próximos passos, pelo `AskUserQuestion`. Candidatos: os 123 achados de severidade baixa; os 10 não
    confirmados (precisam de medição no app); o lote da ferramenta antiga de mensagem (B-26) e o da
    leitura dos arquivos publicados só quando mudam (C-13); a comparação de prints do painel nativo;
-   apagar as branches já mescladas e a branch de notas.
+   apagar as branches já mescladas e a branch de notas; e a passada de curadoria que o `PROCESSO.md`
+   pede ao fim de cada rodada grande (seção 9 dele): levar para o `PROCESSO.md`, por PR e com o aceite
+   do usuário, as regras que hoje só estão na seção 3 deste arquivo.
 
 ## 10. Pontos em aberto que a sessão nova herda
 
@@ -475,8 +520,12 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
 - **Decisão 32 (`/clear` com filhas):** "Some na hora" foi lido como definitivo; mensagem nova a uma
   dessas filhas mostra só a carta.
 - **Frases dos índices que a ordem real desfez:** índice C, "Lote 12 e lote 21 da triagem A usam o mesmo
-  campo novo" (o A-21 não existe; o campo `turn` já está na ponta); índice A, o teste do lote A-14 "pode
-  ganhar o nome novo" (a correção de renome já entrou, e o plano manda manter o nome: vale o plano).
+  campo novo" (o "Lote 12" é o C-12, já em commit; o A-21 não existe como lote; o campo `turn` já está
+  na ponta); índice A, o teste do lote A-14 "pode ganhar o nome novo" se a correção de renome da
+  triagem C entrar antes: ela entrou (C-03), e o plano do A-14 manda, nesse caso, renomear o teste com
+  `--renomear`, por decisão. Vale o plano.
+- **C-30** (documentação): o plano pede "depois de todos os lotes do mod desta triagem (04 a 27)" e
+  cita o lote 21 da triagem A. O C-13 e o A-21 ficam fora da rodada e não contam para essa ordem.
 - **Conflitos entre triagens:** estão na seção 10 de cada plano. Os mais fortes: funções de tempo
   (A-07, A-22, B-18, B-19, C-26), `sendAnchor` (A-14 com B-02 e B-03), a contagem (`total`,
   `allTasks`, com A-16 a A-20 e B-05, B-06, B-14) e os textos de `text/rules.ts` (C-15 a C-24).
@@ -500,7 +549,7 @@ este trabalho usa só as regras de PR, repetidas na seção 9.
 O usuário retoma com um prompt de uma linha (seção 12). Ao recebê-lo, a sessão nova:
 
 1. Assume o papel de orquestradora deste trabalho, como descrito na seção 3.
-2. Lê, nesta ordem: `PROCESSO.md` e `CLAUDE.md` (raiz do repositório) e, em `<notas>`,
+2. Lê, nesta ordem: `PROCESSO.md`, `CLAUDE.md` e `regras/README.md` (no repositório) e, em `<notas>`,
    `orq-decisoes-medios.local.md`, `orq-decisoes-pendencias.local.md`,
    `orq-instrucoes-implementador-medios.local.md` e os três índices (`medios-A/B/C-indice.local.md`).
 3. Descobre os caminhos reais desta máquina (o clone e a pasta irmã de notas), para usá-los nos prompts
@@ -514,7 +563,8 @@ O usuário retoma com um prompt de uma linha (seção 12). Ao recebê-lo, a sess
    esforço dos agentes (seção 3), pergunta se a versão do marketplace do mod está desligada e pergunta
    o que mais estiver em dúvida. Só lança agente depois dessa confirmação.
 6. Lança um agente para conferir o ambiente (`general-purpose`, com o modelo e o esforço confirmados
-   para o implementador):
+   para o implementador, `description: "Conferir o ambiente: npm install e check"`, em segundo plano
+   como os outros):
 
    > Marcadores: `<repo>` = (caminho do clone do trabalho); `<notas>` = (caminho da pasta de notas).
    > Conferência do ambiente, sem mudar código: não edite arquivos rastreados, não faça commit nem push.
