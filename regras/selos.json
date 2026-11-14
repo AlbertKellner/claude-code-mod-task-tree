@@ -283,6 +283,16 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::a sessão que volta à lista regrava trabalho, fim do turno e ligações": {
+      "regras": [
+        "durabilidade.store-cheio-nao-perde-em-silencio"
+      ],
+      "hash": "b145a27015bc1b7a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: store cheio"
+    },
     "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 1/2: o /clear com a filha trabalhando": {
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
@@ -712,6 +722,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::store cheio: a gravação que falha apaga as sobras e tenta de novo": {
+      "regras": [
+        "durabilidade.store-cheio-nao-perde-em-silencio"
+      ],
+      "hash": "98a847a492da202e",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: store cheio"
+    },
+    "task-tree/tests/durabilidade.test.ts::store que não aceita nada: o painel segue na tela e o log diz": {
+      "regras": [
+        "durabilidade.store-cheio-nao-perde-em-silencio"
+      ],
+      "hash": "4ad21884652e77fd",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: store cheio"
     },
     "task-tree/tests/durabilidade.test.ts::uma mensagem nova à filha de antes do /clear mostra a carta, sem cartão": {
       "regras": [
@@ -2806,10 +2836,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "734fecf1b664171d",
-      "tipo": "novo",
+      "hash": "cf40940c80bac3cf",
+      "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "kit: eco do session.receive; lancaveis responde a retomada"
+      "motivo": "armazem que recusa gravações e fixar que devolve o log"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "b3f9c45b550d7930",

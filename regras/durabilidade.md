@@ -155,3 +155,14 @@ Depois do /clear, os cartões das filhas abertas antes somem e não voltam.
 Origem: decisão do usuário, 2026-11-14 ("Some na hora"), à pergunta "Depois de um /clear numa sessão que abriu sessões filhas, o que acontece com o cartão de uma filha aberta antes do /clear?".
 Código: hooks/sessions.ts, hooks/tool-call.ts, io/host.ts
 Estado: coberto
+
+### durabilidade.store-cheio-nao-perde-em-silencio
+O store cheio não deixa de salvar o painel em silêncio.
+
+- Dado o store do mod no teto, com registros de sessões que já saíram da lista e chaves de versões antigas
+- Quando uma gravação do painel, do trabalho, do fim do turno ou das ligações falha
+- Então o mod apaga essas sobras e grava de novo; se ainda falhar, o painel segue certo na tela, o log de depuração diz qual gravação falhou (uma vez por motivo) e o /task-tree diz que o painel não está sendo salvo; a sessão cujos registros foram apagados por outra os grava de novo na escrita seguinte
+
+Origem: auditoria 2026-11-10 (passado o teto de 4 MiB, nada mais era salvo e nada avisava); sem mudar nenhuma regra.
+Código: hooks/command.ts, io/log.ts
+Estado: coberto

@@ -10,10 +10,15 @@
 // on first use after a reload (the `loaded` flags), else the first write would overwrite the store
 // with the reduced panel (H6.1) and the ties would be lost (H3.2). One table says it for every key;
 // the hooks module reads and writes through it.
+// The store has a ceiling (4 MiB of JSON): past it every write fails. So every write goes through
+// `guarded`: a failing write is said in the debug log (once per reason), prunes what no session needs
+// any more (pruneStore) and is tried once more; a failure that stays is kept (`storeFailure`) for the
+// /task-tree answer. The panel on screen is not touched: only its saving stops.
 
 import type { PluginState } from 'claude-code'
 
 import type { Child } from '../types'
+import { debugOnce } from '../io/log'
 
 export type Key = keyof PluginState['task-tree']
 // Where it lives: the state alone; the state with a copy in the store; the store alone; a variable
@@ -81,7 +86,7 @@ export const TABLE: readonly Row[] = [
   { key: 'replanDue', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'a turn of the main loop was stopped (Esc) and no request came since: the next request gets the reminder to replan; a turn that opens no request (the app\'s notice, a hand-back) leaves it, though its end sets turnAborted back to false; set by parkDeadTurn too (a turn that died with the process)' },
   // The store alone.
-  { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
+  { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them; the work, turn and links records of a session out of the list are pruned with its panel (pruneStore), and a session that comes back to it writes them again (saveGroups answers it)' },
   // Variables of the module: a hot reload starts them over.
   { key: 'loaded', lives: 'module', merge: 'none', restoredAt: [], note: 'which store copies this module brought back (groups, links): a reload brings them back again on first use' },
   { key: 'keptLinks', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the links record as the store holds it, refilled whenever it is read or written; the ties of sessions the host leaves out' },
@@ -152,16 +157,76 @@ export const current = <T>(cur: T | undefined, old: T): T => (cur !== undefined 
 export async function loadStore($: any, key: string, id?: string): Promise<unknown> {
   return $.store.get(storeKey(key, id ?? (await $.session.id())))
 }
-export async function saveStore($: any, key: string, value: unknown): Promise<void> {
-  await $.store.set(storeKey(key, await $.session.id()), value)
+// The last write of the store that failed (what, the error, when), until that write works again.
+export const storeFailure: { what?: string; error?: string; at?: number } = {}
+// What each store record is, in the log's words.
+const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações' }
+// A write of the store (`key` names the record): tried; on a failure, said in the log, the store pruned
+// and tried once more; a failure that stays is said and kept, never thrown (the hook goes on).
+export async function guarded($: any, key: string, write: () => Promise<void>): Promise<boolean> {
+  const what = WHAT[key] ?? key
+  for (let round = 0; round < 2; round++) {
+    try {
+      await write()
+      if (storeFailure.what === what) {
+        delete storeFailure.what
+        delete storeFailure.error
+        delete storeFailure.at
+      }
+      return true
+    } catch (err) {
+      await debugOnce($, `task-tree: store não gravado (${what}): ${String(err)}`)
+      storeFailure.what = what
+      storeFailure.error = String(err)
+      storeFailure.at = Date.now()
+      if (round === 0) await pruneStore($)
+    }
+  }
+  return false
+}
+// The prefixes of earlier versions, which nothing writes any more.
+const GONE = ['asks', 'view']
+// The records kept per session (the panel's and the three beside it).
+const PER_SESSION = ['session', 'work', 'turn', 'links']
+// Deletes what no session needs: the keys of earlier versions, and the records of the sessions out
+// of the list (`sessions`), but never this one's. Run once per module by itself (the first save of the
+// panel) and whenever a write fails. A failure of its own is said in the log and breaks nothing.
+let prunedOnce = false
+export async function pruneStore($: any): Promise<void> {
+  prunedOnce = true
+  try {
+    const own: string = await $.session.id()
+    const listed = ((await $.store.get(rowOf('sessions').store as string)) as string[] | undefined) ?? []
+    const keys = ((await $.store.keys()) as string[]) ?? []
+    for (const k of keys) {
+      const at = k.indexOf(':')
+      if (at < 0) continue
+      const prefix = k.slice(0, at)
+      const id = k.slice(at + 1)
+      const drop = GONE.includes(prefix) || (PER_SESSION.includes(prefix) && id !== own && !listed.includes(id))
+      if (drop) await $.store.delete(k)
+    }
+  } catch (err) {
+    await debugOnce($, `task-tree: store não podado: ${String(err)}`)
+  }
+}
+export async function saveStore($: any, key: string, value: unknown): Promise<boolean> {
+  return guarded($, key, async () => $.store.set(storeKey(key, await $.session.id()), value))
 }
 // The panel's copy, and the list of the sessions that have one (the newest KEEP; the others' copies
-// are deleted).
-export async function saveGroups($: any, groups: unknown): Promise<void> {
-  const id: string = await $.session.id()
-  await $.store.set(storeKey('groups', id), groups)
-  const known = ((await $.store.get(rowOf('sessions').store as string)) as string[] | undefined) ?? []
-  const order = [id, ...known.filter(k => k !== id)]
-  for (const old of order.slice(KEEP)) await $.store.delete(storeKey('groups', old))
-  await $.store.set(rowOf('sessions').store as string, order.slice(0, KEEP))
+// are deleted). Answers whether this session was out of the list (a new session, or one whose
+// records another session pruned): the caller then writes its work, turn end and links again.
+export async function saveGroups($: any, groups: unknown): Promise<{ saved: boolean; back: boolean }> {
+  let back = false
+  const saved = await guarded($, 'groups', async () => {
+    const id: string = await $.session.id()
+    await $.store.set(storeKey('groups', id), groups)
+    const known = ((await $.store.get(rowOf('sessions').store as string)) as string[] | undefined) ?? []
+    back = !known.includes(id)
+    const order = [id, ...known.filter(k => k !== id)]
+    for (const old of order.slice(KEEP)) await $.store.delete(storeKey('groups', old))
+    await $.store.set(rowOf('sessions').store as string, order.slice(0, KEEP))
+  })
+  if (saved && !prunedOnce) await pruneStore($)
+  return { saved, back }
 }

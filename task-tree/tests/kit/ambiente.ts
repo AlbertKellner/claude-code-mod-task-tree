@@ -11,9 +11,13 @@ export const PROPS = (colunas = 60) =>
 // Chamar antes da primeira chamada a $.
 export function fixar(on: any, opcoes: { agora?: number } = {}) {
   const relogio = mock.clock(on, { now: opcoes.agora ?? AGORA })
-  // Barra de status e log do host: o mod só escreve neles.
+  // Barra de status e log do host: o mod só escreve neles. As linhas do log ficam em `log`.
+  const log: string[] = []
   on('ui.status', () => ({ value: undefined }))
-  on('ui.log', () => ({ value: undefined }))
+  on('ui.log', (_$: any, e: any) => {
+    log.push(String(e?.text ?? ''))
+    return { value: undefined }
+  })
   // Abaixo do mod, o prompt e o fim do turno só ecoam (o mod já fez a parte dele).
   on('prompt.submit', (_$: any, e: any) => e)
   // A entrega a um subagente (session.receive): o núcleo a enfileira com o texto dela.
@@ -24,7 +28,7 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   on('command.register', () => ({ value: {} }))
   on('tool.register', () => ({ value: {} }))
   on('classic.SessionStart', () => ({}))
-  return { relogio }
+  return { relogio, log }
 }
 
 // Os subagentes que o host lista (agent.list), para as chamadas com agentId. Chamar antes da
@@ -37,11 +41,13 @@ export function subagente(on: any, ...ids: string[]) {
 export const SESSAO = 'uuid-eu'
 
 // Um store que passa de um teste ao outro do mesmo arquivo (o objeto é do arquivo): um teste grava,
-// o seguinte (módulo novo, state vazio: outro processo) lê. Chamar antes da primeira chamada a $.
-export function armazem(on: any, dados: Record<string, unknown>) {
+// o seguinte (módulo novo, state vazio: outro processo) lê. `recusar`: o store recusa a gravação
+// enquanto ele responder true sobre o objeto (o store cheio). Chamar antes da primeira chamada a $.
+export function armazem(on: any, dados: Record<string, unknown>, opcoes: { recusar?: (dados: Record<string, unknown>) => boolean } = {}) {
   on('session.id', () => ({ value: SESSAO }))
   on('store.get', (_$: any, e: any) => ({ value: dados[e.key] }))
   on('store.set', (_$: any, e: any) => {
+    if (opcoes.recusar?.(dados)) return { deny: 'store acima de 4 MiB' }
     dados[e.key] = e.value === undefined ? undefined : JSON.parse(JSON.stringify(e.value))
     return { value: undefined }
   })

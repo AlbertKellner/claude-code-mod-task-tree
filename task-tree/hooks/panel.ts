@@ -10,7 +10,7 @@ import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '..
 import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
-import { debug } from '../io/log'
+import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
 import { stayed } from '../draw/layout'
@@ -20,7 +20,7 @@ export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
 // and not exported: each hook file declares the ones it uses). Where each
 // lives and how it comes back is the durability table's (../state/durability), which has a row
-// for every one of them (tests/durabilidade.test.ts).
+// for every one of them.
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
@@ -61,8 +61,7 @@ export async function saveTurn($: any) {
     const replan = (await $.state.get(replanDueState)).value
     const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true })
     if (text === lastTurn) return
-    await saveStore($, 'turnEnded', JSON.parse(text))
-    lastTurn = text
+    if (await saveStore($, 'turnEnded', JSON.parse(text))) lastTurn = text
   } catch {}
 }
 // The turn's "first use" (the table's restoredAt), as ensureView: a restart without session.start
@@ -88,7 +87,8 @@ export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
       loaded.add('turn')
     } catch {}
     return saved
-  } catch {
+  } catch (err) {
+    await unread($, 'fim do turno', err)
     return undefined
   }
 }
@@ -108,7 +108,9 @@ export async function restoreTurn($: any, id?: string, replaceHeld = false) {
     await $.state.set(turnAbortedState, saved.aborted)
     await $.state.set(replanDueState, saved.replan)
     lastTurn = JSON.stringify(saved)
-  } catch {}
+  } catch (err) {
+    await unread($, 'fim do turno', err)
+  }
 }
 // A new process (session.start that brought the panel into an empty state, or a resume) finds the turn
 // still going on by the store (`ended: null`, or no record at all): no turn runs at that moment, so the
@@ -384,12 +386,26 @@ export async function showStatus($: any, groups: Group[]) {
   $.ui.status(text)
 }
 
+// A session out of the store's list (new, or pruned by another session) writes its work, turn end
+// and links again with the panel: the module's copies of what was already written are forgotten.
 export async function persist($: any, groups: Group[]) {
   await showStatus($, groups)
   try {
-    await saveGroups($, groups)
+    const { back } = await saveGroups($, groups)
+    if (back) {
+      lastTurn = undefined
+      lastLinks = undefined
+      await ensureTurn($)
+      await saveTurn($)
+      const { value: work } = await $.state.get(workState)
+      if (Array.isArray(work)) await saveStore($, 'work', work)
+    }
   } catch {}
   await publishPanel($)
+}
+// A read of the store that failed, said once per record and reason; what the caller does is unchanged.
+async function unread($: any, what: string, err: unknown) {
+  await debugOnce($, `task-tree: store não lido (${what}): ${String(err)}`)
 }
 
 // Before groups the panel was one list (`tasks`): it moves into the main group, once,
@@ -421,7 +437,13 @@ export async function replace($: any, groups: Group[]) {
 // The session's panel as the store keeps it; its subagents do not come back, so what they left
 // open is interrupted.
 export async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
-  const kept = (await loadStore($, 'groups', id)) as Group[] | undefined
+  let kept: Group[] | undefined
+  try {
+    kept = (await loadStore($, 'groups', id)) as Group[] | undefined
+  } catch (err) {
+    await unread($, 'painel', err)
+    throw err
+  }
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
 }
 
@@ -492,7 +514,8 @@ export async function ensureWork($: any): Promise<string[] | undefined> {
       loaded.add('work')
     } catch {}
     return work
-  } catch {
+  } catch (err) {
+    await unread($, 'trabalho', err)
     return undefined
   }
 }
@@ -661,9 +684,7 @@ export async function startsWork($: any): Promise<boolean> {
 }
 export async function setWork($: any, ids: string[]) {
   await $.state.set(workState, ids)
-  try {
-    await saveStore($, 'work', ids)
-  } catch {}
+  await saveStore($, 'work', ids)
 }
 // A plan renames the level-1 tasks whose id it reuses without replanning them (planTool); `old` gives
 // the id of such a task's old copy. The work follows the task to that copy, as the sessions' ties and
@@ -751,10 +772,7 @@ export async function saveLinks($: any) {
     const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
     const record = { children: links, sends, received, launches, left: [...leftBehind].slice(-LEFT_KEEP) }
     const key = JSON.stringify(record)
-    if (key !== lastLinks) {
-      await saveStore($, 'children', record)
-      lastLinks = key
-    }
+    if (key !== lastLinks && (await saveStore($, 'children', record))) lastLinks = key
     keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
@@ -776,7 +794,9 @@ export async function ensureLinks($: any) {
       if ((await $.state.get(launchesState)).value === undefined && list('launches').length > 0) await $.state.set(launchesState, list('launches'))
     }
     loaded.add('links')
-  } catch {}
+  } catch (err) {
+    await unread($, 'ligações', err)
+  }
 }
 // /clear in a session that opened others: their cards go at once, with the rest of the panel, and do
 // not come back (the person, 2026-11-14: "Some na hora"). Their ids join the ones left behind; the
@@ -802,7 +822,9 @@ export async function restoreWorkOf($: any, id: string) {
   try {
     const saved = await loadStore($, 'work', id)
     await setWork($, Array.isArray(saved) ? saved.map(String) : [])
-  } catch {}
+  } catch (err) {
+    await unread($, 'trabalho', err)
+  }
 }
 export async function restoreWork($: any) {
   loaded.add('work')
@@ -811,6 +833,8 @@ export async function restoreWork($: any) {
   try {
     const saved = await loadStore($, 'work')
     if (Array.isArray(saved)) await $.state.set(workState, keepCurrent(cur, saved.map(String)))
-  } catch {}
+  } catch (err) {
+    await unread($, 'trabalho', err)
+  }
 }
 

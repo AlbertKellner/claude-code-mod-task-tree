@@ -760,3 +760,68 @@ test('uma mensagem nova à filha de antes do /clear mostra a carta, sem cartão'
   expect(cartaSob(p, 'Outra um'), emTexto(p)).toBe('fila')
   expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
 })
+
+const SOBRAS = ['asks:x', 'view:x', 'work:velha', 'turn:velha', 'links:velha']
+const naoGravado = (log: string[]) => log.filter(l => l.includes('store não gravado'))
+// O /task-tree: o app põe o painel na tela e não lista outros painéis.
+const comandoNaTela = (on: any) => {
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.panes', () => ({ value: [] }))
+}
+const comando = async ($: any): Promise<string> => String((await $.command.run({ command: 'task-tree' }))?.text ?? '')
+const CHEIO: Record<string, unknown> = {}
+
+// Regra: durabilidade.store-cheio-nao-perde-em-silencio
+test('store cheio: a gravação que falha apaga as sobras e tenta de novo', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  comandoNaTela(on)
+  for (const k of SOBRAS) CHEIO[k] = { x: 1 }
+  CHEIO['sessions'] = ['outra']
+  CHEIO['session:outra'] = []
+  armazem(on, CHEIO, { recusar: d => SOBRAS.some(k => k in d) })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  expect(SOBRAS.filter(k => k in CHEIO), JSON.stringify(Object.keys(CHEIO))).toEqual([])
+  expect('session:outra' in CHEIO, JSON.stringify(Object.keys(CHEIO))).toBe(true)
+  expect([`session:${SESSAO}`, `work:${SESSAO}`, `links:${SESSAO}`].filter(k => !(k in CHEIO)), JSON.stringify(Object.keys(CHEIO))).toEqual([])
+  expect(naoGravado(log).length, JSON.stringify(log)).toBe(1)
+  // Gravou na segunda tentativa: o /task-tree não fala do store.
+  expect(await comando($)).not.toContain('Store:')
+})
+
+// Regra: durabilidade.store-cheio-nao-perde-em-silencio
+test('store que não aceita nada: o painel segue na tela e o log diz', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  comandoNaTela(on)
+  armazem(on, {}, { recusar: () => true })
+  await pedido($, 'Pedido um')
+  const r = await plan($, A)
+  expect(r.erro, r.texto).toBe(false)
+  expect(r.texto).toContain('Plano exibido')
+  await start($, ['1'])
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(naoGravado(log).length > 0, JSON.stringify(log)).toBe(true)
+  expect(await comando($)).toContain('o painel na tela está certo, mas não está sendo salvo')
+})
+
+// Regra: durabilidade.store-cheio-nao-perde-em-silencio
+test('a sessão que volta à lista regrava trabalho, fim do turno e ligações', async ($: any, on: any) => {
+  fixar(on)
+  const dados: Record<string, unknown> = {}
+  armazem(on, dados)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  const minhas = [`session:${SESSAO}`, `work:${SESSAO}`, `turn:${SESSAO}`, `links:${SESSAO}`]
+  expect(minhas.filter(k => !(k in dados)), JSON.stringify(Object.keys(dados))).toEqual([])
+  // A poda de outra sessão: os registros desta saem, e ela sai da lista.
+  for (const k of minhas) delete dados[k]
+  dados['sessions'] = ['outra']
+  await start($, ['b1'])
+  expect(minhas.filter(k => !(k in dados)), JSON.stringify(Object.keys(dados))).toEqual([])
+})
