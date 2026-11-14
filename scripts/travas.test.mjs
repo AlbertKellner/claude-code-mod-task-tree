@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
 import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
-import { aprovarGolden, liberaGolden, liberaTeste } from './selos.mjs'
+import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead } from './selos.mjs'
 import { impacto } from './impacto.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
@@ -367,4 +367,111 @@ test('--recontar só mexe em assercoes, e recusa com teste mudado sem selo', com
   assert.equal(recusa.status, 1)
   assert.match(recusa.stderr, /::dois/)
   assert.deepEqual(lerSelosJson(dir).testes[UM], depois)
+}))
+
+// Os selos conferidos contra os de HEAD: apagar, trocar tipo, hash ou asserções à mão não passa.
+const gravarSelosJson = (dir, s) => writeFileSync(join(dir, 'regras', 'selos.json'), `${JSON.stringify(s, null, 2)}\n`)
+const TESTE_DOIS = "\n// Regra: exemplo.b\ntest('dois', async ($: any) => {\n  expect(3).toBe(3)\n})\n"
+const reescrever = (dir, regra, data) => {
+  const de = regra === 'exemplo.a' ? 'Origem: teste das travas.\nEstado: coberto\n\n### exemplo.b' : 'A regra B.\n\n- Dado algo\n- Quando algo\n- Então algo\n\nOrigem: teste das travas.\nEstado: coberto'
+  trocar(dir, 'regras/exemplo.md', de, de.replace('Origem: teste das travas.\n', `Origem: teste das travas.\nReescrito: ${data}, o usuário decidiu.\n`))
+}
+const ontem = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return d.toLocaleDateString('sv-SE')
+})()
+
+test('apagar um teste e o selo dele à mão falha', comMontagem(dir => {
+  trocar(dir, ARQ, TESTE_DOIS, '')
+  const s = lerSelosJson(dir)
+  delete s.testes[DOIS]
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /selo apagado sem registro: .*::dois/)
+}))
+
+test('remover com decisão deixa registro, e a regressão libera', comMontagem(dir => {
+  trocar(dir, ARQ, TESTE_DOIS, '')
+  reescrever(dir, 'exemplo.b', hoje)
+  const r = selos(dir, '--remover', DOIS, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(r.status, 0, r.stderr)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.removidos[DOIS].tipo, 'decisao')
+  assert.equal(agora.removidos[DOIS].reescrito, hoje)
+  const base = selosDeHead(dir)
+  assert.equal(liberaRemovido(agora, base, DOIS, hoje), true)
+  assert.equal(liberaRemovido(agora, base, DOIS, ontem), false)
+  assert.equal(liberaRemovido(agora, base, UM, hoje), false)
+  assert.equal(liberaRemovido(agora, agora, DOIS, undefined), false)
+  assert.equal(liberaRemovido(agora, base, DOIS, undefined), true)
+}))
+
+test('trocar à mão o hash e o tipo não passa', comMontagem(dir => {
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(3)')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.testes[UM].tipo = 'novo'
+  gravarSelosJson(dir, s)
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /tipo `novo` em teste que já existia: .*::um/)
+  s.testes[UM].tipo = 'decisao'
+  gravarSelosJson(dir, s)
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /decisão sem `Reescrito:`: .*::um/)
+  reescrever(dir, 'exemplo.a', hoje)
+  r = conferir(dir)
+  assert.equal(r.status, 0, r.stderr)
+}))
+
+test('o número de asserções escrito à mão não vale', comMontagem(dir => {
+  const s = lerSelosJson(dir)
+  s.testes[UM].assercoes = 9
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /asserções do selo diferentes das contadas: .*::um \(selo 9, contadas 2\)/)
+}))
+
+test('apagar um cenário do golden junto com o selo falha', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+  mkdirSync(join(dir, 'task-tree', 'tests', 'golden'), { recursive: true })
+  aprovarGolden(dir, { principal: { arvore: { t: 'Box' }, svgs: [] }, filha: { arvore: { t: 'Text' }, svgs: [] } }, `"está certo", ${hoje}`)
+  git('add', '-A')
+  git('commit', '-q', '-m', 'golden')
+  assert.equal(conferir(dir).status, 0)
+  trocar(dir, 'task-tree/tests/golden/desenho.ts', ',"principal":{"arvore":{"t":"Box"},"svgs":[]}', '')
+  const s = lerSelosJson(dir)
+  delete s.golden.principal
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /cenário do golden sumido: principal/)
+}))
+
+test('renomear um teste leva o selo', comMontagem(dir => {
+  const UNO = `${ARQ}::uno`
+  trocar(dir, ARQ, "test('um'", "test('uno'")
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'refatoracao', '--motivo', 'nome melhor')
+  assert.equal(r.status, 0, r.stderr)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.removidos[UM].para, UNO)
+  assert.ok(agora.testes[UNO])
+  assert.equal(liberaRemovido(agora, selosDeHead(dir), UM, hoje), false)
+}))
+
+test('renomear com o corpo mudado não é refatoração', comMontagem(dir => {
+  const UNO = `${ARQ}::uno`
+  trocar(dir, ARQ, "test('um'", "test('uno'")
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(3)')
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'refatoracao', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /renome puro/)
 }))

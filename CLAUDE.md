@@ -89,6 +89,9 @@ a regra que ele protege.
 - Mudar a forma de um teste sem mudar o que ele afirma é refatoração (`--tipo refatoracao`): as
   asserções não podem diminuir e o teste antigo precisa continuar passando.
 - Teste novo é selado à mão (`--tipo novo`), e fica protegido a partir do commit seguinte.
+- Tirar ou renomear um teste por decisão do usuário usa `node scripts/selos.mjs --remover` ou
+  `--renomear`, que deixam em `selos.json` (`removidos`) o registro que a etapa `regressao` aceita; o
+  hook passa no mesmo commit do código.
 - Regressão se corrige no código, nunca no teste. Se a mudança precisa alterar um comportamento
   protegido e não há decisão do usuário, pare e pergunte.
 - O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu

@@ -7,7 +7,8 @@
 //   node scripts/selos.mjs                                  confere (etapa "selos" do check)
 //   node scripts/selos.mjs --selar "<arquivo>::<nome>" --tipo decisao|refatoracao|novo --motivo "…"
 //   node scripts/selos.mjs --kit <arquivo> --tipo … --motivo "…"
-//   node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"
+//   node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"   (registra em "removidos")
+//   node scripts/selos.mjs --renomear "<chave antiga>" --para "<chave nova>" --tipo refatoracao|decisao --motivo "…"
 //   node scripts/selos.mjs --novos --motivo "…"             sela como "novo" todo teste e kit sem selo
 //   node scripts/selos.mjs --recontar                       regrava só "assercoes" dos selos que conferem
 // --raiz <pasta>: onde estão os arquivos (padrão: o repositório); --repo <pasta>: o git de HEAD
@@ -181,7 +182,7 @@ export function extrair(raiz) {
   return { testes, kit, regras }
 }
 
-const vazio = () => ({ testes: {}, kit: {}, golden: {} })
+const vazio = () => ({ testes: {}, kit: {}, golden: {}, removidos: {} })
 const lerSelos = raiz => ({ ...vazio(), ...(existsSync(join(raiz, SELOS)) ? JSON.parse(readFileSync(join(raiz, SELOS), 'utf8')) : {}) })
 // Os selos de um commit (HEAD por padrão; na CI, a base do PR).
 export function selosDeHead(repo, ref = 'HEAD') {
@@ -190,11 +191,15 @@ export function selosDeHead(repo, ref = 'HEAD') {
 }
 const gravar = (raiz, selos) => {
   const ordenado = o => Object.fromEntries(Object.keys(o ?? {}).sort().map(k => [k, o[k]]))
-  writeFileSync(join(raiz, SELOS), `${JSON.stringify({ testes: ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden) }, null, 2)}\n`)
+  writeFileSync(join(raiz, SELOS), `${JSON.stringify({ testes: ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden), removidos: ordenado(selos.removidos) }, null, 2)}\n`)
 }
 
 // ---- Golden do desenho: a árvore e as fontes dos Svg de cada cenário, aprovadas pelo usuário no app (tests/golden/desenho.ts).
 export const GOLDEN = 'task-tree/tests/golden/desenho.ts'
+// Os cenários previstos do golden (reexportados por golden.mjs). A etapa selos exige cada um quando o
+// repositório tem o teste do golden.
+export const CENARIOS = ['principal', 'filha', 'envios', 'subagente']
+const TESTE_GOLDEN = 'task-tree/tests/golden.test.ts'
 const CABECA_GOLDEN = '// Gerado por npm run golden:aprovar, com a aprovação do usuário no app; não editar à mão.\nexport const GOLDEN: Record<string, unknown> = '
 // Os cenários gravados: o JSON depois de "GOLDEN ... = ".
 export function lerGolden(raiz) {
@@ -228,9 +233,17 @@ export function liberaTeste(s, h, data) {
   return s !== undefined && s.tipo === 'decisao' && (data === undefined || s.data === data) && (h === undefined || s.hash !== h.hash)
 }
 
+// O mesmo para um teste removido (ou renomeado) por decisão: o registro em "removidos" veio agora (não
+// estava na base) e é de hoje (ou, na CI, trazido no PR). Renome de refatoração não libera: o teste da
+// base tem de continuar passando.
+export function liberaRemovido(agora, base, chave, data) {
+  const r = agora.removidos?.[chave]
+  return r !== undefined && r.tipo === 'decisao' && base.removidos?.[chave] === undefined && (data === undefined || r.data === data)
+}
+
 // A conferência: devolve a lista de problemas.
 export function conferir(raiz, repo = raiz, base = 'HEAD') {
-  const { testes, kit } = extrair(raiz)
+  const { testes, kit, regras } = extrair(raiz)
   const selos = lerSelos(raiz)
   const head = selosDeHead(repo, base)
   const problemas = []
@@ -256,10 +269,20 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     }
   }
   for (const [chave, s] of Object.entries(selos.testes)) {
+    const t = testes[chave]
+    // O número gravado tem de ser o contado: escrito à mão, ele esconderia uma perda.
+    if (t && s.assercoes !== t.assercoes) problemas.push(`asserções do selo diferentes das contadas: ${chave} (selo ${s.assercoes}, contadas ${t.assercoes})`)
     const antes = head.testes[chave]
-    if (antes && (s.tipo === 'refatoracao' || s.tipo === 'novo') && s.assercoes < antes.assercoes)
-      problemas.push(`menos asserções sem decisão: ${chave} (${antes.assercoes} → ${s.assercoes})`)
+    if (!antes || s.hash === antes.hash) continue
+    const contadas = t?.assercoes ?? s.assercoes
+    if (s.tipo === 'novo') problemas.push(`tipo \`novo\` em teste que já existia: ${chave}`)
+    if ((s.tipo === 'refatoracao' || s.tipo === 'novo') && contadas < antes.assercoes)
+      problemas.push(`menos asserções sem decisão: ${chave} (${antes.assercoes} → ${contadas})`)
+    if (s.tipo === 'decisao' && (s.regras ?? []).some(id => !(regras.get(id)?.reescrito ?? []).some(d => !antes.data || d >= antes.data)))
+      problemas.push(`decisão sem \`Reescrito:\`: ${chave} (cada regra do selo precisa de "Reescrito:" desde ${antes.data})`)
   }
+  // Selo da base que saiu do arquivo: só com o registro de --remover ou --renomear.
+  for (const chave of Object.keys(head.testes)) if (!selos.testes[chave] && !selos.removidos[chave]) problemas.push(`selo apagado sem registro: ${chave}`)
   const golden = lerGolden(raiz)
   for (const [cen, valor] of Object.entries(golden)) {
     const s = selos.golden[cen]
@@ -267,13 +290,17 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     else if (s.hash !== hashGolden(valor)) problemas.push(`o desenho do golden mudou sem aprovação: ${cen}`)
   }
   for (const cen of Object.keys(selos.golden)) if (!(cen in golden)) problemas.push(`selo de golden sem cenário: ${cen}`)
+  // Cenário previsto (com o teste do golden no repositório) ou da base que sumiu do desenho e do selo.
+  const previstos = new Set([...(existsSync(join(raiz, TESTE_GOLDEN)) ? CENARIOS : []), ...Object.keys(head.golden)])
+  for (const cen of previstos) if (!(cen in golden) || !selos.golden[cen]) problemas.push(`cenário do golden sumido: ${cen}`)
   return problemas
 }
 
-// Exige, em cada regra, um "Reescrito:" com data igual ou posterior a `desde`.
+// Exige, em cada regra, um "Reescrito:" com data igual ou posterior a `desde`; devolve a data mais nova.
 function exigirReescrito(regras, ids, desde) {
   const faltam = ids.filter(id => !(regras.get(id)?.reescrito ?? []).some(d => !desde || d >= desde))
   if (faltam.length > 0) throw new Error(`reescreva o cenário no catálogo com a decisão do usuário antes de selar ("Reescrito: AAAA-MM-DD, …" em ${faltam.join(', ')})`)
+  return ids.flatMap(id => regras.get(id)?.reescrito ?? []).sort().at(-1)
 }
 
 export function selar(raiz, repo, opcoes) {
@@ -320,10 +347,30 @@ export function selar(raiz, repo, opcoes) {
     const s = selos.testes[opcoes.remover]
     if (!s) throw new Error(`sem selo: ${opcoes.remover}`)
     if (tipo !== 'decisao') throw new Error('remover um teste selado exige --tipo decisao')
-    exigirReescrito(regras, s.regras, s.data)
+    const reescrito = exigirReescrito(regras, s.regras, s.data)
     delete selos.testes[opcoes.remover]
+    selos.removidos[opcoes.remover] = { regras: s.regras, data: hoje(), motivo, reescrito, hash: s.hash, tipo }
     gravar(raiz, selos)
-    return `selo removido: ${opcoes.remover}`
+    return `selo removido (registrado): ${opcoes.remover}`
+  }
+  if (opcoes.renomear) {
+    const de = opcoes.renomear
+    const para = opcoes.para
+    const s = selos.testes[de]
+    if (!s) throw new Error(`sem selo: ${de}`)
+    if (!para) throw new Error('--renomear exige --para "<chave nova>"')
+    const t = testes[para]
+    if (!t) throw new Error(`teste coberto não encontrado: ${para}`)
+    if (tipo === 'novo') throw new Error('renomear exige --tipo refatoracao ou decisao')
+    let reescrito
+    if (tipo === 'refatoracao') {
+      if (t.hash !== s.hash) throw new Error(`refatoração só para renome puro (o corpo mudou): ${de} → ${para}; use --tipo decisao`)
+    } else reescrito = exigirReescrito(regras, t.regras, s.data)
+    delete selos.testes[de]
+    selos.testes[para] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo }
+    selos.removidos[de] = { regras: s.regras, data: hoje(), motivo, ...(reescrito ? { reescrito } : {}), hash: s.hash, para, tipo }
+    gravar(raiz, selos)
+    return `selo renomeado (${tipo}): ${de} → ${para}`
   }
   const chave = opcoes.selar
   const t = testes[chave]
@@ -348,8 +395,8 @@ if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.a
   const raiz = valor('--raiz') ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const repo = valor('--repo') ?? raiz
   try {
-    if (args.some(a => ['--selar', '--kit', '--remover', '--novos', '--recontar'].includes(a))) {
-      console.log(selar(raiz, repo, { selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), novos: args.includes('--novos'), recontar: args.includes('--recontar'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
+    if (args.some(a => ['--selar', '--kit', '--remover', '--renomear', '--novos', '--recontar'].includes(a))) {
+      console.log(selar(raiz, repo, { selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), renomear: valor('--renomear'), para: valor('--para'), novos: args.includes('--novos'), recontar: args.includes('--recontar'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
     } else {
       const problemas = conferir(raiz, repo, valor('--base') ?? 'HEAD')
       for (const p of problemas) console.error(`- ${p}`)

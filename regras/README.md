@@ -82,12 +82,24 @@ Selar é um passo explícito, que aparece no diff de `selos.json`:
 npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao|refatoracao|novo --motivo "…"
 node scripts/selos.mjs --kit <arquivo> --tipo refatoracao --motivo "…"
 node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"
+node scripts/selos.mjs --renomear "<chave antiga>" --para "<chave nova>" --tipo refatoracao|decisao --motivo "…"
 node scripts/selos.mjs --novos --motivo "…"   # sela como "novo" os testes e o kit ainda sem selo
 ```
 
-A etapa `selos` do `npm run check` falha quando: um teste selado mudou sem selo novo; um teste
-coberto não tem selo; um teste selado sumiu; um arquivo do kit mudou sem selo; ou um selo
-`refatoracao`/`novo` tem menos asserções que o de `HEAD`. A etapa `travas` testa essas regras num
+`--remover` (exige `Reescrito:` em cada regra, com data igual ou posterior à do selo) apaga o selo e
+grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado, o hash que saiu e o
+tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos` com `para`:
+`refatoracao` só para renome puro (o hash do corpo é o mesmo), `decisao` para corpo mudado, com a
+exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
+`removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada.
+
+A etapa `selos` do `npm run check` confere os selos contra os de `HEAD` (ou `--base`) e falha quando:
+um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste selado sumiu; um selo de
+`HEAD` foi apagado sem registro em `removidos`; um selo `refatoracao`/`novo` tem menos asserções que o
+de `HEAD`; um teste que já existia ganhou hash novo com tipo `novo`; um selo `decisao` com hash novo
+não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`); as asserções do selo
+são diferentes das contadas no teste; ou um cenário do golden (os previstos, com `tests/golden.test.ts`
+no repositório, e os de `HEAD`) sumiu do desenho ou do selo. A etapa `travas` testa essas regras num
 repositório temporário.
 
 ## Mapa de código (matriz de impacto)

@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
-import { hoje, liberaGolden, liberaTeste, selosDeHead } from './selos.mjs'
+import { hoje, liberaGolden, liberaRemovido, liberaTeste, selosDeHead } from './selos.mjs'
 
 const args = process.argv.slice(2)
 const valor = nome => {
@@ -78,7 +78,7 @@ try {
     console.error(`- saída irreconhecível do plugin test (exit ${r.status}); a regressão não pode ser conferida:\n${saida.slice(0, 2000)}`)
     codigo = 1
   } else {
-    const agora = existsSync(join(raiz, 'regras', 'selos.json')) ? JSON.parse(readFileSync(join(raiz, 'regras', 'selos.json'), 'utf8')) : { testes: {} }
+    const agora = existsSync(join(raiz, 'regras', 'selos.json')) ? JSON.parse(readFileSync(join(raiz, 'regras', 'selos.json'), 'utf8')) : { testes: {}, removidos: {} }
     const head = selosDeHead(repo, ref)
     for (const { chave } of falhas) {
       const s = agora.testes[chave]
@@ -88,6 +88,9 @@ try {
       const cenario = /golden\.test\.ts::golden: (\S+)$/.exec(chave)?.[1]
       if (cenario && liberaGolden(agora, head, cenario, dia)) {
         console.log(`- desenho aprovado: ${chave} (${agora.golden[cenario].motivo})`)
+      } else if (liberaRemovido(agora, head, chave, dia)) {
+        const r = agora.removidos[chave]
+        console.log(r.para ? `- renomeado por decisão: ${chave} → ${r.para} (${r.motivo})` : `- removido por decisão: ${chave} (${r.motivo})`)
       } else if (liberaTeste(s, h, dia)) {
         console.log(`- decisão: ${chave} — regras ${regras} (${s.motivo})`)
       } else {
