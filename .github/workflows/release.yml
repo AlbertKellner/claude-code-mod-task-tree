@@ -28,7 +28,8 @@ jobs:
 
       # A versão sobe sozinha pelo PR mesclado (ninguém edita o plugin.json à mão): "!" depois do
       # tipo no título, ou uma linha "BREAKING CHANGE:" no rodapé do corpo → major; título "feat…"
-      # → minor; qualquer outro → patch. A conta fica em scripts/versao.mjs (testada nas travas).
+      # → minor; qualquer outro → patch (fora do formato Conventional Commits, com aviso no resumo
+      # do workflow). A conta fica em scripts/versao.mjs (testada nas travas).
       # Título e corpo entram por env, nunca interpolados no script.
       - name: Calcular a versão nova
         id: version
@@ -43,6 +44,11 @@ jobs:
           fi
           level=$(printf '%s\n' "$out" | sed -n 's/^level=//p')
           new=$(printf '%s\n' "$out" | sed -n 's/^new=//p')
+          aviso=$(printf '%s\n' "$out" | sed -n 's/^aviso=//p')
+          if [ -n "$aviso" ]; then
+            echo "::warning::$aviso"
+            printf '### Aviso\n\n%s\n' "$aviso" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "::notice::Versão $current → $new ($level, pelo PR: $TITLE)"
           echo "new=$new" >> "$GITHUB_OUTPUT"
           echo "tag=v$new" >> "$GITHUB_OUTPUT"

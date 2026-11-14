@@ -527,3 +527,17 @@ test('o ! depois do tipo sobe a major, feat sobe a minor e o resto é patch', ()
   assert.equal(versaoNova('feat(task-tree): x', '', '0.15.2').nova, '0.16.0')
   assert.equal(versaoNova('fix(task-tree): x', '', '0.15.2').nova, '0.15.3')
 })
+
+test('título fora do formato Conventional Commits vira patch com aviso', () => {
+  for (const titulo of ['Feat: x', 'feature: x', 'feat add x']) {
+    const r = versaoNova(titulo, '', '0.15.2')
+    assert.equal(r.level, 'patch', titulo)
+    assert.equal(r.nova, '0.15.3', titulo)
+    assert.match(r.aviso ?? '', /fora do formato Conventional Commits/, titulo)
+  }
+})
+
+test('título no formato não traz aviso', () => {
+  for (const titulo of ['fix(task-tree): x', 'feat: x', 'chore(release): x', 'feat(task-tree)!: x'])
+    assert.equal(versaoNova(titulo, '', '0.15.2').aviso, undefined, titulo)
+})

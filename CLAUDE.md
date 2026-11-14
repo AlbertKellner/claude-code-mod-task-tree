@@ -185,5 +185,6 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 
 - A versão do plugin sobe sozinha no merge do PR, pelo título: `feat…` → minor; `!` depois do tipo,
   ou uma linha começando com `BREAKING CHANGE:` no corpo → major (citá-la no meio
-  do texto não conta); o resto → patch. Não edite a versão do `plugin.json`.
+  do texto não conta); o resto → patch; título fora do formato Conventional Commits → patch, com aviso
+  no resumo do workflow. Não edite a versão do `plugin.json`.
 - Título no formato Conventional Commits; descrição e labels atualizadas a cada push.

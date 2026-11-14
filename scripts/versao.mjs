@@ -17,13 +17,19 @@ export function versaoNova(titulo, corpo, atual) {
   else level = 'patch'
   const [major, minor, patch] = atual.split('.').map(Number)
   const nova = level === 'major' ? `${major + 1}.0.0` : level === 'minor' ? `${major}.${minor + 1}.0` : `${major}.${minor}.${patch + 1}`
-  return { level, nova }
+  if (FORMATO.test(titulo)) return { level, nova }
+  // Fora do formato a versão sobe como patch mesmo assim (nada falha), com aviso no resumo.
+  const aviso = `Título do PR fora do formato Conventional Commits: «${titulo}». A versão subiu como patch (${atual} → ${nova}). Se a mudança era uma funcionalidade (minor) ou quebra (major), ajuste a versão com um PR de correção de título \`feat…\` ou \`…!:\`.`
+  return { level, nova, aviso }
 }
+
+// tipo(escopo opcional) + "!" opcional + ": " + texto, com o tipo entre os do Conventional Commits.
+const FORMATO = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]*\))?!?: \S/
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     const r = versaoNova(process.env.TITLE ?? '', process.env.BODY ?? '', process.argv[2] ?? '')
-    process.stdout.write(`level=${r.level}\nnew=${r.nova}\n`)
+    process.stdout.write(`level=${r.level}\nnew=${r.nova}\n${r.aviso ? `aviso=${r.aviso}\n` : ''}`)
   } catch (e) {
     process.stderr.write(`${e.message}\n`)
     process.exit(1)
