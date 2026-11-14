@@ -475,3 +475,36 @@ test('renomear com o corpo mudado não é refatoração', comMontagem(dir => {
   assert.equal(r.status, 1)
   assert.match(r.stderr, /renome puro/)
 }))
+
+// A tabela de durabilidade (state/durability.ts) contra as chaves do state do mod (types/index.d.ts).
+function durabilidade(chaves, linhas) {
+  const dir = mapa('Código da área: hooks/turn.ts', '')
+  mkdirSync(join(dir, 'task-tree', 'types'), { recursive: true })
+  mkdirSync(join(dir, 'task-tree', 'state'), { recursive: true })
+  const tipos = ["declare module 'claude-code' {", '  interface PluginState {', `    'task-tree': { ${chaves.join('; ')} }`, '  }', '}', '']
+  writeFileSync(join(dir, 'task-tree', 'types', 'index.d.ts'), tipos.join('\n'))
+  const tabela = linhas.map(([k, l]) => `  { key: '${k}', lives: '${l}', merge: 'none', restoredAt: [], note: '' },`)
+  writeFileSync(join(dir, 'task-tree', 'state', 'durability.ts'), ['export const TABLE = [', ...tabela, ']', ''].join('\n'))
+  return dir
+}
+
+test('uma chave do state sem linha na tabela de durabilidade falha o check', () => {
+  const casos = [
+    // Completa: passa.
+    [['groups: Group[]', 'sent: { from: string; at: number }[]'], [['groups', 'state+store'], ['sent', 'state'], ['loaded', 'module']], 0, null],
+    // A tabela perdeu a linha de uma chave do state.
+    [['groups: Group[]', 'sent: { from: string; at: number }[]'], [['groups', 'state+store']], 1, /chave do state sem linha na tabela de durabilidade: sent/],
+    // Os tipos perderam a chave que a tabela diz estar no state.
+    [['groups: Group[]'], [['groups', 'state+store'], ['sent', 'state']], 1, /linha da tabela de durabilidade sem chave no state: sent/],
+  ]
+  for (const [chaves, linhas, status, erro] of casos) {
+    const dir = durabilidade(chaves, linhas)
+    try {
+      const r = regrasEm(dir)
+      assert.equal(r.status, status, r.stderr)
+      if (erro) assert.match(r.stderr, erro)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+})

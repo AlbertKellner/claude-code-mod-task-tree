@@ -20,7 +20,7 @@ export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
 // and not exported: each hook file declares the ones it uses). Where each
 // lives and how it comes back is the durability table's (../state/durability), which has a row
-// for every one of them.
+// for every one of them (the check's `regras` step fails on a key without one).
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const

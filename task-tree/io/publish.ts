@@ -98,8 +98,9 @@ export async function readPublished($: any, id: string): Promise<Published | und
 }
 
 // What the hooks module hands over for one publication: the panel as the state holds it (`tasks`,
-// the main group's, is for earlier versions; `sends` as queued, the taken ones are dropped here) and
-// what the last drawing left (its error, size and lines).
+// the main group's, is for earlier versions; `sends` whole, the taken ones too: the card of this session,
+// in the session that opened it, paints the letter delivered by them) and what the last drawing left
+// (its error, size and lines).
 export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'ultracode' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the

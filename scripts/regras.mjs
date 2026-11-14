@@ -130,13 +130,48 @@ export function lerTestes(raiz, regras) {
   return { citadas, problemas }
 }
 
+// A tabela de durabilidade (task-tree/state/durability.ts) contra as chaves do state do mod
+// (`PluginState['task-tree']` em task-tree/types/index.d.ts): cada chave tem uma linha que vive no
+// state (`state` ou `state+store`), e cada linha dessas tem a chave. Leitura de texto; sem os dois
+// arquivos, nada a conferir.
+export function lerDurabilidade(raiz) {
+  const tipos = join(raiz, 'task-tree', 'types', 'index.d.ts')
+  const tabela = join(raiz, 'task-tree', 'state', 'durability.ts')
+  if (!existsSync(tipos) || !existsSync(tabela)) return []
+  const texto = readFileSync(tipos, 'utf8')
+  const ini = texto.search(/'task-tree':\s*\{/)
+  if (ini < 0) return [`task-tree/types/index.d.ts: PluginState['task-tree'] não encontrado`]
+  // As chaves do objeto: o que vem antes do primeiro ':' de cada membro de profundidade 0.
+  const chaves = []
+  let prof = 0
+  let membro = ''
+  for (const ch of texto.slice(texto.indexOf('{', ini) + 1)) {
+    if ('{<([' .includes(ch)) prof++
+    if ('}>)]'.includes(ch)) {
+      if (prof === 0) break
+      prof--
+    }
+    if (prof === 0 && ch === ';') {
+      chaves.push(membro)
+      membro = ''
+    } else membro += ch
+  }
+  chaves.push(membro)
+  const doState = new Set(chaves.map(m => m.split(':')[0].trim().replace(/\?$/, '')).filter(Boolean))
+  const linhas = new Set([...readFileSync(tabela, 'utf8').matchAll(/\{\s*key:\s*'([^']+)',\s*lives:\s*'(state|state\+store)'/g)].map(m => m[1]))
+  return [
+    ...[...doState].filter(k => !linhas.has(k)).map(k => `task-tree/state/durability.ts: chave do state sem linha na tabela de durabilidade: ${k}`),
+    ...[...linhas].filter(k => !doState.has(k)).map(k => `task-tree/state/durability.ts: linha da tabela de durabilidade sem chave no state: ${k}`),
+  ]
+}
+
 // Linha de comando.
 if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.argv[1])) {
   const i = process.argv.indexOf('--raiz')
   const raiz = i >= 0 ? process.argv[i + 1] : join(dirname(fileURLToPath(import.meta.url)), '..')
   const cat = lerCatalogo(raiz)
   const tes = lerTestes(raiz, cat.regras)
-  const problemas = [...cat.problemas, ...tes.problemas]
+  const problemas = [...cat.problemas, ...tes.problemas, ...lerDurabilidade(raiz)]
   const regras = [...cat.regras.values()]
   const conta = estado => regras.filter(r => r.estado === estado).length
   for (const p of problemas) console.error(`- ${p}`)

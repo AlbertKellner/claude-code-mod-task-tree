@@ -93,7 +93,6 @@ export const TABLE: readonly Row[] = [
   { key: 'leftBehind', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the sessions this one opened before a /clear (the last 200), with no card from then on; kept in the links record (`left`), refilled whenever it is read or written, as keptLinks' },
   { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (asked again after a reload)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
-  { key: 'drawNow', lives: 'module', merge: 'none', restoredAt: [], note: 'the clock of the drawing in progress' },
   { key: 'drawSize', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s size, published' },
   { key: 'drawRows', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s lines, published' },
   { key: 'renderError', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s error, published' },
@@ -102,26 +101,21 @@ export const TABLE: readonly Row[] = [
   { key: 'poller', lives: 'module', merge: 'none', restoredAt: [], note: 'the 3 s reread of the sessions, started again likewise (the pane\'s drawing too)' },
   { key: 'engineSeen', lives: 'module', merge: 'none', restoredAt: [], note: 'the host\'s model per session, a minute each' },
   { key: 'samples', lives: 'module', merge: 'none', restoredAt: [], note: 'the turn\'s model calls so far (tokens out, duration), the last 20, for the output rate; a reload mid-turn starts them over (the state keeps the last rate)' },
-  { key: 'breaksMemo', lives: 'module', merge: 'none', restoredAt: [], note: 'a drawing\'s cache of the cards\' splits' },
   { key: 'unplanned, planned, answeredInChat', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message' },
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
   { key: 'usedReceipts', lives: 'module', merge: 'none', restoredAt: [], note: 'the messages received by other sessions already matched to a send of this one (watchSends): each closes one task; a reload starts it over' },
 ]
 
-// The keys of `$.state`: every key the hooks module reads or writes has a row (durabilidade.test.ts
-// fails on one that has not).
-export const STATE_KEYS = TABLE.filter(r => r.lives === 'state' || r.lives === 'state+store').map(r => r.key as Key)
-export const STORES = [...new Set(TABLE.flatMap(r => (r.store ? [r.store] : [])))]
-// The four state keys the links record holds.
-export const LINK_KEYS = TABLE.filter(r => r.store === 'links').map(r => r.key as 'children' | 'sends' | 'received' | 'launches')
+// The keys of `$.state`: every key of PluginState['task-tree'] (types/index.d.ts) has a row living in
+// the state (`state` or `state+store`), and every such row has its key; the check's `regras` step
+// (scripts/regras.mjs) fails on a difference.
 
 export const rowOf = (key: string): Row => {
   const row = TABLE.find(r => r.key === key)
   if (!row) throw new Error(`task-tree: chave sem linha na tabela de durabilidade: ${key}`)
   return row
 }
-export const stateOf = <K extends Key>(key: K) => ({ plugin: 'task-tree', key }) as const
 // Whether the table brings a key back at that moment.
 export const restoredAt = (key: string, when: When) => rowOf(key).restoredAt.includes(when)
 // The store's key of a session's copy.

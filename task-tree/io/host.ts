@@ -8,7 +8,7 @@
 //    and which of them just ended (deriveChildren);
 // 4. the publication of this session's own panel, with its children in it (publishWait, io/publish.ts).
 // The first three run without the app: a fake `$` with `mcp.call`, `fs.read` and `env.get`, or
-// plain inputs (tests/host.test.ts).
+// plain inputs; the tests of the sessions and of durability cover them, through the kit's `host`.
 
 import type { Child, GitInfo, Panel, Published, Rate } from '../types'
 import type { Link } from '../state/durability'

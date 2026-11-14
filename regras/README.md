@@ -48,7 +48,8 @@ test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pende
 `scripts/regras.mjs`, a primeira etapa do `npm run check`, falha quando: um id se repete ou tem
 formato inválido; um cenário não tem `Estado:` válido; um cenário `coberto` não é citado por
 nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pendente` ou
-`checklist`; ou um `test(` não tem `// Regra:` acima.
+`checklist`; um `test(` não tem `// Regra:` acima; ou uma chave do state do mod não tem linha na
+tabela de durabilidade (e vice-versa).
 
 ## Selo dos testes e do kit
 
