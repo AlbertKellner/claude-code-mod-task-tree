@@ -13,7 +13,7 @@ import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { change, ensureLinks, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -69,7 +69,8 @@ export async function refreshChildren($: any) {
   if (self === undefined && (await inDesktopApp($))) return
   const deduced = deducedOwn(rows)
   if (self !== undefined && deduced !== undefined && deduced !== self) await debug($, `task-tree: mineOf deduziu ${deduced}, id próprio ${self}`)
-  const mine = mineOf(rows, self)
+  // The sessions opened before a /clear here are left behind: no card (forgetChildren).
+  const mine = mineOf(rows, self)?.filter(r => !isLeftBehind(r.sessionId))
   if (mine === undefined) return
   // 2. Their files.
   const read = await readFiles($, mine)

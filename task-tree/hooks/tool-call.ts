@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, askingAnchors, dropWaits, ensureLinks, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool } from './agents'
 
@@ -124,7 +124,8 @@ const sentMessage: Notes = async ($, c, notes) => {
     // yet (just opened, or listed late) gets its entry here, with the round, as recordStart does:
     // the round was lost, and the card of the turn the message opened had no task to go under.
     const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
-    if (to !== '') {
+    // A session left behind by a /clear gets no card: only the letter (forgetChildren).
+    if (to !== '' && !isLeftBehind(to)) {
       await update($, childrenState, cur => {
         const list = cur ?? []
         const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)

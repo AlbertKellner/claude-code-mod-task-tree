@@ -263,6 +263,16 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::/clear numa sessão com filha: o cartão some e não volta sob a tarefa nova de mesmo id": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "0dc5031dd09478a8",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
     "task-tree/tests/durabilidade.test.ts::a lista do host deixa uma filha de fora e depois a lista de novo: o cartão volta sob a mesma tarefa": {
       "regras": [
         "durabilidade.ligacoes-com-lista-parcial-do-host"
@@ -272,6 +282,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 1/2: o /clear com a filha trabalhando": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "28eb0a9ef8bb714d",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 2/2: o módulo novo não a traz de volta": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "f3ecd7710acbad1c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
     },
     "task-tree/tests/durabilidade.test.ts::fim do turno com Esc no reinício, 1/2: o turno é parado com uma tarefa iniciada": {
       "regras": [
@@ -682,6 +712,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::uma mensagem nova à filha de antes do /clear mostra a carta, sem cartão": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "22b0103b44f10edb",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::uma sessão aberta depois do /clear aparece sob a tarefa dela": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "aa922e89da2861db",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
     },
     "task-tree/tests/envios.test.ts::a carta de envio é uma linha sob a tarefa; a tarefa conta e o painel a conclui na entrega": {
       "regras": [

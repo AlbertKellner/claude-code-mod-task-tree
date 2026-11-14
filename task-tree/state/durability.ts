@@ -34,7 +34,7 @@ export type Row = {
   key: string
   lives: Lives
   // The store's key prefix (`<store>:<session uuid>`); `field`: this key is one field of that
-  // store record (the links record holds four).
+  // store record (the links record holds four, and the sessions left behind by a /clear).
   store?: 'session' | 'work' | 'links' | 'sessions' | 'turn'
   field?: boolean
   merge: Merge
@@ -54,7 +54,7 @@ export const TABLE: readonly Row[] = [
     note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks)' },
+    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind)' },
   { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'messages to other sessions not yet taken up' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
@@ -85,6 +85,7 @@ export const TABLE: readonly Row[] = [
   // Variables of the module: a hot reload starts them over.
   { key: 'loaded', lives: 'module', merge: 'none', restoredAt: [], note: 'which store copies this module brought back (groups, links): a reload brings them back again on first use' },
   { key: 'keptLinks', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the links record as the store holds it, refilled whenever it is read or written; the ties of sessions the host leaves out' },
+  { key: 'leftBehind', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the sessions this one opened before a /clear (the last 200), with no card from then on; kept in the links record (`left`), refilled whenever it is read or written, as keptLinks' },
   { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (asked again after a reload)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
   { key: 'drawNow', lives: 'module', merge: 'none', restoredAt: [], note: 'the clock of the drawing in progress' },

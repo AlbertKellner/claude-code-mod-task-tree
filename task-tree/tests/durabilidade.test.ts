@@ -669,3 +669,94 @@ test('processo novo sem session.start, 2/2: as ligações voltam antes da primei
   expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
   expect(cartaSob(p, 'Um'), emTexto(p)).toBe('fila')
 })
+
+// O /clear numa sessão que abriu filhas: os cartões delas somem na hora e não voltam.
+const P_UM_CLEAR: No[] = [{ id: '1', title: 'Um' }]
+const P_OUTRA: No[] = [{ id: '1', title: 'Outra um' }]
+const FILHA_UM = { id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }
+const FILHA_DOIS = { id: K2, nome: 'filha-dois', painel: { tasks: [{ ...TAREFA, title: 'Tarefa da filha dois' }] } }
+const CLEAR_RECARGA: Record<string, unknown> = {}
+const CLEAR_RECARGA_STORE: Record<string, unknown> = {}
+async function abrirELimpar($: any) {
+  await pedido($, 'Pedido um')
+  await plan($, P_UM_CLEAR)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  await limpar($)
+  await aviso($)
+  p = await painel($)
+  expect(tem(p, 'filha-um'), emTexto(p)).toBe(false)
+  await pedido($, 'Pedido dois')
+  await plan($, P_OUTRA)
+  await start($, ['1'])
+}
+
+// Regra: durabilidade.clear-tira-os-cartoes-das-filhas
+test('/clear numa sessão com filha: o cartão some e não volta sob a tarefa nova de mesmo id', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  host(on, [FILHA_UM])
+  await abrirELimpar($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Outra um', 'andamento')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([0, 1])
+  expect(c.chips.ativas, emTexto(p)).toBe(0)
+})
+
+// Regra: durabilidade.clear-tira-os-cartoes-das-filhas
+test('uma sessão aberta depois do /clear aparece sob a tarefa dela', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  // A segunda só entra na lista do host quando é aberta, depois do /clear.
+  const h = host(on, [FILHA_UM, { ...FILHA_DOIS, listada: false }])
+  await abrirELimpar($)
+  h.filha(K2).listada = true
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
+  expect(cartoes(p, 'filha-dois').map(c => c.sob), emTexto(p)).toEqual(['Outra um'])
+})
+
+// Regra: durabilidade.clear-tira-os-cartoes-das-filhas
+test('depois de uma recarga, a filha de antes do /clear segue sem cartão, 1/2: o /clear com a filha trabalhando', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, CLEAR_RECARGA, 'captura')
+  armazem(on, CLEAR_RECARGA_STORE)
+  host(on, [FILHA_UM])
+  await abrirELimpar($)
+  expect(Object.keys(CLEAR_RECARGA).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: durabilidade.clear-tira-os-cartoes-das-filhas
+test('depois de uma recarga, a filha de antes do /clear segue sem cartão, 2/2: o módulo novo não a traz de volta', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, CLEAR_RECARGA, 'semear')
+  armazem(on, CLEAR_RECARGA_STORE)
+  host(on, [FILHA_UM])
+  exigir(Object.keys(CLEAR_RECARGA).length > 0)
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Outra um', 'andamento')
+  expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
+})
+
+// Regra: durabilidade.clear-tira-os-cartoes-das-filhas
+test('uma mensagem nova à filha de antes do /clear mostra a carta, sem cartão', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  host(on, [FILHA_UM])
+  responderEnvio(on)
+  await abrirELimpar($)
+  await envio($, K1)
+  await aviso($)
+  const p = await painel($)
+  expect(cartaSob(p, 'Outra um'), emTexto(p)).toBe('fila')
+  expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
+})

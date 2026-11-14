@@ -144,3 +144,14 @@ Depois de uma recarga do mod, as cartas e os cartões são os que o painel já t
 Origem: auditoria 2026-11-10 (a primeira gravação depois da recarga fundia o store por cima do state); aplica durabilidade.recarga-mantem-painel-ligacoes-e-resumo, sem mudar nenhuma regra.
 Código: hooks/tool-call.ts, hooks/prompt-submit.ts, hooks/sessions.ts, hooks/agents.ts
 Estado: coberto
+
+### durabilidade.clear-tira-os-cartoes-das-filhas
+Depois do /clear, os cartões das filhas abertas antes somem e não voltam.
+
+- Dado uma sessão que abriu sessões filhas, com os cartões sob as tarefas
+- Quando a pessoa usa /clear nela
+- Então os cartões somem na hora, com o resto do painel, e não voltam nas leituras seguintes: nem soltos no fim, nem sob uma tarefa nova que reuse o id da antiga; não somam no cabeçalho nem no x/y e não deixam tarefa em andamento; a filha segue trabalhando sem cartão nesta sessão, também depois de uma recarga do mod; uma mensagem nova a ela mostra só a carta; uma sessão aberta depois do /clear aparece normalmente
+
+Origem: decisão do usuário, 2026-11-14 ("Some na hora"), à pergunta "Depois de um /clear numa sessão que abriu sessões filhas, o que acontece com o cartão de uma filha aberta antes do /clear?".
+Código: hooks/sessions.ts, hooks/tool-call.ts, io/host.ts
+Estado: coberto

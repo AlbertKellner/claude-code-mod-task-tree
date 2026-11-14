@@ -5,7 +5,7 @@
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, parkDeadTurn, replace, ensureLinks, restore, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
 import { refreshChildren, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -77,6 +77,7 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     await $.state.set(sendsState, [])
     await setWork($, [])
     await clearTurn($)
+    await forgetChildren($)
     await replace($, [{ agent: MAIN, label: '', tasks: [] }])
   }
   if (e.source === 'resume') {

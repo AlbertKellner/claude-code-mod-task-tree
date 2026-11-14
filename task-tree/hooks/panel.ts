@@ -26,6 +26,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
+const endedState = { plugin: 'task-tree', key: 'ended' } as const
 
 // The main loop works again (a prompt, or a call of its own): what the last turn left open is in
 // progress again, no longer drawn as halted (see turnEnded). After a restart the end comes back from
@@ -702,6 +703,14 @@ export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: 
 // here: a session shows only while the host lists it.
 export let keptLinks = new Map<string, Link>()
 export const keptLink = (id: string): Link | undefined => keptLinks.get(id)
+// The sessions this one opened before a /clear (their ids, the last 200): left behind, with no card
+// here from then on (the person, 2026-11-14: "Some na hora"). The host's list still names them (by
+// the local_ id, which the /clear keeps): the reread leaves them out (refreshChildren), and a message
+// to one of them shows only its letter (sentMessage). Kept in the links record (`left`) and refilled
+// whenever it is read or written, as keptLinks: a reload brings it back on first use (ensureLinks).
+let leftBehind = new Set<string>()
+export const isLeftBehind = (id: string) => leftBehind.has(id)
+const LEFT_KEEP = 200
 // A plan that reuses the id of a closed task renames the closed one (`tag:id`, its subtasks with
 // it, see planTool): the sessions' ties to it (the task they were opened on, the task of their last
 // message, each message's task), the launches' and the sends' are renamed with it, or they would
@@ -740,7 +749,7 @@ export async function saveLinks($: any) {
     const { value: launches } = await $.state.get(launchesState)
     const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
     const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
-    const record = { children: links, sends, received, launches }
+    const record = { children: links, sends, received, launches, left: [...leftBehind].slice(-LEFT_KEEP) }
     const key = JSON.stringify(record)
     if (key !== lastLinks) {
       await saveStore($, 'children', record)
@@ -760,12 +769,30 @@ export async function ensureLinks($: any) {
     if (saved !== undefined && saved !== null && typeof saved === 'object') {
       const list = (k: string) => (Array.isArray(saved[k]) ? (saved[k] as any[]) : [])
       keptLinks = new Map((list('children') as Child[]).filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
+      leftBehind = new Set(list('left').filter(x => typeof x === 'string').map(String))
       if ((await $.state.get(childrenState)).value === undefined && list('children').length > 0) await $.state.set(childrenState, list('children'))
       if ((await $.state.get(sendsState)).value === undefined && list('sends').length > 0) await $.state.set(sendsState, list('sends'))
       if ((await $.state.get(receivedState)).value === undefined && list('received').length > 0) await $.state.set(receivedState, list('received'))
       if ((await $.state.get(launchesState)).value === undefined && list('launches').length > 0) await $.state.set(launchesState, list('launches'))
     }
     loaded.add('links')
+  } catch {}
+}
+// /clear in a session that opened others: their cards go at once, with the rest of the panel, and do
+// not come back (the person, 2026-11-14: "Some na hora"). Their ids join the ones left behind; the
+// children, the launches, the sessions whose turn ended and the module's copy of the links are
+// emptied, and the record goes to the store. Before the publication of the empty panel.
+export async function forgetChildren($: any) {
+  await ensureLinks($)
+  try {
+    const kids = ((await $.state.get(childrenState)).value ?? []) as Child[]
+    const ids = [...kids.map(c => c.id), ...keptLinks.keys()]
+    leftBehind = new Set([...[...leftBehind].filter(id => !ids.includes(id)), ...ids].slice(-LEFT_KEEP))
+    await $.state.set(childrenState, [])
+    await $.state.set(launchesState, [])
+    await $.state.set(endedState, [])
+    keptLinks = new Map()
+    await saveLinks($)
   } catch {}
 }
 // A resume replaces the groups with the resumed session's (restore): its work comes with them, kept
