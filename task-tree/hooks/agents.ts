@@ -12,7 +12,7 @@ import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
 import { MAIN, SUB_BATCH, flat, interrupt, subLive } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
-import { askingAnchors, change, dropWaits, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
+import { askingAnchors, change, dropWaits, ensureLinks, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -63,6 +63,7 @@ export async function launchAnchor($: any, groups: Group[], parent: string, name
 // sessions, messages and questions that also decide the task are read before: launches do not write them.
 export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const r = await next(e)
+  await ensureLinks($)
   // A resume carries the message a subagent that ended first was left with: it is delivered.
   if (typeof e?.resume?.agentId === 'string' && e.resume.agentId !== '') await takeSubSend($, e.resume.agentId, String(e.prompt ?? ''), true).catch(() => {})
   const agent = r?.agentId
@@ -349,6 +350,7 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
 // hook was not delivered. It runs inside the subagent's turn: nothing here waits on a prompt.
 export async function agentReceive($: EngineInterface, e: any, next: any) {
   const r = await next(e)
+  await ensureLinks($)
   if (r?.consumed !== undefined || typeof e?.agentId !== 'string' || e.agentId === '') return r
   await takeSubSend($, e.agentId, String(e.text ?? ''), e.origin?.kind === 'coordinator').catch(() => {})
   return r

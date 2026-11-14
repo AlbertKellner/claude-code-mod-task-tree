@@ -8,7 +8,7 @@
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, ensureGroups, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -64,6 +64,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   const it = said(text)
   // Another session's messages are kept (from, when) and published, whatever this prompt turns out
   // to be: the sender confirms its queued SendMessage by them (watchSends).
+  await ensureLinks($)
   await noteReceived($, text)
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)

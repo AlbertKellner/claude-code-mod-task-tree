@@ -13,7 +13,7 @@ import { debug } from '../io/log'
 import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { change, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureLinks, ensureTurn, inDesktopApp, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -32,6 +32,8 @@ const receivedState = { plugin: 'task-tree', key: 'received' } as const
 // When the list was last read (clock ms), by the 10 s poll or otherwise.
 export let refreshedAt: number | undefined
 export async function refreshChildren($: any) {
+  // The links come back from the store before this reread writes the children (a new process).
+  await ensureLinks($)
   refreshedAt = (await stamp($)) ?? refreshedAt
   // The subagents' cards still alive, against the engine's list: one whose end never came is ended
   // (hooks/agents, checkSubs). First, and whatever the sessions' list says below.

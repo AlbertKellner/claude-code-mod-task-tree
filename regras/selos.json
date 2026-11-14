@@ -423,6 +423,26 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
     },
+    "task-tree/tests/durabilidade.test.ts::processo novo sem session.start, 1/2: a filha aberta sob a tarefa e a carta na fila": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "1dfa376b208dcd02",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo novo sem session.start, 2/2: as ligações voltam antes da primeira escrita": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "4996c3d28a3807a7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
       "regras": [
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
@@ -502,6 +522,46 @@
       "tipo": "novo",
       "data": "2026-10-29",
       "motivo": "resumo do done na recarga e sem resposta final"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com a carta já avisada, 1/2: a carta entregue e o lembrete dado": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "fc6ff3aa4a7c34ba",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com a carta já avisada, 2/2: o módulo novo não repete a carta nem o lembrete": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "c43a3f38bad86441",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 1/2: o plan renomeia a tarefa antiga": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "c2383c018064036d",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 2/2: a carta não aparece sob a tarefa nova": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "c96cbd93b4e2281a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
     },
     "task-tree/tests/durabilidade.test.ts::reinício com session.start, 1/2: o painel vai ao store": {
       "regras": [

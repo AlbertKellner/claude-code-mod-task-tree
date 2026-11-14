@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, askingAnchors, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, addWait, askingAnchors, dropWaits, ensureLinks, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool } from './agents'
 
@@ -225,6 +225,8 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   if (c.agent === MAIN) await wake($)
   // A subagent's call: the tool its card shows (hooks/agents).
   else await subTool($, c.agent, e)
+  // The links come back from the store before the launch writes one (a new process).
+  await ensureLinks($)
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered

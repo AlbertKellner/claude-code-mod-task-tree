@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
-import { armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO } from './kit/ambiente'
+import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO } from './kit/ambiente'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, pedido, plan, retomar, start, type No } from './kit/cenario'
-import { comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
+import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
 // o 1/2 grava nos objetos abaixo e o 2/2 (módulo novo, state vazio) lê deles.
@@ -562,4 +562,110 @@ test('respawn sem session.start com o turno em curso, 2/2: segue em andamento', 
   p = await painel($)
   esperarEstado(p, 'Dois.dois', 'andamento')
   esperarEstado(p, 'Dois.um', 'andamento')
+})
+
+// As ligações depois de uma recarga: o state que sobreviveu é a verdade; o store só entra num processo novo.
+const P_UM: No[] = [{ id: '1', title: 'Um' }]
+const P_NOVO: No[] = [{ id: '1', title: 'Novo um' }]
+const AVISADA: Record<string, unknown> = {}
+const AVISADA_STORE: Record<string, unknown> = {}
+const REUSO: Record<string, unknown> = {}
+const REUSO_STORE: Record<string, unknown> = {}
+const NOVO_PROCESSO: Record<string, unknown> = {}
+const ctxDe = (r: any) => (r?.context ?? []).join(' | ')
+const cartas = (p: Linha[]) => p.filter(l => l.carta !== undefined && l.titulo.startsWith('Para '))
+
+// Regra: durabilidade.recarga-nao-funde-as-ligacoes
+test('recarga com a carta já avisada, 1/2: a carta entregue e o lembrete dado', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, AVISADA, 'captura')
+  armazem(on, AVISADA_STORE)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, K1)
+  h.recebeu(K1, AGORA)
+  const ctx = ctxDe(await aviso($))
+  expect(ctx).toContain('recebimento confirmado')
+  const p = await painel($)
+  expect(cartas(p).length, emTexto(p)).toBe(1)
+})
+
+// Regra: durabilidade.recarga-nao-funde-as-ligacoes
+test('recarga com a carta já avisada, 2/2: o módulo novo não repete a carta nem o lembrete', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, AVISADA, 'semear')
+  armazem(on, AVISADA_STORE)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }])
+  exigir(Object.keys(AVISADA).length > 0)
+  h.recebeu(K1, AGORA)
+  const ctx = ctxDe(await aviso($))
+  expect(ctx).not.toContain('recebimento confirmado')
+  const p = await painel($)
+  expect(cartas(p).length, emTexto(p)).toBe(1)
+})
+
+// Regra: durabilidade.recarga-nao-funde-as-ligacoes
+test('recarga depois de um plan que reusou o id da tarefa da carta, 1/2: o plan renomeia a tarefa antiga', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, REUSO, 'captura')
+  armazem(on, REUSO_STORE)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, P_UM)
+  await start($, ['1'])
+  await envio($, K1)
+  h.recebeu(K1, AGORA)
+  await aviso($)
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, P_NOVO)
+  expect(Object.keys(REUSO).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: durabilidade.recarga-nao-funde-as-ligacoes
+test('recarga depois de um plan que reusou o id da tarefa da carta, 2/2: a carta não aparece sob a tarefa nova', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, REUSO, 'semear')
+  armazem(on, REUSO_STORE)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }])
+  exigir(Object.keys(REUSO).length > 0)
+  await start($, ['1'])
+  const p = await painel($)
+  esperarEstado(p, 'Novo um', 'andamento')
+  expect(cartaSob(p, 'Novo um'), emTexto(p)).toBeUndefined()
+})
+
+// Regra: durabilidade.recarga-nao-funde-as-ligacoes
+test('processo novo sem session.start, 1/2: a filha aberta sob a tarefa e a carta na fila', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, NOVO_PROCESSO)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await envio($, K1)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe('fila')
+})
+
+// Regra: durabilidade.recarga-nao-funde-as-ligacoes
+test('processo novo sem session.start, 2/2: as ligações voltam antes da primeira escrita', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, NOVO_PROCESSO)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [TAREFA] } }])
+  exigir(temPainel(NOVO_PROCESSO))
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe('fila')
 })

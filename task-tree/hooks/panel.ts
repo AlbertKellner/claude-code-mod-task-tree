@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Wait } from '../types'
-import { current as keepCurrent, linkOf, loadStore, loaded, merge, restoredAt, saveGroups, saveStore } from '../state/durability'
+import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast } from '../draw/layout'
 import { debug } from '../io/log'
@@ -405,6 +405,7 @@ export async function adopt($: any) {
 export async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
   await ensureGroups($)
   await ensureWork($)
+  await ensureLinks($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
   await persist($, groups)
@@ -442,7 +443,7 @@ export async function dropHeld($: any) {
 // respawned after a crash) would otherwise start from nothing: the first write would then overwrite
 // the store with the reduced panel, and the panel and the published file would show it empty. So
 // the first write, drawing or publication of the module brings them back first (`loaded`), as the
-// first save does for the links.
+// first use does for the links (ensureLinks).
 // Answers the groups it brought back, for a caller that cannot write the state (a drawing): the
 // module counts them as loaded only once they are in the state, so the next write brings them back
 // again if this one could not.
@@ -545,6 +546,7 @@ export async function refreshGit($: any): Promise<GitInfo | undefined> {
 export async function publishPanel($: any) {
   await ensureGroups($)
   await ensureWork($)
+  await ensureLinks($)
   await saveLinks($)
   try {
     const id = await selfId($)
@@ -684,11 +686,14 @@ export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: 
 }
 // What ties the sessions' cards to their tasks (the sessions this one opened, with the tasks and
 // rounds of their messages; the sends still waiting; the messages received; the subagents'
-// launches) lives in the state, which a reload of the mod empties: kept in the store too, and
-// brought back at the start, else the cards fall to the root and the chains lose their origin.
-// Whether this module brought them back yet (`loaded`, the table's "first save"): a reload does not
-// run session.start, so the first save brings them back before it writes, and nothing new is lost
-// to the old copy.
+// launches) lives in the state, which a hot reload of the mod keeps and a new process (a respawn,
+// /model, a restart) starts empty: kept in the store too, and brought back when the state has none,
+// else the cards fall to the root and the chains lose their origin. A reload starts this module's
+// variables over (`loaded`, keptLinks): the first use of the links (ensureLinks) reads the store's
+// record again, refills keptLinks, and takes a key from it only when the state has none. With the
+// state kept, the state is the truth: the store's entries were merged over it before, and a letter
+// marked in the state only (its delivery noted, its anchor renamed by a plan) came back as a second
+// copy.
 // The links as the store holds them, by session id, this module's copy. The state's `children` are
 // the sessions the host lists (refreshChildren rebuilds them from the list, archived ones included);
 // a session the list leaves out for a while is not in the state, so a save from the state alone
@@ -727,7 +732,7 @@ export async function renameAnchors($: any, ids: string[], tag: string) {
 // more): the poll publishes every few seconds, and the store is written only when the record changed.
 let lastLinks: string | undefined
 export async function saveLinks($: any) {
-  if (!loaded.has('links') && restoredAt('children', 'first-save')) await restoreLinks($)
+  await ensureLinks($)
   try {
     const { value: children } = await $.state.get(childrenState)
     const { value: sends } = await $.state.get(sendsState)
@@ -744,20 +749,23 @@ export async function saveLinks($: any) {
     keptLinks = new Map(links.map(l => [l.id, l]))
   } catch {}
 }
-// Each key of the record merged as the table says (`fill` for the sessions: a session keeps its
-// fields and gets back the anchors and rounds; `union` for the lists: they get back the entries
-// they lack).
-export async function restoreLinks($: any) {
-  loaded.add('links')
+// The links' "first use" (the table's restoredAt), as ensureGroups: once per module, before any write
+// of the links (and at session.start), the store's record is read: keptLinks is refilled from it, and
+// each of the four keys is taken from it only when the state has none (a new process); a state kept
+// through a reload stays as it is. Counted as brought only once the store answered.
+export async function ensureLinks($: any) {
+  if (loaded.has('links') || !restoredAt('children', 'first-use')) return
   try {
     const saved = (await loadStore($, 'children')) as Record<string, unknown> | undefined
-    if (saved === undefined || saved === null || typeof saved !== 'object') return
-    const list = (k: string) => (Array.isArray(saved[k]) ? (saved[k] as any[]) : [])
-    keptLinks = new Map((list('children') as Child[]).filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
-    if (list('children').length > 0) await update($, childrenState, cur => merge('children', cur, list('children')))
-    if (list('sends').length > 0) await update($, sendsState, cur => merge('sends', cur, list('sends')))
-    if (list('received').length > 0) await update($, receivedState, cur => merge('received', cur, list('received')))
-    if (list('launches').length > 0) await update($, launchesState, cur => merge('launches', cur, list('launches')))
+    if (saved !== undefined && saved !== null && typeof saved === 'object') {
+      const list = (k: string) => (Array.isArray(saved[k]) ? (saved[k] as any[]) : [])
+      keptLinks = new Map((list('children') as Child[]).filter(o => typeof o?.id === 'string').map(o => [o.id, linkOf(o)]))
+      if ((await $.state.get(childrenState)).value === undefined && list('children').length > 0) await $.state.set(childrenState, list('children'))
+      if ((await $.state.get(sendsState)).value === undefined && list('sends').length > 0) await $.state.set(sendsState, list('sends'))
+      if ((await $.state.get(receivedState)).value === undefined && list('received').length > 0) await $.state.set(receivedState, list('received'))
+      if ((await $.state.get(launchesState)).value === undefined && list('launches').length > 0) await $.state.set(launchesState, list('launches'))
+    }
+    loaded.add('links')
   } catch {}
 }
 // A resume replaces the groups with the resumed session's (restore): its work comes with them, kept

@@ -133,3 +133,14 @@ O app fechado, ou o processo morto, no meio de um turno deixa a tarefa em andame
 Origem: decisão do usuário, 2026-11-14 ("✕ interrompida"), à pergunta "Se o app fechar, ou o processo morrer, no meio de um turno, como deve aparecer, ao reabrir, a tarefa que estava em andamento?"; aplica turnos.parada-segue-interrompida-ate-o-start.
 Código: hooks/turn.ts, state/tasks.ts, draw/layout.ts
 Estado: coberto
+
+### durabilidade.recarga-nao-funde-as-ligacoes
+Depois de uma recarga do mod, as cartas e os cartões são os que o painel já tinha.
+
+- Dado cartas e cartões ligados a tarefas, e uma mudança neles que ainda não foi ao store (o lembrete de recebimento dado, a carta que um plan descartou, a tarefa renomeada por um plan)
+- Quando o mod recarrega a quente (módulo novo, state mantido) e o painel volta a ser gravado
+- Então cada tarefa segue com as mesmas cartas e cartões: nenhuma linha repetida, nenhuma carta de volta, e o lembrete de recebimento não sai de novo; num processo novo (state vazio), as ligações voltam do store antes da primeira escrita delas
+
+Origem: auditoria 2026-11-10 (a primeira gravação depois da recarga fundia o store por cima do state); aplica durabilidade.recarga-mantem-painel-ligacoes-e-resumo, sem mudar nenhuma regra.
+Código: hooks/tool-call.ts, hooks/prompt-submit.ts, hooks/sessions.ts, hooks/agents.ts
+Estado: coberto

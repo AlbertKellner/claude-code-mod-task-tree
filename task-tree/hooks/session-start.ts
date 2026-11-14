@@ -5,7 +5,7 @@
 import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, parkDeadTurn, replace, restore, restoreLinks, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, parkDeadTurn, replace, ensureLinks, restore, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
 import { refreshChildren, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -60,7 +60,7 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   await restoreTurn($)
   // A turn the store holds as going on died with the process before this one: stopped (parkDeadTurn).
   if (fresh) await parkDeadTurn($)
-  await restoreLinks($)
+  await ensureLinks($)
   const r = await next(e)
   // Opens the panel with the session, so nobody has to type /task-tree.
   void $.ui.open({ id: PANE, title: 'Tarefas' }).catch(() => {})

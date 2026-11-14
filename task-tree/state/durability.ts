@@ -20,17 +20,16 @@ export type Key = keyof PluginState['task-tree']
 // of the module (the hooks module's, or this one's).
 export type Lives = 'state' | 'state+store' | 'store' | 'module'
 // How the store's copy meets what the state already holds when it comes back:
-// - `current`: what the state holds wins; the store's copy is taken only when the state has none;
-// - `fill`: the state's entries keep their fields and get from the store's the ones they lack
-//   (a session's anchor, lastAnchor and rounds); an empty state takes the store's whole;
-// - `union`: the store's entries the state lacks go first, then the state's (the last `keep`);
+// - `current`: what the state holds wins; the store's copy is taken only when the state has none
+//   (a new process: a state kept through a hot reload is the truth, the store's copy is not merged
+//   over it);
 // - `replace`: the store's copy replaces the state's (a resume);
 // - `none`: nothing to merge (not in the store).
-export type Merge = 'current' | 'fill' | 'union' | 'replace' | 'none'
+export type Merge = 'current' | 'replace' | 'none'
 // When the store's copy is brought back: session.start (a new process); a resume
 // (classic.SessionStart with source 'resume', which replaces); the first use (a write, a drawing or
-// a publication) after a reload that ran no session.start; the first save after such a reload.
-export type When = 'start' | 'resume' | 'first-use' | 'first-save'
+// a publication) after a reload or a restart that ran no session.start.
+export type When = 'start' | 'resume' | 'first-use'
 export type Row = {
   key: string
   lives: Lives
@@ -39,7 +38,7 @@ export type Row = {
   store?: 'session' | 'work' | 'links' | 'sessions' | 'turn'
   field?: boolean
   merge: Merge
-  // `union`: how many of the merged entries are kept (the last ones).
+  // How many entries each write keeps (the last ones).
   keep?: number
   restoredAt: When[]
   note: string
@@ -54,13 +53,13 @@ export const TABLE: readonly Row[] = [
   { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s' },
   // The ties to other sessions: one store record (`links`), four state keys.
-  { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'fill', restoredAt: ['start', 'first-save'],
+  { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks)' },
-  { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'union', restoredAt: ['start', 'first-save'],
+  { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'messages to other sessions not yet taken up' },
-  { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'union', keep: 20, restoredAt: ['start', 'first-save'],
+  { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'messages of other sessions this one got (the last 20)' },
-  { key: 'launches', lives: 'state+store', store: 'links', field: true, merge: 'union', keep: 20, restoredAt: ['start', 'first-save'],
+  { key: 'launches', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'Agent calls not yet claimed by a subagent\'s group (the last 20)' },
   // The turn's own: they survive a reload, not the process.
   { key: 'waits', lives: 'state', merge: 'none', restoredAt: [], note: 'what waits on the person (a question, a plan, a permission, a wrap_up with ask)' },
@@ -85,7 +84,7 @@ export const TABLE: readonly Row[] = [
   { key: 'sessions', lives: 'store', store: 'sessions', merge: 'none', restoredAt: [], note: 'the sessions whose panel the store keeps, newest first, KEEP of them' },
   // Variables of the module: a hot reload starts them over.
   { key: 'loaded', lives: 'module', merge: 'none', restoredAt: [], note: 'which store copies this module brought back (groups, links): a reload brings them back again on first use' },
-  { key: 'keptLinks', lives: 'module', merge: 'none', restoredAt: ['start', 'first-save'], note: 'the links record as the store holds it, refilled whenever it is read or written; the ties of sessions the host leaves out' },
+  { key: 'keptLinks', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the links record as the store holds it, refilled whenever it is read or written; the ties of sessions the host leaves out' },
   { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (asked again after a reload)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
   { key: 'drawNow', lives: 'module', merge: 'none', restoredAt: [], note: 'the clock of the drawing in progress' },
@@ -136,19 +135,6 @@ export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.ti
 export function merge<T>(key: string, cur: T[] | undefined, old: T[]): T[] {
   const row = rowOf(key)
   switch (row.merge) {
-    case 'union': {
-      const now = cur ?? []
-      const seen = new Set(now.map(x => JSON.stringify(x)))
-      const all = [...old.filter(x => !seen.has(JSON.stringify(x))), ...now]
-      return row.keep !== undefined ? all.slice(-row.keep) : all
-    }
-    case 'fill': {
-      if (cur === undefined || cur.length === 0) return old
-      return (cur as unknown as Child[]).map(c => {
-        const o = (old as unknown as Link[]).find(k => k.id === c.id)
-        return (o ? { ...c, anchor: c.anchor ?? o.anchor, lastAnchor: c.lastAnchor ?? o.lastAnchor, rounds: c.rounds ?? o.rounds, openedAt: c.openedAt ?? o.openedAt } : c) as unknown as T
-      })
-    }
     case 'replace':
       return old
     case 'current':
