@@ -169,3 +169,38 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
   })
   return { children, ended }
 }
+
+// ---- The published files of sessions the app no longer has (hooks/sessions, sweepPublished)
+
+// The ids of every session the app lists, archived included, or undefined when the list failed or
+// came at its limit (then some may be missing, and nothing is decided).
+export async function allSessionIds($: any, limit = 500): Promise<string[] | undefined> {
+  try {
+    const r = await $.mcp.call('ccd_session_mgmt', 'list_sessions', { include_archived: true, limit })
+    const rows = parseSessions(r)
+    if (!Array.isArray(rows) || rows.length >= limit) return undefined
+    return rows.map((x: any) => String(x?.sessionId ?? ''))
+  } catch {
+    return undefined
+  }
+}
+// Whether the app says the session does not exist: get_session answers an error "Session <id> not
+// found." (measured 2026-11-14). Any other answer, or a failure of another kind, is not a no.
+export async function sessionGone($: any, id: string): Promise<boolean> {
+  try {
+    const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: id })
+    const body = (r?.content ?? []).map((c: any) => (c?.type === 'text' ? c.text ?? '' : '')).join('')
+    return r?.isError === true && /not found/i.test(body)
+  } catch {
+    return false
+  }
+}
+// The published files that may belong to a session gone from the app: `local_….json`, not this
+// session's, over 1 KB and not written for a day; at most `max` of them.
+export function staleFiles(entries: { name: string; kind?: string; size: number; mtimeMs: number }[], self: string, now: number, max = 20): string[] {
+  return entries
+    .filter(e => (e.kind === undefined || e.kind === 'file') && /^local_[\w-]+\.json$/.test(e.name) && e.size > 1024 && now - e.mtimeMs > 24 * 3600 * 1000)
+    .map(e => e.name.slice(0, -'.json'.length))
+    .filter(id => id !== self)
+    .slice(0, max)
+}

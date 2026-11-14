@@ -253,3 +253,14 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: draw/layout.ts
 Estado: coberto
 
+
+### sessoes.publicado-enxuto
+O arquivo que a sessão publica leva o painel dela inteiro e as filhas cortadas ao trabalho atual.
+
+- Dado uma sessão com filhas, e filhas com pedidos já concluídos e netas
+- Quando ela publica o painel para a sessão que a abriu
+- Então o arquivo leva os grupos dela inteiros, sem a cópia antiga das tarefas, e cada filha só com o trabalho atual dela (e as netas, do mesmo jeito); o painel da própria sessão não muda; na sessão avó, o cartão de uma neta mostra o trabalho atual, sem "+N pedidos anteriores"; os arquivos de formatos antigos seguem sendo lidos
+
+Origem: decisão do usuário, 2026-11-14 ("Enxugar e esvaziar (Recomendado)"); limita, para as netas vistas pela avó, a decisão de 2026-11-04 ("Ficam em '+N pedidos anteriores' (Recomendado)").
+Código: hooks/panel.ts
+Estado: coberto

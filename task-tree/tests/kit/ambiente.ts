@@ -86,7 +86,12 @@ export const EU = 'local_00000000-0000-0000-0000-00000000e0e0'
 const CASA = 'C:/u'
 // `proprio()`: o último arquivo que esta sessão publicou (o que a sessão mãe lê e desenha no cartão).
 // `pedidosAoApp()`: as ferramentas do app que o mod chamou (mcp.call), na ordem.
-export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[] }
+// `gravados()`: o último texto gravado em cada arquivo publicado, pelo id da sessão (as outras também).
+export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[]; gravados(): Record<string, string> }
+// `pasta`: o que o host lista na pasta dos arquivos publicados (fs.list); `listaFalha`: a lista de
+// todas as sessões (list_sessions sem `linked`) responde erro. O get_session de um id que não é
+// desta sessão nem de `sessoes` responde o erro do app ("Session <id> not found.").
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -96,7 +101,7 @@ export type Filha = {
   arquivada?: boolean
   aguardando?: boolean
   aborted?: boolean
-  painel?: { tasks: any[]; turns?: any[]; agentes?: any[] } // o grupo principal publicado (e os grupos dos subagentes dela)
+  painel?: { tasks: any[]; turns?: any[]; agentes?: any[]; work?: string[]; filhas?: any[] } // o grupo principal publicado (e os grupos dos subagentes dela), o trabalho e as filhas dela
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
   contexto?: number // o % da janela de contexto publicado (o anel do cartão)
@@ -106,14 +111,19 @@ export type Filha = {
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
-export function host(on: any, sessoes: Filha[]): Host {
+export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host {
   const recebidas: Record<string, { from: string; at: number }[]> = {}
   const abertas: string[] = []
   const pedidos: string[] = []
   const texto = (t: string) => ({ value: { content: [{ type: 'text', text: t }] } })
   on('mcp.call', (_$: any, e: any) => {
     pedidos.push(String(e.tool))
-    if (e.tool === 'get_session') return texto(JSON.stringify({ sessionId: EU }))
+    if (e.tool === 'get_session') {
+      const id = String(e.args?.session_id ?? 'self')
+      if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU }))
+      return { value: { content: [{ type: 'text', text: `Session ${id} not found.` }], isError: true } }
+    }
+    if (e.tool === 'list_sessions' && opcoes.listaFalha && e.args?.linked !== true) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
     if (e.tool === 'list_sessions')
       return texto(
         JSON.stringify(
@@ -135,7 +145,8 @@ export function host(on: any, sessoes: Filha[]): Host {
         waiting: s.aguardando === true,
         ...(s.aborted ? { aborted: true } : {}),
         waits: [],
-        children: [],
+        children: s.painel?.filhas ?? [],
+        ...(s.painel?.work ? { work: s.painel.work } : {}),
         groups: s.painel ? [{ agent: '', label: '', tasks: s.painel.tasks, ...(s.painel.turns ? { turns: s.painel.turns } : {}) }, ...(s.painel.agentes ?? [])] : [],
         ...(s.git ? { git: { ...s.git, at: AGORA } } : {}),
         ...(s.rate ? { rate: { ...s.rate, at: AGORA } } : {}),
@@ -146,7 +157,14 @@ export function host(on: any, sessoes: Filha[]): Host {
     }
   })
   let meu: any
+  const gravados: Record<string, string> = {}
+  on('fs.list', (_$: any, e: any) => {
+    if (!/task-tree-waits$/.test(String(e.path)) || !opcoes.pasta) return { deny: 'sem pasta' }
+    return { value: opcoes.pasta.map(a => ({ ...a, kind: 'file', isLink: false })) }
+  })
   on('fs.write', (_$: any, e: any) => {
+    const g = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
+    if (g) gravados[g[1]!] = String(e.text ?? e.content ?? '')
     if (/task-tree-waits[\\/]/.test(String(e.path)) && String(e.path).includes(EU)) meu = JSON.parse(String(e.text ?? e.content ?? 'null'))
     return { value: undefined }
   })
@@ -164,6 +182,7 @@ export function host(on: any, sessoes: Filha[]): Host {
     },
     proprio: () => meu,
     pedidosAoApp: () => [...pedidos],
+    gravados: () => ({ ...gravados }),
   }
 }
 

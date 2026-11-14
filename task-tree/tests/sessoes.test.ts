@@ -790,3 +790,60 @@ test('o turno 1 próprio que começa bem depois da abertura (a filha limpa com /
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
 })
 
+
+// Regra: sessoes.publicado-enxuto
+test('o arquivo publicado não leva a cópia antiga das tarefas', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const f = h.proprio()
+  expect(Array.isArray(f?.groups), JSON.stringify(f)).toBe(true)
+  expect(f?.tasks, JSON.stringify(f)).toBeUndefined()
+})
+
+// A filha com dois pedidos: o primeiro concluído, o segundo em andamento (o trabalho dela).
+const doisPedidos = { tasks: [noTurno(1, 'v', 'Velha', 'feita'), noTurno(2, 'n', 'Nova', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 20)], work: ['n'] }
+
+// Regra: sessoes.publicado-enxuto
+test('a filha vai ao arquivo publicado cortada ao trabalho atual dela', async ($: any, on: any) => {
+  const h = await abrir($, on, { painel: doisPedidos })
+  const f = h.proprio()
+  const main = f.children[0].panel.groups.find((g: any) => g.agent === '')
+  expect(main.tasks.map((t: any) => t.id), JSON.stringify(main)).toEqual(['n'])
+  expect(main.turns.map((u: any) => u.id), JSON.stringify(main)).toEqual([2])
+  expect(main.whole, JSON.stringify(main)).toBeUndefined()
+  // O state segue com a filha inteira: o cartão dela aqui mostra o pedido anterior.
+  const p = await painel($)
+  expect(p.some(l => / pedidos anteriores$/.test(l.titulo)), emTexto(p)).toBe(true)
+})
+
+const NETA = 'local_22222222-2222-2222-2222-222222222222'
+// A neta como a filha a publica (já cortada ao trabalho atual dela).
+const neta = (extra: object = {}) => ({
+  id: NETA,
+  name: 'neta',
+  title: 'neta',
+  running: true,
+  archived: false,
+  panel: { groups: [{ agent: '', label: '', tasks: [noTurno(2, 'm', 'Neta nova', 'iniciada')], turns: [turno(2, AGORA + 20)] }], waits: [], children: [], work: ['m'] },
+  ...extra,
+})
+
+// Regra: sessoes.publicado-enxuto
+test('na avó, o cartão da neta não tem "+N pedidos anteriores"', async ($: any, on: any) => {
+  await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')], filhas: [neta({ anchor: '1' })] } })
+  const p = await painel($)
+  expect(p.filter(l => l.texto.includes('pedidos anteriores')).map(l => l.texto), emTexto(p)).toEqual([])
+  expect(cartoes(p, 'neta').flatMap(c => c.tarefas), emTexto(p)).toContain('Neta nova')
+})
+
+// Regra: sessoes.publicado-enxuto
+test('uma rodada antiga da neta, de pedido cortado, não quebra o cartão', async ($: any, on: any) => {
+  const filha = { tasks: [noTurno(2, 'n', 'Nova', 'iniciada')], turns: [turno(2, AGORA + 20)], work: ['n'] }
+  await abrir($, on, { painel: { ...filha, filhas: [neta({ anchor: 'n', lastAnchor: 'v', rounds: [{ at: AGORA - 500, anchor: 'v' }, { at: AGORA - 100, anchor: 'n' }] })] } })
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Velha'), emTexto(p)).toBe(false)
+  expect(cartoes(p, 'neta').flatMap(c => c.tarefas), emTexto(p)).toContain('Neta nova')
+})

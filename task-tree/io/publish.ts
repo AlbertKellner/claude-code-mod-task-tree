@@ -4,7 +4,10 @@
 // this module writes it (publishWait), knows where it is (waitFile) and reads it checked
 // (parsePublished, readPublished). The shape is `Published` (types/index.d.ts); `version` says
 // which shape, and a file from before `version` is read as it is (tests/fixtures/publicados.ts
-// keeps one file of every shape ever written). The hooks module gathers what to publish from the
+// keeps one file of every shape ever written). Since 2026-11-14 ("Enxugar e esvaziar (Recomendado)")
+// it no longer carries `tasks` (the main group's copy for versions from before groups; still read),
+// the children go in cut to their current work (trimPublished, draw/layout.ts), and the file of a
+// session the app no longer lists is emptied (emptyPublished, by hooks/sessions sweepPublished). The hooks module gathers what to publish from the
 // state (the kit wants the state keys literal there) and hands it over.
 
 import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
@@ -97,11 +100,10 @@ export async function readPublished($: any, id: string): Promise<Published | und
   return undefined
 }
 
-// What the hooks module hands over for one publication: the panel as the state holds it (`tasks`,
-// the main group's, is for earlier versions; `sends` whole, the taken ones too: the card of this session,
+// What the hooks module hands over for one publication: the panel as the state holds it (`sends` whole, the taken ones too: the card of this session,
 // in the session that opened it, paints the letter delivered by them) and what the last drawing left
 // (its error, size and lines).
-export type Publication = Pick<Published, 'tasks' | 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'ultracode' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { tasks: TaskNode[]; groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
+export type Publication = Pick<Published, 'groups' | 'waits' | 'children' | 'work' | 'received' | 'engine' | 'ultracode' | 'rate' | 'git' | 'aborted' | 'renderError' | 'drawSize' | 'rows'> & { groups: Group[]; waits: Wait[]; children: Child[]; sends: Send[] }
 
 // Publishes whether anything in this session (`id`, as the desktop app names it; none outside the
 // app) waits on the person, and its whole panel, with the share of the context window used (for the
@@ -132,7 +134,6 @@ export async function publishWait($: any, id: string | undefined, p: Publication
     const body = {
       version: PUBLISHED_VERSION,
       waiting: p.waits.length > 0,
-      tasks: p.tasks,
       groups: p.groups,
       waits: p.waits,
       children: p.children,
@@ -161,7 +162,6 @@ export async function publishWait($: any, id: string | undefined, p: Publication
         version: body.version,
         waiting: body.waiting,
         at,
-        tasks: body.tasks,
         groups: body.groups,
         waits: body.waits,
         children: body.children,
@@ -183,5 +183,19 @@ export async function publishWait($: any, id: string | undefined, p: Publication
     lastPublished.set(path, key)
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
+  }
+}
+
+// Empties the published file of a session the app no longer has (hooks/sessions, sweepPublished):
+// the kit cannot delete a file, so it is written again with nothing in it.
+export async function emptyPublished($: any, id: string): Promise<boolean> {
+  try {
+    const path = await waitFile($, id)
+    if (!path) return false
+    await $.fs.write(path, JSON.stringify({ version: PUBLISHED_VERSION, waiting: false, waits: [], children: [] } satisfies Published))
+    return true
+  } catch (err) {
+    await debug($, `task-tree: arquivo publicado de ${id} não esvaziado: ${String(err)}`)
+    return false
   }
 }

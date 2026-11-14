@@ -8,9 +8,9 @@ import { update } from 'claude-code'
 import type { Child, Group, Published, Send, Wait } from '../types'
 import { SESSION } from '../text/rules'
 import { MAIN, flat, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf } from '../draw/layout'
-import { readPublished } from '../io/publish'
+import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
-import { deducedOwn, deriveChildren, listSessions, mineOf, readFiles } from '../io/host'
+import { allSessionIds, deducedOwn, deriveChildren, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
 import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, publishPanel, askingAnchors, refreshGit, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
@@ -352,5 +352,34 @@ export async function openSession($: any, id: string, name: string) {
     if (r?.isError) await $.ui.toast(`Não abriu ${name}: ${said || 'recusado pelo app'}`)
   } catch (err) {
     await $.ui.toast(`Não abriu ${name}: ${String(err).slice(0, 120)}`)
+  }
+}
+
+// The published files of sessions the app no longer has are emptied (the kit cannot delete): once, in
+// the background, at session.start of a new process, in the desktop app only. A file is a candidate
+// when it is another session's, over 1 KB and a day without writes (staleFiles); the app's whole
+// list (archived included) must have been read, and the app must answer that the session does not
+// exist (sessionGone). Anything else leaves the file as it is. The person, 2026-11-14: "Enxugar e
+// esvaziar (Recomendado)".
+export async function sweepPublished($: any) {
+  try {
+    if (!(await inDesktopApp($))) return
+    const self = await selfId($)
+    if (self === undefined) return
+    const own = await waitFile($, self)
+    if (!own) return
+    const dir = own.slice(0, own.lastIndexOf('/'))
+    const now = (await stamp($)) ?? Date.now()
+    const stale = staleFiles(await $.fs.list(dir), self, now)
+    if (stale.length === 0) return
+    const listed = await allSessionIds($)
+    if (listed === undefined) return
+    for (const id of stale) {
+      if (listed.includes(id)) continue
+      if (!(await sessionGone($, id))) continue
+      if (await emptyPublished($, id)) await debug($, `task-tree: arquivo publicado de ${id} esvaziado (sessão não existe mais no app)`)
+    }
+  } catch (err) {
+    await debug($, `task-tree: limpeza dos arquivos publicados falhou: ${String(err)}`)
   }
 }

@@ -6,7 +6,7 @@ import { MAIN } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
 import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
-import { refreshChildren, watchSessions } from './sessions'
+import { refreshChildren, sweepPublished, watchSessions } from './sessions'
 import { level } from './tools'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -67,6 +67,8 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   // The linked sessions' states change outside this session: polled while the session runs.
   void refreshChildren($).catch(() => {})
   watchSessions($)
+  // A new process empties the published files of sessions the app no longer has, in the background.
+  if (fresh) void sweepPublished($).catch(() => {})
   return r
 }
 

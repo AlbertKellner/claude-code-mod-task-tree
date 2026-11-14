@@ -166,3 +166,14 @@ O store cheio não deixa de salvar o painel em silêncio.
 Origem: auditoria 2026-11-10 (passado o teto de 4 MiB, nada mais era salvo e nada avisava); sem mudar nenhuma regra.
 Código: hooks/command.ts, io/log.ts
 Estado: coberto
+
+### durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado
+O arquivo publicado de uma sessão que o app não lista mais é esvaziado.
+
+- Dado a pasta dos arquivos publicados com o arquivo de uma sessão que não existe mais no app, parado há mais de um dia
+- Quando um processo novo abre uma sessão no app desktop
+- Então esse arquivo é regravado vazio; o de uma sessão que o app lista (arquivada inclusive), o desta sessão e o gravado há pouco ficam como estão; com a lista do app em erro, incompleta ou sem a confirmação de que a sessão não existe, nada é esvaziado
+
+Origem: decisão do usuário, 2026-11-14 ("Enxugar e esvaziar (Recomendado)").
+Código: hooks/sessions.ts, io/host.ts, io/publish.ts
+Estado: coberto

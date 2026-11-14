@@ -293,6 +293,16 @@
       "data": "2026-11-14",
       "motivo": "auditoria: store cheio"
     },
+    "task-tree/tests/durabilidade.test.ts::com a lista do app em erro, nada é esvaziado": {
+      "regras": [
+        "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
+      ],
+      "hash": "a5755c090ec3770a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
     "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 1/2: o /clear com a filha trabalhando": {
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
@@ -372,6 +382,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::o arquivo de uma sessão que o app não lista mais é esvaziado, e o de uma listada não": {
+      "regras": [
+        "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
+      ],
+      "hash": "dfc6fa1e4b2dfd73",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
     "task-tree/tests/durabilidade.test.ts::os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato": {
       "regras": [
@@ -1611,6 +1631,16 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::a filha vai ao arquivo publicado cortada ao trabalho atual dela": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "35ea734bd44b6cbd",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
     "task-tree/tests/sessoes.test.ts::a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega": {
       "regras": [
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
@@ -1795,6 +1825,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::na avó, o cartão da neta não tem \"+N pedidos anteriores\"": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "e67d0f19603f2bb4",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
     "task-tree/tests/sessoes.test.ts::no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo com uma tarefa só": {
       "regras": [
         "sessoes.pedido-recebido-aparece-no-cartao"
@@ -1804,6 +1844,16 @@
       "tipo": "novo",
       "data": "2026-10-30",
       "motivo": "carta de recebimento na linha do pedido"
+    },
+    "task-tree/tests/sessoes.test.ts::o arquivo publicado não leva a cópia antiga das tarefas": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "003c3de703eacd7d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
     "task-tree/tests/sessoes.test.ts::o busto da sessão só na tarefa de que o cartão pende": {
       "regras": [
@@ -1935,6 +1985,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::uma rodada antiga da neta, de pedido cortado, não quebra o cartão": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "1396028141e96e62",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [
@@ -2836,10 +2896,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "cf40940c80bac3cf",
+      "hash": "122afa3e39c8b44c",
       "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "armazem que recusa gravações e fixar que devolve o log"
+      "motivo": "host com work e filhas no painel da filha, fs.list e get_session de sessão que não existe"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "b3f9c45b550d7930",

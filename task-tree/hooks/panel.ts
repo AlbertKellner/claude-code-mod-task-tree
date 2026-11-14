@@ -13,7 +13,7 @@ import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSi
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait } from '../io/publish'
-import { stayed } from '../draw/layout'
+import { rawPanel, stayed, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
 
 export const PANE = 'task-tree'
@@ -566,7 +566,8 @@ export async function refreshGit($: any): Promise<GitInfo | undefined> {
 }
 
 // Publishes this session's panel (io/publish.ts): gathers it from the state here, where the kit
-// wants the state keys literal, and what the last drawing left; `tasks` is for earlier versions.
+// wants the state keys literal, and what the last drawing left. The children go cut to their current
+// work (trimPublished): the state keeps them whole, so this panel does not change.
 export async function publishPanel($: any) {
   await ensureGroups($)
   await ensureWork($)
@@ -587,8 +588,8 @@ export async function publishPanel($: any) {
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
     // session that opened this one reads the round it left open as discarded.
     const { value: aborted } = await $.state.get(turnAbortedState)
-    const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    await publishWait($, id, { tasks, groups, waits, children, work, received, engine, ultracode: ultracode === true, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
+    const cut = (children as Child[]).map(c => (c.panel || c.tasks ? { ...c, panel: trimPublished(rawPanel(c)), tasks: undefined } : c))
+    await publishWait($, id, { groups, waits, children: cut, work, received, engine, ultracode: ultracode === true, rate: rate ?? undefined, git, aborted: aborted === true, sends, renderError: drawn.error, drawSize: drawn.size, rows: drawn.rows })
   } catch (err) {
     await debug($, `task-tree: painel não publicado: ${String(err)}`)
   }

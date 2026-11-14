@@ -825,3 +825,39 @@ test('a sessão que volta à lista regrava trabalho, fim do turno e ligações',
   await start($, ['b1'])
   expect(minhas.filter(k => !(k in dados)), JSON.stringify(Object.keys(dados))).toEqual([])
 })
+
+// A pasta dos arquivos publicados: o de uma sessão que não existe mais, o de uma listada, o de uma
+// arquivada e o de uma não listada gravado há pouco (todos com mais de 1 KB).
+const DIA = 24 * 3600 * 1000
+const SUMIU = 'local_99999999-9999-9999-9999-999999999999'
+const VIVA = 'local_11111111-1111-1111-1111-111111111111'
+const ARQUIVADA = 'local_22222222-2222-2222-2222-222222222222'
+const RECENTE = 'local_33333333-3333-3333-3333-333333333333'
+const PASTA = [
+  { name: `${SUMIU}.json`, size: 5000, mtimeMs: DIA },
+  { name: `${VIVA}.json`, size: 5000, mtimeMs: DIA },
+  { name: `${ARQUIVADA}.json`, size: 5000, mtimeMs: DIA },
+  { name: `${RECENTE}.json`, size: 5000, mtimeMs: 10 * DIA - 3600 * 1000 },
+]
+
+// Regra: durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado
+test('o arquivo de uma sessão que o app não lista mais é esvaziado, e o de uma listada não', async ($: any, on: any) => {
+  fixar(on, { agora: 10 * DIA })
+  armazem(on, {})
+  const h = host(on, [{ id: VIVA }, { id: ARQUIVADA, arquivada: true, rodando: false }], { pasta: PASTA })
+  await iniciarSessao($)
+  await new Promise(r => (globalThis as any).setTimeout(r, 100))
+  const g = h.gravados()
+  expect(JSON.parse(g[SUMIU] ?? 'null'), JSON.stringify(g)).toEqual({ version: 1, waiting: false, waits: [], children: [] })
+  for (const id of [VIVA, ARQUIVADA, RECENTE]) expect(g[id], id).toBeUndefined()
+})
+
+// Regra: durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado
+test('com a lista do app em erro, nada é esvaziado', async ($: any, on: any) => {
+  fixar(on, { agora: 10 * DIA })
+  armazem(on, {})
+  const h = host(on, [{ id: VIVA }], { pasta: PASTA, listaFalha: true })
+  await iniciarSessao($)
+  await new Promise(r => (globalThis as any).setTimeout(r, 100))
+  expect(h.gravados()[SUMIU], JSON.stringify(h.gravados())).toBeUndefined()
+})

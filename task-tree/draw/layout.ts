@@ -859,6 +859,27 @@ export function trimToWork(p: Panel, level: number): Panel {
   }
 }
 
+// What a session publishes of a child (hooks/panel publishPanel): its raw panel (rawPanel, not the
+// drawing's panelOf) cut to its current work by the rule of trimToWork, without `whole` (the rest is
+// not published) and with only the turns of the tasks kept; its own children cut the same way. The
+// waits, `received` and `sends` go whole. The person, 2026-11-14: "Enxugar e esvaziar (Recomendado)".
+export function trimPublished(p: Panel, level = 1): Panel {
+  const cut = trimToWork({ ...p, children: [] }, level)
+  const groups = (cut.groups ?? []).map(g => {
+    if (g.agent !== MAIN) return g
+    const kept: Group = { ...g }
+    delete kept.whole
+    const turnsIn = kept.tasks.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+    if (kept.turns) kept.turns = kept.turns.filter(u => turnsIn.includes(u.id))
+    return kept
+  })
+  return {
+    ...p,
+    groups,
+    children: level >= DEEP ? (p.children ?? []) : (p.children ?? []).map(c => (c.panel || c.tasks ? { ...c, panel: trimPublished(rawPanel(c), level + 1), tasks: undefined } : c)),
+  }
+}
+
 export function running(p: Panel, level = 0): boolean {
   if (timing(tasksOf(p.groups ?? []))) return true
   // A session at work keeps the task it was opened on running (see atWork).
