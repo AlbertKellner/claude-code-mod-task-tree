@@ -605,9 +605,12 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   deixar acima dele). O mapa `fitted` (por
   superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
   seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
-  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com
-  o botão que fecha o que a pessoa abriu) fica como último recurso, para um desenho de duas linhas que
-  ainda passe do limite. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
+  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", em KB ou, pelo texto, em mil
+  caracteres) fica como último recurso: o desenho de duas linhas ainda passa de 600 KB ou, no desktop,
+  de `TEXT_LIMIT`, ou só o piso de duas linhas coube. O botão "Voltar" fecha o que a pessoa abriu e liga
+  a marca `sec:short` nas dobras: com ela, um desenho que não cabe inteiro é refeito com os títulos (das
+  linhas e do cabeçalho) em no máximo `SHORT_TEXT` = 200 caracteres, "…" no fim, com a sua entrada
+  própria em `fitted`; o aviso só sai se nem assim couber. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.
   `drawn` guarda tamanho, linhas e erro do último desenho.
 - `ui.press` responde pela chave (`fold:<chave>`, `open:<id>`, `view:<summary|full>`) com a ação que o
   último desenho registrou em `actions` (`act`).
@@ -1717,3 +1720,12 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   antes. Como essas linhas podem deixar o desenho acima do máximo pedido, o laço do render baixa o
   máximo a partir do menor entre ele e as linhas desenhadas. O histórico aberto num cartão de filha,
   cortado, fica no checklist do app.
+- O aviso como rede e o "Voltar" que sempre volta (o usuário, 2026-11-13: "Manter como rede
+  (Recomendado)"). Depois do corte por tamanho, o aviso só aparecia se duas linhas ainda passassem de
+  600 KB, e o "Voltar" só fechava o que a pessoa abriu: sem nada aberto, não escrevia nada; com algo
+  aberto, o texto enorme seguia no desenho, e o aviso voltava. O que leva ao aviso é um texto enorme que
+  o corte não tira (o título de uma tarefa, sem limite de tamanho). Na prática, com um título assim o
+  laço descia até o piso de duas linhas: o desenho cabia, mas sem a tarefa (o cabeçalho dizia "Nenhuma
+  tarefa planejada"), e, quando o que passava era o texto (95.000 caracteres), sem aviso nem botão.
+  Agora o piso de duas linhas também não basta, o aviso sai também pelo texto, e o "Voltar" liga
+  `sec:short`: o painel volta com os títulos longos encurtados, e inteiros quando o desenho inteiro cabe.

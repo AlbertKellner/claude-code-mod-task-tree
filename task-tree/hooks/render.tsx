@@ -25,14 +25,21 @@ async function setFold($: any, key: string, closed: boolean) {
 }
 // The way back from the emergency drawing, which has none of the lines that fold (the person,
 // 2026-11-04: "coloque um botão para voltar a visualização anterior"): the histories opened close;
-// with none open, every line the person opened does.
+// with none open, every line the person opened does. It also turns on SHORT (the person, 2026-11-13:
+// "Manter como rede (Recomendado)", the button always brings the panel back): what reaches the
+// warning is a huge text the cut does not take out (a task's title), which closing lines does not
+// shorten; with the mark, a drawing that does not fit whole is drawn with its long texts cut in "…".
+const SHORT = 'sec:short'
 async function closeOpened($: any) {
   await update($, folds, cur => {
     const open = Object.keys(cur).filter(k => cur[k] === false)
     const history = open.filter(k => k.endsWith('sec:turns'))
-    return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])) }
+    return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])), [SHORT]: true }
   })
 }
+// The most characters a text has in the shortened drawing (see closeOpened), "…" its last.
+const SHORT_TEXT = 200
+const clip = (t: string) => (t.length > SHORT_TEXT ? `${t.slice(0, SHORT_TEXT - 1)}…` : t)
 
 // The line limit the last drawing fitted in when its lines passed the size limit (see render), by
 // surface and width, with the lines the panel had then: the pane is drawn again every second while a
@@ -243,8 +250,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // waits, so the size limit can ask for it again with fewer lines. `all`: the lines it stands for,
   // the ones a limit left out too.
   let all = 0
-  const paint = (maxRows: number) => {
-  const lines = layout(model, chosen, now, knownId(), maxRows)
+  const paint = (maxRows: number, short = false) => {
+  const laid = layout(model, chosen, now, knownId(), maxRows)
+  const lines = short ? laid.map(r => (r.title.length > SHORT_TEXT ? { ...r, title: clip(r.title) } : r)) : laid
   drawn.rows = lines.length
   all = lines.reduce((a, r) => a + (r.cut ?? 0), lines.length)
 
@@ -264,7 +272,7 @@ export async function render($: EngineInterface, e: any, next: any) {
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
     newest.find(t => atWork(t, sessions, 0).live) ??
     newest[0]
-  const head = headTask?.title ?? 'Tarefas'
+  const head = short ? clip(headTask?.title ?? 'Tarefas') : (headTask?.title ?? 'Tarefas')
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
   // group limit, the drawn groups'. The whole session's count stays in the tooltip.
@@ -341,7 +349,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // until it fits (the person, 2026-11-12: "Cortar os mais antigos (Recomendado)"): 400 lines of a
   // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.
   // Each try aims a little under the limit by the bytes a line took; after three, at half the lines
-  // at most, so it ends. The emergency drawing below is the last resort (two lines still too big).
+  // at most, so it ends. The emergency drawing below is the last resort (see fit).
   // On the desktop the text is cut the same way (TEXT_LIMIT): the app draws a drawing's first 100,000
   // characters of text and none after them (the harness: "characters of text are drawn up to the
   // first 100000"), and a native line draws its title twice (its Text and its icon's alt), so a long
@@ -350,40 +358,56 @@ export async function render($: EngineInterface, e: any, next: any) {
   const textual = e.surface === 'desktop'
   let chars = 0
   const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT
-  const sized = (maxRows: number) => {
-    const made = paint(maxRows)
+  const sized = (maxRows: number, short: boolean) => {
+    const made = paint(maxRows, short)
     drawn.size = JSON.stringify(made ?? null).length
     chars = textual ? textOf(made) : 0
     return made
   }
-  const pane = `${e.surface}:${(e.props as any)?.bodyColumns}`
-  const kept = fitted.get(pane)
-  let max = kept?.max ?? MAX_ROWS
-  let made = sized(max)
-  // The limit kept no longer serves (the panel has other lines, or these no longer fit): from the
-  // whole drawing again.
-  if (kept && (over() || all !== kept.lines)) {
-    fitted.delete(pane)
-    max = MAX_ROWS
-    made = sized(max)
+  // The cut, with the texts whole or shortened (`short`, each its own entry in `fitted`). It does not
+  // serve when the drawing is still over the limits, or when only the floor of two lines fitted: then
+  // what is too big is a text in the lines that stay (a task's title, which the header draws too), not
+  // the old blocks, and those two lines say nothing of the work (the person, 2026-11-13: "Manter como
+  // rede (Recomendado)").
+  const fit = (short: boolean) => {
+    const pane = `${e.surface}:${(e.props as any)?.bodyColumns}${short ? ':short' : ''}`
+    const kept = fitted.get(pane)
+    let max = kept?.max ?? MAX_ROWS
+    let made = sized(max, short)
+    // The limit kept no longer serves (the panel has other lines, or these no longer fit): from the
+    // whole drawing again.
+    if (kept && (over() || all !== kept.lines)) {
+      fitted.delete(pane)
+      max = MAX_ROWS
+      made = sized(max, short)
+    }
+    for (let i = 0; over() && max > 2; i++) {
+      const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
+      const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
+      const aim = Math.min(byBytes, byText)
+      // Below the last limit every time: the lines of an open history the cut keeps (limitRows) can
+      // leave more lines than the limit asked.
+      const rows = Math.min(max, drawn.rows)
+      max = Math.max(2, Math.min(rows - 1, i < 3 ? aim : Math.min(aim, rows >> 1)))
+      made = sized(max, short)
+    }
+    const enough = !over() && max > 2
+    if (max < MAX_ROWS && enough) fitted.set(pane, { lines: all, max })
+    return { made, enough }
   }
-  for (let i = 0; over() && max > 2; i++) {
-    const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
-    const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
-    const aim = Math.min(byBytes, byText)
-    // Below the last limit every time: the lines of an open history the cut keeps (limitRows) can
-    // leave more lines than the limit asked.
-    const rows = Math.min(max, drawn.rows)
-    max = Math.max(2, Math.min(rows - 1, i < 3 ? aim : Math.min(aim, rows >> 1)))
-    made = sized(max)
-  }
-  if (max < MAX_ROWS && !over()) fitted.set(pane, { lines: all, max })
-  if (drawn.size > DRAW_LIMIT) {
-    await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, acima de ${Math.round(DRAW_LIMIT / 1024)} KB`)
+  let { made, enough } = fit(false)
+  // After "Voltar" (SHORT), a drawing that does not fit whole comes with its long texts shortened, in
+  // place of the warning; once the whole drawing fits again, the texts are whole again.
+  if (!enough && chosen[SHORT] === true) ({ made, enough } = fit(true))
+  // The warning is the last resort: past the bytes, or on the desktop past the text (the app would draw
+  // the header and nothing more, with no button), or with only the floor of two lines left.
+  if (!enough) {
+    const what = chars > TEXT_LIMIT ? `${Math.round(chars / 1000)} mil caracteres` : `${Math.round(drawn.size / 1024)} KB`
+    await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB e ${chars} caracteres de texto, acima de ${Math.round(DRAW_LIMIT / 1024)} KB ou ${TEXT_LIMIT} caracteres, ou só duas linhas`)
     const { Box, Button, Text } = $.ui.resolve(e) as any
     return (
       <Box flexDirection="column">
-        <Text color="warning">{`Painel grande demais (${Math.round(drawn.size / 1024)} KB): mostrando só o essencial.`}</Text>
+        <Text color="warning">{`Painel grande demais (${what}): mostrando só o essencial.`}</Text>
         <Box flexDirection="row">
           <Button key="back" onPress={act('back', () => void closeOpened($))}>
             <Text>Voltar à visualização anterior</Text>

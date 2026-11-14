@@ -399,3 +399,51 @@ test('com "+N pedidos anteriores" aberto, o corte das 400 linhas deixa a linha �
   expect(linha(p, '+1 pedidos anteriores').texto, emTexto(p).slice(0, 300)).toContain('▸')
   await m.fim()
 })
+
+// Um plano com o título da tarefa de nível 1 enorme: ele vai no cabeçalho (no texto e no `alt` da barra),
+// que o corte não tira.
+async function planoGigante($: any, tamanho: number) {
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'G', title: `G ${'x'.repeat(tamanho)}`, children: [{ id: 'g1', title: 'Folha um' }, { id: 'g2', title: 'Folha dois' }] }])
+  await start($, ['g1'])
+}
+
+// Regra: cabecalho.aviso-de-painel-grande-volta
+test('um título enorme no cabeçalho leva ao aviso, e "Voltar" traz o painel de volta com os textos encurtados', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await planoGigante($, 320000)
+  const m = await montarNoApp($)
+  let d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(true)
+  await m.apertar('back')
+  d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
+  expect(d.textos.some(t => t.includes('Folha um')), d.textos.join('\n')).toBe(true)
+  expect(d.cabecalho.texto, d.cabecalho.texto.slice(0, 300)).toContain('…')
+  expect(d.cabecalho.texto.length, d.cabecalho.texto.slice(0, 300)).toBeLessThan(1000)
+  // O título enorme sai (o plano é trocado): o desenho inteiro cabe, e os textos voltam inteiros.
+  await plan($, [{ id: 'G', title: 'Plano curto', children: [{ id: 'g1', title: 'Folha um' }, { id: 'g2', title: 'Folha dois' }] }])
+  d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.cabecalho.texto, d.cabecalho.texto.slice(0, 300)).toContain('Plano curto')
+  expect([d.cabecalho.texto, ...d.textos].some(t => t.includes('…')), emTexto([])).toBe(false)
+  await m.fim()
+})
+
+// Regra: cabecalho.aviso-de-painel-grande-volta
+test('um título que passa do limite de texto também leva ao aviso, e "Voltar" traz o painel de volta', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await planoGigante($, 150000)
+  const m = await montarNoApp($)
+  let d = await m.desenho()
+  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
+  expect(d.aviso, kb(d)).toBe(true)
+  await m.apertar('back')
+  d = await m.desenho()
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.textos.some(t => t.includes('Folha um')), d.textos.join('\n')).toBe(true)
+  await m.fim()
+})

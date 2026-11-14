@@ -223,6 +223,26 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/cabecalho.test.ts::um título enorme no cabeçalho leva ao aviso, e \"Voltar\" traz o painel de volta com os textos encurtados": {
+      "regras": [
+        "cabecalho.aviso-de-painel-grande-volta"
+      ],
+      "hash": "890bc42a65a513b8",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13: \"Manter como rede (Recomendado)\""
+    },
+    "task-tree/tests/cabecalho.test.ts::um título que passa do limite de texto também leva ao aviso, e \"Voltar\" traz o painel de volta": {
+      "regras": [
+        "cabecalho.aviso-de-painel-grande-volta"
+      ],
+      "hash": "8738d77c3cf1d79f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-13: \"Manter como rede (Recomendado)\""
+    },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
         "durabilidade.clear-esvazia"
