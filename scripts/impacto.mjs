@@ -12,6 +12,7 @@
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { baseDoRelato } from './mudou.mjs'
 import { NUCLEO, lerCatalogo, lerTestes } from './regras.mjs'
 
 const barra = p => p.replace(/\\/g, '/')
@@ -69,11 +70,16 @@ if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.a
     const base = valor('--base')
     const soltos = args.filter((a, i) => !a.startsWith('--') && !['--raiz', '--base'].includes(args[i - 1] ?? ''))
     const git = (...a) => spawnSync('git', ['-C', raiz, ...a], { encoding: 'utf8' }).stdout ?? ''
-    const lista = soltos.length
+    let lista = soltos.length
       ? soltos
       : base
         ? git('diff', '--name-only', `${base}...HEAD`).split('\n')
         : [...git('diff', '--name-only', 'HEAD').split('\n'), ...git('ls-files', '--others', '--exclude-standard').split('\n')]
+    // Sem mudança fora de commit (logo depois do commit local): o impacto do último commit.
+    if (!soltos.length && !base && !lista.some(Boolean) && baseDoRelato(raiz) !== 'HEAD') {
+      lista = git('diff', '--name-only', 'HEAD~1', 'HEAD').split('\n')
+      console.log(`Sem mudança fora de commit: impacto do último commit, ${git('rev-parse', '--short', 'HEAD').trim()}`)
+    }
     console.log(texto(impacto(raiz, doMod(lista.filter(Boolean)))))
   } catch (err) {
     console.log(`impacto: não foi possível calcular (${err.message})`)

@@ -5,7 +5,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, write
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
-import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
+import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
 import { aprovarGolden, liberaGolden, liberaTeste } from './selos.mjs'
 import { impacto } from './impacto.mjs'
 import assert from 'node:assert/strict'
@@ -179,6 +179,23 @@ test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', co
   assert.deepEqual(alteradosNoIndice(dir, env), [])
   git('add', 'task-tree/tests/kit/leitura.ts')
   assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
+}))
+
+test('a base do relato é HEAD com mudança fora de commit e o commit anterior sem ela', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+  // Só o commit "base", sem anterior: HEAD.
+  assert.equal(baseDoRelato(dir, env), 'HEAD')
+  writeFileSync(join(dir, ARQ), readFileSync(join(dir, ARQ), 'utf8') + '// um\n')
+  git('commit', '-q', '-am', 'mudou')
+  const anterior = git('rev-parse', 'HEAD~1').stdout.trim()
+  // Logo depois do commit local: o commit anterior.
+  assert.equal(baseDoRelato(dir, env), anterior)
+  // Mudança fora de commit (rastreado, depois não rastreado): HEAD.
+  writeFileSync(join(dir, ARQ), readFileSync(join(dir, ARQ), 'utf8') + '// dois\n')
+  assert.equal(baseDoRelato(dir, env), 'HEAD')
+  git('checkout', '--', ARQ)
+  writeFileSync(join(dir, 'novo.txt'), 'x\n')
+  assert.equal(baseDoRelato(dir, env), 'HEAD')
 }))
 
 // O golden do desenho: só se grava com as palavras do usuário, e um desenho mudado sem aprovação falha.

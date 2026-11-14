@@ -127,6 +127,8 @@ Relato da implementação:
 ```markdown
 ### Relato
 - Commit: <hash> <título>.
+- Os dois comandos abaixo rodam depois do commit local: sem mudança fora de commit, comparam o
+  último commit (a primeira linha da saída diz a base).
 - `npm run check`: <resumo das etapas>.
 - `npm run testes:alterados`: <saída colada; "nenhum" se nenhum teste existente mudou>.
 - `npm run impacto`: <saída sobre o diff real; divergência do previsto no brief, explicada>.

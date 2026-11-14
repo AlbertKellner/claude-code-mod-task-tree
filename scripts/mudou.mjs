@@ -25,3 +25,14 @@ export function alteradosNoIndice(repo, env = process.env) {
   if (r.status !== 0) return null
   return r.stdout.split('\n').map(s => s.trim()).filter(Boolean)
 }
+
+// A base do relato (`testes:alterados`, `impacto`): HEAD quando o índice ou a pasta de trabalho diferem
+// de HEAD (rastreados, e não rastreados fora do .gitignore); sem essa diferença (logo depois do commit
+// local), o commit anterior, para o relato mostrar o último commit; sem commit anterior, HEAD.
+export function baseDoRelato(repo, env = process.env) {
+  const git = (...a) => spawnSync('git', ['-C', repo, ...a], { encoding: 'utf8', env })
+  const mudou = git('status', '--porcelain', '--untracked-files=all').stdout.trim() !== ''
+  if (mudou) return 'HEAD'
+  const anterior = git('rev-parse', '--verify', '--quiet', 'HEAD~1')
+  return anterior.status === 0 ? anterior.stdout.trim() : 'HEAD'
+}
