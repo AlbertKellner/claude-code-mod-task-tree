@@ -9,11 +9,11 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
 import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, total, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
-import { hasBrief, rawPanel, spared, stayed, trimPublished } from '../draw/layout'
+import { hasBrief, rawPanel, sessionTotal, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
 
 export const PANE = 'task-tree'
@@ -408,12 +408,10 @@ export async function ensureGroup($: any, agent: string) {
 let lastStatus: string | undefined | null = null
 export async function showStatus($: any, groups: Group[]) {
   const { value: children = [] } = await $.state.get(childrenState)
-  // What the person stopped and was not started again counts as the panel draws it, interrupted
-  // (stay); a letter of it still queued keeps it open.
   const { value: sends = [] } = await $.state.get(sendsState)
-  // So does delegated work alive below a task (spared).
-  const queuedFrom = spared(groups, sends as Send[], children as Child[])
-  const [d, n] = total({ groups: stayed(groups, queuedFrom), waits: [], children })
+  // The whole session's count, the header's "sessão inteira" (sessionTotal): the rounds cut into
+  // cards, a discarded round and a stopped session's pending tasks out, what was stopped interrupted.
+  const [d, n] = sessionTotal(groups, children as Child[], sends as Send[], knownId())
   const text = d === n ? undefined : `Tarefas ${d}/${n}`
   if (lastStatus !== null && lastStatus === text) return
   lastStatus = text

@@ -2272,6 +2272,17 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::com a origem aberta, o status conta as pendentes da filha": {
+      "regras": [
+        "cabecalho.status-igual-a-sessao-inteira",
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "9cd7a1145621392d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o status usa a conta da sessão inteira"
+    },
     "task-tree/tests/sessoes.test.ts::com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rodada nova segue em andamento": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem-do-pai"
@@ -2394,6 +2405,17 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/sessoes.test.ts::filha encerrada: o status sob a caixa de mensagem conta como a sessão inteira": {
+      "regras": [
+        "cabecalho.status-igual-a-sessao-inteira",
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "17d02c28e9e3dea2",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o status usa a conta da sessão inteira"
     },
     "task-tree/tests/sessoes.test.ts::filha parada só com pendentes e origem fechada: encerrada, fora da contagem, ✓ contam": {
       "regras": [
@@ -3894,10 +3916,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "aa300d98d6108ebb",
+      "hash": "528a1ef88a22f469",
       "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "host ganha leituras(id), a contagem de leituras do arquivo publicado; nada do que os testes existentes usam muda"
+      "motivo": "fixar guarda o último texto do status e o devolve; nada do que os testes afirmam muda"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",

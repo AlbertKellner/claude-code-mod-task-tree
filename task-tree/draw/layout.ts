@@ -629,6 +629,20 @@ export function cardsOf(p: Panel, me: string | undefined, sends?: { to?: string;
   const mail = sends ?? p.sends ?? []
   return (p.children ?? []).flatMap(c => split(c, p.children ?? [], me, owner, now, memo).map(r => settle(r, owner, mail)))
 }
+// The whole session's count (feitas, total, interrompidas): the header's "sessão inteira" and the
+// status under the message box ("Tarefas d/n") both come from here, so they never differ. What the
+// person stopped and was not started again counts interrupted (stayed), unless delegated work is alive
+// below it (spared); each session is cut into its rounds' cards (split, this session's tasks as the
+// owner) and settled by this session's letters, so a discarded round and a stopped session's pending
+// tasks ("encerrada") are out of it too (the audit, 2026-11-10: the status summed the raw sessions).
+export function sessionTotal(groups: Group[], children: Child[], sends: Send[], me: string | undefined): [number, number, number] {
+  const all = withMain(groups)
+  const own = all.find(g => g.agent === MAIN)?.tasks ?? []
+  const queuedFrom = spared(all, sends, children)
+  return total({ groups: stayed(all, queuedFrom), waits: [], children }, 0, c =>
+    split(c, children, me, own, undefined, newBreaksMemo()).map(r => settle(r, own, sends)),
+  )
+}
 // Where a session's current round is (see atWork): none for a card of an earlier round.
 export const roundAt = (c: Child) => (c.part === undefined ? (c.lastAnchor ?? c.anchor) : c.lastAnchor)
 export function atWork(t: TaskNode, sessions: Child[], level: number): Work {

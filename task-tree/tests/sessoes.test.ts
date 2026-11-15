@@ -1404,3 +1404,20 @@ test('o nome da sessão nova com uma palavra em comum com uma só tarefa leva o 
   const p = await abertaEntre($, on, { name: 'revisao-codigo', title: 'x' })
   expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Implementação: ler o código')
 })
+
+// Regra: cabecalho.status-igual-a-sessao-inteira, sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('filha encerrada: o status sob a caixa de mensagem conta como a sessão inteira', async ($: any, on: any) => {
+  const { status } = await parada($, on)
+  const p = await painel($)
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([4, 4])
+  expect(status(), emTexto(p)).toBeUndefined()
+})
+
+// Regra: cabecalho.status-igual-a-sessao-inteira, sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('com a origem aberta, o status conta as pendentes da filha', async ($: any, on: any) => {
+  const { status } = await parada($, on, 'aberta', false)
+  const p = await painel($)
+  const c = cabecalho(p)
+  expect(status(), emTexto(p)).toBe(`Tarefas ${c.feitas}/${c.total}`)
+})

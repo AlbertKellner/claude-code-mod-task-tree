@@ -169,3 +169,14 @@ O que saiu do trabalho fica em "+N pedidos anteriores", com os cartões das filh
 
 Origem: decisão do usuário, 2026-11-04 ("Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
+
+### cabecalho.status-igual-a-sessao-inteira
+O status "Tarefas d/n" embaixo da caixa de mensagem conta o mesmo que a sessão inteira do cabeçalho.
+
+- Dado tarefas desta sessão e das filhas, com uma filha "encerrada" ou uma rodada descartada
+- Quando o status é escrito
+- Então ele diz "Tarefas d/n" com as feitas e o total da sessão inteira, os mesmos do cabeçalho: sem as pendentes da filha encerrada, sem a rodada descartada e sem as interrompidas; com tudo feito, some
+
+Origem: auditoria 2026-11-10 (o status somava sem repartir as rodadas nem tirar a filha encerrada); aplica sessoes.filha-parada-com-origem-fechada-sai-da-contagem e sessoes.rodada-descartada-fora-da-contagem, sem mudar nenhuma regra.
+Código: hooks/panel.ts
+Estado: coberto

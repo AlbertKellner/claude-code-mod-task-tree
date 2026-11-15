@@ -101,9 +101,10 @@ O status aparece embaixo da caixa de mensagem.
 
 - Dado uma tarefa em andamento
 - Quando o app desenha a caixa de mensagem
-- Então o status do painel aparece embaixo dela
+- Então o status do painel aparece embaixo dela, com o número da sessão inteira (cabecalho.status-igual-a-sessao-inteira)
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Reescrito: 2026-11-14, texto: o número é o da sessão inteira; a regra do que o app mostra não muda.
 Estado: checklist (status do app)
 
 ### visual.cartao-modelo-e-esforco

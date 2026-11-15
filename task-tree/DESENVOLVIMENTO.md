@@ -143,7 +143,8 @@ mensagem pendente é retomado pelo `agent.spawn` com `resume`; o parado ou que f
 **Toda escrita do painel passa por `change($, fn)`** (`hooks/panel.ts`): `ensureGroups`, `ensureView`,
 `ensureWork` (volta do store se o módulo ainda não a fez), `adopt` (a lista legada `tasks` entra no
 grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `persist`: `showStatus`
-(`$.ui.status` "Tarefas d/n", chamado só quando o texto muda: `lastStatus`, variável do módulo),
+(`$.ui.status` "Tarefas d/n", da mesma conta da "sessão inteira" do cabeçalho, `sessionTotal`;
+chamado só quando o texto muda: `lastStatus`, variável do módulo),
 `saveGroups` (store `session:<uuid>` e a lista `sessions`, as `KEEP` = 30 mais novas) e
 `publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
 
@@ -1431,7 +1432,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   que as duas sabem.
 - Contador: `total` soma as tarefas da principal (todos os grupos) com as das filhas (as arquivadas
   como histórico, o que deixaram aberto como interrompido), recursivamente; vale para o topo do
-  painel e o `$.ui.status`. As interrompidas ficam fora. Os resultados de `plan`/`done` contam só o
+  painel e o `$.ui.status`. O status e a "sessão inteira" do cabeçalho saem da mesma função,
+  `sessionTotal` (`draw/layout.ts`: `stayed` com `spared`, cada filha repartida por `split` e cada
+  cartão passado por `settle`), para não divergirem (auditoria 2026-11-10: o status somava as filhas
+  sem repartir, e ficava em "Tarefas 4/5" com o cabeçalho em 4 de 4). As interrompidas ficam fora. Os resultados de `plan`/`done` contam só o
   grupo de quem chama.
   O `d/n` de cada tarefa da principal (`atWork`) soma, além das próprias folhas (a própria tarefa,
   se for folha com sessão), as tarefas das sessões ancoradas nela ou abaixo (arquivadas inclusive), só

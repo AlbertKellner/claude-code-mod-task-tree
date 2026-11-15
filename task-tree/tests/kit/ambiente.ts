@@ -11,9 +11,14 @@ export const PROPS = (colunas = 60) =>
 // Chamar antes da primeira chamada a $.
 export function fixar(on: any, opcoes: { agora?: number } = {}) {
   const relogio = mock.clock(on, { now: opcoes.agora ?? AGORA })
-  // Barra de status e log do host: o mod só escreve neles. As linhas do log ficam em `log`.
+  // Barra de status e log do host: o mod só escreve neles. As linhas do log ficam em `log`; o último
+  // texto do status, em `status()` (undefined quando apagado ou nunca escrito).
   const log: string[] = []
-  on('ui.status', () => ({ value: undefined }))
+  let ultimo: string | undefined
+  on('ui.status', (_$: any, e: any) => {
+    ultimo = typeof e === 'string' ? e : (e?.text ?? undefined)
+    return { value: undefined }
+  })
   on('ui.log', (_$: any, e: any) => {
     log.push(String(e?.text ?? ''))
     return { value: undefined }
@@ -28,7 +33,7 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   on('command.register', () => ({ value: {} }))
   on('tool.register', () => ({ value: {} }))
   on('classic.SessionStart', () => ({}))
-  return { relogio, log }
+  return { relogio, log, status: () => ultimo }
 }
 
 // Os subagentes que o host lista (agent.list), para as chamadas com agentId. Chamar antes da
