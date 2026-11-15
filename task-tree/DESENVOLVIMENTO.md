@@ -405,6 +405,13 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   mais antiga e caía em rodada descartada (`discarded`). A linha do cartão só leva `live` quando ele é
   o da frente (ou a sessão não foi dividida): uma sessão conta uma vez no chip de sessões ativas e no
   estado do cabeçalho; o cartão de uma rodada antiga segue desenhado como antes.
+- Os turnos digitados na filha (`own`, fora o de abertura) que pendem do mesmo pedido vigente da mãe
+  (o mesmo `inForce`) formam uma parte só (`ownPart`), de chave `-1 - índice` do primeiro deles, e
+  `partAt` é a hora desse primeiro: a dobra e a chave de um cartão de um turno só não mudam. Para a
+  rodada da frente, a parte conta pelo turno mais recente (`lastOwn`). Com dois ou mais turnos no
+  cartão, cada um ganha a sua linha de pedido no `body` (`typedHere`), e o texto alternativo diz
+  "Pedidos do usuário na filha: N" (`ownCount`); com um só, como antes. Um turno digitado não entra no
+  cartão de uma rodada aberta por mensagem da mãe.
 - O cartão de uma parte que veio antes da da frente (pelo começo, `byTime`) e ficou com tarefa aberta,
   de sessão não arquivada, é a rodada largada: `split` o marca `replaced` (campo só de desenho em
   `Child`), e `session` lhe dá a palavra "substituída", o tom `paused` (busto cinza, também com a
@@ -1877,3 +1884,7 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   tarefa do Esc; a filha trabalhando sob ela e o subagente em segundo plano lançado dela a deixavam ✕.
   `spared` estende a lista das tarefas poupadas por `halt` e `stay`; `park` segue marcando `stopped`. O
   teste de `envios.test.ts` da entrega imediata passou a ter o destino parado.
+- Turnos digitados na filha num cartão só (2026-11-14, "Um cartão só (Recomendado)", desfazendo "um
+  cartão por turno" de 2026-11-03): cada turno digitado era um cartão com o mesmo título; agora os do
+  mesmo pedido vigente da mãe ficam juntos, uma linha de pedido por turno. Leitura do planejador: "o
+  cartão que a sessão já tem ali" é o cartão de turnos digitados, não o de uma rodada da mãe.

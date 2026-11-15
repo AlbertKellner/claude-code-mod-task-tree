@@ -409,6 +409,18 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
     const turn = owner.reduce<number | undefined>((m, t) => (t.turn !== undefined && t.plannedAt !== undefined && t.plannedAt <= at && (m === undefined || t.turn > m) ? t.turn : m), undefined)
     return turn === undefined ? originEnd : ([...owner].reverse().find(t => t.turn === turn)?.id ?? originEnd)
   }
+  // The typed turns under the same request in force share one card (the person, 2026-11-14: "Um
+  // cartão só (Recomendado)", undoing one card per turn): its part is keyed by the first of them
+  // (-1 - its index), so a card of one turn keeps its key and fold; a request in force of its own
+  // gives a card of its own.
+  const firstOf = new Map<string | undefined, number>()
+  const ownPart = new Map<number, number>()
+  ownTurns.forEach((u, i) => {
+    const at = inForce(u)
+    if (!firstOf.has(at)) firstOf.set(at, i)
+    ownPart.set(u.id, -1 - firstOf.get(at)!)
+  })
+  const ownIn = (k: number) => ownTurns.filter(u => ownPart.get(u.id) === k)
   const turns = main.turns ?? []
   const roundOf = (u: Turn) => rounds.reduce((k, r, i) => (u.at !== undefined && u.at >= r.at ? i + 1 : k), 0)
   // The part (round) of each turn, once per turn; a task with no turn, or with a turn not listed, is
@@ -425,8 +437,8 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   for (const u of [...turns].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
     if (partOfTurn.has(u.id)) continue
     if (typed(u)) {
-      // Its own part, keyed below zero (one per turn), apart from the rounds.
-      partOfTurn.set(u.id, -1 - ownTurns.findIndex(o => o.id === u.id))
+      // Its own part, keyed below zero (one per request in force, see ownPart), apart from the rounds.
+      partOfTurn.set(u.id, ownPart.get(u.id) ?? -1)
       if (u.at !== undefined) before = u.at
       continue
     }
@@ -457,8 +469,10 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   // The card at work: the latest round with a task in progress (an earlier one left with a task started
   // is the abandoned one, discarded), else the latest. Latest by when each part began, not by its key
   // (a turn typed in that session is keyed below zero, and was read as the oldest round): a round of a
-  // message by that message, a typed turn by its own time, part 0 before all; a tie keeps the key order.
-  const startOf = (k: number) => (k > 0 ? (rounds[k - 1]?.at ?? -Infinity) : k < 0 ? (ownTurns[-1 - k]?.at ?? -Infinity) : -Infinity)
+  // message by that message, typed turns by the latest of them (a turn typed in an older card is the
+  // newest work), part 0 before all; a tie keeps the key order.
+  const lastOwn = (k: number) => ownIn(k).reduce((m, u) => Math.max(m, u.at ?? -Infinity), -Infinity)
+  const startOf = (k: number) => (k > 0 ? (rounds[k - 1]?.at ?? -Infinity) : k < 0 ? lastOwn(k) : -Infinity)
   const byTime = [...parts].sort((a, b) => (startOf(a) === startOf(b) ? a - b : startOf(a) - startOf(b)))
   const busy = [...byTime].reverse().find(k => (flatIn.get(k) ?? []).some(t => t.status === 'open' && t.started !== undefined))
   const lead = busy ?? byTime[byTime.length - 1]
@@ -505,7 +519,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
       // At work on a turn the person opened, the session is at work under that card (its request is
       // kept drawn, its line busy), not under the task of the last message.
       lastAnchor: at ? (k < 0 ? inForce(ownTurns[-1 - k]) : c.lastAnchor) : undefined,
-      ...(k < 0 && ownTurns[-1 - k] !== undefined ? { ownTurn: ownTurns[-1 - k]!.title } : {}),
+      ...(k < 0 && ownTurns[-1 - k] !== undefined ? { ownTurn: ownTurns[-1 - k]!.title, ownCount: ownIn(k).length } : {}),
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),
       waiting: at ? c.waiting : false,
@@ -1347,7 +1361,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // A card of a turn the person opened by typing in that session says so; the text in its tooltip.
       title: `${c.name || c.title}${c.ownTurn !== undefined ? ' · pedido do usuário na filha' : ''}${c.loose ? ` · do pedido "${c.loose}"` : ''}`,
       label: 'Sessão',
-      hint: c.ownTurn !== undefined ? `Pedido do usuário na filha: ${c.ownTurn}` : c.name && c.name !== c.title ? c.title : undefined,
+      hint: c.ownTurn !== undefined ? ((c.ownCount ?? 1) > 1 ? `Pedidos do usuário na filha: ${c.ownCount}` : `Pedido do usuário na filha: ${c.ownTurn}`) : c.name && c.name !== c.title ? c.title : undefined,
       strong: !gone && live(c),
       sub: cn > 0 ? [cd, cn] : undefined,
       meta: state,
@@ -1561,11 +1575,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // with no line from the card's label, those tasks read as loose ones (the person's words:
       // "Tarefas sem ligação"); a turn of one task stays as it was, that task its own header. A turn
       // a message opened always gets it, one task or more: its header is the ✉ received (the person,
-      // 2026-10-30: "Sim, uma carta por mensagem (Recomendado)").
+      // 2026-10-30: "Sim, uma carta por mensagem (Recomendado)"). A card of two or more turns the person
+      // typed in that session gives each its header, one task or more (the person, 2026-11-14: "Um
+      // cartão só (Recomendado)"); a card of one keeps its tasks right under it.
+      const typedHere = (g.turns ?? []).filter(u => u.own === true && drawn.some(t => t.turn === u.id)).length > 1
       const turns =
         g.agent !== MAIN
           ? []
-          : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || u.msg === true || drawn.filter(t => t.turn === u.id).length > 1))
+          : (g.turns ?? []).filter(u => drawn.some(t => t.turn === u.id) && (level === 0 || u.msg === true || (typedHere && u.own === true) || drawn.filter(t => t.turn === u.id).length > 1))
       const loose = turns.length === 0 ? drawn : drawn.filter(t => !turns.some(u => u.id === t.turn))
       const briefDrawn = history ? briefOnly : briefInSight
       // Only the main group's tasks send messages: a subagent's lines have none pending.

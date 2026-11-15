@@ -532,6 +532,44 @@ test('o turno que o usuário abriu na filha pendura no fim do pedido da mãe vig
   expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Pedido atual')))
 })
 
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('dois turnos digitados na filha com o mesmo pedido da mãe em curso ficam num cartão só, com uma linha de pedido por turno', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'A2', 'feita'), noTurno(3, '3', 'A3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'primeiro pedido', at: AGORA + 1500, own: true }, { id: 3, title: 'segundo pedido', at: AGORA + 1800, own: true }],
+  }
+  await aviso($)
+  // O turno concluído sai do trabalho atual e fica em "+1 pedidos anteriores" do cartão: aberto, ele volta.
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs[0]?.tarefas.filter(t => !t.startsWith('+')).slice(0, 4), emTexto(p)).toEqual(['primeiro pedido', 'A2', 'segundo pedido', 'A3'])
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('turnos digitados com pedidos diferentes da mãe em curso ficam em cartões diferentes', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'A2', 'iniciada'), noTurno(3, '3', 'A3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'primeiro pedido', at: AGORA + 500, own: true }, { id: 3, title: 'segundo pedido', at: AGORA + 1800, own: true }],
+  }
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Reescrita', 'Limpeza'])
+})
+
 // Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente, cabecalho.limites-de-linhas
 test('com o turno próprio da filha trabalhando no pedido antigo, o pedido segue desenhado depois de três pedidos novos', async ($: any, on: any) => {
   const { h, relogio } = await abrirNoPedidoAntigo($, on)

@@ -2232,6 +2232,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::dois turnos digitados na filha com o mesmo pedido da mãe em curso ficam num cartão só, com uma linha de pedido por turno": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "061bbf5c50671fc9",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",
@@ -2525,6 +2535,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::turnos digitados com pedidos diferentes da mãe em curso ficam em cartões diferentes": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "aa88652f2653bd2f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::uma rodada antiga da neta, de pedido cortado, não quebra o cartão": {
       "regras": [
