@@ -1013,3 +1013,52 @@ test('a carta para uma irmã listada pelo app mostra o nome dela', async ($: any
   const carta = p.find(l => l.titulo.startsWith('Para '))
   expect(carta?.titulo, emTexto(p)).toBe('Para irma-docs: veja a doc')
 })
+
+// ---- Um cenário por texto ao modelo (decisão do usuário de 2026-11-14: "Cenário por texto (Recomendado)").
+const NA_FILA = 'ficou na fila'
+
+// Regra: envios.aviso-de-envio-na-fila
+test('o envio que fica na fila pede para manter a tarefa em andamento; a entrega imediata, não', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  const modo = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const fila = await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's1', to: 'local_x', message: 'oi' }))
+  expect(fila).toContain(NA_FILA)
+  expect(fila).toContain('Um')
+  modo.modo = 'entregue'
+  await start($, ['2'])
+  expect(await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's2', to: 'local_x', message: 'oi' }))).not.toContain(NA_FILA)
+})
+
+// Regra: envios.aviso-de-envio-na-fila
+test('o envio na fila para um subagente diz que é para o subagente', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  const ctx = await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's1', to: 'sub-1', message: 'oi' }))
+  expect(ctx).toContain('para o subagente')
+  expect(ctx).toContain(NA_FILA)
+})
+
+// Regra: envios.done-com-carta-na-fila
+test('o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  const modo = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  expect((await done($, ['1'])).texto).toContain('ainda está na fila')
+  modo.modo = 'entregue'
+  await start($, ['2'])
+  await envio($, 'local_x')
+  expect((await done($, ['2'])).texto).not.toContain('ainda está na fila')
+})

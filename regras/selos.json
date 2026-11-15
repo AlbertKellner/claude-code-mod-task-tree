@@ -1451,6 +1451,16 @@
       "data": "2026-11-14",
       "motivo": "uma noção só de nada em execução na tarefa"
     },
+    "task-tree/tests/envios.test.ts::o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não": {
+      "regras": [
+        "envios.done-com-carta-na-fila"
+      ],
+      "hash": "f9487daf5a26dc08",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
     "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
       "regras": [
         "envios.fila-nao-interrompe-no-fim-do-turno"
@@ -1460,6 +1470,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::o envio na fila para um subagente diz que é para o subagente": {
+      "regras": [
+        "envios.aviso-de-envio-na-fila"
+      ],
+      "hash": "6bfdd440be12d6e0",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/envios.test.ts::o envio nunca vai à tarefa com pergunta aberta": {
       "regras": [
@@ -1480,6 +1500,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: leitura das filhas"
+    },
+    "task-tree/tests/envios.test.ts::o envio que fica na fila pede para manter a tarefa em andamento; a entrega imediata, não": {
+      "regras": [
+        "envios.aviso-de-envio-na-fila"
+      ],
+      "hash": "105cfb46690e657f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/envios.test.ts::o mesmo plano num pedido da pessoa não mostra carta nenhuma": {
       "regras": [
@@ -1706,6 +1736,36 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
     },
+    "task-tree/tests/lembretes.test.ts::a notificação de uma tarefa em segundo plano traz o lembrete curto de atualizar o painel": {
+      "regras": [
+        "lembretes.tarefa-em-segundo-plano"
+      ],
+      "hash": "dff57cc1bfc02578",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::a pergunta dispensada para o chat avisa que a mensagem seguinte é a resposta, e essa mensagem é dita como resposta uma vez": {
+      "regras": [
+        "lembretes.resposta-pelo-chat"
+      ],
+      "hash": "11569cdbf5949ccc",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::a pergunta respondida por opção devolve o pedido de done no que a resposta concluiu e de plan com as próximas": {
+      "regras": [
+        "lembretes.resposta-por-opcao"
+      ],
+      "hash": "9504c13b587e4280",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
     "task-tree/tests/lembretes.test.ts::a primeira regra do painel diz done antes do plan quando a mensagem conclui tarefas abertas": {
       "regras": [
         "lembretes.done-antes-do-plan"
@@ -1725,6 +1785,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
+    "task-tree/tests/lembretes.test.ts::as descrições das ferramentas e do comando dizem o essencial de cada uma": {
+      "regras": [
+        "lembretes.descricoes-das-ferramentas"
+      ],
+      "hash": "b10b7e95cb69b487",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/lembretes.test.ts::as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha": {
       "regras": [
@@ -1936,6 +2006,16 @@
       "data": "2026-11-15",
       "motivo": "auditoria: lembrete de planejar pelo pedido atual"
     },
+    "task-tree/tests/lembretes.test.ts::o aviso do app traz só o lembrete curto de manter o painel em dia": {
+      "regras": [
+        "lembretes.aviso-do-app"
+      ],
+      "hash": "5305edd7ea0c8bd4",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
     "task-tree/tests/lembretes.test.ts::o done que fecha a última tarefa do pedido atual cobra o summary mesmo com pendente antiga": {
       "regras": [
         "lembretes.primeira-chamada-sem-plano",
@@ -1966,6 +2046,36 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
+    "task-tree/tests/lembretes.test.ts::o retorno de um subagente traz o lembrete curto de marcar com done o que ele concluiu": {
+      "regras": [
+        "lembretes.retorno-de-subagente"
+      ],
+      "hash": "a409ff78bdc4d1b6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::o wrap_up com tarefas abertas as lista; com tudo fechado, não": {
+      "regras": [
+        "lembretes.wrap-up-com-abertas"
+      ],
+      "hash": "3cb7e2bcd5a72347",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::o wrap_up sem summary no turno avisa que falta o resumo; com o summary dado, não": {
+      "regras": [
+        "lembretes.wrap-up-sem-resumo"
+      ],
+      "hash": "72135621b8658961",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/lembretes.test.ts::os lembretes de mensagem nova, as regras e a descrição do done mandam cancelar o que a mensagem substitui": {
       "regras": [

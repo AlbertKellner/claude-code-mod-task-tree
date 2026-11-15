@@ -589,3 +589,114 @@ test('a primeira regra do painel diz done antes do plan quando a mensagem conclu
   expect(regras).toContain('feche-as primeiro com mcp__task-tree__done')
   expect(regras.indexOf('feche-as primeiro')).toBeLessThan(regras.indexOf('a primeira chamada de ferramenta é mcp__task-tree__plan'))
 })
+
+// ---- Um cenário por texto ao modelo (decisão do usuário de 2026-11-14: "Cenário por texto
+// (Recomendado)"): cada teste confere quando o texto sai, e quando não sai, e um ou dois trechos.
+const HAND_BACK = '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>'
+const WRAP_UP = 'mcp__ccd_turn__wrap_up'
+const contextoDe = (r: any) => JSON.stringify(r?.context ?? [])
+
+// Regra: lembretes.retorno-de-subagente
+test('o retorno de um subagente traz o lembrete curto de marcar com done o que ele concluiu', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await $.prompt.submit({ text: HAND_BACK }))
+  expect(ctx).toContain('o subagente terminou')
+  expect(ctx).toContain('mcp__task-tree__done')
+  expect(ctx).not.toContain(PEDIDO_NOVO)
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'Outro pedido'))).not.toContain('o subagente terminou')
+})
+
+// Regra: lembretes.tarefa-em-segundo-plano
+test('a notificação de uma tarefa em segundo plano traz o lembrete curto de atualizar o painel', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } }))
+  expect(ctx).toContain('uma tarefa em segundo plano')
+  expect(ctx).toContain('terminou')
+  expect(ctx).not.toContain(PEDIDO_NOVO)
+  expect(ctx).not.toContain('o subagente terminou')
+})
+
+// Regra: lembretes.aviso-do-app
+test('o aviso do app traz só o lembrete curto de manter o painel em dia', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await aviso($))
+  expect(ctx).toContain(CURTO)
+  expect(ctx).not.toContain(PEDIDO_NOVO)
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'Outro pedido'))).not.toContain(CURTO)
+})
+
+// Regra: lembretes.resposta-por-opcao
+test('a pergunta respondida por opção devolve o pedido de done no que a resposta concluiu e de plan com as próximas', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: 'Opção A' }))
+  await iniciar($, on)
+  const ctx = contextoDe(await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] }))
+  expect(ctx).toContain('o usuário respondeu')
+  expect(ctx).toContain('mcp__task-tree__plan')
+  expect(ctx).not.toContain('vai responder por mensagem')
+})
+
+// Regra: lembretes.resposta-pelo-chat
+test('a pergunta dispensada para o chat avisa que a mensagem seguinte é a resposta, e essa mensagem é dita como resposta uma vez', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: 'User did not answer this question — they sent a message instead.' }))
+  await iniciar($, on)
+  const ctx = contextoDe(await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] }))
+  expect(ctx).toContain('vai responder por mensagem no chat')
+  expect(ctx).not.toContain('o usuário respondeu')
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'prefiro a segunda'))).toContain('Esta mensagem é a resposta do usuário à pergunta anterior')
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'outra coisa'))).not.toContain('resposta do usuário')
+})
+
+// Regra: lembretes.wrap-up-sem-resumo
+test('o wrap_up sem summary no turno avisa que falta o resumo; com o summary dado, não', async ($: any, on: any) => {
+  on('tool.call', { tool: WRAP_UP }, () => ({ result: 'ok' }))
+  await iniciar($, on)
+  expect(contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w1', recap: 'r' }))).toContain('falta o resumo do turno')
+  await done($, ['1', '2'], 'Feito')
+  expect(contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w2', recap: 'r' }))).not.toContain('falta o resumo do turno')
+})
+
+// Regra: lembretes.wrap-up-com-abertas
+test('o wrap_up com tarefas abertas as lista; com tudo fechado, não', async ($: any, on: any) => {
+  on('tool.call', { tool: WRAP_UP }, () => ({ result: 'ok' }))
+  await iniciar($, on)
+  const ctx = contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w1', recap: 'r' }))
+  expect(ctx).toContain('o turno termina com tarefas abertas')
+  expect(ctx).toContain('Dois')
+  await done($, ['1', '2'], 'Feito')
+  expect(contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w2', recap: 'r' }))).not.toContain('o turno termina com tarefas abertas')
+})
+
+// Regra: lembretes.descricoes-das-ferramentas
+test('as descrições das ferramentas e do comando dizem o essencial de cada uma', async ($: any, on: any) => {
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('prompt.compose', () => ({ sections: [] }))
+  const comandos: any[] = []
+  on('command.register', (_$: any, e: any) => {
+    comandos.push(e)
+    return { value: {} }
+  })
+  const ferramentas: Record<string, any> = {}
+  on('tool.register', (_$: any, e: any) => {
+    ferramentas[String(e.name)] = e
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  const desc = (nome: string) => String(ferramentas[nome]?.description ?? '')
+  expect(desc('plan')).toContain('Até 3 níveis')
+  expect(desc('plan')).toContain('request')
+  expect(desc('done')).toContain('concluídas')
+  expect(desc('done')).toContain('summary')
+  expect(desc('start')).toContain('em andamento')
+  expect(String(ferramentas['done']?.inputSchema?.properties?.cancel?.description ?? '')).toContain('não serão feitas')
+  expect(JSON.stringify(comandos)).toContain('Abre o painel')
+})

@@ -200,3 +200,88 @@ Com tarefas abertas, a mensagem nova pede primeiro o done do que ela conclui, de
 
 Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (465b09e), para o caso da mensagem com tarefas abertas.
 Estado: coberto
+
+### lembretes.retorno-de-subagente
+O retorno de um subagente traz o lembrete curto de atualizar o painel.
+
+- Dado um subagente que devolve o trabalho ao loop principal
+- Quando o prompt de retorno chega
+- Então o modelo recebe o lembrete de que o subagente terminou e de marcar com done o que ele concluiu; não recebe o lembrete de pedido novo, e a mensagem seguinte da pessoa não traz esse lembrete
+
+Origem: regra do painel (texto em text/rules.ts desde o commit 758dbb7, 2026-10-22); cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### lembretes.tarefa-em-segundo-plano
+A notificação de uma tarefa em segundo plano traz o lembrete curto de atualizar o painel.
+
+- Dado uma tarefa em segundo plano (um subagente, um comando) que terminou
+- Quando a notificação dela chega (origem task-notification)
+- Então o modelo recebe o lembrete de que a tarefa em segundo plano terminou e de marcar com done o que ela concluiu; não recebe o lembrete de pedido novo nem o do retorno de subagente
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### lembretes.aviso-do-app
+O aviso do app traz só o lembrete curto de manter o painel em dia.
+
+- Dado um aviso do app (uma sessão terminou o turno)
+- Quando o prompt do aviso chega
+- Então o modelo recebe o lembrete de manter o painel em dia (done no que terminou, start no que começa), sem o lembrete de pedido novo; a mensagem da pessoa não traz esse lembrete
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### lembretes.resposta-por-opcao
+A pergunta respondida por opção pede done no que a resposta concluiu e plan com as próximas tarefas.
+
+- Dado uma tarefa aberta e uma pergunta (AskUserQuestion) respondida por uma das opções
+- Quando a resposta volta ao modelo
+- Então o resultado traz que o usuário respondeu, com o pedido de done no que a resposta concluiu e de plan com as próximas tarefas; não traz o aviso de resposta pelo chat
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.resposta-pelo-chat
+A pergunta dispensada para o chat avisa que a mensagem seguinte é a resposta.
+
+- Dado uma tarefa aberta e uma pergunta que o usuário dispensa para responder por mensagem
+- Quando a resposta volta ao modelo, e depois chega a mensagem seguinte da pessoa
+- Então o resultado avisa que o usuário vai responder por mensagem no chat; a mensagem seguinte é dita "a resposta do usuário à pergunta anterior", só ela (a outra depois dela não)
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.wrap-up-sem-resumo
+O wrap_up sem summary no turno avisa que falta o resumo.
+
+- Dado um turno sem done com summary
+- Quando o modelo chama o wrap_up
+- Então o resultado avisa que falta o resumo do turno e pede o done com summary; depois de um done com summary, o wrap_up não avisa
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.wrap-up-com-abertas
+O wrap_up com tarefas abertas as lista.
+
+- Dado tarefas abertas no painel
+- Quando o modelo chama o wrap_up
+- Então o resultado diz que o turno termina com tarefas abertas, com a lista delas, e pede o done nas concluídas; com tudo fechado, não diz
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.descricoes-das-ferramentas
+As descrições das ferramentas do painel e do comando dizem o essencial de cada uma.
+
+- Dado o mod carregado numa sessão
+- Quando o motor registra as ferramentas (plan, start, done) e o comando /task-tree
+- Então a descrição do plan diz os 3 níveis e o request; a do done, que marca concluídas e o summary; a do start, que marca em andamento; a do cancel, as tarefas que não serão feitas; a do comando, que abre o painel
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/register.tsx
+Estado: coberto

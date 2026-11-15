@@ -161,6 +161,8 @@ fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden
 
 Regra nova de como o modelo usa o painel vai em `task-tree/text/rules.ts` (`RULES`, descrições das
 ferramentas, lembretes dos hooks), nunca na memória do Claude Code nem num CLAUDE.md da máquina.
+Todo texto novo ao modelo entra com um cenário que diz quando ele sai e um teste dos trechos essenciais;
+mudar quando um texto sai é mudança de regra (decisão registrada); a redação segue livre.
 
 ## Checklist do app (validação visual do usuário)
 

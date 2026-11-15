@@ -297,3 +297,24 @@ Cada carta aparece uma vez: no cartão e no pedido da tarefa de onde saiu.
 Origem: auditoria 2026-11-10 (a carta se repetia em todos os cartões de rodada, e a carta órfã de replano passava ao pedido novo); aplica envios.carta-sob-a-tarefa, pedidos.replano-mantem-envio-ate-entrega e a decisão de 2026-11-12 ("Sim, fica à vista (Recomendado)"), sem mudar nenhuma regra.
 Código: draw/layout.ts
 Estado: coberto
+
+### envios.aviso-de-envio-na-fila
+O envio que fica na fila pede para manter a tarefa do envio em andamento.
+
+- Dado uma tarefa em andamento
+- Quando o modelo manda uma mensagem que fica na fila (a outra sessão ou a um subagente)
+- Então o resultado diz que a mensagem ficou na fila, cita a tarefa do envio e pede para mantê-la em andamento; para um subagente, diz que é para o subagente; na entrega imediata, não diz
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### envios.done-com-carta-na-fila
+O done que fecha a tarefa de uma carta ainda na fila avisa.
+
+- Dado uma tarefa com uma carta ainda na fila
+- Quando o modelo fecha a tarefa com done
+- Então o resultado avisa que a mensagem ainda está na fila, sem confirmação de recebimento; com a carta entregue, não avisa
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tools.ts
+Estado: coberto

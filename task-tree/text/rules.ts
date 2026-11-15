@@ -4,7 +4,9 @@
 // All in one place, so what the model reads about the same thing is said once: the limit of the ↩
 // summary (BRIEF) is interpolated here, in every text that names it. Pure strings and functions of
 // strings; the hooks module imports them. The tests read them by their effect (tests/lembretes.test.ts
-// and the others), not letter by letter.
+// and the others), not letter by letter. Each text has a scenario in the catalog (regras/) that says
+// when it goes out, with a test of when and of its essential words; changing when a text goes out
+// changes a rule (a decision of the person), its wording stays free.
 
 // The ↩ line says the answer in at most BRIEF characters: it is done's `summary`, and a request with
 // none has no ↩ line (see brief in the hooks).
