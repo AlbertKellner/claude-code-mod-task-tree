@@ -70,9 +70,10 @@ O lembrete de planejar na primeira ferramenta sem plano.
 
 - Dado um pedido em que o modelo ainda não usou o painel (nenhum plan aceito, nenhum start, nenhum done em tarefa deste pedido), sem tarefa aberta própria e sem tarefa em andamento
 - Quando o modelo chama a primeira ferramenta e, depois, a cada 10
-- Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala
+- Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala; o wrap_up do app e a lista do app (update_plan) não levam o lembrete nem contam como chamada
 
 Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20); o texto passou para text/rules.ts no commit dee2f67, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Não levar (Recomendado)"): no wrap_up sai só "falta o resumo do turno"; o lembrete de planejar segue nas outras ferramentas; e de 2026-11-15 ("Não leva (Recomendado)"): a lista do app (update_plan) também deixa de receber o lembrete. Os testes existentes deste cenário não mudam.
 Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts
 Estado: coberto
 

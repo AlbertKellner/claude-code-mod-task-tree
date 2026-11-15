@@ -821,3 +821,27 @@ test('a filha arquivada com a tarefa de origem aberta: o modelo é avisado uma v
   expect(p.find(l => l.texto.includes('filha-um'))?.texto ?? '').toContain('arquivada')
   expect(contexto(await aviso($))).not.toContain('foi arquivada')
 })
+
+// Regra: lembretes.primeira-chamada-sem-plano, lembretes.wrap-up-sem-resumo
+test("o wrap_up sem plano traz 'falta o resumo do turno' e não o lembrete de planejar", async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'ok' }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  const fim = contexto(await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', tool_use_id: 'w1', recap: 'feito' }))
+  expect(fim).toContain('falta o resumo do turno')
+  expect(fim).not.toContain('sem plano aberto')
+  // O wrap_up não contou: a chamada seguinte é a primeira.
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('a lista do app sem plano não traz o lembrete de planejar nem conta como chamada', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'mcp__ccd_turn__update_plan' }, () => ({ result: 'ok' }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  const lista = contexto(await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', tool_use_id: 'u1', items: [{ content: 'Passo', status: 'in_progress' }] }))
+  expect(lista).not.toContain('sem plano aberto')
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})

@@ -267,7 +267,8 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
-   chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
+   chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`; o wrap_up e a lista do app,
+   `update_plan`, não ganham nem contam).
 
 **Um prompt** (`hooks/prompt-submit.ts`): `said(text)` tira os `<system-reminder>` e classifica em
 mensagem de outra sessão (`peer`, `<cross-session-message`), volta de subagente (`handback`), aviso
@@ -2377,3 +2378,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   conector (2026-11-15, "Barra, contagem e teto (Recomendado)"; visual.titulo-legivel-no-painel-estreito).
   O recuo próprio de cada cartão (borda e respiro) não entra no teto. O terminal não muda. No golden, o
   cabeçalho do cartão de grupo "4 subagentes" (cenário `subagente`, 60 colunas) perdeu a caixa da barra.
+
+## Achados baixos: o wrap_up e a lista do app sem o lembrete de planejar (2026-11-15)
+
+- O lembrete de planejar (`UNPLANNED`) saía também no wrap_up do app, contra a regra de não criar plano
+  retroativo: num pedido respondido só com texto, a única chamada era o wrap_up, e o modelo criava uma
+  tarefa só para fechá-la. Agora o wrap_up (2026-11-15, "Não levar (Recomendado)") e a lista do app,
+  `update_plan`, chamada junto com o plan (2026-11-15, "Não leva (Recomendado)"), não levam o lembrete
+  nem contam como chamada; no wrap_up segue "falta o resumo do turno" (lembretes.primeira-chamada-sem-plano).

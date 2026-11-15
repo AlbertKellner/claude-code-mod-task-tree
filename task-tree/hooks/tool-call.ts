@@ -4,7 +4,7 @@
 // back, a start_session records its session, then each note handler adds, in order, what it has to say
 // to the result (a message only queued, a session that ended its turn, a message taken up, a task the
 // end of its subagents closed or marked ✕, what a
-// wrap_up leaves open) and, last, the reminder to plan: the first call of a request that has not
+// wrap_up leaves open) and, last, the reminder to plan (never on the app's wrap_up or task list): the first call of a request that has not
 // used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
 
 import { update } from 'claude-code'
@@ -259,7 +259,12 @@ const wrapUpOpen: Notes = async ($, c, notes) => {
 
 // The reminder to plan, in the result of the first call of the main loop with no open plan and of
 // every 10th after it; a call of the panel's own tools, or a request that planned, starts the count over.
+// The app's wrap_up and its task list neither take it nor count (the person, 2026-11-15: "Não levar
+// (Recomendado)", "Não leva (Recomendado)"): a request answered with text alone gets no plan made
+// after the fact, and the list called beside the plan does not ask for it again.
+const NOT_COUNTED = ['mcp__ccd_turn__wrap_up', 'mcp__ccd_turn__update_plan']
 async function reminder($: any, c: Call, r: any) {
+  if (NOT_COUNTED.includes(String(c.e.tool))) return r
   if (String(c.e.tool).startsWith('mcp__task-tree__')) {
     reminders.unplanned = 0
     return r

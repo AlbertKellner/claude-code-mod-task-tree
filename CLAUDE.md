@@ -242,7 +242,7 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   fecha o pedido quando a filha é de outro pedido; não muda de lugar depois (start de novo, reabertura,
   replano, recarga); neta com dois pedidos digitados nela: o cartão no mesmo lugar no painel da filha e
   no da sessão de cima); carta a subagente real
-  (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app;
+  (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app; um pedido respondido só com texto termina sem plano retroativo (com summary, a linha ↩ sob o pedido);
 - modelo e esforço no cartão; o último toks/s no cartão do subagente terminado (e, no cartão estreito,
   o que cede primeiro); status embaixo da caixa de mensagem.
 - o cabeçalho com uma sessão filha aberta antes de qualquer plan ("Tarefas", "0 de 0" e a pílula) e,

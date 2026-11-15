@@ -2221,6 +2221,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
     },
+    "task-tree/tests/lembretes.test.ts::a lista do app sem plano não traz o lembrete de planejar nem conta como chamada": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "965c960c035b0676",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Não leva (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::a mensagem de outra sessão entre a pergunta dispensada e a resposta não é dita como resposta; a da pessoa é": {
       "regras": [
         "lembretes.resposta-pelo-chat-so-na-mensagem-da-pessoa"
@@ -2591,6 +2601,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::o wrap_up sem plano traz 'falta o resumo do turno' e não o lembrete de planejar": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano",
+        "lembretes.wrap-up-sem-resumo"
+      ],
+      "hash": "63549f461e0f65b6",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Não levar (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::o wrap_up sem summary no turno avisa que falta o resumo; com o summary dado, não": {
       "regras": [
