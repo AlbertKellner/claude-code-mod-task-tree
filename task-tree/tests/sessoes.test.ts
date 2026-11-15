@@ -628,9 +628,9 @@ test('o turno que o usuário abriu na filha pendura no fim do pedido da mãe vig
   await aviso($)
   const p = await painel($)
   const cartao = linha(p, PROPRIO)
-  // No fim do pedido atual (sob a última tarefa de nível 1 dele), não no pedido antigo.
+  // Sob a tarefa da mãe em andamento quando ele digitou ("Limpar refs"), não no pedido antigo.
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
   expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Pedido atual')))
 })
@@ -651,7 +651,7 @@ test('dois turnos digitados na filha com o mesmo pedido da mãe em curso ficam n
   // O turno concluído sai do trabalho atual e fica em "+1 pedidos anteriores" do cartão: aberto, ele volta.
   const p = await comHistorico($, 1)
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(cs[0]?.tarefas.filter(t => !t.startsWith('+')).slice(0, 4), emTexto(p)).toEqual(['primeiro pedido', 'A2', 'segundo pedido', 'A3'])
   expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
 })
@@ -670,7 +670,29 @@ test('turnos digitados com pedidos diferentes da mãe em curso ficam em cartões
   }
   await aviso($)
   const p = await painel($)
-  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Reescrita', 'Limpeza'])
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Reescrita', 'Limpar refs'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('sem tarefa em andamento na mãe quando ele digitou, o cartão do pedido do usuário na filha fecha o pedido, depois das subtarefas', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['o1'])
+  await start($, ['o2'])
+  await done($, ['o2'])
+  await fimDoTurno($)
+  digitouNaFilha(h, AGORA + 500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Reescrita'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Conferir a reescrita')))
+  expect(p[i + 1]?.titulo, emTexto(p)).toBe('Reescrever com filter-repo')
 })
 
 // Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente, cabecalho.limites-de-linhas
@@ -1114,7 +1136,7 @@ test('o turno 1 próprio que começa bem depois da abertura (a filha limpa com /
   await aviso($)
   const p = await painel($)
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
 })
 

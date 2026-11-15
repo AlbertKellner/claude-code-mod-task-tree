@@ -3504,11 +3504,11 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "a4787e673dab4aa8",
+      "hash": "110479a966008831",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
+      "tipo": "decisao",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\"; o cartão único fica onde o primeiro turno aconteceu"
     },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
@@ -3811,11 +3811,11 @@
         "sessoes.turno-de-abertura-da-filha-sob-a-origem",
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "99bcba8f92a88861",
+      "hash": "46f84ea566d99a83",
       "assercoes": 2,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "auditoria 2026-11-10, achado alto 3"
+      "tipo": "decisao",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::o turno de abertura que a filha publica como próprio fica sob a tarefa de origem, sem \"pedido do usuário na filha\"": {
       "regras": [
@@ -3841,11 +3841,11 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "9044c8018dd10c9c",
+      "hash": "f3026a64cb952437",
       "assercoes": 5,
-      "tipo": "novo",
-      "data": "2026-11-03",
-      "motivo": "turno próprio da filha no pedido vigente"
+      "tipo": "decisao",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\"; com tarefa em andamento na mãe, o cartão fica sob ela"
     },
     "task-tree/tests/sessoes.test.ts::o título da sessão nova com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem": {
       "regras": [
@@ -3898,6 +3898,16 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: id próprio não lido congelava os cartões sem aviso"
     },
+    "task-tree/tests/sessoes.test.ts::sem tarefa em andamento na mãe quando ele digitou, o cartão do pedido do usuário na filha fecha o pedido, depois das subtarefas": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "2faece2d070abfd4",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
         "sessoes.pasta-sem-git"
@@ -3922,11 +3932,11 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "ce7368d766ca80e6",
+      "hash": "dbd368d4895d8e15",
       "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
+      "tipo": "decisao",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::uma leitura do arquivo que falha não apaga o \"aguardando\" nem gera o lembrete de fim de turno; depois de várias, volta a valer o que o app diz": {
       "regras": [

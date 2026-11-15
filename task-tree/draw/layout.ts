@@ -508,11 +508,11 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
   if (p === undefined) return [c]
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
-  // The turns the person opened by typing in that session (`own`): each one a card of its own, at
-  // the end of this session's request in force when the person typed there (the person, 2026-11-03:
-  // "No pedido vigente da orquestradora (Recomendado)"; it was the request that opened the session,
-  // where the work of today hung from a request of days before), not under the task of the last
-  // message this session sent (work it did not ask for hung from "Reverter o commit…").
+  // The turns the person opened by typing in that session (`own`): a card apart, in this session's
+  // request in force when the person typed there (the person, 2026-11-03: "No pedido vigente da
+  // orquestradora (Recomendado)"; it was the request that opened the session, where the work of today
+  // hung from a request of days before), not under the task of the last message this session sent
+  // (work it did not ask for hung from "Reverter o commit…"); placed where it happened (placeOf).
   // The turn that opened the session (the start_session's text) is not one the person typed there,
   // though the session publishes it as its own (any prompt that is not another session's message is,
   // see prompt-submit): its card stays under the task it was opened from (the panels already
@@ -526,20 +526,35 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
   const originEnd = openedIn?.turn === undefined ? undefined : [...owner].reverse().find(t => t.turn === openedIn.turn)?.id
   // The request in force when the person typed: the turn of the last level-1 task planned by then
   // (its last task, the end of that request); with none, the one that opened the session.
-  const inForce = (u: Turn | undefined) => {
+  const forceTurn = (u: Turn | undefined) => {
     const at = u?.at
-    if (at === undefined) return originEnd
-    const turn = owner.reduce<number | undefined>((m, t) => (t.turn !== undefined && t.plannedAt !== undefined && t.plannedAt <= at && (m === undefined || t.turn > m) ? t.turn : m), undefined)
+    if (at === undefined) return undefined
+    return owner.reduce<number | undefined>((m, t) => (t.turn !== undefined && t.plannedAt !== undefined && t.plannedAt <= at && (m === undefined || t.turn > m) ? t.turn : m), undefined)
+  }
+  const inForce = (u: Turn | undefined) => {
+    const turn = forceTurn(u)
     return turn === undefined ? originEnd : ([...owner].reverse().find(t => t.turn === turn)?.id ?? originEnd)
   }
+  // Where the card goes, in the order it happened (the person, 2026-11-15: "Na ordem em que aconteceu
+  // (Recomendado)"): under this session's task in progress when the person typed (a leaf started by
+  // then and not closed yet; the last one started, with several); with none, at the end of the
+  // request in force (its last level-1 task, drawn after that task's subtasks: `tail`).
+  const busyAt = (u: Turn | undefined) => {
+    const at = u?.at
+    if (at === undefined) return undefined
+    const leaves = flat(owner).filter(t => t.children.length === 0 && t.startedAt !== undefined && t.startedAt <= at && (t.endedAt === undefined || t.endedAt > at))
+    return leaves.reduce<TaskNode | undefined>((m, t) => (m === undefined || (t.startedAt as number) >= (m.startedAt as number) ? t : m), undefined)?.id
+  }
+  const placeOf = (u: Turn | undefined) => busyAt(u) ?? inForce(u)
   // The typed turns under the same request in force share one card (the person, 2026-11-14: "Um
   // cartão só (Recomendado)", undoing one card per turn): its part is keyed by the first of them
-  // (-1 - its index), so a card of one turn keeps its key and fold; a request in force of its own
-  // gives a card of its own.
-  const firstOf = new Map<string | undefined, number>()
+  // (-1 - its index), so a card of one turn keeps its key and fold, and stays where that first turn
+  // happened (the person, 2026-11-15: "Sim, no primeiro"); a request in force of its own gives a card
+  // of its own.
+  const firstOf = new Map<number | undefined, number>()
   const ownPart = new Map<number, number>()
   ownTurns.forEach((u, i) => {
-    const at = inForce(u)
+    const at = forceTurn(u)
     if (!firstOf.has(at)) firstOf.set(at, i)
     ownPart.set(u.id, -1 - firstOf.get(at)!)
   })
@@ -648,11 +663,12 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
       // A later round still waiting its turn is not one.
       ...(!at && !c.archived && lead !== undefined && byTime.indexOf(k) < byTime.indexOf(lead) && leftOpen(tasks) ? { replaced: true } : {}),
       ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1]!.at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k]!.at } : {}),
-      anchor: k < 0 ? inForce(ownTurns[-1 - k]) : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
+      anchor: k < 0 ? placeOf(ownTurns[-1 - k]) : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       // At work on a turn the person opened, the session is at work under that card (its request is
       // kept drawn, its line busy), not under the task of the last message.
-      lastAnchor: at ? (k < 0 ? inForce(ownTurns[-1 - k]) : c.lastAnchor) : undefined,
+      lastAnchor: at ? (k < 0 ? placeOf(ownTurns[-1 - k]) : c.lastAnchor) : undefined,
       ...(k < 0 && ownTurns[-1 - k] !== undefined ? { ownTurn: ownTurns[-1 - k]!.title, ownCount: ownIn(k).length } : {}),
+      ...(k < 0 && busyAt(ownTurns[-1 - k]) === undefined ? { tail: true } : {}),
       // A card with open tasks of a session at work is at work too (the new group waits its turn).
       running: c.running && (at || hasOpen(tasks)),
       waiting: at ? c.waiting : false,
@@ -1464,7 +1480,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     lit: string[],
     // The trail of the turn going on (trail): in progress in the tone only, not in the chip.
     trailIds: string[],
-    below: (t: TaskNode, depth: number) => Row[],
+    below: (t: TaskNode, depth: number, end?: boolean) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
     pending: Send[],
@@ -1538,12 +1554,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         active: t.status === 'open' && lit.includes(t.id) && !t.children.some(c => c.status === 'open'),
       }
       const under = below(t, depth)
-      if (t.children.length === 0 && under.length === 0) return [{ ...row, nodes: [t] }]
+      // What closes the task's block, after its subtasks (a card of turns typed in a session with no
+      // task in progress here then: Child.tail).
+      const end = below(t, depth, true)
+      if (t.children.length === 0 && under.length === 0 && end.length === 0) return [{ ...row, nodes: [t] }]
       const key = `${scope}t:${t.id}`
       // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
       const kids = t.children
       // Built folded too: the folded line counts what it hides in the header's chips (Row.hidden).
-      const all = [...under, ...rows(kids, depth + 1, top, lit, trailIds, below, scope, work, pending)]
+      const all = [...under, ...rows(kids, depth + 1, top, lit, trailIds, below, scope, work, pending), ...end]
       const rest = opened(key, true) ? all : []
       row.fold = { key, open: rest.length > 0 }
       row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.cards]
@@ -1561,7 +1580,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     top: number,
     lit: string[],
     trailIds: string[],
-    below: (t: TaskNode, depth: number) => Row[],
+    below: (t: TaskNode, depth: number, end?: boolean) => Row[],
     scope: string,
     work: (t: TaskNode) => Work,
     pending: Send[],
@@ -1854,11 +1873,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // A notice goes under the task in progress; with none, under the task its wait kept (a pending
       // one stays ○: the person, 2026-11-14, "Pendurar na pendente (Recomendado)"), if it is drawn.
       const under = (w: Wait) => anchor ?? w.anchor
-      const below = (t: TaskNode, depth: number) => [
+      const below = (t: TaskNode, depth: number, end = false): Row[] =>
+        end
+          ? g.agent === MAIN
+            ? inOrder(sessions.filter(c => c.anchor === t.id && c.tail === true)).flatMap(c => session(c, depth + 1, level, scope))
+            : []
+          : [
         ...mine.filter(w => under(w) === t.id).map(w => notice(w, depth + 1)),
         ...(g.agent === MAIN ? letters(t, depth + 1) : []),
         ...(g.agent === MAIN
-          ? inOrder(sessions.filter(c => c.anchor === t.id)).flatMap(c => session(c, depth + 1, level, scope))
+          ? inOrder(sessions.filter(c => c.anchor === t.id && c.tail !== true)).flatMap(c => session(c, depth + 1, level, scope))
           : []),
         ...drawKids(kids.filter(k => k.anchor === t.id), depth + 1),
       ]

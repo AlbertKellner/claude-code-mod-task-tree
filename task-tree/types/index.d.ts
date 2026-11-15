@@ -235,6 +235,9 @@ export type Child = {
   ownTurn?: string
   // Drawn only: how many turns the person typed in that session share this card (same request in force).
   ownCount?: number
+  // Drawn only: that card of typed turns found no task in progress on this session when the first of
+  // them was typed: it closes its request, drawn after the subtasks of the request's last level-1 task.
+  tail?: boolean
   // Drawn only: a card at work drawn loose at the end, its request cut from sight: that request's title.
   loose?: string
   // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:

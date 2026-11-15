@@ -526,8 +526,13 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   o da frente (ou a sessão não foi dividida): uma sessão conta uma vez no chip de sessões ativas e no
   estado do cabeçalho; o cartão de uma rodada antiga segue desenhado como antes.
 - Os turnos digitados na filha (`own`, fora o de abertura) que pendem do mesmo pedido vigente da mãe
-  (o mesmo `inForce`) formam uma parte só (`ownPart`), de chave `-1 - índice` do primeiro deles, e
-  `partAt` é a hora desse primeiro: a dobra e a chave de um cartão de um turno só não mudam. Para a
+  (o mesmo turno, `forceTurn`) formam uma parte só (`ownPart`), de chave `-1 - índice` do primeiro deles, e
+  `partAt` é a hora desse primeiro: a dobra e a chave de um cartão de um turno só não mudam. O cartão
+  fica onde o primeiro deles aconteceu (`placeOf`, 2026-11-15, "Na ordem em que aconteceu
+  (Recomendado)" e "Sim, no primeiro"): sob a folha da mãe em andamento naquela hora (`busyAt`: iniciada
+  e ainda não fechada; a última iniciada, com várias); sem nenhuma, no último nível 1 do pedido vigente
+  (`inForce`), com a marca `Child.tail`, que o `rows` desenha depois das subtarefas da tarefa, fechando o
+  pedido (sessoes.turno-proprio-da-filha-no-pedido-vigente). Para a
   rodada da frente, a parte conta pelo turno mais recente (`lastOwn`). Com dois ou mais turnos no
   cartão, cada um ganha a sua linha de pedido no `body` (`typedHere`), e o texto alternativo diz
   "Pedidos do usuário na filha: N" (`ownCount`); com um só, como antes. Um turno digitado não entra no

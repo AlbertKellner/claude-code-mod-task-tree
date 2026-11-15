@@ -9,7 +9,7 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 
 - Dado uma sessão filha aberta a partir de uma tarefa
 - Quando o painel é desenhado
-- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente); a sessão aberta num pedido ainda sem plano fica solta até o plan (sessoes.aberta-antes-do-plan-e-adotada)
+- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai à tarefa da mãe em andamento quando ele digitou, ou ao fim do pedido vigente (sessoes.turno-proprio-da-filha-no-pedido-vigente); a sessão aberta num pedido ainda sem plano fica solta até o plan (sessoes.aberta-antes-do-plan-e-adotada)
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 85744cb); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit b90ec6e).
 Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
@@ -278,16 +278,17 @@ Código: draw/layout.ts
 Estado: coberto
 
 ### sessoes.turno-proprio-da-filha-no-pedido-vigente
-Os turnos que o usuário abriu digitando na filha ficam num cartão só, no pedido da mãe vigente quando ele digitou.
+Os turnos que o usuário abriu digitando na filha ficam num cartão só por pedido da mãe vigente, onde a mãe estava quando ele digitou.
 
 - Dado uma filha aberta num pedido antigo da mãe, e o usuário digitando direto nela depois de um pedido novo da mãe
 - Quando a mãe desenha o painel
-- Então o cartão fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título; os turnos digitados com o mesmo pedido da mãe em curso entram no mesmo cartão, cada um com a sua linha de pedido e as suas tarefas embaixo (com um turno só, as tarefas direto no cartão e o texto digitado no texto alternativo do ícone); cartão novo só quando o pedido vigente da mãe é outro; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
+- Então o cartão fica sob a tarefa da mãe que estava em andamento quando ele digitou; sem nenhuma em andamento, no fim do pedido da mãe vigente naquele instante (o último pedido planejado antes; sem nenhum, o de origem), depois das subtarefas dele, como último bloco do pedido; com "pedido do usuário na filha" no título; os turnos digitados com o mesmo pedido da mãe em curso entram no mesmo cartão, cada um com a sua linha de pedido e as suas tarefas embaixo (com um turno só, as tarefas direto no cartão e o texto digitado no texto alternativo do ícone); o cartão fica onde o primeiro desses turnos aconteceu; cartão novo só quando o pedido vigente da mãe é outro; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o texto digitado vai no texto alternativo do ícone da linha, não num tooltip.
 Reescrito: 2026-11-14, decisão do usuário ("Um cartão só (Recomendado)"); desfaz "um cartão por turno" da decisão de 2026-11-03. Os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Na ordem em que aconteceu (Recomendado)"); desfaz "no fim do pedido" quando havia tarefa em andamento na mãe, e põe o cartão depois das subtarefas quando não havia. "Um cartão só" (2026-11-14) fica: um cartão por pedido vigente, no lugar do primeiro turno digitado.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -299,6 +300,7 @@ O turno que abriu a filha (o texto do start_session) não é pedido do usuário 
 - Então o cartão desse turno fica sob a tarefa de origem, com o nome simples, sem "pedido do usuário na filha"; um turno 1 marcado como próprio que começa bem depois da abertura (a filha limpa com /clear, os turnos recomeçam) segue como pedido do usuário na filha (sessoes.turno-proprio-da-filha-no-pedido-vigente)
 
 Origem: auditoria 2026-11-10 (o primeiro turno da filha é marcado como pedido do usuário na filha); aplica sessoes.cartao-sob-a-tarefa-de-origem e sessoes.turno-proprio-da-filha-no-pedido-vigente ("O turno que o usuário abriu digitando na filha"), sem mudar nenhuma das duas.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Na ordem em que aconteceu (Recomendado)"): o turno digitado depois de um /clear segue sendo pedido do usuário na filha, agora sob a tarefa em andamento da mãe.
 Código: draw/layout.ts
 Estado: coberto
 
