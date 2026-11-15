@@ -14,7 +14,7 @@ import { debugOnce } from '../io/log'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, START_DUE, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current, keepRounds, keepSends, live, nextSeq } from '../draw/layout'
-import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, sendPlace, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
 import { cutText, oneLine } from '../draw/svg'
@@ -151,8 +151,10 @@ const sentMessage: Notes = async ($, c, notes) => {
   // The receiving session's names, to match a task's title (sendAnchor): what `to` says, and the name
   // the host lists for that id.
   const names = [to, ...(kids0 as Child[]).filter(k => k.id === to).map(k => k.name)].filter(n => n !== '' && !/^local_/.test(n))
-  // Before the request's first plan: none (drawn loose until the plan adopts it).
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
+  // Before the request's first plan: none (drawn loose until the plan adopts it). With a question open
+  // in the task in progress and the request with no task yet, another task of that plan, only as a
+  // place (`place`, Send.onlyPlace): its delivery closes nothing.
+  const { anchor, place } = sendPlace((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
@@ -208,7 +210,7 @@ const sentMessage: Notes = async ($, c, notes) => {
     await update($, sendsState, cur =>
       keepSends([
         ...(cur ?? []),
-        { to, anchor, at, seq: nextSeq(cur ?? []), text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true, spent: false }) },
+        { to, anchor, at, seq: nextSeq(cur ?? []), text: said, ...(agent !== undefined ? { agent } : {}), ...(place ? { onlyPlace: true } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true, spent: false }) },
       ]),
     )
     // The task it went from stays a task like any other: the message is its letter, drawn below it.
@@ -217,7 +219,8 @@ const sentMessage: Notes = async ($, c, notes) => {
   if (waitsDelivery && to !== '') {
     const all = flat((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const t = all.find(t => t.id === anchor)
-    notes.push((agent !== undefined ? SEND.queuedSub : SEND.queued)(to, t ? `"${t.id}" ${t.title}` : undefined))
+    const task = t ? `"${t.id}" ${t.title}` : undefined
+    notes.push(place ? SEND.queuedPlace(to, task, agent !== undefined) : (agent !== undefined ? SEND.queuedSub : SEND.queued)(to, task))
   }
 }
 

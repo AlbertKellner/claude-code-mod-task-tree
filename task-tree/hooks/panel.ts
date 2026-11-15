@@ -383,6 +383,16 @@ export const requestTasks = (groups: Group[]): TaskNode[] => {
   return open === undefined ? tasks : tasks.filter(t => t.turn === open.id)
 }
 export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): string | undefined {
+  return sendPlace(list, used, asking, names, open, phrases).anchor
+}
+// sendAnchor's task, and whether it is only a place (`place`): the request open now has no task yet,
+// the task in progress asks (a question, a plan, a choice) with none other in progress that does not,
+// and the task chosen is another of that earlier plan (its pending one, else the one started last that
+// does not ask, else its last level-1 one), not the asking task itself. Such a letter or card closes
+// nothing (the person, 2026-11-15: "Não fecha na entrega (Recomendado)"; for the subagent's and the
+// session's card, "Também não fecha (Recomendado)"): the task stays as it is until the model works on it.
+export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): { anchor: string | undefined; place: boolean } {
+  const keep = (anchor: string | undefined) => ({ anchor, place: false })
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in this order (the person's decisions): with the request open now and no
   // level-1 task of it yet and nothing in progress, none (above); else the current request is the largest `turn` among the
@@ -396,17 +406,17 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
   const going = started.filter(t => !asking.includes(t.id))
   // Two in progress, one of them asking: the other one.
-  if (going.length === 1 && started.length > 1) return going[0]!.id
+  if (going.length === 1 && started.length > 1) return keep(going[0]!.id)
   if (going.length > 1) {
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
     const free = order.filter(x => !has(x.t))
     const named = byName(going, names, phrases)
-    if (named) return named.id
+    if (named) return keep(named.id)
     if (free.length > 0) {
       const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
       const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
-      return (batch[0] ?? free[0])!.t.id
+      return keep((batch[0] ?? free[0])!.t.id)
     }
   }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
@@ -414,28 +424,30 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   // The task chosen holds a question: the one in progress started last that does not ask, else as with
   // nothing in progress, the asking tasks left out (envios.nunca-na-tarefa-da-pergunta). With no clock
   // (no `startedAt`), the last in the order of the starts.
-  if (anchor !== undefined && !asking.includes(anchor)) return anchor
+  if (anchor !== undefined && !asking.includes(anchor)) return keep(anchor)
   if (anchor !== undefined && going.length > 0)
-    return (startedLast(going.map(t => ({ ...t, children: [] }))) ?? going.reduce((a, t) => ((t.started ?? -1) >= (a.started ?? -1) ? t : a))).id
+    return keep((startedLast(going.map(t => ({ ...t, children: [] }))) ?? going.reduce((a, t) => ((t.started ?? -1) >= (a.started ?? -1) ? t : a))).id)
   // The request open now with no task of it: loose only with nothing in progress. With the task in
   // progress asking (a plan of an earlier request, continued with a start only), the request of the
   // order is the asking task's: the card or letter never goes loose with a task in progress.
   const fresh = open !== undefined && !list.some(t => t.turn === open)
-  if (fresh && anchor === undefined) return undefined
+  if (fresh && anchor === undefined) return keep(undefined)
   const askTurn = fresh && anchor !== undefined ? list.find(t => flat([t]).some(x => x.id === anchor))?.turn : undefined
   const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const last = askTurn ?? (turns.length > 0 ? Math.max(...turns) : undefined)
   const mine = list.filter(t => last === undefined || t.turn === last)
   const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && !asking.includes(t.id))
+  // Another task of that earlier plan than the asking one: only a place (above).
+  const placed = (id: string | undefined) => ({ anchor: id, place: askTurn !== undefined && id !== undefined && !asking.includes(id) })
   const named = byName(pending, names, phrases)
-  if (named) return named.id
+  if (named) return placed(named.id)
   const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
   if (newest) {
     // Planned together (a tie): the first in order with no message of this session's yet; all with
     // one, the last (the person's decision, 2026-11-09, with no name matching).
     const batch = pending.filter(t => (t.plannedAt ?? -Infinity) === (newest.plannedAt ?? -Infinity))
     const free = batch.find(t => !used.some(u => u.anchor === t.id))
-    return (free ?? newest).id
+    return placed((free ?? newest).id)
   }
   // An asking task and its parents are no candidates (the person, 2026-11-15: "Não conta
   // (Recomendado)": the parent of the asking task is no other task of the request).
@@ -444,7 +456,9 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   const level1 = [...mine].reverse().find(t => !asks(t))
   const askers = flat(mine).filter(t => asking.includes(t.id)).map(t => ({ ...t, children: [] }))
   // With no other candidate, the card goes to the asking task itself, never to its parent.
-  return startedLast(calm)?.id ?? level1?.id ?? startedLast(askers)?.id ?? askers[askers.length - 1]?.id ?? startedLast(mine)?.id ?? mine[mine.length - 1]?.id
+  const other = startedLast(calm)?.id ?? level1?.id
+  if (other !== undefined) return placed(other)
+  return keep(startedLast(askers)?.id ?? askers[askers.length - 1]?.id ?? startedLast(mine)?.id ?? mine[mine.length - 1]?.id)
 }
 
 // The tasks of the main loop with a question still open under them (sendAnchor's `asking`): the

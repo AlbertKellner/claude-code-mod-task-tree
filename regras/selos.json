@@ -1407,6 +1407,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
     },
+    "task-tree/tests/envios.test.ts::a carta a um subagente posta na pendente do plano anterior por causa da pergunta aberta não a conclui quando ele a recebe": {
+      "regras": [
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha"
+      ],
+      "hash": "921fa0ccba930d52",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Não fecha na entrega (Recomendado)\"): vale também para a carta a um subagente"
+    },
     "task-tree/tests/envios.test.ts::a carta de envio é uma linha sob a tarefa; a tarefa conta e o painel a conclui na entrega": {
       "regras": [
         "envios.carta-sob-a-tarefa"
@@ -1854,6 +1864,17 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: uma carta por mensagem"
     },
+    "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento e sem pendente, a carta vai à última tarefa iniciada desse plano, já concluída": {
+      "regras": [
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha",
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "dc984d594ce413ba",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Não fecha na entrega (Recomendado)\"): o destino sem pendente"
+    },
     "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, a carta vai à pendente desse plano e não fica solta": {
       "regras": [
         "envios.nunca-na-tarefa-da-pergunta"
@@ -1863,6 +1884,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
+    "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, a entrega da carta não conclui a pendente em que ela foi posta": {
+      "regras": [
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha",
+        "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
+      ],
+      "hash": "82489e35d3a4fa1f",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Não fecha na entrega (Recomendado)\")"
     },
     "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, o cartão da sessão aberta vai à pendente desse plano": {
       "regras": [
@@ -1883,6 +1915,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
+    "task-tree/tests/envios.test.ts::num pedido sem plano que retoma um plano de dois pedidos atrás, com a pergunta na tarefa em andamento, a carta vai à pendente desse plano, não à do pedido do meio": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "e18240c0b60d9d90",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: nenhum teste distinguia o pedido da ordem com pergunta aberta; destino decidido pelo usuário em 2026-11-15 (\"Não fecha na entrega (Recomendado)\")"
     },
     "task-tree/tests/envios.test.ts::o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não": {
       "regras": [
@@ -5095,6 +5137,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
+    },
+    "task-tree/tests/subagentes.test.ts::num pedido sem plano que continua o plano anterior, com a pergunta na tarefa em andamento e sem pendente, o cartão do subagente vai à última tarefa iniciada desse plano, já concluída": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "2d81b3a038dad394",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Não fecha na entrega (Recomendado)\"): o destino do cartão numa tarefa fechada do plano anterior"
     },
     "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
       "regras": [

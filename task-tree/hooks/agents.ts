@@ -463,8 +463,9 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
   await update($, sendsState, (cur: any) =>
     (cur ?? []).map((s: Send) => (sameSend(s, hit.s) && s.agent === agent && !s.taken ? { ...s, taken: true, cut: false, lost: false, noted: false } : s)),
   )
-  // An adopted send (given its task by a later plan) closes none.
-  const id = hit.s.adopted ? undefined : hit.s.anchor
+  // An adopted send (given its task by a later plan) closes none, nor one put there only as a place
+  // (Send.onlyPlace; the person, 2026-11-15: "Não fecha na entrega (Recomendado)").
+  const id = hit.s.adopted || hit.s.onlyPlace ? undefined : hit.s.anchor
   if (id !== undefined) {
     const now = await stamp($)
     const { value: after = [] } = await $.state.get(sendsState)

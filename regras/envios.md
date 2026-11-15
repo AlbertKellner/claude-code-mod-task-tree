@@ -274,10 +274,11 @@ A carta enviada antes do plan do pedido fica solta no fim, e o plan do pedido a 
 
 - Dado um pedido novo ainda sem plano, com ou sem tarefas abertas de pedidos anteriores, e nada em andamento
 - Quando o modelo manda uma mensagem a outra sessão, e depois planeja o pedido
-- Então, até o plan, a carta fica no fim do painel, fora de qualquer tarefa, e nenhuma tarefa de pedido anterior ganha carta nem fecha na entrega; no primeiro plan do pedido, a carta passa para a tarefa dele escolhida como em qualquer envio (o nome da sessão, senão a primeira pendente ainda sem carta) e fica lá; a tarefa que a adotou não fecha sozinha na entrega
+- Então, até o plan, a carta fica no fim do painel, fora de qualquer tarefa, e nenhuma tarefa de pedido anterior ganha carta nem fecha na entrega; no primeiro plan do pedido, a carta passa para a tarefa dele escolhida como em qualquer envio (o nome da sessão, senão a primeira pendente ainda sem carta) e fica lá; a tarefa que a adotou não fecha sozinha na entrega. Com uma tarefa de um plano anterior em andamento (continuado só com start), a carta não fica solta: fica sob ela (envios.com-andamento-fica-sob-a-tarefa-em-andamento) ou, se ela tem pergunta aberta, numa tarefa desse plano, só como lugar (envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha).
 
 Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"), sobre os achados da auditoria de 2026-11-10 (a carta ia a uma pendente do pedido anterior, que fechava sozinha). Refina "envio feito sem tarefa em andamento ancora na última iniciada do pedido atual" (2026-10-23) para o pedido ainda sem tarefas.
 Código: hooks/tools.ts, draw/layout.ts, text/rules.ts
+Reescrito: 2026-11-15, texto: com tarefa em andamento a carta vai a uma tarefa do plano anterior, e com pergunta aberta nela fica só como lugar (decisão do usuário de 2026-11-15, "Não fecha na entrega (Recomendado)"); o caso deste cenário (nada em andamento) não muda e os testes não mudam.
 Estado: coberto
 
 ### envios.entrega-espera-o-que-ainda-roda-na-tarefa
@@ -360,13 +361,25 @@ A carta e o cartão não vão para a tarefa com pergunta aberta enquanto houver 
 
 - Dado uma tarefa com uma pergunta, um plano a aprovar ou a escolha do fim do turno aberta nela, seja a única em andamento, a iniciada por último, ou a que o fim do turno deixou aguardando
 - Quando sai uma mensagem, abre uma sessão ou é lançado um subagente
-- Então a carta e o cartão vão, nesta ordem, à tarefa em andamento iniciada por último que não pergunta; senão à pendente escolhida como no envio sem nada em andamento (envios.sem-andamento-vai-a-pendente-planejada-por-ultimo), sem contar a tarefa da pergunta; senão à última iniciada do pedido que não pergunta; senão ao último nível 1 do pedido que não pergunta, sem contar em nenhum dos dois os pais da tarefa da pergunta; sem nenhuma outra, eles ficam na tarefa da pergunta. O pedido dessa ordem é o mais recente que tem tarefas (o aberto, quando já foi planejado, mesmo que a tarefa da pergunta seja de um plano anterior retomado com start); só quando o pedido aberto ainda não tem tarefas (um plano anterior continuado só com start) é o da tarefa da pergunta: com uma tarefa em andamento, a carta e o cartão nunca ficam soltos no fim. Sem relógio, 'iniciada por último' é a última na ordem dos starts.
+- Então a carta e o cartão vão, nesta ordem, à tarefa em andamento iniciada por último que não pergunta; senão à pendente escolhida como no envio sem nada em andamento (envios.sem-andamento-vai-a-pendente-planejada-por-ultimo), sem contar a tarefa da pergunta; senão à última iniciada do pedido que não pergunta; senão ao último nível 1 do pedido que não pergunta, sem contar em nenhum dos dois os pais da tarefa da pergunta; sem nenhuma outra, eles ficam na tarefa da pergunta. O pedido dessa ordem é o mais recente que tem tarefas (o aberto, quando já foi planejado, mesmo que a tarefa da pergunta seja de um plano anterior retomado com start); só quando o pedido aberto ainda não tem tarefas (um plano anterior continuado só com start) é o da tarefa da pergunta: com uma tarefa em andamento, a carta e o cartão nunca ficam soltos no fim. Nesse caso o destino é uma tarefa de um pedido anterior ao aberto, a pendente desse plano ou, sem pendente, a última iniciada dele, já fechada; a carta fica nela só como lugar e a entrega não a fecha (envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha). Sem relógio, 'iniciada por último' é a última na ordem dos starts.
 
 Origem: auditoria 2026-11-10 (a regra só valia com duas em andamento); aplica envios.ancora-no-lote-recente ("nunca à que tem pergunta aberta", decisão do usuário, 2026-10-24), sem mudar nenhuma regra.
 Código: hooks/agents.ts, hooks/tools.ts
 Reescrito: 2026-11-15, texto: o pedido da ordem é o da tarefa da pergunta, e a carta nunca fica solta com tarefa em andamento (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Não conta (Recomendado)"): o pai da tarefa da pergunta não conta como outra tarefa do pedido; com a pergunta na única subtarefa, a carta e o cartão ficam nela (a entrega a conclui e o done avisa da carta na fila); com outro plano no pedido, vão à última iniciada dele, nunca ao pai. Os testes existentes não mudam.
 Reescrito: 2026-11-15, texto: o pedido da ordem só é o da tarefa da pergunta quando o pedido aberto ainda não tem tarefas (revisão do lote, 2026-11-15: a frase dizia mais do que o código faz); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Não fecha na entrega (Recomendado)"): com pergunta aberta num pedido ainda sem plano, o destino pode ser uma tarefa do pedido anterior, e a entrega não a fecha. Os testes existentes não mudam.
+Estado: coberto
+
+### envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+Com pergunta aberta num pedido ainda sem plano, a carta posta numa tarefa do plano anterior não a fecha na entrega.
+
+- Dado um pedido novo ainda sem plano que continua um plano anterior só com start, e a tarefa em andamento com uma pergunta, um plano a aprovar ou a escolha do fim do turno aberta, sem outra em andamento que não pergunte
+- Quando o modelo manda uma mensagem (a outra sessão ou a um subagente), e ela é recebida
+- Então a carta vai à outra tarefa desse plano (envios.nunca-na-tarefa-da-pergunta: a pendente; sem pendente, a última iniciada que não pergunta, já fechada), só como lugar: no recebimento a carta fica verde e a tarefa segue como estava, a pendente segue pendente até o modelo trabalhar nela (start e done); o aviso do envio na fila diz que a carta está nela só como lugar, sem pedir para mantê-la em andamento, e o aviso da entrega diz que o painel não concluiu a tarefa. Quando a carta fica na própria tarefa da pergunta (a única do plano), a entrega a conclui como em qualquer envio. No mesmo pedido (pergunta aberta num pedido já planejado), a pendente que recebe a carta segue fechando na entrega
+
+Origem: decisão do usuário, 2026-11-15 ("Não fecha na entrega (Recomendado)"), sobre a revisão das correções da carta (a pendente do pedido anterior fechava sozinha na entrega, sem trabalho); refina "Sim, conclusão automática como hoje" (2026-10-30) só para este caso.
+Código: hooks/tool-call.ts, hooks/agents.ts, text/rules.ts
 Estado: coberto
 
 ### envios.uma-carta-por-mensagem

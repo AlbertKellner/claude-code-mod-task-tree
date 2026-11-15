@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, ferramenta, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
 import { cabecalho, comHistorico, emTexto, esperarEstado, estadoGeral, linha, montar, noApp, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
@@ -1535,6 +1535,34 @@ const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const PERGUNTA = {
   questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
 }
+
+// Regra: subagentes.cartao-fica-com-a-origem-fechada
+test('num pedido sem plano que continua o plano anterior, com a pergunta na tarefa em andamento e sem pendente, o cartão do subagente vai à última tarefa iniciada desse plano, já concluída', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['2'])
+  await done($, ['2'])
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await lancar($, { descricao: 'conferir o diff' })
+  await relogio.advance(1000)
+  await resp
+  const p = await painel($)
+  const doCartao = (l: any) => l.titulo.includes('conferir o diff')
+  expect(abaixo(p, 'Dois').filter(doCartao).length, emTexto(p)).toBe(1)
+  expect(abaixo(p, 'Um').filter(doCartao).length, emTexto(p)).toBe(0)
+  expect(p.filter(doCartao).length, emTexto(p)).toBe(1)
+  esperarEstado(p, 'Dois', 'concluida')
+})
 
 // Regra: subagentes.pai-conclui-no-fim-do-turno
 test('com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno', async ($: any, on: any) => {

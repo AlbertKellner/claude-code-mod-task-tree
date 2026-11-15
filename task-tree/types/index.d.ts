@@ -279,6 +279,10 @@ export type Child = {
 // (its letter gray, "não entregue"); undone if the session is listed again unarchived.
 // `adopted`: sent before the request's first plan, with no task, and given one by that plan (hooks/tools,
 // adoptOrphans): only its place; its delivery closes no task (the task did not send it).
+// `onlyPlace`: sent with a question open in the task in progress, of an earlier plan continued with a
+// start only, the request open now with no task yet, and put under another task of that plan
+// (hooks/panel, sendPlace): only its place, as `adopted`; its delivery closes no task (the person,
+// 2026-11-15: "Não fecha na entrega (Recomendado)"). Absent on the sends of earlier versions.
 // `agent`: the id of this session's subagent it went to (SendMessage to a subagent, not a session):
 // taken when that subagent receives it (its session.receive) or is resumed with it (agent.spawn with
 // `resume`); `lost` (with `cut`) when it ended without receiving it (hooks/agents, strandedSends).
@@ -287,7 +291,7 @@ export type Child = {
 // `spent`: a delivery at once (taken from the start) whose receipt was not matched yet (false), until
 // the session publishes it (true): each message spends its own receipt (watchSends). Absent on the
 // sends of earlier versions and on the queued ones.
-export type Send = { to: string; anchor?: string; at?: number; seq?: number; spent?: boolean; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
+export type Send = { to: string; anchor?: string; at?: number; seq?: number; spent?: boolean; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean; onlyPlace?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

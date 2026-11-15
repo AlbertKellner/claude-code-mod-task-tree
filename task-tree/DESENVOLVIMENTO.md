@@ -270,7 +270,11 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    senão a ordem acima sem as que perguntam, no pedido mais recente que tem tarefas; só quando o pedido
    aberto ainda não tem tarefas, no pedido da tarefa da pergunta (a saída "nenhuma" só vale com nada em
    andamento), sem contar os pais
-   da tarefa da pergunta (2026-11-15, "Não conta (Recomendado)"); sem outra, a própria tarefa da pergunta;
+   da tarefa da pergunta (2026-11-15, "Não conta (Recomendado)"); sem outra, a própria tarefa da pergunta.
+   Nesse caso (pedido aberto sem tarefas), a tarefa escolhida que não é a da pergunta recebe a carta só
+   como lugar (`sendPlace`, `Send.onlyPlace`): a entrega (`watchSends`, `takeSubSend`) não a fecha, e o
+   aviso do envio na fila é o próprio (`SEND.queuedPlace`); decisão do usuário, 2026-11-15, "Não fecha na
+   entrega (Recomendado)";
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
@@ -1657,6 +1661,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `sendAnchor` dá depois do plan (o nome, senão a primeira pendente). A adoção é só de lugar: a carta
   adotada (`Send.adopted`) não fecha a tarefa na entrega, e o subagente adotado (`Sub.adopted`) não a
   fecha no fim do turno (`ofLeaf`). Decisão do usuário, 2026-11-14: "Sim, o plan adota (Recomendado)".
+  A carta posta por pergunta aberta num pedido ainda sem plano numa tarefa do plano anterior tem a marca
+  própria (`Send.onlyPlace`), com o mesmo efeito na entrega (2026-11-15, "Não fecha na entrega
+  (Recomendado)").
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo

@@ -338,10 +338,12 @@ export async function watchSends($: any, rows: any[]) {
   if (JSON.stringify(usedNow) !== JSON.stringify(used)) await $.state.set(receiptsState, usedNow)
   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
   // have stopped waiting for it), so its card in the mother's pane is not left parked.
-  // An adopted one (given its task by a later plan, Send.adopted) closes none. Nor one with something
+  // An adopted one (given its task by a later plan, Send.adopted) closes none, nor one put there only as
+  // a place, with a question open in an earlier plan's task (Send.onlyPlace; the person, 2026-11-15:
+  // "Não fecha na entrega (Recomendado)"). Nor one with something
   // else still at work in it (inFlight, read after this pass's marks: a letter delivered now is not
   // "another queued"), without the sessions: the one that took the letter is alive there by definition.
-  const anchors = applied.flatMap(({ s, m }) => (m.taken && s.anchor && !s.adopted ? [s.anchor] : []))
+  const anchors = applied.flatMap(({ s, m }) => (m.taken && s.anchor && !s.adopted && !s.onlyPlace ? [s.anchor] : []))
   if (anchors.length === 0) return
   const now = await stamp($)
   const { value: waits = [] } = await $.state.get(waitsState)

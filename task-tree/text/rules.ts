@@ -345,6 +345,14 @@ export const SEND = {
     PANEL + `a mensagem para o subagente ${to} ficou na fila, sem confirmação de recebimento. ` +
     `Mantenha em andamento a tarefa do envio${task ? ` (${task})` : ''}: o painel avisa quando ele a ` +
     'receber, ou quando ele parar sem recebê-la.',
+  // The letter put under another task of an earlier plan only as a place, a question open in the task
+  // in progress and the request open now with no task yet (hooks/panel, sendPlace; the person,
+  // 2026-11-15: "Não fecha na entrega (Recomendado)"): said instead of queued and queuedSub.
+  queuedPlace: (to: string, task: string | undefined, sub: boolean) =>
+    PANEL + `a mensagem para ${sub ? 'o subagente ' : ''}${to} ficou na fila, sem confirmação de recebimento. ` +
+    `A carta aparece sob a tarefa${task ? ` ${task}` : ''} só como lugar, porque a tarefa em andamento tem uma ` +
+    'pergunta aberta: o painel avisa quando ela for recebida e não conclui essa tarefa por isso; ela segue ' +
+    'como está até você trabalhar nela (mcp__task-tree__start e mcp__task-tree__done).',
 }
 export const UNPLANNED =
   PANEL + 'há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
@@ -370,7 +378,7 @@ export const SESSION = {
   takenOpen: (what: string[]) =>
     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
     'O painel não concluiu a tarefa do envio: ela segue como está no painel (aberta com subtarefa aberta ou com ' +
-    'algo ainda em execução nela, interrompida por um plano novo, ou fora do plano). Se o trabalho dela ' +
+    'algo ainda em execução nela, interrompida por um plano novo, ou fora do plano, ou a carta só estava posta nela, como lugar). Se o trabalho dela ' +
     'terminou, feche-a com mcp__task-tree__done.',
   lost: (what: string[]) =>
     PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
@@ -379,7 +387,7 @@ export const SESSION = {
   // tools, or resumed with it), or it ended without receiving it.
   takenSub: (what: string[]) =>
     PANEL + `recebimento confirmado, o subagente recebeu a mensagem: ${what.join('; ')}. ` +
-    'A tarefa do envio deixou de esperar por ela: o painel a concluiu, ou a conclui com o fim do subagente lançado dela.',
+    'A tarefa do envio deixou de esperar por ela: o painel a concluiu, ou a conclui com o fim do subagente lançado dela; se a carta só estava posta nela como lugar, ela segue como está.',
   lostSub: (what: string[]) =>
     PANEL + `mensagem não entregue, o subagente parou antes de recebê-la: ${what.join('; ')}. ` +
     'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa. Se a mensagem ainda importa, ' +
