@@ -81,14 +81,15 @@ Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.done-sem-summary-e-varias-sem-start
-Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
+Avisos do done: sem summary no fim e uma ou mais tarefas fechadas sem start.
 
-- Dado o último done do pedido sem summary (o último do pedido atual, mesmo com tarefa aberta de pedido anterior; também quando o único resumo dado veio antes de um plan do mesmo turno), ou várias tarefas fechadas de uma vez sem start
+- Dado o último done do pedido sem summary (o último do pedido atual, mesmo com tarefa aberta de pedido anterior; também quando o único resumo dado veio antes de um plan do mesmo turno), ou uma ou mais tarefas fechadas sem start
 - Quando o done responde
 - Então a resposta traz o aviso correspondente; o do summary diz que só vale se aquele done foi o último passo do turno
 
 Origem: commit a8d333f, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit c0190c3, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão"); o aviso no meio do turno e o resumo de antes do plan, auditoria 2026-11-10.
 Código: text/rules.ts
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Lembrete após 3 chamadas (Recomendado)": "o aviso do done também para uma tarefa só fechada sem start"). O teste existente deste cenário não muda.
 Estado: coberto
 
 ### arvore.plan-recusa-ids-repetidos

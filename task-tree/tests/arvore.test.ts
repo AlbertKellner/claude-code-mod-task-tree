@@ -408,3 +408,13 @@ test('as regras, a descrição do start e a recusa dizem o mesmo para refazer um
     expect(texto).toContain('ids novos')
   }
 })
+
+// Regra: arvore.done-sem-summary-e-varias-sem-start
+test('o done de uma tarefa só, nunca iniciada, avisa que ela fechou sem start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  expect((await done($, ['1'])).texto).toContain('1 etapa fechou sem start ("A/1")')
+  await start($, ['2'])
+  expect((await done($, ['2'])).texto).not.toContain('fechou sem start')
+})

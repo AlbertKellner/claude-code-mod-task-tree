@@ -52,7 +52,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true as const }
     }
     // Only a plan taken counts as using the panel in this request (a refused one does not).
-    if (agent === MAIN) await setMarks($, { planned: true })
+    // A plan taken starts the count of the reminder to start over, and it may come once more.
+    if (agent === MAIN) await setMarks($, { planned: true, idleCalls: 0, idleWarned: false })
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
     // (replaced in its place, the tasks that keep their id keeping their state: carry) when it is of
@@ -399,7 +400,8 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     // Several steps never started and closed together: the panel showed none of them in progress,
     // and they close with no time, "—" (the person's words: "ficou parada muito tempo na primeira
     // tarefa, e derepente pulo para a ultima"; and 2026-11-15: "Sem tempo, \"—\" (Recomendado)").
-    if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
+    // One alone too (the person, 2026-11-15: "Lembrete após 3 chamadas (Recomendado)").
+    if (unstarted.length >= 1) notes.push(DONE.unstarted(unstarted))
     return { result: `Concluídas: ${d}/${n} no seu grupo.` + (canceled > 0 ? ` Canceladas: ${canceled}.` : '') + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
     return failed($, 'done', err)
@@ -409,7 +411,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
 export async function startTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
-    if (agent === MAIN) await setMarks($, { planned: true })
+    if (agent === MAIN) await setMarks($, { planned: true, idleCalls: 0 })
     if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { ids?: unknown }
     if (notList(input.ids)) return { result: NOT_A_LIST('ids'), isError: true as const }

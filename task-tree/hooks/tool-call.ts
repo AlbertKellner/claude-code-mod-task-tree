@@ -5,14 +5,15 @@
 // to the result (a message only queued, a session that ended its turn, a message taken up, a task the
 // end of its subagents closed or marked ✕, what a
 // wrap_up leaves open) and, last, the reminder to plan (never on the app's wrap_up or task list): the first call of a request that has not
-// used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
+// used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own);
+// with a plan open and nothing started, the reminder to start at the third call, once a plan.
 
 import { update } from 'claude-code'
 import { debugOnce } from '../io/log'
 
 import type { Child, Group, Send, Wait } from '../types'
-import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
-import { MAIN, flat, hasOpen, current, keepRounds, keepSends, nextSeq } from '../draw/layout'
+import { ASK, SEND, START_DUE, UNPLANNED, WRAP_UP } from '../text/rules'
+import { MAIN, flat, hasOpen, current, keepRounds, keepSends, live, nextSeq } from '../draw/layout'
 import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
@@ -273,13 +274,37 @@ async function reminder($: any, c: Call, r: any) {
   // Measured on the current request: a task only pending from an earlier one does not silence it; a
   // task in progress, of any request (a start on an old one is the expected way to go on), does.
   const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-  if ((await marks($)).planned || hasOpen(requestTasks(value as Group[])) || current(all).anchor !== undefined) {
+  const open = hasOpen(requestTasks(value as Group[]))
+  const busy = current(all).anchor !== undefined
+  const m = await marks($)
+  if (m.planned || open || busy) {
     reminders.unplanned = 0
-    return r
+    // The plan open and nothing started (the panel all ○, its clock still): the third call in a row
+    // takes the reminder to start, once a plan (the person, 2026-11-15: "Lembrete após 3 chamadas
+    // (Recomendado)"). A call with a task in progress, or with something that holds a task with no
+    // start (a subagent alive, a session working, a letter queued), neither counts nor resets it; a
+    // start, a plan taken and a new request reset it (hooks/tools, hooks/prompt-submit).
+    if (!open || busy || m.idleWarned || (await holdsUnstarted($, value as Group[]))) return r
+    if (m.idleCalls + 1 < 3) {
+      await setMarks($, { idleCalls: m.idleCalls + 1 })
+      return r
+    }
+    await setMarks($, { idleCalls: 0, idleWarned: true })
+    return { ...r, context: [...(r.context ?? []), START_DUE] }
   }
   reminders.unplanned++
   if (reminders.unplanned % 10 !== 1) return r
   return { ...r, context: [...(r.context ?? []), UNPLANNED] }
+}
+
+// What keeps a task lit with no start (arvore.sem-start-nada-acende), and a letter queued: a subagent
+// the main loop launched still running, a session this one opened working, a message not taken up.
+async function holdsUnstarted($: any, groups: Group[]): Promise<boolean> {
+  if (groups.some(g => g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && (g.sub?.state === 'running' || g.sub?.state === 'background'))) return true
+  const { value: kids = [] } = await $.state.get(childrenState)
+  if ((kids as Child[]).some(live)) return true
+  const { value: sends = [] } = await $.state.get(sendsState)
+  return (sends as Send[]).some(s => s.delivered !== true && s.cut !== true && s.lost !== true)
 }
 
 // ---- the hook

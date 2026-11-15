@@ -331,3 +331,14 @@ As descrições das ferramentas do painel e do comando dizem o essencial de cada
 Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
 Código: hooks/register.tsx
 Estado: coberto
+
+### lembretes.plano-aberto-sem-start
+Com plano aberto e nada iniciado, o modelo é lembrado de dar start.
+
+- Dado um pedido com tarefa aberta, nenhuma tarefa em andamento, e nada que segure uma tarefa sem start (subagente vivo, sessão aberta trabalhando, carta na fila)
+- Quando o modelo faz a terceira chamada de ferramenta seguida nessa situação (as do painel, o wrap_up e a lista do app não contam)
+- Então o resultado traz o lembrete de chamar start na tarefa em que está trabalhando, uma vez por plano: só volta depois de outro plan ou de outro pedido; um start zera a contagem; a contagem sobrevive à recarga do mod; o painel segue ○ até o start (arvore.sem-start-nada-acende)
+
+Origem: decisão do usuário, 2026-11-15 ("Lembrete após 3 chamadas (Recomendado)").
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, state/durability.ts
+Estado: coberto

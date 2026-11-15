@@ -82,7 +82,7 @@ export const TABLE: readonly Row[] = [
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
   { key: 'selfId', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s local_ id as the app answered it; in the state so a reload of the mod has it at once (the render and the reading of the sessions)' },
-  { key: 'marks', lives: 'state', merge: 'none', restoredAt: [], note: 'the request\'s marks (whether it used the panel, whether a question waits for the person\'s message as its answer, whether the summary kept came before a plan); in the state so a reload keeps them; a /clear or a resume drops them' },
+  { key: 'marks', lives: 'state', merge: 'none', restoredAt: [], note: 'the request\'s marks (whether it used the panel, whether a question waits for the person\'s message as its answer, whether the summary kept came before a plan; the calls in a row with a plan open and nothing started, and whether this plan already took the reminder to start); in the state so a reload keeps them; a /clear or a resume drops them' },
   { key: 'paneOpened', lives: 'state', merge: 'none', restoredAt: [], note: 'session.start opened the panel in this process: a reload keeps it, so it does not open again a panel the person closed; a new process opens it once' },
   { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
   // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a

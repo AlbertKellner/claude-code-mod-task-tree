@@ -238,12 +238,15 @@ export async function lastBrief($: any): Promise<string | undefined> {
 // that closed a task of this request: with everything closed, its last calls need no reminder to
 // plan); whether the last question was answered by a chat message instead of an option (the
 // person's next message is the answer; a message of another session leaves the mark); whether the
-// summary kept was given before a plan of the same turn (a step's, so the last done still asks for one).
-export type Marks = { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean }
+// summary kept was given before a plan of the same turn (a step's, so the last done still asks for one);
+// the calls in a row with a plan open and nothing started, and whether this plan already took the
+// reminder to start (tool-call, reminder).
+export type Marks = { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean; idleCalls: number; idleWarned: boolean }
 export async function marks($: any): Promise<Marks> {
   const { value } = await $.state.get(marksState)
   const v = value !== null && typeof value === 'object' ? value as Partial<Marks> : {}
-  return { planned: v.planned === true, answeredInChat: v.answeredInChat === true, briefBeforePlan: v.briefBeforePlan === true }
+  const idle = typeof v.idleCalls === 'number' && Number.isFinite(v.idleCalls) && v.idleCalls > 0 ? Math.floor(v.idleCalls) : 0
+  return { planned: v.planned === true, answeredInChat: v.answeredInChat === true, briefBeforePlan: v.briefBeforePlan === true, idleCalls: idle, idleWarned: v.idleWarned === true }
 }
 // Changes the marks given, in one write; nothing is written when none changes.
 export async function setMarks($: any, m: Partial<Marks>) {
@@ -662,7 +665,7 @@ export async function restore($: any, id: string): Promise<boolean> {
 export async function dropHeld($: any) {
   await $.state.set(waitsState, [])
   await $.state.set(briefState, '')
-  await $.state.set(marksState, { planned: false, answeredInChat: false, briefBeforePlan: false })
+  await $.state.set(marksState, { planned: false, answeredInChat: false, briefBeforePlan: false, idleCalls: 0, idleWarned: false })
 }
 
 // The groups' "first use" of the table (restoredAt): session.start brings them back from the store

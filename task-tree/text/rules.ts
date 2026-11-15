@@ -304,10 +304,15 @@ export const DONE = {
     `parou com pendentes a sessão ${sessions.join(', a sessão ')}: elas saíram da contagem do painel ao ` +
     'fechar a tarefa de origem; se o trabalho delegado não acabou, retome a sessão',
   noSummary: `falta o summary: se este done foi o último passo do turno, chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩); se ainda vai planejar ou seguir trabalhando, ignore este aviso e passe o summary no último done`,
+  // One or more steps closed never started (one too since the person's 2026-11-15 answer, "Lembrete
+  // após 3 chamadas (Recomendado)").
   unstarted: (ids: string[]) =>
-    `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel não ` +
-    'mostrou nenhuma em andamento e elas aparecem sem tempo (—). Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
-    'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
+    ids.length === 1
+      ? `1 etapa fechou sem start ("${ids[0]}"): o painel não a mostrou em andamento e ela aparece sem tempo (—). ` +
+        'Daqui em diante, marque cada etapa com mcp__task-tree__start ao começá-la e com mcp__task-tree__done ao terminá-la'
+      : `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel não ` +
+        'mostrou nenhuma em andamento e elas aparecem sem tempo (—). Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
+        'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
   queued: (to: string, id: string) => `a mensagem para ${to} ("${id}") ainda está na fila, sem confirmação de recebimento`,
 }
 
@@ -338,6 +343,12 @@ export const UNPLANNED =
   PANEL + 'há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
   'abre pelo menos uma tarefa: chame mcp__task-tree__plan agora, mcp__task-tree__start ao começar ' +
   'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.'
+// A plan open and nothing started, at the third call in a row of the main loop, once a plan (hooks/
+// tool-call, reminder; the person, 2026-11-15: "Lembrete após 3 chamadas (Recomendado)").
+export const START_DUE =
+  PANEL + 'há plano aberto e nenhuma tarefa em andamento: o painel mostra tudo pendente e o relógio ' +
+  'parado. Chame mcp__task-tree__start na tarefa em que está trabalhando agora; as que já terminou, ' +
+  'feche com mcp__task-tree__done.'
 
 // The sessions this one opened: one took up a queued message (`what`: each session, with the task
 // it was sent from); one was archived with a message still queued, which is not delivered (`lost`);

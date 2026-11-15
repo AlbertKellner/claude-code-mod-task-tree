@@ -268,7 +268,9 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`; o wrap_up e a lista do app,
-   `update_plan`, não ganham nem contam).
+   `update_plan`, não ganham nem contam; com plano aberto e nada em andamento, a terceira chamada
+   seguida ganha `START_DUE`, uma vez por plano, contada nas marcas `idleCalls`/`idleWarned`, sem
+   contar as chamadas com subagente vivo, sessão aberta trabalhando ou carta na fila).
 
 **Um prompt** (`hooks/prompt-submit.ts`): `said(text)` tira os `<system-reminder>` e classifica em
 mensagem de outra sessão (`peer`, `<cross-session-message`), volta de subagente (`handback`), aviso
@@ -453,7 +455,7 @@ o cartão da filha desconta dos tempos dela os intervalos dela. Ausente nos arqu
 dele diz o que não vale dentro de um subagente: `request`, `summary`, a recusa da pergunta sem tarefa e
 os lembretes de planejar; `lembretes.regras-dizem-o-que-nao-vale-no-subagente`); `COMMAND` e `TOOLS` são as descrições
 registradas no `session.start` (`TOOLS.cancel` é a do parâmetro `cancel` do `done`); `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
-`SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas; `START` a recusa do start
+`SEND`, `UNPLANNED`, `START_DUE` e `SESSION` os avisos nos resultados das ferramentas; `START` a recusa do start
 (o pai concluído, dito igual nas regras, na descrição e na recusa: `REDO_PARENT`), `PLAN` os avisos e as recusas da entrada do
 plan, `NOT_A_LIST` a recusa de `ids`/`cancel` que não são lista, `TOOL_ERROR` a falha interna das três ferramentas e `SUBS` a nota do fim dos subagentes. Cada texto tem um cenário no catálogo que diz quando ele
 sai; a primeira regra do pedido com tarefas abertas pede o `done` delas e só depois o `plan`
@@ -2386,3 +2388,14 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   tarefa só para fechá-la. Agora o wrap_up (2026-11-15, "Não levar (Recomendado)") e a lista do app,
   `update_plan`, chamada junto com o plan (2026-11-15, "Não leva (Recomendado)"), não levam o lembrete
   nem contam como chamada; no wrap_up segue "falta o resumo do turno" (lembretes.primeira-chamada-sem-plano).
+
+## Achados baixos: o lembrete de start com plano aberto e nada iniciado (2026-11-15)
+
+- Com plano aberto e nenhum start, o modelo trabalhava sem lembrete (o de planejar zerava com tarefa
+  aberta), e o done só avisava de etapas fechadas sem start a partir de duas. Agora, com tarefa aberta no
+  pedido, nada em andamento e nada que segure uma tarefa sem start (subagente vivo, sessão aberta
+  trabalhando, carta na fila), a terceira chamada seguida do loop principal leva `START_DUE`, uma vez por
+  plano; o start zera a contagem, o plan aceito e o pedido novo zeram a contagem e a marca. As duas ficam
+  nas marcas do pedido (`idleCalls`, `idleWarned`), que sobrevivem à recarga. `DONE.unstarted` sai também
+  com uma tarefa só, no singular (2026-11-15, "Lembrete após 3 chamadas (Recomendado)";
+  lembretes.plano-aberto-sem-start, arvore.done-sem-summary-e-varias-sem-start).

@@ -4,6 +4,8 @@ import { painel as desenho } from './kit/leitura'
 import { AGORA, estado, fixar, host, responderEnvio } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
 import { abrirSessao, aviso, envio, falha, mensagemDe } from './kit/cenario'
+import { lancar } from './kit/cenario'
+import { lancaveis } from './kit/ambiente'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -844,4 +846,108 @@ test('a lista do app sem plano não traz o lembrete de planejar nem conta como c
   const lista = contexto(await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', tool_use_id: 'u1', items: [{ content: 'Passo', status: 'in_progress' }] }))
   expect(lista).not.toContain('sem plano aberto')
   expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Lembrete de start com plano aberto e nada iniciado (decisão do usuário, 2026-11-15: "Lembrete após 3
+// chamadas (Recomendado)").
+const SEM_START = 'nenhuma tarefa em andamento'
+const CHAMA_START = 'mcp__task-tree__start'
+const lembraStart = async ($: any, id: string) => {
+  const ctx = contextoDe(await $.tool.call({ tool: 'Bash', tool_use_id: id, command: 'ls' }))
+  return ctx.includes(SEM_START) && ctx.includes(CHAMA_START)
+}
+const tresChamadas = async ($: any, p: string) => [await lembraStart($, `${p}1`), await lembraStart($, `${p}2`), await lembraStart($, `${p}3`)]
+const ESTADO_PARADO: Record<string, unknown> = {}
+
+// Regra: lembretes.plano-aberto-sem-start
+test('com plano aberto e nada iniciado, a terceira ferramenta traz o lembrete de start, uma vez por plano', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  expect(await tresChamadas($, 'a')).toEqual([false, false, true])
+  expect(await tresChamadas($, 'b')).toEqual([false, false, false])
+  await plan($, A)
+  expect(await tresChamadas($, 'c')).toEqual([false, false, true])
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('um start antes da terceira chamada cala o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  expect(await lembraStart($, 'a1')).toBe(false)
+  expect(await lembraStart($, 'a2')).toBe(false)
+  await start($, ['1'])
+  expect(await tresChamadas($, 'b')).toEqual([false, false, false])
+  await done($, ['1'])
+  expect(await tresChamadas($, 'c')).toEqual([false, false, true])
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('com uma carta na fila, as chamadas não contam para o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  responderEnvio(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await envio($, 'outra-sessao')
+  expect(await tresChamadas($, 'a')).toEqual([false, false, false])
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('com um subagente vivo, as chamadas não contam para o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await lancar($, { descricao: 'ler o kit' })
+  expect(await tresChamadas($, 'a')).toEqual([false, false, false])
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('com uma sessão aberta trabalhando, as chamadas não contam para o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [] } }])
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await abrirSessao($)
+  expect(await tresChamadas($, 'a')).toEqual([false, false, false])
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('o wrap_up não conta nem leva o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  expect(await lembraStart($, 'a1')).toBe(false)
+  expect(await lembraStart($, 'a2')).toBe(false)
+  expect(contextoDe(await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', tool_use_id: 'w1', recap: 'feito' }))).not.toContain(SEM_START)
+  expect(await lembraStart($, 'a3')).toBe(true)
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('a contagem do lembrete de start sobrevive à recarga, 1/2: duas chamadas sem start', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ESTADO_PARADO, 'captura')
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  expect(await lembraStart($, 'a1')).toBe(false)
+  expect(await lembraStart($, 'a2')).toBe(false)
+  expect(Object.keys(ESTADO_PARADO).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('a contagem do lembrete de start sobrevive à recarga, 2/2: a terceira traz o lembrete', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ESTADO_PARADO, 'semear')
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  expect(Object.keys(ESTADO_PARADO).length, 'o 1/2 não gravou o state').toBeGreaterThan(0)
+  expect(await lembraStart($, 'a3')).toBe(true)
 })

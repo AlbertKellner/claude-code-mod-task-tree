@@ -101,6 +101,16 @@
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
     },
+    "task-tree/tests/arvore.test.ts::o done de uma tarefa só, nunca iniciada, avisa que ela fechou sem start": {
+      "regras": [
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "2c5f1c5ea0d53686",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
     "task-tree/tests/arvore.test.ts::o id curto não alcança as tarefas de histórico: start numa concluída não é ambíguo e o id que só existe no histórico não existe": {
       "regras": [
         "arvore.id-curto-nao-alcanca-o-historico"
@@ -2171,6 +2181,26 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/lembretes.test.ts::a contagem do lembrete de start sobrevive à recarga, 1/2: duas chamadas sem start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "f05ba57516010f44",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::a contagem do lembrete de start sobrevive à recarga, 2/2: a terceira traz o lembrete": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "f984278e1d2b860d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::a descrição do plan diz que o estado só fica no replano da mesma mensagem": {
       "regras": [
         "lembretes.estado-guardado-so-no-mesmo-pedido"
@@ -2421,6 +2451,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Avisar o modelo uma vez (Recomendado)\""
     },
+    "task-tree/tests/lembretes.test.ts::com plano aberto e nada iniciado, a terceira ferramenta traz o lembrete de start, uma vez por plano": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "546e8ea0ee8f5b32",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan": {
       "regras": [
         "lembretes.done-antes-do-plan"
@@ -2430,6 +2470,36 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: done, depois plan"
+    },
+    "task-tree/tests/lembretes.test.ts::com um subagente vivo, as chamadas não contam para o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "a728f05873f4fc62",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::com uma carta na fila, as chamadas não contam para o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "9a5adb25884b4ad0",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::com uma sessão aberta trabalhando, as chamadas não contam para o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "17f39f9dc5504bc1",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez": {
       "regras": [
@@ -2602,6 +2672,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
+    "task-tree/tests/lembretes.test.ts::o wrap_up não conta nem leva o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "08a4bd9ea62fd0bb",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::o wrap_up sem plano traz 'falta o resumo do turno' e não o lembrete de planejar": {
       "regras": [
         "lembretes.primeira-chamada-sem-plano",
@@ -2732,6 +2812,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: done, depois plan"
+    },
+    "task-tree/tests/lembretes.test.ts::um start antes da terceira chamada cala o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "5949b221a9a80474",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
     },
     "task-tree/tests/pedidos.test.ts::a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id": {
       "regras": [
