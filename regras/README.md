@@ -52,6 +52,8 @@ nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pe
 `checklist`; um `test(` não tem `// Regra:` acima; ou uma chave do state do mod não tem linha na
 tabela de durabilidade (e vice-versa).
 
+Todo `test(` é uma instrução de topo, com nome literal e único no arquivo.
+
 ## Selo dos testes e do kit
 
 `regras/selos.json` guarda, para cada teste que cita uma regra `coberto`, o hash do corpo (sem
@@ -80,7 +82,8 @@ conferem com o teste; com algum teste mudado sem selo, ele recusa.
 ```
 
 Tipos:
-- `novo`: teste novo (só para chave que não existia em `HEAD`), ou a linha de base;
+- `novo`: teste novo (só para chave que não existia em `HEAD`), arquivo do kit ou de apoio novo (só
+  para arquivo que não existia em `HEAD`), ou a linha de base;
 - `decisao`: o comportamento esperado mudou por decisão do usuário; cada regra do teste precisa de
   `Reescrito:` com data igual ou posterior à do selo anterior;
 - `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir.
@@ -110,7 +113,11 @@ um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste se
 de `HEAD`; um teste que já existia ganhou hash novo com tipo `novo`; um selo `decisao` com hash novo
 não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`); as asserções do selo
 são diferentes das contadas no teste; ou um cenário do golden (os previstos, com `tests/golden.test.ts`
-no repositório, e os de `HEAD`) sumiu do desenho ou do selo. A etapa `travas` testa essas regras num
+no repositório, e os de `HEAD`) sumiu do desenho ou do selo; um selo do kit mudado é `novo` para
+arquivo que já existia, ou não tem motivo (o selo do kit sempre leva `--motivo`); um teste com o mesmo
+hash da base tem menos asserções que ela (um helper do kit deixou de afirmar), salvo com o kit
+`tests/kit/leitura.ts` selado como `decisao`; ou um arquivo de teste tem `test(` aninhado, em laço,
+com nome em template ou com nome repetido. A etapa `travas` testa essas regras num
 repositório temporário.
 
 ## Mapa de código (matriz de impacto)
@@ -131,7 +138,8 @@ Estado: coberto
 - O núcleo (`hooks/register.tsx`, `hooks/render.tsx`, `types/index.d.ts`) vive em `scripts/regras.mjs`,
   não no catálogo: tocá-lo afeta todos os cenários.
 - Manutenção: quem cria um cenário ou um arquivo do mod atualiza o mapa. A etapa `regras` falha com
-  caminho inexistente e avisa, sem falhar, com cenário coberto sem código ou arquivo fora do mapa.
+  caminho inexistente e avisa, sem falhar, com cenário coberto sem código, arquivo fora do mapa ou
+  commit citado numa linha `Origem:` ou `Reescrito:` que não existe no repositório.
 - `npm run impacto` lê o mapa: arquivos tocados → cenários → testes → checklist do app → golden.
 
 ## Modelos

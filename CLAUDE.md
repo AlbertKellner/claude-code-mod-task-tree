@@ -112,7 +112,9 @@ a regra que ele protege.
 - O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
   asserções; um arquivo do kit ou de apoio dos testes (fixtures) mudou sem selo; ou um teste de `HEAD` falha contra o código novo
   sem decisão registrada ("testes antigos, código novo"); um teste selado de `HEAD` que não rodou
-  (não aparece na saída do `plugin test`) conta como falha.
+  (não aparece na saída do `plugin test`) conta como falha; um selo do kit é `novo` para arquivo que já
+  existia, ou sem motivo; um teste tem menos asserções sem mudar (helper do kit que deixou de afirmar,
+  sem o kit selado como decisão); ou um `test(` é aninhado, sem nome literal ou repetido no arquivo.
 - O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
   commit. Não use `--no-verify`.
 - Matriz de impacto: cada arquivo do catálogo diz o código da área (`Código da área:`) e um cenário

@@ -5,7 +5,10 @@
 // O mapa de código (matriz de impacto, npm run impacto): cada arquivo do catálogo tem uma linha
 // "Código da área:" (os arquivos do mod, relativos a task-tree/), e um cenário pode ter "Código:" próprio,
 // que soma à área. Caminho inexistente falha; cenário coberto sem código, ou arquivo do mod fora do
-// mapa, só avisa (decisão do usuário, 2026-10-29: "Só avisar (Recomendado)").
+// mapa, só avisa (decisão do usuário, 2026-10-29: "Só avisar (Recomendado)"). Um commit citado nas
+// linhas "Origem:" e "Reescrito:" que não existe no repositório (--repo, padrão a raiz) também só avisa;
+// sem git na pasta, nada a avisar.
+import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,7 +20,10 @@ const ESTADO = /^Estado: (coberto|pendente|checklist)\b/
 const AREA = /^Código da área: (.+)$/
 const CODIGO = /^Código: (.+)$/
 const REGRA = /^\s*\/\/ Regra: (.+)$/
-const TESTE = /^\s*test\(/
+export const TESTE = /^\s*test\(/
+const CITACAO = /^(?:Origem|Reescrito): /
+// Hash curto: 7 a 12 hexadecimais com ao menos uma letra; só de dígitos, logo depois de "commit(s)".
+const HASHES = /\bcommits?\s+((?:[0-9a-f]{7,12}(?:,?\s*(?:e\s+)?)?)+)|\b([0-9a-f]{7,12})\b/g
 
 // Arquivos que redesenham ou ligam tudo: tocá-los afeta todos os cenários (no script, não no catálogo).
 export const NUCLEO = ['hooks/register.tsx', 'hooks/render.tsx', 'types/index.d.ts']
@@ -95,6 +101,41 @@ export function lerCatalogo(raiz) {
   return { regras, problemas, avisos }
 }
 
+// Os commits citados nas linhas "Origem:" e "Reescrito:": [{ arquivo, id, hash }].
+export function hashesCitados(raiz) {
+  const pasta = join(raiz, 'regras')
+  const saida = []
+  for (const arquivo of readdirSync(pasta).filter(f => f.endsWith('.md') && f !== 'README.md').sort()) {
+    let id
+    for (const linha of readFileSync(join(pasta, arquivo), 'utf8').split(/\r?\n/)) {
+      const m = ID.exec(linha)
+      if (m) id = m[1]
+      if (!id || !CITACAO.test(linha)) continue
+      const vistos = new Set()
+      for (const h of linha.matchAll(HASHES)) {
+        const lista = h[1] ? (h[1].match(/[0-9a-f]{7,12}/g) ?? []) : /[a-f]/.test(h[2]) ? [h[2]] : []
+        for (const hash of lista)
+          if (!vistos.has(hash)) {
+            vistos.add(hash)
+            saida.push({ arquivo, id, hash })
+          }
+      }
+    }
+  }
+  return saida
+}
+
+// Os avisos dos commits citados que não existem em `repo`; sem git na pasta, nenhum.
+export function avisosDeCommits(raiz, repo) {
+  if (spawnSync('git', ['-C', repo, 'rev-parse', '--git-dir'], { encoding: 'utf8' }).status !== 0) return []
+  const citados = hashesCitados(raiz)
+  const unicos = [...new Set(citados.map(c => c.hash))]
+  if (unicos.length === 0) return []
+  const r = spawnSync('git', ['-C', repo, 'cat-file', '--batch-check'], { input: `${unicos.map(h => `${h}^{commit}`).join('\n')}\n`, encoding: 'utf8' })
+  const faltam = new Set((r.stdout ?? '').split(/\r?\n/).filter(l => / missing$/.test(l)).map(l => l.replace(/\^\{commit\} missing$/, '')))
+  return citados.filter(c => faltam.has(c.hash)).map(c => `${c.arquivo}: ${c.id}: commit citado não existe: ${c.hash}`)
+}
+
 // Os testes: "// Regra: a, b" na linha logo acima de cada test(. Devolve onde cada id é citado.
 export function lerTestes(raiz, regras) {
   const problemas = []
@@ -170,7 +211,10 @@ export function lerDurabilidade(raiz) {
 if (ehPrincipal(import.meta.url)) {
   const i = process.argv.indexOf('--raiz')
   const raiz = i >= 0 ? process.argv[i + 1] : join(dirname(fileURLToPath(import.meta.url)), '..')
+  const j = process.argv.indexOf('--repo')
+  const repo = j >= 0 ? process.argv[j + 1] : raiz
   const cat = lerCatalogo(raiz)
+  cat.avisos.push(...avisosDeCommits(raiz, repo))
   const tes = lerTestes(raiz, cat.regras)
   const problemas = [...cat.problemas, ...tes.problemas, ...lerDurabilidade(raiz)]
   const regras = [...cat.regras.values()]

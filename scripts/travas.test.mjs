@@ -744,3 +744,88 @@ test('--base sem valor é erro', () => {
   assert.deepEqual(lerBase(['--base', 'abc']), { base: 'abc' })
   assert.deepEqual(lerBase(['--indice']), { base: undefined })
 })
+
+// Travas do selo do kit, dos testes fora do topo e dos commits citados nas origens.
+const KIT_AFIRMA = "import { expect } from 'claude-code/testing'\nexport function esperarX(v: number) {\n  expect(v).toBe(v)\n}\nexport const x = 1\n"
+test('selar o kit que já existia como novo é recusado, e o selo novo à mão não passa', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), 'export const x = 2\n')
+  const r = selos(dir, '--kit', KIT_ARQ, '--tipo', 'novo', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /"novo" só para arquivo que não existia em HEAD/)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.kit[KIT_ARQ].tipo = 'novo'
+  gravarSelosJson(dir, s)
+  const c = conferir(dir)
+  assert.equal(c.status, 1)
+  assert.match(c.stderr, /tipo `novo` em arquivo do kit que já existia: task-tree\/tests\/kit\/leitura\.ts/)
+}))
+
+test('selo do kit sem motivo é recusado', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), 'export const x = 2\n')
+  const r = selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /exige --motivo/)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.kit[KIT_ARQ].motivo = ''
+  gravarSelosJson(dir, s)
+  assert.match(conferir(dir).stderr, /selo do kit sem motivo/)
+}))
+
+// O teste um passa a chamar um helper do kit que afirma, e isso vai à base.
+const comHelperNaBase = dir => {
+  writeFileSync(join(dir, KIT_ARQ), KIT_AFIRMA)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'esperarX(2)')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  gitEm(dir)('commit', '-q', '-am', 'helper')
+  writeFileSync(join(dir, KIT_ARQ), KIT_AFIRMA.replace('  expect(v).toBe(v)\n', '  void v\n'))
+}
+
+test('um helper do kit que deixa de afirmar não passa com --recontar', comMontagem(dir => {
+  comHelperNaBase(dir)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(selos(dir, '--recontar').status, 0)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /menos asserções sem o teste mudar: .*::um \(2 → 1\)/)
+}))
+
+test('um helper do kit que deixa de afirmar, com o kit selado como decisão, passa', comMontagem(dir => {
+  comHelperNaBase(dir)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'decisao', '--motivo', 'o usuário decidiu').status, 0)
+  assert.equal(selos(dir, '--recontar').status, 0)
+  const r = conferir(dir)
+  assert.equal(r.status, 0, r.stderr)
+}))
+
+test('um test( aninhado ou com nome em template falha a etapa selos', comMontagem(dir => {
+  for (const extra of ["\n{\n  // Regra: exemplo.a\n  test('tres', async () => {})\n}\n", "\nconst n = 'x'\n// Regra: exemplo.a\ntest(`t ${n}`, async () => {})\n"]) {
+    const original = readFileSync(join(dir, ARQ), 'utf8')
+    writeFileSync(join(dir, ARQ), original + extra)
+    const r = conferir(dir)
+    assert.equal(r.status, 1, extra)
+    assert.match(r.stderr, /3 `test\(` no arquivo, 2 testes de topo com nome literal/)
+    writeFileSync(join(dir, ARQ), original)
+  }
+}))
+
+test('dois testes com o mesmo nome no arquivo falham', comMontagem(dir => {
+  writeFileSync(join(dir, ARQ), readFileSync(join(dir, ARQ), 'utf8') + "\n// Regra: exemplo.a\ntest('um', async () => {})\n")
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /nome de teste repetido em task-tree\/tests\/exemplo\.test\.ts: um/)
+}))
+
+test('hash de origem que não existe só avisa', comMontagem(dir => {
+  trocar(dir, 'regras/exemplo.md', 'Origem: teste das travas.\nEstado: coberto\n\n### exemplo.b', 'Origem: teste das travas, commit 0123abc.\nEstado: coberto\n\n### exemplo.b')
+  let r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stdout, /aviso: exemplo\.md: exemplo\.a: commit citado não existe: 0123abc/)
+  const h = gitEm(dir)('rev-parse', '--short=7', 'HEAD').stdout.trim()
+  trocar(dir, 'regras/exemplo.md', '0123abc', h)
+  r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+  assert.doesNotMatch(r.stdout, /commit citado não existe/)
+}))

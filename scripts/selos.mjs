@@ -21,6 +21,7 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { ehPrincipal } from './guarda.mjs'
+import { TESTE } from './regras.mjs'
 
 // Chamadas que afirmam: expect e as funções exportadas de tests/kit/leitura.ts que chamam expect ou
 // lançam erro (derivadas do arquivo, ver assercoesDoKit).
@@ -202,10 +203,15 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
   const regras = catalogo(raiz)
   const nomes = lerAssercoes(raiz)
   const testes = {}
+  // Por arquivo de teste: as linhas que o catálogo conta como test( e os nomes que viram selo.
+  const porArquivo = []
   const pastaTestes = join(raiz, 'task-tree', 'tests')
   for (const p of arquivos(pastaTestes, f => /\.test\.tsx?$/.test(f)).filter(p => !barra(p).includes('/kit/'))) {
     const rel = barra(relative(raiz, p))
-    for (const t of testesDe(p, readFileSync(p, 'utf8'), nomes, algoritmo)) {
+    const texto = readFileSync(p, 'utf8')
+    const todos = testesDe(p, texto, nomes, algoritmo)
+    porArquivo.push({ rel, linhas: texto.split(/\r?\n/).filter(l => TESTE.test(l)).length, nomes: todos.map(t => t.nome) })
+    for (const t of todos) {
       if (!t.regras.some(id => regras.get(id)?.estado === 'coberto')) continue
       testes[`${rel}::${t.nome}`] = t
     }
@@ -216,7 +222,7 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
     const rel = barra(relative(raiz, p))
     if (ehApoio(rel)) kit[rel] = hashDoKit(p, readFileSync(p, 'utf8'))
   }
-  return { testes, kit, regras }
+  return { testes, kit, regras, porArquivo }
 }
 
 const vazio = () => ({ algoritmo: 1, testes: {}, kit: {}, golden: {}, removidos: {} })
@@ -332,10 +338,15 @@ export function selosDaBase(repo, ref = 'HEAD', algoritmo = ALGORITMO, nomes = [
 
 // A conferência: devolve a lista de problemas.
 export function conferir(raiz, repo = raiz, base = 'HEAD') {
-  const { testes, kit, regras } = extrair(raiz)
+  const { testes, kit, regras, porArquivo } = extrair(raiz)
   const selos = lerSelos(raiz)
   const head = selosDaBase(repo, base, selos.algoritmo, lerAssercoes(raiz))
   const problemas = []
+  // Todo test( é uma instrução de topo, com nome literal e único no arquivo: o resto não seria selado.
+  for (const { rel, linhas, nomes } of porArquivo) {
+    if (linhas !== nomes.length) problemas.push(`${rel}: ${linhas} \`test(\` no arquivo, ${nomes.length} testes de topo com nome literal (teste aninhado, em laço ou com nome em template não é selado)`)
+    for (const n of new Set(nomes.filter((n, i) => nomes.indexOf(n) !== i))) problemas.push(`nome de teste repetido em ${rel}: ${n}`)
+  }
   if (selos.algoritmo !== ALGORITMO) problemas.push(`selos do algoritmo ${selos.algoritmo}, o atual é o ${ALGORITMO} (node scripts/selos.mjs --migrar)`)
   for (const [chave, t] of Object.entries(testes)) {
     const s = selos.testes[chave]
@@ -349,6 +360,15 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     else if (s.hash !== h) problemas.push(`${ehDoKit(arq) ? 'o kit' : 'o arquivo de apoio dos testes'} mudou sem selo novo: ${arq}`)
   }
   for (const arq of Object.keys(selos.kit)) if (!kit[arq]) problemas.push(`${nomeDe(arq)} selado sumiu: ${arq}`)
+  // O selo do kit que mudou contra a base: "novo" só para arquivo que não existia nela, e sempre com motivo.
+  for (const [arq, s] of Object.entries(selos.kit)) {
+    const b = head.kit[arq]
+    if (b && s.hash === b.hash) continue
+    if (b && s.tipo === 'novo') problemas.push(`tipo \`novo\` em arquivo do kit que já existia: ${arq}`)
+    if (!s.motivo) problemas.push(`selo do kit sem motivo: ${arq}`)
+  }
+  // Um helper do kit que deixa de afirmar baixa a contagem sem o teste mudar: só com o kit selado como decisão.
+  const kitDecidido = selos.kit[KIT_LEITURA]?.tipo === 'decisao' && selos.kit[KIT_LEITURA]?.hash !== head.kit[KIT_LEITURA]?.hash
   // A lista do que afirma é derivada do kit: um helper exportado com expect( fora dela é a derivação quebrada.
   const pKit = join(raiz, KIT_LEITURA)
   if (existsSync(pKit)) {
@@ -363,6 +383,8 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     // O número gravado tem de ser o contado: escrito à mão, ele esconderia uma perda.
     if (t && s.assercoes !== t.assercoes) problemas.push(`asserções do selo diferentes das contadas: ${chave} (selo ${s.assercoes}, contadas ${t.assercoes})`)
     const antes = head.testes[chave]
+    if (t && antes && s.hash === antes.hash && t.assercoes < antes.assercoes && !kitDecidido)
+      problemas.push(`menos asserções sem o teste mudar: ${chave} (${antes.assercoes} → ${t.assercoes}): um helper do kit deixou de afirmar`)
     if (!antes || s.hash === antes.hash) continue
     const contadas = t?.assercoes ?? s.assercoes
     if (s.tipo === 'novo') problemas.push(`tipo \`novo\` em teste que já existia: ${chave}`)
@@ -436,6 +458,7 @@ export function selar(raiz, repo, opcoes) {
   const head = selosDeHead(repo)
   const { tipo, motivo = '' } = opcoes
   if (opcoes.novos) {
+    if (!motivo) throw new Error('--novos exige --motivo')
     let n = 0
     for (const [chave, t] of Object.entries(testes)) {
       if (selos.testes[chave] || head.testes[chave]) continue
@@ -443,7 +466,7 @@ export function selar(raiz, repo, opcoes) {
       n++
     }
     for (const [arq, h] of Object.entries(kit)) {
-      if (selos.kit[arq]) continue
+      if (selos.kit[arq] || head.kit[arq]) continue
       selos.kit[arq] = { hash: h, tipo: 'novo', data: hoje(), motivo }
       n++
     }
@@ -454,6 +477,8 @@ export function selar(raiz, repo, opcoes) {
   if (opcoes.kit) {
     const arq = barra(opcoes.kit)
     if (!kit[arq]) throw new Error(`arquivo do kit não encontrado: ${arq}`)
+    if (tipo === 'novo' && head.kit[arq]) throw new Error(`"novo" só para arquivo que não existia em HEAD: ${arq}`)
+    if (!motivo) throw new Error('o selo do kit exige --motivo')
     selos.kit[arq] = { hash: kit[arq], tipo, data: hoje(), motivo }
     gravar(raiz, selos)
     return `kit selado: ${arq}`
