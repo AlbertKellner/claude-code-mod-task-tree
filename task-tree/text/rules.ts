@@ -247,6 +247,19 @@ export const ASK = {
     'que ela definiu, na ordem em que vai executar; depois start no que começa agora.',
 }
 
+// Warnings in plan's result (joined after "Avisos:"): what the plan did to a level-1 task that
+// already had the id it reuses (history of an earlier request, history beside a closed one, a replan
+// in place keeping the state of the tasks that keep their id).
+export const PLAN = {
+  earlier: (id: string, open: number) =>
+    `"${id}" era de um pedido anterior e ficou como histórico, com ${open} ${open === 1 ? 'tarefa aberta interrompida' : 'tarefas abertas interrompidas'}; ` +
+    'a tarefa nova entrou toda pendente (para seguir na antiga, use start e done nos ids dela, sem replanejar)',
+  closed: (id: string) => `"${id}" já estava fechada e ficou como histórico; a tarefa nova entrou ao lado`,
+  carried: (id: string, done: number, going: number) =>
+    `"${id}" replanejada no lugar: ${done + going} ${done + going === 1 ? 'tarefa manteve' : 'tarefas mantiveram'} o estado ` +
+    `(${done} ${done === 1 ? 'concluída' : 'concluídas'}, ${going} em andamento); as demais entraram pendentes`,
+}
+
 // Warnings in done's result (joined after "Avisos:").
 export const DONE = {
   noSummary: `falta o summary: chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩)`,

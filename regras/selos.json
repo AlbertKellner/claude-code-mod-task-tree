@@ -2037,6 +2037,36 @@
       "data": "2026-11-12",
       "motivo": "auditoria 2026-11-10: o trabalho atual segue a renomeação do nível 1"
     },
+    "task-tree/tests/pedidos.test.ts::o plan avisa o nível 1 de pedido anterior que ficou como histórico, com as abertas interrompidas": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "bf53b7e752c987dc",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o plan avisa o nível 1 fechado que ficou como histórico": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "fd2923f349669e81",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o replano no mesmo pedido diz quantas tarefas mantiveram o estado": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "1eabad80dea19a94",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
+    },
     "task-tree/tests/pedidos.test.ts::o request de outro plan do mesmo pedido não muda o título; o pedido seguinte ganha o seu": {
       "regras": [
         "pedidos.titulo-vem-do-request"
@@ -2197,6 +2227,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::um plano sem ids repetidos não traz avisos": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "2d2b1269ce44e22c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
     },
     "task-tree/tests/perguntas.test.ts::ExitPlanMode mostra a espera da aprovação do plano até a resposta": {
       "regras": [

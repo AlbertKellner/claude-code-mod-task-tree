@@ -116,6 +116,17 @@ Reescrito: 2026-11-14, decisão do usuário ("Reabre mantendo os ✓ (Recomendad
 Código: text/rules.ts
 Estado: coberto
 
+### pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+A resposta do plan diz o que ele fez às tarefas que já existiam com o mesmo id.
+
+- Dado um plan que repete o id de um nível 1 que já existe
+- Quando o plan responde
+- Então, além de "Plano exibido", a resposta avisa: o nível 1 aberto de pedido anterior que ficou como histórico, com quantas abertas interrompidas; o nível 1 já fechado que ficou como histórico; e, no replano do mesmo pedido (também o do nível 1 concluído, que reabre), quantas tarefas mantiveram o estado; sem id repetido, não há avisos
+
+Origem: auditoria 2026-11-10 (o modelo não sabia o que o plan tinha interrompido ou guardado); aplica pedidos.plano-anterior-vira-historico, pedidos.nivel1-concluido-e-historico e pedidos.replano-preserva-estado, sem mudar nenhuma delas.
+Código: text/rules.ts
+Estado: coberto
+
 ### pedidos.rodada-descartada-nao-segura-a-visao
 Uma rodada descartada não conta como algo aberto à vista.
 

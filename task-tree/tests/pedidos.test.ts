@@ -535,3 +535,58 @@ test("com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e 
   expect(p.filter(l => l.texto.includes('+1 pedidos anteriores')).length, emTexto(p)).toBe(1)
   expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(false)
 })
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('o plan avisa o nível 1 de pedido anterior que ficou como histórico, com as abertas interrompidas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  const r = await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).toContain('Avisos')
+  expect(r.texto).toContain('pedido anterior')
+  expect(r.texto).toContain('histórico')
+  expect(r.texto).toContain('2 tarefas abertas interrompidas')
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('o plan avisa o nível 1 fechado que ficou como histórico', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await done($, ['1', '2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  const r = await plan($, A)
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).toContain('já estava fechada')
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('o replano no mesmo pedido diz quantas tarefas mantiveram o estado', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  const r = await plan($, [{ ...A[0]!, children: [...A[0]!.children!, { id: '3', title: 'Três' }] }])
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).toContain('2 tarefas mantiveram o estado')
+  expect(r.texto).toContain('1 concluída, 1 em andamento')
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('um plano sem ids repetidos não traz avisos', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const r = await plan($, B)
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).not.toContain('Avisos')
+})

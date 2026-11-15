@@ -4,7 +4,7 @@
 import { update } from 'claude-code'
 
 import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
-import { DONE, START } from '../text/rules'
+import { DONE, PLAN, START } from '../text/rules'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
@@ -79,6 +79,10 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
     }
     const toLevelOne = movedAnchor(gone)
+    // What the plan does to the level-1 tasks that already had an id it reuses, said in its result
+    // (the tasks renamed to history, and the replans in place, counted below on the result).
+    const ownBefore = (before as Group[]).find(g => g.agent === agent)?.tasks ?? []
+    const warned = ownBefore.filter(t => ids.includes(t.id))
     // The person's folds go with the tasks renamed in the planning loop's group (renameFolds).
     const renamedHere = ((before as Group[]).find(g => g.agent === agent)?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
     const now = await stamp($)
@@ -145,9 +149,21 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     // (the person, 2026-11-14: "Só na sua mensagem (Recomendado)").
     // What this plan sent (every level) and what is open in the caller's own group: not the
     // whole panel, which holds the other loops' tasks too.
-    const [gd, gn] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
+    const ownAfter = groups.find(g => g.agent === agent)?.tasks ?? []
+    const [gd, gn] = count(ownAfter)
     const sent = plural(flat(fresh).length, 'tarefa', 'tarefas')
-    return { result: `Plano exibido no painel: ${sent} neste plano (${plural(gn - gd, 'aberta', 'abertas')} no seu grupo).` }
+    const notes = warned.flatMap(t => {
+      if (replanned(t)) {
+        const old = new Set(flat(t.children).map(x => x.id))
+        const kept = flat(ownAfter.find(x => x.id === t.id)?.children ?? []).filter(x => old.has(x.id))
+        const doneN = kept.filter(x => x.status === 'done').length
+        const going = kept.filter(x => x.status === 'open' && x.children.length === 0 && (x.started !== undefined || x.startedAt !== undefined) && x.stopped !== true).length
+        return doneN + going > 0 ? [PLAN.carried(t.id, doneN, going)] : []
+      }
+      if (t.status === 'open') return [PLAN.earlier(t.id, flat([t]).filter(x => x.status === 'open' && x.children.length === 0).length)]
+      return [PLAN.closed(t.id)]
+    })
+    return { result: `Plano exibido no painel: ${sent} neste plano (${plural(gn - gd, 'aberta', 'abertas')} no seu grupo).` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
     return { result: 'erro: ' + String(err), isError: true as const }
   }
