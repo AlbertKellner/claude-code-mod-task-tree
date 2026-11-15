@@ -1938,7 +1938,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const everyTask = main.whole ?? main.tasks
     const allIds = flat(everyTask).map(t => t.id)
     // The letters of the messages sent from this panel's main tasks (the person, 2026-10-30: "A: linha
-    // própria sob a tarefa (Recomendado)"): one line per (session, task) under the task it went from,
+    // própria sob a tarefa (Recomendado)"): one line per message under the task it went from,
     // before the session's card: "Para <session>: <message>", blue queued, green taken up, gray when
     // dropped before its delivery (its task cut by a new request); the time it has waited while queued.
     // Out of every count and chip but the one of what waits on a session. A send whose task left the plan

@@ -625,3 +625,74 @@ test('do 8º nível em diante a linha tem as guias do 8º nível', async ($: any
   expect(de('N nível três'), quais).toBe(8)
   expect(Math.max(...somas.map(s => s.celulas)), quais).toBe(8)
 })
+
+// Um comando em várias linhas, com FF e VT ao lado de espaços e espaços repetidos.
+const COMANDO_EM_LINHAS = 'git status\r\n\fgit diff\u000b  --stat'
+// Algum caractere de controle (C0, DEL, C1).
+const CONTROLE = /[\u0000-\u001f\u007f-\u009f]/
+
+// Regra: visual.corte-de-texto-inteiro-e-limpo
+test('a linha da ferramenta do subagente sai numa linha só, sem quebra de linha nem caractere de controle', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'rodar o git' })
+  await chamadaDoSubagente($, 'sub-1', 'Bash', { command: COMANDO_EM_LINHAS })
+  const p = await painel($)
+  const corpo = p.map(l => l.texto).join('\n')
+  expect(corpo, emTexto(p)).toContain('Bash git status git diff --stat')
+  for (const l of p) expect(CONTROLE.test(l.texto), JSON.stringify(l.texto)).toBe(false)
+  const linha = p.find(l => l.texto.includes('Bash git'))
+  expect(linha?.texto ?? '', emTexto(p)).not.toMatch(/Bash git.* {2}/)
+})
+
+// Regra: visual.corte-de-texto-inteiro-e-limpo
+test("o pedido só com sequência de controle se chama 'Pedido', e os espaços em volta de uma sequência não dobram", async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, '\u001b[0m')
+  await plan($, UM)
+  await start($, ['1'])
+  await envio($, 'local_x', 'antes \u001b[31m depois')
+  await fimDoTurno($)
+  await pedido($, 'erro \u001b[31m vermelho')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: '2', title: 'Dois' }] }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Pedido'), emTexto(p)).toBe(true)
+  expect(p.some(l => /^[◉○✓✕◷] {2}/.test(l.texto)), emTexto(p)).toBe(false)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo ?? '', emTexto(p)).toContain('antes depois')
+  expect(p.some(l => l.titulo === 'erro vermelho'), emTexto(p)).toBe(true)
+})
+
+// Regra: visual.coluna-da-contagem-cabe-a-maior
+test('a contagem do cartão de sessão solto não alarga a coluna da contagem das outras linhas', async ($: any, on: any) => {
+  fixar(on)
+  const muitas = Array.from({ length: 120 }, (_, k) => ({
+    id: String(k + 1),
+    short: String(k + 1),
+    title: `Tarefa ${k + 1}`,
+    status: k < 100 ? 'done' : 'open',
+    ...(k < 100 ? { startedAt: AGORA - 1000, endedAt: AGORA - 500 } : {}),
+    children: [],
+  }))
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: muitas } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const colunas = colunasDaContagem(d.raiz)
+  const quais = JSON.stringify(colunas)
+  expect(colunas.length, quais).toBeGreaterThan(0)
+  const larguras = new Set(colunas.map(c => c.width))
+  expect(larguras.size, quais).toBe(1)
+  expect(Number(colunas[0]?.width), quais).toBe(Math.max(5, ...colunas.map(c => c.texto.length)))
+})

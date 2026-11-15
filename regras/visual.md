@@ -388,12 +388,13 @@ Estado: checklist (pintura real)
 ### visual.corte-de-texto-inteiro-e-limpo
 Os textos que o painel corta saem inteiros no último caractere e sem caracteres de controle.
 
-- Dado um pedido, uma carta ou uma linha de ferramenta com um emoji na posição do corte, ou com uma sequência de controle (ANSI) no texto
+- Dado um pedido, uma carta ou uma linha de ferramenta com um emoji na posição do corte, ou com uma sequência de controle (ANSI) no texto, ou com quebras de linha e espaços repetidos
 - Quando o painel o desenha
-- Então o corte termina num caractere inteiro seguido de "…", e nenhum caractere de controle chega ao painel
+- Então o corte termina num caractere inteiro seguido de "…", nenhum caractere de controle chega ao painel, o texto sai numa linha só, com um espaço entre as palavras e sem espaço nas pontas, e o pedido que fica sem texto depois da limpeza se chama "Pedido"
 
 Origem: auditoria 2026-11-10 (cortes por unidade UTF-16; texto do prompt sem filtro); regra do painel, sem decisão nova.
 Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, hooks/agents.ts, draw/layout.ts
+Reescrito: 2026-11-15, texto: a limpeza vem antes de juntar os espaços e do nome "Pedido", e tira também VT e FF (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### visual.tempo-nunca-negativo
@@ -412,9 +413,10 @@ A coluna da contagem tem a largura da maior contagem desenhada.
 
 - Dado uma linha com contagem de seis caracteres ou mais ("112/340")
 - Quando o painel é desenhado no app
-- Então a coluna da contagem de todas as linhas tem a largura da maior (no mínimo 5), e as colunas da barra, da contagem e do tempo seguem alinhadas entre as linhas
+- Então a coluna da contagem de todas as linhas tem a largura da maior (no mínimo 5), e as colunas da barra, da contagem e do tempo seguem alinhadas entre as linhas; a contagem de um cartão de sessão, que não é desenhada nessa coluna, não entra na largura
 
 Origem: auditoria 2026-11-10 (a contagem larga passava sobre a barra); regra do painel, sem decisão nova.
+Reescrito: 2026-11-15, texto: só as linhas que desenham a coluna contam (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### visual.titulo-legivel-no-painel-estreito

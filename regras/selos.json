@@ -6130,6 +6130,16 @@
       "data": "2026-11-15",
       "motivo": "coluna da contagem pela maior contagem"
     },
+    "task-tree/tests/visual.test.ts::a contagem do cartão de sessão solto não alarga a coluna da contagem das outras linhas": {
+      "regras": [
+        "visual.coluna-da-contagem-cabe-a-maior"
+      ],
+      "hash": "fe98dec7d65556a1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 da coluna da contagem: a linha de sessão entrava na largura sem desenhar a coluna"
+    },
     "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
       "regras": [
         "visual.faixa-de-estado-geral"
@@ -6159,6 +6169,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Em andamento (Recomendado)"
+    },
+    "task-tree/tests/visual.test.ts::a linha da ferramenta do subagente sai numa linha só, sem quebra de linha nem caractere de controle": {
+      "regras": [
+        "visual.corte-de-texto-inteiro-e-limpo"
+      ],
+      "hash": "5778e45f76f64cfc",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do corte de texto: a linha da ferramenta não juntava espaços e VT e FF passavam"
     },
     "task-tree/tests/visual.test.ts::a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de cortar": {
       "regras": [
@@ -6329,6 +6349,16 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/visual.test.ts::o pedido só com sequência de controle se chama 'Pedido', e os espaços em volta de uma sequência não dobram": {
+      "regras": [
+        "visual.corte-de-texto-inteiro-e-limpo"
+      ],
+      "hash": "1359d21a6c93673f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do corte de texto: a limpeza rodava depois da junção de espaços e do nome Pedido"
     },
     "task-tree/tests/visual.test.ts::o título de uma linha sem contagem vai até o tempo; a com contagem corta antes da barra": {
       "regras": [

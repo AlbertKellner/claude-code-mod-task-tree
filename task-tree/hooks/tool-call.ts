@@ -17,7 +17,7 @@ import { MAIN, flat, hasOpen, current, keepRounds, keepSends, live, nextSeq } fr
 import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
-import { cutText } from '../draw/svg'
+import { cutText, oneLine } from '../draw/svg'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -139,7 +139,7 @@ const sentMessage: Notes = async ($, c, notes) => {
   const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   const to = String(e.to ?? e.input?.to ?? '')
   // The message's start, its letter's title.
-  const said0 = String(e.message ?? e.input?.message ?? '').replace(/\s+/g, ' ').trim()
+  const said0 = oneLine(String(e.message ?? e.input?.message ?? ''))
   const said = cutText(said0, 200, false)
   // The task the message is sent from, once, before this send is recorded anywhere (a round, a send):
   // with several tasks in progress it is the first one with no message yet (sendAnchor), and the

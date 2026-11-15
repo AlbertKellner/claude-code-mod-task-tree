@@ -7,7 +7,7 @@ import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
 import { DONE, NOT_A_LIST, PLAN, START, TOOL_ERROR } from '../text/rules'
 import { debug } from '../io/log'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
-import { cutText, plural } from '../draw/svg'
+import { cutText, oneLine, plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
 import { marks, setMarks, publishPanel, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
@@ -46,7 +46,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     // reminder of the last done (a new summary clears the mark).
     if (agent === MAIN) await setMarks($, { briefBeforePlan: true })
     const fresh = build(input.tasks as InNode[], 1, undefined, await stamp($))
-    const request = typeof input.request === 'string' ? cutText(input.request.replace(/\s+/g, ' ').trim(), 80, false) : ''
+    const request = typeof input.request === 'string' ? cutText(oneLine(input.request), 80, false) : ''
     const dup = duplicates(fresh)
     if (dup.length > 0) {
       return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true as const }

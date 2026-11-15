@@ -52,12 +52,16 @@ export const ratioBar = (d: number, n: number, cells: number) => {
 }
 
 // A text the panel shows, clean: without ANSI sequences (whole), the other control characters (C0
-// but the spaces, DEL, C1) and half a surrogate pair left alone. Spaces are the caller's to join.
+// but TAB, LF and CR, so VT and FF go too; DEL, C1) and half a surrogate pair left alone. TAB, LF
+// and CR are spaces, the caller's to join (oneLine).
 export const cleanText = (t: string) =>
   t
     .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|\u001b\[[0-?]*[ -\/]*[@-~]|\u009b[0-?]*[ -\/]*[@-~]/g, '')
-    .replace(/[\u0000-\u0008\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
     .replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')
+// The clean text on one line: cleaned first, then every run of spaces, tabs and line breaks one
+// space, and no space at the ends (a sequence taken out never leaves two spaces).
+export const oneLine = (t: string) => cleanText(t).replace(/\s+/g, ' ').trim()
 // The clean text cut to at most `max` characters (code points, never half an emoji), its last "…"
 // when it is cut and `dots`.
 export function cutText(t: string, max: number, dots = true): string {

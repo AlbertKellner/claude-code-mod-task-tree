@@ -443,8 +443,9 @@ export const INDENT_CAP = 8
 export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): any[] {
   const { Box } = ui
   // The count column: as wide as the longest "d/n" of the lines that draw it (5 at least), so a
-  // "112/340" does not run over the bar, and the columns stay lined up from line to line.
-  const countCols = Math.max(COUNT_COLS, ...lines.map(r => ((r.bar === true || r.card === true) && r.sub ? `${r.sub[0]}/${r.sub[1]}`.length : 0)))
+  // "112/340" does not run over the bar, and the columns stay lined up from line to line. A session's
+  // card line goes to labelRow, which draws no count column: it does not count.
+  const countCols = Math.max(COUNT_COLS, ...lines.map(r => (!r.session && (r.bar === true || r.card === true) && r.sub ? `${r.sub[0]}/${r.sub[1]}`.length : 0)))
   const lanes = guides(lines)
   const hides = labelCols(lines)
   // `drawn`: the cells the strips around the line already draw. From the 8th cell on the indent stops

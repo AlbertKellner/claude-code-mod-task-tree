@@ -89,7 +89,8 @@ Quem recebe `$` (o engine) e quem não recebe:
     linha com as guias em caixas nativas com fundo (uma célula por coluna, no `Box key="guides"` da
     linha e no `Box key="strip"` ao lado do cartão), o ícone de estado num `Svg` de 16 px com um `Button`
     transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo
-    (a coluna da contagem com a largura do maior "d/n" das linhas, no mínimo 5, igual em todas;
+    (a coluna da contagem com a largura do maior "d/n" das linhas que a desenham, no mínimo 5, igual
+    em todas; a linha do cartão de sessão não conta;
     com menos de `TITLE_MIN` colunas estimadas para o título, a linha sai sem a caixa da barra e,
     se ainda faltar, sem a da contagem); as guias de uma linha, com as faixas dos cartões em volta,
     param em `INDENT_CAP` (8) células: as primeiras e o conector;
@@ -106,7 +107,9 @@ Quem recebe `$` (o engine) e quem não recebe:
     `clockText`, `chips`, `headerState`, `rowAlt`, `rightText`, `gitTerm`, `gitAlt`), `cleanText` e
     `cutText`: todo corte de texto do painel (título do pedido, `request`, carta, linha da ferramenta do
     subagente, `SHORT_TEXT`) conta por caractere inteiro, nunca meio emoji, e tira as sequências ANSI e
-    os outros caracteres de controle (visual.corte-de-texto-inteiro-e-limpo); `clockText` desenha "0:00"
+    os outros caracteres de controle, VT e FF inclusive; `oneLine` limpa e põe o texto numa linha só
+    (espaços juntados, pontas sem espaço), antes do recuo "Pedido" e do corte, no título do pedido, na
+    carta, no `request` e na linha da ferramenta (visual.corte-de-texto-inteiro-e-limpo); `clockText` desenha "0:00"
     para um tempo negativo e nada para um inválido (visual.tempo-nunca-negativo).
 - **Textos** (`text/rules.ts`, 371): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
   `TOOLS`, `START`, `PROMPT`, `ASK`, `PLAN`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `SUBS`)
@@ -2302,6 +2305,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   (`draw/svg.ts`). O resumo ↩ (`brief`, `hooks/turn.ts`), que corta em palavra, ficou como estava.
 - `clockText` sem piso desenhava "-1:00" com a hora gravada à frente do relógio; a coluna da contagem tinha
   5 colunas fixas e "112/340" passava sobre a barra.
+- Revisão do lote: a limpeza não tirava VT nem FF (o app recusa o desenho), a linha da ferramenta do
+  subagente não juntava espaços, e no título do pedido, na carta e no `request` os espaços eram juntados
+  antes da limpeza (um prompt só de sequência ANSI ficava sem título; "a <ESC> b" virava "a  b"). Entrou
+  `oneLine` (`draw/svg.ts`). A linha do cartão de sessão, que não desenha a coluna da contagem, deixou de
+  contar para a largura dela.
 
 ## Achados baixos: uma carta por mensagem (2026-11-15)
 
