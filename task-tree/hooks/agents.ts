@@ -351,6 +351,10 @@ export async function settleBySubs($: any) {
   const busy = (owner: string, id: string) => inFlight(groups as Group[], owner, id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })
   const ends = new Map<string, { state: 'done' | 'failed' | 'interrupted'; end: number; at: number }>()
   for (const owner of groups as Group[]) {
+    // A subagent still at work owns its tasks: only it closes them, with done, or its end does
+    // (subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo). The main loop, and a subagent that
+    // ended (or a group with no card, of an earlier version), are owners as always.
+    if (owner.sub && subLive(owner.sub)) continue
     for (const leaf of flat(owner.tasks)) {
       if (leaf.status !== 'open' || leaf.children.length > 0) continue
       const mine = subs.filter(g => (g.parent ?? MAIN) === owner.agent && g.anchor === leaf.id).map(g => g.sub!).filter(s => ofLeaf(s, leaf))

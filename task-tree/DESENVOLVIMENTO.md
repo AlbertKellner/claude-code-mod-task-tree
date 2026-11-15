@@ -166,7 +166,10 @@ termina por último: o fim do subagente, `settleBySubs`, a entrega da outra cart
 (`draw/layout.ts`, auditoria 2026-11-10): um subagente vivo daquele dono lançado dela; para o loop
 principal, outra carta dela na fila; uma pergunta, plano ou escolha aberta do mesmo dono nela; e, só
 quando `children` vem, uma sessão do painel viva ali (não arquivada, trabalhando, abrindo ou esperando a
-pessoa, aberta nela ou com a rodada atual nela). `settleBySubs` passa as sessões; as entregas
+pessoa, aberta nela ou com a rodada atual nela). `settleBySubs` passa as sessões, e só trata como dono o
+loop principal e o subagente que já terminou (ou um grupo sem cartão, de versão anterior): as tarefas
+de um subagente que ainda trabalha ("trabalhando" ou "em segundo plano") só ele fecha, com done, ou o
+fim dele (`subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo`); as entregas
 (`watchSends`, `takeSubSend`) não, porque a sessão que acabou de tomar a carta está viva na rodada da
 tarefa e a entrega conclui a tarefa (2026-10-30, "Sim, conclusão automática como hoje"; o desenho mantém
 a linha ◉ enquanto ela trabalha). As entregas leem as cartas depois de marcar as desta passada.

@@ -4494,6 +4494,16 @@
       "data": "2026-11-15",
       "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
     },
+    "task-tree/tests/subagentes.test.ts::o fim do turno da sessão não fecha a tarefa de um subagente que ainda trabalha, mesmo com o subagente que ele lançou concluído": {
+      "regras": [
+        "subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo"
+      ],
+      "hash": "07f5325bed29340d",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a varredura do fim do turno não trata como dono o subagente que ainda trabalha"
+    },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
         "subagentes.id-reusado-nao-herda-cartao"

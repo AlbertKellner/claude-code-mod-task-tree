@@ -912,6 +912,28 @@ test('terminado, o subagente lançado por outro subagente segue com o cartão "c
   expect(linha(p, 'Explore: achar o kit').texto).toContain('concluído')
 })
 
+// Regra: subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo
+test('o fim do turno da sessão não fecha a tarefa de um subagente que ainda trabalha, mesmo com o subagente que ele lançou concluído', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes', segundoPlano: true })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  await fimDoSubagente($, 'neto-1')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(['concluida', 'interrompida'], emTexto(p)).not.toContain(linha(p, 'Ler os testes').estado)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('em segundo plano')
+  expect(linha(p, 'Investigar').estado, emTexto(p)).not.toBe('concluida')
+  await done($, ['X'], undefined, 'sub-1')
+  p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+})
+
 // Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou, subagentes.na-filha
 test('numa filha, o subagente terminado que outro subagente lançou segue no cartão dele', async ($: any, on: any) => {
   fixar(on)

@@ -390,3 +390,13 @@ A contagem de chamadas do cartão do subagente não recomeça com a recarga do m
 Origem: auditoria 2026-11-10 (a contagem era só do módulo); aplica subagentes.corpo-e-as-tarefas-ou-a-ferramenta, sem mudar nenhuma regra.
 Código: state/durability.ts
 Estado: coberto
+
+### subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo
+O fim do turno da sessão não fecha a tarefa de um subagente que ainda trabalha.
+
+- Dado um subagente que usa o painel, trabalhando numa tarefa dele de onde lançou outro subagente, já terminado
+- Quando o turno da sessão termina (ou outro subagente termina depois do turno)
+- Então a tarefa dele segue como ele a deixou; só ele a fecha, com done, enquanto trabalha
+
+Origem: auditoria 2026-11-10 (a varredura do fim do turno tratava todo grupo como dono); aplica subagentes.pai-conclui-no-fim-do-turno ao loop que terminou, sem mudar nenhuma regra.
+Estado: coberto
