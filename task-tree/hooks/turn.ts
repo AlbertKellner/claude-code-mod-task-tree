@@ -83,8 +83,12 @@ export async function* turnStep($: EngineInterface, e: any, next: any) {
   try {
     if (main && typeof e.model === 'string') {
       const text = engineText(e.model, e.effort)
-      if ((await $.state.get(engineState)).value !== text) {
+      const prev = (await $.state.get(engineState)).value
+      if (prev !== text) {
         await $.state.set(engineState, text)
+        // Another model (the effort alone does not count): the old one's rate goes until the new one
+        // measures (the person, 2026-11-15: "Some até a medida nova (Recomendado)").
+        if (typeof prev === 'string' && prev !== '' && prev.split(' · ')[0] !== engineText(e.model)) await $.state.set(rateState, null)
         void publishPanel($).catch(() => {})
       }
     }

@@ -233,7 +233,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   filha arquivada com a tarefa de origem aberta: o modelo é avisado uma vez); carta a subagente real
   (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.
-- processo novo e `/model` no meio do turno (o turno em curso fica ✕ interrompido); o painel de uma sessão
+- processo novo e `/model` no meio do turno (o turno em curso fica ✕ interrompido; o toks/s some do
+  cabeçalho e do cartão até a primeira resposta do modelo novo); o painel de uma sessão
   fora das 30 do store volta do arquivo publicado; o arquivo de uma sessão apagada é esvaziado;
 - `/clear` real nesta sessão com filhas e numa filha (os cartões e o histórico na mãe);
 - Esc no meio de uma resposta (a resposta para, a tarefa fica ✕, o toks/s fica no último valor);

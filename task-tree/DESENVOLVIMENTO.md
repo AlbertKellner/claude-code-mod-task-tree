@@ -131,7 +131,7 @@ Na ordem de `register.tsx`:
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão novo: o cartão dele volta a "trabalhando" (ou "em segundo plano"), sem fim, com a contagem de chamadas seguindo (`reviveSub`), e só depois a carta que esperava por ele é entregue (`takeSubSend` com o `prompt`); o cartão já podado (`dropSettledSubs`) não volta |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
-| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`); o que vem antes e depois do stream fica protegido (a falha vai ao log e a resposta passa), e o `finally` do laço encerra o fluxo de baixo quando o consumo para no meio |
+| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda (com outro modelo, não só outro esforço, apaga o `rate` até a medida nova) e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`); o que vem antes e depois do stream fica protegido (a falha vai ao log e a resposta passa), e o `finally` do laço encerra o fluxo de baixo quando o consumo para no meio |
 | `prompt.attachment` | `ultra_effort_enter` | `ultraAttachment` (turn.ts) | liga `ultracode` (só o do loop principal) |
 | `prompt.attachment` | `ultra_effort_exit` | `ultraAttachment` (turn.ts) | desliga `ultracode` |
 | `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `brief` (o `summary` do `done`; só no turno não parado, e o `reply` de versões anteriores sai na mesma gravação) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido (cada passo do fim dele isolado, a falha no log "fim do turno, passo <nome>"; a lista de agentes que falha conta como "não é teammate"); no loop principal grava `turnEnded` (a hora do fim do turno, no state e no registro `turn` do store) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
@@ -1108,7 +1108,9 @@ guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState
 3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
    com a regra do `starting` (a marca dura o `STARTING_GRACE` e sai quando a sessão publica tarefas;
    parada nessa leitura, ela entra em `ended`), dos
-   laços vindos do store (`kept`) e do painel mantido quando o arquivo some.
+   laços vindos do store (`kept`) e do painel mantido quando o arquivo some. A taxa do cartão é a que o
+   arquivo lido nesta volta diz (`read.files` diz quais foram lidos): sem taxa no arquivo, o cartão fica
+   sem toks/s, como depois de uma troca de modelo; só o arquivo não lido mantém a anterior.
 4. **Publicar:** `publishWait` de `io/publish.ts`, chamado por `publishPanel`.
 
 Ordem, idêntica à de antes: stamp → lista → erro/limpa erro → `watchSends` → vazio → mine → arquivos →

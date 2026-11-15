@@ -1695,3 +1695,17 @@ test('a sessão que abre, trabalha e para sem ser vista rodando gera o lembrete 
   esperarPalavra(p, 'filha-um', 'encerrada')
   expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([3, 3])
 })
+
+// Regra: taxa.troca-de-modelo-apaga, sessoes.toks-e-repo-branch-no-cartao
+test('no cartão da filha que trocou de modelo, o toks/s antigo some', async ($: any, on: any) => {
+  const h = await abrir($, on, { modelo: 'Opus 5.5 · high', rate: { toks: 90, live: true }, painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  esperarPalavra(await painel($), 'filha-um', '90 toks/s')
+  h.filha(K1).rate = undefined
+  h.filha(K1).modelo = 'Sonnet 5.5 · high'
+  await aviso($)
+  const p = await painel($)
+  expect(linha(p, 'filha-um')?.texto, emTexto(p)).not.toContain('toks/s')
+  h.filha(K1).rate = { toks: 40, live: true }
+  await aviso($)
+  esperarPalavra(await painel($), 'filha-um', '40 toks/s')
+})

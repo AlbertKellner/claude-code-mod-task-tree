@@ -141,3 +141,36 @@ test('quem consome o stream para no meio: o fluxo de baixo é encerrado', async 
   for await (const _ of s) break
   expect(fechado).toBe(true)
 })
+
+// Regra: taxa.troca-de-modelo-apaga
+test('na troca de modelo o toks/s some do cabeçalho e volta com a primeira medida do modelo novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  let tokens = 200
+  on('turn.step', async function* () {
+    await relogio.advance(800)
+    yield { kind: 'text', index: 0, text: 'a' }
+    await relogio.advance(2000)
+    const usage = { output_tokens: tokens, input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+    yield { kind: 'stop', stopReason: 'end_turn', usage }
+    return { turnId: 't', index: 0, answer: '', toolUses: [], stopReason: 'end_turn', usage }
+  })
+  const passo = async (model: string, effort: string, n: number) => {
+    tokens = n
+    const s = $.turn.step({ turnId: 't', index: 0, model, effort })
+    for await (const _ of s) void _
+  }
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await passo('claude-opus-5-5', 'high', 200)
+  expect(await topo($), emTexto(await painel($))).toContain('100 toks/s')
+  // Só o esforço muda: o número fica.
+  await passo('claude-opus-5-5', 'low', 10)
+  expect(await topo($), emTexto(await painel($))).toContain('100 toks/s')
+  // Outro modelo, com uma medida inválida: o número antigo some.
+  await passo('claude-sonnet-5-5', 'low', 10)
+  expect(await topo($), emTexto(await painel($))).not.toContain('toks/s')
+  // A primeira medida válida do modelo novo o traz de volta.
+  await passo('claude-sonnet-5-5', 'low', 80)
+  expect(await topo($), emTexto(await painel($))).toContain('40 toks/s')
+})

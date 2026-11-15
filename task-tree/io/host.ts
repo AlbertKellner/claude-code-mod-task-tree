@@ -62,7 +62,8 @@ export function deducedOwn(rows: HostRow[]): string | undefined {
 // What the sessions' published files say, by session id: which wait on the person, their panels,
 // the share of context used, their model and effort, their output rate, and their repository and branch.
 // `skipped`: the archived sessions whose file was not read (see readFiles): they keep what they had.
-export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo>; skipped?: string[] }
+// `files`: the sessions whose file was read this time (a rate missing from it is no rate).
+export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo>; skipped?: string[]; files?: string[] }
 // A published file's panel: its groups (and the rest the file has), or, from before groups, its
 // `tasks` as the main group; none when the file has neither.
 export function panelOf(file: Published): Panel | undefined {
@@ -91,7 +92,7 @@ export function panelOf(file: Published): Panel | undefined {
 const MISSES_KEPT = 3
 const misses = new Map<string, number>()
 export async function readFiles($: any, mine: HostRow[], known: Child[] = []): Promise<Read> {
-  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {}, skipped: [] }
+  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {}, skipped: [], files: [] }
   for (const r of mine) {
     if (r.isArchived === true && known.some(k => k.id === r.sessionId && k.archived === true)) {
       read.skipped!.push(r.sessionId)
@@ -103,6 +104,7 @@ export async function readFiles($: any, mine: HostRow[], known: Child[] = []): P
       if (missed === 0) misses.delete(r.sessionId)
       else misses.set(r.sessionId, missed)
       const before = missed > 0 && missed <= MISSES_KEPT ? known.find(k => k.id === r.sessionId) : undefined
+      if (got !== undefined) read.files!.push(r.sessionId)
       const file = got ?? { waiting: before?.waiting === true, aborted: before?.aborted === true, ultracode: before?.ultracode === true, waits: [], children: [] }
       if (file.waiting) read.waiting.push(r.sessionId)
       if (file.aborted) read.aborted.push(r.sessionId)
@@ -194,7 +196,9 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       engine: read.engines[r.sessionId] ?? before?.engine,
       // As its file says it at each read: off once it no longer does.
       ultracode: (skipped ? before?.ultracode === true : read.ultras.includes(r.sessionId)) || undefined,
-      rate: read.rates[r.sessionId] ?? before?.rate,
+      // As its file says it when the file was read (none there: no rate, as after a change of model);
+      // only a file not read keeps the last one.
+      rate: read.rates[r.sessionId] ?? (read.files?.includes(r.sessionId) === true ? undefined : before?.rate),
       git: read.gits[r.sessionId] ?? before?.git,
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,
       rounds: before?.rounds ?? kept(r.sessionId)?.rounds,

@@ -3554,6 +3554,17 @@
       "data": "2026-11-14",
       "motivo": "correção direta: o fim do turno vai na tarefa publicada"
     },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha que trocou de modelo, o toks/s antigo some": {
+      "regras": [
+        "taxa.troca-de-modelo-apaga",
+        "sessoes.toks-e-repo-branch-no-cartao"
+      ],
+      "hash": "c0e67faf356415d6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Some até a medida nova (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::no cartão da filha, a carta para a própria mãe mostra o nome da mãe quando o app o informa": {
       "regras": [
         "envios.carta-mostra-o-nome-do-destino"
@@ -4676,6 +4687,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "taxa de filha em versão anterior do mod aparece acesa"
+    },
+    "task-tree/tests/taxa.test.ts::na troca de modelo o toks/s some do cabeçalho e volta com a primeira medida do modelo novo": {
+      "regras": [
+        "taxa.troca-de-modelo-apaga"
+      ],
+      "hash": "c728138a4ae4aef9",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Some até a medida nova (Recomendado)\""
     },
     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
       "regras": [

@@ -37,6 +37,17 @@ Reescrito: 2026-11-15, texto: aplica "Fica aceso" (2026-11-10) à taxa lida de u
 Código: draw/head.tsx
 Estado: coberto
 
+### taxa.troca-de-modelo-apaga
+Na troca de modelo, o toks/s do modelo anterior some até a primeira medida do novo.
+
+- Dado uma sessão com um toks/s medido, no cabeçalho dela e no cartão dela na sessão que a abriu
+- Quando o modelo da sessão é trocado
+- Então o número antigo sai do cabeçalho e do cartão, que passa a mostrar o modelo novo sem toks/s; ele volta com a primeira resposta válida medida com o modelo novo; mudar só o esforço não apaga; sem troca, o último número segue aceso no fim do turno (taxa.fim-do-turno-fica-aceso)
+
+Origem: decisão do usuário, 2026-11-15 ("Some até a medida nova (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o cartão mostrava o modelo novo ao lado do toks/s do antigo).
+Código: io/host.ts
+Estado: coberto
+
 ### taxa.subagente-mesma-medida
 O cartão de subagente mede igual.
 
