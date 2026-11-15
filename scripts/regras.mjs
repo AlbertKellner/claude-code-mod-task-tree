@@ -9,6 +9,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ehPrincipal } from './guarda.mjs'
 
 const ID = /^### ([a-z0-9]+(?:\.[a-z0-9-]+)+)\s*$/
 const TITULO = /^### /
@@ -166,7 +167,7 @@ export function lerDurabilidade(raiz) {
 }
 
 // Linha de comando.
-if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.argv[1])) {
+if (ehPrincipal(import.meta.url)) {
   const i = process.argv.indexOf('--raiz')
   const raiz = i >= 0 ? process.argv[i + 1] : join(dirname(fileURLToPath(import.meta.url)), '..')
   const cat = lerCatalogo(raiz)

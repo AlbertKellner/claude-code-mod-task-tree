@@ -4,13 +4,18 @@
 // --indice (o hook de pré-commit): o check roda sobre o que vai no commit, o índice copiado para uma
 // pasta temporária com git checkout-index, não sobre a pasta de trabalho (onde outra sessão pode
 // estar editando).
+// As etapas regras e selos terminam com a linha de resumo delas; a que sai com 0 sem essa linha não
+// conferiu nada e conta como falha (scripts/guarda.mjs).
+// Numa worktree sem node_modules ou sem os tipos gerados, o hook usa os do clone principal; sem
+// node_modules em nenhum dos dois, para pedindo o npm install.
 import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
-import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
+import { etapaConferiu } from './guarda.mjs'
+import { alteradosNoIndice, clonePrincipal, etapasDoHook } from './mudou.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const indice = process.argv.includes('--indice')
@@ -19,7 +24,24 @@ const iBase = process.argv.indexOf('--base')
 const base = iBase >= 0 ? process.argv[iBase + 1] : undefined
 const comBase = base ? ['--base', base] : []
 
-// O que se verifica: o repositório, ou a cópia do índice (com o node_modules do repositório ligado).
+// O node_modules e os tipos gerados (ignorados pelo git): os do repositório; sem eles (uma worktree
+// nova), os do clone principal.
+const principal = clonePrincipal(repo)
+const achar = rel => [repo, principal].map(p => join(p, rel)).find(p => existsSync(p))
+const TIPOS = join('task-tree', '.claude-plugin', 'types')
+const modulos = achar('node_modules')
+if (!modulos) {
+  console.error('falta node_modules: rode npm install no clone (ou nesta worktree)')
+  process.exit(1)
+}
+if (!indice && !existsSync(join(repo, 'node_modules'))) {
+  // Os scripts importam o TypeScript a partir da própria pasta; uma ligação criada aqui seria uma
+  // mudança na pasta de trabalho.
+  console.error('falta node_modules nesta worktree: rode npm install nela; o commit pelo hook funciona sem isso')
+  process.exit(1)
+}
+
+// O que se verifica: o repositório, ou a cópia do índice (com o node_modules achado ligado).
 let raiz = repo
 if (indice) {
   raiz = mkdtempSync(join(tmpdir(), 'task-tree-indice-'))
@@ -28,11 +50,11 @@ if (indice) {
     console.error('não foi possível copiar o índice')
     process.exit(1)
   }
-  if (existsSync(join(repo, 'node_modules'))) symlinkSync(join(repo, 'node_modules'), join(raiz, 'node_modules'), 'junction')
+  symlinkSync(modulos, join(raiz, 'node_modules'), 'junction')
   // Os tipos do kit (ignorados pelo git; gravados pelo motor do Claude Code quando carrega o mod de uma
   // pasta, e regravados a cada atualização do app; o validate não os gera): o tsc lê deles.
-  const tipos = join(repo, 'task-tree', '.claude-plugin', 'types')
-  if (existsSync(tipos)) cpSync(tipos, join(raiz, 'task-tree', '.claude-plugin', 'types'), { recursive: true })
+  const tipos = achar(TIPOS)
+  if (tipos) cpSync(tipos, join(raiz, TIPOS), { recursive: true })
   console.log(`Verificando o índice (o que vai no commit), copiado em ${raiz}`)
 }
 
@@ -42,7 +64,7 @@ const alterados = indice ? alteradosNoIndice(repo) : null
 const hook = alterados === null ? { travas: true, validate: true, tsc: true } : etapasDoHook(alterados)
 
 const claude = acharBinario()
-const opcoes = cmd => ({ cwd: raiz, shell: cmd === 'claude' || cmd === 'npx' })
+const opcoes = cmd => ({ cwd: raiz, shell: cmd === 'claude' })
 const rodar = (cmd, args) => spawnSync(cmd, args, { ...opcoes(cmd), stdio: 'inherit' })
 // Em paralelo (o plugin test e a regressão no hook): cada saída é mostrada inteira ao terminar.
 const rodarJunto = (cmd, args) =>
@@ -79,7 +101,8 @@ const etapas = [
   ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo, ...comBase], true, true],
   ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true, hook.validate],
   ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true, hook.validate],
-  ['tsc', 'npx', ['tsc', '--noEmit', '-p', 'task-tree'], true, hook.tsc],
+  // O TypeScript instalado, pelo Node (o npx, sem ele, baixaria outro pacote de nome tsc).
+  ['tsc', process.execPath, [join(modulos, 'typescript', 'bin', 'tsc'), '--noEmit', '-p', 'task-tree'], true, hook.tsc],
   // Em série: em paralelo com a regressão, na máquina carregada, testes estouravam os 5 s do kit
   // (1 falha em 5 execuções do hook), e um hook que falha à toa empurra para o --no-verify.
   ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true],
@@ -112,6 +135,26 @@ for (let i = 0; i < etapas.length && codigo === 0; i++) {
     continue
   }
   console.log(`\n== ${nome}`)
+  if (nome === 'tsc' && !existsSync(join(raiz, TIPOS))) {
+    console.error(`faltam os tipos gerados do mod (${TIPOS}): o motor do Claude Code grava a pasta quando carrega o mod do clone`)
+    marcar(nome, 1, bloqueia)
+    continue
+  }
+  if (nome === 'regras' || nome === 'selos') {
+    // A saída é capturada para conferir a linha de resumo, e reimpressa.
+    const r = spawnSync(cmd, args, { ...opcoes(cmd), encoding: 'utf8' })
+    process.stderr.write(r.stderr ?? '')
+    process.stdout.write(r.stdout ?? '')
+    const status = r.status ?? 1
+    if (status === 0 && !etapaConferiu(nome, r.stdout ?? '')) {
+      console.error('a etapa não conferiu nada: o script saiu sem a linha de resumo')
+      resumo.push(`FALHA ${nome} (a etapa não conferiu nada: o script saiu sem a linha de resumo)`)
+      codigo = 1
+      continue
+    }
+    marcar(nome, status, bloqueia)
+    continue
+  }
   marcar(nome, rodar(cmd, args).status ?? 1, bloqueia)
 }
 for (const [nome] of etapas.slice(resumo.length)) resumo.push(`--    ${nome} (não rodou)`)

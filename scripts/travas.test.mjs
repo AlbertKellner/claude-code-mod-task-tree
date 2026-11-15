@@ -1,11 +1,12 @@
 // Testes das próprias travas do selo (scripts/selos.mjs), num repositório git temporário com um
 // catálogo mínimo, dois testes e um arquivo de kit. Uso: node --test scripts/travas.test.mjs.
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
-import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
+import { alteradosNoIndice, baseDoRelato, clonePrincipal, etapasDoHook } from './mudou.mjs'
+import { etapaConferiu } from './guarda.mjs'
 import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead, testesDe } from './selos.mjs'
 import { impacto } from './impacto.mjs'
 import { versaoNova } from './versao.mjs'
@@ -180,6 +181,65 @@ test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', co
   assert.deepEqual(alteradosNoIndice(dir, env), [])
   git('add', 'task-tree/tests/kit/leitura.ts')
   assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
+}))
+
+test('o hook vê um arquivo movido pelos dois caminhos', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  mkdirSync(join(dir, 'docs'))
+  assert.equal(git('mv', ARQ, 'docs/exemplo.test.ts').status, 0)
+  assert.deepEqual([...alteradosNoIndice(dir, env)].sort(), ['docs/exemplo.test.ts', ARQ].sort())
+}))
+
+test('o hook vê um arquivo com acento no nome como ele é', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  writeFileSync(join(dir, 'task-tree', 'tests', 'ação.test.ts'), 'export const x = 1\n')
+  git('add', 'task-tree/tests/ação.test.ts')
+  const alterados = alteradosNoIndice(dir, env)
+  assert.deepEqual(alterados, ['task-tree/tests/ação.test.ts'])
+  assert.equal(etapasDoHook(alterados).tsc, true)
+}))
+
+test('subir o TypeScript roda o tsc e as travas', () => {
+  for (const p of ['package.json', 'package-lock.json'])
+    assert.deepEqual(etapasDoHook([p]), { travas: true, validate: false, tsc: true }, p)
+})
+
+// O script chamado por um caminho com link (junção no Windows, link simbólico no resto) ainda roda a
+// linha de comando e imprime a linha de resumo.
+for (const [nome, script] of [['regras', 'regras.mjs'], ['selos', 'selos.mjs']])
+  test(`a etapa ${nome} roda atrás de um link para a pasta dos scripts`, comMontagem(dir => {
+    const fora = mkdtempSync(join(tmpdir(), 'travas-link-'))
+    try {
+      const link = join(fora, 'scripts')
+      symlinkSync(dirname(SELOS), link, 'junction')
+      const r = spawnSync(process.execPath, [join(link, script), '--raiz', dir], { encoding: 'utf8', env })
+      assert.equal(r.status, 0, r.stderr)
+      assert.match(r.stdout, new RegExp(`^${nome}: `, 'm'))
+    } finally {
+      rmSync(fora, { recursive: true, force: true })
+    }
+  }))
+
+test('a etapa sem linha de resumo não conferiu', () => {
+  assert.equal(etapaConferiu('regras', ''), false)
+  assert.equal(etapaConferiu('regras', 'mapa: 1 cobertos\nregras: 3 cobertas, 0 pendentes\n'), true)
+  assert.equal(etapaConferiu('selos', 'regras: 3 cobertas\n'), false)
+  assert.equal(etapaConferiu('selos', 'selos: 2 testes, 1 arquivos do kit\n'), true)
+  assert.equal(etapaConferiu('tsc', ''), true)
+})
+
+test('o clone principal de uma worktree', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  const fora = mkdtempSync(join(tmpdir(), 'travas-wt-'))
+  const wt = join(fora, 'wt')
+  try {
+    assert.equal(git('worktree', 'add', '-q', '--detach', wt).status, 0)
+    assert.equal(realpathSync.native(clonePrincipal(wt, env)), realpathSync.native(dir))
+    assert.equal(realpathSync.native(clonePrincipal(dir, env)), realpathSync.native(dir))
+  } finally {
+    git('worktree', 'remove', '--force', wt)
+    rmSync(fora, { recursive: true, force: true })
+  }
 }))
 
 test('a base do relato é HEAD com mudança fora de commit e o commit anterior sem ela', comMontagem(dir => {

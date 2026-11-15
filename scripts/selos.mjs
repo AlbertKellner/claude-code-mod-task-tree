@@ -20,6 +20,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from '
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
+import { ehPrincipal } from './guarda.mjs'
 
 // Chamadas que afirmam: expect e as funções exportadas de tests/kit/leitura.ts que chamam expect ou
 // lançam erro (derivadas do arquivo, ver assercoesDoKit).
@@ -471,7 +472,7 @@ export function selar(raiz, repo, opcoes) {
 }
 
 // Linha de comando.
-if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.argv[1])) {
+if (ehPrincipal(import.meta.url)) {
   const args = process.argv.slice(2)
   const valor = nome => {
     const i = args.indexOf(nome)

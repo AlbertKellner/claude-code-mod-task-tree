@@ -52,15 +52,23 @@ Etapas, nessa ordem; a primeira que falha para:
 O hook de pré-commit roda o mesmo check sobre o índice, mas pula o que não pode mudar o resultado
 (decisão do usuário, 2026-10-28: "Sim, pular (Recomendado)"), pelo que o índice muda contra `HEAD`
 (`scripts/mudou.mjs`, testado nas `travas`):
-- `travas`, se nada mudou em `scripts/`;
+- `travas`, se nada mudou em `scripts/`, no `package.json` nem no `package-lock.json`;
 - os dois `validate`, se nada mudou em `task-tree/` fora de `tests/` nem em `.claude-plugin/`;
-- `tsc`, se nada mudou em `task-tree/` (no hook ele lê os tipos gerados do repositório).
+- `tsc`, se nada mudou em `task-tree/`, no `package.json` nem no `package-lock.json` (no hook ele lê
+  os tipos gerados do repositório).
+
+O que mudou é lido sem detecção de renome: um arquivo movido conta pelo caminho de onde saiu e pelo de
+onde entrou, e um nome com acento conta como é.
 
 `plugin test` e `regressao` rodam em série: em paralelo, com a máquina carregada, testes estouravam
 os 5 s do kit.
 
 `regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
+A etapa `regras` ou `selos` que termina sem a linha de resumo dela (`regras: …`, `selos: …`) é falha.
+
+Numa worktree, o hook usa o `node_modules` e os tipos gerados do clone principal quando ela não os tem;
+sem `node_modules` em nenhum dos dois, o check para com "rode npm install".
 
 Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motivo "…"` (selar um
 teste), `npm run testes:alterados` (os testes existentes que mudaram, para o relato; depois do

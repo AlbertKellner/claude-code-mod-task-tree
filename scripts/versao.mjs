@@ -1,7 +1,7 @@
 // Conta da versão nova do release (.github/workflows/release.yml), a partir do PR mesclado.
 // Uso: node scripts/versao.mjs <versão atual>, com TITLE e BODY no ambiente; escreve no stdout as
 // linhas level=… e new=….
-import { fileURLToPath } from 'node:url'
+import { ehPrincipal } from './guarda.mjs'
 
 // Só conta a linha que começa com "BREAKING CHANGE:" (ou "BREAKING-CHANGE:"), o rodapé do
 // Conventional Commits; citar a expressão no meio do texto não sobe a major.
@@ -26,7 +26,7 @@ export function versaoNova(titulo, corpo, atual) {
 // tipo(escopo opcional) + "!" opcional + ": " + texto, com o tipo entre os do Conventional Commits.
 const FORMATO = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]*\))?!?: \S/
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (ehPrincipal(import.meta.url)) {
   try {
     const r = versaoNova(process.env.TITLE ?? '', process.env.BODY ?? '', process.argv[2] ?? '')
     process.stdout.write(`level=${r.level}\nnew=${r.nova}\n${r.aviso ? `aviso=${r.aviso}\n` : ''}`)
