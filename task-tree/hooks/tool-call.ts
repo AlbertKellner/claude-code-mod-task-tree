@@ -207,7 +207,7 @@ const sentMessage: Notes = async ($, c, notes) => {
     await update($, sendsState, cur =>
       keepSends([
         ...(cur ?? []),
-        { to, anchor, at, seq: nextSeq(cur ?? []), text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
+        { to, anchor, at, seq: nextSeq(cur ?? []), text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true, spent: false }) },
       ]),
     )
     // The task it went from stays a task like any other: the message is its letter, drawn below it.

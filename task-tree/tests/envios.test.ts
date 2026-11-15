@@ -407,7 +407,13 @@ test('a entrega imediata e depois uma mensagem na fila à mesma sessão: cada um
   let p = await painel($)
   esperarCartaSob(p, 'Um', 'entregue')
   esperarCartaSob(p, 'Dois', 'fila')
+  // O primeiro recebimento é o da entregue na hora: a da fila segue azul.
   h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  esperarCartaSob(p, 'Dois', 'fila')
+  h.recebeu('local_x', AGORA + 2)
   await aviso($)
   p = await painel($)
   esperarCartaSob(p, 'Um', 'entregue')
@@ -1258,4 +1264,30 @@ test('duas mensagens da mesma tarefa à mesma sessão: duas cartas, cada uma ver
 // Regra: envios.uma-carta-por-mensagem
 test('duas mensagens no mesmo instante: cada carta recebe a sua marca', async ($: any, on: any) => {
   await duasCartas($, on, 0, [AGORA, AGORA])
+})
+
+// Regra: envios.entrega-imediata-gasta-o-seu-recebimento
+test('o recebimento da mensagem entregue na hora não confirma a mensagem seguinte, na fila, nem fecha a tarefa dela', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x' }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  env.modo = 'entregue'
+  await envio($, 'local_x', 'na hora')
+  await start($, ['2'])
+  env.modo = 'fila'
+  await envio($, 'local_x', 'na fila')
+  h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_x', AGORA + 2)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  // A entregue na hora não fecha a tarefa dela: segue em andamento até o done do modelo.
+  expect(linha(p, 'Um').estado, emTexto(p)).toBe('andamento')
 })

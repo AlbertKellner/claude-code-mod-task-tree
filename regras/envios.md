@@ -17,6 +17,7 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o mesmo cinza "não entregue" vale para a carta ao subagente que para antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-14, texto: a entrega só conclui a tarefa quando nada mais está em execução nela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Cada uma gasta o seu (Recomendado)"): a mensagem na fila depois de uma entrega imediata à mesma sessão só é confirmada pelo segundo recebimento (envios.entrega-imediata-gasta-o-seu-recebimento); o teste da entrega imediata seguida de fila passa a publicar dois recebimentos.
 Estado: coberto
 
 ### envios.entrega-imediata-fica-verde
@@ -29,6 +30,7 @@ A entrega imediata aparece entregue na hora, e a tarefa segue em andamento até 
 Origem: decisão do usuário, 2026-10-28 (sobre "✉ até o destino começar a tratar", 2026-10-21, commit 50c4459; o ✉ "para sinalizar que essa etapa esta em andamento").
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é a linha sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Cada uma gasta o seu (Recomendado)"): a mensagem na fila depois de uma entrega imediata à mesma sessão só é confirmada pelo segundo recebimento (envios.entrega-imediata-gasta-o-seu-recebimento); o teste da entrega imediata seguida de fila passa a publicar dois recebimentos.
 Estado: coberto
 
 ### envios.esc-apos-entrega-imediata
@@ -373,4 +375,15 @@ Cada mensagem tem a sua carta, mesmo da mesma tarefa à mesma sessão.
 
 Origem: decisão do usuário, 2026-11-15 ("Uma carta por mensagem (Recomendado)"); completa "A: linha própria sob a tarefa (Recomendado)" (2026-10-30), que não dizia se a linha era por mensagem.
 Código: draw/layout.ts, hooks/agents.ts, hooks/tools.ts
+Estado: coberto
+
+### envios.entrega-imediata-gasta-o-seu-recebimento
+Cada mensagem gasta o seu recebimento: o da entregue na hora não confirma a seguinte.
+
+- Dado uma mensagem entregue na hora e outra, depois, na fila da mesma sessão
+- Quando a sessão publica o primeiro recebimento depois do segundo envio; e depois o segundo
+- Então o primeiro é o da mensagem entregue na hora e nada muda no painel; a carta da fila fica verde, e a tarefa dela fecha, só no segundo
+
+Origem: decisão do usuário, 2026-11-15 ("Cada uma gasta o seu (Recomendado)"), sobre o achado da auditoria de 2026-11-10; risco aceito: se o destino nunca publicar o primeiro recebimento, a segunda carta segue azul.
+Código: types/index.d.ts
 Estado: coberto

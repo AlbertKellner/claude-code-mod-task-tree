@@ -225,7 +225,9 @@ export async function noteReceived($: any, senders: string[]) {
 // running again.
 export async function watchSends($: any, rows: any[]) {
   const { value: sends = [] } = await $.state.get(sendsState)
-  if ((sends as Send[]).every(s => s.taken)) return
+  // A delivery at once with its receipt still to spend (spent false) is matched too, see below.
+  const toSpend = (s: Send) => s.taken === true && s.spent === false
+  if ((sends as Send[]).every(s => s.taken && !toSpend(s))) return
   const me = await selfId($)
   const files: Record<string, Published> = {}
   const fileOf = async (id: string): Promise<Published> => {
@@ -237,11 +239,12 @@ export async function watchSends($: any, rows: any[]) {
   const marks: Record<number, Partial<Send>> = {}
   const { value: used = {} } = await $.state.get(receiptsState)
   const usedNow: Record<string, { at: number; n: number }> = { ...used }
-  // The sends still waiting, by the session they went to.
+  // The sends still waiting, by the session they went to, and the deliveries at once whose receipt is
+  // still to spend.
   const waiting = new Map<string, { i: number; s: Send; r: any }[]>()
   for (const [i, s] of (sends as Send[]).entries()) {
     // A subagent's: its delivery is the subagent's (hooks/agents), whatever session has its name.
-    if (s.taken || s.agent !== undefined) continue
+    if ((s.taken && !toSpend(s)) || s.agent !== undefined) continue
     const r = rows.find(r => r.sessionId === s.to || (r.name && r.name === s.to))
     const id = r?.sessionId ?? (String(s.to).startsWith('local_') ? s.to : undefined)
     if (id === undefined) continue
@@ -263,12 +266,17 @@ export async function watchSends($: any, rows: any[]) {
           if (at < mark.at) return false
           return skip-- <= 0
         })
+      // Each message spends its own receipt, by the order it was sent in (its time, then its number):
+      // a delivery at once too, so its receipt does not confirm the next one, still queued (the person,
+      // 2026-11-15: "Cada uma gasta o seu (Recomendado)"). The delivery at once only gets its receipt
+      // spent: its letter is green already, and no task closes and no reminder goes for it.
       let j = 0
-      for (const { i, s } of [...list].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))) {
+      const order = (a: Send, b: Send) => (a.at ?? 0) - (b.at ?? 0) || (a.seq ?? 0) - (b.seq ?? 0)
+      for (const { i, s } of [...list].sort((a, b) => order(a.s, b.s))) {
         const since = s.at ?? 0
         while (j < got.length && got[j]! < since) j++
         if (j >= got.length) break
-        marks[i] = { taken: true }
+        marks[i] = toSpend(s) ? { spent: true } : { taken: true }
         const at = got[j]!
         const last = usedNow[id]
         usedNow[id] = { at, n: last && last.at === at ? last.n + 1 : 1 }
@@ -277,6 +285,8 @@ export async function watchSends($: any, rows: any[]) {
       continue
     }
     for (const { i, s, r } of list) {
+      // A session that publishes no receipts: a delivery at once has none to spend.
+      if (s.taken) continue
       const since = s.at ?? 0
       const main = file.groups?.find((g: any) => g?.agent === MAIN)
       const turned = Array.isArray(main?.turns) && main.turns.some((u: any) => typeof u?.at === 'number' && u.at >= since)

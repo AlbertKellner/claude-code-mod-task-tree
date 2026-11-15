@@ -61,11 +61,11 @@ export const TABLE: readonly Row[] = [
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt, places: where each card of turns typed there goes, decided once), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind); 20 rounds per session (keepRounds), those of a task in sight never go' },
   { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'messages to other sessions and to subagents, one per message (its own number, seq): queued until taken up, then kept with the letter green (or gray, not delivered); over 20 (keepSends) only the oldest delivered or not delivered and already told go' },
+    note: 'messages to other sessions and to subagents, one per message (its own number, seq): queued until taken up (a delivery at once spends its own receipt too, spent), then kept with the letter green (or gray, not delivered); over 20 (keepSends) only the oldest delivered or not delivered and already told go' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'messages of other sessions this one got (the last 20)' },
   { key: 'receipts', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'per session a message went to, the last of its receipts already matched to a send of this one (instant and count at it, watchSends): an old receipt does not confirm a later message after a reload or a new process; a /clear empties it' },
+    note: 'per session a message went to, the last of its receipts already matched to a send of this one, a delivery at once included (instant and count at it, watchSends): an old receipt does not confirm a later message after a reload or a new process; a /clear empties it' },
   { key: 'launches', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'Agent calls not yet claimed by a subagent\'s group (the last 20)' },
   // The turn's own: they survive a reload, not the process.

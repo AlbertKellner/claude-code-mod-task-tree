@@ -1464,11 +1464,11 @@
         "envios.fica-ate-entrega",
         "envios.entrega-imediata-fica-verde"
       ],
-      "hash": "c7286b1fd5e15106",
-      "assercoes": 4,
+      "hash": "c74541de2c1dfaa2",
+      "assercoes": 6,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Cada uma gasta o seu (Recomendado)\""
     },
     "task-tree/tests/envios.test.ts::a entrega que conclui a tarefa diz que o painel a concluiu": {
       "regras": [
@@ -1812,6 +1812,16 @@
       "tipo": "decisao",
       "data": "2026-10-30",
       "motivo": "a carta de recebimento é a linha do pedido (usuário, 2026-10-30: \"Sim, uma carta por mensagem (Recomendado)\")"
+    },
+    "task-tree/tests/envios.test.ts::o recebimento da mensagem entregue na hora não confirma a mensagem seguinte, na fila, nem fecha a tarefa dela": {
+      "regras": [
+        "envios.entrega-imediata-gasta-o-seu-recebimento"
+      ],
+      "hash": "5c203851bc6f0227",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: cada uma gasta o seu recebimento"
     },
     "task-tree/tests/envios.test.ts::o subagente recebe a mensagem na rodada seguinte: a carta fica verde; a tarefa de onde ela saiu conclui sozinha, e a que lançou o subagente espera o fim dele": {
       "regras": [

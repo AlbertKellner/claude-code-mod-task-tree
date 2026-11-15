@@ -279,7 +279,10 @@ export type Child = {
 // `resume`); `lost` (with `cut`) when it ended without receiving it (hooks/agents, strandedSends).
 // `seq`: the send's own number, growing in the list (one per message, also two from the same task to
 // the same session in the same instant); absent on the sends of earlier versions.
-export type Send = { to: string; anchor?: string; at?: number; seq?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
+// `spent`: a delivery at once (taken from the start) whose receipt was not matched yet (false), until
+// the session publishes it (true): each message spends its own receipt (watchSends). Absent on the
+// sends of earlier versions and on the queued ones.
+export type Send = { to: string; anchor?: string; at?: number; seq?: number; spent?: boolean; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

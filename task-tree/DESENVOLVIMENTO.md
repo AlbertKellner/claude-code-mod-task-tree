@@ -2278,3 +2278,13 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   tarefa. Cada mensagem passou a ter o seu registro em `sends`, com um número próprio (`Send.seq`,
   `nextSeq`); `sameSend` reconhece o envio pelo número (os de versões anteriores, sem número, por
   destino, tarefa e hora), e a chave da linha da carta leva o número (envios.uma-carta-por-mensagem).
+
+## Achados baixos: cada mensagem gasta o seu recebimento (2026-11-15)
+
+- A entrega imediata nascia tomada sem gastar recebimento, e o recebimento dela, carimbado depois do envio
+  seguinte, confirmava a mensagem seguinte ainda na fila (a carta ficava verde e a tarefa fechava). A
+  entrega imediata passou a nascer com `spent: false`, e `watchSends` a põe no casamento com os
+  `received`, pela ordem do envio (hora, depois `seq`): ela só gasta o recebimento (`spent: true`, nenhum
+  lembrete, nenhuma tarefa fecha), e a marca `receipts` anda com ela. Os envios de versões anteriores,
+  sem o campo, ficam fora. Risco aceito: se o destino nunca publicar o primeiro recebimento, a segunda
+  carta segue azul (envios.entrega-imediata-gasta-o-seu-recebimento).
