@@ -2062,6 +2062,17 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const subs = mates.map(k => k.sub as Sub)
       const live = subs.filter(subLive).length
       const failed = subs.some(s => s.state === 'failed' || s.state === 'interrupted')
+      // The word tells a failure from a stop, and says it while the others still work (the worst end
+      // first, as the task they came from: subagentes.cartao-de-grupo-diz-a-falha).
+      const fails = subs.filter(s => s.state === 'failed').length
+      const word =
+        live > 0
+          ? `${live} trabalhando` + (fails > 0 ? ` · ${fails} ${fails > 1 ? 'falharam' : 'falhou'}` : '')
+          : fails > 0
+            ? 'falhou'
+            : failed
+              ? 'interrompido'
+              : 'concluído'
       const first = Math.min(...subs.map(s => s.at))
       const last = live > 0 || now === undefined ? now : Math.max(...subs.map(s => s.end ?? s.at))
       const key = `${scope}gg:${b}`
@@ -2073,7 +2084,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         strong: live > 0,
         title: subs[0]?.run !== undefined ? `Workflow · ${mates.length} agentes` : `${mates.length} subagentes`,
         label: 'Subagentes',
-        meta: live > 0 ? `${live} trabalhando` : failed ? 'interrompido' : 'concluído',
+        meta: word,
         sub: [subs.filter(s => !subLive(s)).length, mates.length],
         time: last !== undefined ? last - first : undefined,
         card: true,

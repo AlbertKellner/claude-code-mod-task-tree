@@ -25,6 +25,16 @@ O cartão traz o modelo, o esforço e a palavra de estado.
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)").
 Estado: coberto
 
+### subagentes.cartao-de-grupo-diz-a-falha
+O cartão de grupo diz "falhou" quando um agente dele falhou, também com outros ainda trabalhando.
+
+- Dado um cartão "N subagentes" ou "Workflow · N agentes"
+- Quando um agente falha por erro; e quando todos terminam
+- Então, com outros trabalhando, o cartão diz "<n> trabalhando · <k> falhou"; com todos terminados, "falhou" se algum falhou, senão "interrompido" se algum foi interrompido, senão "concluído"
+
+Origem: auditoria 2026-11-10 (no grupo, falha e interrupção viravam "interrompido", e a falha não aparecia com outros trabalhando); aplica subagentes.cartao-mostra-modelo-e-estado (decisão do usuário, 2026-11-09), sem mudar nenhuma regra.
+Estado: coberto
+
 ### subagentes.corpo-e-as-tarefas-ou-a-ferramenta
 Com tarefas, o cartão mostra as tarefas dele; sem tarefas, a ferramenta em uso.
 

@@ -233,6 +233,34 @@ test('mais de três lançados juntos ficam num cartão de grupo, uma linha por a
   expect(abaixo(p, '4 subagentes').map(l => l.titulo)).toEqual(['Explore: a', 'Explore: b', 'Explore: c', 'Explore: d'])
 })
 
+// Regra: subagentes.cartao-de-grupo-diz-a-falha
+test("o cartão de grupo diz a falha de um agente, com os outros trabalhando e depois de todos terminarem; parado, diz 'interrompido'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['s1', 's2', 's3', 's4', 't1', 't2', 't3', 't4'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  for (const d of ['a', 'b', 'c', 'd']) await lancar($, { descricao: d })
+  await fimDoSubagenteCom($, 's1', { erro: true })
+  let p = await painel($)
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('3 trabalhando')
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('1 falhou')
+  for (const s of ['s2', 's3', 's4']) await fimDoSubagente($, s)
+  p = await painel($)
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('falhou')
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).not.toContain('interrompido')
+  await done($, ['1'])
+  await start($, ['2'])
+  for (const d of ['e', 'f', 'g', 'h']) await lancar($, { descricao: d })
+  await fimDoSubagenteCom($, 't1', { parado: true })
+  for (const s of ['t2', 't3', 't4']) await fimDoSubagente($, s)
+  p = await painel($)
+  const grupos = p.filter(l => l.titulo === '4 subagentes')
+  expect(grupos.length, emTexto(p)).toBe(2)
+  expect(grupos[1]!.texto, emTexto(p)).toContain('interrompido')
+  expect(grupos[1]!.texto, emTexto(p)).not.toContain('falhou')
+})
+
 // Regra: subagentes.varios-juntos-num-cartao-de-grupo
 test('os agentes de um workflow ficam num cartão "Workflow · N agentes"', async ($: any, on: any) => {
   fixar(on)

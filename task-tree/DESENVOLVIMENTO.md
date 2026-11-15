@@ -1312,7 +1312,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 - Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
   em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
   tem botão.
-- Cartão de grupo (`groupCard`, "N subagentes" ou "Workflow · N agentes"): a linha fechada de um
+- Cartão de grupo (`groupCard`, "N subagentes" ou "Workflow · N agentes"): a palavra do cabeçalho é
+  "<n> trabalhando" enquanto algum agente vive, mais " · <k> falhou" (ou "falharam") quando algum já
+  falhou; com todos terminados, o pior fim: "falhou", senão "interrompido", senão "concluído"
+  (`subagentes.cartao-de-grupo-diz-a-falha`). O tom não muda: ✕ com falha ou interrupção. A linha fechada de um
   agente com espera aberta mostra o texto da espera (`waitText`) no lugar da ferramenta, com o tom
   `wait`, e marca `pending` (chip "aguardando" e faixa); os avisos de dentro do cartão dele não contam
   de novo (`hidden`), e o cartão de grupo recolhido leva tudo no `hidden` dele.

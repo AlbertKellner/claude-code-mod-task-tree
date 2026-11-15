@@ -4453,6 +4453,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
     },
+    "task-tree/tests/subagentes.test.ts::o cartão de grupo diz a falha de um agente, com os outros trabalhando e depois de todos terminarem; parado, diz 'interrompido'": {
+      "regras": [
+        "subagentes.cartao-de-grupo-diz-a-falha"
+      ],
+      "hash": "659ee28e6fa2404a",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a palavra do cartão de grupo distingue falhou de interrompido"
+    },
     "task-tree/tests/subagentes.test.ts::o cartão de uma filha publicado com um lote por lançamento junta os quatro lançados juntos num cartão de grupo": {
       "regras": [
         "subagentes.lancados-juntos-se-veem",
