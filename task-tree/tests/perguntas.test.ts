@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { fixar, responderDepois } from './kit/ambiente'
-import { done, ferramenta, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { aviso, done, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -242,6 +242,32 @@ test('a escolha do wrap_up fica até a próxima mensagem', async ($: any, on: an
   await pedido($, 'sim')
   p = await painel($)
   expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.escolha-do-wrapup-ate-proxima-mensagem
+test('a mensagem de outra sessão e o aviso do app não tiram a escolha do wrap_up; a mensagem da pessoa e um wrap_up novo tiram', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  const escolha = async () => (await painel($)).some(l => l.titulo === 'Aguardando sua escolha')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  await fimDoTurno($)
+  await mensagemDe($, 'local_99999999-9999-9999-9999-999999999999', 'relato')
+  esperarEstado(await painel($), 'Aguardando sua escolha', 'aguardando')
+  await fimDoTurno($)
+  await aviso($)
+  esperarEstado(await painel($), 'Aguardando sua escolha', 'aguardando')
+  // Um wrap_up novo, sem pergunta, tira a escolha.
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito' })
+  expect(await escolha(), emTexto(await painel($))).toBe(false)
+  // Com pergunta de novo, a mensagem da pessoa a tira.
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  await fimDoTurno($)
+  expect(await escolha(), emTexto(await painel($))).toBe(true)
+  await pedido($, 'sim')
+  expect(await escolha(), emTexto(await painel($))).toBe(false)
 })
 
 // Regra: perguntas.permissao-espera

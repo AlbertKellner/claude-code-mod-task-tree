@@ -2853,6 +2853,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::a mensagem de outra sessão e o aviso do app não tiram a escolha do wrap_up; a mensagem da pessoa e um wrap_up novo tiram": {
+      "regras": [
+        "perguntas.escolha-do-wrapup-ate-proxima-mensagem"
+      ],
+      "hash": "1edb55b3011cf7fe",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Só a sua mensagem (Recomendado)\""
+    },
     "task-tree/tests/perguntas.test.ts::a pergunta sem tarefa é recusada mesmo com a falha de outro passo": {
       "regras": [
         "perguntas.sem-tarefa-recusada",

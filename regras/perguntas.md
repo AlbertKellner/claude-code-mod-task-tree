@@ -83,9 +83,10 @@ A escolha do wrap_up fica até a próxima mensagem.
 
 - Dado um wrap_up com pergunta (ask)
 - Quando o turno termina
-- Então "Aguardando sua escolha" fica até a próxima mensagem da pessoa
+- Então "Aguardando sua escolha" fica até a próxima mensagem da pessoa, ou até a sessão encerrar outro turno com um wrap_up novo (com outra pergunta, ou sem pergunta); a mensagem de outra sessão e o aviso do app não a tiram
 
 Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20); confirmada pelo usuário em 2026-11-14 ("Toda pergunta espera"): a pergunta opcional, que não bloqueia o trabalho, também fica como espera.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Só a sua mensagem (Recomendado)"): a mensagem de outra sessão deixa de tirar a linha. O teste existente não muda.
 Estado: coberto
 
 ### perguntas.permissao-espera

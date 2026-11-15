@@ -150,8 +150,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // Safety net: a new message means the main loop has no question open. Not one delivered into a
   // running turn (`e.turnId`: another session's message, or one typed over the turn): the question or
   // plan dialog may still be on screen, and its call drops its wait when it returns (and the turn's end).
+  // The wrap_up's choice waits on the person: only a message of hers, or a new wrap_up, takes it away;
+  // another session's message does not (the person, 2026-11-15: "Só a sua mensagem (Recomendado)").
   const midTurn = typeof e.turnId === 'string' && e.turnId !== ''
-  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission' || (midTurn && (w.kind === 'question' || w.kind === 'plan')))
+  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission' || (midTurn && (w.kind === 'question' || w.kind === 'plan')) || (it.peer && w.kind === 'choice'))
   // A message delivered into a running turn, the report of a session this one opened or one the
   // person typed over the turn, continues the request in progress (the person, 2026-11-12: "Entra
   // no pedido em curso (Recomendado)"): it opens no turn, so it gets no line of its own and no ✉,
