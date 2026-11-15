@@ -903,7 +903,9 @@ export const SHOWN_CARD_TURNS = 3
 // or a subagent's with no task to go under, "+N cartões antigos de sessões", a letter with no place) is
 // the tail: its room is held and the cut goes over the requests only, so a small block at the end never
 // takes the place of a request past the limit. A tail past half the limit, or one that leaves fewer than
-// 2 lines, gets the same cut as the rest.
+// 2 lines, gets the same cut as the rest. When the last request alone is past the limit and its task in
+// progress is past the cut, the block is drawn around that task instead (the person, 2026-11-14:
+// "Trecho da em andamento (Recomendado)"; 2026-11-15: "Trecho, nos dois cortes (Recomendado)").
 export const MAX_ROWS = 400
 // The depth-0 lines that open a request's block: a request, a loose task, the line of the requests left out
 // (the main group's, `main|T:1`, or with no scope).
@@ -960,9 +962,75 @@ function cutRows(rows: Row[], max: number): Row[] {
   const keptIn = (k: number) => block.filter((_, j) => j >= k && keep.has(last + j))
   let k = Math.max(0, room - head.length)
   while (k > 0 && head.length + k + keptIn(k).length > room) k--
+  const afterRow = (n: number): Row => ({ key: 'sec:after', depth: 1, tone: 'section', title: `+${n} linhas`, label: 'Linhas seguintes, não desenhadas', cut: n })
+  // The block's task in progress past that cut: the block is drawn around it instead (the person,
+  // 2026-11-14: "Trecho da em andamento (Recomendado)"): its parents above, "+N linhas anteriores" for
+  // what is skipped before, a stretch that starts up to a quarter of the room before it, and "+N linhas".
+  const at = firstAtWork(block)
+  if (at >= k && k > 0) {
+    const windowed = aroundWork(block, at, room - head.length, j => keep.has(last + j))
+    if (windowed !== undefined) return [...head, ...windowed]
+  }
   const kept = [...block.slice(0, k), ...keptIn(k)]
   const after = block.length - kept.length
-  return [...head, ...kept, { key: 'sec:after', depth: 1, tone: 'section', title: `+${after} linhas`, label: 'Linhas seguintes, não desenhadas', cut: after }]
+  return [...head, ...kept, afterRow(after)]
+}
+
+// The first line of a block in progress: a task at work of its own (Row.active), else the deepest line of
+// the first chain drawn in progress (a task with a subagent at work under it). -1 with none.
+function firstAtWork(block: Row[]): number {
+  const own = block.findIndex(r => r.active === true)
+  if (own >= 0) return own
+  const first = block.findIndex(r => r.tone === 'current')
+  if (first < 0) return -1
+  let i = first
+  while (block[i + 1] !== undefined && block[i + 1]!.depth > block[i]!.depth && block[i + 1]!.tone === 'current') i++
+  return i
+}
+
+// A block drawn around its line `at`, in `room` lines plus its closing count: the parents of the stretch
+// (the nearest earlier lines less deep, up to depth 0), "+N linhas anteriores", the stretch and the
+// lines kept (`kept`, an open history's) out of it, in their order, and "+N linhas" when lines are left
+// after it. Undefined when the room is too small for it.
+function aroundWork(block: Row[], at: number, room: number, kept: (j: number) => boolean): Row[] | undefined {
+  const parentsOf = (from: number) => {
+    const out: number[] = []
+    let depth = block[from]?.depth ?? 0
+    for (let j = from - 1; j >= 0 && depth > 0; j--) {
+      if (block[j]!.depth < depth) {
+        out.unshift(j)
+        depth = block[j]!.depth
+      }
+    }
+    return out
+  }
+  let start = Math.max(1, at - Math.floor(room / 4))
+  for (;;) {
+    const parents = parentsOf(start)
+    const extra = (from: number, to: number) => block.map((_, j) => j).filter(j => (j < from || j >= to) && kept(j) && !parents.includes(j))
+    // Lines left for the stretch: the parents, the line before it and the one after it take theirs.
+    let size = room - parents.length - 1
+    let end = Math.min(block.length, start + size)
+    while (size > 0 && parents.length + 1 + (end - start) + extra(start, end).length > room) end = start + --size
+    if (end <= at) {
+      if (start >= at) return undefined
+      start = Math.min(at, start + Math.max(1, at - end + 1))
+      continue
+    }
+    const before = extra(start, end).filter(j => j < start)
+    const later = extra(start, end).filter(j => j >= end)
+    const skipped = start - parents.length - before.length
+    const after = block.length - end - later.length
+    if (skipped <= 0) return undefined
+    return [
+      ...parents.map(j => block[j]!),
+      ...before.map(j => block[j]!),
+      { key: 'sec:skipped', depth: 1, tone: 'section', title: `+${skipped} linhas anteriores`, label: 'Linhas anteriores, não desenhadas', cut: skipped },
+      ...block.slice(start, end),
+      ...later.map(j => block[j]!),
+      ...(after > 0 ? [{ key: 'sec:after', depth: 1, tone: 'section' as Tone, title: `+${after} linhas`, label: 'Linhas seguintes, não desenhadas', cut: after }] : []),
+    ]
+  }
 }
 
 // A session's panel cut to its current work, for the summary view: its main level-1 tasks of the

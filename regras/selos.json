@@ -146,21 +146,31 @@
       "regras": [
         "cabecalho.corte-preserva-historico-aberto"
       ],
-      "hash": "fb85ab0316dd6316",
+      "hash": "ffad998d5bba308f",
       "assercoes": 10,
-      "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "decisão do usuário, 2026-11-13: \"Preservar a linha (Recomendado)\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
     },
     "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "9b158968c5fab57f",
+      "hash": "5ef6a6a7de58920f",
       "assercoes": 7,
-      "tipo": "decisao",
-      "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
+    },
+    "task-tree/tests/cabecalho.test.ts::com a tarefa em andamento dentro do começo, o corte segue guardando o começo": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "8dec5a6b729ef6d3",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Trecho da em andamento (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
       "regras": [
@@ -211,6 +221,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "empate de starts"
+    },
+    "task-tree/tests/cabecalho.test.ts::num pedido grande demais, com a tarefa em andamento depois do corte, o painel mostra o trecho dela": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "b1ffb18adfb29a4e",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Trecho da em andamento (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::o cartão parado, sem tarefa de origem e de antes dos três últimos pedidos vira \"+1 cartões antigos de sessões\"": {
       "regras": [
@@ -310,11 +330,11 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "99c0c0303bf60a74",
+      "hash": "9a4161dfe6ffe2d0",
       "assercoes": 7,
-      "tipo": "decisao",
-      "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
     },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
@@ -350,11 +370,21 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "4d1223ac5ce5b872",
+      "hash": "9e7d9b1f6375264b",
       "assercoes": 6,
       "tipo": "decisao",
-      "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado); a preparação deixa o pedido sem tarefa em andamento, as asserções não mudam"
+    },
+    "task-tree/tests/cabecalho.test.ts::um pedido só acima de 600 KB, com a tarefa em andamento no fim, mostra o trecho dela": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "4c62342e7cb9e91a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::um título enorme no cabeçalho leva ao aviso, e \"Voltar\" traz o painel de volta com os textos encurtados": {
       "regras": [

@@ -796,7 +796,8 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   2026-11-12: "Cortar os mais antigos (Recomendado)"): o render lê o state uma vez e a função `paint`
   (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
   `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
-  último pedido sozinho, até o limite, com "+N linhas"; a cauda depois do último pedido fica inteira, com o espaço reservado). Cada tentativa mira 95% do limite pela média
+  último pedido sozinho, até o limite, com "+N linhas", ou o trecho da tarefa em andamento dele quando ela
+  está depois do corte; a cauda depois do último pedido fica inteira, com o espaço reservado). Cada tentativa mira 95% do limite pela média
   de bytes por linha; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
   (abaixo do anterior e das linhas desenhadas, que as linhas guardadas de um histórico aberto podem
   deixar acima dele). O mapa `fitted` (por
@@ -1316,6 +1317,12 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   numa linha de seção `+N linhas anteriores` (tom `section`, alt "Linhas anteriores, não desenhadas"); as
   recentes ficam. Se o último bloco sozinho passa do limite, o que vinha antes sai contado, o bloco é
   desenhado até o limite e fecha com `+N linhas` (profundidade 1, alt "Linhas seguintes, não desenhadas").
+  Se a tarefa em andamento do bloco (a primeira linha `active`, ou a ponta da primeira cadeia `current`;
+  `firstAtWork`) está depois desse corte, o bloco é desenhado em volta dela (`aroundWork`; decisões do
+  usuário, 2026-11-14: "Trecho da em andamento (Recomendado)"; 2026-11-15: "Trecho, nos dois cortes
+  (Recomendado)", o das 400 linhas e o do tamanho): os pais do trecho, uma linha `sec:skipped`
+  `+N linhas anteriores` (profundidade 1), o trecho, que começa até um quarto do espaço antes dela, e
+  `+N linhas` quando sobra; os chips e a faixa voltam a contar o trabalho em curso.
   Total sempre ≤ 400. Corta-se por blocos inteiros do começo porque o trabalho atual fica no fim e cortar
   dentro de um bloco quebraria as guias. A linha de um histórico aberto (`sec:turns` com `fold.open`) e as
   mães dela (a linha anterior menos funda, até o nível 0) nunca saem: vêm logo depois de `+N linhas

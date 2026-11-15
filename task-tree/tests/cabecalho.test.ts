@@ -270,6 +270,38 @@ test('um aviso sem tarefa depois de um pedido grande demais não esconde o pedid
 })
 
 // Regra: cabecalho.limite-de-linhas-do-desenho
+test('num pedido grande demais, com a tarefa em andamento depois do corte, o painel mostra o trecho dela', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido grande')
+  await plan($, grande('T', 8, 8, 7))
+  // A linha 493 do pedido de 521.
+  await start($, ['7.4.3'])
+  const p = await painel($)
+  const desenho = p.filter(l => !l.cabecalho)
+  expect(desenho.length, emTexto(p).slice(-500)).toBeLessThanOrEqual(400)
+  esperarEstado(p, 'T7.4.3', 'andamento')
+  for (const titulo of ['Pedido grande', 'T7', 'T7.4']) expect(p.some(l => l.titulo === titulo), titulo).toBe(true)
+  expect(p.some(l => /\+\d+ linhas anteriores$/.test(l.texto)), emTexto(p).slice(0, 500)).toBe(true)
+  // O trecho chega ao fim do pedido: a última linha é a última tarefa, sem "+N linhas".
+  expect(desenho[desenho.length - 1]?.titulo, emTexto(p).slice(-500)).toBe('T7.7.6')
+  expect(cabecalho(p).chips.andamento, emTexto(p).slice(0, 500)).toBe(1)
+  expect(estadoGeral(await noApp($))).toBe('em andamento')
+})
+
+// Regra: cabecalho.limite-de-linhas-do-desenho
+test('com a tarefa em andamento dentro do começo, o corte segue guardando o começo', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido grande')
+  await plan($, grande('T', 8, 8, 7))
+  await start($, ['0.0.3'])
+  const p = await painel($)
+  const desenho = p.filter(l => !l.cabecalho)
+  esperarEstado(p, 'T0.0.3', 'andamento')
+  expect(p.some(l => l.texto.includes('linhas anteriores')), emTexto(p).slice(0, 500)).toBe(false)
+  expect(desenho[desenho.length - 1]?.texto, emTexto(p).slice(-500)).toMatch(/\+\d+ linhas$/)
+})
+
+// Regra: cabecalho.limite-de-linhas-do-desenho
 test('pedidos antigos saem inteiros do começo, contados em "+N linhas anteriores"', { timeoutMs: 15000 }, async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
@@ -327,12 +359,13 @@ const kb = (d: { bytes: number }) => `${Math.round(d.bytes / 1024)} KB`
 // "Pedido um": 1 + 8 + 64 + 320 linhas de títulos longos, todas as folhas iniciadas e com tempo; `abertas`
 // delas ficam abertas, as outras concluídas. São menos de 400 linhas e mais de 600 KB no app desktop (no
 // SVG por linha e no nativo): o corte que os testes abaixo veem é o do tamanho, não o das 400 linhas.
-async function pedidoPesado($: any, relogio: any, abertas: number) {
+// Com `paradas`, as abertas nem são iniciadas: nada fica em andamento.
+async function pedidoPesado($: any, relogio: any, abertas: number, paradas = false) {
   const plano: No[] = grande('U', 8, 8, 5).map(a => ({ ...a, children: (a.children ?? []).map(b => ({ ...b, title: `${b.title} ${LONGO}`, children: (b.children ?? []).map(c => ({ ...c, title: `${c.title} ${LONGO}` })) })) }))
   const folhas = plano.flatMap(a => (a.children ?? []).flatMap(b => (b.children ?? []).map(c => c.id)))
   await pedido($, 'Pedido um')
   await plan($, plano)
-  await start($, folhas)
+  await start($, paradas ? folhas.slice(0, folhas.length - abertas) : folhas)
   await relogio.advance(65000)
   await done($, folhas.slice(0, folhas.length - abertas))
 }
@@ -395,7 +428,8 @@ test('com "+N pedidos anteriores" aberto, o desenho acima de 600 KB corta os mai
 test('um pedido só acima de 600 KB é desenhado até caber e fecha com "+N linhas", sem aviso', { timeoutMs: 15000 }, async ($: any, on: any) => {
   const { relogio } = fixar(on)
   host(on, [])
-  await pedidoPesado($, relogio, 1)
+  // Sem tarefa em andamento: o corte guarda o começo.
+  await pedidoPesado($, relogio, 1, true)
   const d = await cortado($)
   expect(d.aviso, kb(d)).toBe(false)
   expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
@@ -403,6 +437,21 @@ test('um pedido só acima de 600 KB é desenhado até caber e fecha com "+N linh
   expect(d.textos[d.textos.length - 1], d.textos.slice(-3).join('\n')).toBe(d.depois)
   expect(d.depois, d.textos.slice(-3).join('\n')).toBeDefined()
   expect(d.textos.some(a => a.includes('U0.0.0')), d.textos.slice(0, 6).join('\n')).toBe(true)
+})
+
+// Regra: cabecalho.limite-de-linhas-do-desenho
+test('um pedido só acima de 600 KB, com a tarefa em andamento no fim, mostra o trecho dela', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  // A última folha segue em andamento, depois do corte por tamanho.
+  await pedidoPesado($, relogio, 1)
+  const d = await cortado($)
+  expect(d.aviso, kb(d)).toBe(false)
+  expect(d.bytes, kb(d)).toBeLessThanOrEqual(LIMITE)
+  expect(d.antes, d.textos.slice(0, 6).join('\n')).toBeDefined()
+  expect(d.textos.some(a => a.includes('U7.7.4')), d.textos.slice(-3).join('\n')).toBe(true)
+  expect(d.textos.some(a => a.includes('U0.0.0')), d.textos.slice(0, 6).join('\n')).toBe(false)
+  expect(d.textos.some(a => a.includes('Pedido um')), d.textos.slice(0, 3).join('\n')).toBe(true)
 })
 
 // Regra: cabecalho.corte-preserva-historico-aberto
