@@ -215,7 +215,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   await keepTime($).catch(() => {})
   watchSessions($)
   const { value: heldState } = await $.state.get(groupsState)
-  const held = heldState ?? brought
+  // What ensureGroups brought wins: it also stands for groups of the state it read and ignored.
+  const held = brought ?? heldState
   const { value: waits = [] } = await $.state.get(waitsState)
   const { value: sessions = [] } = await $.state.get(childrenState)
   const { value: sessionsError = '' } = await $.state.get(childrenErrorState)

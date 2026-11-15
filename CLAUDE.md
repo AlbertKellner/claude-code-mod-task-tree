@@ -206,6 +206,10 @@ fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden
 - Operação do git que troca vários arquivos neste clone (`checkout`, `pull`, `merge`, `rebase`,
   `stash`): evite com turno em curso em outra sessão e, depois dela, confira que o mod recarregou
   sem "reload failed" antes de seguir (decisão do usuário, 2026-11-15: "Regra leve (Recomendado)").
+- O painel guardado (os grupos, no store e no state) tem versão (`GROUPS_VERSION`, `state/durability.ts`)
+  e é lido com conferência: campo novo é opcional; mudar a forma de um dado guardado (grupos, tarefas)
+  exige subir a versão, escrever a conversão do dado antigo (`CONVERSIONS`) e um teste com o dado da
+  versão anterior (decisão do usuário, 2026-11-15: "Versão e leitura conferida (Recomendado)").
 - Limites do validate que o código respeita (chave de `$.state` literal no arquivo que chama, `$`
   só em função de topo etc.): DESENVOLVIMENTO.md, "Limites do kit".
 

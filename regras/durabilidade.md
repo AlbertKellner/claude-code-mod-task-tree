@@ -70,6 +70,17 @@ Origem: decisão do usuário, 2026-11-15 ("Sim, guardado por sessão (Recomendad
 Código: hooks/render.tsx
 Estado: coberto
 
+### durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+O painel guardado tem versão, e um dado de forma desconhecida é ignorado em vez de derrubar o painel.
+
+- Dado o painel guardado de uma sessão (o do store, ou o do state que atravessou uma recarga) numa versão que este código não conhece, ou fora do formato
+- Quando o painel é trazido de volta (processo novo, retomada, primeiro uso depois de uma recarga)
+- Então o dado é ignorado, o log de depuração diz o motivo uma vez, e o painel vem da outra cópia válida ou começa vazio; as ferramentas e o desenho seguem funcionando; o painel guardado da forma anterior, sem versão, segue lido
+
+Origem: decisão do usuário, 2026-11-15 ("Versão e leitura conferida (Recomendado)").
+Código: hooks/session-start.ts, io/log.ts
+Estado: coberto
+
 ### durabilidade.formatos-antigos-do-publicado
 Os formatos antigos do arquivo publicado são lidos.
 

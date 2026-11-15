@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
-import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
+import { GROUPS_VERSION, current as keepCurrent, linkOf, loadStore, loaded, readGroups, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
 import type { Idle } from '../types'
@@ -25,6 +25,7 @@ export const PANE = 'task-tree'
 // for every one of them (the check's `regras` step fails on a key without one).
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+const groupsVersionState = { plugin: 'task-tree', key: 'groupsVersion' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
@@ -538,6 +539,7 @@ export async function showStatus($: any, groups: Group[]) {
 // false: the caller publishes itself once its other writes are done (the plan and the start of the
 // main loop, after the ties and the work).
 export async function persist($: any, groups: Group[], publish = true) {
+  await markVersion($)
   try {
     const { back } = await saveGroups($, groups)
     if (back) {
@@ -592,15 +594,32 @@ export async function replace($: any, groups: Group[]) {
 
 // The session's panel as the store keeps it; its subagents do not come back, so what they left
 // open is interrupted.
+// Read through readGroups (state/durability): a record of an unknown version or out of the shape is
+// said once in the log and counts as none (the published file, or nothing, comes instead); the next
+// write puts the record back in the current form.
 export async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
-  let kept: Group[] | undefined
+  let raw: unknown
   try {
-    kept = (await loadStore($, 'groups', id)) as Group[] | undefined
+    raw = await loadStore($, 'groups', id)
   } catch (err) {
     await unread($, 'painel', err)
     throw err
   }
+  const { groups: kept, reason } = readGroups(raw)
+  if (reason !== undefined) await ignoredGroups($, reason)
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
+}
+async function ignoredGroups($: any, reason: string) {
+  await debugOnce($, `task-tree: painel guardado ignorado: ${reason}`)
+}
+// The state's groups carry their version (groupsVersion), written once per module with the first save.
+let versionWritten = false
+async function markVersion($: any) {
+  if (versionWritten) return
+  try {
+    if ((await $.state.get(groupsVersionState)).value !== GROUPS_VERSION) await $.state.set(groupsVersionState, GROUPS_VERSION)
+    versionWritten = true
+  } catch {}
 }
 
 // The panel out of the store (only the 30 sessions that wrote last keep theirs there) comes back
@@ -696,9 +715,33 @@ export async function dropHeld($: any) {
 export async function ensureGroups($: any): Promise<Group[] | undefined> {
   if (loaded.has('groups') || !restoredAt('groups', 'first-use')) return undefined
   try {
-    if ((await $.state.get(groupsState)).value !== undefined) {
-      loaded.add('groups')
-      return undefined
+    const { value: held } = await $.state.get(groupsState)
+    if (held !== undefined) {
+      // The groups a hot reload kept (perhaps written by an earlier code), read through readGroups once:
+      // out of the shape or of an unknown version, the store's valid copy (or nothing) replaces them
+      // (the person, 2026-11-15: "Versão e leitura conferida (Recomendado)").
+      const { value: version } = await $.state.get(groupsVersionState)
+      const read = readGroups(version === undefined ? held : { version, groups: held })
+      if (read.reason === undefined) {
+        if (read.groups !== held) {
+          try {
+            await $.state.set(groupsState, read.groups)
+            await $.state.set(groupsVersionState, GROUPS_VERSION)
+          } catch {
+            return read.groups
+          }
+        }
+        loaded.add('groups')
+        return undefined
+      }
+      await ignoredGroups($, `${read.reason} (no state)`)
+      const instead = (await keptGroups($, await $.session.id())) ?? []
+      try {
+        await $.state.set(groupsState, instead)
+        await $.state.set(groupsVersionState, GROUPS_VERSION)
+        loaded.add('groups')
+      } catch {}
+      return instead
     }
     const groups = (await keptGroups($, await $.session.id())) ?? (await fromOwnFile($))
     if (groups === undefined) {

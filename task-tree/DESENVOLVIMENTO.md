@@ -390,7 +390,17 @@ traz as da sessão retomada, ou nenhuma; decisão do usuário, 2026-11-15: "Sim,
 (Recomendado)"), `ultra` (o interruptor de ultracode, gravado a cada aviso do motor que o muda, de
 volta no `session.start`, na retomada e no primeiro uso; decisão do usuário, 2026-11-15: "Guardar por
 sessão"; só o `ultra_effort_exit` o desliga, então o interruptor desligado com a sessão parada fica
-ligado até esse aviso, risco que ele aceitou) e a lista `sessions`. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
+ligado até esse aviso, risco que ele aceitou) e a lista `sessions`. O registro `session` tem versão
+(`GROUPS_VERSION`, hoje 1) e é gravado como `{ version, groups }`; a lista crua dos registros de antes
+vale como versão 1. A leitura passa por `readGroups` (`state/durability.ts`): versão maior que a do
+código, coisa que não é lista nem registro, grupo sem `agent` ou sem `tasks` em lista, ou tarefa sem
+`id`, `title`, `status` conhecido ou `children` em lista fazem o registro ser ignorado, com uma linha no
+log ("painel guardado ignorado"), e o painel vem do arquivo publicado ou começa vazio. Os grupos do
+state que atravessaram uma recarga são lidos do mesmo jeito uma vez (`ensureGroups`, com a versão na
+chave `groupsVersion`; ausente vale 1), e no lugar dos inválidos vem a cópia válida do store, ou nada.
+Mudança de forma sobe a versão e escreve a conversão em `CONVERSIONS` (decisão do usuário, 2026-11-15:
+"Versão e leitura conferida (Recomendado)"). Limite: uma versão anterior do mod que retome uma sessão
+gravada na forma nova não acha a lista crua e começa com o painel vazio. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
 registro "em curso" que um processo novo acha é de um turno que morreu com o anterior e vira parada
 (`parkDeadTurn`). A fusão das ligações é `current` por chave: o store só entra na chave que o state não
 tem (um processo novo); o state que atravessou uma recarga fica como está. O store cheio não derruba a

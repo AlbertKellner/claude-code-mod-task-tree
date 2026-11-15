@@ -939,6 +939,76 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: id próprio em variável do módulo"
     },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado de uma versão desconhecida é ignorado, com aviso no log": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "457abedb927b4b46",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado fora do formato é ignorado, e as ferramentas seguem: um grupo com tasks que não é lista": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "74b4370621eae5ba",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado fora do formato é ignorado, e as ferramentas seguem: um texto": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "58d9d9694af3a7f2",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado fora do formato é ignorado, e as ferramentas seguem: uma tarefa sem children": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "3b5f8f5832f1168f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado na forma nova volta num processo novo, 1/2: o painel vai ao store com a versão": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "76ddb6588dabdc04",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado na forma nova volta num processo novo, 2/2: o processo novo o lê": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "0d18a3f00ab3ad38",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o painel guardado sem versão, da forma anterior, é lido": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "b79bbe07bb4ccfb7",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
     "task-tree/tests/durabilidade.test.ts::o plan não reabre o painel que a pessoa fechou; a mensagem seguinte dela reabre": {
       "regras": [
         "durabilidade.painel-fechado-reabre-so-na-mensagem"
@@ -1218,6 +1288,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "o recibo usado fica no state e no store"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com o painel do state fora do formato: o painel volta do store": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "e83b35cb606dfe36",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
     },
     "task-tree/tests/durabilidade.test.ts::recarga com subagente trabalhando, 1/2: três chamadas contadas": {
       "regras": [

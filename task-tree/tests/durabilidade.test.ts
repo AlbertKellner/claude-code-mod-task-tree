@@ -1547,3 +1547,95 @@ test('a retomada traz as dobras da sessão retomada', async ($: any, on: any) =>
   expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
   expect(tem(p, 'Um'), emTexto(p)).toBe(false)
 })
+
+// O painel guardado com versão: o registro do store e o grupo do state que atravessou uma recarga.
+const VELHA = [{ agent: '', label: '', tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done', children: [] }] }]
+const lojaCom = (registro: unknown): Record<string, unknown> => ({ [`session:${SESSAO}`]: registro, sessions: [SESSAO] })
+// O registro guardado é ignorado: o painel começa vazio, o log diz o motivo e as ferramentas seguem.
+async function painelGuardadoIgnorado($: any, on: any, registro: unknown) {
+  const { log } = fixar(on)
+  armazem(on, lojaCom(registro))
+  host(on, [])
+  await iniciarSessao($)
+  let p = await painel($)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+}
+const FORMA_NOVA: Record<string, unknown> = {}
+const RECARGA_RUIM: Record<string, unknown> = {}
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado de uma versão desconhecida é ignorado, com aviso no log', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, { version: 99, groups: VELHA })
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado fora do formato é ignorado, e as ferramentas seguem: um texto', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, 'painel')
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado fora do formato é ignorado, e as ferramentas seguem: um grupo com tasks que não é lista', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, [{ agent: '', label: '', tasks: 'quebrado' }])
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado fora do formato é ignorado, e as ferramentas seguem: uma tarefa sem children', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, [{ agent: '', label: '', tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done' }] }])
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado sem versão, da forma anterior, é lido', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, lojaCom(VELHA))
+  host(on, [])
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Velha'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado na forma nova volta num processo novo, 1/2: o painel vai ao store com a versão', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FORMA_NOVA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const guardado = FORMA_NOVA[`session:${SESSAO}`] as { version?: unknown; groups?: unknown } | undefined
+  expect(guardado?.version, JSON.stringify(guardado)).toBe(1)
+  expect(Array.isArray(guardado?.groups), JSON.stringify(guardado)).toBe(true)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado na forma nova volta num processo novo, 2/2: o processo novo o lê', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FORMA_NOVA)
+  host(on, [])
+  exigir(temPainel(FORMA_NOVA))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A') && tem(p, 'Um') && tem(p, 'Dois.dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('recarga com o painel do state fora do formato: o painel volta do store', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  armazem(on, lojaCom(VELHA))
+  RECARGA_RUIM.groups = [{ agent: '', label: '', tasks: [{ id: 'Q', short: 'Q', title: 'Quebrada', status: 'talvez', children: [] }] }]
+  estado(on, RECARGA_RUIM, 'semear')
+  let p = await painel($)
+  expect(tem(p, 'Velha'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Quebrada'), emTexto(p)).toBe(false)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(tem(p, 'Quebrada'), emTexto(p)).toBe(false)
+})

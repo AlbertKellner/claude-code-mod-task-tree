@@ -17,7 +17,7 @@
 
 import type { PluginState } from 'claude-code'
 
-import type { Child } from '../types'
+import type { Child, Group } from '../types'
 import { debugOnce } from '../io/log'
 
 export type Key = keyof PluginState['task-tree']
@@ -53,6 +53,8 @@ export const TABLE: readonly Row[] = [
   // The panel.
   { key: 'groups', lives: 'state+store', store: 'session', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'the groups (tasks, turns, answers); a resume replaces the state with the store\'s; subagents\' open tasks come back interrupted; out of the store (only KEEP sessions), a new process in the desktop app brings it back from the file this session published, its long-term copy while the session exists in the app (fromOwnFile), with the work, the links\' four keys and the turn\'s end' },
+  { key: 'groupsVersion', lives: 'state', merge: 'none', restoredAt: [],
+    note: 'the version of the groups the state holds (GROUPS_VERSION when this code wrote them; absent: 1, an earlier code): the first use after a hot reload reads the state\'s groups through readGroups once, and groups of an unknown version or out of the shape are ignored with a line in the log, the store\'s valid copy (or nothing) in their place' },
   { key: 'tasks', lives: 'state', merge: 'none', restoredAt: [],
     note: 'legacy: the one list before groups, moved into the main group once (adopt) at session.start or the first write' },
   { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
@@ -222,17 +224,79 @@ export async function pruneStore($: any): Promise<void> {
     await debugOnce($, `task-tree: store não podado: ${String(err)}`)
   }
 }
+// The kept panel's version and its checked reading (the person, 2026-11-15: "Versão e leitura conferida
+// (Recomendado)"). The groups kept in the store (`session`) and in the state (a hot reload hands the new
+// code what the old one wrote) are read through readGroups: a record of a version this code does not
+// know, or out of the shape, is ignored with its reason, never handed to the drawing or the tools.
+// A new optional field needs nothing. A change of shape of what is kept (groups, tasks) raises
+// GROUPS_VERSION and writes, in CONVERSIONS, the step from the version before (the key is the version
+// it converts from), with a test that reads a record of that version.
+export const GROUPS_VERSION = 1
+export const CONVERSIONS: Record<number, (groups: unknown[]) => unknown[]> = {}
+const STATUSES = ['open', 'done', 'interrupted']
+const isObj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v)
+function taskProblem(v: unknown): string | undefined {
+  if (!isObj(v)) return 'tarefa que não é objeto'
+  if (typeof v.id !== 'string') return 'tarefa sem id'
+  if (typeof v.title !== 'string') return `tarefa ${v.id} sem título`
+  if (typeof v.status !== 'string' || !STATUSES.includes(v.status)) return `tarefa ${v.id} com status desconhecido`
+  if (!Array.isArray(v.children)) return `tarefa ${v.id} sem children`
+  for (const c of v.children) {
+    const p = taskProblem(c)
+    if (p !== undefined) return p
+  }
+  return undefined
+}
+function groupProblem(v: unknown): string | undefined {
+  if (!isObj(v)) return 'grupo que não é objeto'
+  if (typeof v.agent !== 'string') return 'grupo sem agent'
+  if (!Array.isArray(v.tasks)) return `grupo "${v.agent}" sem tasks`
+  for (const t of v.tasks) {
+    const p = taskProblem(t)
+    if (p !== undefined) return p
+  }
+  return undefined
+}
+// What was read (the store's record, or the state's groups with the state's version): a bare list is a
+// record of before the versions (version 1); `{ version, groups }` the current form. Answers the groups,
+// converted up to GROUPS_VERSION, or why they are ignored; nothing read answers neither.
+export function readGroups(raw: unknown): { groups?: Group[]; reason?: string } {
+  if (raw === undefined || raw === null) return {}
+  let version = 1
+  let list: unknown
+  if (Array.isArray(raw)) list = raw
+  else if (isObj(raw) && 'groups' in raw) {
+    version = raw.version as number
+    list = raw.groups
+  } else return { reason: 'não é lista nem registro' }
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return { reason: `versão ${String(version)} inválida` }
+  if (version > GROUPS_VERSION) return { reason: `versão ${version}, maior que a ${GROUPS_VERSION} deste código` }
+  if (!Array.isArray(list)) return { reason: 'grupos que não são lista' }
+  let groups = list as unknown[]
+  for (let n = version; n < GROUPS_VERSION; n++) {
+    const step = CONVERSIONS[n]
+    if (step === undefined) return { reason: `sem conversão da versão ${n}` }
+    groups = step(groups)
+  }
+  for (const g of groups) {
+    const p = groupProblem(g)
+    if (p !== undefined) return { reason: p }
+  }
+  return { groups: groups as Group[] }
+}
+
 export async function saveStore($: any, key: string, value: unknown): Promise<boolean> {
   return guarded($, key, async () => $.store.set(storeKey(key, await $.session.id()), value))
 }
 // The panel's copy, and the list of the sessions that have one (the newest KEEP; the others' copies
 // are deleted). Answers whether this session was out of the list (a new session, or one whose
 // records another session pruned): the caller then writes its work, turn end and links again.
+// The panel's copy is written with its version (GROUPS_VERSION): `{ version, groups }`.
 export async function saveGroups($: any, groups: unknown): Promise<{ saved: boolean; back: boolean }> {
   let back = false
   const saved = await guarded($, 'groups', async () => {
     const id: string = await $.session.id()
-    await $.store.set(storeKey('groups', id), groups)
+    await $.store.set(storeKey('groups', id), { version: GROUPS_VERSION, groups })
     const known = ((await $.store.get(rowOf('sessions').store as string)) as string[] | undefined) ?? []
     back = !known.includes(id)
     const order = [id, ...known.filter(k => k !== id)]
