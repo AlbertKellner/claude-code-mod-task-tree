@@ -1990,6 +1990,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a filha arquivada cujo pedido saiu do trabalho vira uma linha com nome e contagem": {
+      "regras": [
+        "sessoes.arquivada-antiga-vira-linha"
+      ],
+      "hash": "db04e6de224f8a92",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Vira linha resumida (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a filha cujo turno morreu por erro: o cartão diz \"falhou\", a tarefa fica ✕ \"falhou\" e a rodada sai da contagem": {
       "regras": [
         "sessoes.palavra-de-estado-do-cartao"
@@ -2261,6 +2271,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::desarquivada, a filha resumida volta ao cartão inteiro": {
+      "regras": [
+        "sessoes.arquivada-antiga-vira-linha"
+      ],
+      "hash": "30f3557290ef3d26",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Vira linha resumida (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::dois turnos digitados na filha com o mesmo pedido da mãe em curso ficam num cartão só, com uma linha de pedido por turno": {
       "regras": [

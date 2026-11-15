@@ -188,6 +188,8 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       openedAt: before?.openedAt ?? kept(r.sessionId)?.openedAt,
       panel: read.panels[r.sessionId] ?? before?.panel,
       tasks: read.panels[r.sessionId] ? undefined : before?.tasks,
+      // Kept as one line (hooks/sessions, summarize) while archived and not read again.
+      summary: r.isArchived === true && !read.panels[r.sessionId] ? before?.summary : undefined,
     } as Child
   })
   const waiting = known.filter(k => !mine.some(r => r.sessionId === k.id) && justOpened(k, now))

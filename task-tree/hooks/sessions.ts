@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, flat, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf } from '../draw/layout'
+import { MAIN, cardTotal, discarded, flat, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -25,6 +25,7 @@ const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
+const workState = { plugin: 'task-tree', key: 'work' } as const
 
 // The sessions this one opened, read in the four steps of io/host.ts: the host's list, their
 // published files, the children derived from both, and this session's own publication. The state
@@ -55,6 +56,30 @@ async function readChildrenLoop($: any) {
   } finally {
     reading = undefined
   }
+}
+// An archived session whose ties (where it was opened, its last message's task, its rounds') are all
+// out of the current work (`out`: its request went to "+N pedidos anteriores"; one with no tie is out
+// too) is kept as one line: its panel leaves the state, in place of it the count its cards had (split,
+// as drawn and counted), so the x/y of its task of origin does not change. Its file is not read again
+// while it stays so (readFiles skips an archived one known archived). The person, 2026-11-14: "Vira
+// linha resumida (Recomendado)".
+export function summarize(children: Child[], groups: Group[], out: (c: Child) => boolean, me: string | undefined): Child[] {
+  const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
+  return children.map(c => {
+    if (!c.archived || c.summary !== undefined || (c.panel === undefined && c.tasks === undefined) || !out(c)) return c
+    let d = 0
+    let n = 0
+    let x = 0
+    for (const r of split(c, children, me, tasks, undefined, newBreaksMemo()).map(k => settleCard(k, tasks, []))) {
+      if (discarded(r)) continue
+      const [cd, cn, cx] = cardTotal(r, 0)
+      d += cd
+      n += cn
+      x += cx
+    }
+    const { panel: _p, tasks: _t, ...rest } = c
+    return { ...rest, summary: { d, n, x } }
+  })
 }
 async function readChildren($: any) {
   // The links come back from the store before this reread writes the children (a new process).
@@ -104,21 +129,31 @@ async function readChildren($: any) {
   // The sessions opened before a /clear here are left behind: no card (forgetChildren).
   const mine = mineOf(rows, self)?.filter(r => !isLeftBehind(r.sessionId))
   if (mine === undefined) return
-  // 2. Their files.
+  // 2. Their files. A session kept as one line (summarize) whose request came back to the work is read
+  // again, for its whole card.
   const { value: cur } = await $.state.get(childrenState)
-  const read = await readFiles($, mine, cur ?? [])
+  const { value: groups0 = [] } = await $.state.get(groupsState)
+  const { value: work = [] } = await $.state.get(workState)
+  const mainTasks = (groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+  const sight = inSight(mainTasks, work as string[])
+  const out = (c: Child) => !tiesOf(c, mainTasks).some(a => sight.includes(a))
+  const read = await readFiles($, mine, ((cur ?? []) as Child[]).filter(c => c.summary === undefined || out(c)))
+  const derive = (known: Child[]) => {
+    const d = deriveChildren(mine, known, read, keptLink, now)
+    return { ...d, children: summarize(d.children, groups0 as Group[], out, self) }
+  }
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
   // it opened them on (see endedNote). The state is written only when the children changed: a poll
   // with nothing new (the usual one, every 3 s) derives the same list, and a write of it would cost
   // the whole value crossing to the host (220 KB in the real case) and a redraw. Compared first, then
   // written by `update`, derived again over the value it hands (a write made meanwhile, a send's
   // round, is not lost), and the sessions that just ended come from that same derivation.
-  const first = deriveChildren(mine, cur ?? [], read, keptLink, now)
+  const first = derive(cur ?? [])
   let ended = first.ended
   const changed = JSON.stringify(first.children) !== JSON.stringify(cur ?? [])
   if (changed) {
     await update($, childrenState, c => {
-      const d = deriveChildren(mine, c ?? [], read, keptLink, now)
+      const d = derive(c ?? [])
       ended = d.ended
       return d.children
     })

@@ -1294,3 +1294,46 @@ test('o trabalho da filha depois do /clear aparece num cartão novo, e o histór
   const c = cabecalho(p)
   expect([c.feitas, c.total], emTexto(p)).toEqual([5, 9])
 })
+
+// A filha arquivada do pedido um, e o pedido novo que tira esse pedido do trabalho.
+async function arquivadaAntiga($: any, on: any) {
+  const pai = tarefa('P', 'Pai da filha', 'aberta', [tarefa('P/1', 'Feita', 'feita'), tarefa('P/2', 'Aberta')])
+  const h = await abrir($, on, { rodando: false, arquivada: true, painel: { tasks: [pai] } })
+  const antes = await painel($)
+  expect(antes.some(l => l.titulo === 'Feita') && antes.some(l => l.titulo === 'Aberta'), emTexto(antes)).toBe(true)
+  await done($, ['1', '2.1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido novo')
+  await plan($, [{ id: 'N', title: 'N', children: [{ id: 'n1', title: 'n1' }] }])
+  await start($, ['n1'])
+  await aviso($)
+  return h
+}
+
+// Regra: sessoes.arquivada-antiga-vira-linha
+test('a filha arquivada cujo pedido saiu do trabalho vira uma linha com nome e contagem', async ($: any, on: any) => {
+  const h = await arquivadaAntiga($, on)
+  const p = await comHistorico($, 1)
+  const l = linha(p, 'filha-um')
+  expect(l.sessao, emTexto(p)).toBe(true)
+  expect(l.texto, emTexto(p)).toContain('arquivada')
+  expect(l.texto, emTexto(p)).toContain('1/1')
+  for (const t of ['Feita', 'Aberta', 'Pai da filha']) expect(p.some(x => x.titulo === t), emTexto(p)).toBe(false)
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('2/2')
+  const pub = (h.proprio()?.children ?? [])[0]
+  expect(pub?.panel, JSON.stringify(pub)).toBeUndefined()
+  expect(pub?.summary, JSON.stringify(pub)).toBeDefined()
+  const n = h.leituras(K1)
+  await aviso($)
+  await aviso($)
+  expect(h.leituras(K1), 'a filha resumida não é relida').toBe(n)
+})
+
+// Regra: sessoes.arquivada-antiga-vira-linha
+test('desarquivada, a filha resumida volta ao cartão inteiro', async ($: any, on: any) => {
+  const h = await arquivadaAntiga($, on)
+  h.filha(K1).arquivada = false
+  await aviso($)
+  const p = await comHistorico($, 1)
+  expect(p.some(x => x.titulo === 'Feita'), emTexto(p)).toBe(true)
+})

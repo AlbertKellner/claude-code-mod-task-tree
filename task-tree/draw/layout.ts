@@ -578,12 +578,14 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
 // `splitter` cuts a raw session into its rounds' cards first (split), so an abandoned round is told
 // apart; without it, only a stopped session's own abort is, on the top panel. Below it (a card's
 // panel, `me` the session it belongs to) the cards are always cut and settled as drawn (cardsOf).
+// A card's count: its panel's, or the summary of an archived session kept as one line (summarize).
+export const cardTotal = (c: Child, level: number): [number, number, number] => (c.summary ? [c.summary.d, c.summary.n, c.summary.x] : total(inCount(c), level + 1, undefined, c.id))
 export function total(p: Panel, level = 0, splitter?: (c: Child) => Child[], me?: string): [number, number, number] {
   let [d, n, x] = count(tasksOf(p.groups ?? []))
   if (level >= DEEP) return [d, n, x]
   for (const c of splitter ? (p.children ?? []).flatMap(splitter) : level > 0 ? cardsOf(p, me) : (p.children ?? []).flatMap(cleared)) {
     if (discarded(c)) continue
-    const [cd, cn, cx] = total(inCount(c), level + 1, undefined, c.id)
+    const [cd, cn, cx] = cardTotal(c, level)
     d += cd
     n += cn
     x += cx
@@ -656,7 +658,7 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   let d = 0
   let n = 0
   for (const c of kept) {
-    const [cd, cn] = total(inCount(c), level + 1, undefined, c.id)
+    const [cd, cn] = cardTotal(c, level)
     d += cd
     n += cn
   }
@@ -882,6 +884,15 @@ export function limitRows(rows: Row[], max = MAX_ROWS): Row[] {
 // while another was still open, and a card with an open task did not hold its request; and it looked
 // only at where a session was opened, with an open task required, so a session at work under a later
 // request (its current round there) did not hold that request, and its card left the summary.
+// A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
+export const tiesOf = (c: Child, tasks: TaskNode[]) =>
+  [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
+// The tasks in the summary's sight (see openInSight): the current work's level-1 tasks with the other
+// level-1 tasks of their requests, and all the tasks under them.
+export function inSight(tasks: TaskNode[], ids: string[]): string[] {
+  const turns = tasks.filter(t => ids.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+  return flat(tasks.filter(t => ids.includes(t.id) || (t.turn !== undefined && turns.includes(t.turn)))).map(t => t.id)
+}
 export function openInSight(p: Panel, ids: string[], sends: { to?: string; anchor?: string; taken?: boolean; cut?: boolean }[], me?: string): boolean {
   const main = withMain(p.groups ?? []).find(g => g.agent === MAIN)
   const tasks = main?.tasks ?? []
@@ -890,9 +901,7 @@ export function openInSight(p: Panel, ids: string[], sends: { to?: string; ancho
   if (hasOpen(seen)) return true
   const all = flat(seen).map(t => t.id)
   if (sends.some(s => !s.taken && !s.cut && s.anchor !== undefined && all.includes(s.anchor))) return true
-  // A session's ties, as the cards resolve them (split): a round's anchor by when it was sent.
-  const anchors = (c: Child) =>
-    [c.anchor, c.lastAnchor, ...(c.rounds ?? []).map(r => resolveAnchor(tasks, r.anchor, r.at))].filter((a): a is string => a !== undefined)
+  const anchors = (c: Child) => tiesOf(c, tasks)
   // A discarded round holds nothing in sight, as it keeps no card alive (alive); nor does a settled one.
   const holds = (c: Child) =>
     split(c, p.children ?? [], me, tasks, undefined, newBreaksMemo()).some(r => !discarded(r) && !settle(r, tasks, sends).settled && hasOpen(allTasks(panelOf(r), 1, r.id)))
@@ -1389,7 +1398,13 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // A card of one round (split) speaks for its group only: done, it shows the check, with no
     // word that would say the whole session ended.
     const state = gone ? 'substituída' : c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? (anyFailed(tasksOf(rawPanel(c).groups ?? [])) ? 'falhou' : 'parada') : c.part !== undefined ? undefined : 'concluída'
-    const [cd, cn] = total(p, level + 1, undefined, c.id)
+    const [cd, cn] = c.summary ? [c.summary.d, c.summary.n] : total(p, level + 1, undefined, c.id)
+    // An archived session of a request out of the work, kept as one line (summarize): its name, its
+    // count and "arquivada"; no tasks below and no fold (the person, 2026-11-14: "Vira linha resumida").
+    if (c.summary) {
+      const key = `${scope}s:${cid}#0`
+      return [{ key, depth, tone: 'archived', title: c.name || c.title, label: 'Sessão', hint: c.name && c.name !== c.title ? c.title : undefined, meta: cn > 0 ? `${cd}/${cn} · arquivada` : 'arquivada', time: null, card: true, session: true, sid: c.id, ring: ringOf(c), nodes: [] }]
+    }
     const header: Row = {
       key: `${scope}s:${cid}#${c.partAt ?? c.part ?? 0}`,
       depth,

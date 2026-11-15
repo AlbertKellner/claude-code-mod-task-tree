@@ -233,6 +233,12 @@ export type Child = {
   openedAt?: number
   panel?: Panel
   tasks?: TaskNode[]
+  // An archived session whose ties are all out of the current work (its request went to "+N pedidos
+  // anteriores"), kept as one line: its card's count (done, total, interrupted) in place of its panel,
+  // which is neither kept, read again nor published (hooks/sessions, summarize). The person,
+  // 2026-11-14: "Vira linha resumida (Recomendado)". Unarchived, or with its request back in the work,
+  // its file is read again and the card is whole.
+  summary?: { d: number; n: number; x: number }
 }
 
 // A message the main loop sent another session (SendMessage) that was queued, not yet taken up:

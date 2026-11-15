@@ -217,7 +217,7 @@ cujo `startedBy` é um id que a lista não traz, o desta sessão); (2) `readFile
 publicado por `readPublished`, salvo o da arquivada que a entrada conhecida já dava como arquivada:
 essa vai em `skipped` e o `deriveChildren` mantém o que ela tinha, inclusive `aborted` e `ultracode`;
 desarquivada, volta a ser lida; depois de um reinício as filhas voltam do store sem `archived` e a
-primeira leitura lê todas; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
+primeira leitura lê todas; a arquivada resumida (`summarize`, abaixo) cujo pedido voltou ao trabalho é lida de novo; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
 (3) `deriveChildren` (as filhas a partir das linhas, dos arquivos, das conhecidas antes e das
 ligações do store por `keptLink`; a entrada `starting` que a lista ainda não traz fica enquanto é
 recente, `STARTING_GRACE` = 120 s do `openedAt`; `ended` = as que corriam ou esperavam e pararam, exceto
@@ -1656,7 +1656,12 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   própria sessão (o app já mostra o próprio modelo). O hook `turn.step` não é reproduzido pelo kit: ele não tem implementação base para o evento em stream.
 - Sessão arquivada (pedido do usuário: "Manter visível, marcada"): continua na árvore como histórico,
   sob a âncora, nas duas visões (na resumida, se a âncora estiver no recorte), com o cartão cinza,
-  ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros. O
+  ✕ de progresso, ⑂ e "arquivada"; mostra o último painel publicado e recolhe como os outros, enquanto
+  o pedido dela está no trabalho atual. Quando todas as ligações dela (abertura, último envio, rodadas)
+  ficam fora do trabalho, `summarize` (hooks/sessions, depois do `deriveChildren`) tira o painel do state
+  e guarda só a contagem dos cartões (`Child.summary`): o cartão vira a linha "nome  d/n · arquivada", sem
+  tarefas nem dobra, conta pelo resumo (`cardTotal`), não é relida nem republicada com o painel; volta
+  inteira se desarquivada ou com o pedido de volta ao trabalho (2026-11-14, "Vira linha resumida"). O
   `panelOf` de uma arquivada marca como interrompido o que ela deixou aberto (fora do M do "N de
   M", no chip de interrompidas; desde a série 3 vale também para a sessão que terminou o turno sem
   estar arquivada, só para o que estava em andamento, e as pendentes seguem pendentes: ver "Tarefas abertas de uma sessão que terminou o turno" em "Como é hoje"). Suas tarefas entram no N de M, no d/n, no tempo dos ancestrais e
@@ -1902,3 +1907,7 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `split`, faz de cada entrada um cartão parado (chave com `@<hora do /clear>`, campo `Child.history`) e
   só desenha o cartão de depois quando há algo nele; enquanto não há, o histórico mais recente responde
   pela sessão.
+- Filha arquivada antiga vira uma linha (2026-11-14, "Vira linha resumida (Recomendado)"): toda filha
+  arquivada ficava com o painel inteiro no state e no arquivo publicado. Com o pedido fora do trabalho,
+  ela fica com o resumo (`Child.summary`: feitas, total, interrompidas). Com o histórico aberto, as tarefas
+  dela não somam ao cabeçalho (a linha mostra a contagem, e o x/y da tarefa de origem não muda).

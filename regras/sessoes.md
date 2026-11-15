@@ -111,12 +111,13 @@ Estado: coberto
 ### sessoes.filha-arquivada-interrompe
 A filha arquivada deixa interrompido o que ficou aberto.
 
-- Dado uma filha arquivada com tarefas abertas
+- Dado uma filha arquivada com tarefas abertas, com o pedido dela no trabalho atual
 - Quando o cartão é desenhado
 - Então o que ficou aberto fica ✕, e o pai fica ✓
 
 Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit 95b1a21.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
+Reescrito: 2026-11-14, decisão do usuário ("Vira linha resumida (Recomendado)"); desfaz "Arquivada fica, como histórico" para o pedido que saiu do trabalho, onde ela vira uma linha (sessoes.arquivada-antiga-vira-linha). O teste não muda.
 Estado: coberto
 
 ### sessoes.arquivada-nao-e-relida
@@ -396,4 +397,15 @@ Depois de um /clear numa filha, o cartão dela na mãe mantém o que ela tinha f
 
 Origem: decisão do usuário, 2026-11-14 ("Mantém o histórico (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o /clear na filha apagava da mãe o trabalho dela).
 Código: hooks/session-start.ts, draw/layout.ts
+Estado: coberto
+
+### sessoes.arquivada-antiga-vira-linha
+A filha arquivada cujo pedido saiu do trabalho atual vira uma linha com nome e contagem.
+
+- Dado uma filha arquivada, com o cartão sob uma tarefa de um pedido
+- Quando esse pedido sai do trabalho atual (vai para "+N pedidos anteriores")
+- Então o cartão dela passa a ser uma linha só, com o nome, a contagem e "arquivada", sem as tarefas; o x/y da tarefa de origem e a conta da sessão inteira não mudam; o painel dela deixa de ser guardado, relido e republicado; desarquivada, ou com o pedido de volta ao trabalho, volta ao cartão inteiro
+
+Origem: decisão do usuário, 2026-11-14 ("Vira linha resumida (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (as filhas arquivadas antigas ficavam inteiras no state e no painel publicado, sem teto).
+Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
