@@ -557,3 +557,35 @@ test('as regras dizem que o subagente tem cartão desde o lançamento e que a ta
   expect(regras).toContain('chame start nela')
   expect(regras).not.toContain('Subagentes que usam o painel')
 })
+
+// Regra: lembretes.done-antes-do-plan
+test('com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await pedido($, 'Agora faça outra coisa'))
+  expect(ctx).toContain('Primeiro feche com mcp__task-tree__done')
+  expect(ctx).toContain('depois disso')
+  expect(ctx.indexOf('Primeiro feche com mcp__task-tree__done')).toBeLessThan(ctx.indexOf(PEDIDO_NOVO))
+})
+
+// Regra: lembretes.done-antes-do-plan
+test('sem tarefas abertas, o lembrete de pedido novo manda o plan primeiro', async ($: any, on: any) => {
+  fixar(on)
+  const vazio = contexto(await pedido($, 'Primeiro pedido'))
+  expect(vazio).toContain(PEDIDO_NOVO)
+  expect(vazio).not.toContain('Primeiro feche')
+  await plan($, [{ id: 'A', title: 'Plano A' }])
+  await start($, ['A'])
+  await done($, ['A'], 'Feito')
+  await fimDoTurno($)
+  const depois = contexto(await pedido($, 'Segundo pedido'))
+  expect(depois).toContain(PEDIDO_NOVO)
+  expect(depois).not.toContain('Primeiro feche')
+})
+
+// Regra: lembretes.done-antes-do-plan
+test('a primeira regra do painel diz done antes do plan quando a mensagem conclui tarefas abertas', async ($: any, on: any) => {
+  const { regras } = await textosAoModelo($, on)
+  expect(regras).toContain('feche-as primeiro com mcp__task-tree__done')
+  expect(regras.indexOf('feche-as primeiro')).toBeLessThan(regras.indexOf('a primeira chamada de ferramenta é mcp__task-tree__plan'))
+})

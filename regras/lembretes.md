@@ -190,3 +190,13 @@ As regras do painel descrevem o cartão do subagente e o fechamento da tarefa pe
 
 Origem: auditoria 2026-11-10 (a regra dizia só "ganham um grupo próprio"); aplica subagentes.cartao-desde-o-lancamento, subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09).
 Estado: coberto
+
+### lembretes.done-antes-do-plan
+Com tarefas abertas, a mensagem nova pede primeiro o done do que ela conclui, depois o plan.
+
+- Dado tarefas abertas quando chega uma mensagem que abre pedido novo
+- Quando o modelo recebe os lembretes dela, e quando lê a primeira regra do painel
+- Então a ordem é uma só: fechar com done o que a mensagem conclui (e cancelar o que ela substitui) e, depois disso, plan com o pedido novo, sem repetir os ids das tarefas ainda abertas; sem tarefas abertas, o lembrete segue mandando o plan como primeira chamada
+
+Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (465b09e), para o caso da mensagem com tarefas abertas.
+Estado: coberto

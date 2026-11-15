@@ -22,7 +22,9 @@ export const RULES = [
   'O usuário acompanha o trabalho num painel lateral de tarefas. Regras:',
   '',
   '- Todo pedido abre pelo menos uma tarefa no painel, mesmo uma pergunta simples ou respondida só com ' +
-    'pesquisa ou leitura de arquivos. A primeira chamada de ferramenta é mcp__task-tree__plan com a árvore ' +
+    'pesquisa ou leitura de arquivos. Se a mensagem conclui ou substitui tarefas ainda abertas (por exemplo, ' +
+    'a da pergunta que ela responde), feche-as primeiro com mcp__task-tree__done (as substituídas, com ' +
+    '`cancel`); depois disso, a primeira chamada de ferramenta é mcp__task-tree__plan com a árvore ' +
     'de tarefas: até 3 níveis (nível 1 genérico, nível 3 mais granular), ids únicos dentro do plano ' +
     '("1", "1.2", "1.2.3"). Uma tarefa basta para um pedido simples.',
   '- Abaixo do nível 1 os ids ganham o id dele como prefixo ("D/1.2"). done e start aceitam o id curto ' +
@@ -143,11 +145,20 @@ const PANEL = 'Painel de tarefas (task-tree): '
 // With those short ones, while tasks the person stopped (Esc) still wait for their start, `parked`
 // lists them (the person, 2026-11-13: "Acrescentar (Recomendado)").
 export const PROMPT = {
-  request:
+  // `open`: tasks were open before the message (their list goes in the reminder before this one):
+  // the done of what it concludes comes first, then the plan (the person, 2026-11-14: "Done, depois
+  // plan (Recomendado)"), so the asked task closes ✓ in its own request and the new plan goes in whole.
+  request: (open: boolean) =>
     PANEL + 'todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
-    'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. A PRIMEIRA chamada de ' +
-    'ferramenta é mcp__task-tree__plan com a árvore de tarefas (até 3 níveis; uma tarefa basta ' +
-    'para um pedido simples). Etapa por etapa: mcp__task-tree__start ao começar cada tarefa e ' +
+    'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. ' +
+    (open
+      ? 'Primeiro feche com mcp__task-tree__done as tarefas abertas que esta mensagem conclui, e cancele as ' +
+        'que ela substitui (a lista acima); depois disso, A PRIMEIRA chamada de ferramenta é ' +
+        'mcp__task-tree__plan com a árvore de tarefas do pedido novo (até 3 níveis; uma tarefa basta para ' +
+        'um pedido simples), com ids que não repitam os das tarefas ainda abertas. '
+      : 'A PRIMEIRA chamada de ferramenta é mcp__task-tree__plan com a árvore de tarefas (até 3 níveis; ' +
+        'uma tarefa basta para um pedido simples). ') +
+    'Etapa por etapa: mcp__task-tree__start ao começar cada tarefa e ' +
     'mcp__task-tree__done assim que ela estiver de fato concluída, antes da próxima (nunca várias de ' +
     'uma vez no fim). Ao replanejar, chame plan de novo. ' +
     'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +

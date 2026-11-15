@@ -214,7 +214,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   reminders.answeredInChat = false
   return next({
     ...e,
-    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request],
+    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks))],
   })
 }
 

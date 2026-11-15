@@ -1706,6 +1706,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
     },
+    "task-tree/tests/lembretes.test.ts::a primeira regra do painel diz done antes do plan quando a mensagem conclui tarefas abertas": {
+      "regras": [
+        "lembretes.done-antes-do-plan"
+      ],
+      "hash": "fdd841b1b7663039",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: done, depois plan"
+    },
     "task-tree/tests/lembretes.test.ts::a resposta dada pelo chat a uma pergunta, entregue no meio do turno, é dita como resposta e continua o pedido": {
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
@@ -1805,6 +1815,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan": {
+      "regras": [
+        "lembretes.done-antes-do-plan"
+      ],
+      "hash": "5cbb1e0959be3293",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: done, depois plan"
     },
     "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez": {
       "regras": [
@@ -2006,6 +2026,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
+    "task-tree/tests/lembretes.test.ts::sem tarefas abertas, o lembrete de pedido novo manda o plan primeiro": {
+      "regras": [
+        "lembretes.done-antes-do-plan"
+      ],
+      "hash": "89a1046a0d7ff8c9",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: done, depois plan"
     },
     "task-tree/tests/pedidos.test.ts::a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id": {
       "regras": [
