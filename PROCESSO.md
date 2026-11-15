@@ -13,6 +13,13 @@ rodar e o que o check exige está no `CLAUDE.md`. Onde houver divergência, vale
   testes, não escreve código nem diff. Pode rodar `npm run impacto -- <arquivos>`.
 - **Implementador:** outro agente, nunca o mesmo que planejou. Escreve o código e os testes a partir do
   plano, valida e faz o commit local.
+- **Revisor:** um agente só de leitura, por grupo de lotes entregue. Lê os commits contra os planos e as
+  decisões enquanto o grupo seguinte é implementado; cada achado passa por um verificador, que tenta
+  refutá-lo. Achado confirmado vira lote de correção, com plano (decisão do usuário, 2026-11-15: "sim,
+  os dois").
+- As definições desses papéis como agentes do Claude Code ficam em `.claude/agents/` (`tt-implementador`,
+  `tt-planejador`, `tt-revisor`, `tt-verificador`) e valem a partir da sessão seguinte à que as cria ou
+  muda (decisão do usuário, 2026-11-15: "deixe os agentes versionados para sessoes futuras").
 - Modelo e esforço de cada papel são escolhidos pelo usuário a cada rodada: a orquestradora confirma no
   início e registra cada troca. Uma troca vale a partir do próximo agente lançado.
 
