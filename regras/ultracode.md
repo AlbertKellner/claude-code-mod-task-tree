@@ -63,3 +63,25 @@ Origem: decisão do usuário, 2026-11-10 ("Deixar sem (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto do cabeçalho e da linha no app: o que mostram e o texto alternativo dos `Svg`, não mais o `alt` de uma imagem; a regra não muda.
 Código: draw/layout.ts
 Estado: coberto
+
+### ultracode.guardado-por-sessao
+A palavra "ultracode" fica guardada por sessão e volta com ela num processo novo.
+
+- Dado uma sessão com o interruptor de ultracode ligado
+- Quando o processo dela é refeito (/model, reinício, reabrir o app) ou ela é retomada
+- Então "ultracode" já aparece no cabeçalho e no cartão dela, sem esperar o aviso seguinte do Claude Code; só o aviso de saída a apaga; a retomada traz o interruptor da sessão retomada (sem registro: desligado); o /clear não mexe nele. Risco aceito: se o ultracode for desligado com a sessão parada, a palavra volta ligada e fica errada até o Claude Code avisar a saída
+
+Origem: decisão do usuário, 2026-11-15 ("Guardar por sessão"; ele aceitou o risco, dito na pergunta, de a palavra aparecer errada se o ultracode for desligado com a sessão parada). Não muda ultracode.so-o-interruptor-real: só o aviso do motor liga e desliga.
+Código: hooks/panel.ts, hooks/session-start.ts, hooks/render.tsx, state/durability.ts
+Estado: coberto
+
+### ultracode.guardado-no-app
+No app, a palavra guardada bate com o interruptor depois de /model e de reabrir.
+
+- Dado o ultracode ligado numa sessão real
+- Quando o modelo é trocado (/model), o app é fechado e reaberto, e depois o interruptor é desligado com a sessão parada
+- Então a palavra segue no cabeçalho nos dois primeiros casos; no terceiro, anotar por quanto tempo ela fica errada e se o Claude Code avisa a saída ao processo novo
+
+Origem: decisão do usuário, 2026-11-15 ("Guardar por sessão").
+Código: hooks/panel.ts
+Estado: checklist (o que o motor avisa a um processo novo não é simulado pelo harness)

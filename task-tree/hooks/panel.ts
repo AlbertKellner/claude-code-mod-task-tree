@@ -548,6 +548,7 @@ export async function persist($: any, groups: Group[], publish = true) {
       const { value: work } = await $.state.get(workState)
       if (Array.isArray(work)) await saveStore($, 'work', work)
       await saveFolds($)
+      await saveUltra($)
     }
   } catch (err) {
     await debugOnce($, `task-tree: painel não guardado: ${String(err)}`)
@@ -850,6 +851,8 @@ async function publishOnce($: any) {
   await ensureWork($)
   await ensureLinks($)
   await saveLinks($)
+  // The switch kept in the store (ensureUltra): a new process publishes it before the engine's next notice.
+  const ultraBrought = await ensureUltra($)
   try {
     const id = await selfId($)
     const git = await refreshGit($)
@@ -859,7 +862,8 @@ async function publishOnce($: any) {
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
-    const { value: ultracode } = await $.state.get(ultracodeState)
+    const { value: heldUltra } = await $.state.get(ultracodeState)
+    const ultracode = heldUltra ?? ultraBrought
     const { value: rate } = await $.state.get(rateState)
     const { value: sends = [] } = await $.state.get(sendsState)
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
@@ -1280,6 +1284,56 @@ export async function restoreFolds($: any, id?: string, replaceHeld = false) {
     if (replaceHeld) await saveFolds($)
   } catch (err) {
     await unread($, 'dobras', err)
+  }
+}
+
+// The ultracode switch is kept per session in the store too (`ultra`), so a new process draws and
+// publishes the word at once, without waiting for the engine's next ultra_effort_enter (the person,
+// 2026-11-15: "Guardar por sessão"). Only ultra_effort_exit turns it off: a switch turned off with the
+// process stopped stays on until the engine says so (a risk the person accepted).
+export async function saveUltra($: any) {
+  try {
+    const { value } = await $.state.get(ultracodeState)
+    if (typeof value === 'boolean') await saveStore($, 'ultracode', value)
+  } catch (err) {
+    await debugOnce($, `task-tree: ultracode não guardado: ${String(err)}`)
+  }
+}
+// The first use, as ensureFolds: with nothing in the state, the store's; answers what it brought.
+export async function ensureUltra($: any): Promise<boolean | undefined> {
+  if (loaded.has('ultra') || !restoredAt('ultracode', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(ultracodeState)).value !== undefined) {
+      loaded.add('ultra')
+      return undefined
+    }
+    const saved = await loadStore($, 'ultracode')
+    if (typeof saved !== 'boolean') {
+      loaded.add('ultra')
+      return undefined
+    }
+    try {
+      await $.state.set(ultracodeState, saved)
+      loaded.add('ultra')
+    } catch {}
+    return saved
+  } catch (err) {
+    await unread($, 'ultracode', err)
+    return undefined
+  }
+}
+// At session.start (only into an empty state) and at a resume (`id`, which replaces: the resumed
+// session's, or off), written under this session too.
+export async function restoreUltra($: any, id?: string, replaceHeld = false) {
+  loaded.add('ultra')
+  try {
+    if (!replaceHeld && (await $.state.get(ultracodeState)).value !== undefined) return
+    const saved = await loadStore($, 'ultracode', id)
+    if (typeof saved !== 'boolean' && !replaceHeld) return
+    await $.state.set(ultracodeState, saved === true)
+    if (replaceHeld) await saveUltra($)
+  } catch (err) {
+    await unread($, 'ultracode', err)
   }
 }
 

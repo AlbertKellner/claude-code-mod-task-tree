@@ -13,7 +13,7 @@ import { desktopTree } from '../draw/desktop'
 import { desktopHead } from '../draw/head'
 import type { Acts } from '../draw/desktop'
 import { debug, debugOnce } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureFolds, ensureGroups, ensureTurn, ensureWork, knownId, saveFolds, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureFolds, ensureGroups, ensureTurn, ensureUltra, ensureWork, knownId, saveFolds, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
 
@@ -251,7 +251,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { value: rate } = await $.state.get(rateState)
   const headRate = rate ? { toks: rate.toks } : undefined
   // Its ultracode switch (turn.ts, ultraAttachment), for the header beside the rate.
-  const { value: ultracode } = await $.state.get(ultracodeState)
+  // After a restart without session.start, the store's (ensureUltra), which a drawing cannot write.
+  const ultraBrought = await ensureUltra($)
+  const { value: heldUltra } = await $.state.get(ultracodeState)
+  const ultracode = heldUltra ?? ultraBrought
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined

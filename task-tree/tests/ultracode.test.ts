@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
-import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
-import { abrirSessao, aviso, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, armazem, fixar, host, lancaveis, SESSAO } from './kit/ambiente'
+import { abrirSessao, aviso, iniciarSessao, lancar, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { noApp, primeiraDoApp } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
@@ -111,4 +111,108 @@ test("com o interruptor ligado, 'ultracode' é desenhado no cabeçalho a 60 e a 
   for (const colunas of [60, 100]) expect(await desenhadoNoTopo($, colunas), `${colunas} colunas`).toContain('ultracode')
   await $.prompt.attachment(anexo('ultra_effort_exit'))
   for (const colunas of [60, 100]) expect(await desenhadoNoTopo($, colunas), `${colunas} colunas`).not.toContain('ultracode')
+})
+
+// O interruptor guardado por sessão: os pares "1/2, 2/2" gravam num store do arquivo, e o 2/2 (módulo
+// novo, state vazio: outro processo) lê dele.
+const ULTRA_LIGADO: Record<string, unknown> = {}
+const ULTRA_DESLIGADO: Record<string, unknown> = {}
+const ULTRA_RETOMADA: Record<string, unknown> = {}
+const guardouUltra = (store: Record<string, unknown>) => typeof store[`ultra:${SESSAO}`] === 'boolean'
+const exigirPar = (ok: boolean) => {
+  if (!ok) throw new Error('rode o par inteiro: o 1/2 não gravou')
+}
+async function ligarELigado($: any, on: any, store: Record<string, unknown>, desligar = false) {
+  fixar(on)
+  armazem(on, store)
+  base(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  if (desligar) await $.prompt.attachment(anexo('ultra_effort_exit'))
+  expect(guardouUltra(store), JSON.stringify(Object.keys(store))).toBe(true)
+}
+
+// Regra: ultracode.guardado-por-sessao
+test('ultracode no reinício, 1/2: o interruptor liga', async ($: any, on: any) => {
+  await ligarELigado($, on, ULTRA_LIGADO)
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('ultracode no reinício, 2/2: o processo novo já desenha e publica a palavra', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_LIGADO)
+  base(on)
+  const h = host(on, [])
+  exigirPar(guardouUltra(ULTRA_LIGADO))
+  await iniciarSessao($)
+  expect(await topo($)).toContain('ultracode')
+  await pedido($, 'Pedido dois')
+  await start($, ['1'])
+  expect(h.proprio()?.ultracode).toBe(true)
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('ultracode no respawn sem session.start, 2/2: o primeiro desenho já traz a palavra', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_LIGADO)
+  base(on)
+  host(on, [])
+  exigirPar(guardouUltra(ULTRA_LIGADO))
+  expect(await topo($)).toContain('ultracode')
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('o aviso de saída apaga a palavra também para o processo seguinte, 1/2: liga e desliga', async ($: any, on: any) => {
+  await ligarELigado($, on, ULTRA_DESLIGADO, true)
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('o aviso de saída apaga a palavra também para o processo seguinte, 2/2: o processo novo vem sem ela', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_DESLIGADO)
+  base(on)
+  host(on, [])
+  exigirPar(guardouUltra(ULTRA_DESLIGADO))
+  await iniciarSessao($)
+  expect(await topo($)).not.toContain('ultracode')
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('a palavra guardada segue até o aviso de saída', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_LIGADO)
+  base(on)
+  host(on, [])
+  exigirPar(guardouUltra(ULTRA_LIGADO))
+  await iniciarSessao($)
+  await pedido($, 'Pedido três')
+  expect(await topo($)).toContain('ultracode')
+  await $.prompt.attachment(anexo('ultra_effort_exit'))
+  expect(await topo($)).not.toContain('ultracode')
+  expect(ULTRA_LIGADO[`ultra:${SESSAO}`]).toBe(false)
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('a retomada traz o interruptor da sessão retomada', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_RETOMADA)
+  base(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  expect(await topo($)).toContain('ultracode')
+  // Uma sessão sem o interruptor guardado: a retomada vem sem a palavra.
+  ULTRA_RETOMADA['session:uuid-sem-ultra'] = ULTRA_RETOMADA[`session:${SESSAO}`]
+  await retomar($, 'uuid-sem-ultra')
+  expect(await topo($)).not.toContain('ultracode')
+  // A que ligou: volta com ela.
+  ULTRA_RETOMADA['session:uuid-com-ultra'] = ULTRA_RETOMADA['session:uuid-sem-ultra']
+  ULTRA_RETOMADA['ultra:uuid-com-ultra'] = true
+  await retomar($, 'uuid-com-ultra')
+  expect(await topo($)).toContain('ultracode')
 })

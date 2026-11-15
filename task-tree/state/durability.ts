@@ -40,7 +40,7 @@ export type Row = {
   lives: Lives
   // The store's key prefix (`<store>:<session uuid>`); `field`: this key is one field of that
   // store record (the links record holds four, and the sessions left behind by a /clear).
-  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn' | 'folds'
+  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn' | 'folds' | 'ultra'
   field?: boolean
   merge: Merge
   // How many entries each write keeps (the last ones).
@@ -72,7 +72,8 @@ export const TABLE: readonly Row[] = [
   { key: 'names', lives: 'state', merge: 'none', restoredAt: [], note: 'the names of the sessions known by id (the linked list of the host, the tag of a received message, this session\'s own from get_session), the last 200, for the "Para <nome>" of the letters; not stored nor published: the 3 s reread makes it again' },
   { key: 'waits', lives: 'state', merge: 'none', restoredAt: [], note: 'what waits on the person (a question, a plan, a permission, a wrap_up with ask)' },
   { key: 'engine', lives: 'state', merge: 'none', restoredAt: [], note: 'the model and effort of the main loop, published for the card' },
-  { key: 'ultracode', lives: 'state', merge: 'none', restoredAt: [], note: 'whether the main loop\'s ultracode switch is on (ultra_effort_enter/exit), published for the card and drawn in the header' },
+  { key: 'ultracode', lives: 'state+store', store: 'ultra', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'whether the main loop\'s ultracode switch is on (ultra_effort_enter/exit), published for the card and drawn in the header; in the store too (one record per session, `ultra`), so a new process draws and publishes it without waiting for the engine\'s next notice (the person, 2026-11-15: "Guardar por sessão"; saveUltra, ensureUltra, restoreUltra); only ultra_effort_exit turns it off, so a switch turned off with the process stopped stays on until that notice (a risk the person accepted); a resume brings the resumed session\'s (none: off); a /clear does not touch it' },
   { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last valid model call, published for the card' },
   { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name; in a worktree, the main repository\'s) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
@@ -171,7 +172,7 @@ export async function loadStore($: any, key: string, id?: string): Promise<unkno
 // The last write of the store that failed (what, the error, when), until that write works again.
 export const storeFailure: { what?: string; error?: string; at?: number } = {}
 // What each store record is, in the log's words.
-const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações', collapsed: 'dobras' }
+const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações', collapsed: 'dobras', ultracode: 'ultracode' }
 // A write of the store (`key` names the record): tried; on a failure, said in the log, the store pruned
 // and tried once more; a failure that stays is said and kept, never thrown (the hook goes on).
 export async function guarded($: any, key: string, write: () => Promise<void>): Promise<boolean> {
@@ -198,7 +199,7 @@ export async function guarded($: any, key: string, write: () => Promise<void>): 
 // The prefixes of earlier versions, which nothing writes any more.
 const GONE = ['asks', 'view']
 // The records kept per session (the panel's and the ones beside it).
-const PER_SESSION = ['session', 'work', 'turn', 'links', 'folds']
+const PER_SESSION = ['session', 'work', 'turn', 'links', 'folds', 'ultra']
 // Deletes what no session needs: the keys of earlier versions, and the records of the sessions out
 // of the list (`sessions`), but never this one's. Run once per module by itself (the first save of the
 // panel) and whenever a write fails. A failure of its own is said in the log and breaks nothing.

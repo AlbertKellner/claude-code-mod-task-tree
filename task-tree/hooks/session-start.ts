@@ -6,7 +6,7 @@
 import { MAIN, PAST_KEEP, interrupt } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFolds, restoreFromOwnFile, restoreTurn, restoreWork, restoreWorkOf, saveFolds, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFolds, restoreFromOwnFile, restoreTurn, restoreUltra, restoreWork, restoreWorkOf, saveFolds, setWork } from './panel'
 import { refreshChildren, sweepPublished, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -66,6 +66,7 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   await restoreWork($)
   await restoreTurn($)
   await restoreFolds($)
+  await restoreUltra($)
   // A turn the store holds as going on died with the process before this one: stopped (parkDeadTurn).
   if (fresh) await parkDeadTurn($)
   await ensureLinks($)
@@ -118,6 +119,8 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     await restoreTurn($, e.session_id, true)
     // The resumed session's folds, or none (restoreFolds).
     await restoreFolds($, e.session_id, true)
+    // The resumed session's ultracode switch, or off (restoreUltra); a /clear leaves it: it is the session's.
+    await restoreUltra($, e.session_id, true)
     await parkDeadTurn($)
   }
   return next(e)

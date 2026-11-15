@@ -6303,6 +6303,26 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/ultracode.test.ts::a palavra guardada segue até o aviso de saída": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "01e9e091abed4569",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
+    },
+    "task-tree/tests/ultracode.test.ts::a retomada traz o interruptor da sessão retomada": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "75f70d248d404ddc",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
+    },
     "task-tree/tests/ultracode.test.ts::com a sessão em ultracode, o cartão de subagente não diz \"ultracode\"": {
       "regras": [
         "ultracode.subagente-sem-palavra"
@@ -6324,6 +6344,26 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
     },
+    "task-tree/tests/ultracode.test.ts::o aviso de saída apaga a palavra também para o processo seguinte, 1/2: liga e desliga": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "4ad07fa7c7010252",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
+    },
+    "task-tree/tests/ultracode.test.ts::o aviso de saída apaga a palavra também para o processo seguinte, 2/2: o processo novo vem sem ela": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "f92605c051304927",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
+    },
     "task-tree/tests/ultracode.test.ts::o cartão da filha diz \"ultracode\" depois do modelo enquanto ela publica o interruptor ligado": {
       "regras": [
         "ultracode.cartao-da-filha"
@@ -6344,6 +6384,36 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/ultracode.test.ts::ultracode no reinício, 1/2: o interruptor liga": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "6e96cdd851d8ede9",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
+    },
+    "task-tree/tests/ultracode.test.ts::ultracode no reinício, 2/2: o processo novo já desenha e publica a palavra": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "12335c2dbeac36d1",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
+    },
+    "task-tree/tests/ultracode.test.ts::ultracode no respawn sem session.start, 2/2: o primeiro desenho já traz a palavra": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "42881cf313d301a5",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Guardar por sessão\""
     },
     "task-tree/tests/visual.test.ts::a coluna da contagem tem a largura da maior contagem, igual em todas as linhas": {
       "regras": [

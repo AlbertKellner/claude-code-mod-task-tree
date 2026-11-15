@@ -232,7 +232,7 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   nível, nos dois temas; a altura das linhas com o texto no meio; o respiro dos cartões nos quatro
   lados; o conector da faixa chegando na altura do cabeçalho do cartão;
 - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
-- recarga a quente real (salvar um arquivo com o painel aberto); os cartões das rodadas não saltam ao salvar um arquivo do mod; com um subagente trabalhando, o "· N chamadas" do cartão não volta a 1; o painel fechado pela pessoa segue fechado na recarga e nos plans; as linhas recolhidas e o histórico aberto seguem como a pessoa deixou depois de /model e de reabrir o app;
+- recarga a quente real (salvar um arquivo com o painel aberto); os cartões das rodadas não saltam ao salvar um arquivo do mod; com um subagente trabalhando, o "· N chamadas" do cartão não volta a 1; o painel fechado pela pessoa segue fechado na recarga e nos plans; as linhas recolhidas e o histórico aberto seguem como a pessoa deixou depois de /model e de reabrir o app; 'ultracode' depois de /model e de reabrir o app; desligado com a sessão parada, a palavra fica até o aviso de saída;
 - depois de `checkout`, `pull`, `merge`, `rebase` ou `stash` no clone carregado: o mod recarrega sem
   "reload failed" e o painel das sessões abertas segue inteiro;
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada, rodada substituída; filha apagada e

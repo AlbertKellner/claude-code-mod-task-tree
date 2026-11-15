@@ -8,7 +8,7 @@ import type { Group, Turn } from '../types'
 import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
 import { debug, guardStep } from '../io/log'
-import { change, dropAsked, dropPermissions, dropWaits, lastBrief, publishPanel, saveTurn, stamp } from './panel'
+import { change, dropAsked, dropPermissions, dropWaits, ensureUltra, lastBrief, publishPanel, saveTurn, saveUltra, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { syncIdle } from './sessions'
 import { ensureGroups } from './panel'
@@ -62,8 +62,12 @@ export function speedOf(tokens: number, ms: number): number | undefined {
 export async function ultraAttachment($: EngineInterface, e: any, next: any) {
   if (!e.agentId && (e.type === 'ultra_effort_enter' || e.type === 'ultra_effort_exit')) {
     const on = e.type === 'ultra_effort_enter'
+    // The store's copy first (a new process): the notice is compared with what the session had.
+    await ensureUltra($)
     if ((await $.state.get(ultracodeState)).value !== on) {
       await $.state.set(ultracodeState, on)
+      // Kept per session (the person, 2026-11-15: "Guardar por sessão"): a new process has it at once.
+      await saveUltra($)
       void publishPanel($).catch(() => {})
     }
   }

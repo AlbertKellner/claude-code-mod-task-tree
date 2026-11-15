@@ -387,7 +387,10 @@ deixadas no `/clear`), `turn` (o fim do turno: `ended`, `aborted`, `failed`, `re
 recolheu ou abriu, a chave `collapsed`: gravadas depois de cada clique, do plan que as renomeia e do
 `/clear`, que grava o vazio; voltam no `session.start` e no primeiro uso, `ensureFolds`, e a retomada
 traz as da sessão retomada, ou nenhuma; decisão do usuário, 2026-11-15: "Sim, guardado por sessão
-(Recomendado)") e a lista `sessions`. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
+(Recomendado)"), `ultra` (o interruptor de ultracode, gravado a cada aviso do motor que o muda, de
+volta no `session.start`, na retomada e no primeiro uso; decisão do usuário, 2026-11-15: "Guardar por
+sessão"; só o `ultra_effort_exit` o desliga, então o interruptor desligado com a sessão parada fica
+ligado até esse aviso, risco que ele aceitou) e a lista `sessions`. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
 registro "em curso" que um processo novo acha é de um turno que morreu com o anterior e vira parada
 (`parkDeadTurn`). A fusão das ligações é `current` por chave: o store só entra na chave que o state não
 tem (um processo novo); o state que atravessou uma recarga fica como está. O store cheio não derruba a
