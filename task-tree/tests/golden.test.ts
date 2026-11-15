@@ -1,10 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 import { GOLDEN } from './golden/desenho'
-import { AGORA, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
+import { AGORA, fixar, host, lancaveis, passos, responderEnvio, type Filha } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { desenhoDoApp } from './kit/leitura'
 
-// O desenho do app desktop em 4 cenários, a 60 colunas: a árvore de Box, Text e Button e as fontes
+// O desenho do app desktop em 6 cenários, a 60 colunas (o largo, a 100): a árvore de Box, Text e Button e as fontes
 // dos Svg (desenhoDoApp, no kit). Com o cenário em GOLDEN (aprovado pelo usuário no app), o desenho
 // tem de ser igual; sem ele, o teste só confere que há desenho. Em ambos os casos, imprime GOLDEN-NEW
 // com o desenho atual (npm run golden:aprovar o recolhe). Ver o CLAUDE.md.
@@ -116,4 +116,69 @@ test('golden: subagente', async ($: any, on: any) => {
   await fimDoSubagente($, 's3')
   await relogio.advance(1000)
   conferir('subagente', await desenhoDoApp($))
+})
+
+// Regra: visual.golden-gera-desenho, visual.desenho-cabecalho-largo
+test('golden: largo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [], { git: { raiz: 'C:/Users/pessoa/meu-repo', head: 'ref: refs/heads/minha-branch\n' } })
+  const passo = passos(on, relogio)
+  // O que está abaixo do mod devolve o texto do attachment como veio.
+  on('prompt.attachment', (_$: any, e: any) => ({ text: e.text }))
+  // Um pedido concluído, fora do trabalho atual: a linha "+1 pedidos anteriores".
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Um pronto')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }, { id: 'b2', title: 'b2' }] }])
+  await $.prompt.attachment({ type: 'ultra_effort_enter', text: 'x', origin: { kind: 'engine' } })
+  await start($, ['b1'])
+  await passo($, { geracao: 2000, tokens: 200 })
+  await relogio.advance(1000)
+  conferir('largo', await desenhoDoApp($, 100))
+})
+
+// Regra: visual.golden-gera-desenho, visual.desenho-filha-modelo-e-carta
+test('golden: filha-modelo-e-carta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const arquivada: Filha = { id: 'local_y', nome: 'arquivada', rodando: false }
+  const h = host(on, [
+    {
+      id: K1,
+      nome: 'filha-um',
+      modelo: 'Opus 5.5 · xhigh',
+      git: { repo: 'meu-repo', branch: 'minha-branch' },
+      rate: { toks: 42, live: true },
+      contexto: 42,
+      painel: { tasks: [{ id: '1', short: '1', title: 'Tarefa da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] },
+    },
+    { id: 'local_x', nome: 'outra' },
+    arquivada,
+  ])
+  responderEnvio(on)
+  // A carta de um plano interrompido (o pedido seguinte reusa o id da tarefa dela): cinza, interrompida.
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Mensagem' }] }])
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'A', title: 'Plano A novo', children: [{ id: '1', title: 'Mensagem' }, { id: '2', title: 'Filha' }, { id: '3', title: 'Para a arquivada' }] }])
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  // A filha trabalhando, com o modelo e o esforço publicados.
+  await start($, ['2'])
+  await abrirSessao($)
+  await aviso($)
+  // A carta na fila de um destino que é arquivado: cinza, não entregue.
+  await start($, ['3'])
+  await envio($, 'local_y')
+  arquivada.arquivada = true
+  await aviso($)
+  await relogio.advance(1000)
+  conferir('filha-modelo-e-carta', await desenhoDoApp($))
 })

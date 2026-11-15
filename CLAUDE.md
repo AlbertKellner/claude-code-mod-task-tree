@@ -127,7 +127,8 @@ falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de 
 
 ## Golden do desenho
 
-O desenho do app desktop em 4 cenários (principal, filha trabalhando, envios, subagente; 60 colunas)
+O desenho do app desktop em 6 cenários (principal, filha trabalhando, envios, subagente e filha com
+modelo e cartas, a 60 colunas; largo, a 100)
 fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden.test.ts` e selado em
 `regras/selos.json` (`golden`). Decisão do usuário, 2026-10-28: "Sim, validar antes do commit
 (Recomendado)".

@@ -223,13 +223,18 @@ export const estadoGeral = (d: DesenhoDoApp): string | undefined =>
 // O golden: a árvore do desenho, normalizada, e as fontes dos Svg numa lista sem repetição (a árvore
 // as cita pelo índice). Só type, key, props, hover e children entram: press (o handle não é estável),
 // part, group e client não são desenho.
+// A marca sorteada que o plan põe no id de uma tarefa anterior renomeada (`<4 letras>:<id>`, em
+// hooks/tools.ts) vai à key das linhas; o golden a troca por `~`, para o desenho ser o mesmo a cada vez.
 export function arvoreDoApp(raiz: any): { arvore: unknown; svgs: string[] } {
   const svgs: string[] = []
+  const sorteadas = new Map<string, string>()
+  const marca = (k: unknown) =>
+    typeof k !== 'string' ? k : k.replace(/\bt:([0-9a-z]{4}):/g, (_: string, m: string) => `t:~${sorteadas.get(m) ?? sorteadas.set(m, String(sorteadas.size + 1)).get(m)}:`)
   const ordenado = (o: any) => Object.fromEntries(Object.keys(o).sort().map(k => [k, o[k]]))
   const no = (el: any): unknown => {
     if (typeof el !== 'object' || el === null) return el
     const p = { ...(el.props ?? {}) }
-    const k = el.key ?? p.key
+    const k = marca(el.key ?? p.key)
     delete p.key
     if (el.type === 'Svg') {
       const s = normalizar(String(p.source ?? ''))
@@ -247,9 +252,9 @@ export function arvoreDoApp(raiz: any): { arvore: unknown; svgs: string[] } {
   }
   return { arvore: no(raiz), svgs }
 }
-// O desenho do app desktop para o golden, a 60 colunas.
-export async function desenhoDoApp($: any): Promise<{ arvore: unknown; svgs: string[] }> {
-  const ui = await montarApp($, 60)
+// O desenho do app desktop para o golden, a 60 colunas (sem dizer outra largura).
+export async function desenhoDoApp($: any, colunas = 60): Promise<{ arvore: unknown; svgs: string[] }> {
+  const ui = await montarApp($, colunas)
   const raiz = await ui.drawn()
   await ui.unmount()
   return arvoreDoApp(raiz)

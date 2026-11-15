@@ -1684,6 +1684,28 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/golden.test.ts::golden: filha-modelo-e-carta": {
+      "regras": [
+        "visual.golden-gera-desenho",
+        "visual.desenho-filha-modelo-e-carta"
+      ],
+      "hash": "4fb672ebc6e162de",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: golden ampliado"
+    },
+    "task-tree/tests/golden.test.ts::golden: largo": {
+      "regras": [
+        "visual.golden-gera-desenho",
+        "visual.desenho-cabecalho-largo"
+      ],
+      "hash": "835341b48f8c70f6",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: golden ampliado"
+    },
     "task-tree/tests/golden.test.ts::golden: principal": {
       "regras": [
         "visual.golden-gera-desenho",
@@ -4882,10 +4904,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "84d2b857a5ee3f38",
+      "hash": "f63470a36073079a",
       "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "o host simulado pode listar uma sessão ligada que não é filha e informar o nome desta sessão; nada do que os testes afirmam muda"
+      "motivo": "filha com modelo publicado; host com a raiz e o .git da sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",
@@ -4894,10 +4916,10 @@
       "motivo": "roteiro novo: falha (turno que termina por erro); os outros roteiros não mudam"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "c6d8ba3b659d5b92",
+      "hash": "44ea46b37116d9ac",
       "tipo": "refatoracao",
-      "data": "2026-11-13",
-      "motivo": "leitura da altura e do centro das linhas, dos vãos, dos respiros dos cartões e do tom de uma cor; nenhuma leitura existente muda"
+      "data": "2026-11-15",
+      "motivo": "desenhoDoApp aceita a largura; a marca sorteada do plan vira ~ nas keys do golden"
     }
   },
   "golden": {
@@ -4910,6 +4932,16 @@
       "hash": "51438e0c78c22fd8",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
+    },
+    "filha-modelo-e-carta": {
+      "hash": "7fdf7e4ceca6d826",
+      "data": "2026-11-15",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
+    },
+    "largo": {
+      "hash": "b3ba54c0a166982a",
+      "data": "2026-11-15",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
     },
     "principal": {
       "hash": "67f6b666fe473137",

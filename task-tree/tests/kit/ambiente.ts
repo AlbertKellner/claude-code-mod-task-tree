@@ -99,7 +99,9 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // desta sessão nem de `sessoes` responde o erro do app ("Session <id> not found.").
 // `arquivoProprio`: o texto do arquivo que esta sessão publicou antes (o host o serve na leitura dele).
 // `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string }
+// `git`: a raiz desta sessão ($.session.root) e o texto do `.git/HEAD` dela; sem ele, a sessão não
+// tem raiz (o cabeçalho fica sem repositório).
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string } }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -113,6 +115,7 @@ export type Filha = {
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
   contexto?: number // o % da janela de contexto publicado (o anel do cartão)
+  modelo?: string // o modelo e o esforço publicados (engine), à esquerda do anel no cartão
   recebidas?: { from: string; at: number }[] // received além do que recebeu() acrescenta (de irmãs)
   envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
@@ -143,11 +146,18 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     return texto('')
   })
   on('env.get', (_$: any, e: any) => ({ value: e.name === 'USERPROFILE' ? CASA : undefined }))
+  const git = opcoes.git
+  const naRaiz = (path: unknown, resto: string) => git !== undefined && String(path).replace(/\\/g, '/') === `${git.raiz}/${resto}`
+  if (git) {
+    on('session.root', () => ({ value: git.raiz }))
+    on('fs.exists', (_$: any, e: any) => ({ value: naRaiz(e.path, '.git') }))
+  }
   on('fs.read', (_$: any, e: any) => {
     // O host devolve o caminho com a barra do sistema (\ no Windows).
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
     if (m) lidas[m[1]!] = (lidas[m[1]!] ?? 0) + 1
     if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
+    if (git && naRaiz(e.path, '.git/HEAD')) return { value: git.head }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
     if (s.publicado !== undefined) return { value: s.publicado }
@@ -163,6 +173,7 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
         ...(s.git ? { git: { ...s.git, at: AGORA } } : {}),
         ...(s.rate ? { rate: { ...s.rate, at: AGORA } } : {}),
         ...(s.contexto !== undefined ? { context: { percent: s.contexto, at: AGORA } } : {}),
+        ...(s.modelo !== undefined ? { engine: s.modelo } : {}),
         received: [...(s.recebidas ?? []), ...(recebidas[s.id] ?? [])],
         ...(s.envios ? { sends: s.envios } : {}),
       }),

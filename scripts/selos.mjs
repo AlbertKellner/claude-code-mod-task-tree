@@ -198,7 +198,7 @@ const gravar = (raiz, selos) => {
 export const GOLDEN = 'task-tree/tests/golden/desenho.ts'
 // Os cenários previstos do golden (reexportados por golden.mjs). A etapa selos exige cada um quando o
 // repositório tem o teste do golden.
-export const CENARIOS = ['principal', 'filha', 'envios', 'subagente']
+export const CENARIOS = ['principal', 'filha', 'envios', 'subagente', 'largo', 'filha-modelo-e-carta']
 const TESTE_GOLDEN = 'task-tree/tests/golden.test.ts'
 const CABECA_GOLDEN = '// Gerado por npm run golden:aprovar, com a aprovação do usuário no app; não editar à mão.\nexport const GOLDEN: Record<string, unknown> = '
 // Os cenários gravados: o JSON depois de "GOLDEN ... = ".

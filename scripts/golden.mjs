@@ -1,4 +1,4 @@
-// Golden do desenho: a árvore do app desktop (Box, Text, Button e os Svg que restam) de 4 cenários
+// Golden do desenho: a árvore do app desktop (Box, Text, Button e os Svg que restam) de 6 cenários
 // (tests/golden.test.ts), travada depois que o usuário valida o painel no app. Ver a seção "Golden do
 // desenho" do CLAUDE.md.
 //

@@ -116,7 +116,8 @@ O cartão da filha mostra o modelo e o esforço dela.
 - Então mostra o modelo e o esforço ("Opus 5.5 · high") à esquerda do anel
 
 Origem: regra do painel.
-Estado: checklist (o terminal não desenha o modelo; o desenho fica travado por visual.desenho-*; a pintura real, no app)
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-filha-modelo-e-carta.
+Estado: checklist (o terminal não desenha o modelo; o desenho fica travado por visual.desenho-filha-modelo-e-carta; a pintura real, no app)
 
 ### visual.cartao-posicao-de-toks-e-repo
 No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e branch à direita do nome.
@@ -126,7 +127,8 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 - Então "n toks/s" fica à esquerda do modelo, e o repositório e a branch à direita do nome
 
 Origem: commits 1987482 e 689d569, 2026-10-24.
-Estado: checklist (posição na linha; o desenho fica travado por visual.desenho-*; a pintura real, no app)
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-cartao-filha.
+Estado: checklist (posição na linha; o desenho fica travado por visual.desenho-cartao-filha; a pintura real, no app)
 
 ### visual.cartoes-ordem-e-espera
 Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
@@ -163,12 +165,13 @@ Estado: checklist (pintura real)
 ### visual.golden-gera-desenho
 Os cenários do golden geram o desenho do app desktop.
 
-- Dado os 4 cenários do golden (principal, filha trabalhando, envios, subagente), a 60 colunas
+- Dado os 6 cenários do golden (principal, filha trabalhando, envios, subagente, largo, filha com modelo e cartas); os quatro primeiros a 60 colunas, o largo a 100
 - Quando o painel é desenhado no app desktop
 - Então cada cenário gera a árvore do desenho, elementos e props, e as fontes dos `Svg`, a mesma a cada vez
 
 Origem: decisão do usuário, 2026-10-28 ("Sim, validar antes do commit (Recomendado)"): o desenho validado no app fica travado pelo golden.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): os 4 cenários (principal, filha trabalhando, envios, subagente); cada cenário gera a árvore do desenho, elementos e props, e as fontes dos `Svg`, a mesma a cada vez.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): os 6 cenários, com o largo (100 colunas) e a filha com modelo e cartas.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -260,7 +263,7 @@ Estado: checklist (pintura real: tom, altura e respiro só aparecem no app)
 ### visual.desenho-principal
 O desenho do painel principal é o validado no app.
 
-- Dado uma árvore de 3 níveis com todos os estados, a linha ↩ e o cabeçalho em cartão com repositório e branch
+- Dado uma árvore de 3 níveis em dois pedidos, com tarefa concluída, interrompida (parada com Esc), aguardando e pendente, as linhas ↩ e o cabeçalho em cartão, a 60 colunas
 - Quando o painel é desenhado no app desktop
 - Então o desenho é o que o usuário validou no app
 
@@ -274,6 +277,7 @@ Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)
 Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-14, decisão do usuário ("Parar no fim do turno (Recomendado)"): o tempo do cabeçalho do cenário para no fim do turno (0:01 no lugar de 0:02); o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-14, decisão do usuário ("Só com turno em curso (Recomendado)"): o tempo do cabeçalho do cenário deixa de contar o segundo parado entre os dois pedidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o "Dado" diz o que o roteiro tem; o repositório no cabeçalho, "ultracode" e "+N pedidos anteriores" ficam em visual.desenho-cabecalho-largo.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -297,7 +301,7 @@ Estado: coberto
 ### visual.desenho-envios
 O desenho do ✉ na fila, entregue e interrompido é o validado no app.
 
-- Dado tarefas de mensagem na fila, entregue e interrompida
+- Dado tarefas de mensagem na fila e entregue, e a carta que segue na fila depois do Esc
 - Quando o painel é desenhado no app desktop
 - Então o desenho é o que o usuário validou no app
 
@@ -308,6 +312,7 @@ Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido d
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): a interrompida e a não entregue ficam em visual.desenho-filha-modelo-e-carta.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -323,6 +328,28 @@ Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido d
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cartão e o cabeçalho ganham fundo e borda translúcidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.desenho-cabecalho-largo
+O desenho do cabeçalho largo, com repositório, toks/s, "ultracode" e "+N pedidos anteriores", é o validado no app.
+
+- Dado o painel a 100 colunas, a sessão num repositório, com toks/s medido, o interruptor ultracode ligado e um pedido anterior concluído fora do trabalho atual
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-11-14 ("Ampliar o golden (Recomendado)"); gravado com "Validar só no fim (Recomendado)" e validado por ele no app antes do merge.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.desenho-filha-modelo-e-carta
+O desenho do cartão da filha com modelo e esforço e das cartas interrompida e não entregue é o validado no app.
+
+- Dado uma filha trabalhando que publicou o modelo e o esforço, uma carta interrompida e uma não entregue
+- Quando o painel é desenhado no app desktop
+- Então o desenho é o que o usuário validou no app
+
+Origem: decisão do usuário, 2026-11-14 ("Ampliar o golden (Recomendado)"); gravado com "Validar só no fim (Recomendado)" e validado por ele no app antes do merge.
 Código: draw/layout.ts
 Estado: coberto
 
