@@ -289,9 +289,14 @@ export const openTurnOf = (groups: Group[]): Turn | undefined => {
 }
 export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
-  // any request). Then, in the current request (the person's decisions): its pending task with no
-  // subtasks (○, ✉ until the delivery), the one planned last (a tie, the later in order); none
-  // pending, the rule above. It took the task started last even with one pending, planned to send:
+  // any request). Then, in this order (the person's decisions): with the request open now and no
+  // level-1 task of it yet, none (above); else the current request is the largest `turn` among the
+  // level-1 tasks; among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
+  // title matches the receiving session's name, if only one does (byName); else the batch planned
+  // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
+  // yet (`used`: a letter, a session's round, a session opened, a subagent launched), all of them used,
+  // its last; no pending task, the one started last, done included (startedLast); none started, the
+  // request's last level-1 task. It took the task started last even with one pending, planned to send:
   // the card went under the closed task before it.
   const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
   const going = started.filter(t => !asking.includes(t.id))

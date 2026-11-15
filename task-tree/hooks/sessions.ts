@@ -296,8 +296,15 @@ export async function takenNote($: any): Promise<string | undefined> {
     })
   // A subagent's (with `agent`) and a session's, each with its own words.
   const sub = (list: Send[], mine: boolean) => list.filter(s => (s.agent !== undefined) === mine)
+  // A session's, by what the panel did with its task: closed (✓) says so; any other (interrupted by a new
+  // plan, out of the plan, a subtask still open, no task) says it was not closed. It said "já concluiu"
+  // of every one, and watchSends closes only an open task with nothing open below it.
+  const closed = (s: Send) => all.find(t => t.id === s.anchor)?.status === 'done'
+  const shut = sub(taken, false).filter(closed)
+  const kept = sub(taken, false).filter(s => !closed(s))
   return [
-    ...(sub(taken, false).length > 0 ? [SESSION.taken(what(sub(taken, false)))] : []),
+    ...(shut.length > 0 ? [SESSION.taken(what(shut))] : []),
+    ...(kept.length > 0 ? [SESSION.takenOpen(what(kept))] : []),
     ...(sub(lost, false).length > 0 ? [SESSION.lost(what(sub(lost, false)))] : []),
     ...(sub(taken, true).length > 0 ? [SESSION.takenSub(what(sub(taken, true)))] : []),
     ...(sub(lost, true).length > 0 ? [SESSION.lostSub(what(sub(lost, true)))] : []),

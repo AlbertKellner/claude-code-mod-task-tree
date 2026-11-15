@@ -1013,6 +1013,16 @@
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
     },
+    "task-tree/tests/envios.test.ts::a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa": {
+      "regras": [
+        "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
+      ],
+      "hash": "73223ad7b1ae2b7b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o aviso da entrega só diz que concluiu quando concluiu"
+    },
     "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
       "regras": [
         "envios.entrega-imediata-fica-verde"
@@ -1033,6 +1043,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::a entrega que conclui a tarefa diz que o painel a concluiu": {
+      "regras": [
+        "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
+      ],
+      "hash": "ea56fe8e5ccdf7d3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o aviso da entrega só diz que concluiu quando concluiu"
     },
     "task-tree/tests/envios.test.ts::a mensagem a uma sessão que esta não abriu deixa só a carta: sem cartão e sem sessão ativa": {
       "regras": [
@@ -1264,6 +1284,26 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "carta pelo nome da sessão"
+    },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, o envio vai à pendente do plan mais recente do pedido, não à do primeiro": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "6cd8165015f0bb56",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "lote planejado por último, sem teste até a auditoria de 2026-11-10"
+    },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, três envios e duas pendentes planejadas juntas: a primeira, a segunda e de novo a última": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "76094fc95501568a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "desempate do envio sem nada em andamento, sem teste até a auditoria de 2026-11-10"
     },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
       "regras": [

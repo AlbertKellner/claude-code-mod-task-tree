@@ -282,6 +282,13 @@ export const SESSION = {
   taken: (what: string[]) =>
     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
     'O painel já concluiu a tarefa do envio; se ela ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
+  // The same, when the panel did not close the task (interrupted by a new plan, out of the plan, or a
+  // subtask or something still running in it).
+  takenOpen: (what: string[]) =>
+    PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
+    'O painel não concluiu a tarefa do envio: ela segue como está no painel (aberta com subtarefa aberta ou com ' +
+    'algo ainda em execução nela, interrompida por um plano novo, ou fora do plano). Se o trabalho dela ' +
+    'terminou, feche-a com mcp__task-tree__done.',
   lost: (what: string[]) =>
     PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
     'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa (mcp__task-tree__done quando concluída).',

@@ -166,7 +166,14 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
    `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
    `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
-   host listar a sessão), `sessionNotes` (`endedNote`, que cita
+   host listar a sessão; a tarefa do envio é a de `sendAnchor`: com tarefa em andamento, ela, salvo uma
+   folha aberta planejada depois do início dela e sem `start` (a mais nova), e, com várias em andamento,
+   o lote recente de starts sem envio; sem nada em andamento, num pedido ainda sem plano, nenhuma (solta
+   no fim até o plan adotar); senão, no pedido atual (o maior `turn` entre os níveis 1), a pendente cujo
+   título casa com o nome da sessão, se só uma casa; senão, entre as pendentes do plan mais recente (o
+   mesmo `plannedAt` da mais nova), a primeira na ordem do plano sem carta, rodada, sessão ou subagente, e,
+   todas usadas, a última; sem pendente, a iniciada por último, mesmo concluída; sem nenhuma iniciada, o
+   último nível 1 do pedido), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
@@ -354,7 +361,10 @@ antigas, só `tasks`.  Já existiram 8 formatos do arquivo, do `{ waiting, at }`
 `session`) em todo pedido que oferece a ferramenta `plan`; `COMMAND` e `TOOLS` são as descrições
 registradas no `session.start` (`TOOLS.cancel` é a do parâmetro `cancel` do `done`); `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
 `SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas. O limite do resumo ↩ é um só,
-`BRIEF` = 120, interpolado em cada texto que o cita. Os resultados das ferramentas ("Plano exibido…",
+`BRIEF` = 120, interpolado em cada texto que o cita. O aviso da entrega de uma carta (`takenNote`) diz
+`SESSION.taken` ("o painel já concluiu a tarefa do envio") só quando a tarefa ficou ✓, e
+`SESSION.takenOpen` ("o painel não concluiu…") quando ela segue aberta, foi interrompida por um plano
+novo ou saiu do plano (`envios.aviso-da-entrega-diz-o-que-o-painel-fez`). Os resultados das ferramentas ("Plano exibido…",
 "Concluídas: d/n…", "Em andamento: …") e os textos do desenho (`alt`, rótulos) ficam fora dele.
 
 ### Desenho
@@ -623,7 +633,7 @@ linhas herdavam isso.
   pedido atual (o último turno com tarefas, `t.turn` máximo), senão o último nível 1 desse pedido; a
   regra "planejada depois da em andamento e sem `start`" continua quando há tarefa em andamento.
   `recordStart` (`hooks/sessions.ts`) usa `sendAnchor` para a âncora da sessão aberta (era
-  `current().anchor`).
+  `current().anchor`) (regra de hoje: a ordem completa em Como é hoje).
 - `hooks/render.tsx`, título: ver o bullet do cabeçalho acima. O texto da ferramenta `start`
   (`text/rules.ts`) deixou de dizer que o painel destaca a primeira aberta: "sem
   nenhuma marcada, nenhuma tarefa aparece em andamento".
@@ -1388,7 +1398,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   início, não mudam nada. Vale para o lugar do cartão (`rounds`), para o `lastAnchor` (que a visão
   resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`). Sem
   tarefa em andamento (decisão do usuário depois do teste visual), é a iniciada por último no pedido
-  atual, mesmo concluída, senão a última do pedido (ver "Sem start, nada aceso" em "Como é hoje").
+  atual, mesmo concluída, senão a última do pedido (ver "Sem start, nada aceso" em "Como é hoje")
+  (regra de hoje: a ordem completa em Como é hoje).
   Num pedido ainda sem plano (nenhum nível 1 do último turno, `openTurnOf`), nenhuma: a carta, o
   cartão da sessão e o do subagente ficam soltos no fim do painel (`strayMail` e `fresh` no desenho,
   só os do pedido aberto agora ou ainda na fila) até o primeiro plan do pedido, que os adota

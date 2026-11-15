@@ -50,7 +50,7 @@ O ✉ mantém o ícone e muda só a cor.
 
 - Dado uma tarefa de mensagem
 - Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la, ou o subagente parado antes de recebê-la)
-- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega ou não entregue); a tarefa tem o ícone comum e conta
+- Então a carta muda só de cor (azul na fila, verde entregue, cinza quando a tarefa de onde saiu foi interrompida por um plano novo, desde o plan e também depois da entrega, ou quando não é entregue); a tarefa tem o ícone comum e conta
 
 Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
@@ -59,7 +59,19 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza "não entregue" vale também para o subagente parado antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-14, texto alinhado ao teste e à decisão de 2026-11-12 ("Cinza já no plan (Recomendado)"); nenhuma regra muda e os testes não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
+Estado: coberto
+
+### envios.aviso-da-entrega-diz-o-que-o-painel-fez
+O aviso da entrega só diz que o painel concluiu a tarefa quando ela ficou concluída.
+
+- Dado uma carta na fila
+- Quando a sessão destino toma a mensagem e o modelo recebe o aviso "recebimento confirmado"
+- Então o aviso diz que o painel concluiu a tarefa do envio só quando ela está ✓; se ela foi interrompida por um plano novo, saiu do plano ou segue aberta (subtarefa aberta, ou algo ainda em execução nela), diz que o painel não a concluiu e que o modelo a fecha quando o trabalho terminar
+
+Origem: auditoria 2026-11-10 (o lembrete "recebimento confirmado" dizia "o painel já concluiu a tarefa do envio" sem ter concluído); aplica envios.fica-ate-entrega, sem mudar nenhuma regra.
+Código: text/rules.ts
 Estado: coberto
 
 ### envios.ancora-no-lote-recente
@@ -75,17 +87,18 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
-Sem nada em andamento, o envio vai à pendente planejada por último.
+Sem nada em andamento, o envio vai às pendentes planejadas por último, pela ordem.
 
 - Dado nada em andamento no pedido atual, que já tem plano (sem plano: envios.antes-do-plan-fica-solta-e-o-plan-adota)
 - Quando sai uma mensagem
-- Então ela vai à pendente planejada por último; sem pendente, à última iniciada
+- Então ela vai, nesta ordem: à pendente cujo título casa com o nome da sessão destino (envios.carta-pelo-nome-da-sessao); senão, entre as pendentes do plan mais recente do pedido, à primeira na ordem do plano ainda sem carta, sessão ou subagente; todas já com um deles, à última delas; sem nenhuma pendente, à tarefa iniciada por último, mesmo concluída; sem nenhuma iniciada, ao último nível 1 do pedido
 
 Origem: decisão do usuário, 2026-10-23 ("Várias pendentes: a última planejada. Nenhuma pendente: última iniciada"); commits b742294 e 5f3df6e.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-09, decisão do usuário ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome"): com várias pendentes planejadas juntas, o envio vai à primeira delas ainda sem carta, na ordem do plano (antes, à última), depois de tentar o nome da sessão (envios.carta-pelo-nome-da-sessao).
 Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): vale para o pedido que já tem plano.
+Reescrito: 2026-11-14, texto completado com a ordem que o código já segue (auditoria 2026-11-10: o corpo dizia só "a pendente planejada por último"); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### envios.carta-pelo-nome-da-sessao

@@ -378,6 +378,79 @@ test('sem casamento pelo nome, os envios vão às pendentes planejadas juntas, p
   expect(cartasDe(p, 'Dois').join(' | '), emTexto(p)).toContain('segunda')
 })
 
+// Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
+test('sem nada em andamento, três envios e duas pendentes planejadas juntas: a primeira, a segunda e de novo a última', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }, { id: 'local_z' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await envio($, 'local_x', 'primeira')
+  await envio($, 'local_y', 'segunda')
+  await envio($, 'local_z', 'terceira')
+  const p = await painel($)
+  const um = cartasDe(p, 'Um').join(' | ')
+  const dois = cartasDe(p, 'Dois').join(' | ')
+  expect(um, emTexto(p)).toContain('primeira')
+  expect(dois, emTexto(p)).toContain('segunda')
+  expect(dois, emTexto(p)).toContain('terceira')
+  expect(um, emTexto(p)).not.toContain('terceira')
+})
+
+// Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
+test('sem nada em andamento, o envio vai à pendente do plan mais recente do pedido, não à do primeiro', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await relogio.advance(1000)
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'n', title: 'Novo' }] }])
+  await envio($, 'local_x', 'para o novo')
+  const p = await painel($)
+  expect(cartasDe(p, 'Novo').join(' | '), emTexto(p)).toContain('para o novo')
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  expect(cartasDe(p, 'Dois'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
+  h.recebeu('local_x', AGORA)
+  const texto = await contexto(aviso($))
+  expect(texto, 'o aviso da entrega').toContain('recebimento confirmado')
+  expect(texto).not.toContain('já concluiu a tarefa do envio')
+  expect(texto).toContain('não concluiu a tarefa do envio')
+})
+
+// Regra: envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('a entrega que conclui a tarefa diz que o painel a concluiu', async ($: any, on: any) => {
+  fixar(on)
+  // A sessão destino parada: uma filha trabalhando manteria a tarefa ◉.
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await aviso($)
+  h.recebeu('local_x', AGORA)
+  const texto = await contexto(aviso($))
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  expect(texto, 'o aviso da entrega').toContain('já concluiu a tarefa do envio')
+})
+
 // Regra: envios.carta-pelo-nome-da-sessao
 test('com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem', async ($: any, on: any) => {
   fixar(on)
