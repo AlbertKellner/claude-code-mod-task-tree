@@ -24,6 +24,17 @@ A pergunta aberta aparece sob a tarefa, que segue em andamento.
 Origem: decisão do usuário, 2026-10-26; commit 309f9be.
 Estado: coberto
 
+### perguntas.espera-sob-a-pendente
+Sem tarefa em andamento, a espera fica sob a tarefa do pedido, não solta no fim.
+
+- Dado tarefas abertas e nenhuma em andamento
+- Quando o modelo pergunta (AskUserQuestion), pede a aprovação de um plano (ExitPlanMode) ou termina o turno com a escolha do wrap_up
+- Então o aviso de espera aparece sob a tarefa pendente do pedido atual, a mesma que uma carta escolheria; sem pendente, sob a última tarefa iniciada do pedido; a tarefa segue ○ (ou ✓), sem acender nem mudar a contagem; com uma tarefa em andamento, o aviso fica sob ela
+
+Origem: decisão do usuário, 2026-11-14 ("Pendurar na pendente (Recomendado)"); mantém perguntas.espera-sob-a-tarefa.
+Código: hooks/panel.ts
+Estado: coberto
+
 ### perguntas.resposta-por-opcao-tira-espera
 A resposta por opção tira a espera.
 

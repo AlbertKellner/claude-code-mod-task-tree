@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { fixar, responderDepois } from './kit/ambiente'
-import { ferramenta, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { done, ferramenta, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -33,6 +33,57 @@ test('com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamen
   esperarEstado(p, 'Um', 'andamento')
   expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
   expect(linha(p, RESPOSTA).nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Um').nivel)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.espera-sob-a-pendente
+test('pergunta com tarefa pendente e nenhuma em andamento: a espera fica sob a pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  esperarEstado(p, 'Um', 'pendente')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
+  expect(linha(p, RESPOSTA).nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Um').nivel)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.espera-sob-a-pendente
+test('a escolha do wrap_up com tudo concluído fica sob a última tarefa trabalhada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'], 'Feito')
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  const p = await painel($)
+  const espera = linha(p, 'Aguardando sua escolha')
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(p.indexOf(espera), emTexto(p)).toBe(p.indexOf(linha(p, 'Dois')) + 1)
+  expect(espera.nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Dois').nivel)
+})
+
+// Regra: perguntas.espera-sob-a-pendente
+test('com uma tarefa em andamento, a espera segue sob ela mesmo havendo pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'pendente')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Dois')) + 1)
   await relogio.advance(1000)
   await resp
 })

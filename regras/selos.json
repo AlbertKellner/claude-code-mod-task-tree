@@ -2319,6 +2319,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::a escolha do wrap_up com tudo concluído fica sob a última tarefa trabalhada": {
+      "regras": [
+        "perguntas.espera-sob-a-pendente"
+      ],
+      "hash": "48c67fe5d9e1b9bd",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
+    },
     "task-tree/tests/perguntas.test.ts::a escolha do wrap_up fica até a próxima mensagem": {
       "regras": [
         "perguntas.escolha-do-wrapup-ate-proxima-mensagem"
@@ -2348,6 +2358,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: aviso de permissão por chamadas em curso"
+    },
+    "task-tree/tests/perguntas.test.ts::com uma tarefa em andamento, a espera segue sob ela mesmo havendo pendente": {
+      "regras": [
+        "perguntas.espera-sob-a-pendente"
+      ],
+      "hash": "a687af6494dde1cd",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
     },
     "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
       "regras": [
@@ -2388,6 +2408,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: espera do wrap_up só depois de a chamada dar certo"
+    },
+    "task-tree/tests/perguntas.test.ts::pergunta com tarefa pendente e nenhuma em andamento: a espera fica sob a pendente": {
+      "regras": [
+        "perguntas.espera-sob-a-pendente"
+      ],
+      "hash": "33a1d9d51ec53745",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
     },
     "task-tree/tests/perguntas.test.ts::respondida pelo chat, a espera some na hora e a tarefa segue em andamento": {
       "regras": [

@@ -854,7 +854,7 @@ export function pathTo(items: TaskNode[], id: string): string[] {
 
 // The tasks drawn in yellow, with their parents, and the one a waiting notice goes
 // under: the tasks in progress (the last one started for the notice; a parent's first
-// open task). With none started, nothing: a task is in progress only once the model calls start
+// open task; with none, the notice goes under the task its wait kept, Wait.anchor). With none started, nothing: a task is in progress only once the model calls start
 // (the person's decision after the visual test: "sem start, nada aceso"). The first open task used
 // to light up by default, and a message sent between two tasks was anchored to the next pending
 // one, which then closed on delivery; a never-started step ran a clock.
@@ -1795,8 +1795,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const trailIds = g.agent === MAIN ? trail(g.tasks, turnAt) : []
       const whole = g.whole ?? list
       const ids = flat(whole).map(t => t.id)
+      // A notice goes under the task in progress; with none, under the task its wait kept (a pending
+      // one stays ○: the person, 2026-11-14, "Pendurar na pendente (Recomendado)"), if it is drawn.
+      const under = (w: Wait) => anchor ?? w.anchor
       const below = (t: TaskNode, depth: number) => [
-        ...(t.id === anchor ? mine.map(w => notice(w, depth + 1)) : []),
+        ...mine.filter(w => under(w) === t.id).map(w => notice(w, depth + 1)),
         ...(g.agent === MAIN ? letters(t, depth + 1) : []),
         ...(g.agent === MAIN
           ? inOrder(sessions.filter(c => c.anchor === t.id)).flatMap(c => session(c, depth + 1, level, scope))
@@ -1804,7 +1807,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         ...drawKids(kids.filter(k => k.anchor === t.id), depth + 1),
       ]
       // With no task to go under, a notice goes under the header, or ends the main list.
-      if (extras && anchor === undefined && g.agent !== MAIN) lines.push(...mine.map(w => notice(w, top)))
+      const unplaced = (shown: TaskNode[]) => {
+        const there = flat(shown).map(t => t.id)
+        return anchor !== undefined ? [] : mine.filter(w => w.anchor === undefined || !there.includes(w.anchor))
+      }
+      if (extras && g.agent !== MAIN) lines.push(...unplaced(list).map(w => notice(w, top)))
       // The sessions' work under each task, once per task and pass: a turn's line sums it for its
       // level-1 tasks (turnRows) and each task's line asks for it again (rows); the answer is the
       // same within one pass (same task, same sessions), so it is kept by task object.
@@ -1917,7 +1924,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const ordered = briefDrawn.length === 0 ? turns : (g.turns ?? []).filter(u => turns.includes(u) || briefDrawn.includes(u))
       for (const u of ordered)
         lines.push(...(turns.includes(u) ? turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, counted, sent, level === 0) : briefRows(u, top, inScope)))
-      if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
+      if (extras && g.agent === MAIN) lines.push(...unplaced(drawn).map(w => notice(w, top)))
       // A subagent with no task in sight to go under ends the list: launched on none, or still open
       // under a task left out.
       const inSight = flat(drawn).map(t => t.id)

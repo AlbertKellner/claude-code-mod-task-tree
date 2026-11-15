@@ -115,8 +115,10 @@ export type Wait = {
   kind: 'question' | 'choice' | 'plan' | 'permission'
   tool: string
   key: string
-  // The task in progress of the loop when it was opened (a question, a plan, a choice): no message
-  // is anchored there while it waits (sendAnchor). Absent from earlier versions and for a permission.
+  // The task in progress of the loop when it was opened (a question, a plan, a choice), or with none
+  // the one a letter would go to (hooks/tool-call, askAnchor): no message is anchored there while it
+  // waits (sendAnchor); with nothing in progress when drawn, the notice goes under it. Absent from
+  // earlier versions and for a permission.
   anchor?: string
 }
 

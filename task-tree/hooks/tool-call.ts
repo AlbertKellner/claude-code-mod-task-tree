@@ -90,9 +90,14 @@ async function wrapUpAsk($: any, c: Call) {
 
 // The task a question is asked from: the asking loop's task in progress, kept on its wait so no
 // message is anchored there while it waits (sendAnchor's `asking`).
+// The task a wait (a question, a plan to approve, a wrap_up's choice) hangs under: the one in
+// progress; with none, the one a letter would go to, counting no letters nor cards (sendAnchor: the
+// current request's pending task, else its task started last, else its last level-1 task). The
+// person, 2026-11-14: "Pendurar na pendente (Recomendado)".
 async function askAnchor($: any, agent: string): Promise<{ anchor?: string }> {
   const { value = [] } = await $.state.get(groupsState)
-  const { anchor } = current((value as Group[]).find(g => g.agent === agent)?.tasks ?? [])
+  const tasks = (value as Group[]).find(g => g.agent === agent)?.tasks ?? []
+  const anchor = current(tasks).anchor ?? sendAnchor(tasks, [], [], [], agent === MAIN ? openTurnOf(value as Group[])?.id : undefined)
   return anchor === undefined ? {} : { anchor }
 }
 
