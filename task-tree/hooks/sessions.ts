@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, hasOpen, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
+import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, hasOpen, inFlight, inSight, placeTypedTurns, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug, debugOnce } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -164,9 +164,12 @@ async function readChildren($: any) {
   const sight = inSight(mainTasks, work as string[])
   const out = (c: Child) => !tiesOf(c, mainTasks).some(a => sight.includes(a))
   const read = await readFiles($, mine, ((cur ?? []) as Child[]).filter(c => c.summary === undefined || out(c)))
+  // The place of each card of turns typed in a session is decided at the first read that sees it, with
+  // the ties and clocks of now, and kept (placeTypedTurns): the card does not move afterwards.
   const derive = (known: Child[]) => {
     const d = deriveChildren(mine, known, read, keptLink, now)
-    return { ...d, children: summarize(d.children, groups0 as Group[], out, self) }
+    const placed = d.children.map(c => placeTypedTurns(c, mainTasks, work as string[]))
+    return { ...d, children: summarize(placed, groups0 as Group[], out, self) }
   }
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
   // it opened them on (see endedNote). The state is written only when the children changed: a poll

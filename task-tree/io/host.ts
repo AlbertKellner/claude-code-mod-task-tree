@@ -159,7 +159,7 @@ export async function engineOf($: any, id: string): Promise<string | undefined> 
 // counts only once the host has seen it run: right after start_session the host may still list it
 // idle; the mark lasts STARTING_GRACE at most, and goes at the first read that finds tasks published
 // (then a stopped one ended its turn: it ran unseen between two reads). A session the host lists again after leaving it out gets its ties (anchor, lastAnchor,
-// rounds) back from the store's copy (`kept`); a session whose file went missing keeps its last panel.
+// rounds, places) back from the store's copy (`kept`); a session whose file went missing keeps its last panel.
 // A session just opened (start_session) that the host's list does not hold yet stays in the children
 // while recent (STARTING_GRACE from its `openedAt`), with the task it was opened on: dropped at the
 // first read, its tie was lost and its card, once listed, went to the end. One with no `openedAt` (an
@@ -202,6 +202,7 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       git: read.gits[r.sessionId] ?? before?.git,
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,
       rounds: before?.rounds ?? kept(r.sessionId)?.rounds,
+      places: before?.places ?? kept(r.sessionId)?.places,
       anchor: before?.anchor ?? kept(r.sessionId)?.anchor,
       openedAt: before?.openedAt ?? kept(r.sessionId)?.openedAt,
       panel: read.panels[r.sessionId] ?? before?.panel,

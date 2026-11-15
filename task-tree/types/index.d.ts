@@ -235,9 +235,15 @@ export type Child = {
   ownTurn?: string
   // Drawn only: how many turns the person typed in that session share this card (same request in force).
   ownCount?: number
-  // Drawn only: that card of typed turns found no task in progress on this session when the first of
-  // them was typed: it closes its request, drawn after the subtasks of the request's last level-1 task.
+  // Drawn only: that card of typed turns closes its request, drawn after the subtasks of the task it
+  // hangs from (copied from its kept place, `places`).
   tail?: boolean
+  // Where each card of turns the person typed in that session goes, decided once when the sessions are
+  // read (draw/layout, placeTypedTurns) and kept with the other ties: `at`, its first turn's time;
+  // `anchor`, the task of this session it hangs from; `tail`, it closes the request (after that task's
+  // subtasks). 20 per session (keepRounds); absent from earlier versions (the card's place is then
+  // worked out at each drawing).
+  places?: { at: number; anchor: string; tail?: boolean }[]
   // Drawn only: a card at work drawn loose at the end, its request cut from sight: that request's title.
   loose?: string
   // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:

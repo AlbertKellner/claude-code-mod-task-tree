@@ -581,7 +581,7 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
       // the next one.
       if ((await $.state.get(groupsState)).value === undefined) await $.state.set(groupsState, back)
       if (file.work && (await $.state.get(workState)).value === undefined) await $.state.set(workState, file.work)
-      // The children's ties (anchor, lastAnchor, rounds, openedAt): into the module's copy of the links
+      // The children's ties (anchor, lastAnchor, rounds, openedAt, places): into the module's copy of the links
       // (a reread of the host's list gives them back), and into the children the state already has
       // without them (a reread that came first).
       for (const c of file.children) if (typeof c?.id === 'string' && !keptLinks.has(c.id)) keptLinks.set(c.id, linkOf(c))
@@ -593,7 +593,7 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
           childrenState,
           (held as Child[]).map(c => {
             const f = c.anchor === undefined ? file.children.find(x => x.id === c.id) : undefined
-            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt } : c
+            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt, places: c.places ?? f.places } : c
           }),
         )
       }
@@ -1071,13 +1071,21 @@ export async function moveToLevelOne($: any, gone: Map<string, string>) {
   await moveAnchors($, movedAnchor(gone), false)
 }
 // The sessions' ties, the launches' (and the sends', with `sends`) and the module's copy of the links,
-// by `fix`.
+// by `fix`. The kept places of the cards of typed turns go too: renamed with their level-1 task (a
+// reused id, `sends`), and, moved by a replan to the level-1 task, under its line (no `tail`).
 async function moveAnchors($: any, fix: (a?: string) => string | undefined, sends: boolean) {
-  const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[] }>(c: T): T => {
+  const place = (x: { at: number; anchor: string; tail?: boolean }) => {
+    const a = fix(x.anchor)
+    if (a === undefined || a === x.anchor) return x
+    const { tail, ...rest } = x
+    return sends && tail ? { ...rest, anchor: a, tail } : { ...rest, anchor: a }
+  }
+  const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[]; places?: { at: number; anchor: string; tail?: boolean }[] }>(c: T): T => {
     const out = { ...c }
     if (c.anchor !== undefined) out.anchor = fix(c.anchor)
     if (c.lastAnchor !== undefined) out.lastAnchor = fix(c.lastAnchor)
     if (c.rounds !== undefined) out.rounds = c.rounds.map(r => (r.anchor === undefined ? r : { ...r, anchor: fix(r.anchor) }))
+    if (Array.isArray(c.places)) out.places = c.places.map(x => (typeof x?.anchor === 'string' ? place(x) : x))
     return out
   }
   await update($, childrenState, cur => (cur ?? []).map(link))

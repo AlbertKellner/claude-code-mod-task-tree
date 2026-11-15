@@ -3337,6 +3337,26 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::a neta com o lugar guardado no arquivo publicado da filha fica onde a filha o guardou": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "c1271025a95f4fff",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
+    },
+    "task-tree/tests/sessoes.test.ts::a neta com turno digitado publicada sem o lugar guardado segue desenhada pelo relógio das tarefas da filha": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "08d5d23ec0eab79a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
+    },
     "task-tree/tests/sessoes.test.ts::a neta parada só com pendentes e origem fechada fica \"encerrada\" e sai da contagem da orquestradora": {
       "regras": [
         "sessoes.regras-de-cartao-valem-para-netas"
@@ -3549,6 +3569,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
+    },
+    "task-tree/tests/sessoes.test.ts::com várias tarefas em andamento na mãe, o cartão do pedido do usuário na filha fica sob a iniciada por último": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "7e66e68415326688",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com várias em andamento, a iniciada por último; a asserção que faltava"
     },
     "task-tree/tests/sessoes.test.ts::depois do /clear na filha, o cartão dela na mãe mantém as tarefas feitas e a contagem": {
       "regras": [
@@ -3805,6 +3835,36 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"\\\"Substituída\\\", cinza (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::o cartão do pedido do usuário na filha fica onde o primeiro turno digitado aconteceu, não onde o mais recente": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "6e087cee2929f5d2",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, no primeiro\"; a asserção que faltava"
+    },
+    "task-tree/tests/sessoes.test.ts::o cartão do pedido do usuário na filha que fechava o pedido não salta quando a mãe inicia de novo a tarefa que aguardava": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "c77702d18ca986ec",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
+    },
+    "task-tree/tests/sessoes.test.ts::o cartão do pedido do usuário na filha segue sob a tarefa onde estava quando a mãe a reabre com start": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "2f6b9a941e5b7ac7",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
+    },
     "task-tree/tests/sessoes.test.ts::o cartão mostra toks/s e repositório com branch": {
       "regras": [
         "sessoes.toks-e-repo-branch-no-cartao"
@@ -3834,6 +3894,26 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "auditoria: aviso das pendentes nas duas ordens"
+    },
+    "task-tree/tests/sessoes.test.ts::o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "dcdd67b1a8a09df6",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
+    },
+    "task-tree/tests/sessoes.test.ts::o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo: o processo novo o lê do store": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "bbea45870cbb9c64",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
     },
     "task-tree/tests/sessoes.test.ts::o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela": {
       "regras": [
@@ -3875,6 +3955,17 @@
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "só a visão resumida, 2026-11-04"
+    },
+    "task-tree/tests/sessoes.test.ts::o replano que tira a tarefa onde estava o cartão do pedido do usuário na filha leva o cartão ao nível 1 que a continha": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda",
+        "pedidos.replano-leva-o-cartao-ao-nivel-1"
+      ],
+      "hash": "d63bf1b455b12afd",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
     },
     "task-tree/tests/sessoes.test.ts::o trabalho da filha depois do /clear aparece num cartão novo, e o histórico segue no dele": {
       "regras": [
@@ -4007,6 +4098,26 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::turno digitado na filha antes do primeiro plan da mãe e outro depois ficam num cartão só": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "46edf587e9cabcfc",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "um cartão só por pedido vigente (\"Um cartão só (Recomendado)\", 2026-11-14) também com turno digitado antes do primeiro plan ou sem hora"
+    },
+    "task-tree/tests/sessoes.test.ts::turno digitado publicado sem hora por versão antiga e outro com hora, no pedido de origem, ficam num cartão só": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "3ea6bdce92af153c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "um cartão só por pedido vigente (\"Um cartão só (Recomendado)\", 2026-11-14) também com turno digitado antes do primeiro plan ou sem hora"
     },
     "task-tree/tests/sessoes.test.ts::turnos digitados com pedidos diferentes da mãe em curso ficam em cartões diferentes": {
       "regras": [

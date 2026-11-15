@@ -283,7 +283,7 @@ Os turnos que o usuário abriu digitando na filha ficam num cartão só por pedi
 
 - Dado uma filha aberta num pedido antigo da mãe, e o usuário digitando direto nela depois de um pedido novo da mãe
 - Quando a mãe desenha o painel
-- Então o cartão fica sob a tarefa da mãe que estava em andamento quando ele digitou; sem nenhuma em andamento, no fim do pedido da mãe vigente naquele instante (o último pedido planejado antes; sem nenhum, o de origem), depois das subtarefas dele, como último bloco do pedido; com "pedido do usuário na filha" no título; os turnos digitados com o mesmo pedido da mãe em curso entram no mesmo cartão, cada um com a sua linha de pedido e as suas tarefas embaixo (com um turno só, as tarefas direto no cartão e o texto digitado no texto alternativo do ícone); o cartão fica onde o primeiro desses turnos aconteceu; cartão novo só quando o pedido vigente da mãe é outro; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
+- Então o cartão fica sob a tarefa da mãe que estava em andamento quando ele digitou (com várias, a iniciada por último); sem nenhuma em andamento, no fim do pedido da mãe vigente naquele instante (o último pedido planejado antes; sem nenhum, o de origem), depois das subtarefas dele, como último bloco do pedido; com "pedido do usuário na filha" no título; os turnos digitados com o mesmo pedido da mãe em curso entram no mesmo cartão, cada um com a sua linha de pedido e as suas tarefas embaixo (com um turno só, as tarefas direto no cartão e o texto digitado no texto alternativo do ícone); o cartão fica onde o primeiro desses turnos aconteceu e não muda de lugar depois (sessoes.lugar-do-cartao-digitado-nao-muda); cartão novo só quando o pedido vigente da mãe é outro; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
@@ -303,6 +303,17 @@ O turno que abriu a filha (o texto do start_session) não é pedido do usuário 
 Origem: auditoria 2026-11-10 (o primeiro turno da filha é marcado como pedido do usuário na filha); aplica sessoes.cartao-sob-a-tarefa-de-origem e sessoes.turno-proprio-da-filha-no-pedido-vigente ("O turno que o usuário abriu digitando na filha"), sem mudar nenhuma das duas.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Na ordem em que aconteceu (Recomendado)"): o turno digitado depois de um /clear segue sendo pedido do usuário na filha, agora sob a tarefa em andamento da mãe.
 Código: draw/layout.ts
+Estado: coberto
+
+### sessoes.lugar-do-cartao-digitado-nao-muda
+O lugar do cartão "pedido do usuário na filha" é decidido uma vez e não muda depois.
+
+- Dado um cartão de turnos que o usuário digitou numa filha, já desenhado sob uma tarefa ou fechando o pedido
+- Quando a sessão de cima termina o turno, dá start de novo na tarefa que aguardava, reabre uma tarefa concluída, manda outra mensagem à filha, replaneja, recarrega o mod ou volta num processo novo
+- Então o cartão segue onde estava; se um replano tira a tarefa de onde ele pendia, passa para baixo do nível 1 que a continha e fica lá (pedidos.replano-leva-o-cartao-ao-nivel-1); o lugar é guardado com os laços da sessão (20 por sessão; o de tarefa à vista nunca sai) e publicado, e o cartão de uma neta fica onde a filha o guardou; o cartão que já existia quando o mod foi atualizado tem o lugar decidido uma vez, na primeira leitura; a neta publicada por uma versão sem o lugar guardado segue pela conta do relógio das tarefas da filha
+
+Origem: revisão do lote do cartão "na ordem em que aconteceu", 2026-11-15 (o lugar era recalculado a cada desenho e o cartão saltava); cumpre as decisões do usuário de 2026-11-15 ("Na ordem em que aconteceu (Recomendado)", "Sim, no primeiro") e de 2026-11-14 ("Sob o nível 1 (Recomendado)"), sem mudar nenhuma.
+Código: draw/layout.ts, hooks/panel.ts, state/durability.ts
 Estado: coberto
 
 ### sessoes.cartao-vivo-nunca-some

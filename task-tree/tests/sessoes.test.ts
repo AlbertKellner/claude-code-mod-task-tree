@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
-import { AGORA, EU, fixar, host, type Filha } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, EU, armazem, fixar, host, type Filha } from './kit/ambiente'
+import { abrirSessao, aviso, done, esc, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
 import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
@@ -745,6 +745,252 @@ test('o turno digitado na filha depois da rodada da mãe é a rodada atual: cont
   expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
   expect(c.chips.ativas, emTexto(p)).toBe(1)
   esperarEstado(p, 'Reescrita', 'andamento')
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('o cartão do pedido do usuário na filha fica onde o primeiro turno digitado aconteceu, não onde o mais recente', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'A2', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'primeiro pedido', at: AGORA + 1500, own: true }],
+  }
+  await aviso($)
+  await done($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'A2', 'feita'), noTurno(3, '3', 'A3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'primeiro pedido', at: AGORA + 1500, own: true }, { id: 3, title: 'segundo pedido', at: AGORA + 2500, own: true }],
+  }
+  await aviso($)
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  // O primeiro turno foi digitado com "Limpar refs" em andamento; o segundo, com a mãe parada.
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  expect(cs[0]?.tarefas.filter(t => t === 'primeiro pedido' || t === 'segundo pedido'), emTexto(p)).toEqual(['primeiro pedido', 'segundo pedido'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com várias tarefas em andamento na mãe, o cartão do pedido do usuário na filha fica sob a iniciada por último', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v2'])
+  await relogio.advance(500)
+  await start($, ['v1'])
+  await relogio.advance(500)
+  digitouNaFilha(h, AGORA + 1800)
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Conferir refs', 'andamento')
+  esperarEstado(p, 'Limpar refs', 'andamento')
+  // A iniciada por último, embora seja a primeira na ordem do plano.
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('turno digitado na filha antes do primeiro plan da mãe e outro depois ficam num cartão só', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(500)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'B2', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'antes do plan', at: AGORA + 500, own: true }],
+  }
+  await aviso($)
+  await relogio.advance(500)
+  await plan($, [{ id: 'N', title: 'Plano N', children: [{ id: 'n1', title: 'Escrever o código' }, { id: 'n2', title: 'Rodar a bateria' }] }])
+  await relogio.advance(500)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'B2', 'iniciada'), noTurno(3, '3', 'B3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'antes do plan', at: AGORA + 500, own: true }, { id: 3, title: 'depois do plan', at: AGORA + 1500, own: true }],
+  }
+  await aviso($)
+  // O turno mais antigo do cartão fica em "+1 pedidos anteriores": aberto, ele volta.
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.length, emTexto(p)).toBe(1)
+  expect(cs[0]?.tarefas.filter(t => t === 'antes do plan' || t === 'depois do plan'), emTexto(p)).toEqual(['antes do plan', 'depois do plan'])
+  // Dentro do pedido, não solto no fim.
+  expect(['Plano N', 'Escrever o código', 'Rodar a bateria'], emTexto(p)).toContain(cs[0]?.sob)
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('turno digitado publicado sem hora por versão antiga e outro com hora, no pedido de origem, ficam num cartão só', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'C2', 'iniciada'), noTurno(3, '3', 'C3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'sem hora', own: true }, { id: 3, title: 'com hora', at: AGORA + 500, own: true }],
+  }
+  await aviso($)
+  // O turno mais antigo do cartão fica em "+1 pedidos anteriores": aberto, ele volta.
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.length, emTexto(p)).toBe(1)
+  expect(cs[0]?.tarefas.filter(t => t === 'sem hora' || t === 'com hora'), emTexto(p)).toEqual(['sem hora', 'com hora'])
+})
+
+// O pedido novo da mãe, "Limpeza", com duas subtarefas, depois de abrir a filha no pedido antigo.
+async function pedidoLimpeza($: any, relogio: any, segundo = false) {
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [
+    { id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] },
+    ...(segundo ? [{ id: 'W', title: 'Segundo bloco', children: [{ id: 'w1', title: 'Passo do segundo' }] }] : []),
+  ])
+}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão do pedido do usuário na filha que fechava o pedido não salta quando a mãe inicia de novo a tarefa que aguardava', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const confere = async () => {
+    const p = await painel($)
+    expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+    expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Conferir refs')))
+  }
+  await confere()
+  await relogio.advance(1000)
+  await start($, ['v1'])
+  await aviso($)
+  await confere()
+  await done($, ['v1'])
+  await aviso($)
+  await confere()
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão do pedido do usuário na filha segue sob a tarefa onde estava quando a mãe a reabre com start', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  await done($, ['v1'])
+  await relogio.advance(1000)
+  await start($, ['v1'])
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Limpar refs', 'andamento')
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda, pedidos.replano-leva-o-cartao-ao-nivel-1
+test('o replano que tira a tarefa onde estava o cartão do pedido do usuário na filha leva o cartão ao nível 1 que a continha', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio, true)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  await plan($, [
+    { id: 'V', title: 'Limpeza', children: [{ id: 'v2', title: 'Conferir refs' }] },
+    { id: 'W', title: 'Segundo bloco', children: [{ id: 'w1', title: 'Passo do segundo' }] },
+  ])
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Limpeza')))
+  expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+// O lugar guardado no store, lido por um processo novo (os testes rodam em ordem, no mesmo processo).
+const LUGAR: Record<string, unknown> = {}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo', async ($: any, on: any) => {
+  armazem(on, LUGAR)
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  await done($, ['v1'])
+  await relogio.advance(1000)
+  await start($, ['v1'])
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo: o processo novo o lê do store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, LUGAR)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  digitouNaFilha(h, AGORA + 1500)
+  if (!Object.keys(LUGAR).some(k => k.startsWith('links:'))) throw new Error('rode o par inteiro: o primeiro não gravou')
+  await iniciarSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// A filha com uma tarefa em andamento e a neta com um turno digitado nela, publicada pela filha.
+const netaDigitada = (extra: object = {}) => ({
+  id: NETA,
+  name: 'neta',
+  title: 'neta',
+  running: true,
+  archived: false,
+  anchor: 'o1',
+  panel: {
+    groups: [{ agent: '', label: '', tasks: [noTurno(2, 'n2', 'Neta digitada', 'iniciada')], turns: [turno(1, AGORA + 20), { id: 2, title: 'digitei na neta', at: AGORA + 500, own: true }] }],
+    waits: [],
+    children: [],
+  },
+  ...extra,
+})
+async function filhaComNeta($: any, on: any, neta: object) {
+  fixar(on)
+  const filha = { tasks: [noTurno(1, 'o1', 'Origem da neta', 'feita'), noTurno(1, 'o2', 'Outra da filha', 'feita'), noTurno(1, 'o3', 'Em andamento na filha', 'iniciada')], turns: [turno(1, AGORA + 10)], filhas: [neta] }
+  host(on, [{ id: K1, nome: 'filha-um', painel: filha }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  return painel($)
+}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a neta com o lugar guardado no arquivo publicado da filha fica onde a filha o guardou', async ($: any, on: any) => {
+  const p = await filhaComNeta($, on, netaDigitada({ places: [{ at: AGORA + 500, anchor: 'o2' }] }))
+  expect(cartoes(p, 'neta · pedido do usuário na filha').map(c => c.sob), emTexto(p)).toEqual(['Outra da filha'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a neta com turno digitado publicada sem o lugar guardado segue desenhada pelo relógio das tarefas da filha', async ($: any, on: any) => {
+  const p = await filhaComNeta($, on, netaDigitada())
+  expect(cartoes(p, 'neta · pedido do usuário na filha').map(c => c.sob), emTexto(p)).toEqual(['Em andamento na filha'])
 })
 
 // ---- Cartão vivo nunca some.

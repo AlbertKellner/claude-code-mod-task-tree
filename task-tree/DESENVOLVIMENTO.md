@@ -540,13 +540,24 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   o da frente (ou a sessão não foi dividida): uma sessão conta uma vez no chip de sessões ativas e no
   estado do cabeçalho; o cartão de uma rodada antiga segue desenhado como antes.
 - Os turnos digitados na filha (`own`, fora o de abertura) que pendem do mesmo pedido vigente da mãe
-  (o mesmo turno, `forceTurn`) formam uma parte só (`ownPart`), de chave `-1 - índice` do primeiro deles, e
+  (`typedParts`; a chave é o turno do último nível 1 planejado até a hora dele, e, sem nenhum ou sem
+  hora, o do pedido de origem, `inForceOf`: um turno digitado antes do primeiro plan e outro depois
+  ficam no mesmo cartão) formam uma parte só (`ownPart`), de chave `-1 - índice` do primeiro deles, e
   `partAt` é a hora desse primeiro: a dobra e a chave de um cartão de um turno só não mudam. O cartão
-  fica onde o primeiro deles aconteceu (`placeOf`, 2026-11-15, "Na ordem em que aconteceu
-  (Recomendado)" e "Sim, no primeiro"): sob a folha da mãe em andamento naquela hora (`busyAt`: iniciada
-  e ainda não fechada; a última iniciada, com várias); sem nenhuma, no último nível 1 do pedido vigente
-  (`inForce`), com a marca `Child.tail`, que o `rows` desenha depois das subtarefas da tarefa, fechando o
-  pedido (sessoes.turno-proprio-da-filha-no-pedido-vigente). Para a
+  fica onde o primeiro deles aconteceu (`placeTyped`, 2026-11-15, "Na ordem em que aconteceu
+  (Recomendado)" e "Sim, no primeiro"): sob a folha da mãe em andamento naquela hora (iniciada e ainda
+  não fechada; a iniciada por último, com várias, desempate pelo `startedSeq`); sem nenhuma, no último
+  nível 1 do pedido vigente, com a marca `Child.tail`, que o `rows` desenha depois das subtarefas da
+  tarefa, fechando o pedido (sessoes.turno-proprio-da-filha-no-pedido-vigente). O lugar é decidido uma
+  vez, na leitura das sessões que vê o turno (`placeTypedTurns`, no `derive` de `readChildren`), e
+  guardado no `Child.places` (`at` do primeiro turno, `anchor`, `tail`), com os outros laços: o store
+  das ligações (`linkOf`), o arquivo publicado (o cartão de uma neta usa o lugar que a filha guardou),
+  `fromOwnFile` e `moveAnchors` (o replano que tira a tarefa leva o lugar ao nível 1, sem `tail`; o
+  renome do nível 1 reusado o leva junto). Os relógios que a conta lê são reescritos depois (o start
+  da tarefa que aguardava apaga o `endedAt`; a reabertura troca o `startedAt`), e o cartão saltava
+  (sessoes.lugar-do-cartao-digitado-nao-muda). O desenho lê o guardado (20 por sessão, `keepRounds`) e
+  só decide na hora sem ele: turno sem hora, arquivo publicado por versão anterior, sessão ainda não
+  lida. Para a
   rodada da frente, a parte conta pelo turno mais recente (`lastOwn`). Com dois ou mais turnos no
   cartão, cada um ganha a sua linha de pedido no `body` (`typedHere`), e o texto alternativo diz
   "Pedidos do usuário na filha: N" (`ownCount`); com um só, como antes. Um turno digitado não entra no
@@ -2234,3 +2245,12 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
 - Saíram o parâmetro `queued` de `carry`, as declarações mortas `parentOf` e `ids` e a leitura dos
   `sends` que o `planTool` fazia só para ele. `TaskNode.kept` nenhuma versão atual grava; o ramo que o
   lê no desenho fica, para painéis gravados ou publicados por versões anteriores.
+
+## Achados baixos: o lugar do cartão do pedido digitado na filha (2026-11-15)
+
+- O lugar do cartão "pedido do usuário na filha" era recalculado a cada desenho com os relógios de agora
+  (o start da tarefa que aguardava ou a reabertura o faziam saltar; o replano que tirava a folha o mandava
+  ao último nível 1 do pedido). Passou a ser decidido uma vez na leitura das sessões e guardado em
+  `Child.places` (sessoes.lugar-do-cartao-digitado-nao-muda). A chave do agrupamento ganhou o recuo ao
+  pedido de origem: um turno digitado antes do primeiro plan, ou sem hora, e outro depois ficavam em dois
+  cartões.
