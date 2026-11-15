@@ -5,9 +5,9 @@ import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
 import { abrirSessao, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, painel } from './kit/leitura'
-import { aviso, falha } from './kit/cenario'
+import { aviso, falha, ferramenta, iniciarSessao } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
-import { AGORA } from './kit/ambiente'
+import { AGORA, armazem, SESSAO } from './kit/ambiente'
 import { comHistorico } from './kit/leitura'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
@@ -764,4 +764,46 @@ test('com a filha trabalhando depois do fim do turno, o intervalo parado só com
   await relogio.advance(5000)
   p = await painel($)
   expect(tempoDoTopo(p), emTexto(p)).toBe('1:05')
+})
+
+// Regra: turnos.resposta-inteira-nao-e-guardada
+test('o fim do turno não guarda nem publica a resposta inteira', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo curto')
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'Recap do fim do turno' })
+  await fimDoTurno($, 'Texto inteiro da resposta final')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Resumo curto')), emTexto(p)).toBe(true)
+  const arquivo = JSON.stringify(h.proprio())
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.brief === 'Resumo curto'), arquivo).toBe(true)
+  expect(turnos.some(u => 'reply' in u), arquivo).toBe(false)
+  expect(arquivo).not.toContain('Recap do fim do turno')
+  expect(arquivo).not.toContain('Texto inteiro da resposta final')
+})
+
+// Regra: turnos.resposta-inteira-nao-e-guardada
+test('a resposta guardada por uma versão anterior sai na gravação seguinte', async ($: any, on: any) => {
+  fixar(on)
+  const loja: Record<string, unknown> = {
+    [`session:${SESSAO}`]: [{ agent: '', label: '', turns: [{ id: 1, title: 'Pedido antigo', reply: 'Resposta antiga inteira', brief: 'Resumo antigo' }], tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done', turn: 1, children: [] }] }],
+    sessions: [SESSAO],
+  }
+  armazem(on, loja)
+  const h = host(on, [])
+  await iniciarSessao($)
+  await pedido($, 'Pedido novo')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo novo')
+  await fimDoTurno($)
+  const guardado = JSON.stringify(loja[`session:${SESSAO}`])
+  expect(guardado).toContain('Resumo novo')
+  expect(guardado).not.toContain('Resposta antiga inteira')
+  expect(JSON.stringify(h.proprio())).not.toContain('Resposta antiga inteira')
 })

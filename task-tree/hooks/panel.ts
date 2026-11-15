@@ -199,7 +199,6 @@ const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
-const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 const namesState = { plugin: 'task-tree', key: 'names' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -208,14 +207,6 @@ const namesState = { plugin: 'task-tree', key: 'names' } as const
 // lost the summary. Empty: none given.
 export async function lastBrief($: any): Promise<string | undefined> {
   const { value } = await $.state.get(briefState)
-  return typeof value === 'string' && value !== '' ? value : undefined
-}
-// The recap of the end-of-turn box (wrap_up), the turn's answer for the card (see turn.complete),
-// until the turn ends. In the state for the same reason as the brief: a reload between the wrap_up
-// and the end of the turn kept a module variable's value nowhere, and the card showed the final
-// message instead of the recap. Empty: none given.
-export async function lastRecap($: any): Promise<string | undefined> {
-  const { value } = await $.state.get(recapState)
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
@@ -587,12 +578,11 @@ export async function restore($: any, id: string): Promise<boolean> {
   if (groups) await replace($, groups)
   return groups !== undefined
 }
-// The waits, the done's summary and the wrap_up's recap belong to the session that set them: a /clear
+// The waits and the done's summary belong to the session that set them: a /clear
 // or a resume drops them, without publishing (the replace that follows publishes).
 export async function dropHeld($: any) {
   await $.state.set(waitsState, [])
   await $.state.set(briefState, '')
-  await $.state.set(recapState, '')
 }
 
 // The groups' "first use" of the table (restoredAt): session.start brings them back from the store

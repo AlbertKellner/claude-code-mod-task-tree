@@ -29,7 +29,6 @@ const REINICIO: Record<string, unknown> = {}
 const RESPAWN: Record<string, unknown> = {}
 const OUTRO: Record<string, unknown> = {}
 const RECARGA: Record<string, unknown> = {}
-const RECAP: Record<string, unknown> = {}
 const LIGACOES: Record<string, unknown> = {}
 
 // Regra: durabilidade.reinicio-restaura-do-store
@@ -270,29 +269,6 @@ test('recarga a quente, 2/2: módulo novo com o state mantido desenha o painel',
   esperarEstado(p, 'Um', 'concluida')
   esperarEstado(p, 'Plano A', 'andamento')
   esperarEstado(p, 'Dois.um', 'pendente')
-})
-
-// Regra: durabilidade.recarga-mantem-painel-ligacoes-e-resumo
-test('recarga a quente, 1/2: o recap do wrap_up no state', async ($: any, on: any) => {
-  fixar(on)
-  estado(on, RECAP, 'captura')
-  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'ok' }))
-  await pedido($, 'Pedido um')
-  await plan($, A)
-  await start($, ['1'])
-  await done($, ['1'])
-  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'Recap Y' })
-  expect(Object.keys(RECAP).length, 'state capturado').toBeGreaterThan(0)
-})
-
-// Regra: durabilidade.recarga-mantem-painel-ligacoes-e-resumo
-test('recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da recarga', async ($: any, on: any) => {
-  fixar(on)
-  estado(on, RECAP, 'semear')
-  const h = host(on, [])
-  exigir(Object.keys(RECAP).length > 0)
-  await fimDoTurno($)
-  expect(resposta(h, 'Recap Y'), JSON.stringify(h.proprio())).toBe(true)
 })
 
 // Duas mensagens na fila da mesma filha, de duas tarefas; ela toma a primeira (o 1/2). O 2/2 é o módulo

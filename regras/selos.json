@@ -836,16 +836,6 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
-    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o recap do wrap_up no state": {
-      "regras": [
-        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
-      ],
-      "hash": "3f971ccbf9b8e329",
-      "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
-    },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o resumo do done no state": {
       "regras": [
         "durabilidade.resumo-do-done-na-recarga"
@@ -872,16 +862,6 @@
       ],
       "hash": "c9192dd061eebcd7",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
-    },
-    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da recarga": {
-      "regras": [
-        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
-      ],
-      "hash": "e762b21f9e70918d",
-      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -3922,6 +3902,16 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::a resposta guardada por uma versão anterior sai na gravação seguinte": {
+      "regras": [
+        "turnos.resposta-inteira-nao-e-guardada"
+      ],
+      "hash": "faec048dddd3c7d1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); só o resumo ↩ é guardado"
+    },
     "task-tree/tests/turnos.test.ts::a tarefa que atravessa turnos conta só o tempo com o turno em curso, e o pai, o pedido e o cabeçalho também": {
       "regras": [
         "turnos.tempo-so-com-o-turno-em-curso"
@@ -4075,6 +4065,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o fim do turno não guarda nem publica a resposta inteira": {
+      "regras": [
+        "turnos.resposta-inteira-nao-e-guardada"
+      ],
+      "hash": "4c5bd76d0cc0f2c0",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); só o resumo ↩ é guardado"
     },
     "task-tree/tests/turnos.test.ts::o fim normal do turno vai no painel publicado: a tarefa que aguardava leva a hora do fim": {
       "regras": [
@@ -4532,6 +4532,26 @@
     }
   },
   "removidos": {
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o recap do wrap_up no state": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); a resposta inteira e o recap não são mais guardados",
+      "reescrito": "2026-11-15",
+      "hash": "3f971ccbf9b8e329",
+      "tipo": "decisao"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da recarga": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); a resposta inteira e o recap não são mais guardados",
+      "reescrito": "2026-11-15",
+      "hash": "e762b21f9e70918d",
+      "tipo": "decisao"
+    },
     "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"

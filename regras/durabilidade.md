@@ -72,13 +72,14 @@ Código: io/publish.ts, io/host.ts
 Estado: coberto
 
 ### durabilidade.recarga-mantem-painel-ligacoes-e-resumo
-A recarga a quente mantém o painel, as ligações e o recap do turno.
+A recarga a quente mantém o painel e as ligações.
 
-- Dado um painel com cartões ligados a tarefas e um recap do wrap_up
+- Dado um painel com cartões ligados a tarefas
 - Quando o mod recarrega a quente (módulo novo, state mantido, sem session.start)
-- Então o painel e os cartões seguem iguais, e o fim do turno publica o recap gravado antes
+- Então o painel e os cartões seguem iguais (o resumo do done na recarga segue em durabilidade.resumo-do-done-na-recarga)
 
 Origem: bugs achados no teste visual do usuário, 2026-10-21/22; commits 946f653, 22650c9 e 13ef0ef.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Tirar, basta o ↩ (Recomendado)"): o recap do wrap_up deixa de ser guardado; a resposta do turno no painel é só o resumo ↩. Saem os dois testes do recap na recarga.
 Estado: coberto
 
 ### durabilidade.ligacoes-com-lista-parcial-do-host

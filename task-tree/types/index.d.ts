@@ -53,11 +53,11 @@ export type TaskNode = {
 
 // One message of the person in the main loop: its level-1 tasks are drawn under it, titled with
 // what was asked (the start of the message, until a plan names it with `request`).
-// `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
-// message), shown under the turn's tasks in its card; absent while the turn runs. A turn with no
+// `brief`: the turn's answer in at most 120 characters (done's summary), the ↩ line; absent while the
+// turn runs and in a turn with no summary. Files of earlier versions may hold a `reply` (the whole
+// answer), which nothing reads and the next end of turn drops. A turn with no
 // level-1 task is dropped at the next message (openTurn) unless it has a `brief`: a request answered
 // with no plan, drawn with only its ↩ line (the 20 most recent are kept).
-// reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
 // `own`: a turn the person opened by typing in that session (not a message of another session): its
 // card goes at the end of the request that opened the session, not under the last message's task.
 // `msg` and `from`: a turn opened by another session's message (its first, when several came
@@ -65,7 +65,7 @@ export type TaskNode = {
 // derive from that message: they show the ✉ of a message received, in their own state's color.
 // `named`: a plan's `request` already titled it; a later plan's request leaves the title. Absent until
 // then, and in turns of earlier versions (whose first plan with a request after the update still names it).
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string }; named?: boolean }
+export type Turn = { id: number; title: string; at?: number; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string }; named?: boolean }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
@@ -285,8 +285,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // work starts (a plan or start with no open task left).
 // `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
 // the state so a reload of the mod mid-turn does not lose it.
-// `recap`: the end-of-turn box's recap (wrap_up), the turn's answer for the card, until the turn
-// ends (then ''); in the state for the same reason.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
 // `turnEnded`: when this session's turn ended (its clock), until the next prompt (then null):
@@ -305,6 +303,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

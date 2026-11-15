@@ -223,3 +223,14 @@ O tempo de uma tarefa que atravessa turnos conta só o tempo com o turno em curs
 Origem: decisão do usuário, 2026-11-14 ("Só com turno em curso (Recomendado)").
 Código: state/tasks.ts, hooks/sessions.ts, hooks/tools.ts
 Estado: coberto
+
+### turnos.resposta-inteira-nao-e-guardada
+Do que o turno respondeu, o painel guarda só o resumo ↩.
+
+- Dado um turno que termina com resposta final, com ou sem recap do wrap_up
+- Quando o fim do turno é gravado
+- Então o pedido fica só com o resumo ↩ (o summary do done), no painel, no que é guardado e no que é publicado; a resposta inteira e o recap não são guardados, e o que versões anteriores guardaram sai na gravação seguinte; sem summary, o pedido fica sem linha ↩
+
+Origem: decisão do usuário, 2026-11-14 ("Tirar, basta o ↩ (Recomendado)"), à pergunta sobre a resposta inteira guardada e sem uso desde que o tooltip saiu (visual.tooltip, 2026-11-09).
+Código: hooks/tool-call.ts, io/publish.ts
+Estado: coberto

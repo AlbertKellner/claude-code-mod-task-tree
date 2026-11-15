@@ -1,7 +1,6 @@
 // tool.call, the generic hook: one handler per responsibility, run in order (R17). Before the call:
 // a launch (Agent) records the task the loop is on; a question or a plan to approve takes the whole
-// call (the wait while it is open, the answer's reminder); a wrap_up keeps its recap and its
-// question as a wait. After the call, for the main loop only: the clocks and the sessions' list come
+// call (the wait while it is open, the answer's reminder); a wrap_up keeps its question as a wait. After the call, for the main loop only: the clocks and the sessions' list come
 // back, a start_session records its session, then each note handler adds, in order, what it has to say
 // to the result (a message only queued, a session that ended its turn, a message taken up, what a
 // wrap_up leaves open) and, last, the reminder to plan: the first call with no open plan, and every
@@ -23,7 +22,6 @@ const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
-const recapState = { plugin: 'task-tree', key: 'recap' } as const
 
 // What the handlers share about one call: the loop that made it (`agent`), the event, when a
 // message was sent (`sentAt`, before the call: a message delivered at once opens the session's turn
@@ -75,12 +73,8 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
 
 // The desktop app's end-of-turn box with a question and buttons (wrap_up with `ask`): the call
 // returns at once and the turn ends, but the person is still asked. The notice stays until the next
-// prompt (prompt.submit drops it) or a wrap_up with no question. The recap is kept for the card.
-async function wrapUpRecap($: any, c: Call) {
-  if (String(c.e.tool) !== 'mcp__ccd_turn__wrap_up') return
-  const input = (c.e.input ?? c.e) as { recap?: unknown }
-  if (c.agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
-}
+// prompt (prompt.submit drops it) or a wrap_up with no question. Its recap is not kept: the turn's
+// answer in the panel is the done's summary (the person, 2026-11-14: "Tirar, basta o ↩ (Recomendado)").
 // After the call, only one that went through: the earlier choice goes and, with `ask`, the new one waits.
 async function wrapUpAsk($: any, c: Call) {
   if (String(c.e.tool) !== 'mcp__ccd_turn__wrap_up') return
@@ -252,7 +246,6 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered
-  await wrapUpRecap($, c)
   c.sentAt = String(e.tool) === 'SendMessage' ? await stamp($) : undefined
   // The permission wait of this tool stays while another call of it, by the same agent, is in progress.
   const busy = `${c.agent}:${e.tool}`

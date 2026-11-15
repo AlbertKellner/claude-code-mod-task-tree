@@ -1211,8 +1211,6 @@ export type Row = {
   depth: number
   tone: Tone
   title: string
-  // The whole text for the tooltip, when the title is a short form of it (the ↩ line's summary).
-  whole?: string
   // Said only in the alt, after the title: a session's title, its card showing just its name.
   hint?: string
   // What the alt text says first ("Em andamento"); empty for a notice.
@@ -1304,10 +1302,6 @@ export const hiddenOf = (all: Row[], shown: Row[] = []): Tally | undefined => {
   return h.waits || h.sends || h.live || h.subs ? h : undefined
 }
 
-// The placeholder a ↩ line with no summary once said (it is no longer drawn, see hasBrief): the
-// answer cut to the line's width summed nothing up (the person's words: "voce esta imprimindo o
-// texto integral cortado").
-export const REPLY = 'resposta'
 // The ↩ line of a turn shows its summary (the done's `summary`); a turn with none has no ↩ line. The
 // answer's text is never shown cut (the person: "quero que seja um resumo da resposta, super curto"),
 // and the placeholder "resposta" is gone too (the person: the ↩ line only with real text).
@@ -1562,7 +1556,6 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     if (u.msg) {
       row.recv = flat(list).some(t => t.status === 'open') ? 'queued' : flat(list).some(t => t.status === 'done') ? 'delivered' : flat(list).some(t => t.status === 'interrupted') ? 'cut' : 'delivered'
       row.hint = `Mensagem de ${u.from?.name || u.from?.id || 'outra sessão'}: ${u.title}`
-      row.whole = row.hint
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
     const all = rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending)
@@ -1574,7 +1567,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // one after a card still at work would read as the group being over.
     const said: Row[] =
       reply && open && hasBrief(u) && !ws.some(w => w.any)
-        ? [{ key: `${scope}r:${u.id}`, depth: top + 1, tone: 'reply', title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }]
+        ? [{ key: `${scope}r:${u.id}`, depth: top + 1, tone: 'reply', title: u.brief as string, label: 'Resposta' }]
         : []
     return [row, ...inner, ...said]
   }
@@ -1585,7 +1578,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const key = `${scope}T:${u.id}`
     const open = opened(key, true)
     const row: Row = { key, depth: top, tone: 'done', title: u.title, label: 'Pedido concluído', fold: { key, open }, nodes: [] }
-    return open ? [row, { key: `${scope}r:${u.id}`, depth: top + 1, tone: 'reply', title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta', nodes: [] }] : [row]
+    return open ? [row, { key: `${scope}r:${u.id}`, depth: top + 1, tone: 'reply', title: u.brief as string, label: 'Resposta', nodes: [] }] : [row]
   }
 
   // A session this one opened, in a card: "title · name", the count and time of its tasks, and
@@ -1654,7 +1647,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // turn order: a ↩ line, dim, with no count or time (not a task).
     const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
       .filter(hasBrief)
-      .map(u => ({ key: `${scope}${cid}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
+      .map(u => ({ key: `${scope}${cid}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, label: 'Resposta' }))
     // Its turn goes on while it runs (or is starting): the trail lights in its card then.
     const going = !c.archived && (live(c) || c.starting === true) ? lastTurnAt(rawPanel(c).groups ?? []) : undefined
     // Its panel, drawn once: inside the open card; folded, for whether it has anything to open and for

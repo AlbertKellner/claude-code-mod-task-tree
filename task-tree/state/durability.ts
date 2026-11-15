@@ -78,7 +78,6 @@ export const TABLE: readonly Row[] = [
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
-  { key: 'recap', lives: 'state', merge: 'none', restoredAt: [], note: 'wrap_up\'s recap until the turn ends (the turn\'s answer for the card); in the state so a reload between the wrap_up and the end of the turn keeps it' },
   { key: 'paneOpened', lives: 'state', merge: 'none', restoredAt: [], note: 'session.start opened the panel in this process: a reload keeps it, so it does not open again a panel the person closed; a new process opens it once' },
   { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
   // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a

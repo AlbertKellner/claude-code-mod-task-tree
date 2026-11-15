@@ -1,6 +1,5 @@
 // turn.step: the main loop's model and effort, published for the card. turn.complete: the turn's
-// answer (the recap, else the final message) goes on its turn for the card; a subagent's turn ending
-// interrupts what it left open.
+// summary (done's, the ↩ line) goes on its turn; a subagent's turn ending interrupts what it left open.
 
 import type { AgentInfo, EngineInterface } from 'claude-code'
 
@@ -8,7 +7,7 @@ import { BRIEF } from '../text/rules'
 import type { Group, Turn } from '../types'
 import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
-import { change, dropAsked, dropPermissions, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
+import { change, dropAsked, dropPermissions, dropWaits, lastBrief, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { syncIdle } from './sessions'
 import { ensureGroups } from './panel'
@@ -21,7 +20,6 @@ const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
-const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
@@ -140,33 +138,30 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   await dropAsked($, agent ?? MAIN)
   // A permission wait the main loop left over (its call never ended here) does not outlive the turn.
   if (!agent) await dropPermissions($, MAIN)
-  // What the turn answered, kept on its turn (the last one of the main group) and published: the
-  // card of this session in the one that opened it shows it under the turn's tasks (the person's
-  // words: "adicione nos paineis de sessao, o que foi gerado como resposta"). The end-of-turn
-  // recap (wrap_up), which is what the opener's notice carries; else the final message.
-  // The summary and the recap go at the end of every turn, stopped too: a stopped turn records no ↩,
-  // and what it left must not become the next request's.
-  const recap = agent ? undefined : await lastRecap($)
+  // What the turn answered, kept on its turn (the last one of the main group) and published: only its
+  // summary (done's, the ↩ line), drawn under the turn's tasks and in this session's card in the one
+  // that opened it. The whole answer is not kept (the person, 2026-11-14: "Tirar, basta o ↩
+  // (Recomendado)"), and the `reply` earlier versions wrote goes in the same write.
+  // The summary goes at the end of every turn, stopped too: a stopped turn records no ↩, and what it
+  // left must not become the next request's.
   const given = agent ? undefined : await lastBrief($)
-  if (recap !== undefined) await $.state.set(recapState, '')
   if (given !== undefined) await $.state.set(briefState, '')
-  if (!agent && !halted) {
-    const said = (recap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
-    const short = given !== undefined ? brief(given) : undefined
+  if (!agent && !halted && given !== undefined) {
+    const short = brief(given)
     // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
     // (the model stopped right after a tool).
-    if (said !== '' || short !== undefined) {
-      await change($, all =>
-        all.map(g => {
-          if (g.agent !== MAIN) return g
-          const turns = g.turns ?? []
-          const last = answeredTurn(g, short !== undefined)
-          return last
-            ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, ...(said !== '' ? { reply: said } : {}), ...(short !== undefined ? { brief: short } : {}) } : u)) }
-            : g
-        }),
-      )
+    const bare = (u: Turn): Turn => {
+      const { reply: _, ...rest } = u as Turn & { reply?: unknown }
+      return rest
     }
+    await change($, all =>
+      all.map(g => {
+        if (g.agent !== MAIN) return g
+        const turns = (g.turns ?? []).map(bare)
+        const last = answeredTurn(g, true)
+        return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, brief: short } : u)) } : g
+      }),
+    )
   }
   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
