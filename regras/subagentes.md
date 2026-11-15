@@ -57,6 +57,16 @@ Workflow, ou mais de três subagentes lançados juntos, ficam num cartão de gru
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)").
 Estado: coberto
 
+### subagentes.espera-no-cartao-de-grupo
+No cartão de grupo, o agente que espera a pessoa mostra a espera na linha dele.
+
+- Dado um cartão "N subagentes" ou "Workflow · N agentes" com as linhas dos agentes fechadas
+- Quando um dos agentes pede permissão, abre uma pergunta ou um plano a aprovar
+- Então a linha dele mostra "Aguardando permissão: <ferramenta>" (ou o texto da espera) no lugar da ferramenta, com o ícone de espera, e conta no chip "aguardando" e na faixa, também com o cartão de grupo recolhido; terminada a espera, a linha volta a mostrar a ferramenta
+
+Origem: auditoria 2026-11-10 (o aviso de espera de um agente só existia dentro do cartão próprio dele); aplica perguntas.permissao-espera e cabecalho.recolher-nao-muda-chips-nem-faixa, sem mudar nenhuma regra.
+Estado: coberto
+
 ### subagentes.fora-da-contagem
 O subagente não entra no "d de n" e ganha a pílula "N subagentes".
 

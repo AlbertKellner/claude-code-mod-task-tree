@@ -1176,6 +1176,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 - Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
   em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
   tem botão.
+- Cartão de grupo (`groupCard`, "N subagentes" ou "Workflow · N agentes"): a linha fechada de um
+  agente com espera aberta mostra o texto da espera (`waitText`) no lugar da ferramenta, com o tom
+  `wait`, e marca `pending` (chip "aguardando" e faixa); os avisos de dentro do cartão dele não contam
+  de novo (`hidden`), e o cartão de grupo recolhido leva tudo no `hidden` dele.
 - Cartões (sessão filha e grupo de subagente): a linha de cabeçalho tem `Row.card`; o cartão
   pega ela e as linhas seguintes mais fundas. `frames` calcula, pela sequência de profundidades,
   em que cartões cada linha está (do de fora para o de dentro) e se ela abre ou fecha cada um. Cada

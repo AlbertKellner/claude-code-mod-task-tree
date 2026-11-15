@@ -1842,17 +1842,22 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           // Opened, the line is that subagent's own card (its count of subagents at work is the header's).
           const card = draw(k, d + 1).map((r, i) => (i === 0 ? { ...r, fold: { key: lineKey, open: true }, subs: 0 } : r))
           if (opened(lineKey, false)) return card
+          // Closed, a wait of that agent (a permission, a question, a plan to approve) takes the tool's
+          // place on its line, with the wait's icon, and counts in the chip of what waits and in the
+          // band (pending); its notices inside the card are not counted again (hidden).
+          const mine = waits.filter(w => w.agent === k.agent)
           const row: Row = {
             key: lineKey,
             depth: d + 1,
-            tone: subLive(s) ? 'current' : SUB_TONE[s.state],
+            tone: mine.length > 0 ? 'wait' : subLive(s) ? 'current' : SUB_TONE[s.state],
             title: k.label,
             label: 'Subagente',
-            meta: subLive(s) && s.tool ? s.tool : [s.engine, SUB_WORD[s.state]].filter(Boolean).join(' · '),
+            meta: mine.length > 0 ? waitText(mine[0]!) : subLive(s) && s.tool ? s.tool : [s.engine, SUB_WORD[s.state]].filter(Boolean).join(' · '),
             time: now !== undefined ? (s.end ?? now) - s.at : undefined,
             fold: { key: lineKey, open: false },
             nodes: [],
-            hidden: hiddenOf(card),
+            pending: mine.length > 0 || undefined,
+            hidden: hiddenOf(card, mine.map(w => notice(w, d + 2))),
           }
           return [row]
         })

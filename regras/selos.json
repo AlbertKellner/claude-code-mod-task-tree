@@ -3251,6 +3251,17 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
     },
+    "task-tree/tests/subagentes.test.ts::no cartão de grupo, o agente que pede permissão mostra a espera na linha dele e conta no chip 'aguardando', também com o cartão recolhido": {
+      "regras": [
+        "subagentes.espera-no-cartao-de-grupo",
+        "perguntas.permissao-espera"
+      ],
+      "hash": "b21c255d58780429",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a espera de um agente aparece e conta no cartão de grupo"
+    },
     "task-tree/tests/subagentes.test.ts::no mesmo pedido, com tudo concluído, o lançamento vai à última tarefa iniciada, já fechada": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"

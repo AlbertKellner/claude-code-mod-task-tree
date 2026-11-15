@@ -1334,3 +1334,28 @@ test("a nova tentativa decide também quando termina mal: parada, a tarefa fica 
   expect(linha(p, 'Investigar').texto, emTexto(p)).toContain('interrompida')
   expect(linha(p, 'Investigar').texto, emTexto(p)).not.toContain('falhou')
 })
+
+// Regra: subagentes.espera-no-cartao-de-grupo, perguntas.permissao-espera
+test("no cartão de grupo, o agente que pede permissão mostra a espera na linha dele e conta no chip 'aguardando', também com o cartão recolhido", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['g1', 'g2', 'g3', 'g4'])
+  on('classic.PermissionRequest', () => ({}))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  for (const d of ['a', 'b', 'c', 'd']) await lancar($, { descricao: d })
+  await $.classic.PermissionRequest({ tool_name: 'Bash', agent_id: 'g2' })
+  const m = await montar($)
+  let p = await m.linhas()
+  expect(linha(p, 'Explore: b').texto, emTexto(p)).toContain('Aguardando permissão: Bash')
+  esperarEstado(p, 'Explore: b', 'aguardando')
+  for (const outro of ['Explore: a', 'Explore: c', 'Explore: d']) {
+    expect(linha(p, outro).texto, emTexto(p)).not.toContain('Aguardando')
+    expect(linha(p, outro).estado, emTexto(p)).not.toBe('aguardando')
+  }
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
+  await m.recolher('4 subagentes')
+  p = await m.linhas()
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
+  await m.fim()
+})
