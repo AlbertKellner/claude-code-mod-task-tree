@@ -171,7 +171,10 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    (Recomendado)"), e, com várias em andamento, o lote recente de starts sem envio (pela ordem, o nome
    da sessão antes); sem nada em andamento, num pedido ainda sem plano, nenhuma (solta
    no fim até o plan adotar); senão, no pedido atual (o maior `turn` entre os níveis 1), a pendente cujo
-   título casa com o nome da sessão, se só uma casa; senão, entre as pendentes do plan mais recente (o
+   título casa com o nome da sessão, se só uma casa (o nome da sessão casa por trecho, pelo começo do
+   título ou por uma palavra de 4 letras; o título da sessão aberta e a descrição e o tipo do subagente
+   são frases livres e só casam inteiros, em palavras inteiras: `namedFor`, 2026-11-14, "Só no nome
+   (Recomendado)"); senão, entre as pendentes do plan mais recente (o
    mesmo `plannedAt` da mais nova), a primeira na ordem do plano sem carta, rodada, sessão ou subagente, e,
    todas usadas, a última; sem pendente, a iniciada por último, mesmo concluída; sem nenhuma iniciada, o
    último nível 1 do pedido), `sessionNotes` (`endedNote`, que cita

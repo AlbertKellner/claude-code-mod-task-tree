@@ -48,14 +48,15 @@ async function mainUses($: any): Promise<Uses> {
   const { value: waits = [] } = await $.state.get(waitsState)
   return { kids: kids as Child[], sends: sends as Send[], waits: waits as Wait[] }
 }
-function anchorIn(groups: Group[], parent: string, names: string[], uses: Uses): string | undefined {
+function anchorIn(groups: Group[], parent: string, phrases: string[], uses: Uses): string | undefined {
   const tasks = groups.find(g => g.agent === parent)?.tasks ?? []
   const mine = groups.filter(g => (g.parent ?? MAIN) === parent)
-  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], names)
-  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), names, openTurnOf(groups)?.id)
+  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], [], undefined, phrases)
+  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), [], openTurnOf(groups)?.id, phrases)
 }
-export async function launchAnchor($: any, groups: Group[], parent: string, names: string[]): Promise<string | undefined> {
-  return anchorIn(groups, parent, names, parent === MAIN ? await mainUses($) : NO_USES)
+// The description and the type are free phrases, not session names (namedFor).
+export async function launchAnchor($: any, groups: Group[], parent: string, phrases: string[]): Promise<string | undefined> {
+  return anchorIn(groups, parent, phrases, parent === MAIN ? await mainUses($) : NO_USES)
 }
 
 // The launches of one message run together: each hook reads the panel before the others write
@@ -74,7 +75,7 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const now = (await stamp($)) ?? 0
   const parent = typeof e.parentAgentId === 'string' && e.parentAgentId !== '' ? e.parentAgentId : MAIN
   const description = String(e.description ?? '')
-  const names = [description, String(e.subagentType ?? '')]
+  const phrases = [description, String(e.subagentType ?? '')]
   const uses = parent === MAIN ? await mainUses($) : NO_USES
   // The Agent call's own record (tool.call) is claimed here: the group needs no other.
   await update($, launchesState, (cur: any) => {
@@ -85,7 +86,7 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const run = typeof e.workflow?.runId === 'string' && e.workflow.runId !== '' ? e.workflow.runId : undefined
   const label = `${String(e.subagentType ?? 'Subagente')}: ${description}`
   await change($, all => {
-    const anchor = anchorIn(all, parent, names, uses)
+    const anchor = anchorIn(all, parent, phrases, uses)
     const mate = all.find(g => g.agent !== agent && g.sub && g.parent === parent && g.anchor === anchor && !g.sub.run && now - g.sub.at <= SUB_BATCH)
     const sub: Sub = {
       at: now,

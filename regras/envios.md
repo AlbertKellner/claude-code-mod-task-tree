@@ -116,12 +116,13 @@ Estado: coberto
 A carta vai à tarefa cujo título casa com o nome da sessão destino.
 
 - Dado várias tarefas candidatas (pendentes sem nada em andamento, ou várias em andamento)
-- Quando sai uma mensagem, ou abre uma sessão, cujo nome casa com o título de uma única candidata (sem acento, sem hífen e sem diferença de maiúsculas: o título contém o nome, ou o nome contém o começo do título antes de ":")
-- Então a carta e o cartão ficam sob essa tarefa; sem casamento único, vale a ordem: a primeira pendente planejada junto ainda sem carta
+- Quando sai uma mensagem, ou abre uma sessão, cujo nome casa com o título de uma única candidata (sem acento, sem hífen e sem diferença de maiúsculas: o título contém o nome, o nome contém o começo do título antes de ":", ou uma palavra do nome, com 4 letras ou mais, é palavra do título)
+- Então a carta e o cartão ficam sob essa tarefa; sem casamento único, vale a ordem: a primeira pendente planejada junto ainda sem carta; o título da sessão nova e a descrição e o tipo de um subagente são frases livres: só levam o cartão a uma tarefa quando o título dela contém a frase inteira, em palavras inteiras, ou a frase contém o começo do título; uma palavra em comum não decide
 
 Origem: decisão do usuário, 2026-11-09 ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome").
-Código: hooks/tool-call.ts, hooks/sessions.ts
+Código: hooks/tool-call.ts, hooks/sessions.ts, hooks/agents.ts
 Reescrito: 2026-11-09, decisão do usuário ("Sim, por palavra (Recomendado)"): casa também quando uma palavra do nome, com 4 letras ou mais, é palavra do título de uma única candidata ("analise-plano" com "Subagente da hora na análise"); um subagente lançado de uma tarefa conta como carta para o envio seguinte.
+Reescrito: 2026-11-14, decisão do usuário ("Só no nome (Recomendado)"): o casamento por uma palavra vale só para o nome da sessão (o destino da mensagem, o nome da sessão aberta); para o título da sessão e para a descrição e o tipo do subagente, só a frase inteira. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### envios.fila-nao-interrompe-no-fim-do-turno

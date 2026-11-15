@@ -1128,3 +1128,35 @@ test('o cartão do subagente cuja tarefa de origem sai do plano fica sob o níve
   expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('concluído')
   expect(linha(p, 'Plano A').estado, emTexto(p)).not.toBe('concluida')
 })
+
+// Duas tarefas em andamento, iniciadas juntas: o cartão de um subagente lançado dali.
+async function lancadoEntre($: any, on: any, segunda: string, args: { tipo?: string; descricao: string }) {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Ler o kit' }, { id: '2', title: segunda }] }])
+  await start($, ['1', '2'])
+  await lancar($, args)
+  return painel($)
+}
+
+// Regra: envios.carta-pelo-nome-da-sessao, subagentes.cartao-desde-o-lancamento
+test('a descrição do subagente com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem', async ($: any, on: any) => {
+  const p = await lancadoEntre($, on, 'Descobrir como o hover funciona', { descricao: 'ver como ficou' })
+  expect(abaixo(p, 'Ler o kit').map(l => l.titulo), emTexto(p)).toContain('Explore: ver como ficou')
+  expect(abaixo(p, 'Descobrir como o hover funciona').map(l => l.titulo), emTexto(p)).not.toContain('Explore: ver como ficou')
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao, subagentes.cartao-desde-o-lancamento
+test('o tipo do subagente que é só um trecho de uma palavra do título não decide', async ($: any, on: any) => {
+  const p = await lancadoEntre($, on, 'Planejar a migração', { tipo: 'Plan', descricao: 'x' })
+  expect(abaixo(p, 'Ler o kit').map(l => l.titulo), emTexto(p)).toContain('Plan: x')
+  expect(abaixo(p, 'Planejar a migração').map(l => l.titulo), emTexto(p)).not.toContain('Plan: x')
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao, subagentes.cartao-desde-o-lancamento
+test('a descrição inteira dentro do título leva o cartão a essa tarefa', async ($: any, on: any) => {
+  const p = await lancadoEntre($, on, 'Revisar testes do hover', { descricao: 'revisar testes' })
+  expect(abaixo(p, 'Revisar testes do hover').map(l => l.titulo), emTexto(p)).toContain('Explore: revisar testes')
+  expect(abaixo(p, 'Ler o kit').map(l => l.titulo), emTexto(p)).not.toContain('Explore: revisar testes')
+})

@@ -265,18 +265,33 @@ const plain = (s: string) =>
 // hora na análise"; the person, 2026-11-09: "Sim, por palavra (Recomendado)"); only a match with one
 // candidate counts (byName), so a word every candidate has decides nothing.
 const words = (s: string) => plain(s).split(' ').map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w.length >= 4)
-export function namedFor(title: string, names: string[]): boolean {
+// A free phrase (a new session's title, a subagent's description or type) is no session name: it
+// matches only whole, in whole words: the title's words hold the phrase's words in a row, or the
+// phrase's words hold the title's head, before a ":" (4 letters or more). A word in common, or a piece
+// of a word ("Plan" in "Planejar"), decides nothing (the person, 2026-11-14: "Só no nome (Recomendado)").
+const tokens = (s: string) => plain(s).split(' ').map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w !== '')
+const inRow = (hay: string[], needle: string[]) =>
+  needle.length > 0 && hay.some((_, i) => needle.every((w, j) => hay[i + j] === w))
+export function namedFor(title: string, names: string[], phrases: string[] = []): boolean {
   const t = plain(title)
   const head = plain(title.split(':')[0] ?? '')
   const inTitle = words(title)
-  return names.some(n => {
-    const name = plain(n)
-    return name.length >= 3 && (t.includes(name) || (head.length >= 4 && name.includes(head)) || words(n).some(w => inTitle.includes(w)))
-  })
+  const all = tokens(title)
+  const headWords = tokens(title.split(':')[0] ?? '')
+  return (
+    names.some(n => {
+      const name = plain(n)
+      return name.length >= 3 && (t.includes(name) || (head.length >= 4 && name.includes(head)) || words(n).some(w => inTitle.includes(w)))
+    }) ||
+    phrases.some(f => {
+      const phrase = tokens(f)
+      return plain(f).length >= 3 && (inRow(all, phrase) || (head.length >= 4 && inRow(phrase, headWords)))
+    })
+  )
 }
-// The one candidate whose title matches the receiving session's name, if exactly one does.
-const byName = (tasks: TaskNode[], names: string[]) => {
-  const hit = names.length === 0 ? [] : tasks.filter(t => namedFor(t.title, names))
+// The one candidate whose title matches the session's names or the free phrases, if exactly one does.
+const byName = (tasks: TaskNode[], names: string[], phrases: string[]) => {
+  const hit = names.length === 0 && phrases.length === 0 ? [] : tasks.filter(t => namedFor(t.title, names, phrases))
   return hit.length === 1 ? hit[0] : undefined
 }
 // The request open now (the person's last message): the main group's last turn. A message, a session
@@ -288,12 +303,12 @@ export const openTurnOf = (groups: Group[]): Turn | undefined => {
   const turns = groups.find(g => g.agent === MAIN)?.turns ?? []
   return turns[turns.length - 1]
 }
-export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number): string | undefined {
+export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in this order (the person's decisions): with the request open now and no
   // level-1 task of it yet, none (above); else the current request is the largest `turn` among the
   // level-1 tasks; among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
-  // title matches the receiving session's name, if only one does (byName); else the batch planned
+  // title matches the receiving session's name (or holds the free phrase whole), if only one does (byName); else the batch planned
   // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
   // yet (`used`: a letter, a session's round, a session opened, a subagent launched), all of them used,
   // its last; no pending task, the one started last, done included (startedLast); none started, the
@@ -307,7 +322,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
     const free = order.filter(x => !has(x.t))
-    const named = byName(going, names)
+    const named = byName(going, names, phrases)
     if (named) return named.id
     if (free.length > 0) {
       const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
@@ -323,7 +338,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     const last = turns.length > 0 ? Math.max(...turns) : undefined
     const mine = list.filter(t => last === undefined || t.turn === last)
     const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined)
-    const named = byName(pending, names)
+    const named = byName(pending, names, phrases)
     if (named) return named.id
     const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
     if (newest) {

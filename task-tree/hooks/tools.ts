@@ -156,7 +156,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
 // The request's first plan adopts what the main loop sent, opened or launched in it before, with no
 // task (sendAnchor gives none before the plan): the messages, the sessions opened (and their rounds
 // with no task) and its subagents, in the order they were made, each to the task sendAnchor gives now
-// (the session's or subagent's name against the titles, else the first pending one), the ones
+// (the session's name against the titles, its title and the subagent's description and type only as
+// whole phrases, namedFor; else the first pending one), the ones
 // adopted before counting as uses of their task. The person, 2026-11-14: "Sim, o plan adota
 // (Recomendado)". Only a place: an adopted message's delivery closes no task (Send.adopted), and a
 // subagent launched before its task was planned does not close it (ofLeaf, hooks/agents).
@@ -171,18 +172,18 @@ async function adoptOrphans($: any, groups: Group[]) {
   const sends = sends0 as Send[]
   const kids = kids0 as Child[]
   const named = (list: string[]) => list.filter(n => n !== '' && !/^local_/.test(n) && !n.endsWith('…'))
-  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[] }
+  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[]; phrases: string[] }
   const sendKey = (x: Send) => `${x.to}|${x.at}`
   const orphans: Orphan[] = [
     ...sends.flatMap(x =>
       x.anchor === undefined && typeof x.at === 'number' && x.at >= since
-        ? [{ at: x.at, kind: 'send' as const, key: sendKey(x), names: named([x.to, ...kids.filter(k => k.id === x.to).map(k => k.name)]) }]
+        ? [{ at: x.at, kind: 'send' as const, key: sendKey(x), names: named([x.to, ...kids.filter(k => k.id === x.to).map(k => k.name)]), phrases: [] }]
         : [],
     ),
-    ...kids.flatMap(c => (c.anchor === undefined && typeof c.openedAt === 'number' && c.openedAt >= since ? [{ at: c.openedAt, kind: 'open' as const, key: c.id, names: named([c.name, c.title]) }] : [])),
+    ...kids.flatMap(c => (c.anchor === undefined && typeof c.openedAt === 'number' && c.openedAt >= since ? [{ at: c.openedAt, kind: 'open' as const, key: c.id, names: named([c.name]), phrases: named([c.title]) }] : [])),
     ...groups.flatMap(g =>
       g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && g.sub && g.anchor === undefined && g.sub.at >= since
-        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: named(g.label.split(': ')) }]
+        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: [], phrases: named(g.label.split(': ')) }]
         : [],
     ),
   ].sort((a, b) => a.at - b.at)
@@ -191,7 +192,7 @@ async function adoptOrphans($: any, groups: Group[]) {
   const asking = askingAnchors(waits0 as Wait[])
   const got = new Map<string, string>()
   for (const o of orphans) {
-    const anchor = sendAnchor(main.tasks, used, asking, o.names, turn.id)
+    const anchor = sendAnchor(main.tasks, used, asking, o.names, turn.id, o.phrases)
     if (anchor === undefined) continue
     used.push({ anchor, at: o.at })
     got.set(`${o.kind}:${o.key}`, anchor)

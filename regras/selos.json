@@ -2567,6 +2567,17 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/sessoes.test.ts::o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "ef5bd15e762d84b7",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
     "task-tree/tests/sessoes.test.ts::o painel publicado leva três níveis de sessões abaixo desta e corta o resto": {
       "regras": [
         "sessoes.publicado-corta-a-profundidade"
@@ -2648,6 +2659,17 @@
       "data": "2026-11-03",
       "motivo": "turno próprio da filha no pedido vigente"
     },
+    "task-tree/tests/sessoes.test.ts::o título da sessão nova com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "66c8aa810740c2a4",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
     "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista": {
       "regras": [
         "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
@@ -2727,6 +2749,28 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: a sessão conta uma vez no chip"
+    },
+    "task-tree/tests/subagentes.test.ts::a descrição do subagente com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "53532b27e7ba57da",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::a descrição inteira dentro do título leva o cartão a essa tarefa": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "5b8e95292ec682b6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
     },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [
@@ -3098,6 +3142,17 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
+    "task-tree/tests/subagentes.test.ts::o tipo do subagente que é só um trecho de uma palavra do título não decide": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "5e1f97c02c8a66f8",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
     },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
       "regras": [

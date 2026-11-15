@@ -4,7 +4,7 @@ import { abrirSessao, aviso, done, esc, pedido, plan, start, type No } from './k
 import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
-import { envio } from './kit/cenario'
+import { envio, ferramenta } from './kit/cenario'
 import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
@@ -1379,4 +1379,28 @@ test('desarquivada, a filha resumida volta ao cartão inteiro', async ($: any, o
   await aviso($)
   const p = await comHistorico($, 1)
   expect(p.some(x => x.titulo === 'Feita'), emTexto(p)).toBe(true)
+})
+
+// Duas tarefas em andamento, iniciadas juntas, e uma sessão aberta dali com este nome e título.
+async function abertaEntre($: any, on: any, args: { name: string; title: string }) {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Pesquisa web: changelog' }, { id: '2', title: 'Implementação: ler o código' }] }])
+  await start($, ['1', '2'])
+  await ferramenta($, 'mcp__ccd_session__start_session', args)
+  await aviso($)
+  return painel($)
+}
+
+// Regra: envios.carta-pelo-nome-da-sessao, sessoes.cartao-sob-a-tarefa-de-origem
+test('o título da sessão nova com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem', async ($: any, on: any) => {
+  const p = await abertaEntre($, on, { name: 'sessao-um', title: 'Conferir o código gerado' })
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Pesquisa web: changelog')
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao, sessoes.cartao-sob-a-tarefa-de-origem
+test('o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela', async ($: any, on: any) => {
+  const p = await abertaEntre($, on, { name: 'revisao-codigo', title: 'x' })
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Implementação: ler o código')
 })

@@ -320,7 +320,8 @@ export async function refreshStale($: any) {
 }
 
 // A start_session call records the task the main loop is on, under the id its result names.
-export async function recordStart($: any, resultText: string, names: string[] = []) {
+// `names` are the session's names (its `name`), `phrases` free text (its title): namedFor.
+export async function recordStart($: any, resultText: string, names: string[] = [], phrases: string[] = []) {
   const id = /local_[0-9a-f-]{36}/.exec(resultText)?.[0]
   if (!id) return
   const { value = [] } = await $.state.get(groupsState)
@@ -330,7 +331,7 @@ export async function recordStart($: any, resultText: string, names: string[] = 
   // with several in progress, the first with no message yet).
   const { value: waits0 = [] } = await $.state.get(waitsState)
   // Before the request's first plan: none (drawn loose until the plan adopts it).
-  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (value as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(value as Group[])?.id)
+  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (value as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(value as Group[])?.id, phrases)
   // When it was opened: its task counts as used from then on (usedAnchors).
   const openedAt = await stamp($)
   await update($, childrenState, cur => {

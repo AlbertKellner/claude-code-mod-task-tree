@@ -275,7 +275,7 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   if (String(e.tool) === 'mcp__ccd_session__start_session') {
     const out = JSON.stringify(c.r.result ?? c.r)
     const input = ((e as any).input ?? e) as { name?: unknown; title?: unknown }
-    await recordStart($, out, [input.name, input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
+    await recordStart($, out, [input.name].filter((n): n is string => typeof n === 'string' && n !== ''), [input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
   }
   if (c.r.deny !== undefined) return c.r
   const notes: string[] = []
