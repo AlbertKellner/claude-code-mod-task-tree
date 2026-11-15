@@ -342,3 +342,14 @@ Com plano aberto e nada iniciado, o modelo é lembrado de dar start.
 Origem: decisão do usuário, 2026-11-15 ("Lembrete após 3 chamadas (Recomendado)").
 Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, state/durability.ts
 Estado: coberto
+
+### lembretes.ordem-com-a-lista-do-app
+No app desktop, as regras dizem como o painel convive com a lista de tarefas do app.
+
+- Dado um pedido que oferece a lista de tarefas do app (update_plan, wrap_up)
+- Quando o prompt de sistema é montado e quando chega a mensagem seguinte da pessoa
+- Então as regras dizem que a lista do app não substitui o painel, que o plan vai junto com ela na primeira mensagem e que os done e o summary vêm antes do wrap_up; o lembrete do pedido novo repete isso numa frase; fora do app, nenhum dos dois textos sai
+
+Origem: decisão do usuário, 2026-11-15 ("Sim, acrescentar (Recomendado)").
+Código: hooks/prompt-submit.ts, text/rules.ts
+Estado: coberto

@@ -2421,6 +2421,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
+    "task-tree/tests/lembretes.test.ts::com a lista do app entre as ferramentas, as regras dizem a ordem com o wrap_up; sem ela, não": {
+      "regras": [
+        "lembretes.ordem-com-a-lista-do-app"
+      ],
+      "hash": "384accf246edfa6d",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, acrescentar (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::com a mensagem nova ainda na fila, o lembrete do turno que terminou cita a tarefa de abertura": {
       "regras": [
         "lembretes.filha-terminou-o-turno"
@@ -2500,6 +2510,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::depois de um pedido composto com a lista do app, o lembrete de pedido novo leva a frase da ordem": {
+      "regras": [
+        "lembretes.ordem-com-a-lista-do-app"
+      ],
+      "hash": "4b4a14e357909ad6",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, acrescentar (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez": {
       "regras": [
@@ -2812,6 +2832,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: done, depois plan"
+    },
+    "task-tree/tests/lembretes.test.ts::sem um pedido composto com a lista do app, o lembrete de pedido novo não leva a frase da ordem": {
+      "regras": [
+        "lembretes.ordem-com-a-lista-do-app"
+      ],
+      "hash": "13ffd2f4b8dde299",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, acrescentar (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::um start antes da terceira chamada cala o lembrete de start": {
       "regras": [

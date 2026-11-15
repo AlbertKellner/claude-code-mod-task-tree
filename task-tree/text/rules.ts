@@ -102,6 +102,15 @@ export const RULES = [
     'de origem, o painel conclui essa tarefa sozinho e avisa; para seguir nela, reabra com start.',
 ].join('\n')
 
+// Added to RULES only when the request offers the desktop app's task list (update_plan, wrap_up; hooks/
+// prompt-submit, promptCompose): how the panel goes with it (the person, 2026-11-15: "Sim, acrescentar
+// (Recomendado)").
+export const APP_LIST_RULE =
+  '- No app desktop há também a lista de tarefas do app (update_plan no começo, wrap_up no fim): ela não ' +
+  'substitui este painel, use os dois. Na primeira mensagem do turno, chame mcp__task-tree__plan junto ' +
+  'com a lista do app. Antes do wrap_up, feche com mcp__task-tree__done as tarefas concluídas e passe o ' +
+  '`summary` no último done: o wrap_up vem depois.'
+
 // The /task-tree command and the three tools, as the model sees them.
 export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele'
 export const TOOLS = {
@@ -157,7 +166,8 @@ export const PROMPT = {
   // `open`: tasks were open before the message (their list goes in the reminder before this one):
   // the done of what it concludes comes first, then the plan (the person, 2026-11-14: "Done, depois
   // plan (Recomendado)"), so the asked task closes ✓ in its own request and the new plan goes in whole.
-  request: (open: boolean) =>
+  // `appList`: the last request composed offered the app's task list (APP_LIST_RULE, in one sentence).
+  request: (open: boolean, appList = false) =>
     PANEL + 'todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
     'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. ' +
     (open
@@ -173,7 +183,8 @@ export const PROMPT = {
     'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
     'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
     'request um título curto do que foi pedido. No done da última etapa do turno, passe summary: ' +
-    `resumo da resposta em ${LIMIT}, tipo manchete.`,
+    `resumo da resposta em ${LIMIT}, tipo manchete.` +
+    (appList ? ' No app desktop, a lista do app vai junto com o plan e não o substitui; antes do wrap_up, done nas concluídas e summary.' : ''),
   open: (list: string, answered: boolean) =>
     (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
     PANEL + `tarefas abertas antes desta mensagem: ${list}. Feche com ` +

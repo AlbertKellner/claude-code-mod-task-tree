@@ -455,7 +455,10 @@ o cartão da filha desconta dos tempos dela os intervalos dela. Ausente nos arqu
 dele diz o que não vale dentro de um subagente: `request`, `summary`, a recusa da pergunta sem tarefa e
 os lembretes de planejar; `lembretes.regras-dizem-o-que-nao-vale-no-subagente`); `COMMAND` e `TOOLS` são as descrições
 registradas no `session.start` (`TOOLS.cancel` é a do parâmetro `cancel` do `done`); `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
-`SEND`, `UNPLANNED`, `START_DUE` e `SESSION` os avisos nos resultados das ferramentas; `START` a recusa do start
+`SEND`, `UNPLANNED`, `START_DUE` e `SESSION` os avisos nos resultados das ferramentas; `APP_LIST_RULE` o item
+das regras que só entra quando o pedido oferece a lista de tarefas do app (`wrap_up` ou `update_plan` entre
+as ferramentas da composição), e então o `PROMPT.request` do pedido seguinte leva a mesma ordem numa frase
+(`appList`, variável do módulo `hooks/prompt-submit.ts`; lembretes.ordem-com-a-lista-do-app); `START` a recusa do start
 (o pai concluído, dito igual nas regras, na descrição e na recusa: `REDO_PARENT`), `PLAN` os avisos e as recusas da entrada do
 plan, `NOT_A_LIST` a recusa de `ids`/`cancel` que não são lista, `TOOL_ERROR` a falha interna das três ferramentas e `SUBS` a nota do fim dos subagentes. Cada texto tem um cenário no catálogo que diz quando ele
 sai; a primeira regra do pedido com tarefas abertas pede o `done` delas e só depois o `plan`
@@ -2399,3 +2402,12 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   nas marcas do pedido (`idleCalls`, `idleWarned`), que sobrevivem à recarga. `DONE.unstarted` sai também
   com uma tarefa só, no singular (2026-11-15, "Lembrete após 3 chamadas (Recomendado)";
   lembretes.plano-aberto-sem-start, arvore.done-sem-summary-e-varias-sem-start).
+
+## Achados baixos: a ordem entre o painel e a lista de tarefas do app (2026-11-15)
+
+- As regras não diziam como o painel convive com a lista do app: o modelo chamava o wrap_up e só no
+  resultado dele descobria que faltavam os done e o summary. Agora, quando a composição do pedido oferece
+  o `wrap_up` ou o `update_plan` do app, as regras ganham `APP_LIST_RULE` (a lista não substitui o painel;
+  o plan vai junto com ela na primeira mensagem; done e summary antes do wrap_up), e o lembrete do pedido
+  novo seguinte repete isso numa frase. Fora do app, nenhum dos dois (2026-11-15, "Sim, acrescentar
+  (Recomendado)"; lembretes.ordem-com-a-lista-do-app).

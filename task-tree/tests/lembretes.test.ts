@@ -951,3 +951,46 @@ test('a contagem do lembrete de start sobrevive à recarga, 2/2: a terceira traz
   expect(Object.keys(ESTADO_PARADO).length, 'o 1/2 não gravou o state').toBeGreaterThan(0)
   expect(await lembraStart($, 'a3')).toBe(true)
 })
+
+// A ordem com a lista de tarefas do app (decisão do usuário, 2026-11-15: "Sim, acrescentar (Recomendado)").
+const COMPOR_NO_APP = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+const regrasCom = async ($: any, tools: string[]) => {
+  const r = await $.prompt.compose({ ...COMPOR_NO_APP, tools })
+  return String((r?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+}
+
+// Regra: lembretes.ordem-com-a-lista-do-app
+test('com a lista do app entre as ferramentas, as regras dizem a ordem com o wrap_up; sem ela, não', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  const noApp = await regrasCom($, ['mcp__task-tree__plan', 'mcp__ccd_turn__wrap_up', 'mcp__ccd_turn__update_plan'])
+  for (const t of ['não substitui este painel', 'junto com a lista do app', 'Antes do wrap_up']) expect(noApp).toContain(t)
+  const fora = await regrasCom($, ['mcp__task-tree__plan', 'Bash'])
+  expect(fora).toContain('Painel de tarefas')
+  for (const t of ['não substitui este painel', 'junto com a lista do app', 'Antes do wrap_up']) expect(fora).not.toContain(t)
+})
+
+// Regra: lembretes.ordem-com-a-lista-do-app
+test('depois de um pedido composto com a lista do app, o lembrete de pedido novo leva a frase da ordem', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  await regrasCom($, ['mcp__task-tree__plan', 'mcp__ccd_turn__wrap_up'])
+  const ctx = contexto(await pedido($, 'Pedido um'))
+  expect(ctx).toContain(PEDIDO_NOVO)
+  expect(ctx).toContain('antes do wrap_up')
+  expect(ctx).toContain('não o substitui')
+})
+
+// Regra: lembretes.ordem-com-a-lista-do-app
+test('sem um pedido composto com a lista do app, o lembrete de pedido novo não leva a frase da ordem', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  const antes = contexto(await pedido($, 'Pedido um'))
+  expect(antes).toContain(PEDIDO_NOVO)
+  expect(antes).not.toContain('não o substitui')
+  await fimDoTurno($)
+  await regrasCom($, ['mcp__task-tree__plan', 'Bash'])
+  const depois = contexto(await pedido($, 'Pedido dois'))
+  expect(depois).not.toContain('antes do wrap_up')
+  expect(depois).not.toContain('não o substitui')
+})

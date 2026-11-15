@@ -103,6 +103,7 @@ export const TABLE: readonly Row[] = [
   { key: 'leftBehind', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the sessions this one opened before a /clear (the last 200), with no card from then on; kept in the links record (`left`), refilled whenever it is read or written, as keptLinks' },
   { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (put back from the state\'s selfId after a reload, else asked again)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
+  { key: 'appList', lives: 'module', merge: 'none', restoredAt: [], note: 'whether a request composed here offered the app task list (wrap_up, update_plan; hooks/prompt-submit): a reload forgets it until the next composition, and the reminder of a new request leaves out the sentence of the order meanwhile' },
   { key: 'reading', lives: 'module', merge: 'none', restoredAt: [], note: 'the read of the sessions in progress (refreshChildren): one at a time; a reload starts it over' },
   { key: 'readAgain', lives: 'module', merge: 'none', restoredAt: [], note: 'a read asked while one ran: the one in progress runs once more; a reload starts it over' },
   { key: 'publishing', lives: 'module', merge: 'none', restoredAt: [], note: 'the publication of the panel in progress (publishPanel): one at a time; a reload starts it over' },

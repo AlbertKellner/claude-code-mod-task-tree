@@ -7,7 +7,7 @@
 
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
-import { PROMPT, RULES } from '../text/rules'
+import { APP_LIST_RULE, PROMPT, RULES } from '../text/rules'
 import { guardStep } from '../io/log'
 import { learnNames, marks, reminders, setMarks, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { subsNote } from './agents'
@@ -221,12 +221,24 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   if (!it.peer) await setMarks($, { answeredInChat: false })
   return next({
     ...e,
-    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks))],
+    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks), appList.offered)],
   })
 }
+
+// Whether a request composed by this module offered the desktop app's task list (its wrap_up or its
+// update_plan): the reminder of a new request then says the order with it in one sentence. A variable of
+// the module: a reload forgets it until the next composition (state/durability). Only a composition that
+// offers them sets it (a subagent's, which has no wrap_up, does not clear it).
+const APP_LIST_TOOLS = ['mcp__ccd_turn__wrap_up', 'mcp__ccd_turn__update_plan']
+export const appList = { offered: false }
 
 export async function promptCompose($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   if (!e.tools.includes('mcp__task-tree__plan')) return r
-  return { ...r, sections: [...r.sections, { id: 'task-tree:regras', text: RULES, scope: 'session' as const }] }
+  // The rule of the order with the app's task list, only when the request offers it (the person,
+  // 2026-11-15: "Sim, acrescentar (Recomendado)").
+  const offers = APP_LIST_TOOLS.some(t => e.tools.includes(t))
+  if (offers) appList.offered = true
+  const text = offers ? `${RULES}\n${APP_LIST_RULE}` : RULES
+  return { ...r, sections: [...r.sections, { id: 'task-tree:regras', text, scope: 'session' as const }] }
 }
