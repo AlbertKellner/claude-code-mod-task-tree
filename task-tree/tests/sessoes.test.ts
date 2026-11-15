@@ -104,7 +104,7 @@ test('a filha que espera a pessoa: o cartão diz "aguardando", segura a tarefa d
 })
 
 // Regra: sessoes.filha-arquivada-interrompe, sessoes.palavra-de-estado-do-cartao
-test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda', async ($: any, on: any) => {
+test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída fica concluído', async ($: any, on: any) => {
   const pai = tarefa('P', 'Pai da filha', 'aberta', [tarefa('P/1', 'Feita', 'feita'), tarefa('P/2', 'Aberta')])
   await abrir($, on, { rodando: false, arquivada: true, painel: { tasks: [pai] } })
   const p = await painel($)

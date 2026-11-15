@@ -39,8 +39,6 @@ export const iniciarSessao = async ($: any) => {
 export const retomar = ($: any, id: string) => $.classic.SessionStart({ source: 'resume', session_id: id })
 export const limpar = ($: any) => $.classic.SessionStart({ source: 'clear' })
 
-// Troca a visão, como /task-tree resumida | completa.
-
 // Uma mensagem de outra sessão: abre um pedido marcado como recebido.
 export const mensagemDe = ($: any, de: string, texto: string) =>
   $.prompt.submit({ text: `<cross-session-message from="${de}" name="outra">${texto}</cross-session-message>` })

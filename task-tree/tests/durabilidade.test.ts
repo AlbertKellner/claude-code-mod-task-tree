@@ -62,7 +62,7 @@ test('reinício com session.start, 2/2: outro processo desenha o mesmo painel e 
 })
 
 // Regra: durabilidade.respawn-sem-session-start
-test('respawn sem session.start, 1/2: dois pedidos e a visão resumida no store', async ($: any, on: any) => {
+test('respawn sem session.start, 1/2: dois pedidos no store', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   armazem(on, RESPAWN)
   await pedido($, 'Pedido um')
@@ -79,7 +79,7 @@ test('respawn sem session.start, 1/2: dois pedidos e a visão resumida no store'
 })
 
 // Regra: durabilidade.respawn-sem-session-start
-test('respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no primeiro uso, e o store não encolhe', async ($: any, on: any) => {
+test('respawn sem session.start, 2/2: o painel e o trabalho voltam no primeiro uso, e o store não encolhe', async ($: any, on: any) => {
   fixar(on)
   armazem(on, RESPAWN)
   exigir(temPainel(RESPAWN))

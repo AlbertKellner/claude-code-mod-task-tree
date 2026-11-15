@@ -332,7 +332,7 @@ test('a marca da parada com Esc vai no painel publicado até o start nela', asyn
 })
 
 // Regra: turnos.subagente-que-termina-interrompe
-test('o subagente que termina deixa interrompido o que ficou aberto, e o pai com filha concluída aguarda', async ($: any, on: any) => {
+test('o subagente que termina deixa interrompido o que ficou aberto, e o plano dele com filha concluída fica concluído', async ($: any, on: any) => {
   fixar(on)
   subagente(on, 'sub-1')
   await pedido($, 'Pedido um')

@@ -101,7 +101,7 @@ test('plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o ante
 })
 
 // Regra: turnos.pai-com-filha-concluida-nunca-interrompido
-test('no Esc, pai com filha concluída fica aguardando, nunca interrompido', async ($: any, on: any) => {
+test('no Esc, o pai com filha concluída e o pedido ficam concluídos, nunca interrompidos', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
   await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])

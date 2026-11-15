@@ -12,7 +12,7 @@ const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1'
 const tem = (linhas: { titulo: string }[], titulo: string) => linhas.some(l => l.titulo === titulo)
 
 // Regra: cabecalho.numeros-somam-o-desenhado
-test('os números somam o que a visão desenha, e recolher não muda nada', async ($: any, on: any) => {
+test('os números somam o que o painel desenha, e recolher não muda nada', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A)
@@ -35,7 +35,7 @@ test('os números somam o que a visão desenha, e recolher não muda nada', asyn
 })
 
 // Regra: cabecalho.resumida-exclui-pedido-finalizado, cabecalho.resumida-limpa-so-com-tudo-concluido
-test('o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém', async ($: any, on: any) => {
+test('o pedido finalizado sai do painel quando um pedido novo começa trabalho, e volta ao abrir "+N pedidos anteriores"', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A)
@@ -60,7 +60,7 @@ test('o pedido finalizado sai da resumida quando um pedido novo começa trabalho
 })
 
 // Regra: pedidos.resumida-mantem-anteriores-com-algo-aberto
-test('com algo aberto à vista, a resumida mantém o pedido anterior', async ($: any, on: any) => {
+test('com algo aberto à vista, o pedido anterior segue no painel', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A)
@@ -187,7 +187,7 @@ test('dois starts no mesmo instante: o título é o do último da lista do start
 })
 
 // Regra: cabecalho.limites-de-linhas
-test('só os três últimos pedidos aparecem na completa; os outros viram "+N pedidos anteriores"', async ($: any, on: any) => {
+test('os pedidos concluídos fora do trabalho atual viram "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   for (let i = 1; i <= 5; i++) {
     await pedido($, `Pedido ${i}`)

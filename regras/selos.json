@@ -283,15 +283,15 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-14: Trecho da em andamento (Recomendado)"
     },
-    "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
+    "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, o pedido anterior segue no painel": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
       ],
       "hash": "b704ac6bedda88f4",
       "assercoes": 3,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda"
     },
     "task-tree/tests/cabecalho.test.ts::com mais de três pedidos no trabalho, o título não é de um pedido que está em '+N pedidos anteriores'": {
       "regras": [
@@ -393,16 +393,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
-    "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém": {
+    "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai do painel quando um pedido novo começa trabalho, e volta ao abrir \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.resumida-exclui-pedido-finalizado",
         "cabecalho.resumida-limpa-so-com-tudo-concluido"
       ],
       "hash": "256d158fc236b10b",
       "assercoes": 8,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda"
     },
     "task-tree/tests/cabecalho.test.ts::o título é o nível 1 da tarefa iniciada por último": {
       "regras": [
@@ -424,15 +424,25 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
-    "task-tree/tests/cabecalho.test.ts::os números somam o que a visão desenha, e recolher não muda nada": {
+    "task-tree/tests/cabecalho.test.ts::os números somam o que o painel desenha, e recolher não muda nada": {
       "regras": [
         "cabecalho.numeros-somam-o-desenhado"
       ],
       "hash": "c1f2a061ba734aca",
       "assercoes": 4,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda"
+    },
+    "task-tree/tests/cabecalho.test.ts::os pedidos concluídos fora do trabalho atual viram \"+N pedidos anteriores\", e o cabeçalho conta o que ficou à vista": {
+      "regras": [
+        "cabecalho.limites-de-linhas"
+      ],
+      "hash": "c69adb9ab6c4d893",
+      "assercoes": 6,
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda"
     },
     "task-tree/tests/cabecalho.test.ts::pedidos antigos saem inteiros do começo, contados em \"+N linhas anteriores\"": {
       "regras": [
@@ -496,16 +506,6 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "uma condição só de cabeçalho vazio"
-    },
-    "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
-      "regras": [
-        "cabecalho.limites-de-linhas"
-      ],
-      "hash": "c69adb9ab6c4d893",
-      "assercoes": 6,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
     "task-tree/tests/cabecalho.test.ts::um aviso sem tarefa depois de um pedido grande demais não esconde o pedido": {
       "regras": [
@@ -1399,25 +1399,25 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
     },
-    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos e a visão resumida no store": {
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos no store": {
       "regras": [
         "durabilidade.respawn-sem-session-start"
       ],
       "hash": "9c470b3630b0f69f",
       "assercoes": 1,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda"
     },
-    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no primeiro uso, e o store não encolhe": {
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 2/2: o painel e o trabalho voltam no primeiro uso, e o store não encolhe": {
       "regras": [
         "durabilidade.respawn-sem-session-start"
       ],
       "hash": "45237da1e70a310a",
       "assercoes": 6,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda"
     },
     "task-tree/tests/durabilidade.test.ts::retomada com espera da sessão anterior, 1/2: uma escolha do wrap_up e um resumo no state": {
       "regras": [
@@ -3118,15 +3118,15 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
     },
-    "task-tree/tests/pedidos.test.ts::no Esc, pai com filha concluída fica aguardando, nunca interrompido": {
+    "task-tree/tests/pedidos.test.ts::no Esc, o pai com filha concluída e o pedido ficam concluídos, nunca interrompidos": {
       "regras": [
         "turnos.pai-com-filha-concluida-nunca-interrompido"
       ],
       "hash": "2ab3ef47ab4e7208",
       "assercoes": 3,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda"
     },
     "task-tree/tests/pedidos.test.ts::no mesmo pedido, o cartão da filha segue sob a tarefa quando o nível 1 concluído é replanejado": {
       "regras": [
@@ -4236,16 +4236,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\"; o cartão único fica onde o primeiro turno aconteceu"
     },
-    "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
+    "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída fica concluído": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",
         "sessoes.palavra-de-estado-do-cartao"
       ],
       "hash": "30c37a6b9f06e813",
       "assercoes": 3,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda"
     },
     "task-tree/tests/sessoes.test.ts::filha encerrada: o status sob a caixa de mensagem conta como a sessão inteira": {
       "regras": [
@@ -6253,15 +6253,15 @@
       "data": "2026-11-04",
       "motivo": "só a visão resumida, 2026-11-04"
     },
-    "task-tree/tests/turnos.test.ts::o subagente que termina deixa interrompido o que ficou aberto, e o pai com filha concluída aguarda": {
+    "task-tree/tests/turnos.test.ts::o subagente que termina deixa interrompido o que ficou aberto, e o plano dele com filha concluída fica concluído": {
       "regras": [
         "turnos.subagente-que-termina-interrompe"
       ],
       "hash": "db54fe90d4d117ff",
       "assercoes": 5,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda"
     },
     "task-tree/tests/turnos.test.ts::o tempo do pai e do pedido não pula no fim do turno com passos pendentes": {
       "regras": [
@@ -6841,6 +6841,47 @@
     }
   },
   "removidos": {
+    "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
+      "regras": [
+        "pedidos.resumida-mantem-anteriores-com-algo-aberto"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda",
+      "hash": "b704ac6bedda88f4",
+      "para": "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, o pedido anterior segue no painel",
+      "tipo": "refatoracao"
+    },
+    "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém": {
+      "regras": [
+        "cabecalho.resumida-exclui-pedido-finalizado",
+        "cabecalho.resumida-limpa-so-com-tudo-concluido"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda",
+      "hash": "256d158fc236b10b",
+      "para": "task-tree/tests/cabecalho.test.ts::o pedido finalizado sai do painel quando um pedido novo começa trabalho, e volta ao abrir \"+N pedidos anteriores\"",
+      "tipo": "refatoracao"
+    },
+    "task-tree/tests/cabecalho.test.ts::os números somam o que a visão desenha, e recolher não muda nada": {
+      "regras": [
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda",
+      "hash": "c1f2a061ba734aca",
+      "para": "task-tree/tests/cabecalho.test.ts::os números somam o que o painel desenha, e recolher não muda nada",
+      "tipo": "refatoracao"
+    },
+    "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
+      "regras": [
+        "cabecalho.limites-de-linhas"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda",
+      "hash": "c69adb9ab6c4d893",
+      "para": "task-tree/tests/cabecalho.test.ts::os pedidos concluídos fora do trabalho atual viram \"+N pedidos anteriores\", e o cabeçalho conta o que ficou à vista",
+      "tipo": "refatoracao"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o recap do wrap_up no state": {
       "regras": [
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
@@ -6861,6 +6902,47 @@
       "hash": "e762b21f9e70918d",
       "tipo": "decisao"
     },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos e a visão resumida no store": {
+      "regras": [
+        "durabilidade.respawn-sem-session-start"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda",
+      "hash": "9c470b3630b0f69f",
+      "para": "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos no store",
+      "tipo": "refatoracao"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no primeiro uso, e o store não encolhe": {
+      "regras": [
+        "durabilidade.respawn-sem-session-start"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda",
+      "hash": "45237da1e70a310a",
+      "para": "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 2/2: o painel e o trabalho voltam no primeiro uso, e o store não encolhe",
+      "tipo": "refatoracao"
+    },
+    "task-tree/tests/pedidos.test.ts::no Esc, pai com filha concluída fica aguardando, nunca interrompido": {
+      "regras": [
+        "turnos.pai-com-filha-concluida-nunca-interrompido"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda",
+      "hash": "2ab3ef47ab4e7208",
+      "para": "task-tree/tests/pedidos.test.ts::no Esc, o pai com filha concluída e o pedido ficam concluídos, nunca interrompidos",
+      "tipo": "refatoracao"
+    },
+    "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
+      "regras": [
+        "sessoes.filha-arquivada-interrompe",
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda",
+      "hash": "30c37a6b9f06e813",
+      "para": "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída fica concluído",
+      "tipo": "refatoracao"
+    },
     "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
@@ -6871,6 +6953,16 @@
       "hash": "42efd176ce0a2c8b",
       "para": "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior",
       "tipo": "decisao"
+    },
+    "task-tree/tests/turnos.test.ts::o subagente que termina deixa interrompido o que ficou aberto, e o pai com filha concluída aguarda": {
+      "regras": [
+        "turnos.subagente-que-termina-interrompe"
+      ],
+      "data": "2026-11-15",
+      "motivo": "renome puro: o nome dizia a regra antiga (pai aguardando); o corpo não muda",
+      "hash": "db54fe90d4d117ff",
+      "para": "task-tree/tests/turnos.test.ts::o subagente que termina deixa interrompido o que ficou aberto, e o plano dele com filha concluída fica concluído",
+      "tipo": "refatoracao"
     }
   }
 }
