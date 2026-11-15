@@ -29,8 +29,8 @@ if (indice) {
     process.exit(1)
   }
   if (existsSync(join(repo, 'node_modules'))) symlinkSync(join(repo, 'node_modules'), join(raiz, 'node_modules'), 'junction')
-  // Os tipos do kit (gerados pelo validate do mesmo binário, ignorados pelo git): o tsc lê deles, e o
-  // validate pode ser pulado no hook.
+  // Os tipos do kit (ignorados pelo git; gravados pelo motor do Claude Code quando carrega o mod de uma
+  // pasta, e regravados a cada atualização do app; o validate não os gera): o tsc lê deles.
   const tipos = join(repo, 'task-tree', '.claude-plugin', 'types')
   if (existsSync(tipos)) cpSync(tipos, join(raiz, 'task-tree', '.claude-plugin', 'types'), { recursive: true })
   console.log(`Verificando o índice (o que vai no commit), copiado em ${raiz}`)
@@ -63,8 +63,9 @@ if (versao.status !== 0) {
 }
 console.log(`Claude Code: ${claude} (${versao.stdout.trim()})`)
 
-// O validate gera .claude-plugin/types/ do mod (ignorado pelo git), de que o tsc depende;
-// por isso vem antes do tsc.
+// O tsc depende de .claude-plugin/types/ do mod (ignorado pelo git), que o validate não gera: quem
+// grava a pasta é o motor do Claude Code quando carrega o mod de uma pasta (e a regrava a cada
+// atualização do app); num clone novo, sem ela, o tsc falha.
 // O tsc bloqueia: strict + noUncheckedIndexedAccess do tsconfig gerado, e noUnusedLocals do
 // task-tree/tsconfig.json (decisão do usuário, 2026-10-28).
 // [nome, comando, argumentos, bloqueia, roda (no hook: os arquivos dela mudaram), junto (no hook: em

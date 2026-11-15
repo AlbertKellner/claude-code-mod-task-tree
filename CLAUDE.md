@@ -39,7 +39,9 @@ Etapas, nessa ordem; a primeira que falha para:
 2. `travas`: testa as regras do selo num repositório temporário.
 3. `selos`: confere os testes e o kit contra `regras/selos.json`.
 4. `claude plugin validate . --strict` e `claude plugin validate task-tree --strict`: manifesto do
-   marketplace e do mod; também gera `task-tree/.claude-plugin/types/` (ignorado pelo git).
+   marketplace e do mod. Não gera `task-tree/.claude-plugin/types/` (ignorado pelo git), de que o `tsc`
+   depende: quem grava essa pasta é o motor do Claude Code quando carrega o mod de uma pasta, e ele a
+   regrava a cada atualização do app; num clone novo, sem ela, o `tsc` falha.
 5. `tsc --noEmit`: bloqueia. Usa o tsconfig gerado (strict, noUncheckedIndexedAccess) e o
    `task-tree/tsconfig.json`, que liga `noUnusedLocals` (sem `noUnusedParameters`: os hooks têm
    `($, e, next)` na assinatura).
