@@ -1465,7 +1465,11 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `sessionTotal` (`draw/layout.ts`: `stayed` com `spared`, cada filha repartida por `split` e cada
   cartão passado por `settle`), para não divergirem (auditoria 2026-11-10: o status somava as filhas
   sem repartir, e ficava em "Tarefas 4/5" com o cabeçalho em 4 de 4). As interrompidas ficam fora. Os resultados de `plan`/`done` contam só o
-  grupo de quem chama.
+  grupo de quem chama. As tarefas que um subagente planeja (com as dos subagentes que ele lançou)
+  contam também no x/y da tarefa de onde ele foi lançado, dos pais dela e do pedido, e vão nos `nodes`
+  da tarefa, do pedido, do cartão do subagente e da linha do agente no cartão de grupo quando recolhidos
+  (`subTasksOf`, `deepTasks` e `Work.agents` em `draw/layout.ts`; decisão do usuário, 2026-11-14: "No
+  cabeçalho e acima"); o cartão do subagente em si segue fora da contagem ("Fora da contagem").
   O `d/n` de cada tarefa da principal (`atWork`) soma, além das próprias folhas (a própria tarefa,
   se for folha com sessão), as tarefas das sessões ancoradas nela ou abaixo (arquivadas inclusive), só
   enquanto a tarefa não está concluída com `done`. Com uma dessas sessões viva, a tarefa aberta é

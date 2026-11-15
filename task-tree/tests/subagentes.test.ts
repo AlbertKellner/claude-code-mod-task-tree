@@ -1359,3 +1359,62 @@ test("no cartão de grupo, o agente que pede permissão mostra a espera na linha
   expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
   await m.fim()
 })
+
+const INVESTIGA: No[] = [
+  { id: '1', title: 'Investigar' },
+  { id: '2', title: 'Outra' },
+]
+const DO_SUB: No[] = [
+  { id: 'x1', title: 'X1' },
+  { id: 'x2', title: 'X2' },
+]
+
+// Regra: subagentes.tarefas-do-subagente-contam-acima
+test('as tarefas que o subagente planeja contam no cabeçalho e no x/y da tarefa de origem e do pedido, com o cartão aberto ou a tarefa recolhida', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, INVESTIGA)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um' })
+  await plan($, DO_SUB, undefined, 'sub-1')
+  await start($, ['x1'], 'sub-1')
+  await done($, ['x1'], undefined, 'sub-1')
+  const m = await montar($)
+  let p = await m.linhas()
+  let c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 4])
+  expect(linha(p, 'Investigar').texto, emTexto(p)).toContain('1/3')
+  expect(linha(p, 'Pedido um').texto, emTexto(p)).toContain('1/4')
+  for (const titulo of ['Investigar', 'Pedido um']) {
+    await m.recolher(titulo)
+    p = await m.linhas()
+    c = cabecalho(p)
+    expect([c.feitas, c.total], `recolhido ${titulo}:\n${emTexto(p)}`).toEqual([1, 4])
+  }
+  await m.fim()
+})
+
+// Regra: subagentes.tarefas-do-subagente-contam-acima
+test('num cartão de grupo, as tarefas de um agente contam com a linha dele fechada', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['g1', 'g2', 'g3', 'g4'])
+  await pedido($, 'Pedido um')
+  await plan($, INVESTIGA)
+  await start($, ['1'])
+  for (const d of ['a', 'b', 'c', 'd']) await lancar($, { descricao: d })
+  await plan($, DO_SUB, undefined, 'g2')
+  await start($, ['x1'], 'g2')
+  await done($, ['x1'], undefined, 'g2')
+  const m = await montar($)
+  let p = await m.linhas()
+  expect(linha(p, '4 subagentes').titulo, emTexto(p)).toBe('4 subagentes')
+  let c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 4])
+  expect(linha(p, 'Investigar').texto, emTexto(p)).toContain('1/3')
+  await m.recolher('4 subagentes')
+  p = await m.linhas()
+  c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([1, 4])
+  await m.fim()
+})

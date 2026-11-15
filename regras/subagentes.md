@@ -72,10 +72,21 @@ O subagente não entra no "d de n" e ganha a pílula "N subagentes".
 
 - Dado subagentes rodando sem usar o painel
 - Quando o cabeçalho é desenhado
-- Então o "d de n" não muda, e a pílula diz quantos subagentes estão rodando
+- Então o "d de n" não muda, e a pílula diz quantos subagentes estão rodando; as tarefas que um subagente planeja contam (subagentes.tarefas-do-subagente-contam-acima)
 
 Origem: decisão do usuário, 2026-11-09 ("Fora da contagem").
+Reescrito: 2026-11-14, decisão do usuário ("No cabeçalho e acima"): só o cartão fica fora da contagem; as tarefas planejadas pelo subagente contam. O teste deste cenário não muda.
 Código: draw/svg.ts, hooks/render.tsx
+Estado: coberto
+
+### subagentes.tarefas-do-subagente-contam-acima
+As tarefas que um subagente planeja contam no cabeçalho e nas linhas acima do cartão dele.
+
+- Dado um subagente que usa o painel e planeja tarefas, com o cartão sob a tarefa de onde foi lançado
+- Quando o painel é desenhado, com o cartão aberto, recolhido ou num cartão de grupo, e com a tarefa de origem ou o pedido recolhidos ou não
+- Então as tarefas dele entram no "d de n" do cabeçalho e no x/y da tarefa de origem, dos pais dela e do pedido; as interrompidas ficam fora do total; recolher qualquer dessas linhas não muda os números; o cartão em si segue fora da contagem (subagentes.fora-da-contagem)
+
+Origem: decisão do usuário, 2026-11-14 ("No cabeçalho e acima"), à pergunta "As tarefas de um subagente contam onde?".
 Estado: coberto
 
 ### subagentes.na-filha

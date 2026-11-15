@@ -650,7 +650,9 @@ export const ringOf = (c: Child): Ring | undefined =>
 // not from one below it: only that line gets the session icon (the person's words: "somente a
 // tarefa que agrupa imediatamente acima deve mostrar o ícone de sessão"). `open`: a session below
 // has a task still open (for the icon's state).
-export type Work = { busy: boolean; any: boolean; direct: boolean; live: boolean; open: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[] }
+// `agents`: the subagents launched from the task or below it planned tasks (counted in d, n and cards; the
+// person, 2026-11-14: "No cabeçalho e acima"); their time is not in `tasks`.
+export type Work = { busy: boolean; any: boolean; direct: boolean; live: boolean; open: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[]; agents?: boolean }
 export const idle: Work = { busy: false, any: false, direct: false, live: false, open: false, d: 0, n: 0, tasks: [], cards: [] }
 // A panel's tasks with its sessions' (archived ones too), as deep as the count follows them: the
 // sessions as they count (cardsOf, `me` the session the panel belongs to), a discarded round left out
@@ -1335,7 +1337,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                       : t.children.length > 0 && resting(t.children)
                         ? 'paused'
                         : 'open'
-      const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any ? count([t]) : [0, 0]
+      const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any || w.agents ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
       const row: Row = {
         key: `${scope}t:${t.id}`,
@@ -1350,7 +1352,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           (waitsOn.length > 0 ? `Aguardando confirmação de ${waitsOn.join(', ')}; ` : '') +
           ({ open: 'Aberta', current: 'Em andamento', done: 'Concluída', interrupted: 'Interrompida', paused: 'Aguardando' }[tone as string] ?? ''),
         strong: tone === 'current' || (depth === top && t.status === 'open'),
-        sub: (t.children.length > 0 || w.any) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
+        sub: (t.children.length > 0 || w.any || w.agents) && tone !== 'interrupted' && sn > 0 ? [sd, sn] : undefined,
         bar: true,
         meta: tone === 'interrupted' ? (t.failed ? 'falhou' : 'interrompida') : undefined,
         time:
@@ -1579,6 +1581,18 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const agents = groups.map(g => g.agent)
     const launcher = (g: Group) => (agents.includes(g.parent ?? MAIN) ? (g.parent ?? MAIN) : MAIN)
     const kidsOf = (agent: string) => groups.filter(g => g.agent !== MAIN && launcher(g) === agent)
+    // The tasks a subagent planned, with those of the subagents it launched, all the way down: they count
+    // in the lines above its card and in the header (the person, 2026-11-14: "No cabeçalho e acima").
+    const deepTasks = (agent: string, seen: string[] = []): TaskNode[] =>
+      seen.includes(agent) ? [] : kidsOf(agent).flatMap(k => [...k.tasks, ...deepTasks(k.agent, [...seen, agent])])
+    const agentTasks = (k: Group, seen: string[] = []) => [...k.tasks, ...deepTasks(k.agent, [...seen, k.agent])]
+    // Those of the subagents `owner` launched from `t` or a task below it.
+    const subTasksOf = (owner: string, t: TaskNode): TaskNode[] => {
+      const kids = kidsOf(owner).filter(k => k.anchor !== undefined)
+      if (kids.length === 0) return []
+      const ids = new Set(flat([t]).map(k => k.id))
+      return kids.filter(k => ids.has(k.anchor as string)).flatMap(k => agentTasks(k, [owner]))
+    }
 
     const main = groups.find(g => g.agent === MAIN) as Group
     const everyTask = main.whole ?? main.tasks
@@ -1677,6 +1691,19 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             }
           : undefined
       const inScope = `${scope}${g.agent}|`
+      // Each task's work with the tasks of the subagents launched from it or below it (subTasksOf).
+      const withAgents = new WeakMap<TaskNode, Work>()
+      const counted = (t: TaskNode): Work => {
+        let w = withAgents.get(t)
+        if (w === undefined) {
+          const base = work?.(t) ?? idle
+          const extra = subTasksOf(g.agent, t)
+          const [d, n] = count(extra)
+          w = extra.length === 0 ? base : { ...base, d: base.d + d, n: base.n + n, cards: [...base.cards, ...extra], agents: true }
+          withAgents.set(t, w)
+        }
+        return w
+      }
       // Only the last SHOWN_TURNS requests (turns) of a main list are drawn, on the top panel and in
       // a session's card alike, and any request with something still open; the rest are counted
       // in one line: a long session's whole history, its cards' too, came to 700 lines and 1.6 MB
@@ -1754,11 +1781,11 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const briefDrawn = history ? briefOnly : briefInSight
       // Only the main group's tasks send messages: a subagent's lines have none pending.
       const sent = g.agent === MAIN ? pending : []
-      lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, work ?? (() => idle), sent))
+      lines.push(...rows(loose, top, top, lit, trailIds, below, inScope, counted, sent))
       // In the requests' order (the turn's id), those answered with no task among the others.
       const ordered = briefDrawn.length === 0 ? turns : (g.turns ?? []).filter(u => turns.includes(u) || briefDrawn.includes(u))
       for (const u of ordered)
-        lines.push(...(turns.includes(u) ? turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, work ?? (() => idle), sent, level === 0) : briefRows(u, top, inScope)))
+        lines.push(...(turns.includes(u) ? turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, counted, sent, level === 0) : briefRows(u, top, inScope)))
       if (extras && anchor === undefined && g.agent === MAIN) lines.push(...mine.map(w => notice(w, top)))
       // A subagent with no task in sight to go under ends the list: launched on none, or still open
       // under a task left out.
@@ -1855,13 +1882,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             meta: mine.length > 0 ? waitText(mine[0]!) : subLive(s) && s.tool ? s.tool : [s.engine, SUB_WORD[s.state]].filter(Boolean).join(' · '),
             time: now !== undefined ? (s.end ?? now) - s.at : undefined,
             fold: { key: lineKey, open: false },
-            nodes: [],
             pending: mine.length > 0 || undefined,
             hidden: hiddenOf(card, mine.map(w => notice(w, d + 2))),
+            // Its tasks and those of the subagents it launched (subagentes.tarefas-do-subagente-contam-acima).
+            nodes: agentTasks(k),
           }
           return [row]
         })
-      if (!open) return [{ ...header, hidden: hiddenOf(lines) }]
+      if (!open) return [{ ...header, hidden: hiddenOf(lines), nodes: lines.flatMap(r => r.nodes ?? []) }]
       return [header, ...lines]
     }
 
@@ -1910,7 +1938,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const key = `${scope}g:${g.agent}`
       const open = opened(key, true)
       header.fold = { key, open }
-      header.nodes = open ? [] : g.tasks
+      header.nodes = open ? [] : agentTasks(g)
       const shown = open ? inner : closed ? mine.map(w => notice(w, b + 1)) : []
       if (!open) header.hidden = hiddenOf(inner, shown)
       return [header, ...shown]

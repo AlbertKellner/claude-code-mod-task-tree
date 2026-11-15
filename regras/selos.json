@@ -3044,6 +3044,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
     },
+    "task-tree/tests/subagentes.test.ts::as tarefas que o subagente planeja contam no cabeçalho e no x/y da tarefa de origem e do pedido, com o cartão aberto ou a tarefa recolhida": {
+      "regras": [
+        "subagentes.tarefas-do-subagente-contam-acima"
+      ],
+      "hash": "c797176262dfc455",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
+    },
     "task-tree/tests/subagentes.test.ts::com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -3271,6 +3281,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
+    "task-tree/tests/subagentes.test.ts::num cartão de grupo, as tarefas de um agente contam com a linha dele fechada": {
+      "regras": [
+        "subagentes.tarefas-do-subagente-contam-acima"
+      ],
+      "hash": "9c8bef1f8f5b3146",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
     },
     "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
       "regras": [
