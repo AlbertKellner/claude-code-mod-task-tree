@@ -8,7 +8,7 @@
 // the sessions' breaks is a BreaksMemo made by layout() for one drawing and passed down; the sends
 // still queued reach the task lines as `pending`, from the panel that holds them.
 
-import type { Child, Group, Panel, Send, Sub, TaskNode, Turn, Wait } from '../types'
+import type { Child, Group, Idle, Panel, Send, Sub, TaskNode, Turn, Wait } from '../types'
 
 // The main loop's agent id in the groups.
 export const MAIN = ''
@@ -154,17 +154,31 @@ export const leftOpen = (list: TaskNode[]) => flat(list).some(t => t.status === 
 export const timing = (list: TaskNode[]) => flat(list).some(t => t.status === 'open' && t.startedAt !== undefined && t.endedAt === undefined)
 // From the first start to the last close, or to now while any task runs; undefined when no
 // task was started (or the time is unknown).
-export function span(list: TaskNode[], now?: number): number | undefined {
+// The session's idle spans (Group.idle) are left out (idleIn): the time counts only with a turn going
+// on, or delegated work alive (the person, 2026-11-14: "Só com turno em curso (Recomendado)").
+export function span(list: TaskNode[], now?: number, idle: Idle[] = []): number | undefined {
   const all = flat(list).filter(t => t.startedAt !== undefined)
   if (all.length === 0) return undefined
   const from = Math.min(...all.map(t => t.startedAt as number))
   const to = timing(list) ? now : Math.max(...all.map(t => t.endedAt ?? 0))
-  return to === undefined || to < from ? undefined : to - from
+  return to === undefined || to < from ? undefined : to - from - idleIn(idle, from, to)
 }
-export const elapsed = (t: TaskNode, now?: number) => {
+// How much of the idle spans falls inside [from, to]; one still open counts up to `to`.
+export function idleIn(idle: Idle[], from: number, to: number): number {
+  let ms = 0
+  for (const g of idle) {
+    const a = Math.max(from, g.from)
+    const b = Math.min(to, g.to ?? to)
+    if (b > a) ms += b - a
+  }
+  return ms
+}
+// The idle spans of a panel: its main group's.
+export const idleOf = (groups: Group[] | undefined): Idle[] => (groups ?? []).find(g => g.agent === MAIN)?.idle ?? []
+export const elapsed = (t: TaskNode, now?: number, idle: Idle[] = []) => {
   if (t.startedAt === undefined || t.status === 'interrupted') return undefined
   const to = t.endedAt ?? (t.status === 'open' ? now : undefined)
-  return to === undefined || to < t.startedAt ? undefined : to - t.startedAt
+  return to === undefined || to < t.startedAt ? undefined : Math.max(0, to - t.startedAt - idleIn(idle, t.startedAt, to) - (t.pause ?? 0))
 }
 
 // Leaves done, leaves counted, leaves interrupted (kept out of the count). A message task counts for
@@ -728,13 +742,14 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
 // An open parent with something done (or left waiting, see leftWaiting) below it and nothing in progress:
 // drawn waiting (◷), its time stopped at the last close below it.
 export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done' || leftWaiting(k))
-export function stillSpan(list: TaskNode[]): number | undefined {
+export function stillSpan(list: TaskNode[], idle: Idle[] = []): number | undefined {
   const all = flat(list)
   const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
   const ends = all.flatMap(t => t.endedAt ?? [])
   if (starts.length === 0 || ends.length === 0) return undefined
-  const span = Math.max(...ends) - Math.min(...starts)
-  return span < 0 ? undefined : span
+  const from = Math.min(...starts)
+  const to = Math.max(...ends)
+  return to < from ? undefined : to - from - idleIn(idle, from, to)
 }
 
 // A task's time: from the first start to the last close of it, its subtasks and its sessions'
@@ -742,13 +757,18 @@ export function stillSpan(list: TaskNode[]): number | undefined {
 // its own time, stopped, while a session below still works (the person, 2026-11-14: "Só o
 // próprio"): it ran on to the session's end and fell back when the session stopped.
 // A subagent alive below an open task runs its clock as a session at work does (agentLive).
-export function timeOf(t: TaskNode, w: Work, now?: number): number | undefined {
-  return timeSpan([t, ...w.tasks], (w.busy || w.agentLive === true) && t.status === 'open', now)
+// A leaf's own line leaves out its own pause too (TaskNode.pause: stopped with the turn going on, until
+// its start again); its parent's and its request's do not (the request was going on in another task).
+export function timeOf(t: TaskNode, w: Work, now?: number, idle: Idle[] = []): number | undefined {
+  const time = timeSpan([t, ...w.tasks], (w.busy || w.agentLive === true) && t.status === 'open', now, idle)
+  return time === undefined || t.children.length > 0 || t.pause === undefined ? time : Math.max(0, time - t.pause)
 }
-export function timeSpan(list: TaskNode[], busy: boolean, now?: number): number | undefined {
-  if (!busy) return span(list, now)
+export function timeSpan(list: TaskNode[], busy: boolean, now?: number, idle: Idle[] = []): number | undefined {
+  if (!busy) return span(list, now, idle)
   const starts = flat(list).flatMap(k => (k.startedAt === undefined ? [] : [k.startedAt]))
-  return starts.length === 0 || now === undefined ? undefined : now - Math.min(...starts)
+  if (starts.length === 0 || now === undefined) return undefined
+  const from = Math.min(...starts)
+  return now - from - idleIn(idle, from, now)
 }
 
 // Every open task with no subtasks (◉ or ○ leaves), in every group of the panel and in its
@@ -768,14 +788,14 @@ export function activeLeaves(p: Panel, level: number, sent: string[] = []): numb
 }
 
 // A whole session's time: starts are a task's start, else its plan.
-export function sessionTime(list: TaskNode[], running: boolean, now?: number): number | undefined {
+export function sessionTime(list: TaskNode[], running: boolean, now?: number, idle: Idle[] = []): number | undefined {
   const all = flat(list)
   const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
   if (starts.length === 0) return undefined
   const from = Math.min(...starts)
   const ends = all.flatMap(t => t.endedAt ?? [])
   const to = running ? now : ends.length > 0 ? Math.max(...ends) : undefined
-  return to === undefined || to < from ? undefined : to - from
+  return to === undefined || to < from ? undefined : to - from - idleIn(idle, from, to)
 }
 
 export function firstOpen(items: TaskNode[]): string[] {
@@ -1280,6 +1300,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const work = model.work
   // The breaks of the sessions' cards, computed once per drawing (see breaks).
   const memo = newBreaksMemo()
+  // The idle spans the times below leave out: those of the panel being drawn (panel sets them), so a
+  // card's lines go by the ones its session published and this session's by its own.
+  let stood: Idle[] = []
   const notice = (w: Wait, depth: number): Row => ({ key: `w:${w.agent}:${w.key}`, depth, tone: 'wait', title: waitText(w), label: '' })
 
   // What the person opened or closed, read by the builders below. They run once per drawing: the
@@ -1359,7 +1382,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         bar: true,
         meta: tone === 'interrupted' ? (t.failed ? 'falhou' : 'interrompida') : undefined,
         time:
-          (tone === 'paused' ? stillSpan([t, ...w.tasks]) : timeOf(t, w, now)) ??
+          (tone === 'paused' ? stillSpan([t, ...w.tasks], stood) : timeOf(t, w, now, stood)) ??
           (tone === 'done' || tone === 'interrupted'
             ? null
             : tone === 'current' && t.plannedAt !== undefined && now !== undefined
@@ -1432,7 +1455,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       bar: true,
       time:
         // A request whose level-1 tasks are all closed keeps their time, stopped (timeOf).
-        (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], ws.some((w, i) => (w.busy || w.agentLive === true) && list[i]?.status === 'open'), now)) ??
+        (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)], stood) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], ws.some((w, i) => (w.busy || w.agentLive === true) && list[i]?.status === 'open'), now, stood)) ??
         (tone === 'done'
           ? null
           : tone === 'current' && now !== undefined && list.some(t => t.plannedAt !== undefined)
@@ -1514,7 +1537,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       strong: !gone && live(c),
       sub: cn > 0 ? [cd, cn] : undefined,
       meta: state,
-      time: span(tasksOf(p.groups ?? []), now) ?? (live(c) ? undefined : null),
+      time: span(tasksOf(p.groups ?? []), now, idleOf(p.groups)) ?? (live(c) ? undefined : null),
       card: true,
       session: true,
       sid: c.id,
@@ -1564,6 +1587,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // alive); none once it ended.
   // `archived`: the card is of an archived session (its letters not taken up stay gray).
   const panel = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number, archived = false): Row[] => {
+    const prev = stood
+    stood = idleOf(p.groups)
+    try {
+      return panelIn(p, base, level, scope, me, turnAt, archived)
+    } finally {
+      stood = prev
+    }
+  }
+  const panelIn = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number, archived = false): Row[] => {
     // The sends of this panel's main group still waiting to be taken up: this session's at the top,
     // what each session publishes in its card (its task shows ✉ too).
     const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken && !x.cut) : queued

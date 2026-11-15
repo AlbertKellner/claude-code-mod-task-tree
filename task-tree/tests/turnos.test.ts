@@ -3,7 +3,7 @@ import { host, subagente } from './kit/ambiente'
 import { fimDoSubagente } from './kit/cenario'
 import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
-import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { abrirSessao, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, painel } from './kit/leitura'
 import { aviso, falha } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
@@ -677,4 +677,91 @@ test('o done na tarefa que falhou, sem start, a conclui', async ($: any, on: any
   const p = await painel($)
   esperarEstado(p, 'Dois.um', 'concluida')
   expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).not.toContain('falhou')
+})
+
+// O tempo no fim do texto de uma linha; o do cabeçalho, depois do "p%" na linha do topo (terminal).
+const tempoNoFim = (p: Linha[], quem: string): string | undefined => /(\d+(?::\d{2})+)\s*$/.exec(umaLinha(p, quem).texto)?.[1]
+const tempoDoTopo = (p: Linha[]): string | undefined => {
+  const topo = p.find(l => l.cabecalho && / \d+ de \d+ · \d+%/.test(l.texto))
+  return topo ? /\d+%\s+(\d+(?::\d{2})+)/.exec(topo.texto)?.[1] : undefined
+}
+const FILHA_T = 'local_19191919-1919-1919-1919-191919191919'
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso
+test('a tarefa que atravessa turnos conta só o tempo com o turno em curso, e o pai, o pedido e o cabeçalho também', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await relogio.advance(300_000)
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(tempoNoFim(p, 'Um'), emTexto(p)).toBe('5:00')
+  await relogio.advance(3_600_000)
+  await pedido($, 'continue')
+  // A tarefa ◷ segue ◷ até o start (A-07): retomada, segue de 5:00.
+  await start($, ['1'])
+  await relogio.advance(5000)
+  p = await painel($)
+  for (const quem of ['Um', 'Plano A', 'Pedido um']) expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBe('5:05')
+  expect(tempoDoTopo(p), emTexto(p)).toBe('5:05')
+})
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso, turnos.parada-segue-interrompida-ate-o-start
+test('depois do Esc, a tarefa retoma do tempo em que parou quando recebe start de novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  await relogio.advance(300_000)
+  await esc($)
+  await relogio.advance(3_600_000)
+  await pedido($, 'Pedido dois')
+  await start($, ['2'])
+  await relogio.advance(600_000)
+  await start($, ['1'])
+  await relogio.advance(5000)
+  const p = await painel($)
+  expect(tempoNoFim(p, 'Um'), emTexto(p)).toBe('5:05')
+  expect(tempoNoFim(p, 'Pedido um'), emTexto(p)).toBe('15:05')
+})
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso
+test('no cartão da filha, o tempo parado entre os turnos dela não entra', async ($: any, on: any) => {
+  fixar(on)
+  const tarefa = { id: 'f1', title: 'Da filha', status: 'done', startedAt: AGORA - 3_900_000, endedAt: AGORA, children: [] }
+  const arquivo = { version: 1, waiting: false, waits: [], children: [], groups: [{ agent: '', label: '', tasks: [tarefa], idle: [{ from: AGORA - 3_780_000, to: AGORA - 180_000 }] }] }
+  host(on, [{ id: FILHA_T, nome: 'filha-t', rodando: false, publicado: JSON.stringify(arquivo) }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(tempoNoFim(p, 'Da filha'), emTexto(p)).toBe('5:00')
+})
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso, cabecalho.tempo-para-no-fim-do-turno
+test('com a filha trabalhando depois do fim do turno, o intervalo parado só começa quando ela para', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: FILHA_T, nome: 'filha-t', painel: { tasks: [{ id: 'f1', title: 'Da filha', status: 'open', children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(60_000)
+  let p = await painel($)
+  expect(tempoDoTopo(p), emTexto(p)).toBe('1:00')
+  h.filha(FILHA_T).rodando = false
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(3_600_000)
+  await pedido($, 'Pedido dois')
+  await relogio.advance(5000)
+  p = await painel($)
+  expect(tempoDoTopo(p), emTexto(p)).toBe('1:05')
 })

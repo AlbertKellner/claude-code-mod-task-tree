@@ -15,7 +15,7 @@ import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
-import { sessionTotal, tallyOf } from '../draw/layout'
+import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -284,7 +284,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const alive = tally.live > 0 || tally.sends > 0 || tally.subs > 0
   const going = typeof ended === 'number' ? alive : alive || hasOpen(shown)
   const stopped = !going && typeof ended === 'number' && hasOpen(shown)
-  const headTime = sessionTime(shown, going || stopped, going ? now : stopped ? (ended as number) : now)
+  // The session's idle spans are left out (Group.idle; "Só com turno em curso (Recomendado)").
+  const headTime = sessionTime(shown, going || stopped, going ? now : stopped ? (ended as number) : now, idleOf(held ?? []))
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.

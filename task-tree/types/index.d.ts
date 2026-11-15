@@ -21,6 +21,11 @@ export type TaskNode = {
   // When a start last reopened it after it closed: the subagents that ended before were already
   // reflected in that close and no longer close it (hooks/agents, settleBySubs).
   reopenedAt?: number
+  // The ms the task stood stopped with the turn going on: an open task with a close marked (a stop, or
+  // a turn's end, rest) started again adds the time from that close to the start, less what the
+  // session's idle spans (Group.idle) already cover there. Its own line's time leaves it out
+  // (draw/layout, timeOf; the person, 2026-11-14: "Só com turno em curso (Recomendado)"). Absent: none.
+  pause?: number
   // A level-1 task of the main group: the turn (the person's message) it was planned in.
   turn?: number
   // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in
@@ -77,7 +82,12 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // read as interrupted, and its turns), the 5 most recent, oldest first. Its own panel does not draw it;
 // published inside the group, it keeps the card of the session above (split in draw/layout): the person,
 // 2026-11-14, "Mantém o histórico (Recomendado)". Absent with no /clear and from earlier versions.
-export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub; past?: Past[] }
+// `idle` (main group only): the spans the session stood stopped (the turn ended and nothing alive:
+// no session at work, no letter queued, no subagent alive; hooks/panel, setIdle), the last one open
+// (no `to`) while it lasts, at most IDLE_KEEP. The times of the lines, the request and the header
+// leave them out (draw/layout, idleIn); a card's lines use the ones its session published. Absent: none.
+export type Idle = { from: number; to?: number }
+export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub; past?: Past[]; idle?: Idle[] }
 export type Past = { at: number; tasks: TaskNode[]; turns?: Turn[] }
 export type Sub = {
   at: number

@@ -5,7 +5,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
 import { DONE } from '../text/rules'
-import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt } from '../draw/layout'
+import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
@@ -335,7 +335,7 @@ export async function startTool($: EngineInterface, e: any, next: any) {
             const leaf = leafId !== undefined ? flat(hit.children).find(t => t.id === leafId) : undefined
             const target = leaf ?? hit
             if (leaf) notes.push(`"${id}" tem subtarefas: iniciei a primeira aberta, "${leaf.short}" ${leaf.title}`)
-            tasks = begin(tasks, target.id, seq++, now)
+            tasks = begin(tasks, target.id, seq++, now, idleOf(all))
             begun.push(target.title)
             roots.push(target.id.split('/')[0] as string)
           }

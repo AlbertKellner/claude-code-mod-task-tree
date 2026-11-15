@@ -10,6 +10,7 @@ import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } fr
 import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
 import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
+import type { Idle } from '../types'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
@@ -36,7 +37,37 @@ export async function wake($: any) {
   if (typeof (await $.state.get(turnEndedState)).value === 'number') {
     await $.state.set(turnEndedState, null)
     await saveTurn($)
+    // The session is going again: its idle span, if one is open, closes here.
+    await setIdle($, false, await stamp($))
   }
+}
+
+// The session's idle spans (Group.idle, main group): one opens when the session stands stopped (the
+// turn ended and nothing alive, hooks/sessions syncIdle) and closes when it goes again (wake, or
+// something alive again). Written only at a change; the last IDLE_KEEP kept. The times leave them out
+// (the person, 2026-11-14: "Só com turno em curso (Recomendado)").
+export const IDLE_KEEP = 500
+export async function setIdle($: any, idle: boolean, at: number | undefined) {
+  if (at === undefined) return
+  await ensureGroups($)
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const main = (groups as Group[]).find(g => g.agent === MAIN)
+  const list: Idle[] = main?.idle ?? []
+  const last = list[list.length - 1]
+  const open = last !== undefined && last.to === undefined
+  if (idle === open) return
+  // Nothing to measure yet: no span for an empty panel.
+  if (idle && (!main || main.tasks.length === 0)) return
+  await change($, all =>
+    all.map(g => {
+      if (g.agent !== MAIN) return g
+      const now = g.idle ?? []
+      // Checked again inside the one update: a tick and a turn's end at once open one span, not two.
+      if (idle === (now.length > 0 && now[now.length - 1]?.to === undefined)) return g
+      const next: Idle[] = idle ? [...now, { from: at }].slice(-IDLE_KEEP) : now.map((x, i) => (i === now.length - 1 && x.to === undefined ? { ...x, to: Math.max(at, x.from) } : x))
+      return { ...g, idle: next }
+    }),
+  )
 }
 
 // The turn's end (turnEnded, turnAborted, replanDue) is kept in the store too, one record (`turn`): a new
@@ -143,6 +174,8 @@ export async function parkDeadTurn($: any) {
     await $.state.set(turnFailedState, false)
     await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(at)) } : g)))
     await saveTurn($)
+    // Stopped since the process died: the time from then on is idle (setIdle).
+    await setIdle($, true, at)
   } catch {}
 }
 // /clear: no turn end, in the state and in the store.

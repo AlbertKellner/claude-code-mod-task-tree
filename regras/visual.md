@@ -272,6 +272,7 @@ Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): o cart�
 Reescrito: 2026-11-13, decisão do usuário ("Caixas finas nativas (Recomendado)"): as guias da árvore e a faixa à esquerda dos cartões passam de caracteres de caixa a caixas nativas com fundo; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-13, decisão do usuário ("aumente um pouco o contraste do card, deixando ele um pouco mais claro, e repita isso para cada card dentro de card. aumente um pouco o padding interno tambem, os textos estão muito colados, tando dentro do cartao, quanto fora"; "1,4"; "nos 4 lados"; "Não, fica como está (Recomendado)"): o fundo e a borda do cartão por nível, a linha de 1,4 de altura com o conteúdo centrado e o respiro do cartão nos quatro lados; o espaço entre o ícone e o título não muda; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Reescrito: 2026-11-14, decisão do usuário ("Parar no fim do turno (Recomendado)"): o tempo do cabeçalho do cenário para no fim do turno (0:01 no lugar de 0:02); o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
+Reescrito: 2026-11-14, decisão do usuário ("Só com turno em curso (Recomendado)"): o tempo do cabeçalho do cenário deixa de contar o segundo parado entre os dois pedidos; o golden é regravado ("Validar só no fim (Recomendado)") e validado pelo usuário no app no fim.
 Código: draw/layout.ts
 Estado: coberto
 

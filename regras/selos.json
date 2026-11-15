@@ -3750,6 +3750,27 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::a tarefa que atravessa turnos conta só o tempo com o turno em curso, e o pai, o pedido e o cabeçalho também": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso"
+      ],
+      "hash": "cdc06604a8bb403c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
+    },
+    "task-tree/tests/turnos.test.ts::com a filha trabalhando depois do fim do turno, o intervalo parado só começa quando ela para": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso",
+        "cabecalho.tempo-para-no-fim-do-turno"
+      ],
+      "hash": "50e9b07e652adc33",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
+    },
     "task-tree/tests/turnos.test.ts::depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado": {
       "regras": [
         "turnos.aguardando-segue-ate-o-start"
@@ -3759,6 +3780,17 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::depois do Esc, a tarefa retoma do tempo em que parou quando recebe start de novo": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso",
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "e4598e9df45de59a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
     },
     "task-tree/tests/turnos.test.ts::depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando": {
       "regras": [
@@ -3790,6 +3822,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::no cartão da filha, o tempo parado entre os turnos dela não entra": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso"
+      ],
+      "hash": "1bd744c0901a9586",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
     },
     "task-tree/tests/turnos.test.ts::no fim do turno a tarefa iniciada e aberta fica aguardando, e o pai também": {
       "regras": [
@@ -4296,7 +4338,7 @@
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "principal": {
-      "hash": "b86a4b660e0e7be0",
+      "hash": "67f6b666fe473137",
       "data": "2026-11-14",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
     },

@@ -332,6 +332,9 @@ Quem traz do store e quando: `session.start` (`restore` se o state não tem grup
 não pode gravar e usa o valor devolvido); primeira gravação das ligações (`saveLinks` chama
 `restoreLinks` antes). O `ensure*` só marca `loaded` quando o state recebeu o valor.
 
+
+Os intervalos parados (`Group.idle`) e a pausa própria (`TaskNode.pause`) vivem nos grupos: vão ao
+store e ao arquivo publicado com eles, sem chave nova de state.
 ### Arquivo publicado (versão 1)
 
 Cada sessão escreve `~/.claude/task-tree-waits/<id local_…>.json` (`waitFile`: `USERPROFILE`, senão
@@ -368,6 +371,9 @@ olhar o arquivo à mão). `readPublished($, id)` lê, valida e diz uma vez por s
 arquivo de antes de `version` é lido como está; `panelOf` (io/host.ts) aceita `groups` ou, de versões
 antigas, só `tasks`.  Já existiram 8 formatos do arquivo, do `{ waiting, at }` ao de versão 1, e todos são lidos.
 
+
+O grupo principal publicado leva `idle` (os intervalos parados da sessão, desde "Só com turno em curso (Recomendado)", 2026-11-14):
+o cartão da filha desconta dos tempos dela os intervalos dela. Ausente nos arquivos antigos.
 ### Textos para o modelo
 
 `text/rules.ts` concentra tudo o que o modelo lê do mod;  `RULES` vai ao prompt de sistema (seção `task-tree:regras`, escopo
@@ -379,6 +385,27 @@ registradas no `session.start` (`TOOLS.cancel` é a do parâmetro `cancel` do `d
 `SESSION.takenOpen` ("o painel não concluiu…") quando ela segue aberta, foi interrompida por um plano
 novo ou saiu do plano (`envios.aviso-da-entrega-diz-o-que-o-painel-fez`). Os resultados das ferramentas ("Plano exibido…",
 "Concluídas: d/n…", "Em andamento: …") e os textos do desenho (`alt`, rótulos) ficam fora dele.
+
+### O tempo das linhas e do cabeçalho
+
+Decisão do usuário, 2026-11-14 ("Só com turno em curso (Recomendado)"): o tempo conta só com o turno em curso. Duas peças:
+- Os intervalos parados da sessão (`Group.idle`, no grupo principal, no máximo `IDLE_KEEP` = 500): um
+  abre quando a sessão fica parada, o turno terminado e nada vivo (nenhuma sessão filha viva, nenhuma
+  carta na fila, nenhum subagente vivo: `anyRunning`), e fecha quando ela volta (`wake`, ou algo vivo de
+  novo). Quem decide é `syncIdle` (`hooks/sessions.ts`), chamado no fim do turno, no fim de um
+  subagente, no `tick` do relógio de 1 s e depois de cada leitura das filhas; quem grava é `setIdle`
+  (`hooks/panel.ts`), só nas transições. `parkDeadTurn` abre um a partir do fim que ele marca, e o
+  `/clear` guarda os intervalos (fechados) no grupo novo.
+- A pausa própria da tarefa (`TaskNode.pause`): a tarefa aberta com fim marcado (Esc ou fim do turno,
+  `rest`) que recebe start de novo soma o tempo entre esse fim e o start, menos os intervalos parados
+  ali (`begin`); `carry` a leva no replano. A tarefa concluída e reaberta recomeça do zero.
+
+O cálculo (`draw/layout.ts`): `idleIn` diz quanto dos intervalos cai num trecho; `span`, `stillSpan`,
+`timeSpan`, `timeOf` e `sessionTime` descontam os intervalos do trecho, e só a linha da folha
+(`timeOf`) desconta a pausa própria. As linhas usam os intervalos do painel que as desenha (`panel`
+guarda os dele em `stood`): as desta sessão, os desta; as de dentro do cartão de uma filha, os que ela
+publicou. O cartão do subagente segue do lançamento ao fim. Painéis e arquivos antigos, sem os campos,
+contam como antes.
 
 ### Desenho
 
@@ -395,7 +422,8 @@ cabeçalho somar só o que está desenhado), `hidden` (só na linha recolhida: o
 esconde contariam nos chips "aguardando", "aguardando sessão", "sessões ativas" e "subagentes"). O
 cabeçalho é calculado no render a partir das linhas (`count` dos `nodes`, `sessionTime`, `chips`; os
 outros chips e a faixa por `tallyOf`, que soma cada linha e o `hidden` dela, de modo que recolher
-uma linha não muda nenhum chip nem a faixa). O tempo do cabeçalho conta até agora só enquanto o relógio
+uma linha não muda nenhum chip nem a faixa). O tempo do cabeçalho desconta os intervalos parados
+(ver "O tempo das linhas e do cabeçalho") e conta até agora só enquanto o relógio
 de 1 s também corre (o turno em curso com algo aberto; ou, com o turno encerrado, uma sessão filha viva,
 uma carta na fila ou um subagente vivo); com o turno encerrado e nada disso, para no fim do turno
 (decisão de 2026-11-14, "Parar no fim do turno (Recomendado)"). O total da sessão inteira vai no `alt` e, desde a

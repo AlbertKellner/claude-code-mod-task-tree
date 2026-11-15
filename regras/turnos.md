@@ -54,11 +54,12 @@ A mensagem seguinte retoma o trabalho.
 
 - Dado um turno terminado, normal ou com Esc
 - Quando chega a mensagem seguinte e o modelo chama start
-- Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕; a que o fim normal deixou ◷ segue ◷ até o start nela (turnos.aguardando-segue-ate-o-start)
+- Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕; a que o fim normal deixou ◷ segue ◷ até o start nela (turnos.aguardando-segue-ate-o-start); o tempo retoma de onde parou (turnos.tempo-so-com-o-turno-em-curso)
 
 Origem: commit 55a2dd1, 2026-10-23.
 Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"); desfaz "nada fica ✕" para a tarefa parada com Esc em que o modelo ainda não deu start: antes, o prompt seguinte a reacendia sozinho.
 Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); antes, o prompt seguinte reacendia sozinho a tarefa que o fim normal deixara ◷. O teste não muda.
+Reescrito: 2026-11-14, decisão do usuário ("Só com turno em curso (Recomendado)"): o tempo retoma de onde parou; os testes deste cenário não mudam.
 Estado: coberto
 
 ### turnos.parada-segue-interrompida-ate-o-start
@@ -210,4 +211,15 @@ O Esc não interrompe a tarefa que tem trabalho delegado vivo embaixo.
 
 Origem: decisão do usuário, 2026-11-14 ("Segue ◉/◷ (Recomendado)": "o Esc para a principal, não o trabalho delegado"). Reescreve, para a tarefa com trabalho delegado vivo, a decisão de 2026-10-28 e 2026-10-30 ("a tarefa iniciada fica ✕ no Esc, como qualquer outra").
 Código: hooks/render.tsx, hooks/agents.ts
+Estado: coberto
+
+### turnos.tempo-so-com-o-turno-em-curso
+O tempo de uma tarefa que atravessa turnos conta só o tempo com o turno em curso.
+
+- Dado uma tarefa iniciada num turno, que termina (ou é parado com Esc), e retomada mais tarde
+- Quando a mensagem seguinte chega (e, depois do Esc, quando a tarefa recebe start de novo)
+- Então a tarefa retoma do tempo em que parou; o tempo em que a sessão ficou parada entre os turnos não entra na tarefa, no pai, no pedido nem no cabeçalho; depois do Esc, o tempo até o start nela também não entra na tarefa (entra no pedido, se o turno estava em curso); no cartão de uma filha, vale o mesmo pelos turnos da filha; enquanto uma sessão filha trabalha, uma carta está na fila ou um subagente roda, a sessão não está parada
+
+Origem: decisão do usuário, 2026-11-14 ("Só com turno em curso (Recomendado)").
+Código: state/tasks.ts, hooks/sessions.ts, hooks/tools.ts
 Estado: coberto

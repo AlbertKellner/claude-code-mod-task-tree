@@ -13,7 +13,7 @@ import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors } from './panel'
+import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors, setIdle } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -54,6 +54,8 @@ async function readChildrenLoop($: any) {
       readAgain = false
       await readChildren($)
     } while (readAgain)
+    // A session that stopped (or went back to work) with this turn ended opens (or closes) the idle span.
+    await syncIdle($)
   } finally {
     reading = undefined
   }
@@ -439,8 +441,21 @@ export async function anyRunning($: any): Promise<boolean> {
   if ((groups as Group[]).some(g => subLive(g.sub))) return true
   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
 }
+// Whether the session stands stopped (its turn ended and nothing alive: the clock is off, anyRunning),
+// opening or closing its idle span on a change (setIdle); `at`: when, else now.
+export async function syncIdle($: any, at?: number, alive?: boolean) {
+  try {
+    const brought = await ensureTurn($)
+    const { value: heldEnded } = await $.state.get(turnEndedState)
+    const ended = heldEnded !== undefined ? heldEnded : brought?.ended
+    const idle = typeof ended === 'number' && !(alive ?? (await anyRunning($)))
+    await setIdle($, idle, at ?? (await stamp($)))
+  } catch {}
+}
 export async function tick($: any) {
-  if (await anyRunning($)) {
+  const on = await anyRunning($)
+  await syncIdle($, undefined, on)
+  if (on) {
     // While the clock runs, the branch is read again too (a 40-byte file): a checkout mid-session
     // shows in the header within a second, and in the card at the next publication.
     void refreshGit($).catch(() => {})

@@ -3,8 +3,8 @@
 // completes, start one, give a task closed with no start one). The hooks module calls them with the
 // time the engine's clock gives; nothing of the kit here.
 
-import type { Status, TaskNode } from '../types'
-import { flat, stop, timing } from '../draw/layout'
+import type { Idle, Status, TaskNode } from '../types'
+import { flat, idleIn, stop, timing } from '../draw/layout'
 
 export type InNode = { id: string; title: string; children?: InNode[] }
 
@@ -144,20 +144,25 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
 // starts (again, when it was closed); a parent's starts with its first child's and goes on.
 // Reopened, the task keeps when (`reopenedAt`) and drops the "falhou" of its earlier close: the
 // subagents that ended before were reflected in that close (hooks/agents, settleBySubs).
-export function begin(list: TaskNode[], id: string, seq: number, now?: number): TaskNode[] {
+// `idle`: the session's idle spans (Group.idle). An open task with a close marked (a stop, or a turn's
+// end, rest) adds to its own pause the time from that close to this start, less the idle spans there
+// (the person, 2026-11-14: "Só com turno em curso (Recomendado)"): it goes on from the time it had.
+export function begin(list: TaskNode[], id: string, seq: number, now?: number, idle: Idle[] = []): TaskNode[] {
   return list.map(t => {
     if (t.id === id) {
       // A task the person stopped (`stopped`) is in progress again: the mark goes (and the "falhou" of a
       // turn that died by an error), its clock goes on.
       if (t.status === 'open') {
         const { stopped: _, failed: __, ...open } = t
-        return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined }
+        const held = t.startedAt !== undefined && t.endedAt !== undefined && now !== undefined && now > t.endedAt ? now - t.endedAt - idleIn(idle, t.endedAt, now) : 0
+        const pause = (t.pause ?? 0) + Math.max(0, held)
+        return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined, ...(pause > 0 ? { pause } : {}) }
       }
-      const { failed: _, stopped: __, ...rest } = t
+      const { failed: _, stopped: __, pause: ___, ...rest } = t
       return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now } : {}) }
     }
     if (!flat(t.children).some(c => c.id === id)) return t
-    return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now) }
+    return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now, idle) }
   })
 }
 
@@ -170,7 +175,7 @@ export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: nu
   const merge = (n: TaskNode): TaskNode => {
     const o = byId.get(n.id)
     const kept = o
-      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}), ...(o.status === 'open' && o.stopped === true ? { stopped: true } : {}) }
+      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}), ...(o.pause !== undefined ? { pause: o.pause } : {}), ...(o.status === 'open' && o.stopped === true ? { stopped: true } : {}) }
       : {}
     return { ...n, ...kept, children: n.children.map(merge) }
   }

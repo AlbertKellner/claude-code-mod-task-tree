@@ -10,6 +10,7 @@ import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
 import { change, dropAsked, dropPermissions, dropWaits, lastBrief, lastRecap, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
+import { syncIdle } from './sessions'
 import { ensureGroups } from './panel'
 import { park, rest } from '../state/tasks'
 
@@ -202,6 +203,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   }
   // The end in the store too: a new process draws it as stopped (see saveTurn).
   if (!agent) await saveTurn($)
+  // Nothing alive past the turn: the session stands stopped from its end on (syncIdle).
+  if (!agent) await syncIdle($, endedAt)
   // The turn's answer grew the context: publish its share for the session that opened this one.
   if (!agent) await publishPanel($)
   if (agent) {
@@ -215,6 +218,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
         await change($, all => all.map(g => (g.agent === agent ? { ...g, tasks: g.tasks.map(interrupt(now)) } : g)))
       }
     }
+    // The subagent that ends the last thing alive past the turn leaves the session stopped (syncIdle).
+    await syncIdle($)
   }
   return r
 }

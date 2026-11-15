@@ -103,7 +103,9 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     // The person's folds go with the panel: no plan after the /clear is born folded (the lines folded,
     // the histories opened and the mark of the shortened texts).
     await $.state.set(collapsedState, {})
-    await replace($, [{ agent: MAIN, label: '', tasks: [], ...(past.length > 0 ? { past } : {}) }])
+    // The idle spans stay (closed at the /clear): the history's cards leave them out of their times too.
+    const idle = (main?.idle ?? []).map(x => (x.to === undefined ? { ...x, to: Math.max(at, x.from) } : x))
+    await replace($, [{ agent: MAIN, label: '', tasks: [], ...(past.length > 0 ? { past } : {}), ...(idle.length > 0 ? { idle } : {}) }])
   }
   if (e.source === 'resume') {
     await dropHeld($)
