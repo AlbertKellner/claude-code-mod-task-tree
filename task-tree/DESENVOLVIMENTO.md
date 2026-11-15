@@ -456,18 +456,31 @@ o painel de cada filha): fica de fora só o que não é objeto, o grupo sem `tas
 nome viram texto, e `short` ausente vira o `id`. O que saiu volta em `dropped` (a contagem por motivo), e
 `readPublished` o diz no log uma vez por sessão e motivo ("lido em parte").
 
-Gravado só quando muda (fase 6): `publishWait` monta o corpo sem `at`, `context.at` e `panes`, compara
-o JSON dele mais o `percent` do contexto com o último publicado para o caminho (`lastPublished`,
-`Map` do módulo) e volta sem gravar quando é igual; `$.ui.panes()` e `$.clock.now()` só são pedidos
-quando vai gravar. Ninguém lê o `at` do arquivo (os `at` que importam, dos turnos e das mensagens,
-estão dentro do painel); o relógio ou os painéis sozinhos não contam como mudança, uma espera nova
-conta. O formato não mudou: os mesmos campos, na mesma ordem, `PUBLISHED_VERSION` 1.
+Gravado só quando muda (fase 6): `publishWait` monta o corpo sem `at`, `context`, `rate`, `git` e
+`panes`, e compara com o último publicado para o caminho (`lastPublished`, `Map` do módulo) o JSON
+desse corpo mais o `percent` do contexto, a taxa sem o relógio (`toks`; `live` é sempre `true`) e o
+repositório sem o relógio (tipo, nome, branch e "destacado"); volta sem gravar quando é igual.
+`$.ui.panes()` e `$.clock.now()` só são pedidos quando vai gravar. Ninguém lê o `at` do arquivo (os
+`at` que importam, dos turnos e das mensagens, estão dentro do painel); os quatro relógios (`at`,
+`context.at`, `rate.at`, `git.at`) e os painéis sozinhos não contam como mudança, uma espera nova
+conta. Quem acrescenta ao arquivo um campo que traz um relógio dentro põe o campo na comparação sem o
+relógio: com ele, o arquivo seria regravado a cada publicação (a releitura de 3 s publica sempre que
+há sessões ligadas). O formato não mudou: os mesmos campos, na mesma ordem, `PUBLISHED_VERSION` 1.
+
+Uma publicação por vez (`publishPanel`, `hooks/panel.ts`): a pedida com outra em curso espera por ela
+e publica de novo no fim, com o state lido depois; as pedidas nesse meio tempo entram nessa mesma
+espera (só uma espera por vez), e o arquivo termina com o painel mais novo. O plan e o start do loop
+principal publicam uma vez, no fim, depois das ligações e do trabalho (`change(..., { publish })`).
 
 Leitura: `parsePublished(texto)` (pura) devolve `{ ok }` normalizado ou `{ error }`: JSON inválido,
 não-objeto, ou `version` presente e ≠ 1. Normaliza: listas só se são listas (`waits` e `children`
-vazias por padrão), `waiting` só `=== true`, `context` só com `percent` e `at` numéricos, `engine` só
-string não vazia, `work` mapeado a string; `panes`, `drawSize` e `rows` não saem na leitura (são para
-olhar o arquivo à mão). `readPublished($, id)` lê, valida e diz uma vez por sessão e motivo no log
+vazias por padrão; `tasks`, `groups`, `received` e `sends` só quando são listas), `waiting` só
+`=== true`, `context` só com `percent` e `at` numéricos, `engine` só string não vazia, `ultracode` só
+`true`, `rate` só com `toks` e `at` numéricos (lida sempre acesa, `live: true`), `git` só como pasta
+com nome (`kind: 'folder'`) ou repositório com nome e branch ("destacado" só `true`; o relógio só se
+for número), `aborted` só `true`, `renderError` só texto, `work` mapeado a string, `turn` só com
+`ended` número ou nulo (`aborted` e `replan` só `true`, `failed` só quando `true`); `panes`,
+`drawSize` e `rows` não saem na leitura (são para olhar o arquivo à mão). `readPublished($, id)` lê, valida e diz uma vez por sessão e motivo no log
 ("task-tree: arquivo publicado de <id> ignorado: <motivo>"); arquivo inválido vale como ausente. Um
 arquivo de antes de `version` é lido como está; `panelOf` (io/host.ts) aceita `groups` ou, de versões
 antigas, só `tasks`.  Já existiram 8 formatos do arquivo, do `{ waiting, at }` ao de versão 1, e todos são lidos.
@@ -1172,6 +1185,9 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
   `lastRecap($)`.
 
 #### Arquivo publicado
+
+Registro da fase 4. O contrato de hoje (campos, ordem, comparação e leitura) está em "Arquivo
+publicado (versão 1)"; o texto abaixo fica como estava.
 
 `task-tree/io/publish.ts` escreve e lê `~/.claude/task-tree-waits/<id>.json`; a sessão mãe o lê. O
 `register.tsx` só junta o estado em `publishPanel($)` (sete `$.state.get` com chave literal, limite do kit:
