@@ -92,7 +92,7 @@ As pendentes de uma filha parada saem da contagem quando a tarefa de origem fech
 - Quando a tarefa de origem do cartão na mãe está fechada
 - Então as pendentes saem do cabeçalho, do chip e do x/y do pai, e não seguram a visão; as ✓ seguem contando; o cartão fica desenhado com as ○ e a palavra "encerrada"; a mãe é avisada de que ela parou com N pendentes; se a filha voltar a trabalhar, tudo volta a contar
 
-Origem: decisão do usuário, 2026-11-04 ("Origem fechada (Recomendado)"), ao pedido "entao pq esse card de plano esta parado? analise se é um bug do mod, ou se podemos fazer melhoria. ele ja deveria estar encerrado".
+Origem: decisão do usuário, 2026-11-04 ("Origem fechada (Recomendado)"), ao pedido "entao pq esse card de plano esta parado? analise se é um bug do mod, ou se podemos fazer melhoria. ele ja deveria estar encerrado"; o aviso nas duas ordens (filha para antes ou depois de a origem fechar), auditoria 2026-11-10.
 Código: draw/layout.ts, hooks/sessions.ts, hooks/render.tsx
 Estado: coberto
 

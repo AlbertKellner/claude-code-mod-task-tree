@@ -262,6 +262,10 @@ export const PLAN = {
 
 // Warnings in done's result (joined after "Avisos:").
 export const DONE = {
+  // Closing the task a stopped session was opened from: its pending tasks leave the count (settle).
+  settled: (sessions: string[]) =>
+    `parou com pendentes a sessão ${sessions.join(', a sessão ')}: elas saíram da contagem do painel ao ` +
+    'fechar a tarefa de origem; se o trabalho delegado não acabou, retome a sessão',
   noSummary: `falta o summary: chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩)`,
   unstarted: (ids: string[]) =>
     `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
@@ -325,10 +329,15 @@ export const SESSION = {
     PANEL + `mensagem não entregue, o subagente parou antes de recebê-la: ${what.join('; ')}. ` +
     'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa. Se a mensagem ainda importa, ' +
     'mande de novo (um subagente concluído é retomado com ela).',
-  ended: (sessions: string[], open: string) =>
+  ended: (sessions: string[], open: string, pending = false) =>
     PANEL + `terminou o turno a sessão ${sessions.join(', a sessão ')}, e a tarefa de ` +
     'origem continua aberta. Confira o relato e marque com mcp__task-tree__done o que o trabalho delegado ' +
-    `concluiu. Tarefas abertas no painel: ${open}.`,
+    'concluiu. ' +
+    (pending
+      ? 'Ao fechar a tarefa de origem, as pendentes dessa sessão saem da contagem do painel; se o trabalho ' +
+        'delegado não acabou, retome a sessão em vez de fechar. '
+      : '') +
+    `Tarefas abertas no painel: ${open}.`,
   stopped: (sessions: string[]) =>
     PANEL + `parou com a tarefa de origem já fechada a sessão ${sessions.join(', a sessão ')}: essas pendentes ` +
     'saíram da contagem do painel. Se o trabalho delegado não acabou, retome a sessão.',

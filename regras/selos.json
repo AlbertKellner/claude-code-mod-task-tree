@@ -2398,6 +2398,16 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::a filha para primeiro com pendentes: o lembrete diz quantas, e o done que fecha a origem avisa que saíram da contagem": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "2d7d17ea3ec6e3e2",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: aviso das pendentes nas duas ordens"
+    },
     "task-tree/tests/sessoes.test.ts::a filha parada com Esc com carta na fila mostra a tarefa do envio aguardando": {
       "regras": [
         "sessoes.regras-de-cartao-valem-para-netas"
@@ -2916,6 +2926,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/sessoes.test.ts::o done que fecha a origem de uma filha sem pendentes não avisa": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "27931101d74bc2a0",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: aviso das pendentes nas duas ordens"
     },
     "task-tree/tests/sessoes.test.ts::o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela": {
       "regras": [

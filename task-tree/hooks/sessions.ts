@@ -5,7 +5,7 @@
 
 import { update } from 'claude-code'
 
-import type { Child, Group, Published, Send, Wait } from '../types'
+import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { SESSION } from '../text/rules'
 import { MAIN, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
@@ -371,6 +371,28 @@ export async function recordStart($: any, resultText: string, names: string[] = 
   await refreshChildren($)
 }
 
+// The open leaves a session's own panel holds (its pending tasks).
+const pendingOf = (c: Child) => flat(tasksOf(rawPanel(c).groups ?? [])).filter(t => t.status === 'open' && t.children.length === 0).length
+
+// The cards settled by the tasks here (the session stopped and its task closed: its pending tasks
+// out of the count), as "name (N pendentes)", of the sessions `only` names if given.
+function settledCards(kids: Child[], tasks: TaskNode[], sends: Send[], only?: string[]) {
+  return kids
+    .filter(c => only === undefined || only.includes(c.id))
+    .flatMap(c => split(c, kids, knownId(), tasks, undefined, newBreaksMemo()).map(r => settleCard(r, tasks, sends)))
+    .filter(r => r.settled)
+    .map(r => `"${r.name || r.title}" (${pendingOf(r)} pendentes)`)
+}
+
+// For done: the sessions with pending tasks the main loop's done just took out of the count (the
+// cards settled now and not before), as "name (N pendentes)".
+export async function settledBy($: any, before: TaskNode[], after: TaskNode[]): Promise<string[]> {
+  const { value: kids = [] } = await $.state.get(childrenState)
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const was = new Set(settledCards(kids as Child[], before, sends as Send[]))
+  return settledCards(kids as Child[], after, sends as Send[]).filter(x => !was.has(x) && !x.endsWith('(0 pendentes)'))
+}
+
 // Once per session whose turn ended: a reminder for the main loop, while the task it opened
 // that session on is still open, to read its report and close what the delegated work finished.
 export async function endedNote($: any): Promise<string | undefined> {
@@ -400,14 +422,16 @@ export async function endedNote($: any): Promise<string | undefined> {
     .filter(c => ids.includes(c.id))
     .map(c => ({ c, t: originOf(c) }))
     .filter(x => x.t !== undefined)
-    .map(x => `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title})`)
+    .map(x => {
+      // The pending tasks it left, said with the task still open too: closing it takes them out of
+      // the count (settle), the same as when it stopped with the task already closed.
+      const n = pendingOf(x.c)
+      return `"${x.c.name || x.c.title}" (tarefa de origem "${x.t?.id}" ${x.t?.title}${n > 0 ? `; parou com ${n} pendentes` : ''})`
+    })
+  const pending = lines.some(l => l.endsWith(' pendentes)'))
   // One that stopped with its task closed here: its pending tasks left the count (settle), said once.
-  const left = (kids as Child[])
-    .filter(c => ids.includes(c.id))
-    .flatMap(c => split(c, kids as Child[], knownId(), tasks, undefined, newBreaksMemo()).map(r => settleCard(r, tasks, sends as Send[])))
-    .filter(r => r.settled)
-    .map(r => `"${r.name || r.title}" (${flat(tasksOf(rawPanel(r).groups ?? [])).filter(t => t.status === 'open' && t.children.length === 0).length} pendentes)`)
-  const notes = [...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks))] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
+  const left = settledCards(kids as Child[], tasks, sends as Send[], ids)
+  const notes = [...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks), pending)] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
   return notes.length > 0 ? notes.join(' ') : undefined
 }
 

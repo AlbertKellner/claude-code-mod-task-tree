@@ -10,7 +10,7 @@ import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
 import { reminders, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
-import { keepTime } from './sessions'
+import { keepTime, settledBy } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -254,6 +254,8 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     let unstarted: string[] = []
     let canceled = 0
     const now = await stamp($)
+    const { value: before0 = [] } = await $.state.get(groupsState)
+    const beforeMain = (before0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
     const groups = await change($, all => {
       notes = []
       closed = []
@@ -291,6 +293,12 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
         return { ...g, tasks }
       })
     })
+    // Closing the task a stopped session was opened from: its pending tasks left the count, said here
+    // (the other order, the session stopping after, says it in its reminder: endedNote).
+    if (agent === MAIN) {
+      const left = await settledBy($, beforeMain, groups.find(g => g.agent === MAIN)?.tasks ?? [])
+      if (left.length > 0) notes.push(DONE.settled(left))
+    }
     // Closing the task a message was sent from while it is still queued: allowed, with a warning.
     if (agent === MAIN) {
       const { value: sends = [] } = await $.state.get(sendsState)

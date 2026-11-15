@@ -883,6 +883,40 @@ test('a mãe é avisada de que a filha parou com pendentes', async ($: any, on: 
   expect(JSON.stringify(r)).toContain('1 pendentes')
 })
 
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('a filha para primeiro com pendentes: o lembrete diz quantas, e o done que fecha a origem avisa que saíram da contagem', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [deTurno(1, 'c', 'Colapso', 'aberta')], turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  const lembrete = JSON.stringify(await aviso($))
+  expect(lembrete).toContain('terminou o turno')
+  expect(lembrete).toContain('1 pendentes')
+  const r = await done($, ['1'])
+  expect(r.texto).toContain('Avisos')
+  expect(r.texto).toContain('1 pendentes')
+  expect(r.texto).toContain('saíram da contagem')
+})
+
+// Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('o done que fecha a origem de uma filha sem pendentes não avisa', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [deTurno(1, 'c', 'Colapso', 'feita')], turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  await aviso($)
+  const r = await done($, ['1'])
+  expect(r.texto).not.toContain('pendentes')
+})
+
 // Regra: pedidos.id-reusado-segura-pedido-com-cartao-aberto
 test('plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista', async ($: any, on: any) => {
   await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
