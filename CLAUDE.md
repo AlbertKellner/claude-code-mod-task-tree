@@ -203,6 +203,9 @@ fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden
   fluxo dos lotes, o commit é feito na cópia, onde o hook roda o check, e entra no clone por avanço
   direto da branch (`PROCESSO.md`, seção 4); fora dele, copie tudo junto e rode `npm run check` antes
   do passo seguinte.
+- Operação do git que troca vários arquivos neste clone (`checkout`, `pull`, `merge`, `rebase`,
+  `stash`): evite com turno em curso em outra sessão e, depois dela, confira que o mod recarregou
+  sem "reload failed" antes de seguir (decisão do usuário, 2026-11-15: "Regra leve (Recomendado)").
 - Limites do validate que o código respeita (chave de `$.state` literal no arquivo que chama, `$`
   só em função de topo etc.): DESENVOLVIMENTO.md, "Limites do kit".
 
@@ -229,6 +232,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   lados; o conector da faixa chegando na altura do cabeçalho do cartão;
 - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
 - recarga a quente real (salvar um arquivo com o painel aberto); os cartões das rodadas não saltam ao salvar um arquivo do mod; o painel fechado pela pessoa segue fechado na recarga e nos plans;
+- depois de `checkout`, `pull`, `merge`, `rebase` ou `stash` no clone carregado: o mod recarrega sem
+  "reload failed" e o painel das sessões abertas segue inteiro;
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada, rodada substituída; filha apagada e
   filha arquivada com a tarefa de origem aberta: o modelo é avisado uma vez; a filha que conclui tudo
   fecha a tarefa de origem, com a mãe parada; digitar direto numa filha: o cartão aparece sob a tarefa em
