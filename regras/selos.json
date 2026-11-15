@@ -3152,6 +3152,16 @@
       "data": "2026-11-15",
       "motivo": "freio por tempo nas gravações do cartão do subagente"
     },
+    "task-tree/tests/subagentes.test.ts::a nota sai também no resultado da ferramenta seguinte, com o turno em curso": {
+      "regras": [
+        "subagentes.modelo-avisado-do-fechamento"
+      ],
+      "hash": "210f49781e966a86",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
+    },
     "task-tree/tests/subagentes.test.ts::a nova tentativa decide também quando termina mal: parada, a tarefa fica ✕ 'interrompida'": {
       "regras": [
         "subagentes.pai-reflete-falha-ou-interrupcao"
@@ -3576,6 +3586,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
     },
+    "task-tree/tests/subagentes.test.ts::o done numa tarefa interrompida diz que o start a reabre": {
+      "regras": [
+        "arvore.done-em-interrompida-indica-o-start"
+      ],
+      "hash": "ce8088e45f3dc695",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
+    },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
         "subagentes.id-reusado-nao-herda-cartao"
@@ -3625,6 +3645,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente em segundo plano que falha depois do turno: o prompt seguinte diz que a tarefa ficou interrompida e como refazer": {
+      "regras": [
+        "subagentes.modelo-avisado-do-fechamento"
+      ],
+      "hash": "c07505e65c72bc56",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
     },
     "task-tree/tests/subagentes.test.ts::o subagente falha e outro, lançado depois da mesma tarefa, conclui: a tarefa fica ✓ e o cartão do primeiro segue 'falhou'": {
       "regras": [
@@ -3736,6 +3766,16 @@
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
+    },
+    "task-tree/tests/subagentes.test.ts::quando os subagentes fecham a tarefa no fim do turno, o modelo é avisado uma vez": {
+      "regras": [
+        "subagentes.modelo-avisado-do-fechamento"
+      ],
+      "hash": "3cc5c9885efb37fa",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
     },
     "task-tree/tests/subagentes.test.ts::quatro lançados juntos da mesma tarefa, com o relógio andando, ficam num cartão de grupo": {
       "regras": [

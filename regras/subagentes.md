@@ -368,3 +368,14 @@ Depois do Esc, o fim do último subagente da tarefa a fecha como no fim normal d
 Origem: decisão do usuário, 2026-11-14 ("Fecha como no fim normal"), à pergunta sobre o fim de um subagente em segundo plano depois do Esc; exceção a turnos.parada-segue-interrompida-ate-o-start ("Segue ✕ até novo start (Recomendado)", 2026-11-12) para a tarefa cujo subagente termina depois. Para as outras paradas com Esc cujos subagentes terminaram antes: decisão do usuário, 2026-11-14 ("Todas, como hoje").
 Código: hooks/turn.ts, hooks/agents.ts, state/tasks.ts
 Estado: coberto
+
+### subagentes.modelo-avisado-do-fechamento
+O modelo é avisado, uma vez, quando o fim dos subagentes fecha ou interrompe uma tarefa.
+
+- Dado uma tarefa do loop principal fechada pelo painel porque os subagentes lançados dela terminaram (✓), ou marcada ✕ porque um falhou ou foi parado
+- Quando chega o prompt seguinte, ou a próxima chamada de ferramenta do loop principal
+- Então o modelo recebe a nota com a tarefa e como ela ficou: concluída sozinha (reabrir com start se ainda havia o que fazer), ou interrompida, com "falhou" quando foi falha (start nela para refazer); a nota sai uma vez
+
+Origem: auditoria 2026-11-10 (o fechamento automático não deixava nota); aplica subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09), sem mudá-las.
+Código: hooks/prompt-submit.ts, hooks/tool-call.ts, text/rules.ts
+Estado: coberto

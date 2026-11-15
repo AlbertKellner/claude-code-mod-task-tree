@@ -13,6 +13,7 @@ import type { AgentInfo, EngineInterface } from 'claude-code'
 
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
 import { MAIN, SUB_BATCH, flat, inFlight, interrupt, subLive } from '../draw/layout'
+import { SUBS } from '../text/rules'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
 import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
@@ -22,6 +23,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const closedBySubsState = { plugin: 'task-tree', key: 'closedBySubs' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
@@ -345,6 +347,13 @@ export async function settleBySubs($: any) {
     }
   }
   if (ends.size === 0) return
+  // The main loop's tasks this closes or marks ✕ are told to the model once (subsNote): it would
+  // otherwise read them as still open, or answer a done on one ✕ with no way back.
+  const told = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []).flatMap(t => {
+    const x = ends.get(`${MAIN}|${t.id}`)
+    return x === undefined ? [] : [{ id: t.id, title: t.title, how: x.state }]
+  })
+  if (told.length > 0) await update($, closedBySubsState, cur => [...(cur ?? []).filter(c => !told.some(t => t.id === c.id)), ...told])
   await change($, all =>
     all.map(g => {
       let tasks = g.tasks
@@ -454,4 +463,17 @@ export async function strandedSends($: any) {
   )
   if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
   await publishPanel($)
+}
+
+// Once: the tasks the end of their subagents closed or marked ✕ since the model was last told
+// (settleBySubs), for the next prompt or tool call of the main loop.
+export async function subsNote($: any): Promise<string | undefined> {
+  const { value: list = [] } = await $.state.get(closedBySubsState)
+  if (list.length === 0) return undefined
+  await $.state.set(closedBySubsState, [])
+  const item = (x: { id: string; title: string; how: string }) => `"${x.id}" ${x.title}` + (x.how === 'failed' ? ' (falhou)' : x.how === 'interrupted' ? ' (interrompida)' : '')
+  const done = (list as { id: string; title: string; how: string }[]).filter(x => x.how === 'done').map(item)
+  const stopped = (list as { id: string; title: string; how: string }[]).filter(x => x.how !== 'done').map(item)
+  const notes = [...(done.length > 0 ? [SUBS.done(done.join('; '))] : []), ...(stopped.length > 0 ? [SUBS.stopped(stopped.join('; '))] : [])]
+  return notes.join(' ')
 }

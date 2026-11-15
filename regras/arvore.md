@@ -131,3 +131,14 @@ A tarefa de que o modelo desiste é cancelada: ✕ interrompida, fora do x/y.
 Origem: decisão do usuário, 2026-11-14 ("✕ fora do x/y (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o modelo só podia concluir, e a tarefa abandonada aparecia ✓ e contava como feita).
 Código: hooks/session-start.ts, draw/layout.ts, text/rules.ts
 Estado: coberto
+
+### arvore.done-em-interrompida-indica-o-start
+O done numa tarefa interrompida não a conclui, e diz que o start a reabre.
+
+- Dado uma tarefa ✕ (interrompida pelo fim de um subagente, ou histórico de um pedido anterior)
+- Quando o modelo chama done nela
+- Então a resposta avisa que ela foi interrompida, que o done não a conclui e que o start nela a retoma; nada muda no painel
+
+Origem: auditoria 2026-11-10 (o aviso dizia só "foi interrompida").
+Código: text/rules.ts
+Estado: coberto

@@ -2,7 +2,8 @@
 // a launch (Agent) records the task the loop is on; a question or a plan to approve takes the whole
 // call (the wait while it is open, the answer's reminder); a wrap_up keeps its question as a wait. After the call, for the main loop only: the clocks and the sessions' list come
 // back, a start_session records its session, then each note handler adds, in order, what it has to say
-// to the result (a message only queued, a session that ended its turn, a message taken up, what a
+// to the result (a message only queued, a session that ended its turn, a message taken up, a task the
+// end of its subagents closed or marked ✕, what a
 // wrap_up leaves open) and, last, the reminder to plan: the first call with no open plan, and every
 // 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
 
@@ -13,7 +14,7 @@ import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
 import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
-import { launchAnchor, subTool } from './agents'
+import { launchAnchor, subTool, subsNote } from './agents'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -193,12 +194,16 @@ async function subagentOf($: any, to: string): Promise<string | undefined> {
   }
 }
 
-// The sessions' reminders: one whose turn ended, one that took up a queued message.
+// The sessions' reminders: one whose turn ended, one that took up a queued message; and the tasks
+// the end of their subagents closed or marked ✕.
 const sessionNotes: Notes = async ($, _c, notes) => {
   const ended = await endedNote($)
   if (ended) notes.push(ended)
   const taken = await takenNote($)
   if (taken) notes.push(taken)
+  // And the tasks the end of their subagents closed or marked ✕ (subsNote).
+  const subs = await subsNote($)
+  if (subs) notes.push(subs)
 }
 
 // The end of a turn in the desktop app: what is still open is listed, so nothing finished is left

@@ -262,6 +262,8 @@ export const PLAN = {
 
 // Warnings in done's result (joined after "Avisos:").
 export const DONE = {
+  // done on a task ✕ (its subagent failed or was stopped, history, canceled): start takes it up again.
+  interrupted: (id: string) => `"${id}" foi interrompida: o done não a conclui; para retomá-la, chame start nela`,
   // Closing the task a stopped session was opened from: its pending tasks leave the count (settle).
   settled: (sessions: string[]) =>
     `parou com pendentes a sessão ${sessions.join(', a sessão ')}: elas saíram da contagem do painel ao ` +
@@ -341,4 +343,16 @@ export const SESSION = {
   stopped: (sessions: string[]) =>
     PANEL + `parou com a tarefa de origem já fechada a sessão ${sessions.join(', a sessão ')}: essas pendentes ` +
     'saíram da contagem do painel. Se o trabalho delegado não acabou, retome a sessão.',
+}
+
+// The tasks of the main loop the end of their subagents closed (✓) or marked ✕ (one failed or was
+// stopped), said once at the next prompt or tool call (hooks/agents, subsNote).
+export const SUBS = {
+  done: (list: string) =>
+    PANEL + `os subagentes lançados destas tarefas terminaram e o painel as concluiu sozinho: ${list}. ` +
+    'Se alguma ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
+  stopped: (list: string) =>
+    PANEL + `o painel marcou como interrompidas as tarefas cujo subagente falhou ou foi parado: ${list}. ` +
+    'Para refazer, chame mcp__task-tree__start na tarefa (ela reabre) e lance o subagente de novo; se o ' +
+    'resultado já basta, deixe como está.',
 }

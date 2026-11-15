@@ -9,6 +9,7 @@ import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
 import { learnNames, reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { subsNote } from './agents'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -122,6 +123,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     if (it.notice) await refreshChildren($).catch(() => {})
     const note = await endedNote($)
     const taken = await takenNote($)
+    const subs = await subsNote($)
     // Tasks the person stopped (Esc) and no start took up since: only a start brings them back
     // (lembretes.parada-so-volta-com-start).
     await ensureGroups($)
@@ -135,7 +137,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       context: [
         ...(e.context ?? []),
         ...(note ? [note] : []),
-        ...(taken ? [taken] : []),
+        ...(taken ? [taken] : []), ...(subs ? [subs] : []),
         it.handback ? PROMPT.handback : kind === 'task-notification' ? PROMPT.background : PROMPT.notice,
         ...(parked.length > 0 ? [PROMPT.parked(openList(parked))] : []),
         ...(failedOpen.length > 0 ? [PROMPT.failedTasks(openList(failedOpen))] : []),
@@ -167,6 +169,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       await refreshStale($).catch(() => {})
       const note = await endedNote($)
       const taken = await takenNote($)
+      const subs = await subsNote($)
       const { value: groups = [] } = await $.state.get(groupsState)
       const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
       // The person's message may be the answer to a question dismissed for the chat (see asked).
@@ -174,7 +177,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       if (!it.peer) reminders.answeredInChat = false
       return next({
         ...e,
-        context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), PROMPT.midTurn(hasOpen(tasks) ? openList(tasks) : '', answered)],
+        context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), PROMPT.midTurn(hasOpen(tasks) ? openList(tasks) : '', answered)],
       })
     }
   }
@@ -188,6 +191,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   await refreshStale($).catch(() => {})
   const note = await endedNote($)
   const taken = await takenNote($)
+  const subs = await subsNote($)
   // What the last request left open (a question answered here, work this message replaces)
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)
@@ -209,7 +213,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   reminders.answeredInChat = false
   return next({
     ...e,
-    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(left ? [left] : []), PROMPT.request],
+    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request],
   })
 }
 

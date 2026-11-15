@@ -1585,3 +1585,66 @@ test('a tarefa iniciada com subagente em segundo plano segue em andamento depois
   p = await painel($)
   expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
 })
+
+// Regra: subagentes.modelo-avisado-do-fechamento
+test('quando os subagentes fecham a tarefa no fim do turno, o modelo é avisado uma vez', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um' })
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const primeiro = JSON.stringify(await pedido($, 'Pedido dois'))
+  expect(primeiro).toContain('concluiu sozinho')
+  expect(primeiro).toContain('Investigar')
+  expect(JSON.stringify(await pedido($, 'Pedido três'))).not.toContain('concluiu sozinho')
+})
+
+// Regra: subagentes.modelo-avisado-do-fechamento
+test('o subagente em segundo plano que falha depois do turno: o prompt seguinte diz que a tarefa ficou interrompida e como refazer', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um', segundoPlano: true })
+  await fimDoTurno($)
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  const r = JSON.stringify(await aviso($))
+  expect(r).toContain('falhou')
+  expect(r).toContain('mcp__task-tree__start')
+})
+
+// Regra: subagentes.modelo-avisado-do-fechamento
+test('a nota sai também no resultado da ferramenta seguinte, com o turno em curso', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um', segundoPlano: true })
+  await fimDoTurno($)
+  await fimDoSubagente($, 'sub-1')
+  const r = await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'ls' })
+  expect(JSON.stringify(r?.context ?? [])).toContain('concluiu sozinho')
+  const r2 = await $.tool.call({ tool: 'Bash', tool_use_id: 'b2', command: 'ls' })
+  expect(JSON.stringify(r2?.context ?? [])).not.toContain('concluiu sozinho')
+})
+
+// Regra: arvore.done-em-interrompida-indica-o-start
+test('o done numa tarefa interrompida diz que o start a reabre', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um', segundoPlano: true })
+  await fimDoTurno($)
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  const r = await done($, ['1'])
+  expect(r.texto).toContain('foi interrompida')
+  expect(r.texto).toContain('start')
+})

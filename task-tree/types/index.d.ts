@@ -271,6 +271,8 @@ export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; t
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }
 
 // `ended`: the sessions whose turn ended, until the main loop is reminded of their task.
+// `closedBySubs`: the main loop's tasks the end of their subagents closed or marked ✕ (settleBySubs),
+// with how they ended, until the model is told (subsNote).
 // `sends`: messages to other sessions still queued, until taken up and the main loop reminded.
 // `received`: the messages of other sessions this one got (from, when), published for their senders
 // to confirm a queued SendMessage.
@@ -303,6 +305,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; closedBySubs: { id: string; title: string; how: 'done' | 'failed' | 'interrupted' }[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

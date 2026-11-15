@@ -76,6 +76,7 @@ export const TABLE: readonly Row[] = [
   { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last model calls, live or the last turn\'s mean, published for the card' },
   { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
+  { key: 'closedBySubs', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of the main loop the end of their subagents closed or marked ✕ (settleBySubs), until the model is told once (subsNote)' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
   { key: 'paneOpened', lives: 'state', merge: 'none', restoredAt: [], note: 'session.start opened the panel in this process: a reload keeps it, so it does not open again a panel the person closed; a new process opens it once' },
