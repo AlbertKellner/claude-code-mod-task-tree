@@ -229,3 +229,13 @@ O cabeçalho desenha o toks/s e 'ultracode' em qualquer largura.
 Origem: decisão do usuário, 2026-11-14 ("Os dois sempre"); desfaz, para o toks/s, o cabeçalho estreito sem ele do desenho V4 ("gostei da V4", 2026-11-03).
 Código: hooks/render.tsx, draw/head.tsx
 Estado: coberto
+
+### cabecalho.fixo-ao-rolar
+O cabeçalho fica no topo do painel enquanto a lista rola.
+
+- Dado um painel mais alto que a tela
+- Quando a pessoa rola a lista para ver as tarefas de baixo
+- Então o cabeçalho (título, barra, "d de n", pílulas) segue à vista no topo, e só as linhas rolam
+
+Origem: pedido do usuário (deixado para depois; registrado nas pendências do DESENVOLVIMENTO.md); decisão do usuário, 2026-11-15 ("Registrar como pendente (Recomendado)"). A implementação começa por um diagnóstico no app: ainda não se sabe se o app avisa o mod quando o painel rola.
+Estado: pendente (cabecalho.test.ts; antes, o diagnóstico no app)
