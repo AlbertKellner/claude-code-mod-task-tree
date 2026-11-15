@@ -102,7 +102,7 @@ Na ordem de `register.tsx`:
 | Evento | Filtro | Função (arquivo) | O que faz |
 |---|---|---|---|
 | `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada), `restore` do store se o state está vazio, `restoreView`, `restoreWork`, `restoreLinks`; abre o pane; `refreshChildren` e `watchSessions` |
-| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`, guardando as tarefas e os turnos do grupo principal em `past` (os 5 `/clear` mais recentes, o aberto como interrompido); `resume`: `restore` do store |
+| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends`, `work` e `collapsed` (as dobras), guardando as tarefas e os turnos do grupo principal em `past` (os 5 `/clear` mais recentes, o aberto como interrompido); `resume`: `restore` do store |
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
@@ -282,7 +282,7 @@ A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o
 | `childrenError` | state | | none | | por que a lista do host falhou |
 | `brief` | state | | none | | o `summary` do `done` até o fim do turno |
 | `recap` | state | | none | | o `recap` do `wrap_up` até o fim do turno |
-| `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`) |
+| `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`); o plan renomeia as chaves das tarefas que renomeia (`renameFolds`), e o `/clear` as zera |
 | `turnEnded` | state | | none | | a hora em que o turno desta sessão terminou, até o próximo prompt (então `null`): o que ela deixou aberto é desenhado interrompido, sem relógio |
 | `turnFailed` | state+store | `turn` (campo) | current | start, resume, first-use | a última parada do loop principal foi um turno que morreu por erro (falha da API, limite de contexto, recusa), até o próximo pedido: o lembrete dele diz o erro (`PROMPT.failedByError`); falso em registro antigo e depois de `parkDeadTurn` |
 | `sessions` | store | `sessions` | none | | as sessões com painel guardado, a atual primeiro, `KEEP` = 30 |
@@ -465,6 +465,9 @@ cujo id o plano novo toma (`<tag>:id`). As ligações das sessões guardavam o i
 apontar para a tarefa nova: numa pergunta simples da orquestradora, sem envio de mensagem, os cartões
 das filhas de pedidos anteriores apareciam sob a tarefa do turno atual. Dois pontos:
 
+- As dobras da pessoa vão junto com a tarefa renomeada: `renameFolds($, agent, ids, tag)` (`hooks/panel.ts`,
+  chamada pelo `planTool`) troca `<agent>|t:<id>` (e `…/<resto>`) por `<agent>|t:<tag>:<id>`, no grupo de
+  quem planejou; o nível 1 novo que reusa o id nasce aberto (correção da auditoria de 2026-11-10).
 - Raiz, `renameAnchors($, ids, tag)` em `hooks/panel.ts`, chamada pelo `planTool` logo depois de
   renomear: toda âncora `a` com `a === id` ou `a` começando por `id/` vira `tag:a`, em `children`
   (`anchor`, `lastAnchor`, `rounds[].anchor`), `launches` (`anchor`), `sends` (`anchor`) e na cópia do

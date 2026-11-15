@@ -193,3 +193,14 @@ A mensagem só é de outra sessão, ou retorno de subagente, quando a marca abre
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: as duas marcas valiam em qualquer posição do texto); forma real das mensagens medida nos transcritos em 2026-11-14 (a linha "Another Claude session sent a message:" antes da tag em parte delas). Aplica envios.pedido-recebido-mostra-carta e turnos.prompt-sem-turno, sem mudar nenhuma das duas.
 Código: hooks/sessions.ts
 Estado: coberto
+
+### pedidos.dobra-nao-passa-ao-id-reusado
+A linha que a pessoa recolheu segue com a tarefa dela, não com o id.
+
+- Dado um nível 1 que a pessoa recolheu, de um pedido anterior
+- Quando um pedido novo traz plan com o mesmo id
+- Então o nível 1 novo nasce aberto, e o antigo, que virou histórico, segue recolhido como a pessoa o deixou; nada recolhe sozinho
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a dobra era guardada pelo id, e o id reusado herdava a dobra da tarefa antiga); aplica "se eu quiser, eu mesmo colapso" (nada recolhe sozinho) e pedidos.plano-anterior-vira-historico.
+Código: hooks/render.tsx, draw/layout.ts
+Estado: coberto

@@ -3,7 +3,7 @@ import { PUBLISHED_FILES } from './fixtures/publicados'
 import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente } from './kit/ambiente'
 import { falha } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
-import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, painel, type Linha } from './kit/leitura'
+import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, montar, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
 // o 1/2 grava nos objetos abaixo e o 2/2 (módulo novo, state vazio) lê deles.
@@ -154,6 +154,21 @@ test('o /clear guarda no painel publicado o que a sessão tinha feito, e o paine
   const tarefas = achatar(passado(h)[0].tasks)
   expect(tarefas.find(t => t.title === 'Um')?.status, JSON.stringify(tarefas)).toBe('done')
   expect(tarefas.find(t => t.title === 'Dois')?.status, JSON.stringify(tarefas)).toBe('interrupted')
+})
+
+// Regra: durabilidade.clear-esvazia
+test('depois do /clear, o plano que reusa o id de uma tarefa recolhida nasce aberto', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  await limpar($)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  const p = await painel($)
+  expect(tem(p, 'Um') && tem(p, 'Dois'), emTexto(p)).toBe(true)
 })
 
 // Regra: durabilidade.clear-publica-limpo

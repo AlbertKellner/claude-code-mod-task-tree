@@ -423,6 +423,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
     },
+    "task-tree/tests/durabilidade.test.ts::depois do /clear, o plano que reusa o id de uma tarefa recolhida nasce aberto": {
+      "regras": [
+        "durabilidade.clear-esvazia"
+      ],
+      "hash": "3fd6ff7411d5d7a6",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o /clear limpa as dobras"
+    },
     "task-tree/tests/durabilidade.test.ts::fim do turno com Esc no reinício, 1/2: o turno é parado com uma tarefa iniciada": {
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
@@ -1628,6 +1638,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
+    "task-tree/tests/pedidos.test.ts::a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id": {
+      "regras": [
+        "pedidos.dobra-nao-passa-ao-id-reusado"
+      ],
+      "hash": "fe070f47a25d3a62",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: a dobra segue a tarefa renomeada"
     },
     "task-tree/tests/pedidos.test.ts::as formas reais seguem valendo: a linha de abertura do app antes da tag, o retorno de subagente e duas mensagens juntas": {
       "regras": [

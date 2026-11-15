@@ -9,7 +9,7 @@ import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt } from '../dr
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { reminders, movedAnchor, moveToLevelOne, renameAnchors, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { reminders, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -79,6 +79,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
     }
     const toLevelOne = movedAnchor(gone)
+    // The person's folds go with the tasks renamed in the planning loop's group (renameFolds).
+    const renamedHere = ((before as Group[]).find(g => g.agent === agent)?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
     const now = await stamp($)
     const groups = await change($, all => {
       // The subagents this loop launched from a task the plan renames go with the old copy (their
@@ -123,6 +125,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         return { ...g, turns, tasks: inPlace(placed) }
       })
     })
+    await renameFolds($, agent, renamedHere, tag)
     if (agent === MAIN) {
       // The sessions' ties to a renamed task go with it (see renameAnchors).
       await renameAnchors($, renamed, tag)

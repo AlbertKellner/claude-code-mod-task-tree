@@ -18,6 +18,7 @@ import type { Group, Past } from '../types'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const paneOpenedState = { plugin: 'task-tree', key: 'paneOpened' } as const
+const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 
 export async function sessionStart($: EngineInterface, e: any, next: any) {
   await $.command.register({ name: 'task-tree', description: COMMAND })
@@ -97,6 +98,9 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     await setWork($, [])
     await clearTurn($)
     await forgetChildren($)
+    // The person's folds go with the panel: no plan after the /clear is born folded (the lines folded,
+    // the histories opened and the mark of the shortened texts).
+    await $.state.set(collapsedState, {})
     await replace($, [{ agent: MAIN, label: '', tasks: [], ...(past.length > 0 ? { past } : {}) }])
   }
   if (e.source === 'resume') {

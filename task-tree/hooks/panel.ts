@@ -166,6 +166,7 @@ const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
+const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
 // In the state, not a variable of the module: a reload of the mod between the done and the end of
 // the turn (saving a file of the mod mid-turn) kept the variable's value nowhere, and the ↩ line
@@ -897,6 +898,26 @@ export const renamedAnchor = (ids: string[], tag: string) => (a?: string) =>
 export async function renameAnchors($: any, ids: string[], tag: string) {
   if (ids.length === 0) return
   await moveAnchors($, renamedAnchor(ids, tag), true)
+}
+// The folds the person left on the tasks a plan renames (`ids`, level-1 tasks of the group of `agent`)
+// go with them: in this session's panel the key of a task is its group's scope (`<agent>|`, the main
+// group's `|`) and `t:<id>`, so a new task that reuses the id is born open, and the old one, now
+// history (`<tag>:<id>`), stays as the person left it. The folds inside a session's card are that
+// session's to rename.
+export async function renameFolds($: any, agent: string, ids: string[], tag: string) {
+  if (ids.length === 0) return
+  const head = `${agent}|t:`
+  const fix = (k: string) => {
+    if (!k.startsWith(head)) return k
+    const id = k.slice(head.length)
+    const hit = ids.find(x => id === x || id.startsWith(x + '/'))
+    return hit === undefined ? k : `${head}${tag}:${id}`
+  }
+  await update($, collapsedState, cur => {
+    const all = cur ?? {}
+    if (!Object.keys(all).some(k => fix(k) !== k)) return all
+    return Object.fromEntries(Object.entries(all).map(([k, v]) => [fix(k), v]))
+  })
 }
 // A replan in place that leaves a subtask out (the level-1 task kept, carry): the ties to it (and to
 // any task below it) go to that level-1 task, so the card of a session opened from it stays under the

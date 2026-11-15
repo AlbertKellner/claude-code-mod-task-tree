@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, painel, temBusto, type Linha } from './kit/leitura'
+import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, montar, painel, temBusto, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }]
@@ -489,4 +489,25 @@ test('o cartão da filha cuja tarefa de origem sai do plano fica sob o nível 1,
   expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Plano A'])
   esperarPalavra(p, 'filha-um', 'concluída')
   expect(linha(p, 'Plano A').texto, emTexto(p)).toContain('2/4')
+})
+
+// Regra: pedidos.dobra-nao-passa-ao-id-reusado
+test('a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Antigo', children: [{ id: '1.1', title: 'Antiga um' }] }])
+  await start($, ['1.1'])
+  await done($, ['1.1'])
+  const m = await montar($)
+  await m.recolher('Antigo')
+  await m.fim()
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '1', title: 'Novo', children: [{ id: '1.1', title: 'Nova um' }] }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Nova um'), emTexto(p)).toBe(true)
+  const h = await comHistorico($, 1)
+  expect(h.some(l => l.titulo === 'Antigo'), emTexto(h)).toBe(true)
+  expect(h.some(l => l.titulo === 'Antiga um'), emTexto(h)).toBe(false)
 })
