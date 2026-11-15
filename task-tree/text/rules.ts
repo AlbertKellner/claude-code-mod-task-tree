@@ -81,6 +81,10 @@ export const RULES = [
     'que ele deixar aberto ao terminar vira interrompido. Quando todos os subagentes lançados de uma tarefa ' +
     'terminam e o turno acaba, o painel fecha a tarefa sozinho: concluída se todos concluíram, interrompida se ' +
     'algum falhou ou foi parado; para refazê-la, chame start nela.',
+  '- Dentro de um subagente (você foi lançado por outra sessão com Agent), plan, start e done valem só para ' +
+    'as suas tarefas, que ficam no cartão do subagente, não na lista da sessão. Ali não valem: request e ' +
+    'summary (são ignorados; o pedido e a linha ↩ são da sessão que lançou você), a recusa do ' +
+    'AskUserQuestion sem tarefa e os lembretes de planejar.',
   '- Planeje antes de delegar: num pedido novo, chame mcp__task-tree__plan e marque com start a tarefa antes ' +
     'de mandar mensagem a outra sessão (SendMessage), abrir sessão (start_session) ou lançar subagente (Agent). ' +
     'O que for criado antes do plan do pedido fica solto no fim do painel, e o primeiro plan do pedido o ' +

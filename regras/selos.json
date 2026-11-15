@@ -2110,6 +2110,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
+    "task-tree/tests/lembretes.test.ts::as regras dizem o que não vale dentro de um subagente": {
+      "regras": [
+        "lembretes.regras-dizem-o-que-nao-vale-no-subagente"
+      ],
+      "hash": "657adf66de174e81",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "texto novo das regras, com o cenário que diz quando sai"
+    },
     "task-tree/tests/lembretes.test.ts::as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha": {
       "regras": [
         "lembretes.regra-dos-subagentes"

@@ -203,6 +203,16 @@ As regras do painel descrevem o cartão do subagente e o fechamento da tarefa pe
 Origem: auditoria 2026-11-10 (a regra dizia só "ganham um grupo próprio"); aplica subagentes.cartao-desde-o-lancamento, subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09).
 Estado: coberto
 
+### lembretes.regras-dizem-o-que-nao-vale-no-subagente
+As regras do painel dizem o que não vale dentro de um subagente.
+
+- Dado as regras do painel no prompt de sistema de um subagente (o mesmo texto da sessão)
+- Quando o modelo as lê
+- Então elas dizem que, dentro de um subagente, as tarefas ficam no cartão dele, que `request` e `summary` são ignorados e que a recusa da pergunta sem tarefa e os lembretes de planejar não valem
+
+Origem: auditoria 2026-11-10 (as regras mandavam o subagente passar request e summary, que o painel ignora nele); cenário por texto, como decidido em 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere os trechos essenciais; a redação segue livre.
+Estado: coberto
+
 ### lembretes.done-antes-do-plan
 Com tarefas abertas, a mensagem nova pede primeiro o done do que ela conclui, depois o plan.
 

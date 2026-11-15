@@ -430,7 +430,9 @@ o cartão da filha desconta dos tempos dela os intervalos dela. Ausente nos arqu
 ### Textos para o modelo
 
 `text/rules.ts` concentra tudo o que o modelo lê do mod;  `RULES` vai ao prompt de sistema (seção `task-tree:regras`, escopo
-`session`) em todo pedido que oferece a ferramenta `plan`; `COMMAND` e `TOOLS` são as descrições
+`session`) em todo pedido que oferece a ferramenta `plan`, o de um subagente também (por isso um item
+dele diz o que não vale dentro de um subagente: `request`, `summary`, a recusa da pergunta sem tarefa e
+os lembretes de planejar; `lembretes.regras-dizem-o-que-nao-vale-no-subagente`); `COMMAND` e `TOOLS` são as descrições
 registradas no `session.start` (`TOOLS.cancel` é a do parâmetro `cancel` do `done`); `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
 `SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas; `START` a recusa do start
 (o pai concluído, dito igual nas regras, na descrição e na recusa: `REDO_PARENT`), `PLAN` os avisos e as recusas da entrada do

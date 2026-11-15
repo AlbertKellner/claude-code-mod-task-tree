@@ -559,6 +559,14 @@ test('as regras dizem que o subagente tem cartão desde o lançamento e que a ta
   expect(regras).not.toContain('Subagentes que usam o painel')
 })
 
+// Regra: lembretes.regras-dizem-o-que-nao-vale-no-subagente
+test('as regras dizem o que não vale dentro de um subagente', async ($: any, on: any) => {
+  const { regras } = await textosAoModelo($, on)
+  expect(regras).toContain('Dentro de um subagente')
+  expect(regras).toContain('ficam no cartão do subagente')
+  expect(regras).toContain('são ignorados')
+})
+
 // Regra: lembretes.done-antes-do-plan
 test('com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan', async ($: any, on: any) => {
   await iniciar($, on)
