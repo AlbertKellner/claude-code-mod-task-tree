@@ -11,7 +11,7 @@ Depois do Esc, a mensagem da pessoa pede para replanejar.
 - Quando ela manda a mensagem seguinte
 - Então o modelo recebe o pedido de replanejar com a lista das abertas, no lugar da lista para fechar
 
-Origem: decisão do usuário, 2026-10-27 ("precisa replanejar quando eu interrompo e envio nova mensagem"); commit d3ff1be.
+Origem: decisão do usuário, 2026-10-27 ("precisa replanejar quando eu interrompo e envio nova mensagem"); commit 4787aef.
 Estado: coberto
 
 ### lembretes.fim-normal-lista-abertas
@@ -21,7 +21,7 @@ Depois do fim normal, a mensagem da pessoa lista o que ficou aberto.
 - Quando chega a mensagem da pessoa
 - Então o modelo recebe a lista para fechar ou manter, sem pedido de replanejar
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### lembretes.outra-sessao-apos-esc
@@ -31,7 +31,7 @@ Depois do Esc, a mensagem de outra sessão pede para replanejar.
 - Quando a mensagem seguinte é de outra sessão
 - Então o modelo recebe o pedido de replanejar dessa origem
 
-Origem: commit 2326900, 2026-10-23 ("lembrete de replanejar quando uma mensagem de outra sessão chega depois de um turno interrompido").
+Origem: commit 0629c5f, 2026-10-23 ("lembrete de replanejar quando uma mensagem de outra sessão chega depois de um turno interrompido").
 Estado: coberto
 
 ### lembretes.esc-sem-abertas
@@ -41,7 +41,7 @@ Depois do Esc sem nada aberto, não há o que replanejar.
 - Quando chega a mensagem da pessoa
 - Então não há pedido de replanejar
 
-Origem: decisão do usuário, 2026-10-27; commit d3ff1be.
+Origem: decisão do usuário, 2026-10-27; commit 4787aef.
 Estado: coberto
 
 ### lembretes.replanejar-vale-uma-vez
@@ -51,7 +51,7 @@ O pedido de replanejar vale uma vez só.
 - Quando o turno seguinte termina normalmente e chega outra mensagem
 - Então volta o lembrete normal da lista das abertas
 
-Origem: decisão do usuário, 2026-10-27; commit d3ff1be.
+Origem: decisão do usuário, 2026-10-27; commit 4787aef.
 Estado: coberto
 
 ### lembretes.replanejar-apos-esc-com-aviso-no-meio
@@ -72,7 +72,7 @@ O lembrete de planejar na primeira ferramenta sem plano.
 - Quando o modelo chama a primeira ferramenta e, depois, a cada 10
 - Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20); o texto passou para text/rules.ts no commit dee2f67, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
 Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts
 Estado: coberto
 
@@ -83,7 +83,7 @@ As regras do painel entram no prompt de sistema.
 - Quando o prompt de sistema é montado
 - Então a seção de regras do painel entra
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### lembretes.estado-guardado-so-no-mesmo-pedido
@@ -198,7 +198,7 @@ Com tarefas abertas, a mensagem nova pede primeiro o done do que ela conclui, de
 - Quando o modelo recebe os lembretes dela, e quando lê a primeira regra do painel
 - Então a ordem é uma só: fechar com done o que a mensagem conclui (e cancelar o que ela substitui) e, depois disso, plan com o pedido novo, sem repetir os ids das tarefas ainda abertas; sem tarefas abertas, o lembrete segue mandando o plan como primeira chamada
 
-Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (465b09e), para o caso da mensagem com tarefas abertas.
+Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (85744cb), para o caso da mensagem com tarefas abertas.
 Estado: coberto
 
 ### lembretes.retorno-de-subagente
@@ -208,7 +208,7 @@ O retorno de um subagente traz o lembrete curto de atualizar o painel.
 - Quando o prompt de retorno chega
 - Então o modelo recebe o lembrete de que o subagente terminou e de marcar com done o que ele concluiu; não recebe o lembrete de pedido novo, e a mensagem seguinte da pessoa não traz esse lembrete
 
-Origem: regra do painel (texto em text/rules.ts desde o commit 758dbb7, 2026-10-22); cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Origem: regra do painel (texto em text/rules.ts desde o commit dee2f67, 2026-10-22); cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
 Estado: coberto
 
 ### lembretes.tarefa-em-segundo-plano

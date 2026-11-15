@@ -13,7 +13,7 @@ As pendentes seguem pendentes no fim do turno, na principal e nas filhas.
 - Quando o turno termina, normal ou com Esc
 - Então elas seguem ○, nunca ✕, e o cabeçalho as conta
 
-Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24); commit d57807e.
+Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24); commit cd96021.
 Estado: coberto
 ```
 
@@ -21,7 +21,8 @@ Estado: coberto
 - **Título**: uma frase com a regra.
 - **Dado/Quando/Então**: em português, no que se vê no painel ou nos textos ao modelo, sem nomes de função.
 - **Origem**: "decisão do usuário, AAAA-MM-DD", com as palavras dele entre aspas quando houver, ou
-  "regra do painel", mais o commit que a implementou. Sem confirmação, "a confirmar".
+  "regra do painel", mais o commit que a implementou. Sem confirmação, "a confirmar". Origem nova cita
+  o PR (`#NN`); o hash do commit é opcional e tem de existir no `main`.
 - **Estado**:
   - `coberto`: há teste que cita o id;
   - `pendente (<arquivo de teste>)`: deve virar teste;

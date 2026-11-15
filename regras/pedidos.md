@@ -11,7 +11,7 @@ O título do pedido vem do request do primeiro plan dele.
 - Quando o modelo chama plan com request, e depois, no mesmo pedido (um replano, ou um plan depois de um aviso do app ou do relato de uma filha), outro plan com outro request
 - Então a linha do pedido mostra o primeiro request, não o texto da mensagem nem o request do plan seguinte; o primeiro plan de um pedido novo dá o título dele
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-14, decisão do usuário ("Não, vale o 1º (Recomendado)"); antes, o request de qualquer plan trocava o título. O teste existente não muda.
 Estado: coberto
 
@@ -22,7 +22,7 @@ Cada mensagem abre o seu pedido, menos a que continua o pedido em curso no meio 
 - Quando o painel é desenhado
 - Então cada plano fica sob o seu pedido, na ordem das mensagens; a mensagem que continua o pedido em curso no meio do turno não abre pedido (pedidos.mensagem-no-meio-do-turno-continua-o-pedido)
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomendado)"); só para o relato de uma sessão que esta abriu e a mensagem da pessoa, entregues no meio do turno, que deixam de abrir o seu pedido. O teste não muda.
 Estado: coberto
 
@@ -44,7 +44,7 @@ Um aviso do app não abre pedido.
 - Quando ele chega
 - Então não abre pedido, e o plano seguinte entra no pedido atual
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### pedidos.replano-no-lugar
@@ -54,7 +54,7 @@ O replano no mesmo pedido substitui no lugar.
 - Quando o modelo chama plan com o mesmo id
 - Então ele é substituído no mesmo lugar da lista, sem ✕
 
-Origem: decisão do usuário, 2026-10-21 (ordem do plano); commit 4af1b92.
+Origem: decisão do usuário, 2026-10-21 (ordem do plano); commit 726a925.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Estado: coberto
 
@@ -65,7 +65,7 @@ O replano no mesmo pedido preserva o estado das tarefas que mantêm o id.
 - Quando o modelo replaneja com o mesmo id no mesmo pedido
 - Então quem mantém o id mantém o estado; as novas entram ○; quem sai do plano some (o cartão de sessão ou de subagente que pendia dele passa ao nível 1: pedidos.replano-leva-o-cartao-ao-nivel-1); um pai abaixo do nível 1 que estava ✓ e ganha filha nova reabre
 
-Origem: decisão do usuário, 2026-10-27 ("◉ segue ◉, ✓ segue ✓, ✉ segue até a entrega; só tarefas novas nascem ○"); commit fbf3c5c.
+Origem: decisão do usuário, 2026-10-27 ("◉ segue ◉, ✓ segue ✓, ✉ segue até a entrega; só tarefas novas nascem ○"); commit 46f1dea.
 Reescrito: 2026-11-14, decisão do usuário ("Sob o nível 1 (Recomendado)"); os testes deste cenário não mudam.
 Estado: coberto
 
@@ -87,7 +87,7 @@ A tarefa de mensagem que sai do plano fica até a entrega.
 - Quando o replano a tira do plano
 - Então a tarefa sai do plano, e a carta dela pende do nível 1 do pedido até a entrega
 
-Origem: decisão do usuário, 2026-10-27; commit fbf3c5c.
+Origem: decisão do usuário, 2026-10-27; commit 46f1dea.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa não é mais mantida; a carta rependura no nível 1.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
@@ -111,7 +111,7 @@ Um nível 1 concluído reabre no replano do mesmo pedido e fica como histórico 
 - Quando o modelo chama plan com o mesmo id, no mesmo pedido com um passo a mais, ou num pedido seguinte
 - Então, no mesmo pedido, o mesmo nível 1 volta a aberto no lugar, os passos que mantêm o id seguem ✓ e só o passo novo nasce ○; cartões e cartas seguem sob as tarefas; um plano igual, sem passo novo, não muda nada; para refazer um passo, o modelo usa um id novo. Num pedido seguinte, o ✓ fica como histórico e o plano novo entra ○ sob o pedido novo. O replano de um subagente sobre as tarefas dele segue deixando a concluída como histórico (subagentes.id-reusado-nao-herda-cartao)
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-14, decisão do usuário ("Reabre mantendo os ✓ (Recomendado)"); desfaz, só para o replano no mesmo pedido do loop principal, "o ✓ fica como histórico e o plano novo entra ○ ao lado".
 Código: text/rules.ts
 Estado: coberto
@@ -144,7 +144,7 @@ O painel mantém os pedidos anteriores enquanto há algo aberto.
 - Quando um pedido novo começa
 - Então o painel mantém os dois (o anterior inteiro, com o que já concluiu); com tudo fechado, só o novo, e o anterior fica em "+N pedidos anteriores"; um cartão de sessão ainda viva sob um pedido fora do trabalho não traz o pedido de volta, mas é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
-Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit a544d0d.
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"); desfaz, só para o cartão vivo, "nem o cartão é desenhado solto" (2026-10-23).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts

@@ -11,7 +11,7 @@ Um pai fecha sozinho quando todas as filhas fecham.
 - Quando todas as folhas são concluídas com done
 - Então o pai e os ancestrais ficam ✓ sem done próprio, e o último done não traz avisos
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.start-reabre-pais
@@ -21,7 +21,7 @@ start numa tarefa concluída reabre ela e os pais.
 - Quando o modelo chama start numa folha
 - Então ela, o pai e o nível 1 voltam a ◉, e as irmãs seguem ✓
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.start-recusa-pai-concluido
@@ -31,7 +31,7 @@ start num pai concluído é recusado.
 - Quando o modelo chama start nele
 - Então a resposta recusa, diz que ela já foi concluída (o pai fechado é ✓ no painel, também com as filhas ✕) e os dois caminhos (start nas subtarefas a refazer, que reabre os pais, ou replanejar com ids novos), e nada muda no painel
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e); texto da recusa completado na auditoria de 2026-11-10.
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb); texto da recusa completado na auditoria de 2026-11-10.
 Código: text/rules.ts
 Estado: coberto
 
@@ -53,7 +53,7 @@ Sem start, nada fica em andamento.
 - Quando nenhum start foi chamado
 - Então todas as tarefas, o pai e o pedido ficam ○; salvo a tarefa com sessão filha trabalhando (sessoes.filha-trabalhando-mantem-pais-em-andamento) ou com subagente rodando (subagentes.tarefa-em-andamento-com-subagente-rodando)
 
-Origem: decisão do usuário, 2026-10-23 ("sem start, nada aceso"); commit b742294.
+Origem: decisão do usuário, 2026-10-23 ("sem start, nada aceso"); commit db0c11e.
 Código: draw/layout.ts
 Reescrito: 2026-11-14, decisão do usuário ("Sim, ◉ como a filha (Recomendado)"): exceção para a tarefa com subagente rodando. O teste deste cenário não muda.
 Estado: coberto
@@ -65,7 +65,7 @@ O pai aberto fica em andamento no caminho da última tarefa iniciada no turno.
 - Quando o painel é desenhado
 - Então o pai e o pedido aparecem ◉ (não ◷), e o chip "em andamento" não conta o pai; planos parados de pedidos anteriores seguem ◷
 
-Origem: decisão do usuário, 2026-10-27 ("pai aberto deve mostrar ◉ em andamento"), sobre "Pai aguardando" de 2026-10-20; commit a201198.
+Origem: decisão do usuário, 2026-10-27 ("pai aberto deve mostrar ◉ em andamento"), sobre "Pai aguardando" de 2026-10-20; commit 023a054.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -76,7 +76,7 @@ Ids curtos e os avisos de id ambíguo, inexistente ou de outro agente.
 - Quando o modelo chama start ou done com um id curto ambíguo, inexistente ou de outro agente
 - Então a resposta avisa cada caso, e o id completo ("D/1.2") resolve
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.done-sem-summary-e-varias-sem-start
@@ -86,7 +86,7 @@ Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
 - Quando o done responde
 - Então a resposta traz o aviso correspondente; o do summary diz que só vale se aquele done foi o último passo do turno
 
-Origem: commit 9c054f8, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit 3f06a32, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão"); o aviso no meio do turno e o resumo de antes do plan, auditoria 2026-11-10.
+Origem: commit a8d333f, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit c0190c3, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão"); o aviso no meio do turno e o resumo de antes do plan, auditoria 2026-11-10.
 Código: text/rules.ts
 Estado: coberto
 
@@ -97,7 +97,7 @@ plan com ids repetidos é recusado.
 - Quando o modelo chama plan
 - Então a resposta é um erro com os ids repetidos, e nada muda no painel
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### arvore.pai-fecha-com-nada-aberto-embaixo
@@ -107,7 +107,7 @@ Pai e pedido sem nada aberto embaixo ficam ✓.
 - Quando o painel é desenhado (depois de Esc, de subagente que terminou, de replano com o mesmo id em pedido novo, de filha parada ou arquivada)
 - Então o pai e os ancestrais ficam ✓, a folha ✕ segue ✕ e fora do x/y; ◷ fica para o pai com algo ainda aberto embaixo
 
-Origem: decisão do usuário, 2026-11-04 ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); mantém "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido" (95b1a21).
+Origem: decisão do usuário, 2026-11-04 ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); mantém "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido" (af4a524).
 Código: draw/layout.ts, state/tasks.ts
 Estado: coberto
 

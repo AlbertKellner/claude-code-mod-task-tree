@@ -11,7 +11,7 @@ O reinício e a retomada restauram o painel do store.
 - Quando um processo novo roda o session.start, ou a sessão é retomada (resume) com outro painel no state
 - Então o painel volta como estava no store (títulos, estados e números), com o trabalho da sessão retomada, e o start seguinte age sobre ele; um trabalho sem nenhuma tarefa presente não vale, e o painel nunca fica vazio por isso
 
-Origem: regra do painel desde a entrada do mod (commit 465b09e); tabela de durabilidade, commit 9fb1c51, 2026-10-22.
+Origem: regra do painel desde a entrada do mod (commit 85744cb); tabela de durabilidade, commit fe8354e, 2026-10-22.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o trabalho antigo deixava o painel vazio na retomada.
 Estado: coberto
 
@@ -22,7 +22,7 @@ Num processo novo sem session.start, o painel volta no primeiro uso, e o store n
 - Quando o painel é desenhado e o modelo chama start e done
 - Então o painel aparece inteiro, o trabalho atual volta, e o store não encolhe
 
-Origem: commits 59eb558 e fba6171, 2026-10-22.
+Origem: commits 7c7ade7 e 2cef003, 2026-10-22.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
@@ -56,7 +56,7 @@ O /clear esvazia o painel.
 - Quando a pessoa usa /clear
 - Então o painel fica "Nenhuma tarefa planejada."; as linhas recolhidas pela pessoa são esquecidas: o plano seguinte nasce aberto
 
-Origem: regra do painel desde a entrada do mod (commit 465b09e).
+Origem: regra do painel desde a entrada do mod (commit 85744cb).
 Estado: coberto
 
 ### durabilidade.formatos-antigos-do-publicado
@@ -66,7 +66,7 @@ Os formatos antigos do arquivo publicado são lidos.
 - Quando o painel lê a sessão filha
 - Então o cartão aparece, sem erro, com as tarefas que o formato traz
 
-Origem: contrato do arquivo publicado, commit 04fcae7, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
+Origem: contrato do arquivo publicado, commit 7905b37, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Código: io/publish.ts, io/host.ts
 Estado: coberto
@@ -78,7 +78,7 @@ A recarga a quente mantém o painel e as ligações.
 - Quando o mod recarrega a quente (módulo novo, state mantido, sem session.start)
 - Então o painel e os cartões seguem iguais (o resumo do done na recarga segue em durabilidade.resumo-do-done-na-recarga)
 
-Origem: bugs achados no teste visual do usuário, 2026-10-21/22; commits 946f653, 22650c9 e 13ef0ef.
+Origem: bugs achados no teste visual do usuário, 2026-10-21/22; commits 23b7002, 2a6e86d e 027b231.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Tirar, basta o ↩ (Recomendado)"): o recap do wrap_up deixa de ser guardado; a resposta do turno no painel é só o resumo ↩. Saem os dois testes do recap na recarga.
 Estado: coberto
 
@@ -89,7 +89,7 @@ A filha que a lista do host deixa de fora volta sob a mesma tarefa.
 - Quando a lista volta a listá-la
 - Então o cartão volta sob a mesma tarefa
 
-Origem: commit 13ef0ef, 2026-10-22.
+Origem: commit 027b231, 2026-10-22.
 Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
 
@@ -100,7 +100,7 @@ O resumo do done chega à resposta do turno, mesmo com uma recarga no meio.
 - Quando o turno termina
 - Então o resumo aparece como ↩ no cartão desta sessão, na sessão que a abriu
 
-Origem: commits 946f653, 2026-10-21, e 22650c9; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
+Origem: commits 23b7002, 2026-10-21, e 2a6e86d; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
 Código: hooks/turn.ts, hooks/tools.ts
 Estado: coberto
 

@@ -11,7 +11,7 @@ Os números do cabeçalho somam o que está desenhado.
 - Quando o cabeçalho é desenhado
 - Então os números somam o que o painel mostra, e recolher não muda nada, nos números, nos chips e na faixa (cabecalho.recolher-nao-muda-chips-nem-faixa)
 
-Origem: decisão do usuário, 2026-10-23 ("deve somar as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa visao"; "as colapsada, mas que estao nessa visao, tambem entram"); commit 3e79cb8.
+Origem: decisão do usuário, 2026-10-23 ("deve somar as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa visao"; "as colapsada, mas que estao nessa visao, tambem entram"); commit 219ca8d.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); não há mais visões.
 Reescrito: 2026-11-14, texto: a regra vale também para os chips e a faixa (auditoria 2026-11-10); o teste deste cenário não muda.
 Estado: coberto
@@ -34,7 +34,7 @@ O pedido finalizado sai do trabalho quando um pedido novo começa trabalho.
 - Quando um pedido novo começa trabalho (plan ou start)
 - Então o finalizado sai do desenho e dos números e fica em "+N pedidos anteriores"; aberta a linha, ele volta a ser desenhado e contado
 
-Origem: decisão do usuário, 2026-10-22 ("segundo a regra antiga, na visão resumida, ficam somente as tarefas novas do turno"); commit 6599050.
+Origem: decisão do usuário, 2026-10-22 ("segundo a regra antiga, na visão resumida, ficam somente as tarefas novas do turno"); commit ae684f4.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: hooks/panel.ts
 Estado: coberto
@@ -46,7 +46,7 @@ O trabalho só é limpo quando tudo à vista está concluído.
 - Quando um pedido novo começa trabalho
 - Então o painel mostra só o pedido novo, com os anteriores em "+N pedidos anteriores" (o par de pedidos.resumida-mantem-anteriores-com-algo-aberto)
 
-Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
+Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit a544d0d.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: hooks/panel.ts
 Estado: coberto
@@ -58,7 +58,7 @@ A interrompida fica fora do total.
 - Quando o cabeçalho é desenhado
 - Então ela sai do total e entra no chip "interrompidas"
 
-Origem: regra do painel desde a entrada do mod (commit 465b09e, "Interrupted tasks are kept out of the done/total count"); reafirmada pelo usuário, 2026-10-24 ("interrompida fora do total, 3/5 → 3/3").
+Origem: regra do painel desde a entrada do mod (commit 85744cb, "Interrupted tasks are kept out of the done/total count"); reafirmada pelo usuário, 2026-10-24 ("interrompida fora do total, 3/5 → 3/3").
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Estado: coberto
 
@@ -69,7 +69,7 @@ Os chips (as pílulas do cabeçalho) contam só folhas, nunca pais nem tarefas d
 - Quando o cabeçalho é desenhado
 - Então em andamento conta as folhas iniciadas (inclusive a tarefa que enviou uma mensagem), pendentes as não iniciadas; a carta na fila só conta no chip ✉ ("aguardando sessão")
 
-Origem: regra do painel ("Open leaves only, a parent never"); tarefas de mensagem fora: decisão do usuário, 2026-10-24 ("quero diferenciar as tarefas de execução, das tarefas de mensagem"), commit 8eb801c.
+Origem: regra do painel ("Open leaves only, a parent never"); tarefas de mensagem fora: decisão do usuário, 2026-10-24 ("quero diferenciar as tarefas de execução, das tarefas de mensagem"), commit 95e577a.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou conta pelo ícone; a carta, fora dos chips de tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
@@ -93,7 +93,7 @@ Os pedidos fora do trabalho viram "+N pedidos anteriores".
 - Quando o painel é desenhado
 - Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, na própria linha "+N pedidos anteriores" e no texto alternativo da barra: cabecalho.sessao-inteira-na-linha-do-historico); no máximo três pedidos sem nada aberto ficam desenhados; um pedido anterior com algo aberto fica desenhado inteiro, com os níveis 1 já concluídos, e não entra na conta de "+N pedidos anteriores"; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
-Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
+Origem: commit dcf4a4c, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o total da sessão inteira vai no texto alternativo da barra, não num tooltip.
@@ -108,7 +108,7 @@ Os cartões antigos sem tarefa de origem ficam em "+N pedidos anteriores".
 - Quando o painel é desenhado
 - Então fechada a linha, não aparecem; aberta, viram uma linha "+N cartões antigos de sessões"
 
-Origem: commit 4edb3f2, 2026-10-21.
+Origem: commit dcf4a4c, 2026-10-21.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
@@ -119,7 +119,7 @@ O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de cont
 - Quando é desenhado
 - Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; se a tarefa em andamento dele está depois desse corte (o das 400 linhas ou o do tamanho), é desenhado o trecho onde ela está, com os pais do trecho acima, "+N linhas anteriores" antes e "+N linhas" depois (quando sobra), e os chips e a faixa contam o trabalho em curso; o que vem depois do último pedido (aviso sem tarefa, cartão solto, subagente sem tarefa de origem) segue desenhado, com o espaço dele reservado; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB ou, no app desktop, de 95.000 caracteres de texto, ou só cabe nessas duas linhas (cabecalho.aviso-de-painel-grande-volta)
 
-Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
+Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 3ec00c5 (o tamanho do desenho, dcf4a4c, 2026-10-21, levou a ele).
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendado)"); acima de 600 KB o desenho perde os blocos mais antigos até caber, sem aviso; desfaz o aviso como saída do desenho grande (2026-11-04), que fica só como último recurso.
@@ -138,7 +138,7 @@ O título do cabeçalho é o nível 1 da tarefa iniciada por último.
 - Quando o cabeçalho é desenhado
 - Então o título é o nível 1 que contém essa tarefa
 
-Origem: decisão do usuário ("o título é o do passo iniciado por último", 2026-10-23); commit 16062cc.
+Origem: decisão do usuário ("o título é o do passo iniciado por último", 2026-10-23); commit f10765d.
 Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto
 

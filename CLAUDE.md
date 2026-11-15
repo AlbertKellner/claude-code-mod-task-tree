@@ -125,7 +125,7 @@ falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de 
   o runner "ainda não está funcional"): só roda à mão (`workflow_dispatch`). Para ativar em cada PR
   para o `main`, descomentar o `pull_request` no topo do arquivo.
 - Informativa: não é exigida para o merge. A proteção do `main` (branch protection) é do usuário.
-- Ensaio local: `npm run check -- --base <ref>` (ex.: `--base 9980131`, o começo da branch).
+- Ensaio local: `npm run check -- --base <ref>` (ex.: `--base main`, a base do PR).
 
 ## Golden do desenho
 

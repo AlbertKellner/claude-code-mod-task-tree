@@ -11,7 +11,7 @@ A tarefa iniciada e aberta aguarda no fim do turno.
 - Quando o turno termina normalmente
 - Então ela fica ◷ com o relógio parado, e o pai e o pedido ◷; salvo a tarefa cujo trabalho era só subagentes, todos terminados e nada mais em execução nela, que reflete o fim deles (subagentes.pai-conclui-no-fim-do-turno); com um subagente em segundo plano lançado dela ainda rodando, segue ◉ até ele terminar (subagentes.tarefa-em-andamento-com-subagente-rodando)
 
-Origem: decisão do usuário, 2026-10-27; commit 95b1a21.
+Origem: decisão do usuário, 2026-10-27; commit af4a524.
 Reescrito: 2026-11-09, decisão do usuário ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)").
 Reescrito: 2026-11-14, decisão do usuário ("Sim, ◉ como a filha (Recomendado)"): a tarefa iniciada com subagente em segundo plano rodando segue em andamento no fim do turno. Os testes deste cenário não mudam.
 Estado: coberto
@@ -23,7 +23,7 @@ As pendentes seguem pendentes no fim do turno, na principal e nas filhas.
 - Quando o turno termina, normal ou com Esc
 - Então elas seguem ○, nunca ✕, e o cabeçalho as conta; salvo, no painel da mãe, a rodada de uma filha parada com Esc com tarefa aberta, que sai inteira da contagem até a filha dar start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem, sessoes.filha-parada-com-esc-segue-descartada-ate-o-start); no painel da própria filha elas contam
 
-Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24, edb959f); commit d57807e.
+Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24); commit cd96021.
 Reescrito: 2026-11-14, decisão do usuário ("Rodada fora da conta (Recomendado)"); só o texto ganha a exceção que o código já fazia. Os testes não mudam.
 Estado: coberto
 
@@ -34,7 +34,7 @@ No fim do turno, o pai aberto e o pedido aguardam.
 - Quando o turno termina
 - Então o pai e o pedido ficam ◷
 
-Origem: "Pai aguardando", decisão do usuário, 2026-10-20 ("nas tarefas que estao aguardando e ja tem alguma tarefa concluida, marque os pais como aguardando"); commit 465b09e.
+Origem: "Pai aguardando", decisão do usuário, 2026-10-20 ("nas tarefas que estao aguardando e ja tem alguma tarefa concluida, marque os pais como aguardando"); commit 85744cb.
 Estado: coberto
 
 ### turnos.esc-interrompe-so-a-iniciada
@@ -44,7 +44,7 @@ O Esc interrompe só a tarefa iniciada.
 - Quando a pessoa para o turno (Esc)
 - Então só a iniciada fica ✕; as pendentes seguem ○; o pai com pendentes e nada feito embaixo fica ○; a iniciada com trabalho delegado vivo embaixo não é interrompida (turnos.esc-com-trabalho-delegado-vivo)
 
-Origem: decisão do usuário, 2026-10-27; commit d57807e.
+Origem: decisão do usuário, 2026-10-27; commit cd96021.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Reescrito: 2026-11-14, decisão do usuário ("Segue ◉/◷ (Recomendado)").
 Estado: coberto
@@ -56,7 +56,7 @@ A mensagem seguinte retoma o trabalho.
 - Quando chega a mensagem seguinte e o modelo chama start
 - Então a tarefa iniciada acende ◉; a que o Esc parou segue ✕ até o start nela (turnos.parada-segue-interrompida-ate-o-start), e com esse start nada fica ✕; a que o fim normal deixou ◷ segue ◷ até o start nela (turnos.aguardando-segue-ate-o-start); o tempo retoma de onde parou (turnos.tempo-so-com-o-turno-em-curso)
 
-Origem: commit 55a2dd1, 2026-10-23.
+Origem: commit de 2026-10-23 (sem equivalente achado no `main`).
 Reescrito: 2026-11-12, decisão do usuário ("Segue ✕ até novo start (Recomendado)"); desfaz "nada fica ✕" para a tarefa parada com Esc em que o modelo ainda não deu start: antes, o prompt seguinte a reacendia sozinho.
 Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); antes, o prompt seguinte reacendia sozinho a tarefa que o fim normal deixara ◷. O teste não muda.
 Reescrito: 2026-11-14, decisão do usuário ("Só com turno em curso (Recomendado)"): o tempo retoma de onde parou; os testes deste cenário não mudam.
@@ -82,7 +82,7 @@ Um pedido anterior parado aguarda enquanto o novo está em andamento.
 - Quando um pedido novo está em andamento
 - Então o anterior e o seu plano ficam ◷ e o novo ◉
 
-Origem: decisão do usuário, 2026-10-27, sobre a regra de 2026-10-20; commit a201198.
+Origem: decisão do usuário, 2026-10-27, sobre a regra de 2026-10-20; commit 023a054.
 Estado: coberto
 
 ### turnos.continuacao-sem-start-aguarda
@@ -92,7 +92,7 @@ Um prompt que continua o plano, antes do start, deixa o pai aguardando.
 - Quando chega uma mensagem que continua o plano e ainda não houve start
 - Então o pai e o pedido ficam ◷ até o start
 
-Origem: decisão do usuário, 2026-10-27; commit a201198.
+Origem: decisão do usuário, 2026-10-27; commit 023a054.
 Estado: coberto
 
 ### turnos.pai-com-filha-concluida-nunca-interrompido
@@ -102,7 +102,7 @@ Pai com filha concluída nunca fica interrompido.
 - Quando o resto embaixo fica ✕ (Esc ou subagente que termina)
 - Então o pai fica ✓, nunca ✕; ◷ só enquanto algo embaixo segue aberto
 
-Origem: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"); commit 95b1a21.
+Origem: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"); commit af4a524.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 
@@ -113,7 +113,7 @@ O subagente que termina deixa interrompido o que ficou aberto.
 - Quando ele termina
 - Então o que ele deixou aberto fica ✕, e o grupo segue desenhado, mesmo lançado sem tarefa de origem
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o grupo sem origem sumia.
 Código: hooks/tools.ts
 Estado: coberto
@@ -125,7 +125,7 @@ O hand-back de subagente não abre pedido.
 - Quando o prompt chega
 - Então não abre pedido, e o plano seguinte entra no pedido atual
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### turnos.notificacao-de-tarefa-sem-turno
@@ -135,7 +135,7 @@ A notificação de tarefa em segundo plano não abre pedido.
 - Quando o prompt chega
 - Então não abre pedido, e o plano seguinte entra no pedido atual
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### turnos.resumo-sem-resposta-final
@@ -145,7 +145,7 @@ O resumo do done vira a linha ↩ mesmo sem texto final no turno.
 - Quando o turno termina sem texto final e sem wrap_up (o modelo para logo depois de uma ferramenta)
 - Então a linha ↩ mostra o resumo, e ele vai ao arquivo publicado
 
-Origem: regra do painel ("a linha ↩ só existe com resumo"; o summary "é a linha ↩", text/rules.ts; commit 3f06a32, 2026-10-21); bug achado na análise de 2026-10-29.
+Origem: regra do painel ("a linha ↩ só existe com resumo"; o summary "é a linha ↩", text/rules.ts; commit c0190c3, 2026-10-21); bug achado na análise de 2026-10-29.
 Estado: coberto
 
 ### turnos.resumo-sem-seta-duplicada

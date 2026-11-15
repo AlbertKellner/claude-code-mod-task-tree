@@ -11,7 +11,7 @@ O desenho termina na borda real.
 - Quando o painel é desenhado
 - Então as linhas terminam na borda real do painel, com o texto cortado pelo app ("…"), em qualquer largura
 
-Origem: commit 6c706e7, 2026-10-27.
+Origem: commit 8168afe, 2026-10-27.
 Estado: checklist (largura real do app)
 
 ### visual.cliques-no-icone-e-no-anel
@@ -21,7 +21,7 @@ Os cliques no ícone e no anel funcionam.
 - Quando a pessoa clica no botão sobre o ícone ou sobre o anel
 - Então a ação correspondente acontece
 
-Origem: commit 4edb3f2, 2026-10-21 ("cliques por chave, painel na tela e desenho menor").
+Origem: commit dcf4a4c, 2026-10-21 ("cliques por chave, painel na tela e desenho menor").
 Estado: checklist (cliques reais)
 
 ### visual.botoes-por-chave
@@ -42,7 +42,7 @@ Texto cortado não tem tooltip.
 - Quando o painel é desenhado no app desktop
 - Então não há tooltip: nenhum `Svg` interativo, nenhum `<title>` em fonte de `Svg` e nenhum elemento com `hover` ou escondido
 
-Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
+Origem: commit 9ff32dc, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
 Reescrito: 2026-11-09, decisão do usuário ("não funcionou. aborte e remova a funcionalidade de tooltip"), depois de pedir "mostre um tooltip com o texto completo quando eu parar o mouse em cima do texto por um segundo".
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): não há tooltip: nenhum `Svg` interativo, nenhum `<title>` em fonte de `Svg` e nenhum elemento com `hover` ou escondido.
 Código: hooks/render.tsx
@@ -66,7 +66,7 @@ A linha nova aparece de uma vez, sem animação, e nada pisca à toa.
 - Quando ela aparece
 - Então ela aparece pronta, sem animação, e as outras não piscam
 
-Origem: commit f19a4ad, 2026-10-23 ("linhas e cartões novos entram com fade-in").
+Origem: commit f2883c9, 2026-10-23 ("linhas e cartões novos entram com fade-in").
 Reescrito: 2026-11-04, "Manter sem animações" (decisão do usuário, depois de "desative as animacoes do task tree, quero avaliar como fica sem"); desfaz a linha que se revelava, o ícone que crescia, o traço do ✓, a barra que crescia e o chip que surgia.
 Estado: checklist (desenho real)
 
@@ -77,7 +77,7 @@ As cores seguem o tema.
 - Quando o painel é desenhado
 - Então os textos e fundos usam as cores do tema do app; os `Svg` que restam levam as suas, claro e escuro
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): os textos usam as cores do tema; o fundo e a borda do cartão e do cabeçalho, o trilho das barras e a faixa sem chave de tema são cores cruas translúcidas, que assentam nos dois temas; os `Svg` levam as suas.
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
@@ -88,7 +88,7 @@ O cabeçalho aparece em cartão, no desenho V4.
 - Quando o cabeçalho é desenhado
 - Então ele é um cartão com a faixa de estado à esquerda (fundo de `Box`), o título no tamanho de título do app, o repositório e a branch, a barra, as pílulas e o bloco de números à direita (o % grande, "d de n", o tempo e toks/s); no painel estreito, o toks/s e 'ultracode' em linhas próprias abaixo do tempo
 
-Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
+Origem: commit bc5dac2, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cabeçalho em componentes nativos, com só a barra e os ícones das pílulas em `Svg`; sem medidas em px.
@@ -104,7 +104,7 @@ O status aparece embaixo da caixa de mensagem.
 - Quando o app desenha a caixa de mensagem
 - Então o status do painel aparece embaixo dela, com o número da sessão inteira (cabecalho.status-igual-a-sessao-inteira)
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-14, texto: o número é o da sessão inteira; a regra do que o app mostra não muda.
 Estado: checklist (status do app)
 
@@ -126,7 +126,7 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 - Quando o cartão é desenhado no app desktop
 - Então "n toks/s" fica à esquerda do modelo, e o repositório e a branch à direita do nome
 
-Origem: commits 1987482 e 689d569, 2026-10-24.
+Origem: commits 1a3dc9f e 2cd2beb, 2026-10-24.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-cartao-filha.
 Estado: checklist (posição na linha; o desenho fica travado por visual.desenho-cartao-filha; a pintura real, no app)
 
@@ -135,9 +135,10 @@ Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
 
 - Dado várias sessões reais, com mensagens entre irmãs e mais de 20 rodadas
 - Quando o painel é desenhado
-- Então os cartões seguem a ordem de início do trabalho, o cartão de mensagem de irmã espera a origem (até 10 s) sem pular, e a espera e o anel ficam só no cartão líder
+- Então os cartões seguem a ordem de início do trabalho, o cartão de mensagem de irmã espera a origem (até 10 s) sem pular; a espera fica só no cartão da frente (o que está trabalhando), e o anel de contexto aparece em todo cartão da sessão
 
-Origem: commits fddd473 e 8b67366, 2026-10-23.
+Origem: commits bd0b1b3 e 11e4044, 2026-10-23.
+Reescrito: 2026-11-15, texto: o anel fica em todo cartão, por pedido do usuário ("mesmo depois que a sessao termina, o icone se contexto precisa continuar aparecendo"); só a espera fica no cartão da frente. A regra não muda.
 Estado: checklist (sessões e tempos reais)
 
 ### visual.recarga-real-e-respawn
@@ -147,7 +148,7 @@ A recarga real e o respawn do worker não perdem nada.
 - Quando um arquivo do mod é salvo, o worker é refeito (/model) ou a sessão é retomada no app
 - Então nada some, os relógios voltam a correr e o primeiro clique funciona
 
-Origem: tabela de durabilidade, commit 9fb1c51, 2026-10-22.
+Origem: tabela de durabilidade, commit fe8354e, 2026-10-22.
 Estado: checklist (recarga e processo reais)
 
 ### visual.cabecalho-barra-e-chips-desenhados

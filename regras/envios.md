@@ -11,7 +11,7 @@ O ✉ fica na tarefa até a entrega.
 - Quando a tarefa é concluída antes da entrega
 - Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou, quando nada mais está em execução nela (envios.entrega-espera-o-que-ainda-roda-na-tarefa); se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue; se o subagente destino parar antes de recebê-la, vale envios.subagente-parado-nao-entregue
 
-Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
+Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit b9dacde.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é uma linha própria sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
@@ -26,7 +26,7 @@ A entrega imediata aparece entregue na hora, e a tarefa segue em andamento até 
 - Quando o app responde que a sessão destino já começou a tratá-la ("its turn has started")
 - Então a carta fica verde na hora, e a tarefa segue em andamento até o done
 
-Origem: decisão do usuário, 2026-10-28 (sobre "✉ até o destino começar a tratar", 2026-10-21, commit 7c734de; o ✉ "para sinalizar que essa etapa esta em andamento").
+Origem: decisão do usuário, 2026-10-28 (sobre "✉ até o destino começar a tratar", 2026-10-21, commit 50c4459; o ✉ "para sinalizar que essa etapa esta em andamento").
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é a linha sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
@@ -54,7 +54,7 @@ O ✉ mantém o ícone e muda só a cor.
 - Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la, ou o subagente parado antes de recebê-la)
 - Então a carta muda só de cor (azul na fila, verde entregue, cinza quando a tarefa de onde saiu foi interrompida por um plano novo, desde o plan e também depois da entrega, ou quando não é entregue); a tarefa tem o ícone comum e conta; a tarefa que fecha ✕ pelo fim de um subagente não muda a cor da carta já entregue dela
 
-Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
+Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 95e577a.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
@@ -84,7 +84,7 @@ O envio vai ao lote recente de starts sem envio.
 - Quando sai uma mensagem
 - Então ela vai à primeira do lote recente ainda sem envio; à tarefa antiga só depois; nunca à que tem pergunta aberta
 
-Origem: decisão do usuário, 2026-10-24; commit 26adf08.
+Origem: decisão do usuário, 2026-10-24; commit fdc1db6.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
@@ -96,7 +96,7 @@ Sem nada em andamento, o envio vai às pendentes planejadas por último, pela or
 - Quando sai uma mensagem
 - Então ela vai, nesta ordem: à pendente cujo título casa com o nome da sessão destino (envios.carta-pelo-nome-da-sessao); senão, entre as pendentes do plan mais recente do pedido, à primeira na ordem do plano ainda sem carta, sessão ou subagente; todas já com um deles, à última delas; sem nenhuma pendente, à tarefa iniciada por último, mesmo concluída; sem nenhuma iniciada, ao último nível 1 do pedido
 
-Origem: decisão do usuário, 2026-10-23 ("Várias pendentes: a última planejada. Nenhuma pendente: última iniciada"); commits b742294 e 5f3df6e.
+Origem: decisão do usuário, 2026-10-23 ("Várias pendentes: a última planejada. Nenhuma pendente: última iniciada"); commits db0c11e e 8a8d51d.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-09, decisão do usuário ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome"): com várias pendentes planejadas juntas, o envio vai à primeira delas ainda sem carta, na ordem do plano (antes, à última), depois de tentar o nome da sessão (envios.carta-pelo-nome-da-sessao).
@@ -135,7 +135,7 @@ O envio na fila não vira interrompido no fim do turno.
 - Quando o turno termina, normal ou com Esc
 - Então a carta na fila não é interrompida por fim de turno nem Esc; a tarefa de onde saiu fica ◷ enquanto a carta está na fila, Esc inclusive
 
-Origem: decisão do usuário, 2026-10-24; commit b897cac.
+Origem: decisão do usuário, 2026-10-24; commit 93df998.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa fica ◷, e não mais ✉, enquanto a carta espera.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
@@ -148,7 +148,7 @@ A carta de recebimento é a linha do pedido; as tarefas derivadas têm ícone de
 - Quando o modelo planeja as tarefas dele e as trata
 - Então a linha do pedido mostra o ✉ de recebida (azul enquanto há trabalho aberto, verde concluído, cinza interrompido), e as tarefas, em qualquer nível, mostram o ícone comum; um pedido da pessoa não tem carta; o relato de uma sessão que esta abriu, entregue com o turno em curso, não abre pedido, então não tem carta de recebida (pedidos.mensagem-no-meio-do-turno-continua-o-pedido)
 
-Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' deveria ser uma carta também"); commit 83f715d.
+Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' deveria ser uma carta também"); commit 527b5fb.
 Reescrito: 2026-10-30, decisão do usuário ("as cartas deveriam representar somente quando uma sessão se comunica com outra… Quando o pedido fosse recebido, ele seria representado por uma carta, e as tarefas derivadas dessa mensagem (pedido) deveriam ter os icones de tarefas, não de cartas"; "Sim, uma carta por mensagem (Recomendado)"; "Azul tratando, verde concluído, cinza interrompido (Recomendado)"); desfaz o ajuste de 2026-10-24 e volta ao pedido original do mesmo dia ("as tarefas partem como subtarefas da tarefa de recebimento").
 Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomendado)"); exceção a "uma carta por mensagem" (2026-10-30): o relato de uma sessão que esta abriu, entregue no meio do turno, continua o pedido em curso, sem linha nem ✉ de recebida. Os testes não mudam.
 Código: hooks/prompt-submit.ts, draw/layout.ts

@@ -11,7 +11,7 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 - Quando o painel é desenhado
 - Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente); a sessão aberta num pedido ainda sem plano fica solta até o plan (sessoes.aberta-antes-do-plan-e-adotada)
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 85744cb); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit b90ec6e).
 Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
 Reescrito: 2026-11-03, decisão do usuário ("No pedido vigente da orquestradora (Recomendado)"), pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc..."; desfaz, para o turno próprio da filha, "turno aberto direto pelo usuário na filha vira cartão próprio, sem âncora, no fim do pedido de origem".
 Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): a sessão aberta num pedido ainda sem plano fica solta até o plan.
@@ -50,7 +50,7 @@ Cada mensagem à filha, em turnos diferentes, tem o seu cartão.
 - Quando o painel é desenhado
 - Então há dois cartões, cada um sob a tarefa da sua mensagem
 
-Origem: decisão do usuário, 2026-10-21 ("filha ocupada que recebe mensagem nova tem o painel duplicado; o cartão antigo fica onde estava e o novo vai sob a tarefa da principal que mandou a mensagem", DESENVOLVIMENTO); commits 4af1b92 e 5508b25.
+Origem: decisão do usuário, 2026-10-21 ("filha ocupada que recebe mensagem nova tem o painel duplicado; o cartão antigo fica onde estava e o novo vai sob a tarefa da principal que mandou a mensagem", DESENVOLVIMENTO); commits 726a925 e b90ec6e.
 Estado: coberto
 
 ### sessoes.cadeia-sem-cartao-dentro-de-cartao
@@ -60,7 +60,7 @@ Uma cadeia de filhas não põe cartão dentro de cartão.
 - Quando o painel é desenhado
 - Então os cartões ficam em sequência, sem cartão dentro de cartão: sob a tarefa da mãe que iniciou a cadeia, no mesmo nível, na ordem de execução
 
-Origem: decisão do usuário, 2026-10-23 ("quando uma tarefa chama uma sessão, o painel não deve ficar dentro de outro; deve ficar na sequência em que será executado"); commit fddd473.
+Origem: decisão do usuário, 2026-10-23 ("quando uma tarefa chama uma sessão, o painel não deve ficar dentro de outro; deve ficar na sequência em que será executado"); commit bd0b1b3.
 Estado: coberto
 
 ### sessoes.mensagem-entre-filhas-no-cartao-da-remetente
@@ -70,7 +70,7 @@ A mensagem entre filhas fica no cartão da remetente.
 - Quando o painel é desenhado
 - Então a tarefa da mensagem, com o ✉, fica no cartão da remetente, e o cartão da destinatária fica na sequência sob a tarefa da mãe, não dentro do cartão da remetente
 
-Origem: commit 28ae764, 2026-10-23; o cartão dentro do cartão foi desfeito por fddd473 no mesmo dia ("o painel não deve ficar dentro de outro").
+Origem: commit 0bbf4b2, 2026-10-23; o cartão dentro do cartão foi desfeito por bd0b1b3 no mesmo dia ("o painel não deve ficar dentro de outro").
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é a linha sob a tarefa, no cartão da remetente.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
@@ -103,7 +103,7 @@ Na filha parada, as pendentes seguem pendentes.
 - Quando o cartão é desenhado
 - Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); com o turno interrompido (Esc), a rodada inteira sai da contagem da mãe: as pendentes seguem desenhadas ○, mas fora do cabeçalho, do chip e do x/y da tarefa de origem, até o start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
 
-Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit d57807e.
+Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit cd96021.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o cartão sem `work` não pode mostrar uma tarefa só.
 Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"); com a origem fechada e só pendentes vale sessoes.filha-parada-com-origem-fechada-sai-da-contagem.
 Reescrito: 2026-11-14, decisão do usuário ("Rodada fora da conta (Recomendado)"); só o texto ganha a exceção que o código já fazia. Os testes não mudam.
@@ -116,7 +116,7 @@ A filha arquivada deixa interrompido o que ficou aberto.
 - Quando o cartão é desenhado
 - Então o que ficou aberto fica ✕, e o pai fica ✓
 
-Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit 95b1a21.
+Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit af4a524.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Reescrito: 2026-11-14, decisão do usuário ("Vira linha resumida (Recomendado)"); desfaz "Arquivada fica, como histórico" para o pedido que saiu do trabalho, onde ela vira uma linha (sessoes.arquivada-antiga-vira-linha). O teste não muda.
 Estado: coberto
@@ -150,7 +150,7 @@ A rodada descartada sai da contagem.
 - Quando o painel conta as tarefas
 - Então as tarefas dela, ✓ inclusive, saem do cabeçalho e do chip "interrompidas"; o cartão continua desenhado
 
-Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit 93a01cc.
 Reescrito: 2026-10-28, decisão do usuário ("Sim, corrigir (Recomendado)... o teste esperava o valor do bug; decisão de 2026-10-24 mantida"): a rodada descartada é a anterior, não a que está trabalhando.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou a mensagem passa a contar no total.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
@@ -196,7 +196,7 @@ A rodada descartada sai também do x/y da tarefa da mãe.
 - Quando o painel conta as tarefas da linha "Um"
 - Então o x/y de "Um" não conta as tarefas dessa rodada
 
-Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit bf77359.
+Origem: decisão do usuário, 2026-10-24 ("as tarefas dessa sessão foram descartadas"); commit 93a01cc.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a tarefa que enviou a mensagem passa a contar no total.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
@@ -208,7 +208,7 @@ O busto da sessão só na tarefa de que o cartão pende.
 - Quando o painel é desenhado
 - Então o busto aparece só nela, não no pedido nem nos ancestrais
 
-Origem: commit e570baa, 2026-10-24.
+Origem: commit b3a9499, 2026-10-24.
 Código: draw/svg.ts, draw/desktop.tsx, draw/icons.ts
 Estado: coberto
 
@@ -219,7 +219,7 @@ A sessão numa pasta sem git mostra a pasta.
 - Quando o cartão é desenhado
 - Então mostra o ícone de pasta e o caminho, sem branch
 
-Origem: commit 17f1140, 2026-10-24.
+Origem: commit d88e930, 2026-10-24.
 Código: draw/svg.ts, io/git.ts, draw/desktop.tsx, draw/icons.ts
 Estado: coberto
 
@@ -230,7 +230,7 @@ O cartão mostra toks/s, repositório e branch.
 - Quando o cartão é desenhado
 - Então mostra "n toks/s", o repositório e a branch (a posição no app desktop: visual.cartao-posicao-de-toks-e-repo)
 
-Origem: commits 1987482 e 689d569, 2026-10-24; dividida em conteúdo e posição por decisão do usuário, 2026-10-28.
+Origem: commits 1a3dc9f e 2cd2beb, 2026-10-24; dividida em conteúdo e posição por decisão do usuário, 2026-10-28.
 Código: draw/svg.ts, io/git.ts, draw/desktop.tsx, draw/icons.ts
 Estado: coberto
 
@@ -241,7 +241,7 @@ Mensagens entregues juntas: o cartão vai à tarefa da última.
 - Quando o turno dela começa
 - Então o cartão do turno fica na tarefa da última mensagem
 
-Origem: decisão do usuário, 2026-10-23 ("quero ver as tarefas lineares andando de cima para baixo; as paralelas andam fora de ordem, normal, mas as lineares precisam seguir uma linha do tempo"); commit 8b67366.
+Origem: decisão do usuário, 2026-10-23 ("quero ver as tarefas lineares andando de cima para baixo; as paralelas andam fora de ordem, normal, mas as lineares precisam seguir uma linha do tempo"); commit 11e4044.
 Estado: coberto
 
 ### sessoes.pedido-recebido-aparece-no-cartao
