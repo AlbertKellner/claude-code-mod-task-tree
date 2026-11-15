@@ -9,7 +9,7 @@ import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } fro
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { reminders, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { reminders, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime, settledBy } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -35,7 +35,6 @@ export const level = (inner?: object) => ({
 export async function planTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
-    if (agent === MAIN) reminders.planned = true
     // A summary given before this plan was a step's, not the turn's: it no longer silences the
     // reminder of the last done (a new summary clears the mark).
     if (agent === MAIN) reminders.briefBeforePlan = true
@@ -47,6 +46,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     if (dup.length > 0) {
       return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true as const }
     }
+    // Only a plan taken counts as using the panel in this request (a refused one does not).
+    if (agent === MAIN) reminders.planned = true
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
     // (replaced in its place, the tasks that keep their id keeping their state: carry) when it is of
@@ -246,7 +247,6 @@ async function adoptOrphans($: any, groups: Group[]) {
 export async function doneTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
-    if (agent === MAIN) reminders.planned = true
     if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { ids?: string[]; cancel?: string[]; summary?: unknown }
     // The panel draws its own ↩ before the summary: one the model wrote too is dropped ("↩ ↩").
@@ -316,9 +316,15 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       // The send stays with the closed task: its ✉ is drawn until the session takes the message up
       // (watchSends), whatever the model did with the task. An id used again by a new plan renames the
       // old task and its send with it (renameAnchors), or drops both (a replanned task).
-      // The last step closed with no summary: the request would have no ↩ line, or the ↩ of a step
-      // before a later plan (the answer to a question) instead of the work's.
-      if (((await lastBrief($)) === undefined || reminders.briefBeforePlan) && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
+      // A done that closed a task of the current request used the panel in it; one only with a
+      // summary, or on a task of an earlier request, did not (the reminder to plan still comes).
+      const mine = requestTasks(groups)
+      const ofRequest = new Set(flat(mine).map(t => t.id))
+      if (closed.some(id => ofRequest.has(id))) reminders.planned = true
+      // The last step of the current request closed with no summary: the request would have no ↩
+      // line, or the ↩ of a step before a later plan (the answer to a question) instead of the work's.
+      // A task left open by an earlier request does not hide it.
+      if (((await lastBrief($)) === undefined || reminders.briefBeforePlan) && closed.length > 0 && !hasOpen(mine))
         notes.push(DONE.noSummary)
     }
     const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])

@@ -1906,6 +1906,27 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/lembretes.test.ts::fechar com done um passo do pedido anterior não conta como planejar o pedido novo": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "93d9509effda6c85",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
+    "task-tree/tests/lembretes.test.ts::o done que fecha a última tarefa do pedido atual cobra o summary mesmo com pendente antiga": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano",
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "1158a8efc50e663b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
     "task-tree/tests/lembretes.test.ts::o lembrete de replanejar vale uma vez só": {
       "regras": [
         "lembretes.replanejar-vale-uma-vez"
@@ -1915,6 +1936,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::o plan recusado por ids repetidos não cala o lembrete": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "34271ae85dc5ef7e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
     },
     "task-tree/tests/lembretes.test.ts::os lembretes de mensagem nova, as regras e a descrição do done mandam cancelar o que a mensagem substitui": {
       "regras": [
@@ -1926,6 +1957,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
     },
+    "task-tree/tests/lembretes.test.ts::pedido novo sem plano, com um passo pendente do pedido anterior: o lembrete de planejar sai": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "79b5208a03295037",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
     "task-tree/tests/lembretes.test.ts::quando a filha termina o turno de uma mensagem, o lembrete cita a tarefa de onde a mensagem saiu": {
       "regras": [
         "lembretes.filha-terminou-o-turno"
@@ -1935,6 +1976,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::seguir numa tarefa antiga com start cala o lembrete": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "a4313e10bea48af3",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
     },
     "task-tree/tests/lembretes.test.ts::sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar": {
       "regras": [

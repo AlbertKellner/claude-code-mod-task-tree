@@ -136,6 +136,59 @@ test('sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete
   await desenho($)
 })
 
+// Pedido um deixa "Dois" pendente; o pedido dois começa.
+async function pendenteAntiga($: any, on: any) {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+}
+const lembraNaFerramenta = async ($: any, id: string) => {
+  const r = await $.tool.call({ tool: 'Bash', tool_use_id: id, command: 'ls' })
+  return JSON.stringify(r?.context ?? []).includes('sem plano aberto')
+}
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('pedido novo sem plano, com um passo pendente do pedido anterior: o lembrete de planejar sai', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('fechar com done um passo do pedido anterior não conta como planejar o pedido novo', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  await done($, ['2'])
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('o plan recusado por ids repetidos não cala o lembrete', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  expect((await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '1', title: 'Outro' }] }])).erro).toBe(true)
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('seguir numa tarefa antiga com start cala o lembrete', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  await start($, ['2'])
+  expect(await lembraNaFerramenta($, 'b1')).toBe(false)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano, arvore.done-sem-summary-e-varias-sem-start
+test('o done que fecha a última tarefa do pedido atual cobra o summary mesmo com pendente antiga', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  await plan($, [{ id: 'B', title: 'Plano B' }])
+  await start($, ['B'])
+  expect((await done($, ['B'])).texto).toContain('falta o summary')
+})
+
 // Regra: lembretes.regras-no-prompt-de-sistema
 test('as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis', async ($: any, on: any) => {
   fixar(on)

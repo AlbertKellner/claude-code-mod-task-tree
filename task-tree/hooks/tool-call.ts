@@ -4,15 +4,15 @@
 // back, a start_session records its session, then each note handler adds, in order, what it has to say
 // to the result (a message only queued, a session that ended its turn, a message taken up, a task the
 // end of its subagents closed or marked ✕, what a
-// wrap_up leaves open) and, last, the reminder to plan: the first call with no open plan, and every
-// 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
+// wrap_up leaves open) and, last, the reminder to plan: the first call of a request that has not
+// used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
 
 import { update } from 'claude-code'
 
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { reminders, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
 
@@ -226,7 +226,10 @@ async function reminder($: any, c: Call, r: any) {
     return r
   }
   const { value = [] } = await $.state.get(groupsState)
-  if (reminders.planned || hasOpen(value.find((g: Group) => g.agent === MAIN)?.tasks ?? [])) {
+  // Measured on the current request: a task only pending from an earlier one does not silence it; a
+  // task in progress, of any request (a start on an old one is the expected way to go on), does.
+  const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+  if (reminders.planned || hasOpen(requestTasks(value as Group[])) || current(all).anchor !== undefined) {
     reminders.unplanned = 0
     return r
   }

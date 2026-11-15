@@ -212,8 +212,8 @@ export async function lastBrief($: any): Promise<string | undefined> {
 
 // The request's reminders, variables of the module (a reload starts them over): the main loop's
 // tool calls since a plan was last open (see the tool.call reminder); whether the current request
-// already used the panel (plan, start or done: with everything closed, its last calls need no
-// reminder to plan); whether the last question was answered by a chat message instead of an option
+// already used the panel (a plan taken, a start, or a done that closed a task of this request: with
+// everything closed, its last calls need no reminder to plan); whether the last question was answered by a chat message instead of an option
 // (that message, at the next prompt, is the answer); whether the summary kept was given before a
 // plan of the same turn (a step's, so the last done still asks for one; a reload forgets the mark,
 // and then only that second reminder is lost).
@@ -330,6 +330,14 @@ const byName = (tasks: TaskNode[], names: string[], phrases: string[]) => {
 export const openTurnOf = (groups: Group[]): Turn | undefined => {
   const turns = groups.find(g => g.agent === MAIN)?.turns ?? []
   return turns[turns.length - 1]
+}
+// The current request's tasks: the main group's level-1 tasks of its last turn (with no turns kept,
+// a panel of an earlier version, all of them). What the reminders measure (tool-call, reminder; the
+// done's summary reminder).
+export const requestTasks = (groups: Group[]): TaskNode[] => {
+  const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
+  const open = openTurnOf(groups)
+  return open === undefined ? tasks : tasks.filter(t => t.turn === open.id)
 }
 export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of

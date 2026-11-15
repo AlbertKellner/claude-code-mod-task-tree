@@ -68,12 +68,12 @@ Estado: coberto
 ### lembretes.primeira-chamada-sem-plano
 O lembrete de planejar na primeira ferramenta sem plano.
 
-- Dado um pedido sem plan
+- Dado um pedido em que o modelo ainda não usou o painel (nenhum plan aceito, nenhum start, nenhum done em tarefa deste pedido), sem tarefa aberta própria e sem tarefa em andamento
 - Quando o modelo chama a primeira ferramenta e, depois, a cada 10
-- Então ele recebe o lembrete de planejar
+- Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden").
-Código: hooks/tool-call.ts
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts
 Estado: coberto
 
 ### lembretes.regras-no-prompt-de-sistema

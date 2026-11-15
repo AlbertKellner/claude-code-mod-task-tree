@@ -82,7 +82,7 @@ Estado: coberto
 ### arvore.done-sem-summary-e-varias-sem-start
 Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
 
-- Dado o último done do pedido sem summary (também quando o único resumo dado veio antes de um plan do mesmo turno), ou várias tarefas fechadas de uma vez sem start
+- Dado o último done do pedido sem summary (o último do pedido atual, mesmo com tarefa aberta de pedido anterior; também quando o único resumo dado veio antes de um plan do mesmo turno), ou várias tarefas fechadas de uma vez sem start
 - Quando o done responde
 - Então a resposta traz o aviso correspondente; o do summary diz que só vale se aquele done foi o último passo do turno
 
