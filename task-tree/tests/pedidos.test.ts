@@ -701,3 +701,36 @@ test('um plano sem ids repetidos não traz avisos', async ($: any, on: any) => {
   expect(r.texto).toContain('Plano exibido')
   expect(r.texto).not.toContain('Avisos')
 })
+
+// Regra: pedidos.plan-decide-com-o-estado-da-gravacao
+test('uma tarefa fechada por outra escrita no meio do plan vira histórico com o cartão, e o plan avisa', async ($: any, on: any) => {
+  fixar(on)
+  const K1 = 'local_41414141-4141-4141-4141-414141414141'
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [] } }])
+  // Armado, a próxima gravação do painel dá lugar a outra escrita (a tarefa antiga interrompida, como um
+  // cancel de outra chamada a faria) e volta como perdida: o plan relê e decide de novo sobre o painel
+  // já mudado (o harness não deixa o stub chamar a ferramenta).
+  let armado = false
+  const parar = (t: any): any => ({ ...t, status: t.status === 'open' ? 'interrupted' : t.status, started: undefined, children: t.children.map(parar) })
+  on('state.set', async (_s: any, e: any, next: any) => {
+    if (!armado || e.key !== 'groups') return next(e)
+    armado = false
+    const outra = (e.previous as any[]).map(g => (g.agent === '' ? { ...g, tasks: g.tasks.map((t: any) => (t.id === '1' ? parar(t) : t)) } : g))
+    const r = await next({ ...e, value: outra })
+    return { ...r, value: { ...r.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Antiga', children: [{ id: '1.1', title: 'Passo' }] }])
+  await start($, ['1.1'])
+  await abrirSessao($)
+  await aviso($)
+  armado = true
+  const r = await plan($, [{ id: '1', title: 'Nova', children: [{ id: '1.1', title: 'Passo novo' }] }])
+  expect(r.texto).toContain('ficou como histórico')
+  const p = await painel($)
+  esperarEstado(p, 'Passo', 'interrompida')
+  esperarEstado(p, 'Passo novo', 'pendente')
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Passo')
+  expect(p.some(l => l.titulo === 'Antiga'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Nova'), emTexto(p)).toBe(true)
+})

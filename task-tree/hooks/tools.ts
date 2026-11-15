@@ -65,40 +65,46 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const tag = Math.random().toString(36).slice(2, 6)
     const rename = (t: TaskNode): TaskNode => ({ ...t, id: `${tag}:${t.id}`, children: t.children.map(rename) })
     const fresh0 = agent === MAIN && (await startsWork($))
-    const { value: before = [] } = await $.state.get(groupsState)
-    const beforeMain = (before as Group[]).find(g => g.agent === MAIN)
-    // The request open now (the person's last message): the main group's last turn.
-    const nowTurn = beforeMain?.turns?.[beforeMain.turns.length - 1]?.id
+    // The request open now (the person's last message): the main group's last turn, as the write finds it.
+    let nowTurn: number | undefined
     const sameRequest = (t: TaskNode) => agent !== MAIN || nowTurn === undefined || t.turn === undefined || t.turn === nowTurn
     // A level-1 task of the main loop already done is replanned too, in the same request: it opens
     // again with the done steps kept (carry) and only the new ones open (the person, 2026-11-14:
     // "Reabre mantendo os ✓ (Recomendado)"). A subagent's done task stays as history.
     const replanned = (t: TaskNode) =>
       (t.status === 'open' || (t.status === 'done' && agent === MAIN)) && ids.includes(t.id) && sameRequest(t)
-    const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
-    // The subtasks a replan in place leaves out, each with its level-1 task: the ties to them go to it
-    // (moveToLevelOne; the person, 2026-11-14: "Sob o nível 1 (Recomendado)").
+    // What is replanned and what is renamed is decided inside the write, on the panel as it stands
+    // there (the write may run again when another one came in between: a delivery, a subagent's end,
+    // a done), and the steps after it follow that decision (audit, 2026-11-10). Reset on every run.
+    // The main group's level-1 tasks renamed to history (the sessions' ties and the work follow them);
+    // the caller's (its folds); the subtasks a replan in place leaves out, each with its level-1 task
+    // (the ties to them go to it: moveToLevelOne; the person, 2026-11-14: "Sob o nível 1
+    // (Recomendado)"); and the caller's level-1 tasks that had an id the plan reuses, with what the
+    // plan did to them, said in its result.
     const kept = new Set(flat(fresh).map(t => t.id))
-    const gone = new Map<string, string>()
-    for (const t of (before as Group[]).find(g => g.agent === agent)?.tasks ?? []) {
-      if (!replanned(t)) continue
-      for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
-    }
-    const toLevelOne = movedAnchor(gone)
-    // What the plan does to the level-1 tasks that already had an id it reuses, said in its result
-    // (the tasks renamed to history, and the replans in place, counted below on the result).
-    const ownBefore = (before as Group[]).find(g => g.agent === agent)?.tasks ?? []
-    const warned = ownBefore.filter(t => ids.includes(t.id))
-    // The person's folds go with the tasks renamed in the planning loop's group (renameFolds).
-    const renamedHere = ((before as Group[]).find(g => g.agent === agent)?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+    let renamed: string[] = []
+    let renamedHere: string[] = []
+    let gone = new Map<string, string>()
+    let warned: { t: TaskNode; again: boolean }[] = []
     const now = await stamp($)
     const groups = await change($, all => {
       // The subagents this loop launched from a task the plan renames go with the old copy (their
       // card, and the task the end of the turn closes by them), or they would hang from the new task
       // with that id: the ids as `away` below takes them, from the groups this change gets.
+      const main = all.find(g => g.agent === MAIN)
+      nowTurn = main?.turns?.[main.turns.length - 1]?.id
       const own = all.find(g => g.agent === agent)?.tasks ?? []
-      const renameTie = renamedAnchor(own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id), tag)
+      renamed = (main?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+      renamedHere = own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+      gone = new Map<string, string>()
+      for (const t of own) {
+        if (!replanned(t)) continue
+        for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
+      }
+      warned = own.filter(t => ids.includes(t.id)).map(t => ({ t, again: replanned(t) }))
+      const renameTie = renamedAnchor(renamedHere, tag)
       // And those launched from a subtask the replan leaves out go to its level-1 task.
+      const toLevelOne = movedAnchor(gone)
       const fix = (a?: string) => toLevelOne(renameTie(a))
       return all.map(g => {
         if (g.agent !== agent) return (g.parent ?? MAIN) === agent && fix(g.anchor) !== g.anchor ? { ...g, anchor: fix(g.anchor) } : g
@@ -158,8 +164,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const ownAfter = groups.find(g => g.agent === agent)?.tasks ?? []
     const [gd, gn] = count(ownAfter)
     const sent = plural(flat(fresh).length, 'tarefa', 'tarefas')
-    const notes = warned.flatMap(t => {
-      if (replanned(t)) {
+    const notes = warned.flatMap(({ t, again }) => {
+      if (again) {
         const old = new Set(flat(t.children).map(x => x.id))
         const kept = flat(ownAfter.find(x => x.id === t.id)?.children ?? []).filter(x => old.has(x.id))
         const doneN = kept.filter(x => x.status === 'done').length

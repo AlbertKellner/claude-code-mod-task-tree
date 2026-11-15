@@ -157,6 +157,17 @@ Origem: auditoria 2026-11-10 (o modelo não sabia o que o plan tinha interrompid
 Código: text/rules.ts
 Estado: coberto
 
+### pedidos.plan-decide-com-o-estado-da-gravacao
+O plan decide o que replaneja e o que vira histórico com o painel como ele está na hora de gravar.
+
+- Dado um plan que reusa o id de um nível 1 aberto, e outra escrita que muda esse nível 1 enquanto o plan roda (um cancel, o fim de um subagente que o interrompe, a entrega de uma carta ou um done que o fecha)
+- Quando o plan grava
+- Então o plan decide sobre o painel como a gravação o encontra: a tarefa antiga que ali já não é replanejada (a interrompida; no subagente, também a concluída) fica como histórico com os cartões, as cartas e as dobras dela, e segue no trabalho atual; a nova entra ao lado; o resultado do plan avisa o que de fato fez (aqui, que a antiga ficou como histórico)
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o que renomear era decidido numa leitura anterior à gravação, e os cartões da tarefa antiga passavam para a nova de mesmo id); aplica pedidos.nivel1-concluido-e-historico e subagentes.id-reusado-nao-herda-cartao, sem mudar nenhuma das duas.
+Código: hooks/tools.ts
+Estado: coberto
+
 ### pedidos.rodada-descartada-nao-segura-a-visao
 Uma rodada descartada não conta como algo aberto à vista.
 

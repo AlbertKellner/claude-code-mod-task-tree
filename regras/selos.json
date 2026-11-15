@@ -2583,6 +2583,16 @@
       "data": "2026-11-15",
       "motivo": "auditoria: avisos na resposta do plan"
     },
+    "task-tree/tests/pedidos.test.ts::uma tarefa fechada por outra escrita no meio do plan vira histórico com o cartão, e o plan avisa": {
+      "regras": [
+        "pedidos.plan-decide-com-o-estado-da-gravacao"
+      ],
+      "hash": "68fefe5bf80659a8",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: o plan decidia o que renomear fora da gravação"
+    },
     "task-tree/tests/perguntas.test.ts::ExitPlanMode mostra a espera da aprovação do plano até a resposta": {
       "regras": [
         "perguntas.exitplanmode-espera"
