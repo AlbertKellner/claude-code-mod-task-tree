@@ -150,7 +150,7 @@ A recarga real e o respawn do worker não perdem nada.
 
 - Dado o painel aberto, com cartões e resumos
 - Quando um arquivo do mod é salvo, o worker é refeito (/model) ou a sessão é retomada no app
-- Então nada some, os relógios voltam a correr e o primeiro clique funciona
+- Então nada some, os relógios voltam a correr e o primeiro clique funciona; os cartões das rodadas de uma filha não mudam de lugar ao salvar um arquivo do mod
 
 Origem: tabela de durabilidade, commit fe8354e, 2026-10-22.
 Código: hooks/sessions.ts, hooks/panel.ts, state/durability.ts

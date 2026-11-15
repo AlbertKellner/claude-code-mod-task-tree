@@ -85,6 +85,11 @@ export function panelOf(file: Published): Panel | undefined {
 // An archived session already read while archived (its entry in `known` says so) is not read again:
 // it keeps what it had (deriveChildren); unarchived, it is read again. After a restart the children
 // come back from the store without `archived`, so the first read reads them all.
+// A known session's file that could not be read (none, unreadable, invalid) keeps what the last read
+// said of `waiting`, `aborted` and `ultracode` for up to MISSES_KEPT reads in a row (counted here,
+// cleared by the next good read); after that it is read as empty, as the app says of the session.
+const MISSES_KEPT = 3
+const misses = new Map<string, number>()
 export async function readFiles($: any, mine: HostRow[], known: Child[] = []): Promise<Read> {
   const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {}, skipped: [] }
   for (const r of mine) {
@@ -93,7 +98,12 @@ export async function readFiles($: any, mine: HostRow[], known: Child[] = []): P
       continue
     }
     try {
-      const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
+      const got = await readPublished($, r.sessionId)
+      const missed = got === undefined ? (misses.get(r.sessionId) ?? 0) + 1 : 0
+      if (missed === 0) misses.delete(r.sessionId)
+      else misses.set(r.sessionId, missed)
+      const before = missed > 0 && missed <= MISSES_KEPT ? known.find(k => k.id === r.sessionId) : undefined
+      const file = got ?? { waiting: before?.waiting === true, aborted: before?.aborted === true, ultracode: before?.ultracode === true, waits: [], children: [] }
       if (file.waiting) read.waiting.push(r.sessionId)
       if (file.aborted) read.aborted.push(r.sessionId)
       if (file.context) read.contexts[r.sessionId] = file.context.percent

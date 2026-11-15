@@ -458,6 +458,31 @@ test('a filha que publica um grupo sem tarefas, uma tarefa sem filhos e um envio
   expect(log.filter(l => l.includes(K1) && l.includes('lido em parte')).length, log.join('\n')).toBe(1)
 })
 
+// O id da própria sessão na recarga: o 1/2 grava o state, o 2/2 (módulo novo) o semeia.
+const ID_PROPRIO: Record<string, unknown> = {}
+
+// Regra: durabilidade.id-proprio-sobrevive-a-recarga
+test('o id da própria sessão volta do estado depois da recarga, 1/2: lido do app', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ID_PROPRIO, 'captura')
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  expect(h.proprio(), 'o painel publicado').toBeDefined()
+})
+
+// Regra: durabilidade.id-proprio-sobrevive-a-recarga
+test('o id da própria sessão volta do estado depois da recarga, 2/2: o app não responde o id, e o painel segue publicado', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ID_PROPRIO, 'semear')
+  const h = host(on, [], { idFalha: true })
+  exigir(ID_PROPRIO.selfId !== undefined && ID_PROPRIO.groups !== undefined)
+  await start($, ['1'])
+  const meu = h.proprio()
+  expect(meu, 'o painel publicado').toBeDefined()
+  expect(JSON.stringify(meu.groups)).toContain('"title":"Um"')
+})
+
 // O fim do turno nos três casos: reinício com session.start, respawn sem ele, e o turno parado com Esc.
 const FIM: Record<string, unknown> = {}
 const FIM_RESPAWN: Record<string, unknown> = {}

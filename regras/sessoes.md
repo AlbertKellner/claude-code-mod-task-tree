@@ -421,3 +421,35 @@ O cartão de uma rodada de tarefa à vista não muda de lugar por causa de mensa
 Origem: auditoria 2026-11-10 (o teto de 20 rodadas cortava por posição, e o cartão da primeira se fundia ao de abertura); aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
 Código: hooks/tool-call.ts
 Estado: coberto
+
+### sessoes.id-proprio-nao-lido-avisa
+Sem conseguir ler o id da própria sessão, o painel avisa em vez de congelar os cartões em silêncio.
+
+- Dado o app desktop respondendo a lista de sessões, mas não o id desta sessão
+- Quando isso dura mais de 10 s seguidos
+- Então o painel mostra a linha "Sessões indisponíveis: id da sessão não lido" (os cartões ficam como estavam); uma falha isolada não mostra a linha; quando o id vem, a linha sai e os cartões voltam a ser atualizados; o log de depuração registra a falha uma vez por motivo, e também a leitura das sessões que lança
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: a lista que falha mostrava uma linha, o id que não vem não mostrava nada e enchia o log).
+Código: hooks/panel.ts, hooks/render.tsx
+Estado: coberto
+
+### sessoes.lista-vazia-refaz-o-status
+Quando a última sessão filha some da lista do app, a linha de status embaixo da caixa de mensagem é refeita.
+
+- Dado uma sessão filha com tarefas somando no "Tarefas d/n"
+- Quando a lista do app passa a vir vazia (a filha foi apagada)
+- Então o cartão some, o painel é publicado sem ele, e o "Tarefas d/n" e o relógio são refeitos na mesma leitura
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: com a lista vazia o status ficava com o valor antigo até outra mudança).
+Código: hooks/panel.ts
+Estado: coberto
+
+### sessoes.leitura-falha-nao-apaga-a-espera
+Uma leitura do arquivo da filha que falha não apaga "aguardando", "ultracode" nem a parada com Esc.
+
+- Dado uma filha que espera a pessoa (ou com ultracode, ou parada com Esc), já lida uma vez
+- Quando o arquivo dela não pode ser lido numa volta da leitura
+- Então o cartão segue como a última leitura disse, e a mãe não recebe o lembrete de "terminou o turno"; se o arquivo segue ilegível por mais de três leituras seguidas, volta a valer só o que o app diz da sessão; lido de novo, vale o arquivo
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o arquivo ilegível era lido como vazio, e a filha que esperava era dada como parada por uma volta).
+Estado: coberto

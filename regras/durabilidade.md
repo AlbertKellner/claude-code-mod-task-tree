@@ -82,6 +82,17 @@ Origem: auditoria 2026-11-10 (triagem de 2026-11-15: só o envelope do arquivo e
 Código: io/publish.ts, io/host.ts
 Estado: coberto
 
+### durabilidade.id-proprio-sobrevive-a-recarga
+O id da própria sessão sobrevive à recarga do mod.
+
+- Dado o id desta sessão já lido do app
+- Quando o mod recarrega a quente (módulo novo, state mantido) e o app demora ou falha em responder o id de novo
+- Então o painel segue sendo publicado e os cartões seguem divididos em rodadas com o id guardado, sem esperar o app
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o id era variável do módulo, pedido de novo ao app a cada recarga).
+Código: hooks/render.tsx, hooks/sessions.ts
+Estado: coberto
+
 ### durabilidade.recarga-mantem-painel-ligacoes-e-resumo
 A recarga a quente mantém o painel e as ligações.
 

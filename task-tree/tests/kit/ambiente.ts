@@ -101,7 +101,8 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
 // `git`: a raiz desta sessão ($.session.root) e o texto do `.git/HEAD` dela; sem ele, a sessão não
 // tem raiz (o cabeçalho fica sem repositório).
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string } }
+// `idFalha`: o get_session desta sessão ('self') responde erro, lido a cada chamada (o teste a troca no meio).
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string }; idFalha?: boolean }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -133,6 +134,7 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     pedidos.push(String(e.tool))
     if (e.tool === 'get_session') {
       const id = String(e.args?.session_id ?? 'self')
+      if (id === 'self' && opcoes.idFalha) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
       if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
       return { value: { content: [{ type: 'text', text: `Session ${id} not found.` }], isError: true } }
     }

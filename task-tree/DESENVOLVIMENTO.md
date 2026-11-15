@@ -967,6 +967,10 @@ O primeiro confere o `marketplace.json` (e o README); o segundo, o mod.
 `state/durability.ts` diz, por chave, onde o dado vive e como volta. 
 
 - Chave nova de state ou de store: acrescente a linha em `TABLE`.
+- `selfId` (state): o id desta sessão como o app o respondeu. `selfId($)` repõe dele a variável `ownId`
+  depois de uma recarga, sem esperar o app, e o desenho o lê quando `knownId()` ainda não tem. Sem o id,
+  com a lista lida, por mais de 10 s seguidos, o painel mostra "Sessões indisponíveis: id da sessão não
+  lido" (`ID_ERROR`, `hooks/sessions.ts`).
 - Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
   no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
   chave continuam literais em `register.tsx`; a correspondência com a tabela é conferida à mão.
@@ -1091,7 +1095,10 @@ guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState
    cortado em 200) e `mineOf(rows)` (pura: as linhas abertas por quem a lista não traz; `undefined` se não há).
 2. **Arquivos publicados:** `panelOf(file)` (pura: `groups` e o resto, ou `tasks` antigas como grupo
    principal, ou nada) e `readFiles($, mine)` → `{ waiting, panels, contexts, engines }` (usa `readPublished`
-   e `engineOf` quando o arquivo não traz o modelo). Um elemento fora do formato no arquivo sai só ele (ver "Arquivo publicado"). `engineText`, `engineOf` e o cache `engineSeen` moraram
+   e `engineOf` quando o arquivo não traz o modelo). Um elemento fora do formato no arquivo sai só ele (ver "Arquivo publicado").
+   O arquivo de uma sessão já conhecida que não pôde ser lido (`readPublished` sem resposta) repete o que
+   a última leitura disse de `waiting`, `aborted` e `ultracode` por até 3 leituras seguidas (`misses`,
+   `MISSES_KEPT`); da quarta em diante vale o arquivo vazio, como o app diz da sessão. `engineText`, `engineOf` e o cache `engineSeen` moraram
    no register e vieram para cá.
 3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
    com a regra do `starting`, dos laços vindos do store (`kept`) e do painel mantido quando o arquivo some.

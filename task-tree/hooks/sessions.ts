@@ -40,6 +40,12 @@ export let refreshedAt: number | undefined
 // same end). Variables of the module: a reload starts them over.
 let reading: Promise<void> | undefined
 let readAgain = false
+// This session's id not answered by the app, with the list read: since when in a row (the panel's
+// clock), for the line "Sessões indisponíveis: id da sessão não lido" after ID_GRACE (one failure
+// alone, as right after a reload, shows nothing); cleared when the id comes.
+let selfMissingSince: number | undefined
+const ID_GRACE = 10_000
+export const ID_ERROR = 'id da sessão não lido'
 export async function refreshChildren($: any): Promise<void> {
   if (reading !== undefined) {
     readAgain = true
@@ -109,7 +115,6 @@ async function readChildren($: any) {
     if (error !== shownError) await $.state.set(childrenErrorState, error)
     return
   }
-  if (shownError !== '') await $.state.set(childrenErrorState, '')
   if (!Array.isArray(rows)) return
   // Every linked session's name, the mother's and the sisters' too when the list has them: the
   // letters to them say it (learnNames).
@@ -118,18 +123,30 @@ async function readChildren($: any) {
   // one just opened that the list does not hold yet (still in its grace, see deriveChildren). Cleared,
   // the pane is published: the file the mother reads loses the cards too.
   if (rows.length === 0) {
+    selfMissingSince = undefined
+    if (shownError !== '') await $.state.set(childrenErrorState, '')
     const { value: cur } = await $.state.get(childrenState)
     const keep = (c: Child[] | undefined) => (c ?? []).filter(k => justOpened(k, now))
     if (keep(cur).length !== (cur ?? []).length) {
       await update($, childrenState, keep)
       await publishPanel($)
+      // The status and the clock are made again too, as below: the count loses the cards gone.
+      const { value: groups = [] } = await $.state.get(groupsState)
+      await showStatus($, groups)
+      await keepTime($)
     }
     return
   }
-  // By this session's own id; in the app, a read waits for it (after a reload it is asked again)
-  // rather than deduce, which a list read mid-change can point at another session.
+  // By this session's own id; in the app, a read waits for it (after a reload it comes back from the
+  // state, see selfId) rather than deduce, which a list read mid-change can point at another session.
+  // Missing for over ID_GRACE in a row, the panel says so (the line is decided once per read).
   const self = await selfId($)
-  if (self === undefined && (await inDesktopApp($))) return
+  const waitsId = self === undefined && (await inDesktopApp($))
+  if (!waitsId) selfMissingSince = undefined
+  else selfMissingSince ??= now ?? 0
+  const lineNow = waitsId && (shownError === ID_ERROR || now === undefined || now - (selfMissingSince ?? now) > ID_GRACE) ? ID_ERROR : ''
+  if (lineNow !== shownError) await $.state.set(childrenErrorState, lineNow)
+  if (waitsId) return
   const deduced = deducedOwn(rows)
   if (self !== undefined && deduced !== undefined && deduced !== self) await debug($, `task-tree: mineOf deduziu ${deduced}, id próprio ${self}`)
   // The sessions opened before a /clear here are left behind: no card (forgetChildren).
@@ -467,7 +484,7 @@ export function watchSessions($: any) {
   if (poller) return
   try {
     // A failure must not end the interval: the sessions would stay drawn as they were.
-    poller = $.clock.every(POLL, () => refreshChildren($).catch(() => {}))
+    poller = $.clock.every(POLL, () => refreshChildren($).catch(err => debugOnce($, `task-tree: leitura das sessões falhou: ${String(err)}`)))
   } catch {}
 }
 export async function anyRunning($: any): Promise<boolean> {

@@ -77,6 +77,7 @@ const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 const namesState = { plugin: 'task-tree', key: 'names' } as const
+const selfIdState = { plugin: 'task-tree', key: 'selfId' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Boxes and Texts, the terminal's text. `$` is for the presses.
@@ -220,7 +221,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   // discarded round is left out here too (the clock is not needed for the cut).
   // What the person stopped and was not started again is out of it too, as in the drawing, and so is
   // delegated work alive below a task: sessionTotal, the same count as the status's.
-  const [ad, an] = sessionTotal(held ?? [], sessions as Child[], sends as Send[], knownId())
+  // This session's id: the module's, else the state's (a reload keeps it there, see selfId).
+  const { value: keptId } = await $.state.get(selfIdState)
+  const me = knownId() ?? (typeof keptId === 'string' && keptId !== '' ? keptId : undefined)
+  const [ad, an] = sessionTotal(held ?? [], sessions as Child[], sends as Send[], me)
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
   const now = await stamp($)
   // What the person opened or closed.
@@ -252,7 +256,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // the ones a limit left out too.
   let all = 0
   const paint = (maxRows: number, short = false) => {
-  const laid = layout(model, chosen, now, knownId(), maxRows)
+  const laid = layout(model, chosen, now, me, maxRows)
   const lines = short ? laid.map(r => (r.title.length > SHORT_TEXT ? { ...r, title: clip(r.title) } : r)) : laid
   drawn.rows = lines.length
   all = lines.reduce((a, r) => a + (r.cut ?? 0), lines.length)

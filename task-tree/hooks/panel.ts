@@ -204,6 +204,7 @@ const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const marksState = { plugin: 'task-tree', key: 'marks' } as const
+const selfIdState = { plugin: 'task-tree', key: 'selfId' } as const
 const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 const namesState = { plugin: 'task-tree', key: 'names' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -699,9 +700,10 @@ export async function inDesktopApp($: any) {
   }
 }
 
-// This session's id as the desktop app names it (local_…); none outside the app.
+// This session's id as the desktop app names it (local_…); none outside the app. Kept in the state too
+// (`selfId`): a reload of the mod takes it from there, without waiting for the app.
 export let ownId: string | undefined
-// The id as known so far, for a reader that must not ask the app (the render).
+// The id as known so far, for a reader that must not ask the app (the render reads the state's too).
 export const knownId = () => ownId
 // The names of sessions known by id (`names`): written only when one is new or changed, the last
 // NAMES_KEEP. A just-opened session's placeholder title ("Sessão…") names nothing.
@@ -723,6 +725,10 @@ export async function learnNames($: any, pairs: [string, string][]) {
 export async function selfId($: any): Promise<string | undefined> {
   if (ownId) return ownId
   try {
+    const { value: kept } = await $.state.get(selfIdState)
+    if (typeof kept === 'string' && kept !== '') return (ownId = kept)
+  } catch {}
+  try {
     const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' })
     const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
     if (!r.isError) {
@@ -730,11 +736,12 @@ export async function selfId($: any): Promise<string | undefined> {
       ownId = got.sessionId
       // Its own name, if the app gives it: a child's letter to this session is drawn with it.
       const name = typeof got?.name === 'string' && got.name !== '' ? got.name : typeof got?.title === 'string' ? got.title : ''
+      if (typeof ownId === 'string' && ownId !== '') await $.state.set(selfIdState, ownId).catch(() => {})
       if (typeof ownId === 'string' && name !== '') await learnNames($, [[ownId, name]])
     }
-    else await debug($, `task-tree: get_session falhou: ${body.slice(0, 300)}`)
+    else await debugOnce($, `task-tree: get_session falhou: ${body.slice(0, 300)}`)
   } catch (err) {
-    await debug($, `task-tree: get_session falhou: ${String(err)}`)
+    await debugOnce($, `task-tree: get_session falhou: ${String(err)}`)
   }
   return ownId
 }

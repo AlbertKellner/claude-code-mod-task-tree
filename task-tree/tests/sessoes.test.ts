@@ -1584,3 +1584,64 @@ test('na 21ª mensagem à mesma filha, o cartão da primeira rodada segue sob a 
   const p = await painel($)
   expect(cartoes(p, 'filha-um').map(c => ({ sob: c.sob, tarefas: c.tarefas })), emTexto(p)).toContainEqual({ sob: 'Dois', tarefas: ['f2'] })
 })
+
+// Regra: sessoes.id-proprio-nao-lido-avisa
+test('sem o id da própria sessão, o painel avisa depois de 10 s, o log diz uma vez, e os cartões voltam quando o id vem', async ($: any, on: any) => {
+  const { relogio, log } = fixar(on)
+  const op = { idFalha: true }
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }], op)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  await relogio.advance(11_000)
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis') && l.texto.includes('id da sessão')), emTexto(p)).toBe(true)
+  expect(log.filter(l => l.includes('get_session falhou')).length, log.join('\n')).toBe(1)
+  op.idFalha = false
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+})
+
+// Regra: sessoes.lista-vazia-refaz-o-status
+test('a filha que some da lista sai também da linha de status', async ($: any, on: any) => {
+  const { status } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Feita', 'feita'), tarefa('2', 'Nunca')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  expect(status()).toBe('Tarefas 1/3')
+  h.filha(K1).listada = false
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.sessao && l.titulo === 'filha-um'), emTexto(p)).toBe(false)
+  expect(status()).toBe('Tarefas 0/1')
+})
+
+// Regra: sessoes.leitura-falha-nao-apaga-a-espera
+test('uma leitura do arquivo que falha não apaga o "aguardando" nem gera o lembrete de fim de turno; depois de várias, volta a valer o que o app diz', async ($: any, on: any) => {
+  const h = await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  await aviso($)
+  esperarPalavra(await painel($), 'filha-um', 'aguardando')
+  h.filha(K1).publicado = '{quebrado'
+  const r = await aviso($)
+  let p = await painel($)
+  esperarPalavra(p, 'filha-um', 'aguardando')
+  expect(JSON.stringify(r)).not.toContain('terminou o turno')
+  for (let i = 0; i < 5; i++) await aviso($)
+  p = await painel($)
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('aguardando')
+  h.filha(K1).publicado = undefined
+  await aviso($)
+  esperarPalavra(await painel($), 'filha-um', 'aguardando')
+})

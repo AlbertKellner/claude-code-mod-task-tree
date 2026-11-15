@@ -787,6 +787,26 @@
       "data": "2026-11-15",
       "motivo": "auditoria: passo acessório que falha não cancela o essencial"
     },
+    "task-tree/tests/durabilidade.test.ts::o id da própria sessão volta do estado depois da recarga, 1/2: lido do app": {
+      "regras": [
+        "durabilidade.id-proprio-sobrevive-a-recarga"
+      ],
+      "hash": "4a89beac06e628db",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: id próprio em variável do módulo"
+    },
+    "task-tree/tests/durabilidade.test.ts::o id da própria sessão volta do estado depois da recarga, 2/2: o app não responde o id, e o painel segue publicado": {
+      "regras": [
+        "durabilidade.id-proprio-sobrevive-a-recarga"
+      ],
+      "hash": "6af00f6c724cf6c3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: id próprio em variável do módulo"
+    },
     "task-tree/tests/durabilidade.test.ts::o plan não reabre o painel que a pessoa fechou; a mensagem seguinte dela reabre": {
       "regras": [
         "durabilidade.painel-fechado-reabre-so-na-mensagem"
@@ -3086,6 +3106,16 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: a palavra \"aguardando\" do cartão não tinha teste"
     },
+    "task-tree/tests/sessoes.test.ts::a filha que some da lista sai também da linha de status": {
+      "regras": [
+        "sessoes.lista-vazia-refaz-o-status"
+      ],
+      "hash": "e06de5f63cef9c9f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: status antigo com a lista vazia"
+    },
     "task-tree/tests/sessoes.test.ts::a filha que volta a trabalhar volta a contar": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
@@ -3717,6 +3747,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::sem o id da própria sessão, o painel avisa depois de 10 s, o log diz uma vez, e os cartões voltam quando o id vem": {
+      "regras": [
+        "sessoes.id-proprio-nao-lido-avisa"
+      ],
+      "hash": "885dbf424360b850",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: id próprio não lido congelava os cartões sem aviso"
+    },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
         "sessoes.pasta-sem-git"
@@ -3746,6 +3786,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::uma leitura do arquivo que falha não apaga o \"aguardando\" nem gera o lembrete de fim de turno; depois de várias, volta a valer o que o app diz": {
+      "regras": [
+        "sessoes.leitura-falha-nao-apaga-a-espera"
+      ],
+      "hash": "59ef1b3d0fbc31a7",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: leitura falha apagava aguardando"
     },
     "task-tree/tests/sessoes.test.ts::uma rodada antiga da neta, de pedido cortado, não quebra o cartão": {
       "regras": [
@@ -5314,10 +5364,10 @@
       "motivo": "arquivo de apoio dos testes, selado na migração do hash"
     },
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "f63470a36073079a",
+      "hash": "15e987df5a1e4ee5",
       "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "filha com modelo publicado; host com a raiz e o .git da sessão"
+      "motivo": "host com a opção idFalha: o get_session da própria sessão responde erro"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",
