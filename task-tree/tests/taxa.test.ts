@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { AGORA, fixar, host, lancaveis, passos } from './kit/ambiente'
-import { abrirSessao, aviso, fimDoTurno, lancar, pedido, plan, start } from './kit/cenario'
+import { abrirSessao, aviso, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start } from './kit/cenario'
 import { emTexto, emTextoDoApp, noApp, painel, primeiraDoApp } from './kit/leitura'
 
 const UM = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
@@ -61,6 +61,42 @@ test('o cartão de subagente mostra a velocidade dele pela mesma regra', async (
   await passo($, { geracao: 2000, tokens: 120, agente: 'sub-1' })
   const p = await painel($)
   expect(p.find(l => l.titulo === 'Explore: ler o kit')?.texto, emTexto(p)).toContain('60 toks/s')
+})
+
+// Regra: taxa.subagente-terminado-fica-com-o-ultimo
+test('terminado, o cartão do subagente segue com o último toks/s', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const passo = passos(on, relogio)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await passo($, { geracao: 2000, tokens: 120, agente: 'sub-1' })
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  const cartao = p.find(l => l.titulo === 'Explore: ler o kit')?.texto
+  expect(cartao, emTexto(p)).toContain('60 toks/s')
+  expect(cartao).toContain('concluído')
+})
+
+// Regra: taxa.subagente-terminado-fica-com-o-ultimo, taxa.subagente-mesma-medida
+test('a taxa do subagente medida menos de 1 s depois da anterior chega ao cartão', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const passo = passos(on, relogio)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await passo($, { geracao: 2000, tokens: 120, agente: 'sub-1' })
+  // 0,7 s depois da gravação do primeiro: 120 tokens em 0,6 s.
+  await passo($, { antes: 100, geracao: 600, tokens: 120, agente: 'sub-1' })
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  const cartao = p.find(l => l.titulo === 'Explore: ler o kit')?.texto
+  expect(cartao, emTexto(p)).toContain('200 toks/s')
+  expect(cartao).not.toContain('60 toks/s')
 })
 
 // Só o que o cabeçalho do app desenha: os pedaços de texto, sem os textos alternativos dos Svg.

@@ -23,6 +23,18 @@ O cartão traz o modelo, o esforço e a palavra de estado.
 - Então o cartão diz o modelo e o esforço e "trabalhando", "em segundo plano", "concluído", "falhou" ou "interrompido"
 
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)").
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Sim, fica o último (Recomendado)"): o cartão terminado segue com o último toks/s (taxa.subagente-terminado-fica-com-o-ultimo). Os testes deste cenário não mudam.
+Estado: coberto
+
+### subagentes.tempo-do-cartao-do-lancamento-ao-fim
+O tempo do cartão do subagente conta do lançamento ao fim, com ou sem tarefas dele.
+
+- Dado um subagente que usa o painel
+- Quando o cartão é desenhado, sozinho ou como linha de um cartão de grupo
+- Então o tempo é o mesmo nos dois: do lançamento até o fim (ou até agora, trabalhando)
+
+Origem: auditoria 2026-11-10 (o tempo do cartão tinha duas origens); regra do painel, sem decisão nova.
+Código: draw/layout.ts
 Estado: coberto
 
 ### subagentes.cartao-de-grupo-diz-a-falha

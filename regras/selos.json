@@ -4915,6 +4915,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
     },
+    "task-tree/tests/subagentes.test.ts::o tempo do cartão do subagente com tarefas conta do lançamento ao fim": {
+      "regras": [
+        "subagentes.tempo-do-cartao-do-lancamento-ao-fim"
+      ],
+      "hash": "27baf348e185c1ef",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "tempo do cartão do lançamento ao fim"
+    },
     "task-tree/tests/subagentes.test.ts::o tipo do subagente que é só um trecho de uma palavra do título não decide": {
       "regras": [
         "envios.carta-pelo-nome-da-sessao",
@@ -5119,6 +5129,17 @@
       "data": "2026-11-15",
       "motivo": "taxa de filha em versão anterior do mod aparece acesa"
     },
+    "task-tree/tests/taxa.test.ts::a taxa do subagente medida menos de 1 s depois da anterior chega ao cartão": {
+      "regras": [
+        "taxa.subagente-terminado-fica-com-o-ultimo",
+        "taxa.subagente-mesma-medida"
+      ],
+      "hash": "c2b64868178e63d7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": ""
+    },
     "task-tree/tests/taxa.test.ts::na troca de modelo o toks/s some do cabeçalho e volta com a primeira medida do modelo novo": {
       "regras": [
         "taxa.troca-de-modelo-apaga"
@@ -5190,6 +5211,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: o laço do turn.step sem finally"
+    },
+    "task-tree/tests/taxa.test.ts::terminado, o cartão do subagente segue com o último toks/s": {
+      "regras": [
+        "taxa.subagente-terminado-fica-com-o-ultimo"
+      ],
+      "hash": "b202a48cb9d86092",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": ""
     },
     "task-tree/tests/taxa.test.ts::uma falha de estado antes do stream não derruba o passo do modelo, e o passo seguinte mede": {
       "regras": [

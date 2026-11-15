@@ -303,6 +303,24 @@ test('os agentes de um workflow lançados antes do plan são adotados juntos, pe
   expect(p.filter(l => l.titulo.startsWith('Workflow ·')).length).toBe(1)
 })
 
+// Regra: subagentes.tempo-do-cartao-do-lancamento-ao-fim
+test('o tempo do cartão do subagente com tarefas conta do lançamento ao fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await relogio.advance(3000)
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await relogio.advance(2000)
+  await done($, ['X'], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('0:05')
+})
+
 // Regra: subagentes.fora-da-contagem
 test('o subagente não entra no "d de n" e ganha a pílula de subagentes', async ($: any, on: any) => {
   fixar(on)

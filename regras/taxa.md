@@ -58,6 +58,19 @@ O cartão de subagente mede igual.
 Origem: decisão do usuário, 2026-11-10 ("Sim, todos (Recomendado)").
 Estado: coberto
 
+### taxa.subagente-terminado-fica-com-o-ultimo
+O cartão do subagente terminado segue com o último toks/s.
+
+- Dado um subagente com um passo válido medido
+- Quando ele termina
+- Então o cartão diz "<modelo> · <n> toks/s · concluído" (ou a palavra do fim dele), com o número do último passo válido, mesmo medido menos de 1 s depois do anterior
+
+Fora deste cenário: a linha do agente dentro do cartão de grupo, que segue sem toks/s (decisão do usuário, 2026-11-15: "Como hoje (Recomendado)").
+
+Origem: decisão do usuário, 2026-11-15 ("Sim, fica o último (Recomendado)"); aplica ao cartão do subagente "Fica aceso" (2026-11-10).
+Código: draw/layout.ts
+Estado: coberto
+
 ### taxa.passo-nao-cai-com-o-painel
 Uma falha do painel antes ou depois do stream não derruba o passo do modelo.
 

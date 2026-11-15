@@ -2223,15 +2223,17 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const cut = flat(g.tasks).some(t => t.status === 'interrupted')
       const [gd, gn] = count(g.tasks)
       // A subagent heard from its launch (hooks/agents): its card says its model and effort, its
-      // rate while it works, and its state's word; its time runs from the launch to its end. Ended,
-      // it stays a card (the person did not choose "Fecha ao terminar").
+      // rate (the last one measured, also once it ended: the person, 2026-11-15, "Sim, fica o último
+      // (Recomendado)") and its state's word; its time runs from the launch to its end, with tasks of
+      // its own or not, as its line in a group card. Ended, it stays a card (the person did not choose
+      // "Fecha ao terminar").
       const subTime = s && now !== undefined ? (s.end ?? now) - s.at : undefined
       const header: Row = {
         ...(s
           ? {
               tone: SUB_TONE[s.state],
               strong: subLive(s),
-              meta: [s.engine, subLive(s) && s.toks !== undefined ? `${s.toks} toks/s` : '', SUB_WORD[s.state]].filter(Boolean).join(' · '),
+              meta: [s.engine, s.toks !== undefined ? `${s.toks} toks/s` : '', SUB_WORD[s.state]].filter(Boolean).join(' · '),
               subs: subLive(s) ? 1 : 0,
             }
           : closed
@@ -2242,7 +2244,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         title: g.label,
         label: 'Subagente',
         sub: gn > 0 ? [gd, gn] : undefined,
-        time: g.tasks.length > 0 ? span(g.tasks, now) : subTime,
+        time: subTime !== undefined ? subTime : g.tasks.length > 0 ? span(g.tasks, now) : undefined,
         card: true,
       } as Row
       // At work with no task of its own: one line with the tool in use and how many calls it made.

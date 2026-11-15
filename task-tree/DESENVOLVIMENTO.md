@@ -136,7 +136,7 @@ Na ordem de `register.tsx`:
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); o agente de um workflow (`run`) cujo workflow já tem um agente do mesmo lançador no painel toma a tarefa desse primeiro, com ou sem tarefa (2026-11-15, "Workflow junto (Recomendado)"), e o `adoptOrphans` adota os do mesmo `run` juntos, pela tarefa dada ao primeiro; a retomada (`resume`) não abre cartão novo: o cartão dele volta a "trabalhando" (ou "em segundo plano"), sem fim, com a contagem de chamadas seguindo (`reviveSub`), e só depois a carta que esperava por ele é entregue (`takeSubSend` com o `prompt`); o cartão já podado (`dropSettledSubs`) não volta |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
-| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda (com outro modelo, não só outro esforço, apaga o `rate` até a medida nova) e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`); o que vem antes e depois do stream fica protegido (a falha vai ao log e a resposta passa), e o `finally` do laço encerra o fluxo de baixo quando o consumo para no meio |
+| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda (com outro modelo, não só outro esforço, apaga o `rate` até a medida nova) e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`) (a taxa medida a menos de 1 s da gravação anterior fica pendente, `pendingToks`, e entra na gravação seguinte do cartão: o próximo `subStep`, `writeTools`, `subEnd` ou `checkSubs`); o que vem antes e depois do stream fica protegido (a falha vai ao log e a resposta passa), e o `finally` do laço encerra o fluxo de baixo quando o consumo para no meio |
 | `prompt.attachment` | `ultra_effort_enter` | `ultraAttachment` (turn.ts) | liga `ultracode` (só o do loop principal) |
 | `prompt.attachment` | `ultra_effort_exit` | `ultraAttachment` (turn.ts) | desliga `ultracode` |
 | `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `brief` (o `summary` do `done`; só no turno não parado, e o `reply` de versões anteriores sai na mesma gravação) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido (cada passo do fim dele isolado, a falha no log "fim do turno, passo <nome>"; a lista de agentes que falha conta como "não é teammate"); no loop principal grava `turnEnded` (a hora do fim do turno, no state e no registro `turn` do store) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
@@ -2308,3 +2308,14 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   workflow se espalhavam (um cartão solto numa, "Workflow · N−1 agentes" na outra). `agentSpawn` passou a
   dar aos agentes de um `run` a tarefa do primeiro agente dele do mesmo lançador, e `adoptOrphans` adota os
   do mesmo `run` juntos; avulsos seguem um por tarefa (subagentes.workflow-fica-junto-na-tarefa-do-primeiro).
+
+## Achados baixos: o último toks/s no cartão do subagente (2026-11-15)
+
+- O cartão do subagente só mostrava o toks/s enquanto ele trabalhava, e uma taxa medida a menos de 1 s da
+  gravação anterior era descartada. Agora o cartão terminado segue com o último número (2026-11-15, "Sim,
+  fica o último (Recomendado)"; taxa.subagente-terminado-fica-com-o-ultimo); a taxa dentro do intervalo
+  fica em `pendingToks` (`hooks/agents.ts`) até a gravação seguinte do cartão. A linha do agente no cartão
+  de grupo segue sem toks/s (2026-11-15, "Como hoje (Recomendado)").
+- O tempo do cartão do subagente com tarefas próprias contava do primeiro start delas; passou a contar
+  sempre do lançamento ao fim, como a linha dele no cartão de grupo
+  (subagentes.tempo-do-cartao-do-lancamento-ao-fim).

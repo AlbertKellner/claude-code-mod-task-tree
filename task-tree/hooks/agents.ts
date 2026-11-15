@@ -42,6 +42,10 @@ const calls = new Map<string, number>()
 // `calls` while the card keeps its count, so the first call after it counts on from the card's
 // (subagentes.contagem-de-chamadas-segue-na-recarga).
 const counted = new Set<string>()
+// The rate measured within the second after a write, by agent, not written yet: the next write of
+// that card takes it (subStep, writeTools, subEnd, checkSubs), so the card's number is always the last
+// valid step's (taxa.subagente-terminado-fica-com-o-ultimo).
+const pendingToks = new Map<string, number>()
 // The tool lines not written yet, by agent; when they were last written; the timer that writes them.
 const pendingTools = new Map<string, string>()
 let toolsWrote = -Infinity
@@ -155,13 +159,29 @@ export async function subStep($: any, agent: string, e: any, toks: number | unde
   const engine = typeof e?.model === 'string' && e.model !== '' ? engineText(e.model, e.effort) : undefined
   const { value = [] } = await $.state.get(groupsState)
   const s = (value as Group[]).find(g => g.agent === agent)?.sub
-  const changed = s !== undefined && ((engine !== undefined && s.engine !== engine) || (toks !== undefined && s.toks !== toks))
-  // A new engine is written at once; a new rate at most once every THROTTLE ms.
-  const due = s !== undefined && ((engine !== undefined && s.engine !== engine) || (t1 ?? 0) - (wrote.get(agent) ?? -Infinity) >= THROTTLE)
-  if (changed && due) {
-    wrote.set(agent, t1 ?? 0)
-    await setSub($, agent, x => ({ ...x, ...(engine !== undefined ? { engine } : {}), ...(toks !== undefined ? { toks } : {}), ...(t1 !== undefined ? { seen: t1 } : {}) }))
+  if (s === undefined) return
+  // The rate to show: this step's, else one measured before and not written yet.
+  if (toks !== undefined) pendingToks.delete(agent)
+  const rate = toks ?? pendingToks.get(agent)
+  const changed = (engine !== undefined && s.engine !== engine) || (rate !== undefined && s.toks !== rate)
+  // A new engine is written at once; a new rate at most once every THROTTLE ms (one measured within
+  // it waits for the next write: pendingToks).
+  const due = (engine !== undefined && s.engine !== engine) || (t1 ?? 0) - (wrote.get(agent) ?? -Infinity) >= THROTTLE
+  if (changed && !due) {
+    if (rate !== undefined && s.toks !== rate) pendingToks.set(agent, rate)
+    return
   }
+  if (changed) {
+    wrote.set(agent, t1 ?? 0)
+    pendingToks.delete(agent)
+    await setSub($, agent, x => ({ ...x, ...(engine !== undefined ? { engine } : {}), ...(rate !== undefined ? { toks: rate } : {}), ...(t1 !== undefined ? { seen: t1 } : {}) }))
+  }
+}
+// The rate still pending for an agent, taken (for a write that carries it).
+function takeToks(agent: string): { toks?: number } {
+  const toks = pendingToks.get(agent)
+  pendingToks.delete(agent)
+  return toks !== undefined ? { toks } : {}
 }
 
 // The tool a subagent calls: what the card's line says, with how many calls it made.
@@ -210,11 +230,12 @@ async function writeTools($: any, now: number) {
   const lines = new Map(pendingTools)
   pendingTools.clear()
   for (const a of lines.keys()) wrote.set(a, now)
+  const rates = new Map([...lines.keys()].map(a => [a, takeToks(a)] as const))
   await change($, all =>
     all.map(g => {
       const tool = lines.get(g.agent)
       if (tool === undefined || !g.sub || !subLive(g.sub)) return g
-      return { ...g, sub: { ...g.sub, tool, calls: calls.get(g.agent) ?? g.sub.calls ?? 1, seen: now } }
+      return { ...g, sub: { ...g.sub, tool, calls: calls.get(g.agent) ?? g.sub.calls ?? 1, seen: now, ...rates.get(g.agent) } }
     }),
   )
 }
@@ -228,9 +249,10 @@ export async function subEnd($: any, agent: string, e: any) {
   const n = calls.get(agent)
   calls.delete(agent)
   counted.delete(agent)
+  const rate = takeToks(agent)
   await setSub($, agent, x => {
     const { tool: _, ...rest } = x
-    return { ...rest, state, end: now, ...(n !== undefined ? { calls: n } : {}) }
+    return { ...rest, state, end: now, ...(n !== undefined ? { calls: n } : {}), ...rate }
   })
   // One in the background ending after the turn: the task it came from may close now.
   if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
@@ -304,6 +326,7 @@ export async function checkSubs($: any) {
     else if (now - since >= SUB_CONFIRM) ends.set(g.agent, state)
   }
   if (ends.size === 0) return
+  const rates = new Map([...ends.keys()].map(a => [a, takeToks(a)] as const))
   await change($, all =>
     all.map(g => {
       const state = ends.get(g.agent)
@@ -312,7 +335,7 @@ export async function checkSubs($: any) {
       const end = Math.max(g.sub.at, g.sub.seen ?? g.sub.at)
       const { tool: _, ...rest } = g.sub
       const n = calls.get(g.agent)
-      return { ...g, sub: { ...rest, state, end, ...(n !== undefined ? { calls: n } : {}) } }
+      return { ...g, sub: { ...rest, state, end, ...(n !== undefined ? { calls: n } : {}), ...rates.get(g.agent) } }
     }),
   )
   // As at its own end (turn.ts): first its tasks reflect the subagents they launched, then what is

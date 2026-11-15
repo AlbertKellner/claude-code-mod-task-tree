@@ -242,7 +242,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   fecha o pedido quando a filha é de outro pedido; não muda de lugar depois (start de novo, reabertura,
   replano, recarga)); carta a subagente real
   (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app;
-- modelo e esforço no cartão; status embaixo da caixa de mensagem.
+- modelo e esforço no cartão; o último toks/s no cartão do subagente terminado (e, no cartão estreito,
+  o que cede primeiro); status embaixo da caixa de mensagem.
 - o cabeçalho com uma sessão filha aberta antes de qualquer plan ("Tarefas", "0 de 0" e a pílula) e,
   depois do plan de um pedido novo e antes do start, com o título do plano novo.
 - processo novo e `/model` no meio do turno (o turno em curso fica ✕ interrompido; o toks/s some do
