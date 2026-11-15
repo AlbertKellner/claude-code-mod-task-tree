@@ -1,6 +1,10 @@
 // Conta da versão nova do release (.github/workflows/release.yml), a partir do PR mesclado.
 // Uso: node scripts/versao.mjs <versão atual>, com TITLE e BODY no ambiente; escreve no stdout as
 // linhas level=… e new=….
+// Retomada: node scripts/versao.mjs --retomada, com COMMIT_TITLE (o título do commit de versão deste
+// PR na main, ou vazio) e EXISTS (true quando a release dessa versão existe); escreve acao=… e versao=….
+// O commit de versão leva no corpo a linha "PR: #<número>": reexecutar o job de um PR acha o commit
+// dele e só cria a release que faltou (ou nada), sem subir a versão de novo.
 import { ehPrincipal } from './guarda.mjs'
 
 // Só conta a linha que começa com "BREAKING CHANGE:" (ou "BREAKING-CHANGE:"), o rodapé do
@@ -26,7 +30,23 @@ export function versaoNova(titulo, corpo, atual) {
 // tipo(escopo opcional) + "!" opcional + ": " + texto, com o tipo entre os do Conventional Commits.
 const FORMATO = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]*\))?!?: \S/
 
-if (ehPrincipal(import.meta.url)) {
+// A versão de um título de commit de versão ("chore(release): task-tree vX.Y.Z"); senão, null.
+export function versaoDoCommit(titulo) {
+  return /^chore\(release\): task-tree v(\d+\.\d+\.\d+)$/.exec(String(titulo ?? '').trim())?.[1] ?? null
+}
+
+// O que o release faz ao rodar para um PR: "subir" (sem commit de versão dele na main), "criar" (o
+// commit existe, a release não) ou "nada" (os dois existem).
+export function retomada(tituloDoCommit, existe) {
+  const versao = versaoDoCommit(tituloDoCommit)
+  if (!versao) return { acao: 'subir', versao: null }
+  return { acao: existe ? 'nada' : 'criar', versao }
+}
+
+if (ehPrincipal(import.meta.url) && process.argv[2] === '--retomada') {
+  const r = retomada(process.env.COMMIT_TITLE ?? '', process.env.EXISTS === 'true')
+  process.stdout.write(`acao=${r.acao}\nversao=${r.versao ?? ''}\n`)
+} else if (ehPrincipal(import.meta.url)) {
   try {
     const r = versaoNova(process.env.TITLE ?? '', process.env.BODY ?? '', process.argv[2] ?? '')
     process.stdout.write(`level=${r.level}\nnew=${r.nova}\n${r.aviso ? `aviso=${r.aviso}\n` : ''}`)

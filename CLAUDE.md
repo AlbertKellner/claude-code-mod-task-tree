@@ -219,4 +219,12 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   ou uma linha começando com `BREAKING CHANGE:` no corpo → major (citá-la no meio
   do texto não conta); o resto → patch; título fora do formato Conventional Commits → patch, com aviso
   no resumo do workflow. Não edite a versão do `plugin.json`.
+- O commit de versão leva no corpo a linha `PR: #<número>` (decisão do usuário, 2026-11-15: "Sim,
+  com a linha do PR (Recomendado)"): reexecutar o job "Release" de um PR é seguro; com a versão já
+  gravada ele só cria a release que faltou, e com a release criada não faz nada. Vale para os PRs
+  mesclados depois dessa mudança; os commits de versão de antes não têm a linha, e reexecutar o job
+  de um PR antigo segue subindo a versão.
+- Com vários merges seguidos, o GitHub pode descartar a execução do meio (o grupo `release` guarda
+  uma só pendente): o PR dela fica sem versão e sem release até o job dele ser reexecutado à mão.
+- Se a `main` passar a exigir PR, a proteção precisa liberar o push do `github-actions[bot]`.
 - Título no formato Conventional Commits; descrição e labels atualizadas a cada push.

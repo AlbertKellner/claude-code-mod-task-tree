@@ -935,3 +935,27 @@ test('o arquivo da versão fixada existe e tem o formato X.Y.Z', () => {
   const arq = join(dirname(fileURLToPath(import.meta.url)), 'versao-do-claude-code.txt')
   assert.match(readFileSync(arq, 'utf8'), /^\d+\.\d+\.\d+\r?\n?$/)
 })
+
+// Lote C-05: reexecutar o release de um PR cria só o que faltou, sem novo salto de versão.
+test('o título do commit de versão dá a versão', async () => {
+  const { versaoDoCommit } = await import('./versao.mjs')
+  assert.equal(versaoDoCommit('chore(release): task-tree v0.15.2'), '0.15.2')
+  for (const titulo of ['fix(task-tree): x', 'chore(release): outra coisa', '', undefined])
+    assert.equal(versaoDoCommit(titulo), null, String(titulo))
+})
+
+test('reexecutar com o commit de versão do PR na main e sem release só cria a release', async () => {
+  const { retomada } = await import('./versao.mjs')
+  assert.deepEqual(retomada('chore(release): task-tree v0.15.2', false), { acao: 'criar', versao: '0.15.2' })
+})
+
+test('reexecutar um release completo não faz nada', async () => {
+  const { retomada } = await import('./versao.mjs')
+  assert.deepEqual(retomada('chore(release): task-tree v0.15.2', true), { acao: 'nada', versao: '0.15.2' })
+})
+
+test('sem commit de versão do PR, o release sobe a versão', async () => {
+  const { retomada } = await import('./versao.mjs')
+  assert.deepEqual(retomada('', false), { acao: 'subir', versao: null })
+  assert.deepEqual(retomada(undefined, false), { acao: 'subir', versao: null })
+})
