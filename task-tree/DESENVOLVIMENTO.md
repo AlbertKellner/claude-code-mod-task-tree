@@ -637,18 +637,20 @@ mantida), em `draw/layout.ts`:
   rodada: as rodadas ficam nas últimas 20 e, no teto, cada mensagem nova descarta a mais antiga e
   desloca todos os índices, e o recolhimento passava para outro cartão (um cartão novo vinha
   recolhido). As escolhas antigas com `#<índice>` deixam de valer uma vez.
-- Resumida (`trimToWork`): os pedidos do trabalho, inteiros; uma sessão viva sob um pedido fora do
-  trabalho não o puxa de volta (puxava, e um pedido de um dia atrás voltava com os cartões antigos
-  enquanto uma sessão trabalhava), e o cartão dela não é desenhado solto: um cartão aparece onde está
-  a sua tarefa (os sem âncora aparecem soltos, como na completa). O `cut()` não realoca mais a âncora de cartão nenhum: só divide
-  as sessões em cartões (`split`) e passa a `trimToWork`, e cada cartão fica sob a tarefa que mandou
-  a mensagem, como na completa (antes, um cartão sem parte ia para a tarefa da última mensagem,
-  `lastAnchor`, se ela estivesse no trabalho, ou solto no fim da lista se a sessão estava viva).
-  Princípio, nas palavras do usuário: "a visão completa parece mais correta que a resumida"; a
-  resumida é a completa sem os pedidos finalizados de turnos anteriores e nunca reposiciona cartão.
-  `lastAnchor` continua gravado e publicado, mas o desenho não o usa mais para posicionar. Com isso
-  o cartão de uma sessão viva, que sumia da completa (pedido de origem fora dos 3 últimos) e ia para
-  o fim da resumida, aparece sob a tarefa de origem nas duas visões.
+- Corte do trabalho (`trimToWork`; há uma visão só desde 2026-11-04, "deixe somente a visão
+  resumida"): os pedidos do trabalho, inteiros; uma sessão viva sob um pedido fora do trabalho não o
+  puxa de volta. Cada cartão fica sob a tarefa de onde a sessão foi aberta ou de onde saiu a mensagem
+  da rodada (sessoes.cartao-sob-a-tarefa-de-origem, sessoes.um-cartao-por-mensagem). Exceções: o
+  cartão vivo de um pedido fora de vista vai solto ao fim, com o pedido de origem no título (`loosen`;
+  sessoes.cartao-vivo-nunca-some); o da tarefa que saiu do plano vai ao nível 1 que a continha
+  (`moveToLevelOne`, no plan; pedidos.replano-leva-o-cartao-ao-nivel-1); o do turno digitado na filha
+  vai à tarefa da mãe em andamento quando ele digitou, ou ao fim do pedido vigente
+  (sessoes.turno-proprio-da-filha-no-pedido-vigente); o aberto antes do plan fica solto até o plan o
+  adotar (`adoptOrphans`; sessoes.aberta-antes-do-plan-e-adotada). `lastAnchor` é a tarefa da rodada
+  atual da sessão: onde ela trabalha (`roundAt`, `inFlight`, `tiesOf`) e a origem que fecha para
+  "encerrada"; a filha que conclui tudo fecha a tarefa de origem
+  (sessoes.filha-que-conclui-tudo-fecha-a-origem). Histórico: houve uma visão completa e uma resumida,
+  e a resumida chegou a não reposicionar cartão nenhum.
 - Completa: o corte dos 3 últimos pedidos (`SHOWN_TURNS`) mantém também o pedido cujo nível 1 tem
   sessão trabalhando embaixo (`work(t).live`), como já mantinha o que tem algo aberto.
 - Turno em lote (regra do usuário: "concordo com a opcao 1", com o princípio dele: "quero ver as tarefas
@@ -679,7 +681,8 @@ mantida), em `draw/layout.ts`:
   deve ficar dentro de outro. Ele deveria ficar na sequencia que será executado"). Na série anterior, a
   mensagem de uma irmã S para C passou a ficar dentro do cartão de S (`via`/`nest`/`alive`); isso foi
   retirado: no print do usuário apareciam três cartões, um dentro do outro (correção ⊃ governança ⊃
-  correção). Saíram de `draw/layout.ts` `nest()`, `alive()`, o campo `via` de `Child`
+  correção). Saíram de `draw/layout.ts` `nest()`, o `alive()` de então (`alive` voltou depois, com
+  outro papel: o cartão que nunca some, vivo ou com tarefa aberta, fora a rodada descartada), o campo `via` de `Child`
   (`types/index.d.ts`) e os campos `from`/`task` do `Break`; `atWork` volta a usar `live(c)` para `busy`
   e `live`. As partes de uma cadeia ficam sob a tarefa da mãe que a iniciou, no mesmo nível, uma depois
   da outra, na ordem em que o trabalho de cada uma começou (`inOrder`, por `begins`); nenhum cartão fica
@@ -728,10 +731,13 @@ pedido com tarefa interrompida e nada aberto fica ✕, não ✓). Sintomas: "Men
 ✓ logo após o envio, sem ✉, porque a orquestradora deu `done` logo depois do `SendMessage`; o cartão da
 docs mostrava "✓ 1/1" com a subtarefa "Ler o código e o doc" interrompida dentro.
 - `hooks/tools.ts`, `doneTool`: deixou de apagar os `sends` das tarefas fechadas (o aviso `DONE.queued`
-  continua). Um id reusado por plano novo renomeia a tarefa antiga e o `send` dela junto
-  (`renameAnchors`) ou apaga os dois (tarefa replanejada), então não sobra ✉ em id reaproveitado.
+  continua). Um id reusado por pedido novo renomeia a tarefa antiga e o `send` dela junto
+  (`renameAnchors`): a carta vai com a tarefa antiga. No replano no lugar, o envio ainda na fila fica,
+  com a carta pendurada no nível 1 do pedido até a entrega (pedidos.replano-mantem-envio-ate-entrega).
 - `draw/layout.ts`, `rows()`: `waitsOn` vale para qualquer tarefa não interrompida (era só `open`),
-  então a tarefa concluída com envio pendente tem tom `sent` (✉) até a entrega; `watchSends` marca o
+  então a tarefa concluída com envio pendente tinha tom `sent` (✉) até a entrega (hoje o ✉ é uma
+  linha própria sob a tarefa, `letterRow`, e a tarefa segue com o ícone comum: 2026-10-30, "A: linha
+  própria sob a tarefa (Recomendado)"); `watchSends` marca o
   envio como `taken` na entrega e, como a tarefa já está concluída, não a fecha de novo. O tom de uma
   tarefa `done` com alguma descendente interrompida passa a ser `interrupted` (✕). Em `turnRows`, o
   pedido com tudo fechado e alguma tarefa interrompida (em qualquer nível, `flat`) é `interrupted` (era

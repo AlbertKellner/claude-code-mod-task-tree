@@ -2191,9 +2191,12 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       .concat(inOrder([...ends, ...strays]).flatMap(c => session(c, base, level, scope)))
   }
   // The panel draws a cut: the current work (trimToWork) with what is still going on, the finished
-  // requests of earlier turns behind the "+N pedidos anteriores" line. It never moves a card: each
-  // card stays under the task its message was sent from (the person's words: a card used to move
-  // under the task of the session's last message).
+  // requests of earlier turns behind the "+N pedidos anteriores" line. Each card stays under the task
+  // it came from (where the session was opened, or the task of its round's message), not the task of
+  // the session's last message; but a card at work under a request out of sight goes loose to the end
+  // (loosen), one under a task replanned away goes to its level-1 task (moveToLevelOne, at the plan),
+  // one of turns typed in that session goes where this session was then (roundsOf, placeOf), and one
+  // opened before the request's plan stays loose until the plan adopts it (adoptOrphans).
   const base = { groups: withMain(held ?? []), waits, work: work as string[] }
   const cards = sessions.flatMap(c => split(c, sessions, ownId, base.groups.find(g => g.agent === MAIN)?.tasks ?? [], now, memo))
   return limitRows(panel(trimToWork({ ...base, children: cards }, 0), 0, 0, '', ownId, ended === undefined ? lastTurnAt(model.groups) : undefined), maxRows)
