@@ -277,7 +277,14 @@ export async function render($: EngineInterface, e: any, next: any) {
   const [d, n, x] = count(shown)
   // The chips' other numbers: the drawn lines and what the folded ones hide (tallyOf).
   const tally = tallyOf(lines)
-  const headTime = sessionTime(shown, tally.live > 0 || hasOpen(shown), now)
+  // Its time runs to now only while the 1 s clock runs too (anyRunning): the turn going on with
+  // something open, or, the turn ended, a session at work, a letter queued or a subagent alive. With
+  // the turn ended and none of that, it stops at the turn's end (the person, 2026-11-14: "Parar no fim
+  // do turno (Recomendado)"); with all closed, at the last end.
+  const alive = tally.live > 0 || tally.sends > 0 || tally.subs > 0
+  const going = typeof ended === 'number' ? alive : alive || hasOpen(shown)
+  const stopped = !going && typeof ended === 'number' && hasOpen(shown)
+  const headTime = sessionTime(shown, going || stopped, going ? now : stopped ? (ended as number) : now)
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.

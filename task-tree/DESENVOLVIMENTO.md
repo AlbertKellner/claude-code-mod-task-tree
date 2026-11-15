@@ -395,7 +395,10 @@ cabeçalho somar só o que está desenhado), `hidden` (só na linha recolhida: o
 esconde contariam nos chips "aguardando", "aguardando sessão", "sessões ativas" e "subagentes"). O
 cabeçalho é calculado no render a partir das linhas (`count` dos `nodes`, `sessionTime`, `chips`; os
 outros chips e a faixa por `tallyOf`, que soma cada linha e o `hidden` dela, de modo que recolher
-uma linha não muda nenhum chip nem a faixa); o total da sessão inteira vai no `alt` e, desde a
+uma linha não muda nenhum chip nem a faixa). O tempo do cabeçalho conta até agora só enquanto o relógio
+de 1 s também corre (o turno em curso com algo aberto; ou, com o turno encerrado, uma sessão filha viva,
+uma carta na fila ou um subagente vivo); com o turno encerrado e nada disso, para no fim do turno
+(decisão de 2026-11-14, "Parar no fim do turno (Recomendado)"). O total da sessão inteira vai no `alt` e, desde a
 decisão de 2026-11-14 ("Na linha +N (Recomendado)"), também à direita da linha "+N pedidos anteriores"
 do painel principal (`meta` da linha `sec:turns`, posto pelo render), só quando difere do mostrado.
 

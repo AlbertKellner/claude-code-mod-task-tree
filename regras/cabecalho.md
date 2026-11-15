@@ -205,3 +205,14 @@ Com pedidos escondidos, a linha "+N pedidos anteriores" diz o total da sessão i
 Origem: decisão do usuário, 2026-11-14 ("Na linha +N (Recomendado)"), à pergunta "Quer ver esse total no app?" (no app desktop o total só existia no texto alternativo da barra).
 Código: hooks/render.tsx, draw/desktop.tsx
 Estado: coberto
+
+### cabecalho.tempo-para-no-fim-do-turno
+Com o turno encerrado, o tempo do cabeçalho para no fim do turno.
+
+- Dado o turno encerrado e tarefas ainda abertas (○ ou ◷) à vista
+- Quando o painel é redesenhado, logo depois ou horas depois
+- Então o tempo do cabeçalho é o do fim do turno, como o das linhas; com sessão filha trabalhando, carta na fila ou subagente rodando, ele segue contando, com o relógio de 1 s ligado; na mensagem seguinte, volta a contar
+
+Origem: decisão do usuário, 2026-11-14 ("Parar no fim do turno (Recomendado)").
+Código: hooks/render.tsx, hooks/sessions.ts
+Estado: coberto

@@ -172,6 +172,26 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::com o turno encerrado e tarefas abertas, o tempo do cabeçalho para no fim do turno": {
+      "regras": [
+        "cabecalho.tempo-para-no-fim-do-turno"
+      ],
+      "hash": "6ffb4ad3ae66f45a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Parar no fim do turno (Recomendado)"
+    },
+    "task-tree/tests/cabecalho.test.ts::com o turno encerrado e uma carta na fila (ou a filha trabalhando), o tempo do cabeçalho segue contando": {
+      "regras": [
+        "cabecalho.tempo-para-no-fim-do-turno"
+      ],
+      "hash": "adf6739d23d31279",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Parar no fim do turno (Recomendado)"
+    },
     "task-tree/tests/cabecalho.test.ts::com pedidos escondidos, a linha '+N pedidos anteriores' diz o total da sessão inteira": {
       "regras": [
         "cabecalho.sessao-inteira-na-linha-do-historico"
@@ -4276,9 +4296,9 @@
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
     "principal": {
-      "hash": "b4286a70fb1aa0ff",
-      "data": "2026-11-13",
-      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
+      "hash": "b86a4b660e0e7be0",
+      "data": "2026-11-14",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
     },
     "subagente": {
       "hash": "1447facdd5440f85",

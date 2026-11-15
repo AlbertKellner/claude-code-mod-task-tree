@@ -576,3 +576,47 @@ test("recolher a tarefa com a pergunta aberta não tira o 'aguardando'", async (
   await relogio.advance(1000)
   await resp
 })
+
+// O tempo do cabeçalho: o relógio depois do "p%" na linha do topo (terminal).
+const tempoDoCabecalho = (linhas: { texto: string; cabecalho?: true }[]): string => {
+  const topo = linhas.find(l => l.cabecalho && / \d+ de \d+ · \d+%/.test(l.texto))
+  const m = topo ? /\d+%\s+(\d+(?::\d{2})+)/.exec(topo.texto) : null
+  if (!m) throw new Error(`Tempo do cabeçalho não encontrado:\n${emTexto(linhas as any)}`)
+  return m[1]!
+}
+const segundos = (t: string) => t.split(':').reduce((a, x) => a * 60 + Number(x), 0)
+
+// Regra: cabecalho.tempo-para-no-fim-do-turno
+test('com o turno encerrado e tarefas abertas, o tempo do cabeçalho para no fim do turno', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  await relogio.advance(5000)
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(tempoDoCabecalho(p), emTexto(p)).toBe('0:05')
+  await relogio.advance(3_600_000)
+  p = await painel($)
+  expect(tempoDoCabecalho(p), emTexto(p)).toBe('0:05')
+  await pedido($, 'continue')
+  await relogio.advance(1000)
+  p = await painel($)
+  expect(segundos(tempoDoCabecalho(p)), emTexto(p)).toBeGreaterThan(5)
+})
+
+// Regra: cabecalho.tempo-para-no-fim-do-turno
+test('com o turno encerrado e uma carta na fila (ou a filha trabalhando), o tempo do cabeçalho segue contando', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await fimDoTurno($)
+  await relogio.advance(60_000)
+  const p = await painel($)
+  expect(tempoDoCabecalho(p), emTexto(p)).toBe('1:00')
+})
