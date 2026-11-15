@@ -222,10 +222,39 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
 const vazio = () => ({ algoritmo: 1, testes: {}, kit: {}, golden: {}, removidos: {} })
 // Sem selos.json, um começo do zero já é do algoritmo atual; um selos.json sem o campo é do algoritmo 1.
 const lerSelos = raiz => (existsSync(join(raiz, SELOS)) ? { ...vazio(), ...JSON.parse(readFileSync(join(raiz, SELOS), 'utf8')) } : { ...vazio(), algoritmo: ALGORITMO })
-// Os selos de um commit (HEAD por padrão; na CI, a base do PR).
+// A ref é um commit deste repositório?
+export const ehCommit = (repo, ref) => spawnSync('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { encoding: 'utf8' }).status === 0
+// Os selos de um commit (HEAD por padrão; na CI, a base do PR). Uma ref que não é commit é erro, salvo
+// HEAD num repositório ainda sem commit (o começo do zero: sem selos). Sem o arquivo no commit, vazio.
 export function selosDeHead(repo, ref = 'HEAD') {
+  if (!ehCommit(repo, ref)) {
+    if (ref === 'HEAD') return vazio()
+    throw new Error(`a base ${ref} não existe neste repositório`)
+  }
   const r = spawnSync('git', ['-C', repo, 'show', `${ref}:${SELOS}`], { encoding: 'utf8' })
   return { ...vazio(), ...(r.status === 0 ? JSON.parse(r.stdout) : {}) }
+}
+
+// A saída do `plugin test`: uma linha por teste, agrupadas pelo arquivo ("tests\x.test.ts:" e
+// "(pass|fail) <nome> [ms]"). Devolve { chave, ok } por teste.
+export function lerResultados(saida) {
+  let arquivo
+  const resultados = []
+  for (const linha of saida.split(/\r?\n/)) {
+    const a = /^tests[\\/](.+):$/.exec(linha)
+    if (a) {
+      arquivo = `task-tree/tests/${a[1].replace(/\\/g, '/')}`
+      continue
+    }
+    const t = /^\((pass|fail)\) (.+?)(?: \[[\d.]+m?s\])?$/.exec(linha)
+    if (t && arquivo) resultados.push({ chave: `${arquivo}::${t[2]}`, ok: t[1] === 'pass' })
+  }
+  return resultados
+}
+// As chaves seladas que não aparecem nos resultados (o teste não rodou).
+export function naoRodaram(chaves, resultados) {
+  const vistas = new Set(resultados.map(r => r.chave))
+  return chaves.filter(c => !vistas.has(c))
 }
 const gravar = (raiz, selos) => {
   const ordenado = o => Object.fromEntries(Object.keys(o ?? {}).sort().map(k => [k, o[k]]))

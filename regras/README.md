@@ -100,7 +100,9 @@ grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado
 tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos` com `para`:
 `refatoracao` só para renome puro (o hash do corpo é o mesmo), `decisao` para corpo mudado, com a
 exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
-`removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada.
+`removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada. Um teste
+selado de `HEAD` que não aparece na saída do `plugin test` ("TESTE DE <ref> NÃO RODOU") conta como
+falha, com as mesmas liberações; um `--base` que não é commit do repositório é erro.
 
 A etapa `selos` do `npm run check` confere os selos contra os de `HEAD` (ou `--base`) e falha quando:
 um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste selado sumiu; um selo de

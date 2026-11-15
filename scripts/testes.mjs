@@ -15,13 +15,22 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
 import { etapaConferiu } from './guarda.mjs'
-import { alteradosNoIndice, clonePrincipal, etapasDoHook } from './mudou.mjs'
+import { alteradosNoIndice, clonePrincipal, etapasDoHook, lerBase } from './mudou.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const indice = process.argv.includes('--indice')
-// --base <ref> (a CI): selos e regressão comparam com a base do PR em vez de HEAD; roda tudo.
-const iBase = process.argv.indexOf('--base')
-const base = iBase >= 0 ? process.argv[iBase + 1] : undefined
+// --base <ref> (a CI): selos e regressão comparam com a base do PR em vez de HEAD; roda tudo. Sem
+// valor, ou com uma ref que não é commit, para logo.
+const lido = lerBase(process.argv.slice(2))
+if (lido.erro) {
+  console.error(lido.erro)
+  process.exit(1)
+}
+const base = lido.base
+if (base && spawnSync('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', `${base}^{commit}`]).status !== 0) {
+  console.error(`a base ${base} não existe`)
+  process.exit(1)
+}
 const comBase = base ? ['--base', base] : []
 
 // O node_modules e os tipos gerados (ignorados pelo git): os do repositório; sem eles (uma worktree

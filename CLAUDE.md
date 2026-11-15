@@ -65,6 +65,10 @@ os 5 s do kit.
 
 `regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
+No check manual, a `regressao` compara com `HEAD` só o que ainda não está em commit (com a árvore
+limpa, "nada a comparar"); para conferir commits já feitos (depois de rebase, cherry-pick, merge ou de
+um commit sem o hook), `npm run check -- --base <ref>`. Um `--base` sem valor ou que não é commit
+deste repositório é erro.
 A etapa `regras` ou `selos` que termina sem a linha de resumo dela (`regras: …`, `selos: …`) é falha.
 
 Numa worktree, o hook usa o `node_modules` e os tipos gerados do clone principal quando ela não os tem;
@@ -107,7 +111,8 @@ a regra que ele protege.
   protegido e não há decisão do usuário, pare e pergunte.
 - O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
   asserções; um arquivo do kit ou de apoio dos testes (fixtures) mudou sem selo; ou um teste de `HEAD` falha contra o código novo
-  sem decisão registrada ("testes antigos, código novo").
+  sem decisão registrada ("testes antigos, código novo"); um teste selado de `HEAD` que não rodou
+  (não aparece na saída do `plugin test`) conta como falha.
 - O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
   commit. Não use `--no-verify`.
 - Matriz de impacto: cada arquivo do catálogo diz o código da área (`Código da área:`) e um cenário
@@ -132,6 +137,7 @@ falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de 
 - Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro";
   o runner "ainda não está funcional"): só roda à mão (`workflow_dispatch`). Para ativar em cada PR
   para o `main`, descomentar o `pull_request` no topo do arquivo.
+- A base vazia (o `git merge-base` sem resposta) derruba o passo "Base de comparação".
 - Informativa: não é exigida para o merge. A proteção do `main` (branch protection) é do usuário.
 - Ensaio local: `npm run check -- --base <ref>` (ex.: `--base main`, a base do PR).
 

@@ -8,13 +8,16 @@
 //   node scripts/regressao.mjs --raiz <pasta>  o código de outra pasta, sempre (fumaça)
 //   node scripts/regressao.mjs --base <ref>    a CI: os testes da base do PR contra o código dele; uma
 //                                             falha passa só com o selo de decisão ou golden trazido no PR
+// Um --base que não é commit deste repositório é erro, antes de tudo. Um teste selado no commit de
+// comparação que não aparece na saída do plugin test (arquivo que caiu, tempo estourado) conta como
+// falha ("TESTE DE <ref> NÃO RODOU"), com as mesmas liberações de uma falha.
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
-import { hoje, liberaGolden, liberaRemovido, liberaTeste, selosDaBase } from './selos.mjs'
+import { ehCommit, hoje, lerResultados, liberaGolden, liberaRemovido, liberaTeste, naoRodaram, selosDaBase } from './selos.mjs'
 
 const args = process.argv.slice(2)
 const valor = nome => {
@@ -30,6 +33,10 @@ const base = valor('--base')
 const ref = base ?? 'HEAD'
 const dia = base ? undefined : hoje()
 const git = (...a) => spawnSync('git', ['-C', repo, ...a], { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 })
+if (args.includes('--base') && (!base || base.startsWith('--') || !ehCommit(repo, base))) {
+  console.error(!base || base.startsWith('--') ? '- --base sem valor: diga a ref (ex.: o merge-base com o main)' : `- a base ${base} não existe neste repositório`)
+  process.exit(1)
+}
 
 // Sem diferença no mod entre HEAD e o que se verifica, não há o que comparar.
 if (!valor('--raiz') || indice) {
@@ -61,18 +68,7 @@ try {
   const r = spawnSync(claude, ['plugin', 'test', join(tmp, 'task-tree')], { cwd: tmp, encoding: 'utf8', shell: claude === 'claude', maxBuffer: 64 * 1024 * 1024 })
   const saida = `${r.stdout ?? ''}\n${r.stderr ?? ''}`
 
-  // Uma linha por teste, agrupadas pelo arquivo: "tests\x.test.ts:" e "(pass|fail) <nome> [ms]".
-  let arquivo
-  const resultados = []
-  for (const linha of saida.split(/\r?\n/)) {
-    const a = /^tests[\\/](.+):$/.exec(linha)
-    if (a) {
-      arquivo = `task-tree/tests/${a[1].replace(/\\/g, '/')}`
-      continue
-    }
-    const t = /^\((pass|fail)\) (.+?)(?: \[[\d.]+m?s\])?$/.exec(linha)
-    if (t && arquivo) resultados.push({ chave: `${arquivo}::${t[2]}`, ok: t[1] === 'pass' })
-  }
+  const resultados = lerResultados(saida)
   const falhas = resultados.filter(x => !x.ok)
   if (resultados.length === 0 || (r.status !== 0 && falhas.length === 0)) {
     console.error(`- saída irreconhecível do plugin test (exit ${r.status}); a regressão não pode ser conferida:\n${saida.slice(0, 2000)}`)
@@ -81,7 +77,10 @@ try {
     const agora = existsSync(join(raiz, 'regras', 'selos.json')) ? JSON.parse(readFileSync(join(raiz, 'regras', 'selos.json'), 'utf8')) : { testes: {}, removidos: {} }
     // A base selada por outro algoritmo do hash é recalculada pelo de agora (selos.mjs, selosDaBase).
     const head = selosDaBase(repo, ref, agora.algoritmo ?? 1)
-    for (const { chave } of falhas) {
+    // O selado na base que não apareceu na saída conta como falha.
+    const sumidos = naoRodaram(Object.keys(head.testes), resultados)
+    for (const chave of sumidos) console.error(`- TESTE DE ${ref} NÃO RODOU: ${chave}`)
+    for (const chave of [...falhas.map(f => f.chave), ...sumidos]) {
       const s = agora.testes[chave]
       const h = head.testes[chave]
       const regras = (h ?? s)?.regras?.join(', ') ?? 'sem regra'
@@ -99,7 +98,8 @@ try {
         codigo = 1
       }
     }
-    console.log(`regressão: ${resultados.length} testes de ${ref} contra o código novo, ${falhas.length} falharam${codigo ? '' : falhas.length ? ', todas por decisão registrada' : ''}`)
+    const n = falhas.length + sumidos.length
+    console.log(`regressão: ${resultados.length} testes de ${ref} contra o código novo (${Object.keys(head.testes).length} selados, ${sumidos.length} não rodaram), ${falhas.length} falharam${codigo ? '' : n ? ', todas por decisão registrada' : ''}`)
   }
 } finally {
   try {

@@ -5,9 +5,9 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, sym
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
-import { alteradosNoIndice, baseDoRelato, clonePrincipal, etapasDoHook } from './mudou.mjs'
+import { alteradosNoIndice, baseDoRelato, clonePrincipal, etapasDoHook, lerBase } from './mudou.mjs'
 import { etapaConferiu } from './guarda.mjs'
-import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead, testesDe } from './selos.mjs'
+import { aprovarGolden, lerResultados, liberaGolden, liberaRemovido, liberaTeste, naoRodaram, selosDeHead, testesDe } from './selos.mjs'
 import { impacto } from './impacto.mjs'
 import { versaoNova } from './versao.mjs'
 import assert from 'node:assert/strict'
@@ -709,4 +709,38 @@ test('título fora do formato Conventional Commits vira patch com aviso', () => 
 test('título no formato não traz aviso', () => {
   for (const titulo of ['fix(task-tree): x', 'feat: x', 'chore(release): x', 'feat(task-tree)!: x'])
     assert.equal(versaoNova(titulo, '', '0.15.2').aviso, undefined, titulo)
+})
+
+// A regressão diz quando não comparou: teste da base que não rodou, base vazia ou inexistente.
+test('a regressão acusa o teste da base que não apareceu na saída', () => {
+  const chaves = [UM, DOIS]
+  assert.deepEqual(naoRodaram(chaves, [{ chave: UM, ok: true }]), [DOIS])
+  assert.deepEqual(naoRodaram(chaves, [{ chave: UM, ok: true }, { chave: DOIS, ok: false }]), [])
+})
+
+test('a saída do plugin test é lida por arquivo e por linha', () => {
+  const saida = ['bun test', 'tests\\x.test.ts:', '(pass) um [3ms]', 'linha solta', '(fail) dois', '', ' 1 pass'].join('\r\n')
+  assert.deepEqual(lerResultados(saida), [
+    { chave: 'task-tree/tests/x.test.ts::um', ok: true },
+    { chave: 'task-tree/tests/x.test.ts::dois', ok: false },
+  ])
+})
+
+test('uma base que não existe é erro; o repositório sem commit segue valendo', comMontagem(dir => {
+  const r = selos(dir, '--repo', dir, '--base', 'naoexiste')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /não existe/)
+  const vazio = mkdtempSync(join(tmpdir(), 'travas-vazio-'))
+  try {
+    spawnSync('git', ['-C', vazio, 'init', '-q'], { encoding: 'utf8', env })
+    assert.deepEqual(selosDeHead(vazio).testes, {})
+  } finally {
+    rmSync(vazio, { recursive: true, force: true })
+  }
+}))
+
+test('--base sem valor é erro', () => {
+  for (const args of [['--base'], ['--base', ''], ['--base', '--indice']]) assert.ok(lerBase(args).erro, JSON.stringify(args))
+  assert.deepEqual(lerBase(['--base', 'abc']), { base: 'abc' })
+  assert.deepEqual(lerBase(['--indice']), { base: undefined })
 })

@@ -52,3 +52,13 @@ export function baseDoRelato(repo, env = process.env) {
   const anterior = git('rev-parse', '--verify', '--quiet', 'HEAD~1')
   return anterior.status === 0 ? anterior.stdout.trim() : 'HEAD'
 }
+
+// O --base dos argumentos: ausente, { base: undefined }; com valor, { base }; presente sem valor (fim
+// dos argumentos, texto vazio ou outra --opção no lugar), { erro }.
+export function lerBase(args) {
+  const i = args.indexOf('--base')
+  if (i < 0) return { base: undefined }
+  const v = args[i + 1]
+  if (v === undefined || v.trim() === '' || v.startsWith('--')) return { erro: '--base sem valor: diga a ref (ex.: o merge-base com o main)' }
+  return { base: v }
+}
