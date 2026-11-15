@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
 import { cabecalho, comHistorico, emTexto, esperarEstado, linha, montar, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
@@ -101,6 +101,82 @@ test('a ferramenta pendente de um subagente que terminou não volta ao cartão d
   expect(dois, emTexto(p)).not.toContain('dois.ts')
   expect(abaixo(p, 'Explore: ler um').map(l => l.texto).join(' | '), emTexto(p)).toContain('Read um.ts')
   expect(pilula(p), emTexto(p)).toContain('▸ 1')
+})
+
+// Regra: subagentes.retomado-volta-a-trabalhando
+test("o subagente retomado volta a 'trabalhando', conta na pílula e segue a contagem de chamadas; o fim seguinte vale como fim", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  on('tool.call', { tool: 'Read' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await chamadaDoSubagente($, 'sub-1', 'Read', { file_path: 'C:/x/um.ts' })
+  await fimDoSubagente($, 'sub-1')
+  let p = await painel($)
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('concluído')
+  await retomadaDoSubagente($, 'sub-1', 'continue')
+  p = await painel($)
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('trabalhando')
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  await relogio.advance(1500)
+  await chamadaDoSubagente($, 'sub-1', 'Read', { file_path: 'C:/x/dois.ts' })
+  p = await painel($)
+  expect(abaixo(p, 'Explore: ler o kit').map(l => l.texto).join(' | '), emTexto(p)).toContain('Read dois.ts · 2 chamadas')
+  await fimDoSubagente($, 'sub-1')
+  p = await painel($)
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('concluído')
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+})
+
+// Regra: subagentes.retomado-volta-a-trabalhando, subagentes.um-rodando-mantem-o-pai
+test('com o subagente retomado rodando, a tarefa de origem aberta não fecha no fim do turno; a já fechada não reabre', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'sub-2'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler um' })
+  await fimDoSubagente($, 'sub-1')
+  await retomadaDoSubagente($, 'sub-1', 'continue')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).not.toBe('concluida')
+  await fimDoSubagente($, 'sub-1')
+  p = await painel($)
+  esperarEstado(p, 'Investigar', 'concluida')
+  await start($, ['2'])
+  await lancar($, { descricao: 'ler dois' })
+  await fimDoSubagente($, 'sub-2')
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Outra', 'concluida')
+  await retomadaDoSubagente($, 'sub-2', 'continue')
+  p = await painel($)
+  esperarEstado(p, 'Outra', 'concluida')
+  expect(linha(p, 'Explore: ler dois').texto, emTexto(p)).toContain('trabalhando')
+})
+
+// Regra: subagentes.retomado-volta-a-trabalhando
+test('as tarefas que o subagente deixou interrompidas só voltam com start dele', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  let p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  await retomadaDoSubagente($, 'sub-1', 'continue')
+  p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  await start($, ['X'], 'sub-1')
+  p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'andamento')
 })
 
 // Regra: subagentes.corpo-e-as-tarefas-ou-a-ferramenta

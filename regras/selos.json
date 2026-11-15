@@ -3095,6 +3095,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
     },
+    "task-tree/tests/subagentes.test.ts::as tarefas que o subagente deixou interrompidas só voltam com start dele": {
+      "regras": [
+        "subagentes.retomado-volta-a-trabalhando"
+      ],
+      "hash": "cd8bbf85f3a2809e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
+    },
     "task-tree/tests/subagentes.test.ts::as tarefas que o subagente planeja contam no cabeçalho e no x/y da tarefa de origem e do pedido, com o cartão aberto ou a tarefa recolhida": {
       "regras": [
         "subagentes.tarefas-do-subagente-contam-acima"
@@ -3155,6 +3165,17 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com o subagente retomado rodando, a tarefa de origem aberta não fecha no fim do turno; a já fechada não reabre": {
+      "regras": [
+        "subagentes.retomado-volta-a-trabalhando",
+        "subagentes.um-rodando-mantem-o-pai"
+      ],
+      "hash": "1025702231e966d9",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
     },
     "task-tree/tests/subagentes.test.ts::com o turno terminado, o subagente que o app passa a listar como parado ou concluído encerra o cartão, e a tarefa de origem reflete o fim": {
       "regras": [
@@ -3514,6 +3535,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente retomado volta a 'trabalhando', conta na pílula e segue a contagem de chamadas; o fim seguinte vale como fim": {
+      "regras": [
+        "subagentes.retomado-volta-a-trabalhando"
+      ],
+      "hash": "10e4c0604a347c30",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
     },
     "task-tree/tests/subagentes.test.ts::o subagente terminado sem tarefas sai quando o pedido dele sai do trabalho": {
       "regras": [

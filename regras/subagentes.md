@@ -111,6 +111,26 @@ Origem: decisão do usuário, 2026-11-09 ("na raiz, ou dentro de uma sessão fil
 Código: io/publish.ts
 Estado: coberto
 
+### subagentes.retomado-volta-a-trabalhando
+O subagente retomado volta a "trabalhando" no mesmo cartão.
+
+- Dado um subagente que terminou (o cartão "concluído", "falhou" ou "interrompido")
+- Quando o app o retoma (com uma mensagem, sob o mesmo id)
+- Então o cartão volta a "trabalhando" (ou "em segundo plano"), sem fim, na pílula "N subagentes", com a ferramenta em uso e a contagem de chamadas seguindo de onde estava; o fim seguinte vale como fim; as tarefas dele que ficaram ✕ só voltam com start nelas; a tarefa de origem já fechada não reabre, e a ainda aberta espera por ele
+
+Origem: auditoria 2026-11-10 (o lançamento com retomada não tocava o cartão); aplica subagentes.um-rodando-mantem-o-pai, turnos.parada-segue-interrompida-ate-o-start ("só o start nela a reacende") e subagentes.workflow-sem-sinal-vira-interrompido ("a tarefa de origem já fechada não reabre"), sem mudar nenhuma regra.
+Estado: coberto
+
+### subagentes.retomado-no-app
+No app, o subagente real retomado volta a "trabalhando".
+
+- Dado um subagente real que terminou, com o cartão sob a tarefa de origem
+- Quando o modelo manda uma mensagem a ele e o app o retoma
+- Então o cartão volta a "trabalhando", com a ferramenta em uso, e a pílula o conta; ao terminar de novo, diz o novo fim
+
+Origem: auditoria 2026-11-10; o teste simula a retomada pelo lançamento com o mesmo id, não a retomada real.
+Estado: checklist (retomada real de subagente no app)
+
 ### subagentes.cartao-no-app
 O cartão no app: cores nos dois temas, modelo e ferramenta de um subagente real.
 

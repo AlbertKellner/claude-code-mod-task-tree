@@ -76,8 +76,13 @@ export async function launchAnchor($: any, groups: Group[], parent: string, phra
 export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   await ensureLinks($)
-  // A resume carries the message a subagent that ended first was left with: it is delivered.
-  if (typeof e?.resume?.agentId === 'string' && e.resume.agentId !== '') await takeSubSend($, e.resume.agentId, String(e.prompt ?? ''), true).catch(() => {})
+  // A resume brings a subagent that ended back to work, on its own card (reviveSub), and carries the
+  // message it was left with: delivered after the card is alive again, so the task it was launched
+  // from does not close on the delivery with it running.
+  if (typeof e?.resume?.agentId === 'string' && e.resume.agentId !== '') {
+    await reviveSub($, e.resume.agentId, e.background === true)
+    await takeSubSend($, e.resume.agentId, String(e.prompt ?? ''), true).catch(() => {})
+  }
   const agent = r?.agentId
   if (typeof agent !== 'string' || agent === '' || e?.resume || e?.isTeammate) return r
   const now = (await stamp($)) ?? 0
@@ -109,6 +114,26 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
       : [...all, { agent, label, parent, ...(anchor !== undefined ? { anchor } : {}), tasks: [], sub }]
   })
   return r
+}
+
+// A subagent resumed by the app (agent.spawn with `resume`, the same id) works again: its card, if it
+// has one, says "trabalhando" (or "em segundo plano") again, with no end, its last word now, and its
+// calls counted on from the card's; its launch, batch, run and model stay. Its tasks left ✕ come back
+// only with a start in them; the task it came from, if already closed, stays closed; if open, it waits
+// on it (settleBySubs reads the card). Its next end is an end as always (subEnd). A card dropped from
+// the state (dropSettledSubs, its request out of the work) does not come back.
+async function reviveSub($: any, agent: string, background: boolean) {
+  const { value = [] } = await $.state.get(groupsState)
+  const s = (value as Group[]).find(g => g.agent === agent)?.sub
+  if (!s || subLive(s)) return
+  const now = (await stamp($)) ?? 0
+  calls.set(agent, Math.max(calls.get(agent) ?? 0, s.calls ?? 0))
+  gone.delete(agent)
+  await setSub($, agent, x => {
+    if (subLive(x)) return x
+    const { end: _, tool: __, ...rest } = x
+    return { ...rest, state: background ? 'background' : 'running', seen: now }
+  })
 }
 
 // A subagent's model call: its model and effort, and the call's rate (`toks`, measured in turn.ts by
