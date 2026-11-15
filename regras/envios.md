@@ -154,6 +154,17 @@ Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomend
 Código: hooks/prompt-submit.ts, draw/layout.ts
 Estado: coberto
 
+### envios.carta-mostra-o-nome-do-destino
+A carta diz o nome da sessão destino, também quando ela não é filha desta sessão.
+
+- Dado uma mensagem enviada pelo id a uma sessão que não é filha de quem envia (a mãe, uma irmã)
+- Quando a carta é desenhada, no painel de quem enviou ou no cartão dela na sessão mãe
+- Então ela diz "Para <nome>: …" com o nome que a lista de sessões do app ou a mensagem recebida dessa sessão informaram; no cartão da filha, o destino que é a própria sessão que desenha aparece com o nome dela, quando o app o informa; sem nome conhecido, os oito primeiros caracteres do id, como antes
+
+Origem: auditoria 2026-11-10 (irmã e mãe apareciam como 8 caracteres do id); aplica envios.carta-sob-a-tarefa ("Para <sessão>: <mensagem>"), sem mudar nenhuma regra.
+Código: draw/layout.ts, hooks/render.tsx, hooks/prompt-submit.ts
+Estado: coberto
+
 ### envios.carta-sob-a-tarefa
 A carta de envio é uma linha sob a tarefa de onde a mensagem saiu.
 

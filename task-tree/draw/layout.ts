@@ -1291,6 +1291,8 @@ export type Model = {
   // The sends still waiting to be taken up.
   sends: Send[]
   work: string[]
+  // The names of sessions known by id (the state's `names`), for a letter to one that is not a child.
+  names?: Record<string, string>
   // When this session's turn ended, until the next prompt: what its main loop left open is drawn
   // with no close and its clock stopped then (a session that ended its turn shows no task running).
   ended?: number
@@ -1687,7 +1689,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const c = [...(p.children ?? []), ...model.children].find(k => k.id === to || (k.name !== '' && k.name === to))
       // The title a just-opened session has before the host lists it ("Sessão…") names nothing.
       const named = c ? c.name || (c.title.endsWith('…') ? '' : c.title) : ''
-      return named || (to.startsWith('local_') ? to.slice(6, 14) : to)
+      // Else the name this session knows for that id (a mother, a sister, itself in a child's card).
+      return named || model.names?.[to] || (to.startsWith('local_') ? to.slice(6, 14) : to)
     }
     const letterRow = (s: Send, depth: number): Row => {
           const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : archived ? 'cut' : 'queued'

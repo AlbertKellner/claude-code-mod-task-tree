@@ -1168,6 +1168,26 @@
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
     },
+    "task-tree/tests/envios.test.ts::a carta para uma irmã listada pelo app mostra o nome dela": {
+      "regras": [
+        "envios.carta-mostra-o-nome-do-destino"
+      ],
+      "hash": "13bc5957d1ed5aaa",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o nome do destino na carta"
+    },
+    "task-tree/tests/envios.test.ts::a carta para uma sessão que não é filha mostra o nome que veio na mensagem dela": {
+      "regras": [
+        "envios.carta-mostra-o-nome-do-destino"
+      ],
+      "hash": "d3b75e2da699aa3e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o nome do destino na carta"
+    },
     "task-tree/tests/envios.test.ts::a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa": {
       "regras": [
         "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
@@ -2696,6 +2716,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: o fim do turno vai na tarefa publicada"
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha, a carta para a própria mãe mostra o nome da mãe quando o app o informa": {
+      "regras": [
+        "envios.carta-mostra-o-nome-do-destino"
+      ],
+      "hash": "85d867b7c4cafb65",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o nome do destino na carta"
     },
     "task-tree/tests/sessoes.test.ts::no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo com uma tarefa só": {
       "regras": [
@@ -4391,10 +4421,10 @@
   },
   "kit": {
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "528a1ef88a22f469",
+      "hash": "84d2b857a5ee3f38",
       "tipo": "refatoracao",
-      "data": "2026-11-14",
-      "motivo": "fixar guarda o último texto do status e o devolve; nada do que os testes afirmam muda"
+      "data": "2026-11-15",
+      "motivo": "o host simulado pode listar uma sessão ligada que não é filha e informar o nome desta sessão; nada do que os testes afirmam muda"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",

@@ -278,6 +278,9 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // the sends of this one (watchSends): the instant of the last receipt used and how many of that same
 // instant were used (a batch delivery writes several at once). In the state and the links record, so a
 // reload or a new process does not match an old receipt again.
+// `names`: the names of the sessions this one knows by id (the host's linked list, the tag of a message
+// received, its own from get_session), for the letters to a session that is not a child (the mother, a
+// sister): "Para <nome>". Only in the state: the 3 s reread makes it again in a new process.
 // `work`: the main group's level-1 tasks of the current work, drawn by the panel until new
 // work starts (a plan or start with no open task left).
 // `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
@@ -302,6 +305,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host, type Filha } from './kit/ambiente'
+import { AGORA, EU, fixar, host, type Filha } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, pedido, plan, start, type No } from './kit/cenario'
 import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
@@ -1457,4 +1457,18 @@ test('com a origem aberta, o status conta as pendentes da filha', async ($: any,
   const p = await painel($)
   const c = cabecalho(p)
   expect(status(), emTexto(p)).toBe(`Tarefas ${c.feitas}/${c.total}`)
+})
+
+// Regra: envios.carta-mostra-o-nome-do-destino
+test('no cartão da filha, a carta para a própria mãe mostra o nome da mãe quando o app o informa', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] }, envios: [{ to: EU, anchor: '1', at: AGORA + 20 }] }], { nome: 'orquestradora' })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toBe('Para orquestradora')
 })

@@ -98,7 +98,8 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // todas as sessões (list_sessions sem `linked`) responde erro. O get_session de um id que não é
 // desta sessão nem de `sessoes` responde o erro do app ("Session <id> not found.").
 // `arquivoProprio`: o texto do arquivo que esta sessão publicou antes (o host o serve na leitura dele).
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string }
+// `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -116,6 +117,7 @@ export type Filha = {
   envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
+  iniciadaPor?: string // quem a iniciou, na lista do host; padrão esta sessão (EU): outro id faz dela uma sessão ligada que não é filha (a mãe, uma irmã)
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
 export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host {
@@ -128,14 +130,14 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     pedidos.push(String(e.tool))
     if (e.tool === 'get_session') {
       const id = String(e.args?.session_id ?? 'self')
-      if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU }))
+      if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
       return { value: { content: [{ type: 'text', text: `Session ${id} not found.` }], isError: true } }
     }
     if (e.tool === 'list_sessions' && opcoes.listaFalha && e.args?.linked !== true) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
     if (e.tool === 'list_sessions')
       return texto(
         JSON.stringify(
-          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: EU })),
+          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: s.iniciadaPor ?? EU })),
         ),
       )
     return texto('')

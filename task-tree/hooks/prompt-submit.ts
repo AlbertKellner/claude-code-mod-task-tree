@@ -8,7 +8,7 @@
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { learnNames, reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -28,7 +28,7 @@ const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-con
 // What a prompt is, with the app's status blocks (`<system-reminder>…</system-reminder>`, put in
 // front of a session's first message and of queued deliveries) taken out: another session's message,
 // a subagent handing back, the app's own notice, or a request.
-export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string }; froms: string[] }
+export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string }; froms: string[]; names: [string, string][] }
 export function said(text: string): Said {
   const body = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
   const head = lead(body)
@@ -42,7 +42,9 @@ export function said(text: string): Said {
   const from = first?.id ? { id: first.id, ...(first.name ? { name: first.name } : {}) } : undefined
   // Every top-level message's sender, for the receipts (noteReceived) and fromChildren.
   const froms = messages.flatMap(m => (m.id ? [m.id] : []))
-  return { body, peer, handback, notice, title: first !== undefined ? first.inner : body, ...(from ? { from } : {}), froms }
+  // The names their tags give, for the letters back to them (learnNames).
+  const names = messages.flatMap((m): [string, string][] => (m.id && m.name ? [[m.id, m.name]] : []))
+  return { body, peer, handback, notice, title: first !== undefined ? first.inner : body, ...(from ? { from } : {}), froms, names }
 }
 
 // The marks of another session's message and of a subagent's hand-back count only where they open
@@ -101,6 +103,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // to be: the sender confirms its queued SendMessage by them (watchSends).
   await ensureLinks($)
   await noteReceived($, it.froms)
+  await learnNames($, it.names)
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)
   // A turn of this session was interrupted (stopped) and no request came since: the next request, the

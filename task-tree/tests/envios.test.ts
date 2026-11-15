@@ -979,3 +979,37 @@ test('duas cartas na fila da mesma tarefa: a primeira entrega não a conclui; a 
   esperarCarta(p, 'Para mais: Rode os testes', 'entregue')
   esperarEstado(p, 'Um', 'concluida')
 })
+
+const MAE = 'local_aaaaaaaa-1111-2222-3333-444444444444'
+const IRMA_DOCS = 'local_bbbbbbbb-1111-2222-3333-444444444444'
+
+// Regra: envios.carta-mostra-o-nome-do-destino
+test('a carta para uma sessão que não é filha mostra o nome que veio na mensagem dela', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  responderEnvio(on)
+  await mensagemDe($, MAE, 'faça X')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, MAE, 'feito')
+  const p = await painel($)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toBe('Para outra: feito')
+})
+
+// Regra: envios.carta-mostra-o-nome-do-destino
+test('a carta para uma irmã listada pelo app mostra o nome dela', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: IRMA_DOCS, nome: 'irma-docs', iniciadaPor: MAE }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await aviso($)
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'irma-docs'), emTexto(p)).toBe(false)
+  await envio($, IRMA_DOCS, 'veja a doc')
+  p = await painel($)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toBe('Para irma-docs: veja a doc')
+})

@@ -121,6 +121,11 @@ Na ordem de `register.tsx`:
 Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
 elas (por isso cada uma marca `reminders.planned` por conta própria).
 
+O nome do destino na carta (auditoria 2026-11-10): `nameOf`, dentro de `panel` (`draw/layout.ts`), procura
+o destino entre as filhas do painel desenhado e as de quem desenha (a entrada sem nome, "Sessão…", não
+conta); depois no mapa `names` do state, que o render passa no `Model` (`names`): a mãe, uma irmã e, no
+cartão de uma filha, a própria sessão que desenha; sem nome conhecido, os oito caracteres do id.
+
 Carta a um subagente (pendência 1, 2026-11-14; decisão do usuário 2026-11-13, "Cinza \"não entregue\"
 (Recomendado)"): o `SendMessage` cujo `to` não é `local_…` e casa com um agente de `$.agent.list()`
 (pelo `id` ou pelo `name`, sem teammate) grava `Send.agent`. `watchSends` pula esses envios (uma sessão de
@@ -296,6 +301,7 @@ A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o
 | `children` | state+store | `links` (campo) | fill | start, first-save | as sessões abertas por esta, como o host lista; o store guarda só as ligações (`Link`: id, name, title, anchor, lastAnchor, rounds), também de sessões que o host deixou de listar (`keptLinks`) |
 | `sends` | state+store | `links` (campo) | union | start, first-save | mensagens a outras sessões ainda não tomadas |
 | `received` | state+store | `links` (campo) | union, 20 | start, first-save | mensagens de outras sessões recebidas |
+| `names` | state | | none | | os nomes das sessões conhecidas por id (a lista ligada do host, inclusive a mãe e as irmãs quando ela as traz; a marca da mensagem recebida; o próprio, se o `get_session` o dá), os 200 mais recentes, gravados só quando mudam (`learnNames`); não vai ao store nem ao publicado: a releitura de 3 s o refaz |
 | `receipts` | state+store | `links` (campo) | current | start, first-use | por destino, o último recibo já casado com um envio desta (instante e quantos dele): `watchSends` não usa de novo um recibo antigo depois de recarga ou reinício; o `/clear` zera |
 | `launches` | state+store | `links` (campo) | union, 20 | start, first-save | chamadas `Agent` ainda não reclamadas por um grupo |
 | `waits` | state | | none | | o que espera a pessoa (pergunta, plano, permissão, `choice` do wrap_up) |

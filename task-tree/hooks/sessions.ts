@@ -13,7 +13,7 @@ import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors, setIdle } from './panel'
+import { learnNames, change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors, setIdle } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -111,6 +111,9 @@ async function readChildren($: any) {
   }
   if (shownError !== '') await $.state.set(childrenErrorState, '')
   if (!Array.isArray(rows)) return
+  // Every linked session's name, the mother's and the sisters' too when the list has them: the
+  // letters to them say it (learnNames).
+  await learnNames($, rows.filter((r: any) => typeof r?.sessionId === 'string').map((r: any) => [r.sessionId, String(r.name || r.title || '')]))
   // No linked session at all: this one opened none (the state is cleared once, not every poll), but
   // one just opened that the list does not hold yet (still in its grace, see deriveChildren). Cleared,
   // the pane is published: the file the mother reads loses the cards too.

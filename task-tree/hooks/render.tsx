@@ -76,6 +76,7 @@ const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
+const namesState = { plugin: 'task-tree', key: 'names' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Boxes and Texts, the terminal's text. `$` is for the presses.
@@ -241,7 +242,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
+  // The names of sessions known by id, for the letters to one that is not a child.
+  const { value: names } = await $.state.get(namesState)
+  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(names ? { names } : {}), ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
   // One drawing of what was read above, in at most `maxRows` lines: nothing below reads the state or
   // waits, so the size limit can ask for it again with fewer lines. `all`: the lines it stands for,
   // the ones a limit left out too.

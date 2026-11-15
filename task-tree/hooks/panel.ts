@@ -201,6 +201,7 @@ const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
 const recapState = { plugin: 'task-tree', key: 'recap' } as const
 const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
+const namesState = { plugin: 'task-tree', key: 'names' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
 // In the state, not a variable of the module: a reload of the mod between the done and the end of
 // the turn (saving a file of the mod mid-turn) kept the variable's value nowhere, and the ↩ line
@@ -667,12 +668,35 @@ export async function inDesktopApp($: any) {
 export let ownId: string | undefined
 // The id as known so far, for a reader that must not ask the app (the render).
 export const knownId = () => ownId
+// The names of sessions known by id (`names`): written only when one is new or changed, the last
+// NAMES_KEEP. A just-opened session's placeholder title ("Sessão…") names nothing.
+const NAMES_KEEP = 200
+export async function learnNames($: any, pairs: [string, string][]) {
+  const got = pairs.filter(([id, name]) => typeof id === 'string' && id !== '' && typeof name === 'string' && name.trim() !== '' && !name.endsWith('…'))
+  if (got.length === 0) return
+  const { value: cur = {} } = await $.state.get(namesState)
+  const held = cur as Record<string, string>
+  if (got.every(([id, name]) => held[id] === name)) return
+  const next = new Map(Object.entries(held))
+  for (const [id, name] of got) {
+    next.delete(id)
+    next.set(id, name)
+  }
+  await $.state.set(namesState, Object.fromEntries([...next].slice(-NAMES_KEEP)))
+}
+
 export async function selfId($: any): Promise<string | undefined> {
   if (ownId) return ownId
   try {
     const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' })
     const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
-    if (!r.isError) ownId = JSON.parse(body).sessionId
+    if (!r.isError) {
+      const got = JSON.parse(body)
+      ownId = got.sessionId
+      // Its own name, if the app gives it: a child's letter to this session is drawn with it.
+      const name = typeof got?.name === 'string' && got.name !== '' ? got.name : typeof got?.title === 'string' ? got.title : ''
+      if (typeof ownId === 'string' && name !== '') await learnNames($, [[ownId, name]])
+    }
     else await debug($, `task-tree: get_session falhou: ${body.slice(0, 300)}`)
   } catch (err) {
     await debug($, `task-tree: get_session falhou: ${String(err)}`)

@@ -69,6 +69,7 @@ export const TABLE: readonly Row[] = [
   { key: 'launches', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'Agent calls not yet claimed by a subagent\'s group (the last 20)' },
   // The turn's own: they survive a reload, not the process.
+  { key: 'names', lives: 'state', merge: 'none', restoredAt: [], note: 'the names of the sessions known by id (the linked list of the host, the tag of a received message, this session\'s own from get_session), the last 200, for the "Para <nome>" of the letters; not stored nor published: the 3 s reread makes it again' },
   { key: 'waits', lives: 'state', merge: 'none', restoredAt: [], note: 'what waits on the person (a question, a plan, a permission, a wrap_up with ask)' },
   { key: 'engine', lives: 'state', merge: 'none', restoredAt: [], note: 'the model and effort of the main loop, published for the card' },
   { key: 'ultracode', lives: 'state', merge: 'none', restoredAt: [], note: 'whether the main loop\'s ultracode switch is on (ultra_effort_enter/exit), published for the card and drawn in the header' },
