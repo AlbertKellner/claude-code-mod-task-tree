@@ -262,6 +262,15 @@ export function naoRodaram(chaves, resultados) {
   const vistas = new Set(resultados.map(r => r.chave))
   return chaves.filter(c => !vistas.has(c))
 }
+// As refatorações que um commit traz: selo "refatoracao" com hash diferente do da base. Teste sem selo
+// na base (novo, ou nome novo de um renome) não entra; selo igual ao da base veio de antes. A etapa
+// regressao roda cada uma contra o código anterior (decisão do usuário, 2026-11-15: "Sim, provar
+// (Recomendado)").
+export function refatoracoesDoCommit(agora, base) {
+  return Object.entries(agora.testes ?? {})
+    .filter(([chave, s]) => s.tipo === 'refatoracao' && base.testes?.[chave] !== undefined && base.testes[chave].hash !== s.hash)
+    .map(([chave]) => chave)
+}
 const gravar = (raiz, selos) => {
   const ordenado = o => Object.fromEntries(Object.keys(o ?? {}).sort().map(k => [k, o[k]]))
   writeFileSync(join(raiz, SELOS), `${JSON.stringify({ algoritmo: selos.algoritmo, testes: ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden), removidos: ordenado(selos.removidos) }, null, 2)}\n`)

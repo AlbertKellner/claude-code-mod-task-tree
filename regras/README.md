@@ -90,7 +90,9 @@ Tipos:
   para arquivo que não existia em `HEAD`), ou a linha de base;
 - `decisao`: o comportamento esperado mudou por decisão do usuário; cada regra do teste precisa de
   `Reescrito:` com data igual ou posterior à do selo anterior;
-- `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir.
+- `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir, e o teste
+  como ficou tem de passar no código anterior (a etapa `regressao` prova; decisão do usuário,
+  2026-11-15: "Sim, provar (Recomendado)").
 
 Selar é um passo explícito, que aparece no diff de `selos.json`:
 
@@ -109,7 +111,12 @@ tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos
 exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
 `removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada. Um teste
 selado de `HEAD` que não aparece na saída do `plugin test` ("TESTE DE <ref> NÃO RODOU") conta como
-falha, com as mesmas liberações; um `--base` que não é commit do repositório é erro.
+falha, com as mesmas liberações; um `--base` que não é commit do repositório é erro. Num commit com
+selo `refatoracao` de hash novo, a `regressao` faz uma segunda passada: o código do mod de `HEAD` (ou
+`--base`) com os testes de agora, só dos arquivos refatorados (mais o kit e os apoios); cada teste
+refatorado tem de passar ("REFATORAÇÃO NÃO PROVADA" se não), e o resumo diz "refatorações provadas
+contra <ref>: N". Refatorar um teste e mudar o código de que ele depende vão em commits separados
+(primeiro o teste), ou é decisão.
 
 A etapa `selos` do `npm run check` confere os selos contra os de `HEAD` (ou `--base`) e falha quando:
 um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste selado sumiu; um selo de

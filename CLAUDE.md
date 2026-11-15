@@ -103,7 +103,10 @@ a regra que ele protege.
   cenário ganha `Reescrito: AAAA-MM-DD, <palavras dele>`, e o teste é selado como decisão
   (`npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao --motivo "…"`).
 - Mudar a forma de um teste sem mudar o que ele afirma é refatoração (`--tipo refatoracao`): as
-  asserções não podem diminuir e o teste antigo precisa continuar passando.
+  asserções não podem diminuir, o teste antigo precisa continuar passando e o teste novo precisa
+  passar no código anterior; o check roda essa prova nos commits com selo de refatoração (decisão do
+  usuário, 2026-11-15: "Sim, provar (Recomendado)"). Por isso a refatoração de um teste e a mudança
+  do código que ele cobre vão em commits separados.
 - Teste novo é selado à mão (`--tipo novo`), e fica protegido a partir do commit seguinte.
 - Tirar ou renomear um teste por decisão do usuário usa `node scripts/selos.mjs --remover` ou
   `--renomear`, que deixam em `selos.json` (`removidos`) o registro que a etapa `regressao` aceita; o
@@ -112,7 +115,8 @@ a regra que ele protege.
   protegido e não há decisão do usuário, pare e pergunte.
 - O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
   asserções; um arquivo do kit ou de apoio dos testes (fixtures) mudou sem selo; ou um teste de `HEAD` falha contra o código novo
-  sem decisão registrada ("testes antigos, código novo"); um teste selado de `HEAD` que não rodou
+  sem decisão registrada ("testes antigos, código novo"); um teste selado como refatoração falha
+  contra o código de `HEAD`; um teste selado de `HEAD` que não rodou
   (não aparece na saída do `plugin test`) conta como falha; um selo do kit é `novo` para arquivo que já
   existia, ou sem motivo; um teste tem menos asserções sem mudar (helper do kit que deixou de afirmar,
   sem o kit selado como decisão); ou um `test(` é aninhado, sem nome literal ou repetido no arquivo.

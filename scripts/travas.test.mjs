@@ -959,3 +959,21 @@ test('sem commit de versão do PR, o release sobe a versão', async () => {
   assert.deepEqual(retomada('', false), { acao: 'subir', versao: null })
   assert.deepEqual(retomada(undefined, false), { acao: 'subir', versao: null })
 })
+
+// Lote C-18: o selo de refatoração é provado rodando o teste novo contra o código anterior.
+test('as refatorações de um commit são os selos de refatoração com hash novo', async () => {
+  const { refatoracoesDoCommit } = await import('./selos.mjs')
+  const s = (tipo, hash) => ({ tipo, hash })
+  const agora = { testes: { a: s('refatoracao', '2'), b: s('refatoracao', '1'), c: s('decisao', '2'), d: s('novo', '2'), e: s('refatoracao', '2') } }
+  const base = { testes: { a: s('novo', '1'), b: s('refatoracao', '1'), c: s('novo', '1'), d: s('novo', '1') } }
+  assert.deepEqual(refatoracoesDoCommit(agora, base), ['a'])
+  const dir = montar()
+  try {
+    trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(1 + 1)')
+    const r = selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'a mesma afirmação')
+    assert.equal(r.status, 0, r.stderr)
+    assert.deepEqual(refatoracoesDoCommit(lerSelosJson(dir), selosDeHead(dir)), [UM])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

@@ -11,13 +11,16 @@
 // Um --base que não é commit deste repositório é erro, antes de tudo. Um teste selado no commit de
 // comparação que não aparece na saída do plugin test (arquivo que caiu, tempo estourado) conta como
 // falha ("TESTE DE <ref> NÃO RODOU"), com as mesmas liberações de uma falha.
+// Segunda passada, só com selo de refatoração novo (hash diferente do de <ref>): o teste, como ficou,
+// roda contra o código do mod de <ref> e tem de passar ("REFATORAÇÃO NÃO PROVADA"); decisão do
+// usuário, 2026-11-15: "Sim, provar (Recomendado)".
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
-import { ehCommit, hoje, lerResultados, liberaGolden, liberaRemovido, liberaTeste, naoRodaram, selosDaBase } from './selos.mjs'
+import { ehCommit, hoje, lerResultados, liberaGolden, liberaRemovido, liberaTeste, naoRodaram, refatoracoesDoCommit, selosDaBase } from './selos.mjs'
 
 const args = process.argv.slice(2)
 const valor = nome => {
@@ -100,6 +103,11 @@ try {
     }
     const n = falhas.length + sumidos.length
     console.log(`regressão: ${resultados.length} testes de ${ref} contra o código novo (${Object.keys(head.testes).length} selados, ${sumidos.length} não rodaram), ${falhas.length} falharam${codigo ? '' : n ? ', todas por decisão registrada' : ''}`)
+
+    // Segunda passada (decisão do usuário, 2026-11-15: "Sim, provar (Recomendado)"): cada teste selado
+    // como refatoração neste commit roda, como ficou, contra o código do mod de ref.
+    const refatorados = refatoracoesDoCommit(agora, head)
+    if (refatorados.length > 0 && provarRefatoracoes(refatorados) !== 0) codigo = 1
   }
 } finally {
   try {
@@ -107,3 +115,42 @@ try {
   } catch {}
 }
 process.exit(codigo)
+
+// O código do mod de ref (do git) com os testes de agora: só os arquivos de teste que têm um teste
+// refatorado, mais o kit e os arquivos de apoio de agora. Os outros testes desses arquivos podem
+// falhar aqui sem contar; cada refatorado tem de aparecer aprovado.
+function provarRefatoracoes(refatorados) {
+  const pasta = mkdtempSync(join(tmpdir(), 'task-tree-refatoracao-'))
+  try {
+    const codigoDeRef = git('ls-tree', '-r', '--name-only', ref, 'task-tree').stdout.toString().split('\n').filter(p => p && !p.startsWith('task-tree/tests/'))
+    for (const p of codigoDeRef) {
+      const destino = join(pasta, ...p.split('/'))
+      mkdirSync(dirname(destino), { recursive: true })
+      writeFileSync(destino, git('show', `${ref}:${p}`).stdout)
+    }
+    const arquivos = new Set(refatorados.map(c => c.slice(0, c.indexOf('::'))))
+    const testes = join(raiz, 'task-tree', 'tests')
+    cpSync(testes, join(pasta, 'task-tree', 'tests'), {
+      recursive: true,
+      filter: src => {
+        const rel = `task-tree/tests/${src.slice(testes.length + 1).split(sep).join('/')}`
+        return !/\.test\.tsx?$/.test(rel) || arquivos.has(rel)
+      },
+    })
+    const claude = acharBinario()
+    const r = spawnSync(claude, ['plugin', 'test', join(pasta, 'task-tree')], { cwd: pasta, encoding: 'utf8', shell: claude === 'claude', maxBuffer: 64 * 1024 * 1024 })
+    const aprovados = new Set(lerResultados(`${r.stdout ?? ''}\n${r.stderr ?? ''}`).filter(x => x.ok).map(x => x.chave))
+    let falhou = 0
+    for (const chave of refatorados) {
+      if (aprovados.has(chave)) continue
+      console.error(`- REFATORAÇÃO NÃO PROVADA: ${chave} falha no código anterior: o teste novo afirma outra coisa; se a regra mudou, é decisão (cenário com Reescrito: e selo de decisão)`)
+      falhou++
+    }
+    console.log(`refatorações provadas contra ${ref}: ${refatorados.length - falhou}${falhou ? ` (${falhou} não provadas)` : ''}`)
+    return falhou ? 1 : 0
+  } finally {
+    try {
+      rmSync(pasta, { recursive: true, force: true })
+    } catch {}
+  }
+}
