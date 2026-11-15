@@ -253,6 +253,16 @@
       "data": "2026-11-15",
       "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
     },
+    "task-tree/tests/cabecalho.test.ts::com a linha '+N pedidos anteriores' aberta, o título é o da iniciada por último entre tudo o que está desenhado": {
+      "regras": [
+        "cabecalho.titulo-e-de-tarefa-desenhada"
+      ],
+      "hash": "f5e5ad7b6bba8f40",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a metade do cenário que não tinha teste"
+    },
     "task-tree/tests/cabecalho.test.ts::com a tarefa em andamento dentro do começo, o corte segue guardando o começo": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
@@ -272,6 +282,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::com mais de três pedidos no trabalho, o título não é de um pedido que está em '+N pedidos anteriores'": {
+      "regras": [
+        "cabecalho.titulo-nao-e-de-pedido-recolhido"
+      ],
+      "hash": "ea9b5396e394ec48",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o título do cabeçalho sai das tarefas com linha desenhada"
     },
     "task-tree/tests/cabecalho.test.ts::com o turno encerrado e tarefas abertas, o tempo do cabeçalho para no fim do turno": {
       "regras": [

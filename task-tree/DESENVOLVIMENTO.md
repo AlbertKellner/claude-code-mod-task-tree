@@ -524,8 +524,9 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   tarefa de muitos pedidos antes; o título de tarefa muito antiga que o teste visual achou ficou
   fechado com isso); senão o nível 1 mais recente. Desde os achados baixos (2026-11-15), sem nada em
   andamento os três últimos passos procuram só entre os níveis 1 à vista, os que os números contam: os
-  do trabalho atual (`workTasks`, a mesma escolha de `trimToWork`) ou todos, com a linha "+N pedidos
-  anteriores" aberta (`cabecalho.titulo-e-de-tarefa-desenhada`); sem nível 1 à vista, "Tarefas". O
+  que têm linha desenhada (o pedido, a tarefa ou uma subtarefa dela: `drawnTasks`), depois do corte do
+  trabalho atual, do corte dos três pedidos e do limite de linhas; com a linha "+N pedidos anteriores"
+  aberta, todos (`cabecalho.titulo-e-de-tarefa-desenhada`, `cabecalho.titulo-nao-e-de-pedido-recolhido`); sem nível 1 à vista, "Tarefas". O
   cabeçalho vazio ("Nenhuma tarefa planejada") tem uma condição só, sem tarefas e sem chips, a mesma no
   app (`desktopHead`), no texto alternativo e no terminal (`cabecalho.vazio-so-sem-tarefas-e-sem-chips`).
   O título vinha de `current(mainTasks).lit[0]`, o primeiro das tarefas acesas,

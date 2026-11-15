@@ -1247,8 +1247,23 @@ export function loosen(c: Child, tasks: TaskNode[], turns: Turn[]): Child {
   return { ...c, anchor: undefined, lastAnchor: undefined, loose: title }
 }
 
-// The level-1 tasks of the current work, the cut trimToWork draws (the header's title picks among
-// them too: cabecalho.titulo-e-de-tarefa-desenhada).
+// The main group's level-1 tasks with a drawn line: their request's (`|T:<turn>`), their own or one
+// below them (`|t:<id>`); after the cut to the current work, the cut to the last requests and the row
+// limit. The header's title picks among them (cabecalho.titulo-e-de-tarefa-desenhada,
+// cabecalho.titulo-nao-e-de-pedido-recolhido). Only the main group's keys start with `|`: a card's scope
+// puts its own prefix before it.
+export function drawnTasks(lines: Row[], tasks: TaskNode[]): TaskNode[] {
+  const turns = new Set<string>()
+  const ids = new Set<string>()
+  for (const r of lines) {
+    const k = r.key ?? ''
+    if (k.startsWith(`${MAIN}|T:`)) turns.add(k.slice(MAIN.length + 3))
+    else if (k.startsWith(`${MAIN}|t:`)) ids.add(k.slice(MAIN.length + 3))
+  }
+  return tasks.filter(t => (t.turn !== undefined && turns.has(String(t.turn))) || flat([t]).some(x => ids.has(x.id)))
+}
+
+// The level-1 tasks of the current work, the cut trimToWork draws.
 export function workTasks(main: Group, work: string[] | undefined): TaskNode[] {
   // A work none of whose tasks are here (a resume, a replan that took them) is no work. With none,
   // the last request with tasks, and with no requests every level-1 task (an older session's card:

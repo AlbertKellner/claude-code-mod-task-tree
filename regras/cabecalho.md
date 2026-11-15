@@ -165,6 +165,17 @@ Origem: auditoria 2026-11-10 (o título saía de todas as tarefas da sessão e o
 Código: hooks/panel.ts
 Estado: coberto
 
+### cabecalho.titulo-nao-e-de-pedido-recolhido
+O título do cabeçalho nunca é de um pedido que está em '+N pedidos anteriores' fechada.
+
+- Dado mais de três pedidos no trabalho atual, um antigo ainda com algo aberto, e a tarefa iniciada por último num pedido que ficou em "+N pedidos anteriores"
+- Quando o cabeçalho é desenhado, sem nada em andamento
+- Então o título é o nível 1 da tarefa iniciada por último entre os pedidos que o painel desenha, os mesmos que os números contam; com a linha "+N pedidos anteriores" aberta, o da iniciada por último entre todos
+
+Origem: revisão do lote do título do cabeçalho, 2026-11-15 (o título saía do corte do trabalho atual, sem o corte dos três pedidos); aplica cabecalho.titulo-e-de-tarefa-desenhada e cabecalho.limites-de-linhas, sem mudar nenhuma regra.
+Código: hooks/render.tsx
+Estado: coberto
+
 ### cabecalho.vazio-so-sem-tarefas-e-sem-chips
 "Nenhuma tarefa planejada" só aparece sem tarefas e sem nada vivo.
 

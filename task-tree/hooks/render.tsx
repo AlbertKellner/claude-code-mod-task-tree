@@ -6,7 +6,7 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Child, Send } from '../types'
-import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel, workTasks } from '../draw/layout'
+import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel, drawnTasks } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, ULTRA, chips, clockText, cutText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
@@ -265,11 +265,11 @@ export async function render($: EngineInterface, e: any, next: any) {
   // is in progress, waiting, interrupted and the sessions at work.
   const mainGroup = withMain(held ?? []).find(g => g.agent === MAIN)
   const mainTasks = mainGroup?.tasks ?? []
-  // Without a task in progress the title is picked among the level-1 tasks in sight, the ones the
-  // numbers count: the current work's, or all with the "+N pedidos anteriores" line open
-  // (cabecalho.titulo-e-de-tarefa-desenhada). An earlier request out of the drawing never names it.
-  const pastOpen = lines.some(r => r.key === 'sec:turns' && r.fold?.open === true)
-  const inSight = pastOpen || !mainGroup ? mainTasks : workTasks(mainGroup, work as string[] | undefined)
+  // Without a task in progress the title is picked among the level-1 tasks with a drawn line (their
+  // request, themselves or a subtask), the ones the numbers count: with the "+N pedidos anteriores"
+  // line open, all (cabecalho.titulo-e-de-tarefa-desenhada, cabecalho.titulo-nao-e-de-pedido-recolhido).
+  // An earlier request out of the drawing never names it.
+  const inSight = drawnTasks(lines, mainTasks)
   // With none open, the level-1 task a session is still at work under. The task in progress now is the
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
