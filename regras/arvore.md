@@ -32,6 +32,7 @@ start num pai concluído é recusado.
 - Então a resposta recusa, diz que ela já foi concluída (o pai fechado é ✓ no painel, também com as filhas ✕) e os dois caminhos (start nas subtarefas a refazer, que reabre os pais, ou replanejar com ids novos), e nada muda no painel
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb); texto da recusa completado na auditoria de 2026-11-10.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Como hoje (Recomendado)"): a recusa segue dizendo "já foi concluída" também para o pai fechado só com ✕ embaixo, porque é o que o painel mostra (✓); o achado da auditoria que pedia "foi interrompida" fica resolvido. Os testes não mudam.
 Código: text/rules.ts
 Estado: coberto
 
