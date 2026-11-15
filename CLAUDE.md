@@ -236,9 +236,10 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   "reload failed" e o painel das sessões abertas segue inteiro;
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada, rodada substituída; filha apagada e
   filha arquivada com a tarefa de origem aberta: o modelo é avisado uma vez; a filha que conclui tudo
-  fecha a tarefa de origem, com a mãe parada; digitar direto numa filha: o cartão aparece sob a tarefa em
-  andamento da sessão de cima, ou fechando o pedido, e não muda de lugar depois (start de novo,
-  reabertura, replano, recarga)); carta a subagente real
+  fecha a tarefa de origem, com a mãe parada; digitar direto numa filha: o cartão aparece sob a tarefa que a
+  sessão de cima tinha em andamento, senão sob a tarefa da própria filha (trabalhando ou parada), e só
+  fecha o pedido quando a filha é de outro pedido; não muda de lugar depois (start de novo, reabertura,
+  replano, recarga)); carta a subagente real
   (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.
 - o cabeçalho com uma sessão filha aberta antes de qualquer plan ("Tarefas", "0 de 0" e a pílula) e,

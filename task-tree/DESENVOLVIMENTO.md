@@ -546,8 +546,11 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   `partAt` é a hora desse primeiro: a dobra e a chave de um cartão de um turno só não mudam. O cartão
   fica onde o primeiro deles aconteceu (`placeTyped`, 2026-11-15, "Na ordem em que aconteceu
   (Recomendado)" e "Sim, no primeiro"): sob a folha da mãe em andamento naquela hora (iniciada e ainda
-  não fechada; a iniciada por último, com várias, desempate pelo `startedSeq`); sem nenhuma, no último
-  nível 1 do pedido vigente, com a marca `Child.tail`, que o `rows` desenha depois das subtarefas da
+  não fechada; a iniciada por último, com várias, desempate pelo `startedSeq`); sem nenhuma, sob a
+  tarefa da própria filha (`lastAnchor`, senão `anchor`), trabalhando ou parada, se o nível 1 dela é do
+  pedido vigente (2026-11-15, "Sob a tarefa ◉ (Recomendado)" e "Sob a tarefa de origem
+  (Recomendado)"; a tarefa acesa por outra filha ou por um subagente não conta, "Não conta
+  (Recomendado)"); só sem ela, no último nível 1 do pedido vigente, com a marca `Child.tail`, que o `rows` desenha depois das subtarefas da
   tarefa, fechando o pedido (sessoes.turno-proprio-da-filha-no-pedido-vigente). O lugar é decidido uma
   vez, na leitura das sessões que vê o turno (`placeTypedTurns`, no `derive` de `readChildren`), e
   guardado no `Child.places` (`at` do primeiro turno, `anchor`, `tail`), com os outros laços: o store

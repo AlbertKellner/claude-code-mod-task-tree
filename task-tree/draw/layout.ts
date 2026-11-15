@@ -557,10 +557,17 @@ function typedParts(c: Child, main: Group, owner: TaskNode[]) {
   return { typed, ownTurns, ownPart }
 }
 // Where a card of typed turns goes, in the order it happened (the person, 2026-11-15: "Na ordem em que
-// aconteceu (Recomendado)"), for its first turn `u` and the session's ties as made (tied): under this
-// session's task in progress when the person typed (a leaf started by then and not closed yet; the
-// last one started, with several); with none, at the end of the request in force (its last level-1
-// task, drawn after that task's subtasks: `tail`). Decided once, when the sessions are read
+// aconteceu (Recomendado)"), for its first turn `u` and the session's ties as made (tied); the first
+// that exists:
+// 1. this session's task in progress when the person typed (a leaf it started by then and had not
+//    closed yet; the last one started, with several);
+// 2. the session's own task (the one its current round hangs from: the task of the last message sent
+//    to it, else the one it was opened from), if that task's level-1 task is in the request in force,
+//    with the session at work or stopped (the person, 2026-11-15: "Sob a tarefa ◉ (Recomendado)" and
+//    "Sob a tarefa de origem (Recomendado)"); a task lit by another session or a subagent does not
+//    count ("Não conta (Recomendado)");
+// 3. the end of the request in force (its last level-1 task, drawn after that task's subtasks:
+//    `tail`). Decided once, when the sessions are read
 // (placeTypedTurns), and kept: the clocks it reads are written again later (a start after the turn
 // ended, a task reopened), and the card stayed where it was drawn.
 export function placeTyped(c: Child, owner: TaskNode[], u: Turn | undefined): { anchor?: string; tail: boolean } {
@@ -570,7 +577,11 @@ export function placeTyped(c: Child, owner: TaskNode[], u: Turn | undefined): { 
     const busy = leaves.reduce<TaskNode | undefined>((m, t) => (m === undefined || (t.startedAt as number) > (m.startedAt as number) || ((t.startedAt as number) === (m.startedAt as number) && (t.startedSeq ?? 0) >= (m.startedSeq ?? 0)) ? t : m), undefined)
     if (busy !== undefined) return { anchor: busy.id, tail: false }
   }
-  return { anchor: inForceOf(c, owner).end(u), tail: true }
+  const { key, end } = inForceOf(c, owner)
+  const own = c.lastAnchor ?? c.anchor
+  const level1 = own === undefined ? undefined : owner.find(t => t.id === own || flat(t.children).some(k => k.id === own))
+  if (level1?.turn !== undefined && level1.turn === key(u)) return { anchor: own, tail: false }
+  return { anchor: end(u), tail: true }
 }
 // A place kept for a card of typed turns (Child.places), read as it may come from a file: one out of
 // shape is left out.

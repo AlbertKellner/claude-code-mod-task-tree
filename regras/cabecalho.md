@@ -99,6 +99,7 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o total da sessão inteira vai no texto alternativo da barra, não num tooltip.
 Reescrito: 2026-11-14, texto: o pedido anterior com algo aberto é desenhado inteiro e não é contado em "+N" (auditoria 2026-11-10); aplica a decisão de 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"), sem mudar a regra. Os testes deste cenário não mudam.
 Reescrito: 2026-11-14, decisão do usuário ("Na linha +N (Recomendado)"): o total da sessão inteira aparece na linha "+N pedidos anteriores". Os testes deste cenário não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Sob a tarefa ◉ (Recomendado)"): o teste do turno digitado na filha acompanha o lugar do cartão, agora sob a tarefa da filha; a regra dos limites não muda.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos

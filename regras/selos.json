@@ -3154,6 +3154,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::a filha de um pedido antigo, com a mãe parada num pedido novo: o cartão fecha o pedido vigente": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "0b432aeba953348d",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa de origem (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a filha encerrada não segura a visão no pedido novo": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
@@ -3437,6 +3447,16 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: a sessão recém-aberta nascia concluída"
     },
+    "task-tree/tests/sessoes.test.ts::a tarefa acesa por outra filha não leva o cartão do pedido digitado na filha parada": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "a0c0821ac38a82ec",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Não conta (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a tarefa concluída com a filha trabalhando embaixo mostra só o tempo próprio, que não corre nem regride": {
       "regras": [
         "sessoes.tempo-da-tarefa-concluida-com-filha"
@@ -3466,6 +3486,36 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::com a filha fora do pedido vigente, a tarefa acesa por outra filha também não leva o cartão: ele fecha o pedido": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "f2824434c032cf0c",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Não conta (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::com a mãe e a filha paradas, o cartão do pedido do usuário na filha fica sob a tarefa de onde ela foi aberta": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "204af0b057a211a6",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa de origem (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::com a mãe parada e a filha trabalhando sob a tarefa, o cartão do pedido do usuário na filha fica sob essa tarefa": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "ab7741d91eee2c40",
+      "assercoes": 19,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa ◉ (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::com a origem aberta, a filha segue parada e as pendentes contam": {
       "regras": [
@@ -3543,11 +3593,11 @@
         "sessoes.turno-proprio-da-filha-no-pedido-vigente",
         "cabecalho.limites-de-linhas"
       ],
-      "hash": "d60a4709cfbdf6af",
+      "hash": "cf57db3f28d7eb39",
       "assercoes": 5,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa ◉ (Recomendado)\"; o cartão fica sob a tarefa da filha"
     },
     "task-tree/tests/sessoes.test.ts::com uma carta saída da tarefa de origem ainda na fila, a filha que conclui tudo não a fecha": {
       "regras": [
@@ -4002,11 +4052,11 @@
       "regras": [
         "sessoes.rodada-da-frente-e-a-mais-recente"
       ],
-      "hash": "3ba2737565fb2bd7",
+      "hash": "e3e79a03beb7602d",
       "assercoes": 8,
-      "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "correção direta: rodada da frente pelo tempo"
+      "tipo": "decisao",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa de origem (Recomendado)\"; o cartão fica sob a tarefa de onde a filha foi aberta, que o roteiro deixa aberta"
     },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
@@ -4073,11 +4123,11 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "2faece2d070abfd4",
+      "hash": "849ec025a9fd53e7",
       "assercoes": 5,
-      "tipo": "novo",
+      "tipo": "decisao",
       "data": "2026-11-15",
-      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\""
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa de origem (Recomendado)\"; o cartão só fecha o pedido quando a tarefa da filha não está nele, e o roteiro passa a ser esse"
     },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
@@ -4123,11 +4173,11 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "dbd368d4895d8e15",
+      "hash": "04d1adab7959aa69",
       "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-15",
-      "motivo": "decisão do usuário, 2026-11-15: \"Na ordem em que aconteceu (Recomendado)\""
+      "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa ◉ (Recomendado)\"; no primeiro turno a filha trabalhava sob \"Pedir a reescrita\""
     },
     "task-tree/tests/sessoes.test.ts::uma leitura do arquivo que falha não apaga o \"aguardando\" nem gera o lembrete de fim de turno; depois de várias, volta a valer o que o app diz": {
       "regras": [
