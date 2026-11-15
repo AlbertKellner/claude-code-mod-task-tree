@@ -1420,7 +1420,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     pending: Send[],
   ): Row[] =>
     items.flatMap(t => {
-      // A message task a replan left out shows only while its message is queued (carry).
+      // `kept` (no current version writes it; read only from panels stored or published by earlier
+      // versions): a message task a replan left out shows only while its message is queued.
       if (t.kept && !pending.some(s => s.anchor === t.id)) return []
       // Sessions opened on it or below add to its count and keep it in progress (atWork).
       const w = work(t)

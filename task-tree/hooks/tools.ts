@@ -75,9 +75,6 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     // "Reabre mantendo os ✓ (Recomendado)"). A subagent's done task stays as history.
     const replanned = (t: TaskNode) =>
       (t.status === 'open' || (t.status === 'done' && agent === MAIN)) && ids.includes(t.id) && sameRequest(t)
-    // The sends still queued: a message task a replan leaves out stays until delivered (carry).
-    const { value: sendsNow = [] } = await $.state.get(sendsState)
-    const queued = (sendsNow as Send[]).filter(s => !s.taken).map(s => String(s.anchor ?? ''))
     const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
     // The subtasks a replan in place leaves out, each with its level-1 task: the ties to them go to it
     // (moveToLevelOne; the person, 2026-11-14: "Sob o nível 1 (Recomendado)").
@@ -111,7 +108,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         // Abandoned by a new request: interrupted (what was left open), then renamed.
         const away = (t: TaskNode) => rename(t.status === 'open' ? interrupt(now)(t) : t)
         const inPlace = (list: TaskNode[]) => {
-          const out = g.tasks.map(t => (reused(t) ? carry(t, list.find(f => f.id === t.id) as TaskNode, queued, now) : ids.includes(t.id) ? away(t) : t))
+          const out = g.tasks.map(t => (reused(t) ? carry(t, list.find(f => f.id === t.id) as TaskNode, now) : ids.includes(t.id) ? away(t) : t))
           return [...out, ...list.filter(f => !g.tasks.some(t => reused(t) && t.id === f.id))]
         }
         if (agent !== MAIN) return { ...g, tasks: inPlace(fresh) }

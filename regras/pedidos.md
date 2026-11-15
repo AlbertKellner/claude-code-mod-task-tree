@@ -69,6 +69,36 @@ Origem: decisão do usuário, 2026-10-27 ("◉ segue ◉, ✓ segue ✓, ✉ seg
 Reescrito: 2026-11-14, decisão do usuário ("Sob o nível 1 (Recomendado)"); os testes deste cenário não mudam.
 Estado: coberto
 
+### pedidos.replano-mantem-o-falhou
+O replano no mesmo pedido mantém a palavra "falhou" da tarefa que a tinha.
+
+- Dado uma tarefa ✕ "falhou" (o subagente dela falhou, ou o turno em que estava em andamento morreu por erro)
+- Quando o modelo replaneja o nível 1 no mesmo pedido mantendo o id dela
+- Então ela segue ✕ "falhou", não "interrompida", e o cartão desta sessão na mãe segue dizendo "falhou"
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o replano copiava o estado sem a marca da falha); cumpre pedidos.replano-preserva-estado ("quem mantém o id mantém o estado") e a decisão de 2026-11-14 ("✕ \"falhou\" (Recomendado)").
+Estado: coberto
+
+### pedidos.replano-pai-que-vira-folha
+No replano, o pai aberto que perde as subtarefas vira uma tarefa pendente.
+
+- Dado um pai aberto com uma subtarefa já iniciada ou concluída
+- Quando o modelo replaneja o nível 1 no mesmo pedido com esse id sem subtarefas
+- Então a linha fica ○, sem tempo e fora do chip "em andamento"; segue ○ no fim do turno e no Esc (turnos.pendentes-seguem-pendentes), até o start nela; o pai já fechado (✓) que vira folha segue ✓ com o tempo que tinha
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: a folha herdava o início do pai, contava como em andamento e ficava ✕ no Esc sem nunca ter recebido start); cumpre "pendentes nunca ✕" (decisão do usuário, 2026-10-27).
+Estado: coberto
+
+### pedidos.replano-folha-que-ganha-subtarefas
+No replano, a tarefa em andamento que ganha subtarefas passa o andamento à primeira delas.
+
+- Dado uma tarefa sem subtarefas em andamento (◉)
+- Quando o modelo replaneja o nível 1 no mesmo pedido dando subtarefas a ela
+- Então a primeira subtarefa aberta, na ordem do plano, fica ◉ com o relógio seguindo do início da tarefa, e conta no chip "em andamento"; as outras nascem ○ e não acendem sozinhas; a tarefa, agora pai, fica ◉ pelo caminho; a tarefa que estava ◷ ou parada (✕) e ganha subtarefas não passa nada: as subtarefas nascem ○ e a marca de parada não fica no pai
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: depois do replano nada ficava em andamento); dedução que junta duas decisões do usuário, "◉ segue ◉" (2026-10-27) e "Inicia a 1ª subtarefa (Recomendado)" (2026-11-14); a confirmar com ele.
+Estado: coberto
+
 ### pedidos.replano-leva-o-cartao-ao-nivel-1
 O cartão cuja tarefa de origem sai do plano num replano fica sob o nível 1 que a continha.
 

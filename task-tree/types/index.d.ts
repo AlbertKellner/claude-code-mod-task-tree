@@ -32,7 +32,8 @@ export type TaskNode = {
   // every state, only its color changing, and counts in no x/y (the person's words: "quero
   // diferenciar as tarefas de execução, das tarefas de mensagem").
   msg?: boolean
-  // A message task left out of a replan while its message is still queued: kept, drawn until delivered.
+  // No current version writes it; read only from panels stored or published by earlier versions: a
+  // message task a replan left out while its message was queued, drawn until delivered.
   kept?: boolean
   // Closed by the panel as interrupted because the subagent launched from it failed (hooks/agents,
   // settleBySubs): drawn ✕ with "falhou" instead of "interrompida". Also on an open leaf with `stopped`:

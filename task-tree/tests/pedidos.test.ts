@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
+import { abrirSessao, aviso, done, esc, falha, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { cabecalho } from './kit/leitura'
 import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, montar, painel, temBusto, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -222,6 +223,116 @@ test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a 
   esperarEstado(p, 'Dois.um', 'concluida')
   esperarEstado(p, 'Dois.dois', 'concluida')
   esperarEstado(p, 'Um', 'pendente')
+})
+
+// Regra: pedidos.replano-mantem-o-falhou
+test('o replano no mesmo pedido mantém o ✕ "falhou" da tarefa que o turno com erro parou', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await falha($)
+  await aviso($)
+  await plan($, comTres())
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(p.filter(l => l.titulo === 'Plano A').length, emTexto(p)).toBe(1)
+})
+
+// Regra: pedidos.replano-mantem-o-falhou
+test('o replano mantém o ✕ "falhou" da tarefa cujo subagente falhou', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  await fimDoTurno($)
+  await aviso($)
+  let p = await painel($)
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+  await plan($, comTres())
+  p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+})
+
+// Regra: pedidos.replano-pai-que-vira-folha
+test('no replano, o pai que vira folha nasce pendente, sem relógio, e segue pendente no fim do turno e no Esc', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['2.1'])
+  await relogio.advance(2000)
+  await done($, ['2.1'])
+  await relogio.advance(3000)
+  await plan($, [{ ...A2[0]!, children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await relogio.advance(4000)
+  let p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect([cabecalho(p).chips.andamento, cabecalho(p).chips.pendentes], emTexto(p)).toEqual([0, 2])
+  expect(linha(p, 'Dois').texto, emTexto(p)).not.toMatch(/\d:\d\d/)
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(0)
+  await pedido($, 'segue')
+  await esc($)
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(p.filter(l => l.estado === 'interrompida').map(l => l.titulo), emTexto(p)).toEqual([])
+})
+
+// Regra: pedidos.replano-folha-que-ganha-subtarefas
+test('no replano, a folha em andamento que ganha subtarefas passa o andamento à primeira', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await relogio.advance(5000)
+  const ganha = (): No[] => [{ ...A2[0]!, children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }, { id: '1.2', title: 'Um.dois' }] }, A2[0]!.children![1]!] }]
+  await plan($, ganha())
+  let p = await painel($)
+  esperarEstado(p, 'Um.um', 'andamento')
+  esperarEstado(p, 'Um.dois', 'pendente')
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Plano A', 'andamento')
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(1)
+  expect(linha(p, 'Um.um').texto, emTexto(p)).toContain('0:05')
+  await done($, ['1.1'])
+  esperarEstado(await painel($), 'Um.dois', 'pendente')
+  await start($, ['1.2'])
+  await fimDoTurno($)
+  esperarEstado(await painel($), 'Um.dois', 'aguardando')
+})
+
+// Regra: pedidos.replano-folha-que-ganha-subtarefas
+test('no replano, a folha parada com Esc que ganha subtarefas não deixa a marca de parada no pai', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await esc($)
+  await aviso($)
+  await plan($, [{ ...A2[0]!, children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }, { id: '1.2', title: 'Um.dois' }] }, A2[0]!.children![1]!] }])
+  let p = await painel($)
+  esperarEstado(p, 'Um.um', 'pendente')
+  esperarEstado(p, 'Um.dois', 'pendente')
+  expect(p.filter(l => l.estado === 'interrompida').map(l => l.titulo), emTexto(p)).toEqual([])
+  for (const id of ['1.1', '1.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(0)
+  const principal = (h.proprio()?.groups ?? []).find((g: any) => g.agent === '')
+  expect(JSON.stringify(principal?.tasks ?? []), JSON.stringify(principal)).not.toContain('"stopped":true')
 })
 
 // Regra: pedidos.nivel1-concluido-e-historico

@@ -413,7 +413,7 @@ Decisão do usuário, 2026-11-14 ("Só com turno em curso (Recomendado)"): o tem
   `/clear` guarda os intervalos (fechados) no grupo novo.
 - A pausa própria da tarefa (`TaskNode.pause`): a tarefa aberta com fim marcado (Esc ou fim do turno,
   `rest`) que recebe start de novo soma o tempo entre esse fim e o start, menos os intervalos parados
-  ali (`begin`); `carry` a leva no replano. A tarefa concluída e reaberta recomeça do zero.
+  ali (`begin`); `carry` a leva no replano (e, na folha em andamento que ganha subtarefas, a passa à primeira subtarefa aberta com o início dela). A tarefa concluída e reaberta recomeça do zero.
 
 De onde conta: o tempo de uma tarefa, de um pai e de um pedido conta do primeiro start embaixo dele,
 em qualquer estado (decisão do usuário, 2026-11-14, "Do primeiro start (Recomendado)",
@@ -772,7 +772,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   `stopped` em cada folha aberta e iniciada do grupo principal e para ali o relógio (`endedAt`) dela e
   dos pais abertos; o `started` de um pai iniciado diretamente (só em painéis gravados antes de o start num pai iniciar a primeira folha aberta) é desfeito. A marca fica na própria tarefa
   (state, store e arquivo publicado, sem chave nova) até o `start` nela (`begin`), o `done` (`finish`) ou
-  o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`). Enquanto existe, a
+  o plano que a substitui (`interrupt`); o replano no mesmo pedido a mantém (`carry`, com o "falhou"), salvo quando a tarefa muda de forma (a folha que ganha subtarefas e o pai que vira folha não levam a marca). Enquanto existe, a
   folha é lida como interrompida em todo desenho: `halt` no fim de qualquer turno, e `stay` com o turno
   em curso (só as marcadas; `stayed` aplica ao grupo principal, na própria sessão e no cartão de uma
   filha trabalhando). Com a carta dela na fila, segue ◷; o mesmo com trabalho delegado vivo embaixo
@@ -2117,3 +2117,15 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   (`arvore.listas-de-ids-conferidas`). O agente sem grupo recebe os avisos de id
   (`arvore.agente-sem-grupo-recebe-os-avisos`). Uma exceção nas três ferramentas vai ao log e o modelo
   lê um texto fixo, sem a exceção (`arvore.falha-interna-das-ferramentas`).
+
+## Achados baixos: o que o replano no lugar leva (2026-11-15)
+
+- `carry(old, fresh, now)` leva também o `failed` (no ✕ e na folha parada), e olha a forma: o pai
+  aberto que vira folha herda só o status, o `plannedAt` e o `msg` (nasce ○, sem relógio:
+  `pedidos.replano-pai-que-vira-folha`); a folha que ganha subtarefas não leva `stopped` nem `failed`
+  e, em andamento, passa `started`, `startedSeq`, `startedAt` e `pause` à primeira folha aberta abaixo
+  (`firstOpen`), como o start num pai (`pedidos.replano-folha-que-ganha-subtarefas`; dedução que junta
+  "◉ segue ◉" e "Inicia a 1ª subtarefa (Recomendado)", a confirmar com o usuário).
+- Saíram o parâmetro `queued` de `carry`, as declarações mortas `parentOf` e `ids` e a leitura dos
+  `sends` que o `planTool` fazia só para ele. `TaskNode.kept` nenhuma versão atual grava; o ramo que o
+  lê no desenho fica, para painéis gravados ou publicados por versões anteriores.

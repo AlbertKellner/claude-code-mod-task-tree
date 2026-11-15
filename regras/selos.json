@@ -2301,6 +2301,36 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\""
     },
+    "task-tree/tests/pedidos.test.ts::no replano, a folha em andamento que ganha subtarefas passa o andamento à primeira": {
+      "regras": [
+        "pedidos.replano-folha-que-ganha-subtarefas"
+      ],
+      "hash": "def229a2e4b0d497",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: folha em andamento que ganha subtarefas perdia o andamento"
+    },
+    "task-tree/tests/pedidos.test.ts::no replano, a folha parada com Esc que ganha subtarefas não deixa a marca de parada no pai": {
+      "regras": [
+        "pedidos.replano-folha-que-ganha-subtarefas"
+      ],
+      "hash": "35465e521d49c39b",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: marca de parada ficava no pai"
+    },
+    "task-tree/tests/pedidos.test.ts::no replano, o pai que vira folha nasce pendente, sem relógio, e segue pendente no fim do turno e no Esc": {
+      "regras": [
+        "pedidos.replano-pai-que-vira-folha"
+      ],
+      "hash": "e81c3965a73a8244",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: pai que vira folha herdava o início"
+    },
     "task-tree/tests/pedidos.test.ts::o cartão da filha cuja tarefa de origem sai do plano fica sob o nível 1, vivo ou concluído, e segue contando": {
       "regras": [
         "pedidos.replano-leva-o-cartao-ao-nivel-1"
@@ -2341,6 +2371,16 @@
       "data": "2026-11-15",
       "motivo": "auditoria: avisos na resposta do plan"
     },
+    "task-tree/tests/pedidos.test.ts::o replano mantém o ✕ \"falhou\" da tarefa cujo subagente falhou": {
+      "regras": [
+        "pedidos.replano-mantem-o-falhou"
+      ],
+      "hash": "14e76280cec8ec40",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: falhou do subagente no replano"
+    },
     "task-tree/tests/pedidos.test.ts::o replano no mesmo pedido diz quantas tarefas mantiveram o estado": {
       "regras": [
         "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
@@ -2350,6 +2390,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o replano no mesmo pedido mantém o ✕ \"falhou\" da tarefa que o turno com erro parou": {
+      "regras": [
+        "pedidos.replano-mantem-o-falhou"
+      ],
+      "hash": "eccdd23dda1af40f",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: o replano no lugar não levava a marca falhou"
     },
     "task-tree/tests/pedidos.test.ts::o request de outro plan do mesmo pedido não muda o título; o pedido seguinte ganha o seu": {
       "regras": [

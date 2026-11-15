@@ -4,7 +4,7 @@
 // time the engine's clock gives; nothing of the kit here.
 
 import type { Idle, Status, TaskNode } from '../types'
-import { flat, idleIn, stop, timing } from '../draw/layout'
+import { firstOpen, flat, idleIn, stop, timing } from '../draw/layout'
 
 export type InNode = { id: string; title: string; children?: InNode[] }
 
@@ -167,33 +167,41 @@ export function begin(list: TaskNode[], id: string, seq: number, now?: number, i
 }
 
 // A replan of an open level-1 task (same id, same request): the new plan's order and titles, with the
-// state of every task that keeps its id; a message task left out while its message is queued
-// (`queued`: anchors of sends not taken up) stays, marked kept; parents follow their children (the
+// state of every task that keeps its id, its "falhou" too; parents follow their children (the
 // person, 2026-10-27: "◉ segue ◉, ✓ segue ✓, ✉ segue até a entrega; só tarefas novas nascem ○").
-export function carry(old: TaskNode, fresh: TaskNode, queued: string[], now?: number): TaskNode {
+// A task the replan leaves out is not kept, a message task either: its letter hangs from the
+// request's level-1 task until the delivery (pedidos.replano-mantem-envio-ate-entrega).
+// A task that changes shape: an open parent that becomes a leaf keeps only its status (○, with no
+// clock, until its start: pedidos.replano-pai-que-vira-folha); a leaf that gains subtasks drops its
+// stop and its "falhou" (they are a leaf's), and, in progress, hands its start to its first open
+// subtask in plan order, as a start on a parent does (pedidos.replano-folha-que-ganha-subtarefas).
+export function carry(old: TaskNode, fresh: TaskNode, now?: number): TaskNode {
   const byId = new Map(flat([old]).map(t => [t.id, t] as const))
+  const going = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.started !== undefined && t.stopped !== true
   const merge = (n: TaskNode): TaskNode => {
     const o = byId.get(n.id)
-    const kept = o
-      ? { status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg, ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}), ...(o.pause !== undefined ? { pause: o.pause } : {}), ...(o.status === 'open' && o.stopped === true ? { stopped: true } : {}) }
-      : {}
-    return { ...n, ...kept, children: n.children.map(merge) }
-  }
-  let out = merge(fresh)
-  const ids = new Set(flat([out]).map(t => t.id))
-  const parentOf = (list: TaskNode[], id: string, p?: TaskNode): TaskNode | undefined => {
-    for (const t of list) {
-      if (t.id === id) return p
-      const found = parentOf(t.children, id, t)
-      if (found !== undefined) return found
+    if (o === undefined) return { ...n, children: n.children.map(merge) }
+    const wasParent = o.children.length > 0
+    const isParent = n.children.length > 0
+    if (wasParent && !isParent && o.status === 'open') return { ...n, status: o.status, plannedAt: o.plannedAt, msg: o.msg }
+    const sameShape = wasParent === isParent
+    const kept = {
+      status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg,
+      ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}),
+      ...(o.pause !== undefined ? { pause: o.pause } : {}),
+      ...(sameShape && o.status === 'open' && o.stopped === true ? { stopped: true } : {}),
+      ...(sameShape && o.failed === true && (o.status === 'interrupted' || o.stopped === true) ? { failed: true } : {}),
     }
-    return undefined
+    let children = n.children.map(merge)
+    if (!wasParent && isParent && going(o) && !flat(children).some(going)) {
+      const path = firstOpen(children)
+      const leaf = path[path.length - 1]
+      if (leaf !== undefined)
+        children = edit(children, leaf, t => ({ ...t, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, ...(o.pause !== undefined ? { pause: o.pause } : {}) }))
+    }
+    return { ...n, ...kept, children }
   }
-  // A task with a letter still queued that the replan leaves out is not kept: its letter hangs from
-  // the request's level-1 task until the delivery (the panel's letters).
-  void queued
-  void parentOf
-  void ids
+  const out = merge(fresh)
   // A parent with something open below it is open again; settle closes the ones left all done.
   const reopen = (t: TaskNode): TaskNode => {
     const children = t.children.map(reopen)
