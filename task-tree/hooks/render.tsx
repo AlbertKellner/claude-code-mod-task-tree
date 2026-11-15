@@ -6,7 +6,7 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Child, Send } from '../types'
-import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, layout, guides, labelCols, gitLabel } from '../draw/layout'
+import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
@@ -295,7 +295,12 @@ export async function render($: EngineInterface, e: any, next: any) {
   const waitingNow = tally.waits + resting
   const list = chips(active, waitingNow, x, tally.live, tally.sends, pending, tally.subs)
   // The header's general state, the color of its band (headerState).
-  const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x })
+  // With the turn going on, a task of this session started in the request now (or later): the band
+  // stays in progress between a done and the next start (headerState).
+  const since = lastTurnAt(held ?? [])
+  const lastStart = startedLast(mainTasks)?.startedAt
+  const started = typeof ended !== 'number' && since !== undefined && typeof lastStart === 'number' && lastStart >= since
+  const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x, started })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   if (e.surface === 'desktop' && 'Svg' in ui) {

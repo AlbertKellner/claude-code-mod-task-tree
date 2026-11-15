@@ -4093,6 +4093,16 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::a faixa segue em andamento entre o done de uma tarefa e o start da seguinte, com o turno em curso": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "4b5159a39b30850f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Em andamento (Recomendado)"
+    },
     "task-tree/tests/visual.test.ts::a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de cortar": {
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
