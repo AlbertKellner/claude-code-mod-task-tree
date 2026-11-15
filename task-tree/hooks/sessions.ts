@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
+import { MAIN, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -433,6 +433,10 @@ export async function anyRunning($: any): Promise<boolean> {
   const ended = heldEnded !== undefined ? heldEnded : brought?.ended
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).some(s => !s.taken && !s.cut)) return true
+  // A subagent alive in any group keeps the clock on, the turn ended or not: its task is drawn in
+  // progress with its time running (the person, 2026-11-14: "Sim, ◉ como a filha (Recomendado)");
+  // the check of subagents with no end (checkSubs) closes an orphan card.
+  if ((groups as Group[]).some(g => subLive(g.sub))) return true
   return running({ groups: typeof ended === 'number' ? [] : groups, waits: [], children })
 }
 export async function tick($: any) {

@@ -9,10 +9,11 @@ A tarefa iniciada e aberta aguarda no fim do turno.
 
 - Dado uma tarefa iniciada e aberta
 - Quando o turno termina normalmente
-- Então ela fica ◷ com o relógio parado, e o pai e o pedido ◷; salvo a tarefa cujo trabalho era só subagentes, todos terminados e nada mais em execução nela, que reflete o fim deles (subagentes.pai-conclui-no-fim-do-turno)
+- Então ela fica ◷ com o relógio parado, e o pai e o pedido ◷; salvo a tarefa cujo trabalho era só subagentes, todos terminados e nada mais em execução nela, que reflete o fim deles (subagentes.pai-conclui-no-fim-do-turno); com um subagente em segundo plano lançado dela ainda rodando, segue ◉ até ele terminar (subagentes.tarefa-em-andamento-com-subagente-rodando)
 
 Origem: decisão do usuário, 2026-10-27; commit 95b1a21.
 Reescrito: 2026-11-09, decisão do usuário ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)").
+Reescrito: 2026-11-14, decisão do usuário ("Sim, ◉ como a filha (Recomendado)"): a tarefa iniciada com subagente em segundo plano rodando segue em andamento no fim do turno. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### turnos.pendentes-seguem-pendentes

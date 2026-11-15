@@ -2992,6 +2992,17 @@
       "data": "2026-11-14",
       "motivo": "uma noção só de nada em execução na tarefa"
     },
+    "task-tree/tests/subagentes.test.ts::a tarefa iniciada com subagente em segundo plano segue em andamento depois do fim do turno": {
+      "regras": [
+        "subagentes.tarefa-em-andamento-com-subagente-rodando",
+        "turnos.iniciada-aguarda-no-fim"
+      ],
+      "hash": "76f0a7f0f1e9e70e",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sim, ◉ como a filha (Recomendado)"
+    },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
@@ -3209,6 +3220,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado de uma tarefa sem start, o subagente rodando deixa a tarefa, o pai e o pedido em andamento": {
+      "regras": [
+        "subagentes.tarefa-em-andamento-com-subagente-rodando"
+      ],
+      "hash": "5bc7b5dd73f1c66a",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sim, ◉ como a filha (Recomendado)"
     },
     "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior": {
       "regras": [

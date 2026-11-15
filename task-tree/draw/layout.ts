@@ -652,7 +652,7 @@ export const ringOf = (c: Child): Ring | undefined =>
 // has a task still open (for the icon's state).
 // `agents`: the subagents launched from the task or below it planned tasks (counted in d, n and cards; the
 // person, 2026-11-14: "No cabeçalho e acima"); their time is not in `tasks`.
-export type Work = { busy: boolean; any: boolean; direct: boolean; live: boolean; open: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[]; agents?: boolean }
+export type Work = { busy: boolean; any: boolean; direct: boolean; live: boolean; open: boolean; d: number; n: number; tasks: TaskNode[]; cards: TaskNode[]; agents?: boolean; agentLive?: boolean }
 export const idle: Work = { busy: false, any: false, direct: false, live: false, open: false, d: 0, n: 0, tasks: [], cards: [] }
 // A panel's tasks with its sessions' (archived ones too), as deep as the count follows them: the
 // sessions as they count (cardsOf, `me` the session the panel belongs to), a discarded round left out
@@ -741,8 +741,9 @@ export function stillSpan(list: TaskNode[]): number | undefined {
 // tasks, or to now while any of them runs or a session below it is at work. A closed task keeps
 // its own time, stopped, while a session below still works (the person, 2026-11-14: "Só o
 // próprio"): it ran on to the session's end and fell back when the session stopped.
+// A subagent alive below an open task runs its clock as a session at work does (agentLive).
 export function timeOf(t: TaskNode, w: Work, now?: number): number | undefined {
-  return timeSpan([t, ...w.tasks], w.busy && t.status === 'open', now)
+  return timeSpan([t, ...w.tasks], (w.busy || w.agentLive === true) && t.status === 'open', now)
 }
 export function timeSpan(list: TaskNode[], busy: boolean, now?: number): number | undefined {
   if (!busy) return span(list, now)
@@ -1330,13 +1331,15 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
                 ? 'done'
                 : settled(t)
                   ? 'done'
-                  : leftWaiting(t)
-                    ? 'paused'
-                    : lit.includes(t.id) || trailIds.includes(t.id)
-                      ? 'current'
-                      : t.children.length > 0 && resting(t.children)
-                        ? 'paused'
-                        : 'open'
+                  : w.agentLive
+                    ? 'current'
+                    : leftWaiting(t)
+                      ? 'paused'
+                      : lit.includes(t.id) || trailIds.includes(t.id)
+                        ? 'current'
+                        : t.children.length > 0 && resting(t.children)
+                          ? 'paused'
+                          : 'open'
       const [ld, ln] = t.children.length > 0 ? count(t.children) : w.any || w.agents ? count([t]) : [0, 0]
       const [sd, sn] = [ld + w.d, ln + w.n]
       const row: Row = {
@@ -1402,7 +1405,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     reply = true,
   ): Row[] => {
     const ws = list.map(work)
-    const busy = ws.some(w => w.busy)
+    const busy = ws.some((w, i) => w.busy || (w.agentLive === true && list[i]?.status === 'open'))
     const [ld, ln] = count(list)
     const [d, n] = [ws.reduce((a, w) => a + w.d, ld), ws.reduce((a, w) => a + w.n, ln)]
     const tone: Tone =
@@ -1429,7 +1432,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       bar: true,
       time:
         // A request whose level-1 tasks are all closed keeps their time, stopped (timeOf).
-        (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], ws.some((w, i) => w.busy && list[i]?.status === 'open'), now)) ??
+        (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], ws.some((w, i) => (w.busy || w.agentLive === true) && list[i]?.status === 'open'), now)) ??
         (tone === 'done'
           ? null
           : tone === 'current' && now !== undefined && list.some(t => t.plannedAt !== undefined)
@@ -1587,6 +1590,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       seen.includes(agent) ? [] : kidsOf(agent).flatMap(k => [...k.tasks, ...deepTasks(k.agent, [...seen, agent])])
     const agentTasks = (k: Group, seen: string[] = []) => [...k.tasks, ...deepTasks(k.agent, [...seen, k.agent])]
     // Those of the subagents `owner` launched from `t` or a task below it.
+    // A subagent alive (subLive), or one that launched another still alive, all the way down.
+    const liveDeep = (k: Group, seen: string[] = []): boolean =>
+      subLive(k.sub) || (!seen.includes(k.agent) && kidsOf(k.agent).some(j => liveDeep(j, [...seen, k.agent])))
+    // Whether `owner` launched, from `t` or an open task below it, a subagent still at work (liveDeep):
+    // the task is drawn in progress (the person, 2026-11-14: "Sim, ◉ como a filha (Recomendado)"). Not a
+    // task the Esc stopped (`stopped`): it stays ◷ while its subagent runs (spared; "Segue ◉/◷").
+    const agentLiveIn = (owner: string, t: TaskNode): boolean => {
+      const ids = new Set(flat([t]).filter(k => k.status === 'open' && k.stopped !== true).map(k => k.id))
+      return ids.size > 0 && kidsOf(owner).some(k => k.anchor !== undefined && ids.has(k.anchor) && liveDeep(k, [owner]))
+    }
     const subTasksOf = (owner: string, t: TaskNode): TaskNode[] => {
       const kids = kidsOf(owner).filter(k => k.anchor !== undefined)
       if (kids.length === 0) return []
@@ -1700,6 +1713,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           const extra = subTasksOf(g.agent, t)
           const [d, n] = count(extra)
           w = extra.length === 0 ? base : { ...base, d: base.d + d, n: base.n + n, cards: [...base.cards, ...extra], agents: true }
+          if (agentLiveIn(g.agent, t)) w = { ...w, agentLive: true }
           withAgents.set(t, w)
         }
         return w

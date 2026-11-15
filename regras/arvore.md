@@ -50,10 +50,11 @@ Sem start, nada fica em andamento.
 
 - Dado um plano novo
 - Quando nenhum start foi chamado
-- Então todas as tarefas, o pai e o pedido ficam ○
+- Então todas as tarefas, o pai e o pedido ficam ○; salvo a tarefa com sessão filha trabalhando (sessoes.filha-trabalhando-mantem-pais-em-andamento) ou com subagente rodando (subagentes.tarefa-em-andamento-com-subagente-rodando)
 
 Origem: decisão do usuário, 2026-10-23 ("sem start, nada aceso"); commit b742294.
 Código: draw/layout.ts
+Reescrito: 2026-11-14, decisão do usuário ("Sim, ◉ como a filha (Recomendado)"): exceção para a tarefa com subagente rodando. O teste deste cenário não muda.
 Estado: coberto
 
 ### arvore.pai-em-andamento-no-caminho-da-ultima-iniciada

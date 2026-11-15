@@ -647,6 +647,10 @@ docs mostrava "✓ 1/1" com a subtarefa "Ler o código e o doc" interrompida den
 Sem start, nada aceso (decisão do usuário depois do teste visual: "sem start, nada aceso; envio feito
 sem tarefa em andamento ancora na ÚLTIMA INICIADA do pedido atual (mesmo concluída); sem nenhuma
 iniciada, no fim do pedido"): uma tarefa só está em andamento depois que o modelo chama `start`.
+Exceções: a tarefa com sessão filha trabalhando e, desde 2026-11-14 ("Sim, ◉ como a filha
+(Recomendado)"), a tarefa aberta com um subagente dela vivo (`agentLive` no `Work`, de `agentLiveIn` em
+`panel`): ◉ com o tempo correndo, também depois do fim do turno, e o relógio de 1 s segue ligado
+(`anyRunning`); a concluída segue ✓ ("Segue ✓ (Recomendado)") e a parada pelo Esc segue ◷.
 Sintomas do teste visual: o cartão da mensagem mandada antes do `start` do Passo 2 ficava sob "Passo 2";
 o cartão "Passo 2 filha" (mandado pelo Passo 2, já concluído) ficava sob "Passo 3"; "Passo 3" aparecia ✓
 1/1 sem `start` (a entrega fechava a tarefa errada); "Passo 4" ficava ◉ com relógio sem `start`; o

@@ -173,6 +173,17 @@ Reescrito: 2026-11-14, decisão do usuário ("Apagar os sem tarefas (Recomendado
 Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): o lançamento num pedido ainda sem plano não vai à tarefa fechada do pedido anterior.
 Estado: coberto
 
+### subagentes.tarefa-em-andamento-com-subagente-rodando
+Enquanto um subagente lançado dela roda, a tarefa aberta aparece em andamento.
+
+- Dado uma tarefa aberta, com ou sem start, com um subagente lançado dela (ou de uma tarefa aberta de baixo dela) rodando ("trabalhando" ou "em segundo plano"), ou um subagente terminado dela que lançou outro ainda rodando
+- Quando o painel é desenhado, com o turno em curso ou terminado
+- Então a tarefa, os pais e o pedido aparecem ◉, com o tempo correndo; a iniciada não fica ◷ no fim do turno enquanto ele roda; quando ele termina, vale a regra de sempre (dentro do turno, a tarefa volta ao que era; com o turno terminado, fecha pelo fim dele); a tarefa já concluída segue ✓ com o cartão embaixo (subagentes.cartao-fica-com-a-origem-fechada); a tarefa que o Esc parou segue ◷ enquanto ele roda (turnos.esc-com-trabalho-delegado-vivo); os chips não mudam: o subagente conta na pílula "N subagentes"
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, ◉ como a filha (Recomendado)"); exceção a arvore.sem-start-nada-acende ("sem start, nada aceso", 2026-10-23), como a da sessão filha. A tarefa concluída com o subagente em segundo plano: decisão do usuário, 2026-11-14 ("Segue ✓ (Recomendado)").
+Código: hooks/sessions.ts
+Estado: coberto
+
 ### subagentes.reaberta-nao-fecha-pelo-subagente-antigo
 Reaberta com start, a tarefa não fecha de novo pelos subagentes que terminaram antes.
 
