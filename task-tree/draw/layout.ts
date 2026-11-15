@@ -496,7 +496,8 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
   // that draws them) is kept as it is, with no breaks computed for it.
   if (c0.part !== undefined || c0.history !== undefined) return [c0]
   const all = cleared(c0)
-  return all.flatMap(k => roundsOf(k, sisters, me, owner, now, memo))
+  const firsts = c0.places === undefined ? [] : typedCards(c0, owner).flatMap(x => (typeof x.u.at === 'number' ? [x.u.at] : []))
+  return all.flatMap(k => roundsOf(k, sisters, me, owner, now, memo, firsts))
 }
 // The session's ties, as of when they were made: where it was opened (by when its work began)
 // and where its last message came from (by that message), see resolveAnchor.
@@ -592,29 +593,57 @@ export function placeTyped(c: Child, owner: TaskNode[], u: Turn | undefined): { 
 // shape is left out.
 type Place = NonNullable<Child['places']>[number]
 const isPlace = (x: unknown): x is Place => typeof x === 'object' && x !== null && typeof (x as Place).at === 'number' && typeof (x as Place).anchor === 'string'
-// The places of a session's cards of typed turns not decided yet (a first turn with a time, and a task
-// to put it under), decided now with the ties and clocks of now and kept (hooks/sessions, on each read
-// of the sessions; the cards of the work before a /clear too). 20 per session (keepRounds: those of a
-// task out of sight go first). The session unchanged when nothing new.
-export function placeTypedTurns(c0: Child, owner: TaskNode[], work: string[]): Child {
-  if (c0.panel === undefined) return c0
-  const kept = (c0.places ?? []).filter(isPlace)
-  const add: Place[] = []
-  for (const k of cleared(c0)) {
+// The first turn of each card of typed turns a session shows (in each stretch between two of its
+// /clear), with the stretch's ties as made (tied).
+function typedCards(c0: Child, owner: TaskNode[]): { c: Child; u: Turn }[] {
+  return cleared(c0).flatMap(k => {
     const c = tied(k, owner)
     const main = withMain(c.panel?.groups ?? []).find(g => g.agent === MAIN)
-    if (main === undefined) continue
+    if (main === undefined) return []
     const { ownTurns, ownPart } = typedParts(c, main, owner)
-    ownTurns.forEach((u, i) => {
-      const at = u.at
-      if (ownPart.get(u.id) !== -1 - i || typeof at !== 'number' || [...kept, ...add].some(x => x.at === at)) return
-      const place = placeTyped(c, owner, u)
-      if (place.anchor !== undefined) add.push({ at, anchor: place.anchor, ...(place.tail ? { tail: true } : {}) })
-    })
-  }
-  return add.length === 0 ? c0 : { ...c0, places: keepRounds([...kept, ...add], owner, work) }
+    return ownTurns.filter((u, i) => ownPart.get(u.id) === -1 - i).map(u => ({ c, u }))
+  })
 }
-function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
+// The kept place of the card whose first turn shown is `u` (one search, for the drawing and for
+// placeTypedTurns): the place with `u`'s time; else the latest kept before it in the same request in
+// force (inForceOf's key, by the place's time), not the place of another card shown (`firsts`, the
+// times of the cards' first turns). The second is the card whose first turn is not shown: a grandchild
+// published by its session with only the turns of its current work (trimPublished), a first turn the
+// session dropped. Read as it was kept: no resolveAnchor (it was decided at the read, after `at`).
+function keptPlace(c: Child, owner: TaskNode[], places: Place[], u: Turn | undefined, firsts: number[]): Place | undefined {
+  const at = u?.at
+  if (at === undefined) return undefined
+  const exact = places.find(x => x.at === at)
+  if (exact !== undefined) return exact
+  const { key } = inForceOf(c, owner)
+  const k = key(u)
+  return places
+    .filter(x => x.at < at && !firsts.includes(x.at) && key({ ...(u as Turn), at: x.at }) === k)
+    .reduce<Place | undefined>((m, x) => (m === undefined || x.at > m.at ? x : m), undefined)
+}
+// The places of a session's cards of typed turns not decided yet (a first turn with a time, and a task
+// to put it under), decided now with the ties and clocks of now and kept (hooks/sessions, on each read
+// of the sessions; the cards of the work before a /clear too). One per card, with no cap: a read with
+// nothing new keeps the list as it is (no write). A kept place whose task is gone from this session's
+// tasks no longer counts: it leaves the list and its card is decided again, with the tasks of now. The
+// session unchanged when nothing new.
+export function placeTypedTurns(c0: Child, owner: TaskNode[]): Child {
+  if (c0.panel === undefined) return c0
+  const ids = new Set(flat(owner).map(t => t.id))
+  const all = (c0.places ?? []).filter(isPlace)
+  const kept = all.filter(x => ids.has(x.anchor))
+  const cards = typedCards(c0, owner)
+  const firsts = cards.flatMap(x => (typeof x.u.at === 'number' ? [x.u.at] : []))
+  const add: Place[] = []
+  for (const { c, u } of cards) {
+    const at = u.at
+    if (typeof at !== 'number' || keptPlace(c, owner, [...kept, ...add], u, firsts) !== undefined) continue
+    const place = placeTyped(c, owner, u)
+    if (place.anchor !== undefined) add.push({ at, anchor: place.anchor, ...(place.tail ? { tail: true } : {}) })
+  }
+  return add.length === 0 && kept.length === all.length ? c0 : { ...c0, places: [...kept, ...add] }
+}
+function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo, firsts: number[]): Child[] {
   const c = tied(c0, owner)
   const rounds = breaks(c, sisters, me, [], owner, memo)
   const p = c.panel
@@ -622,10 +651,10 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
   const groups = withMain(p.groups ?? [])
   const main = groups.find(g => g.agent === MAIN) as Group
   // The turns typed in that session, their cards (typedParts) and where each goes: the place decided
-  // and kept when the sessions were read (Child.places, by its first turn's time; its task gone, which
-  // a replan's moveToLevelOne prevents, the end of the request in force); with none kept (a turn with
-  // no time, a file published before places were kept, a session not read yet), decided here at each
-  // drawing (placeTyped).
+  // and kept when the sessions were read (Child.places, found by keptPlace, its task as kept); with
+  // none kept, or one whose task is gone (a turn with no time, a file published before places were
+  // kept, a session not read yet, a grandchild's file out of shape), decided here at each drawing
+  // (placeTyped).
   const { typed, ownTurns, ownPart } = typedParts(c, main, owner)
   if (rounds.length === 0 && ownTurns.length === 0) return [c]
   const places = new Map<number, { anchor?: string; tail: boolean }>()
@@ -633,11 +662,8 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
     let hit = places.get(k)
     if (hit !== undefined) return hit
     const u = ownTurns[-1 - k]
-    const kept = u?.at === undefined ? undefined : (c0.places ?? []).filter(isPlace).find(x => x.at === u.at)
-    if (kept !== undefined) {
-      const id = resolveAnchor(owner, kept.anchor, kept.at)
-      hit = id !== undefined && flat(owner).some(t => t.id === id) ? { anchor: id, tail: kept.tail === true } : { anchor: inForceOf(c, owner).end(u), tail: true }
-    } else hit = placeTyped(c, owner, u)
+    const kept = keptPlace(c, owner, (c0.places ?? []).filter(isPlace), u, firsts)
+    hit = kept !== undefined && flat(owner).some(t => t.id === kept.anchor) ? { anchor: kept.anchor, tail: kept.tail === true } : placeTyped(c, owner, u)
     places.set(k, hit)
     return hit
   }

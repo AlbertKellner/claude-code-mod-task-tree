@@ -3498,6 +3498,16 @@
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::a neta com dois turnos digitados no mesmo pedido da filha, publicada só com o segundo, fica onde a filha guardou": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "90f0fe9e1083cd3f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: a neta publicada sem o primeiro turno digitado fica no lugar guardado"
+    },
     "task-tree/tests/sessoes.test.ts::a neta com o lugar guardado no arquivo publicado da filha fica onde a filha o guardou": {
       "regras": [
         "sessoes.lugar-do-cartao-digitado-nao-muda"
@@ -3718,6 +3728,16 @@
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 2"
+    },
+    "task-tree/tests/sessoes.test.ts::com dois starts da mãe no mesmo instante, o cartão do pedido do usuário na filha fica sob a iniciada por último": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "566fa47ea7378d07",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: desempate de dois starts no mesmo instante"
     },
     "task-tree/tests/sessoes.test.ts::com duas tarefas em andamento, cada sessão aberta vai a uma tarefa diferente": {
       "regras": [
@@ -4076,6 +4096,16 @@
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
     },
+    "task-tree/tests/sessoes.test.ts::o cartão que fecha o pedido segue nele quando o último nível 1 foi planejado depois de ele digitar e reusa o id de um nível 1 antigo": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "be3cc680b284d477",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: o lugar é lido como foi guardado, sem ir ao nível 1 antigo de mesmo id"
+    },
     "task-tree/tests/sessoes.test.ts::o cartão vivo de um pedido cortado é desenhado solto no fim, nas duas visões; o parado e concluído segue cortado": {
       "regras": [
         "sessoes.cartao-vivo-nunca-some"
@@ -4116,6 +4146,16 @@
       "data": "2026-11-15",
       "motivo": "revisão de 2026-11-15: o lugar do cartão não muda depois de decidido"
     },
+    "task-tree/tests/sessoes.test.ts::o lugar guardado numa tarefa que não existe mais não vale: a neta fica no lugar derivado": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "58212e2fa753ef04",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: lugar em tarefa inexistente cai no lugar derivado"
+    },
     "task-tree/tests/sessoes.test.ts::o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela": {
       "regras": [
         "envios.carta-pelo-nome-da-sessao",
@@ -4146,6 +4186,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
+    },
+    "task-tree/tests/sessoes.test.ts::o pedido novo que reusa o id do nível 1 não puxa o cartão que fechava o pedido antigo": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "aa1af76f673f13bc",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: o renome do nível 1 reusado leva o lugar"
     },
     "task-tree/tests/sessoes.test.ts::o pedido que saiu do trabalho volta com o cartão da filha ao abrir \"+N pedidos anteriores\"": {
       "regras": [
@@ -4229,6 +4279,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
+    "task-tree/tests/sessoes.test.ts::outra mensagem da mãe à filha não tira do lugar o cartão do pedido digitado nela": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "a3ed067e059802d8",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: mensagem nova à filha não move o cartão"
     },
     "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista": {
       "regras": [
@@ -4359,6 +4419,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: a sessão conta uma vez no chip"
+    },
+    "task-tree/tests/sessoes.test.ts::vinte e um cartões de pedido digitado na filha: nenhum lugar sai e a leitura sem novidade não regrava": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "b290d3df9c46b110",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: sem teto, a lista de lugares não muda sem novidade"
     },
     "task-tree/tests/subagentes.test.ts::a descrição do subagente com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem": {
       "regras": [

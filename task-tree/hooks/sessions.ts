@@ -165,11 +165,15 @@ async function readChildren($: any) {
   const out = (c: Child) => !tiesOf(c, mainTasks).some(a => sight.includes(a))
   const read = await readFiles($, mine, ((cur ?? []) as Child[]).filter(c => c.summary === undefined || out(c)))
   // The place of each card of turns typed in a session is decided at the first read that sees it, with
-  // the ties and clocks of now, and kept (placeTypedTurns): the card does not move afterwards.
+  // the ties and clocks of now, and kept (placeTypedTurns): the card does not move afterwards. The tasks
+  // it is decided with are read after the files (the ones above only chose which files to read): every
+  // typed turn this read sees is older than them, so a start made before the person typed counts.
+  const { value: groupsRead = [] } = await $.state.get(groupsState)
+  const tasksRead = (groupsRead as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
   const derive = (known: Child[]) => {
     const d = deriveChildren(mine, known, read, keptLink, now)
-    const placed = d.children.map(c => placeTypedTurns(c, mainTasks, work as string[]))
-    return { ...d, children: summarize(placed, groups0 as Group[], out, self) }
+    const placed = d.children.map(c => placeTypedTurns(c, tasksRead))
+    return { ...d, children: summarize(placed, groupsRead as Group[], out, self) }
   }
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
   // it opened them on (see endedNote). The state is written only when the children changed: a poll

@@ -573,9 +573,16 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   `fromOwnFile` e `moveAnchors` (o replano que tira a tarefa leva o lugar ao nível 1, sem `tail`; o
   renome do nível 1 reusado o leva junto). Os relógios que a conta lê são reescritos depois (o start
   da tarefa que aguardava apaga o `endedAt`; a reabertura troca o `startedAt`), e o cartão saltava
-  (sessoes.lugar-do-cartao-digitado-nao-muda). O desenho lê o guardado (20 por sessão, `keepRounds`) e
-  só decide na hora sem ele: turno sem hora, arquivo publicado por versão anterior, sessão ainda não
-  lida. Para a
+  (sessoes.lugar-do-cartao-digitado-nao-muda). Um lugar por cartão, sem teto: a leitura sem novidade
+  não regrava a lista. O desenho e o `placeTypedTurns` acham o lugar pela mesma busca (`keptPlace`): o
+  de hora igual à do primeiro turno do cartão que se vê; senão o mais recente anterior no mesmo pedido
+  vigente (a neta publicada pela filha só com os turnos do trabalho atual, `trimPublished`, chega sem o
+  primeiro). A tarefa do lugar é lida como foi guardada, sem `resolveAnchor` (o lugar é decidido na
+  leitura, depois da hora do turno). Lugar cuja tarefa não existe mais não vale: sai da lista e o
+  cartão é decidido de novo na leitura; no desenho, vai ao lugar derivado. Em `readChildren`, as
+  tarefas com que o lugar é decidido são lidas depois dos arquivos das filhas: todo turno digitado que
+  a leitura vê é mais velho que elas. O desenho só decide na hora sem lugar: turno sem hora, arquivo
+  publicado por versão anterior, sessão ainda não lida. Para a
   rodada da frente, a parte conta pelo turno mais recente (`lastOwn`). Com dois ou mais turnos no
   cartão, cada um ganha a sua linha de pedido no `body` (`typedHere`), e o texto alternativo diz
   "Pedidos do usuário na filha: N" (`ownCount`); com um só, como antes. Um turno digitado não entra no
@@ -2272,6 +2279,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   `Child.places` (sessoes.lugar-do-cartao-digitado-nao-muda). A chave do agrupamento ganhou o recuo ao
   pedido de origem: um turno digitado antes do primeiro plan, ou sem hora, e outro depois ficavam em dois
   cartões.
+- Na revisão: o teto de 20 lugares (`keepRounds`) entrava em laço (o lugar que saía era decidido de novo na
+  leitura seguinte e tirava outro; a lista mudava a cada 3 s) e saiu; o desenho passava o lugar guardado por
+  `resolveAnchor` e o mandava a um nível 1 antigo de mesmo id; a neta de dois turnos digitados, publicada sem
+  o primeiro, não achava o lugar (busca nova `keptPlace`); as tarefas da decisão eram lidas antes dos
+  arquivos das filhas; o lugar numa tarefa que sumiu fechava o pedido para sempre.
 
 ## Achados baixos: corte de texto e números do desenho (2026-11-15)
 

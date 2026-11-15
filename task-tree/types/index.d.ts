@@ -241,7 +241,7 @@ export type Child = {
   // Where each card of turns the person typed in that session goes, decided once when the sessions are
   // read (draw/layout, placeTypedTurns) and kept with the other ties: `at`, its first turn's time;
   // `anchor`, the task of this session it hangs from; `tail`, it closes the request (after that task's
-  // subtasks). 20 per session (keepRounds); absent from earlier versions (the card's place is then
+  // subtasks). One per card, with no cap; absent from earlier versions (the card's place is then
   // worked out at each drawing).
   places?: { at: number; anchor: string; tail?: boolean }[]
   // Drawn only: a card at work drawn loose at the end, its request cut from sight: that request's title.
