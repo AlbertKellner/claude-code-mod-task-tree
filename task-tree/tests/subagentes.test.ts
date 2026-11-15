@@ -50,6 +50,59 @@ test('sem usar o painel, o cartão mostra a ferramenta em uso e quantas chamadas
   expect(corpo, emTexto(p)).toContain('Grep "hover" · 2 chamadas')
 })
 
+// Regra: subagentes.ferramenta-em-uso-com-freio
+test('muitas chamadas de ferramenta de subagentes no mesmo segundo gravam o painel uma vez; a linha da ferramenta chega em até 1 s', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1', 'sub-2', 'sub-3'])
+  on('tool.call', { tool: 'Read' }, () => ({ result: 'ok' }))
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  // As gravações dos grupos, contadas pelo teste (o custo que o freio corta).
+  let gravacoes = 0
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (e.key === 'groups') gravacoes++
+    return next(e)
+  })
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler um' })
+  await lancar($, { descricao: 'ler dois' })
+  await lancar($, { descricao: 'ler três' })
+  gravacoes = 0
+  const quem = ['sub-1', 'sub-2', 'sub-3', 'sub-1', 'sub-2', 'sub-3', 'sub-1', 'sub-2', 'sub-1', 'sub-3']
+  for (const [i, a] of quem.entries()) await chamadaDoSubagente($, a, i % 2 ? 'Grep' : 'Read', i % 2 ? { pattern: `p${i}` } : { file_path: `C:/x/a${i}.ts` })
+  expect(gravacoes).toBe(1)
+  await relogio.advance(1000)
+  expect(gravacoes).toBe(2)
+  const p = await painel($)
+  const corpo = (t: string) => abaixo(p, t).map(l => l.texto).join(' | ')
+  expect(corpo('Explore: ler um'), emTexto(p)).toContain('Read a8.ts · 4 chamadas')
+  expect(corpo('Explore: ler dois'), emTexto(p)).toContain('Grep "p7" · 3 chamadas')
+  expect(corpo('Explore: ler três'), emTexto(p)).toContain('Grep "p9" · 3 chamadas')
+})
+
+// Regra: subagentes.ferramenta-em-uso-com-freio
+test('a ferramenta pendente de um subagente que terminou não volta ao cartão dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1', 'sub-2'])
+  on('tool.call', { tool: 'Read' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler um' })
+  await lancar($, { descricao: 'ler dois' })
+  await chamadaDoSubagente($, 'sub-1', 'Read', { file_path: 'C:/x/um.ts' })
+  await chamadaDoSubagente($, 'sub-2', 'Read', { file_path: 'C:/x/dois.ts' })
+  await fimDoSubagente($, 'sub-2')
+  await relogio.advance(1000)
+  const p = await painel($)
+  const dois = abaixo(p, 'Explore: ler dois').map(l => l.texto).join(' | ')
+  expect(linha(p, 'Explore: ler dois').texto, emTexto(p)).toContain('concluído')
+  expect(dois, emTexto(p)).not.toContain('dois.ts')
+  expect(abaixo(p, 'Explore: ler um').map(l => l.texto).join(' | '), emTexto(p)).toContain('Read um.ts')
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+})
+
 // Regra: subagentes.corpo-e-as-tarefas-ou-a-ferramenta
 test('o subagente que usa o painel mostra as tarefas dele no cartão', async ($: any, on: any) => {
   fixar(on)

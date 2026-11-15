@@ -36,6 +36,17 @@ Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)").
 Código: hooks/tool-call.ts
 Estado: coberto
 
+### subagentes.ferramenta-em-uso-com-freio
+As chamadas de ferramenta dos subagentes atualizam os cartões no máximo uma vez por segundo.
+
+- Dado vários subagentes rodando sem usar o painel, com muitas chamadas de ferramenta por segundo
+- Quando eles chamam ferramentas
+- Então o painel é gravado no máximo uma vez por segundo para todos eles; a linha "ferramenta · N chamadas" de cada cartão chega em até 1 s, com a contagem exata; o cartão que terminou nesse intervalo não ganha a ferramenta de volta
+
+Origem: auditoria 2026-11-10 (cada chamada com texto diferente regravava o painel inteiro antes de a ferramenta rodar); aplica subagentes.corpo-e-as-tarefas-ou-a-ferramenta, sem mudar a regra.
+Código: hooks/tool-call.ts
+Estado: coberto
+
 ### subagentes.terminado-segue-cartao
 Terminado, o cartão segue como cartão, com a palavra de estado.
 

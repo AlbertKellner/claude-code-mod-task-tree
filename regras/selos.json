@@ -3002,6 +3002,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
     },
+    "task-tree/tests/subagentes.test.ts::a ferramenta pendente de um subagente que terminou não volta ao cartão dele": {
+      "regras": [
+        "subagentes.ferramenta-em-uso-com-freio"
+      ],
+      "hash": "4d7134e9bcf12337",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "freio por tempo nas gravações do cartão do subagente"
+    },
     "task-tree/tests/subagentes.test.ts::a nova tentativa decide também quando termina mal: parada, a tarefa fica ✕ 'interrompida'": {
       "regras": [
         "subagentes.pai-reflete-falha-ou-interrupcao"
@@ -3301,6 +3311,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::muitas chamadas de ferramenta de subagentes no mesmo segundo gravam o painel uma vez; a linha da ferramenta chega em até 1 s": {
+      "regras": [
+        "subagentes.ferramenta-em-uso-com-freio"
+      ],
+      "hash": "e5616c145efd26af",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "freio por tempo nas gravações do cartão do subagente"
     },
     "task-tree/tests/subagentes.test.ts::no Esc, a tarefa com subagente em segundo plano aguarda enquanto ele roda": {
       "regras": [

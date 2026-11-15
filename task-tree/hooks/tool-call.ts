@@ -244,7 +244,8 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
   // A call of the main loop: its turn is running, what the last one left open is in progress again.
   if (c.agent === MAIN) await wake($)
-  // A subagent's call: the tool its card shows (hooks/agents).
+  // A subagent's call: the tool its card shows (hooks/agents); the cards are written at most once a
+  // second for all the subagents, so this call waits on a write only once a second at most.
   else await subTool($, c.agent, e)
   // The links come back from the store before the launch writes one (a new process).
   await ensureLinks($)

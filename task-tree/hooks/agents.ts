@@ -25,12 +25,20 @@ const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
-// The tool in use changes many times a second: the card is written at most once every THROTTLE ms
-// per subagent (the pane redraws on every write).
+// The tool in use changes many times a second, in dozens of subagents at once (a workflow): every write
+// goes through change (state, status, store, published file) and redraws the pane. So the cards' tool
+// lines are written at most once every THROTTLE ms for all the subagents together (subTool): a call
+// only counts and keeps its line as pending; one second gone since the last write, the call writes at
+// once (the only one that waits on the write); within it, one timer writes what is pending when the
+// second closes. A subagent's model and rate (subStep) are throttled per subagent.
 const THROTTLE = 1000
 
 const wrote = new Map<string, number>()
 const calls = new Map<string, number>()
+// The tool lines not written yet, by agent; when they were last written; the timer that writes them.
+const pendingTools = new Map<string, string>()
+let toolsWrote = -Infinity
+let toolsTimer: { cancel: () => void } | undefined
 
 function setSub($: any, agent: string, fn: (s: Sub) => Sub) {
   return change($, all => all.map(g => (g.agent === agent && g.sub ? { ...g, sub: fn(g.sub) } : g)))
@@ -138,17 +146,32 @@ export function toolText(e: any): string {
 export async function subTool($: any, agent: string, e: any) {
   // The panel's own tools and the hand-back (the subagent's report, after its work) are not its work.
   if (String(e?.tool ?? '').startsWith('mcp__task-tree__') || e?.tool === 'SubagentHandback') return
-  const n = (calls.get(agent) ?? 0) + 1
-  calls.set(agent, n)
+  calls.set(agent, (calls.get(agent) ?? 0) + 1)
+  pendingTools.set(agent, toolText(e))
   const now = (await stamp($)) ?? 0
-  const { value = [] } = await $.state.get(groupsState)
-  const s = (value as Group[]).find(g => g.agent === agent)?.sub
-  if (!s || (s.state !== 'running' && s.state !== 'background')) return
-  const tool = toolText(e)
-  // The first call, a new tool, or a second gone by: written; else only counted, written later.
-  if (s.tool === tool && now - (wrote.get(agent) ?? -Infinity) < THROTTLE) return
-  wrote.set(agent, now)
-  await setSub($, agent, x => ({ ...x, tool, calls: n, seen: now }))
+  if (now - toolsWrote >= THROTTLE) return writeTools($, now)
+  if (toolsTimer === undefined) toolsTimer = $.clock.after(THROTTLE - (now - toolsWrote), () => void flushTools($).catch(() => {}))
+}
+async function flushTools($: any) {
+  toolsTimer = undefined
+  if (pendingTools.size > 0) await writeTools($, (await stamp($)) ?? 0)
+}
+// One write for every pending line; only a card still alive takes it (one that ended, or was dropped,
+// meanwhile does not get its tool back).
+async function writeTools($: any, now: number) {
+  toolsTimer?.cancel()
+  toolsTimer = undefined
+  toolsWrote = now
+  const lines = new Map(pendingTools)
+  pendingTools.clear()
+  for (const a of lines.keys()) wrote.set(a, now)
+  await change($, all =>
+    all.map(g => {
+      const tool = lines.get(g.agent)
+      if (tool === undefined || !g.sub || !subLive(g.sub)) return g
+      return { ...g, sub: { ...g.sub, tool, calls: calls.get(g.agent) ?? g.sub.calls ?? 1, seen: now } }
+    }),
+  )
 }
 
 // A subagent's turn ending is its end: done, failed, or interrupted (stopped).
@@ -156,6 +179,7 @@ export async function subEnd($: any, agent: string, e: any) {
   const now = (await stamp($)) ?? 0
   const state: Sub['state'] = e?.isAborted ? 'interrupted' : e?.reason === 'error' || e?.reason === 'refusal' ? 'failed' : 'done'
   wrote.delete(agent)
+  pendingTools.delete(agent)
   const n = calls.get(agent)
   calls.delete(agent)
   await setSub($, agent, x => {
@@ -249,6 +273,7 @@ export async function checkSubs($: any) {
     gone.delete(id)
     wrote.delete(id)
     calls.delete(id)
+    pendingTools.delete(id)
   }
   await dropWaits($, w => !ends.has(w.agent))
   if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)

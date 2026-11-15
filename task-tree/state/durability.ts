@@ -111,6 +111,7 @@ export const TABLE: readonly Row[] = [
   { key: 'unplanned, planned, answeredInChat', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message' },
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
+  { key: 'pendingTools, toolsWrote, toolsTimer', lives: 'module', merge: 'none', restoredAt: [], note: 'the subagents\' tool lines not written yet, when they were last written and the timer that writes them (at most once a second for all, hooks/agents subTool); a reload drops the pending lines: the next call writes at once' },
   { key: 'inCall', lives: 'module', merge: 'none', restoredAt: [], note: 'the calls in progress by agent and tool: a permission wait goes when the last one ends; a reload starts it over, and the end of a call then drops the wait, as before' },
 ]
 

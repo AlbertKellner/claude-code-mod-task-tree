@@ -320,7 +320,12 @@ Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLink
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
-vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo) e `inCall` (as chamadas em curso por `<agente>:<tool>`, em
+vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo),
+`pendingTools, toolsWrote, toolsTimer` (em `hooks/agents.ts`: as linhas de ferramenta dos cartões de
+subagente ainda não gravadas, a hora da última gravação e o temporizador; `subTool` grava no máximo uma
+vez por segundo para todos os subagentes juntos: passado 1 s, a chamada grava na hora, e só ela espera a
+gravação; dentro do segundo, só conta, e um `$.clock.after` grava o pendente quando o segundo fecha; o
+cartão que terminou nesse meio não ganha a ferramenta de volta) e `inCall` (as chamadas em curso por `<agente>:<tool>`, em
 `hooks/panel.ts`: o aviso de permissão sai com a última; uma recarga recomeça, e o fim da chamada então
 tira o aviso, como antes). Duas linhas
 sobraram da fase 2 e não têm mais variável no código: `drawNow` e `breaksMemo` (o `layout()` recebe
