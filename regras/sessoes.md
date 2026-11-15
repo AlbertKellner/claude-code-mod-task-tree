@@ -43,6 +43,17 @@ Origem: auditoria 2026-11-10 (triagem de 2026-11-15: logo depois de aberta, o ca
 Código: io/host.ts
 Estado: coberto
 
+### sessoes.abriu-e-parou-sem-ser-vista-rodando
+A sessão que abre, trabalha e para antes de o painel a ver rodando é tratada como quem já rodou.
+
+- Dado uma sessão filha recém-aberta que o app lista parada e que já publicou tarefas
+- Quando o painel a lê pela primeira vez
+- Então ela deixa de contar como abrindo: o cartão mostra o que o app diz ("parada" com tarefa aberta, "concluída" com tudo feito), o modelo recebe uma vez o lembrete de que ela terminou o turno com a tarefa de origem aberta (lembretes.filha-terminou-o-turno), e com só pendentes e a origem fechada ela passa a "encerrada" (sessoes.filha-parada-com-origem-fechada-sai-da-contagem); a que ainda não publicou tarefas segue desenhada trabalhando (sessoes.recem-aberta-sem-tarefas-trabalha)
+
+Origem: decisão do usuário, 2026-11-15 ("Tratar como quem já rodou (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a marca de abrindo ficava para sempre: sem lembrete e sem "encerrada").
+Código: io/host.ts
+Estado: coberto
+
 ### sessoes.rodada-largada-diz-substituida
 O cartão da rodada que a filha largou diz "substituída", em cinza.
 

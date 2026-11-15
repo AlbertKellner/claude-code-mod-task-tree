@@ -3227,6 +3227,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a sessão que abre, trabalha e para sem ser vista rodando gera o lembrete de fim de turno e, com a origem fechada, fica encerrada": {
+      "regras": [
+        "sessoes.abriu-e-parou-sem-ser-vista-rodando"
+      ],
+      "hash": "059db31b962c8afd",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Tratar como quem já rodou (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a sessão recém-aberta que o app lista parada e ainda sem tarefas é desenhada trabalhando; passado o prazo, vale o que o app diz": {
       "regras": [
         "sessoes.recem-aberta-sem-tarefas-trabalha"

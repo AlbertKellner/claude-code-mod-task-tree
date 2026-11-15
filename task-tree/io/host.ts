@@ -155,7 +155,8 @@ export async function engineOf($: any, id: string): Promise<string | undefined> 
 // said and the children known before (`known`), and which of them just ended: running or waiting
 // before, stopped now (not running, not archived, not waiting). A session just opened (`starting`)
 // counts only once the host has seen it run: right after start_session the host may still list it
-// idle; with no task published, the mark lasts STARTING_GRACE only. A session the host lists again after leaving it out gets its ties (anchor, lastAnchor,
+// idle; the mark lasts STARTING_GRACE at most, and goes at the first read that finds tasks published
+// (then a stopped one ended its turn: it ran unseen between two reads). A session the host lists again after leaving it out gets its ties (anchor, lastAnchor,
 // rounds) back from the store's copy (`kept`); a session whose file went missing keeps its last panel.
 // A session just opened (start_session) that the host's list does not hold yet stays in the children
 // while recent (STARTING_GRACE from its `openedAt`), with the task it was opened on: dropped at the
@@ -169,7 +170,11 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
     .filter(r => {
       const before = known.find(k => k.id === r.sessionId)
       const stopped = r.isRunning !== true && r.isArchived !== true && !read.waiting.includes(r.sessionId)
-      return before !== undefined && before.starting !== true && (before.running || before.waiting === true) && stopped
+      if (before === undefined || !stopped) return false
+      // One still opening ended its turn too once it has published tasks: it ran and stopped between
+      // two reads, never seen running (the person, 2026-11-15: "Tratar como quem já rodou").
+      if (before.starting === true) return published({ ...before, panel: read.panels[r.sessionId] ?? before.panel, tasks: read.panels[r.sessionId] ? undefined : before.tasks })
+      return before.running || before.waiting === true
     })
     .map(r => r.sessionId)
   const children = mine.map(r => {
@@ -200,9 +205,9 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       // Kept as one line (hooks/sessions, summarize) while archived and not read again.
       summary: r.isArchived === true && !read.panels[r.sessionId] ? before?.summary : undefined,
     } as Child
-    // Still opening while the host has not seen it run; one with no task published yet only while
-    // recent (STARTING_GRACE): past it, it reads as the host lists it.
-    const opening = before?.starting === true && !seen && (published(child) || justOpened(before, now))
+    // Still opening while the host has not seen it run, has no task published yet and is recent
+    // (STARTING_GRACE): past it, or once it published, it reads as the host lists it.
+    const opening = before?.starting === true && !seen && !published(child) && justOpened(before, now)
     return { starting: opening ? true : undefined, ...child } as Child
   })
   const waiting = known.filter(k => !mine.some(r => r.sessionId === k.id) && justOpened(k, now))

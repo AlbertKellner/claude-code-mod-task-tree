@@ -289,8 +289,8 @@ desarquivada, volta a ser lida; depois de um reinício as filhas voltam do store
 primeira leitura lê todas; a arquivada resumida (`summarize`, abaixo) cujo pedido voltou ao trabalho é lida de novo; o modelo por `engineOf` quando o arquivo não o traz, cache de 60 s);
 (3) `deriveChildren` (as filhas a partir das linhas, dos arquivos, das conhecidas antes e das
 ligações do store por `keptLink`; a entrada `starting` que a lista ainda não traz fica enquanto é
-recente, `STARTING_GRACE` = 120 s do `openedAt`; `ended` = as que corriam ou esperavam e pararam, exceto
-`starting`); `children` só é gravado no state quando a lista derivada difere da atual (JSON): o poll
+recente, `STARTING_GRACE` = 120 s do `openedAt`; `ended` = as que corriam ou esperavam e pararam, e as
+`starting` que aparecem paradas já com tarefas publicadas); `children` só é gravado no state quando a lista derivada difere da atual (JSON): o poll
 sem novidade, o de sempre a cada 3 s, não faz o valor inteiro cruzar para o host nem redesenha; a
 gravação é por `update`, derivando de novo sobre o valor que ele entrega (e `ended` sai dessa
 derivação); (4) `showStatus` e `publishPanel` (também quando `children` mudou para nenhuma);
@@ -1101,7 +1101,8 @@ guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState
    `MISSES_KEPT`); da quarta em diante vale o arquivo vazio, como o app diz da sessão. `engineText`, `engineOf` e o cache `engineSeen` moraram
    no register e vieram para cá.
 3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
-   com a regra do `starting` (a marca da sessão sem tarefas publicadas dura o `STARTING_GRACE`), dos
+   com a regra do `starting` (a marca dura o `STARTING_GRACE` e sai quando a sessão publica tarefas;
+   parada nessa leitura, ela entra em `ended`), dos
    laços vindos do store (`kept`) e do painel mantido quando o arquivo some.
 4. **Publicar:** `publishWait` de `io/publish.ts`, chamado por `publishPanel`.
 
@@ -1598,6 +1599,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   Enquanto ela não publicou nenhuma tarefa (`published`, `draw/layout.ts`: um grupo, o `tasks` antigo
   ou o `past`), a sessão abrindo conta como viva (`live`: cartão sem palavra, origem ◉, chip de ativas);
   sem tarefas, a marca dura só o `STARTING_GRACE` (2 min do `openedAt`) e depois vale o que o app diz.
+  A que já publicou tarefas perde a marca na primeira leitura que as traz: abriu, rodou e parou entre
+  duas leituras sem ser vista rodando; listada parada, entra em `ended` uma vez (o lembrete de fim de
+  turno) e pode passar a "encerrada" (decisão do usuário, 2026-11-15: "Tratar como quem já rodou").
 - AskUserQuestion do loop principal sem tarefa aberta é recusado (`deny`), para a pergunta não
   ficar solta no painel. ExitPlanMode passa sem essa exigência (o desenho original; não é que o modo
   de plano bloqueie as ferramentas do painel: `plan`/`start`/`done` respondem antes do `tool.check`).
