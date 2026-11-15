@@ -1719,6 +1719,17 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/pedidos.test.ts::com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e não entra em '+N pedidos anteriores'": {
+      "regras": [
+        "pedidos.resumida-mantem-anteriores-com-algo-aberto",
+        "cabecalho.limites-de-linhas"
+      ],
+      "hash": "6d58241641715445",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o corte dos pedidos anteriores é por pedido, não por nível 1"
+    },
     "task-tree/tests/pedidos.test.ts::mensagem entregue no meio do turno continua o pedido em curso: sem pedido novo, e o replano guarda o estado": {
       "regras": [
         "pedidos.mensagem-no-meio-do-turno-continua-o-pedido"

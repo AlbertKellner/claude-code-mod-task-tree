@@ -79,12 +79,13 @@ Os pedidos fora do trabalho viram "+N pedidos anteriores".
 
 - Dado pedidos fora do trabalho atual, sem nada aberto
 - Quando o painel é desenhado
-- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, só no texto alternativo da barra do cabeçalho); no máximo três pedidos sem nada aberto ficam desenhados; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
+- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, só no texto alternativo da barra do cabeçalho); no máximo três pedidos sem nada aberto ficam desenhados; um pedido anterior com algo aberto fica desenhado inteiro, com os níveis 1 já concluídos, e não entra na conta de "+N pedidos anteriores"; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o total da sessão inteira vai no texto alternativo da barra, não num tooltip.
+Reescrito: 2026-11-14, texto: o pedido anterior com algo aberto é desenhado inteiro e não é contado em "+N" (auditoria 2026-11-10); aplica a decisão de 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"), sem mudar a regra. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos

@@ -511,3 +511,27 @@ test('a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id', as
   expect(h.some(l => l.titulo === 'Antigo'), emTexto(h)).toBe(true)
   expect(h.some(l => l.titulo === 'Antiga um'), emTexto(h)).toBe(false)
 })
+
+// Regra: pedidos.resumida-mantem-anteriores-com-algo-aberto, cabecalho.limites-de-linhas
+test("com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e não entra em '+N pedidos anteriores'", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido 1')
+  await plan($, [{ id: 'F', title: 'Fechada' }, { id: 'G', title: 'Aberta' }])
+  await start($, ['F'])
+  await done($, ['F'])
+  await fimDoTurno($)
+  for (let i = 2; i <= 5; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}` }])
+    await start($, [`P${i}`])
+    await done($, [`P${i}`])
+    await fimDoTurno($)
+  }
+  const p = await painel($)
+  esperarEstado(p, 'Fechada', 'concluida')
+  esperarEstado(p, 'Aberta', 'pendente')
+  expect(linha(p, 'Pedido 1').texto, emTexto(p)).toContain('1/2')
+  expect(p.filter(l => l.texto.includes('+1 pedidos anteriores')).length, emTexto(p)).toBe(1)
+  expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(false)
+})

@@ -131,12 +131,13 @@ O painel mantém os pedidos anteriores enquanto há algo aberto.
 
 - Dado um pedido anterior com algo aberto à vista
 - Quando um pedido novo começa
-- Então o painel mantém os dois; com tudo fechado, só o novo, e o anterior fica em "+N pedidos anteriores"; um cartão de sessão ainda viva sob um pedido fora do trabalho não traz o pedido de volta, mas é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
+- Então o painel mantém os dois (o anterior inteiro, com o que já concluiu); com tudo fechado, só o novo, e o anterior fica em "+N pedidos anteriores"; um cartão de sessão ainda viva sob um pedido fora do trabalho não traz o pedido de volta, mas é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: decisão do usuário, 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"); desfaz, só para o cartão vivo, "nem o cartão é desenhado solto" (2026-10-23).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: draw/layout.ts, hooks/command.ts
+Reescrito: 2026-11-14, texto: o pedido anterior com algo aberto é desenhado inteiro e não é contado em "+N" (auditoria 2026-11-10); aplica a decisão de 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"), sem mudar a regra. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### pedidos.id-reusado-nao-segura-pedido-concluido

@@ -1226,7 +1226,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   …" e publica o erro.
 - Tamanho do desenho (causa do sumiço: o da orquestradora tinha 1,6 MB e o app não o mostrava;
   "resumir os 57 pedidos anteriores resolveu"): o painel do topo desenha só os 3 últimos pedidos,
-  mais qualquer um com algo aberto, e os anteriores viram a linha "+N pedidos anteriores"; cada
+  mais qualquer um com algo aberto, e os anteriores viram a linha "+N pedidos anteriores" (a escolha
+  é por pedido: o pedido com algo aberto vem inteiro, com os níveis 1 já concluídos, e não entra no
+  "+N"; auditoria 2026-11-10); cada
   cartão, até 3 pedidos, com a mesma linha; cartões sem tarefa de origem, concluídos e começados
   antes do pedido mais antigo desenhado viram "+N cartões antigos de sessões". O cabeçalho continua
   contando tudo. Cada `Svg` leva só as regras CSS das classes que usa (`slim`). Medido com o estado

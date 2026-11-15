@@ -1599,8 +1599,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const keep = level === 0 ? SHOWN_TURNS : SHOWN_CARD_TURNS
       const recent = asked.slice(-keep)
       const over = asked.length > keep || (asked.length >= keep && list.some(t => t.turn === undefined))
-      // A request with a session still at work under its task stays drawn too (it is going on).
-      const recentOnly = over ? list.filter(t => (t.turn !== undefined && recent.includes(t.turn)) || hasOpen([t]) || (work?.(t).live ?? false)) : list
+      // A request with a session still at work under its task stays drawn too (it is going on). The
+      // choice is by request: one of the recent ones, or one with a level-1 task still open or with a
+      // session at work, is drawn whole, its closed level-1 tasks too, and is not counted in "+N
+      // pedidos anteriores" (the audit, 2026-11-10: an old request kept only its open task, lost the
+      // closed ones from its x/y and was counted as left out; the person, 2026-10-23: "somente limpe os
+      // itens quando todos estiverem concluidos e quando iniciarem novas tarefas"). A level-1 task with
+      // no request (panels from before requests) is still chosen by itself.
+      const going = (t: TaskNode) => hasOpen([t]) || (work?.(t).live ?? false)
+      const kept = new Set(list.flatMap(t => (t.turn !== undefined && (recent.includes(t.turn) || going(t)) ? [t.turn] : [])))
+      const recentOnly = over ? list.filter(t => (t.turn !== undefined ? kept.has(t.turn) : going(t))) : list
       // Out of the line's reach too: what left the work (trimToWork). Told by id, not by object: a
       // stopped session's card is halted twice (panelOf in trimToWork, then in session), which makes
       // its open parents and started tasks anew in `tasks` but not in `whole`, and the card showed
@@ -1615,7 +1623,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const briefOnly = g.agent === MAIN && level === 0 ? (g.turns ?? []).filter(u => !withTasks.has(u.id) && hasBrief(u)) : []
       const firstDrawn = Math.min(...recentOnly.flatMap(t => (t.turn === undefined ? [] : [t.turn])))
       const briefInSight = briefOnly.filter(u => u.id > firstDrawn || !Number.isFinite(firstDrawn)).slice(-keep)
-      const left = new Set(out.map(t => t.turn ?? -1)).size + briefOnly.length - briefInSight.length
+      // Only the requests with no level-1 task drawn are left out.
+      const drawnTurns = new Set(recentOnly.map(t => t.turn ?? -1))
+      const left = new Set(out.map(t => t.turn ?? -1).filter(u => !drawnTurns.has(u))).size + briefOnly.length - briefInSight.length
       const cut = left > 0
       // The line of the requests left out opens with a click, closed by default, and draws them (the
       // person, 2026-11-03: "Sim, fechado por padrão (Recomendado)"); the limit of lines still holds.
