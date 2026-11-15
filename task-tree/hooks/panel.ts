@@ -299,8 +299,10 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
 // of it in the order they were started, that has no message of this session's yet since it started
 // (`used`: where the messages sent and the sessions' rounds went, and when); all of them with one,
 // the rule above (the person's decision: "pela ordem", each send to the next task in progress). A
-// task left in progress from before only gets it once the batch is done; a task with a question open
-// under it (`asking`) never does. With two sends started together both went to the task started
+// task left in progress from before only gets it once the batch is done. A task with a question open
+// under it (`asking`: a question, a plan to approve, the end of turn's choice) gets it only when the
+// request has no other: the task in progress started last that does not ask, else the pending one as
+// with nothing in progress, else the one started last, else the last level-1 task, none of them asking. With two sends started together both went to the task started
 // last; then a task opened before and still in progress took a later send, its card under it.
 export type Used = { anchor?: string; at?: number }
 const BATCH = 3000
@@ -389,25 +391,30 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
-  if (anchor === undefined) {
-    if (open !== undefined && !list.some(t => t.turn === open)) return undefined
-    const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
-    const last = turns.length > 0 ? Math.max(...turns) : undefined
-    const mine = list.filter(t => last === undefined || t.turn === last)
-    const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined)
-    const named = byName(pending, names, phrases)
-    if (named) return named.id
-    const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
-    if (newest) {
-      // Planned together (a tie): the first in order with no message of this session's yet; all with
-      // one, the last (the person's decision, 2026-11-09, with no name matching).
-      const batch = pending.filter(t => (t.plannedAt ?? -Infinity) === (newest.plannedAt ?? -Infinity))
-      const free = batch.find(t => !used.some(u => u.anchor === t.id))
-      return (free ?? newest).id
-    }
-    return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
+  // The task chosen holds a question: the one in progress started last that does not ask, else as with
+  // nothing in progress, the asking tasks left out (envios.nunca-na-tarefa-da-pergunta).
+  if (anchor !== undefined && !asking.includes(anchor)) return anchor
+  if (anchor !== undefined && going.length > 0) return startedLast(going.map(t => ({ ...t, children: [] })))!.id
+  if (open !== undefined && !list.some(t => t.turn === open)) return undefined
+  const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+  const last = turns.length > 0 ? Math.max(...turns) : undefined
+  const mine = list.filter(t => last === undefined || t.turn === last)
+  const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && !asking.includes(t.id))
+  const named = byName(pending, names, phrases)
+  if (named) return named.id
+  const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
+  if (newest) {
+    // Planned together (a tie): the first in order with no message of this session's yet; all with
+    // one, the last (the person's decision, 2026-11-09, with no name matching).
+    const batch = pending.filter(t => (t.plannedAt ?? -Infinity) === (newest.plannedAt ?? -Infinity))
+    const free = batch.find(t => !used.some(u => u.anchor === t.id))
+    return (free ?? newest).id
   }
-  return anchor
+  const asks = (t: TaskNode) => asking.includes(t.id)
+  const calm = flat(mine).filter(t => !asks(t)).map(t => ({ ...t, children: [] }))
+  const level1 = [...mine].reverse().find(t => !asks(t))
+  // Only when the asking task is all the request has, the card goes to it, as before.
+  return startedLast(calm)?.id ?? level1?.id ?? startedLast(mine)?.id ?? mine[mine.length - 1]?.id
 }
 
 // The tasks of the main loop with a question still open under them (sendAnchor's `asking`): the

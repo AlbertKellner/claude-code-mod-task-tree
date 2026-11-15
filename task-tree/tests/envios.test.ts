@@ -124,6 +124,64 @@ test('o envio nunca vai à tarefa com pergunta aberta', async ($: any, on: any) 
   await resp
 })
 
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com uma só tarefa em andamento e a pergunta aberta nela, o envio vai à pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe(undefined)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a escolha do fim do turno aberta numa tarefa, o envio do turno de um aviso vai à outra pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'parcial', ask: 'Seguir?' })
+  await fimDoTurno($)
+  await aviso($)
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe(undefined)
+  const titulos = p.map(l => l.titulo)
+  const espera = titulos.indexOf('Aguardando sua escolha')
+  expect(espera > titulos.indexOf('Um') && espera < titulos.indexOf('Dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta aberta na única tarefa do pedido, a carta fica nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'S', title: 'Sozinha' }])
+  await start($, ['S'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Sozinha', 'fila')
+  await relogio.advance(1000)
+  await resp
+})
+
 // Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
 test('sem tarefa em andamento, o envio vai à pendente planejada por último', async ($: any, on: any) => {
   fixar(on)

@@ -1581,6 +1581,16 @@
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
     },
+    "task-tree/tests/envios.test.ts::com a escolha do fim do turno aberta numa tarefa, o envio do turno de um aviso vai à outra pendente": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "8c915f949f0f050b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a carta nunca vai à tarefa da pergunta com outra candidata"
+    },
     "task-tree/tests/envios.test.ts::com a lista de sessões em erro, a entrega publicada pela sessão deixa a carta verde e conclui a tarefa": {
       "regras": [
         "envios.entrega-com-lista-de-sessoes-em-erro"
@@ -1590,6 +1600,16 @@
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: carta na fila sem saída com a lista em erro"
+    },
+    "task-tree/tests/envios.test.ts::com a pergunta aberta na única tarefa do pedido, a carta fica nela": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "ce7fab6e0915203a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a exceção da tarefa única"
     },
     "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
       "regras": [
@@ -1611,6 +1631,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "uma noção só de nada em execução na tarefa"
+    },
+    "task-tree/tests/envios.test.ts::com uma só tarefa em andamento e a pergunta aberta nela, o envio vai à pendente": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "010d6ccb763116be",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a carta nunca vai à tarefa da pergunta com outra candidata"
     },
     "task-tree/tests/envios.test.ts::com uma tarefa em andamento e um passo planejado depois, a carta fica sob a tarefa em andamento, e a entrega conclui essa tarefa": {
       "regras": [

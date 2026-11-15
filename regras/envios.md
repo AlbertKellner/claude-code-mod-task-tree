@@ -87,6 +87,7 @@ O envio vai ao lote recente de starts sem envio.
 Origem: decisão do usuário, 2026-10-24; commit fdc1db6.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+Reescrito: 2026-11-15, texto: o "nunca à que tem pergunta aberta" vale em todos os casos, com a exceção da tarefa única (envios.nunca-na-tarefa-da-pergunta; auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
@@ -349,4 +350,15 @@ A falha de um passo acessório do painel não perde a carta do envio.
 - Então a carta aparece sob a tarefa, o resultado traz o aviso de fila, e a falha fica no log de depuração, uma vez por passo e motivo
 
 Origem: auditoria 2026-11-10 (o tool.call genérico não isolava os passos); regra do painel, sem decisão nova.
+Estado: coberto
+
+### envios.nunca-na-tarefa-da-pergunta
+A carta e o cartão não vão para a tarefa com pergunta aberta enquanto houver outra tarefa do pedido para recebê-los.
+
+- Dado uma tarefa com uma pergunta, um plano a aprovar ou a escolha do fim do turno aberta nela, seja a única em andamento, a iniciada por último, ou a que o fim do turno deixou aguardando
+- Quando sai uma mensagem, abre uma sessão ou é lançado um subagente
+- Então a carta e o cartão vão, nesta ordem, à tarefa em andamento iniciada por último que não pergunta; senão à pendente escolhida como no envio sem nada em andamento (envios.sem-andamento-vai-a-pendente-planejada-por-ultimo), sem contar a tarefa da pergunta; senão à última iniciada do pedido que não pergunta; senão ao último nível 1 do pedido que não pergunta; só quando a tarefa da pergunta é a única do pedido eles ficam nela
+
+Origem: auditoria 2026-11-10 (a regra só valia com duas em andamento); aplica envios.ancora-no-lote-recente ("nunca à que tem pergunta aberta", decisão do usuário, 2026-10-24), sem mudar nenhuma regra.
+Código: hooks/agents.ts, hooks/tools.ts
 Estado: coberto

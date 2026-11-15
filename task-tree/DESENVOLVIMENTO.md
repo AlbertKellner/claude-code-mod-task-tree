@@ -240,7 +240,10 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    (Recomendado)"); senão, entre as pendentes do plan mais recente (o
    mesmo `plannedAt` da mais nova), a primeira na ordem do plano sem carta, rodada, sessão ou subagente, e,
    todas usadas, a última; sem pendente, a iniciada por último, mesmo concluída; sem nenhuma iniciada, o
-   último nível 1 do pedido), `sessionNotes` (`endedNote`, que cita
+   último nível 1 do pedido. A tarefa com pergunta aberta (`askingAnchors`: pergunta, plano a aprovar,
+   escolha do fim do turno) só recebe quando o pedido não tem outra: se a em andamento escolhida pergunta,
+   vale a em andamento iniciada por último que não pergunta, senão a ordem acima sem as que perguntam;
+   `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`).
