@@ -8,6 +8,7 @@
 // used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
 
 import { update } from 'claude-code'
+import { debugOnce } from '../io/log'
 
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
@@ -62,18 +63,29 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
       return { deny: ASK.refused }
     }
   }
+  // The question always reaches the person and the answer always goes back: the panel's steps around
+  // it (the wait, the reminder, dropping the wait) fail into the debug log.
   const key = e.tool_use_id
-  await addWait($, { agent, kind, tool: e.tool, key, ...(await askAnchor($, agent)) })
+  try {
+    await addWait($, { agent, kind, tool: e.tool, key, ...(await askAnchor($, agent)) })
+  } catch (err) {
+    await stepFailed($, 'addWait', err)
+  }
   try {
     const r = await next(e)
     // Answered by a chat message instead of an option: that message is still to come.
     const inChat = /did not answer|sent a message instead/i.test(JSON.stringify(r.result ?? r))
     if (inChat && agent === MAIN) reminders.answeredInChat = true
-    const { value = [] } = await $.state.get(groupsState)
-    if (!hasOpen(value.find((g: Group) => g.agent === agent)?.tasks ?? [])) return r
+    try {
+      const { value = [] } = await $.state.get(groupsState)
+      if (!hasOpen(value.find((g: Group) => g.agent === agent)?.tasks ?? [])) return r
+    } catch (err) {
+      await stepFailed($, 'lembrete da resposta', err)
+      return r
+    }
     return { ...r, context: [...(r.context ?? []), inChat ? ASK.inChat : ASK.answered] }
   } finally {
-    await dropWaits($, w => w.key !== key)
+    await dropWaits($, w => w.key !== key).catch(err => stepFailed($, 'dropWaits', err))
   }
 }
 
@@ -259,16 +271,22 @@ async function reminder($: any, c: Call, r: any) {
 
 import type { EngineInterface } from 'claude-code'
 
+// A step of the hook that failed: said once per step and reason in the debug log; the hook goes on to
+// the next step. What decides (asked's refusal) and the tool itself (next) are not caught.
+async function stepFailed($: any, step: string, err: unknown) {
+  await debugOnce($, `task-tree: tool.call, passo ${step}: ${String(err)}`)
+}
+
 export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
   // A call of the main loop: its turn is running, what the last one left open is in progress again.
-  if (c.agent === MAIN) await wake($)
+  if (c.agent === MAIN) await wake($).catch(err => stepFailed($, 'wake', err))
   // A subagent's call: the tool its card shows (hooks/agents); the cards are written at most once a
   // second for all the subagents, so this call waits on a write only once a second at most.
-  else await subTool($, c.agent, e)
+  else await subTool($, c.agent, e).catch(err => stepFailed($, 'subTool', err))
   // The links come back from the store before the launch writes one (a new process).
-  await ensureLinks($)
-  await launch($, c)
+  await ensureLinks($).catch(err => stepFailed($, 'ensureLinks', err))
+  await launch($, c).catch(err => stepFailed($, 'launch', err))
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered
   c.sentAt = String(e.tool) === 'SendMessage' ? await stamp($) : undefined
@@ -282,26 +300,32 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
     if (left > 0) inCall.set(busy, left)
     else {
       inCall.delete(busy)
-      await dropWaits($, w => w.key !== busy)
+      await dropWaits($, w => w.key !== busy).catch(err => stepFailed($, 'dropWaits', err))
     }
   }
-  await wrapUpAsk($, c)
+  // Each step after the call on its own (stepFailed): one that fails does not lose the letter of a send,
+  // the round of a session or the reminders. The order does not change.
+  await wrapUpAsk($, c).catch(err => stepFailed($, 'wrapUpAsk', err))
   if (c.agent !== MAIN) return c.r
   // After a reload the clock is gone with the old module: the next call starts it again.
-  await keepTime($)
+  await keepTime($).catch(err => stepFailed($, 'keepTime', err))
   watchSessions($)
-  await refreshStale($).catch(() => {})
+  await refreshStale($).catch(err => stepFailed($, 'refreshStale', err))
   if (String(e.tool) === 'mcp__ccd_session__start_session') {
     const out = JSON.stringify(c.r.result ?? c.r)
     const input = ((e as any).input ?? e) as { name?: unknown; title?: unknown }
-    await recordStart($, out, [input.name].filter((n): n is string => typeof n === 'string' && n !== ''), [input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
+    await recordStart($, out, [input.name].filter((n): n is string => typeof n === 'string' && n !== ''), [input.title].filter((n): n is string => typeof n === 'string' && n !== '')).catch(err => stepFailed($, 'recordStart', err))
   }
   if (c.r.deny !== undefined) return c.r
   const notes: string[] = []
-  await sentMessage($, c, notes)
-  await sessionNotes($, c, notes)
-  await wrapUpOpen($, c, notes)
+  await sentMessage($, c, notes).catch(err => stepFailed($, 'sentMessage', err))
+  await sessionNotes($, c, notes).catch(err => stepFailed($, 'sessionNotes', err))
+  await wrapUpOpen($, c, notes).catch(err => stepFailed($, 'wrapUpOpen', err))
   let r = c.r
   if (notes.length > 0) r = { ...r, context: [...(r.context ?? []), ...notes] }
-  return reminder($, c, r)
+  const done = r
+  return reminder($, c, done).catch(async err => {
+    await stepFailed($, 'reminder', err)
+    return done
+  })
 }

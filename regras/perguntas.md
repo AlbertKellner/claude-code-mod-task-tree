@@ -119,3 +119,14 @@ O wrap_up com pergunta que falha não vira espera.
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a espera era criada antes de a chamada dar certo); aplica perguntas.escolha-do-wrapup-ate-proxima-mensagem, sem mudá-la.
 Estado: coberto
+
+### perguntas.falha-de-um-passo-nao-pula-a-recusa
+A falha de um passo acessório do painel não deixa passar a pergunta sem tarefa.
+
+- Dado nenhuma tarefa aberta do pedido atual e nenhuma em andamento
+- Quando o modelo chama AskUserQuestion e um passo acessório do painel falha antes da pergunta
+- Então a chamada é recusada como em perguntas.sem-tarefa-recusada
+
+Origem: auditoria 2026-11-10; aplica perguntas.sem-tarefa-recusada, sem mudar nenhuma regra.
+Código: hooks/tool-call.ts
+Estado: coberto

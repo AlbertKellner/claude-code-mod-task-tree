@@ -9,7 +9,7 @@ import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { SESSION } from '../text/rules'
 import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
-import { debug } from '../io/log'
+import { debug, debugOnce } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
@@ -527,7 +527,7 @@ export async function keepTime($: any) {
   try {
     if (!(await anyRunning($)) || (await stamp($)) === undefined || ticker) return
     try {
-      ticker = $.clock.every(1000, () => void tick($))
+      ticker = $.clock.every(1000, () => void tick($).catch(err => debugOnce($, `task-tree: relógio de 1 s: ${String(err)}`)))
     } catch {}
   } finally {
     starting = false

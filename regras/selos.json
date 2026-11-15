@@ -1350,6 +1350,16 @@
       "data": "2026-11-14",
       "motivo": "o aviso da entrega só diz que concluiu quando concluiu"
     },
+    "task-tree/tests/envios.test.ts::a falha de um passo do hook não perde a carta do envio": {
+      "regras": [
+        "envios.falha-de-um-passo-nao-perde-a-carta"
+      ],
+      "hash": "a194614820dc506e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: cada passo do tool.call protegido, com a falha no log"
+    },
     "task-tree/tests/envios.test.ts::a mensagem a uma sessão que esta não abriu deixa só a carta: sem cartão e sem sessão ativa": {
       "regras": [
         "sessoes.destino-que-nao-e-filha-nao-vira-cartao"
@@ -2662,6 +2672,17 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::a pergunta sem tarefa é recusada mesmo com a falha de outro passo": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada",
+        "perguntas.falha-de-um-passo-nao-pula-a-recusa"
+      ],
+      "hash": "5f1e09c5e58fe843",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: cada passo do tool.call protegido, com a falha no log"
     },
     "task-tree/tests/perguntas.test.ts::com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamento": {
       "regras": [

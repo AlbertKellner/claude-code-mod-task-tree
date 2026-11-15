@@ -12,7 +12,7 @@ import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState,
 import { desktopTree } from '../draw/desktop'
 import { desktopHead } from '../draw/head'
 import type { Acts } from '../draw/desktop'
-import { debug } from '../io/log'
+import { debug, debugOnce } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
@@ -85,7 +85,9 @@ const namesState = { plugin: 'task-tree', key: 'names' } as const
 // opens by its progress icon, a plain Button (the pointer inverts it); a line with nothing below has
 // no Button. Terminal: the icon glyph is the Button. Desktop: the Svg draws the icon and a Button
 // with an empty label lies over it.
-const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
+// A click that fails is said once in the debug log, never left without a catch.
+const clickFailed = ($: any, what: string) => (err: unknown) => debugOnce($, `task-tree: clique (${what}): ${String(err)}`)
+const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open).catch(clickFailed($, 'recolher'))
 
 // Desktop: the header (../draw/head), then the lines and the cards, all in the app's own elements
 // (../draw/desktop: Box, Text, Button, with an Svg only for the icons, the ring and the header's bar). No `$` goes down there: the presses
@@ -97,7 +99,7 @@ function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: any, chro
   const { Box } = ui
   const acts: Acts = {
     fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
-    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
+    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title).catch(clickFailed($, 'abrir sessão'))),
   }
   return (
     <Box flexDirection="column">
@@ -427,7 +429,7 @@ export async function render($: EngineInterface, e: any, next: any) {
       <Box flexDirection="column">
         <Text color="warning">{`Painel grande demais (${what}): mostrando só o essencial.`}</Text>
         <Box flexDirection="row">
-          <Button key="back" onPress={act('back', () => void closeOpened($))}>
+          <Button key="back" onPress={act('back', () => void closeOpened($).catch(clickFailed($, 'voltar')))}>
             <Text>Voltar à visualização anterior</Text>
           </Button>
         </Box>

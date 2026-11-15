@@ -308,3 +308,18 @@ test('o wrap_up com pergunta que falha não deixa "Aguardando sua escolha"', asy
   const p = await painel($)
   expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
 })
+
+// Regra: perguntas.sem-tarefa-recusada, perguntas.falha-de-um-passo-nao-pula-a-recusa
+test('a pergunta sem tarefa é recusada mesmo com a falha de outro passo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  // Armado, a leitura do fim do turno (wake) falha antes da pergunta; a recusa não a lê.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'turnEnded' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  armado = true
+  const r = await ferramenta($, 'AskUserQuestion', PERGUNTA)
+  armado = false
+  expect(r.erro, r.texto).toBe(true)
+  expect(r.texto).toContain('plan')
+})

@@ -1131,3 +1131,24 @@ test('um envio no meio da releitura das sessões não recebe a marca de outro en
   expect(p.find(l => l.titulo === 'Para outra: segunda')?.carta, emTexto(p)).toBe('fila')
   expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
 })
+
+// Regra: envios.falha-de-um-passo-nao-perde-a-carta
+test('a falha de um passo do hook não perde a carta do envio', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  responderEnvio(on)
+  // Armado, a leitura do fim do turno (wake, keepTime) falha; asked e sentMessage não a leem.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'turnEnded' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  armado = true
+  // A chamada como o modelo a faz, para ler o aviso que volta junto (context).
+  const r = await $.tool.call({ tool: 'SendMessage', tool_use_id: 'SendMessage-1', to: 'local_x', message: 'Revise o PR' })
+  armado = false
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(JSON.stringify(r?.context ?? []), JSON.stringify(r)).toContain('ficou na fila')
+  expect(log.some(l => l.includes('tool.call, passo') && l.includes('estouro de teste')), log.join('\n')).toBe(true)
+})

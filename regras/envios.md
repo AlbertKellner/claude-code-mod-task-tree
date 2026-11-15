@@ -340,3 +340,13 @@ A entrega marca a carta da mensagem que foi entregue, mesmo com outra mensagem s
 Origem: auditoria 2026-11-10 (as marcas eram aplicadas pelo índice de uma leitura antiga); aplica envios.fica-ate-entrega, sem mudar nenhuma regra.
 Código: hooks/agents.ts, draw/layout.ts
 Estado: coberto
+
+### envios.falha-de-um-passo-nao-perde-a-carta
+A falha de um passo acessório do painel não perde a carta do envio.
+
+- Dado uma tarefa em andamento
+- Quando o modelo manda uma mensagem e um passo acessório do painel falha na mesma chamada (o relógio, a releitura das sessões, uma leitura de estado)
+- Então a carta aparece sob a tarefa, o resultado traz o aviso de fila, e a falha fica no log de depuração, uma vez por passo e motivo
+
+Origem: auditoria 2026-11-10 (o tool.call genérico não isolava os passos); regra do painel, sem decisão nova.
+Estado: coberto

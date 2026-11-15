@@ -191,7 +191,13 @@ volta à lista regrava o trabalho e o fim do turno), `publishPanel` e, por últi
 chamado só quando o texto muda: `lastStatus`, variável do módulo, gravado só depois de o app
 aceitar; `showStatus` nunca lança: a falha vai ao log de depuração, uma vez por motivo). `replace` grava direto e persiste (resume, `/clear`).
 
-**O `tool.call` genérico** (`hooks/tool-call.ts`), em torno de `Call = { agent, e, sentAt, r }`:
+**O `tool.call` genérico** (`hooks/tool-call.ts`), em torno de `Call = { agent, e, sentAt, r }`. Cada passo
+acessório roda protegido, chamado pelo nome com o seu `.catch` (`stepFailed`: a falha vai ao log de
+depuração, uma vez por passo e motivo, "tool.call, passo <nome>", e o hook segue, na mesma ordem):
+`wake`, `subTool`, `ensureLinks`, `launch`, os `dropWaits`, `wrapUpAsk`, `keepTime`, `refreshStale`,
+`recordStart`, `sentMessage`, `sessionNotes`, `wrapUpOpen` e `reminder` (na falha, o resultado volta como
+estava); em `asked`, o `addWait`, o lembrete da resposta e o `dropWaits`. Sem proteção, de propósito: a
+recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferramenta volta a quem chamou).
 
 1. Antes da chamada: `launch` (uma chamada `Agent`/`Task` grava em `launches` a tarefa em andamento do
    laço que lançou, com a descrição; o grupo do subagente a reclama em `identify`); `asked` (uma
@@ -284,7 +290,9 @@ derivação); (4) `showStatus` e `publishPanel` (também quando `children` mudou
 `keepTime`. `recordStart` grava as ligações no store (`saveLinks`) antes da primeira leitura.
 
 **Relógios**: `ticker` (`$.clock.every(1000)`, `tick` invalida o `ui.render` enquanto `running`; cancela
-quando nada roda) e `poller` (3 s). Os dois são variáveis de módulo: uma recarga os perde e a próxima
+quando nada roda; a promessa do `tick` tem `.catch`, que diz a falha no log de depuração uma vez por
+motivo) e `poller` (3 s). Os cliques (`setFold`, `openSession`, `closeOpened`, em `hooks/render.tsx`)
+também têm `.catch` (`clickFailed`), com a falha no log. Os dois são variáveis de módulo: uma recarga os perde e a próxima
 chamada, prompt, `start` ou desenho do pane os recria. O desenho (`ui.render`) chama `keepTime($)` e
 `watchSessions($)` logo depois dos `ensure*` (as notas de `ticker` e `poller` em
 `state/durability.ts` dizem o mesmo): o app desenha o pane quando o mod carrega, e cada
