@@ -59,9 +59,9 @@ export const TABLE: readonly Row[] = [
     note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s; with no store copy, it comes back from the published file with the groups (fromOwnFile)' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind)' },
+    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind); 20 rounds per session (keepRounds), those of a task in sight never go' },
   { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'messages to other sessions not yet taken up' },
+    note: 'messages to other sessions and to subagents: queued until taken up, then kept with the letter green (or gray, not delivered); over 20 (keepSends) only the oldest delivered or not delivered and already told go' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'messages of other sessions this one got (the last 20)' },
   { key: 'receipts', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],

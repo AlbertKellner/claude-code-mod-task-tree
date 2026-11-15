@@ -1083,3 +1083,51 @@ test('a tarefa fechada pela entrega da carta sem ter recebido start não mostra 
   expect(/\d+:\d{2}\s*$/.test(texto), emTexto(p)).toBe(false)
   expect(texto, emTexto(p)).toContain('—')
 })
+
+// Regra: envios.carta-na-fila-nao-sai-pelo-teto
+test('com 20 envios mais novos já entregues, a carta na fila segue sob a tarefa', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'Revise o PR')
+  env.modo = 'entregue'
+  for (let i = 1; i <= 20; i++) await envio($, `destino-${i}`, `mensagem ${i}`)
+  let p = await painel($)
+  expect(p.find(l => l.titulo === 'Para outra: Revise o PR')?.carta, emTexto(p)).toBe('fila')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  p = await painel($)
+  expect(p.find(l => l.titulo === 'Para outra: Revise o PR')?.carta, emTexto(p)).toBe('entregue')
+})
+
+// Regra: envios.marca-de-entrega-na-carta-certa
+test('um envio no meio da releitura das sessões não recebe a marca de outro envio', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  responderEnvio(on)
+  // Armado, a gravação seguinte dos envios cruza com outra: a mensagem "segunda", da mesma tarefa à
+  // mesma sessão, entra no lugar da primeira (como o SendMessage a grava), e a gravação da releitura
+  // tem de reler a lista (o stub não pode chamar a ferramenta do mod).
+  let armado = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!armado || e?.key !== 'sends') return next(e)
+    armado = false
+    const r = await next({ ...e, value: [{ to: 'outra', anchor: '1', at: AGORA + 1000, text: 'segunda' }] })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'outra', 'primeira')
+  h.recebeu('local_x', AGORA)
+  await relogio.advance(1000)
+  armado = true
+  await aviso($)
+  const p = await painel($)
+  expect(p.find(l => l.titulo === 'Para outra: segunda')?.carta, emTexto(p)).toBe('fila')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+})

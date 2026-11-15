@@ -162,7 +162,15 @@ quando `children` vem, uma sessão do painel viva ali (não arquivada, trabalhan
 pessoa, aberta nela ou com a rodada atual nela). `settleBySubs` passa as sessões; as entregas
 (`watchSends`, `takeSubSend`) não, porque a sessão que acabou de tomar a carta está viva na rodada da
 tarefa e a entrega conclui a tarefa (2026-10-30, "Sim, conclusão automática como hoje"; o desenho mantém
-a linha ◉ enquanto ela trabalha). As entregas leem as cartas depois de marcar as desta passada. Não entregue (`strandedSends`, na releitura, depois de `checkSubs`): o cartão do
+a linha ◉ enquanto ela trabalha). As entregas leem as cartas depois de marcar as desta passada.
+As marcas vão pela identidade do envio (`sameSend`: destino, tarefa, hora e subagente), nunca pela
+posição na lista: `watchSends` aplica dentro do `update` só no envio que ainda está lá, e as tarefas a
+fechar e o `inFlight` saem da lista gravada; `takeSubSend` marca o mesmo envio ainda não tomado. As notas
+(`takenNote`, `endedNote`, `subsNote`) gravam com `update`, tirando ou marcando só o que leram. Tetos
+(`draw/layout.ts`): `keepSends` (20; acima disso saem primeiro as cartas mais antigas entregues e já
+avisadas, depois as não entregues e já avisadas; carta na fila ou não avisada nunca sai) e `keepRounds`
+(20 rodadas por sessão; saem só as mais antigas de tarefa fora da vista, `inSight` sobre `work`, ou sem
+tarefa). Não entregue (`strandedSends`, na releitura, depois de `checkSubs`): o cartão do
 subagente encerrado há `SUB_CONFIRM` ms ou mais e a lista do motor sem ele `running`/`pending`/`waiting`/
 `idle` marcam `cut` e `lost`; com o turno terminado, roda `settleBySubs`. A espera existe porque no fim
 normal o motor retoma o subagente com a mensagem encalhada: marcar na hora pintaria cinza e logo verde.

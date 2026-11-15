@@ -320,6 +320,47 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
 // id was planned after the moment and a renamed one (`*:id`) planned before it exists, the anchor
 // is the last of those planned before the moment (the one that held the id then). Everything else
 // (the id's task planned before the moment, no plan times, no renamed holder) stays as it is.
+// A send is known by where it went, the task it was sent from and when (and the subagent, for one): a
+// mark found on a list read earlier goes to the same send in the list written, never by its place.
+export const sameSend = (a: Send, b: Send) => a.to === b.to && a.anchor === b.anchor && a.at === b.at && a.agent === b.agent
+// The sends kept (SENDS_KEPT): over it, the oldest delivered and already told to the model go first, then
+// the oldest not delivered and already told. A letter still queued, or one the model was not told of yet,
+// never goes: the list is longer than SENDS_KEPT only with more than that of those.
+export const SENDS_KEPT = 20
+export function keepSends(list: Send[]): Send[] {
+  let over = list.length - SENDS_KEPT
+  if (over <= 0) return list
+  const out = new Set<number>()
+  for (const done of [(s: Send) => s.taken === true && s.noted === true, (s: Send) => s.lost === true && !s.taken && s.noted === true]) {
+    for (const [i, s] of list.entries()) {
+      if (over <= 0) break
+      if (!out.has(i) && done(s)) {
+        out.add(i)
+        over--
+      }
+    }
+  }
+  return list.filter((_, i) => !out.has(i))
+}
+// A session's rounds kept (ROUNDS_KEPT): over it, the oldest whose task is out of sight go first (out of
+// the work and its requests, inSight; a round with no task counts as out). A round in sight never goes:
+// its card would fall into the one before.
+export const ROUNDS_KEPT = 20
+export function keepRounds<R extends { at: number; anchor?: string }>(rounds: R[], tasks: TaskNode[], work: string[]): R[] {
+  let over = rounds.length - ROUNDS_KEPT
+  if (over <= 0) return rounds
+  const sight = inSight(tasks, work)
+  const out = new Set<number>()
+  for (const [i, r] of rounds.entries()) {
+    if (over <= 0) break
+    const id = resolveAnchor(tasks, r.anchor, r.at)
+    if (id === undefined || !sight.includes(id)) {
+      out.add(i)
+      over--
+    }
+  }
+  return rounds.filter((_, i) => !out.has(i))
+}
 export function resolveAnchor(owner: TaskNode[], anchor: string | undefined, at: number | undefined): string | undefined {
   if (anchor === undefined || at === undefined) return anchor
   const all = flat(owner)

@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { AgentInfo, EngineInterface } from 'claude-code'
 
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
-import { MAIN, SUB_BATCH, flat, inFlight, interrupt, subLive } from '../draw/layout'
+import { MAIN, SUB_BATCH, flat, inFlight, interrupt, sameSend, subLive } from '../draw/layout'
 import { SUBS } from '../text/rules'
 import { edit, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
@@ -394,8 +394,9 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
   const byText = open.find(x => (x.s.text ?? '') !== '' && got.includes(norm(x.s.text ?? '')))
   const hit = byText ?? (inOrder ? [...open].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))[0] : undefined)
   if (hit === undefined) return
+  // The same send (sameSend) in the list written, not the same place: a send in the meantime moves them.
   await update($, sendsState, (cur: any) =>
-    (cur ?? []).map((s: Send, i: number) => (i === hit.i && s.agent === agent ? { ...s, taken: true, cut: false, lost: false, noted: false } : s)),
+    (cur ?? []).map((s: Send) => (sameSend(s, hit.s) && s.agent === agent && !s.taken ? { ...s, taken: true, cut: false, lost: false, noted: false } : s)),
   )
   // An adopted send (given its task by a later plan) closes none.
   const id = hit.s.adopted ? undefined : hit.s.anchor
@@ -470,7 +471,9 @@ export async function strandedSends($: any) {
 export async function subsNote($: any): Promise<string | undefined> {
   const { value: list = [] } = await $.state.get(closedBySubsState)
   if (list.length === 0) return undefined
-  await $.state.set(closedBySubsState, [])
+  // Only what was read here goes: one added in the meantime is told next time.
+  const told = list as { id: string; how: string }[]
+  await update($, closedBySubsState, (cur: any) => (cur ?? []).filter((x: { id: string; how: string }) => !told.some(y => y.id === x.id && y.how === x.how)))
   const item = (x: { id: string; title: string; how: string }) => `"${x.id}" ${x.title}` + (x.how === 'failed' ? ' (falhou)' : x.how === 'interrupted' ? ' (interrompida)' : '')
   const done = (list as { id: string; title: string; how: string }[]).filter(x => x.how === 'done').map(item)
   const stopped = (list as { id: string; title: string; how: string }[]).filter(x => x.how !== 'done').map(item)

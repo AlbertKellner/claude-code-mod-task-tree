@@ -11,7 +11,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
-import { MAIN, flat, hasOpen, current } from '../draw/layout'
+import { MAIN, flat, hasOpen, current, keepRounds, keepSends } from '../draw/layout'
 import { reminders, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
@@ -23,6 +23,7 @@ const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
+const workState = { plugin: 'task-tree', key: 'work' } as const
 
 // What the handlers share about one call: the loop that made it (`agent`), the event, when a
 // message was sent (`sentAt`, before the call: a message delivered at once opens the session's turn
@@ -149,15 +150,19 @@ const sentMessage: Notes = async ($, c, notes) => {
       const fresh = to.startsWith('local_') && !(kids0 as Child[]).some(mine)
       if (fresh) await refreshChildren($).catch(() => {})
       const kept = keptLink(to)
+      // The rounds kept (keepRounds): over 20, only those of tasks out of sight go.
+      const { value: work = [] } = await $.state.get(workState)
+      const ownTasks = (groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+      const cap = (rounds: { at: number; anchor?: string }[]) => keepRounds(rounds, ownTasks, work as string[])
       await update($, childrenState, cur => {
         const list = cur ?? []
         if (list.some(mine)) {
-          return list.map(ch => (mine(ch) ? { ...ch, ...(fresh && ch.anchor === undefined && anchor !== undefined ? { anchor } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
+          return list.map(ch => (mine(ch) ? { ...ch, ...(fresh && ch.anchor === undefined && anchor !== undefined ? { anchor } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: cap([...(ch.rounds ?? []), ...round]) } : ch))
         }
         if (!to.startsWith('local_') || kept === undefined) return list
         return [
           ...list,
-          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(kept.rounds ?? []), ...round].slice(-20), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
+          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: cap([...(kept.rounds ?? []), ...round]), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
         ]
       })
     }
@@ -176,10 +181,13 @@ const sentMessage: Notes = async ($, c, notes) => {
   const agent = to !== '' && !failed && !to.startsWith('local_') ? await subagentOf($, to) : undefined
   if (to !== '' && !failed) {
     const at = sentAt ?? (await stamp($))
-    await update($, sendsState, cur => [
-      ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
-      { to, anchor, at, text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
-    ].slice(-20))
+    // Over 20, only the letters delivered (or not) and already told go (keepSends).
+    await update($, sendsState, cur =>
+      keepSends([
+        ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
+        { to, anchor, at, text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
+      ]),
+    )
     // The task it went from stays a task like any other: the message is its letter, drawn below it.
     await publishPanel($)
   }

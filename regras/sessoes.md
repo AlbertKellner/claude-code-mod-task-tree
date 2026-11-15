@@ -410,3 +410,14 @@ A filha arquivada cujo pedido saiu do trabalho atual vira uma linha com nome e c
 Origem: decisão do usuário, 2026-11-14 ("Vira linha resumida (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (as filhas arquivadas antigas ficavam inteiras no state e no painel publicado, sem teto).
 Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
+
+### sessoes.rodada-a-vista-nao-sai-pelo-teto
+O cartão de uma rodada de tarefa à vista não muda de lugar por causa de mensagens novas.
+
+- Dado uma filha com um cartão por mensagem e mais de 20 mensagens da mãe a ela
+- Quando a 21ª mensagem é enviada
+- Então os cartões das rodadas cujas tarefas estão no trabalho atual seguem sob as tarefas delas; só deixam de ter cartão próprio as rodadas mais antigas de pedidos que já saíram do trabalho
+
+Origem: auditoria 2026-11-10 (o teto de 20 rodadas cortava por posição, e o cartão da primeira se fundia ao de abertura); aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
+Código: hooks/tool-call.ts
+Estado: coberto

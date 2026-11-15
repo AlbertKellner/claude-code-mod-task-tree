@@ -318,3 +318,25 @@ O done que fecha a tarefa de uma carta ainda na fila avisa.
 Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
 Código: hooks/tools.ts
 Estado: coberto
+
+### envios.carta-na-fila-nao-sai-pelo-teto
+A carta na fila não sai do painel por causa de envios mais novos.
+
+- Dado uma tarefa com a carta dela na fila e, depois, 20 ou mais mensagens novas já entregues
+- Quando o painel é desenhado
+- Então a carta na fila segue sob a tarefa, azul, e a tarefa segue esperando a entrega; do painel só saem, pelas mais antigas, cartas já entregues (ou não entregues) de que o modelo já foi avisado
+
+Origem: auditoria 2026-11-10 (o teto de 20 envios cortava por posição); aplica envios.fica-ate-entrega, sem mudar nenhuma regra.
+Código: draw/layout.ts
+Estado: coberto
+
+### envios.marca-de-entrega-na-carta-certa
+A entrega marca a carta da mensagem que foi entregue, mesmo com outra mensagem saindo na mesma hora.
+
+- Dado uma carta na fila, com o recebimento dela já publicado pela sessão destino
+- Quando o modelo manda outra mensagem da mesma tarefa à mesma sessão enquanto o painel relê as sessões
+- Então a carta nova segue azul, "na fila", e a tarefa segue aberta; a marca "entregue" nunca cai em outra carta
+
+Origem: auditoria 2026-11-10 (as marcas eram aplicadas pelo índice de uma leitura antiga); aplica envios.fica-ate-entrega, sem mudar nenhuma regra.
+Código: hooks/agents.ts, draw/layout.ts
+Estado: coberto

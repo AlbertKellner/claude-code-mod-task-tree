@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
+import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -205,6 +205,8 @@ export async function watchSends($: any, rows: any[]) {
     if (!(id in files)) files[id] = (await readPublished($, id)) ?? { waiting: false, waits: [], children: [] }
     return files[id]!
   }
+  // The marks by the place in the list read here; written on the same send (sameSend) of the list the
+  // update gives, never by the place: a send in the meantime moves the places.
   const marks: Record<number, Partial<Send>> = {}
   const { value: used = {} } = await $.state.get(receiptsState)
   const usedNow: Record<string, { at: number; n: number }> = { ...used }
@@ -276,17 +278,31 @@ export async function watchSends($: any, rows: any[]) {
     else if (!archived && s.lost) marks[i] = { ...marks[i], cut: false, lost: false, noted: false }
   }
   if (Object.keys(marks).length === 0) return
-  await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
+  const read = sends as Send[]
+  const marked = Object.keys(marks).map(Number).map(i => ({ s: read[i]!, m: marks[i]! }))
+  // What the write found: the sends that got their mark (one gone or replaced in the meantime gets none)
+  // and the list written.
+  let applied: { s: Send; m: Partial<Send> }[] = []
+  let after: Send[] = []
+  await update($, sendsState, cur => {
+    applied = []
+    after = (cur ?? []).map(c => {
+      const hit = marked.find(x => sameSend(x.s, c))
+      if (hit === undefined) return c
+      applied.push({ s: c, m: hit.m })
+      return { ...c, ...hit.m }
+    })
+    return after
+  })
   if (JSON.stringify(usedNow) !== JSON.stringify(used)) await $.state.set(receiptsState, usedNow)
   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
   // have stopped waiting for it), so its card in the mother's pane is not left parked.
   // An adopted one (given its task by a later plan, Send.adopted) closes none. Nor one with something
   // else still at work in it (inFlight, read after this pass's marks: a letter delivered now is not
   // "another queued"), without the sessions: the one that took the letter is alive there by definition.
-  const anchors = (sends as Send[]).flatMap((s, i) => (marks[i]?.taken && s.anchor && !s.adopted ? [s.anchor] : []))
+  const anchors = applied.flatMap(({ s, m }) => (m.taken && s.anchor && !s.adopted ? [s.anchor] : []))
   if (anchors.length === 0) return
   const now = await stamp($)
-  const after = (sends as Send[]).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s))
   const { value: waits = [] } = await $.state.get(waitsState)
   await change($, all =>
     all.map(g => {
@@ -308,8 +324,11 @@ export async function takenNote($: any): Promise<string | undefined> {
   const done = (sends as Send[]).filter(s => s.taken && !s.noted)
   const lost = (sends as Send[]).filter(s => s.lost && !s.taken && !s.noted)
   if (done.length === 0 && lost.length === 0) return undefined
-  // Kept, its letter green (gray when not delivered) under its task (the last 20); the reminder goes once.
-  await $.state.set(sendsState, (sends as Send[]).map(s => (s.taken || s.lost ? { ...s, noted: true } : s)).slice(-20))
+  // Kept, its letter green (gray when not delivered) under its task (keepSends); the reminder goes once.
+  // One write over the list as it is then: only the sends read here get `noted`, and a mark or a send
+  // written in the meantime stays.
+  const told = [...done, ...lost]
+  await update($, sendsState, cur => keepSends((cur ?? []).map(c => (told.some(x => sameSend(x, c)) ? { ...c, noted: true } : c))))
   // A delivery at once needs no reminder: the model saw it delivered.
   const taken = done.filter(s => !s.delivered)
   if (taken.length === 0 && lost.length === 0) return undefined
@@ -398,7 +417,8 @@ export async function settledBy($: any, before: TaskNode[], after: TaskNode[]): 
 export async function endedNote($: any): Promise<string | undefined> {
   const { value: ids = [] } = await $.state.get(endedState)
   if (ids.length === 0) return undefined
-  await $.state.set(endedState, [])
+  // Only the ids read here go: one added in the meantime waits for the next reminder.
+  await update($, endedState, cur => (cur ?? []).filter(id => !(ids as string[]).includes(id)))
   const { value: kids = [] } = await $.state.get(childrenState)
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []

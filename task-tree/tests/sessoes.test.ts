@@ -1557,3 +1557,30 @@ test('no cartão da filha, a carta para a própria mãe mostra o nome da mãe qu
   const carta = p.find(l => l.titulo.startsWith('Para '))
   expect(carta?.titulo, emTexto(p)).toBe('Para orquestradora')
 })
+
+// Regra: sessoes.rodada-a-vista-nao-sai-pelo-teto
+test('na 21ª mensagem à mesma filha, o cartão da primeira rodada segue sob a tarefa dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const f1 = [noTurno(1, '1', 'f1', 'feita')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: f1, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [...f1, noTurno(2, '2', 'f2', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  await start($, ['3'])
+  for (let i = 1; i <= 20; i++) {
+    await relogio.advance(1000)
+    await envio($, K1, `mensagem ${i}`)
+  }
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => ({ sob: c.sob, tarefas: c.tarefas })), emTexto(p)).toContainEqual({ sob: 'Dois', tarefas: ['f2'] })
+})
