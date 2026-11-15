@@ -1813,6 +1813,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\"; o destino do teste passa a parado, porque com ele trabalhando a tarefa não é interrompida"
     },
+    "task-tree/tests/envios.test.ts::depois de uma entrega na hora, a tarefa da carta da fila fecha no segundo recebimento, não no primeiro": {
+      "regras": [
+        "envios.entrega-imediata-gasta-o-seu-recebimento"
+      ],
+      "hash": "9b6583a58549701b",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o fechamento no segundo recebimento, que o cenário promete, não tinha asserção"
+    },
     "task-tree/tests/envios.test.ts::duas cartas na fila da mesma tarefa: a primeira entrega não a conclui; a segunda, sim": {
       "regras": [
         "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
@@ -2350,6 +2360,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "texto novo das regras, com o cenário que diz quando sai"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras dizem que o que o subagente deixa aberto vira interrompido, salvo a tarefa dele que reflete os subagentes que lançou": {
+      "regras": [
+        "lembretes.regra-dos-subagentes"
+      ],
+      "hash": "4c3079d8d0894512",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: a frase nova das regras não tinha teste do trecho"
     },
     "task-tree/tests/lembretes.test.ts::as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha": {
       "regras": [
@@ -3456,6 +3476,16 @@
       "data": "2026-11-14",
       "motivo": "cada carta uma vez, no cartão e no pedido da origem"
     },
+    "task-tree/tests/sessoes.test.ts::a filha aberta num pedido antigo que recebeu mensagem de uma tarefa do pedido vigente: o cartão do pedido do usuário nela fica sob essa tarefa, não fecha o pedido": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "71ca3d79b89c4946",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar do cartão digitado: a mensagem que traz a filha ao pedido vigente não tinha teste"
+    },
     "task-tree/tests/sessoes.test.ts::a filha arquivada cujo pedido saiu do trabalho vira uma linha com nome e contagem": {
       "regras": [
         "sessoes.arquivada-antiga-vira-linha"
@@ -3848,6 +3878,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Sob a tarefa ◉ (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::com a mãe parada, o cartão do pedido do usuário na filha fica sob a tarefa da última mensagem que a mãe lhe mandou, não sob a de onde ela foi aberta": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "6bfa75e7c9fcd909",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lugar do cartão digitado: o ramo da última mensagem não tinha teste"
     },
     "task-tree/tests/sessoes.test.ts::com a origem aberta, a filha segue parada e as pendentes contam": {
       "regras": [

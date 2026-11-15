@@ -1007,3 +1007,11 @@ test('depois do Esc sem nada aberto, a mensagem de outra sessão também não pe
   expect(ctx).not.toContain('foi interrompido')
   expect(ctx).toContain(PEDIDO_NOVO)
 })
+
+// Regra: lembretes.regra-dos-subagentes
+test('as regras dizem que o que o subagente deixa aberto vira interrompido, salvo a tarefa dele que reflete os subagentes que lançou', async ($: any, on: any) => {
+  const { regras } = await textosAoModelo($, on)
+  expect(regras).toContain('vira interrompido')
+  expect(regras).toContain('salvo a tarefa dele')
+  expect(regras).toContain('reflete o fim deles')
+})

@@ -2371,3 +2371,63 @@ test('a tarefa de origem com subtarefa aberta não é fechada pela filha que con
   expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
   expect(r).not.toContain('concluiu sozinho')
 })
+
+// O painel da filha "governanca" com o turno 2 (o da mensagem da mãe, com `tarefa2`) e o turno 3, que o
+// usuário abriu digitando nela em `at`, com uma tarefa iniciada.
+const digitouDepoisDaMensagem = (h: any, tarefa2: string, at2: number, at: number) => {
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', tarefa2, 'feita'), noTurno(3, '3', 'Pedido digitado depois da mensagem', 'iniciada')],
+    turns: [turno(1, AGORA + 10), turno(2, at2), { id: 3, title: 'pedido digitado', at, own: true }],
+  }
+}
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com a mãe parada, o cartão do pedido do usuário na filha fica sob a tarefa da última mensagem que a mãe lhe mandou, não sob a de onde ela foi aberta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'R', title: 'Reescrita', children: [{ id: 'r1', title: 'Pedir a reescrita' }, { id: 'r2', title: 'Conferir a reescrita' }] }])
+  await start($, ['r1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['r1'])
+  await start($, ['r2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Tratar a mensagem', 'feita')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  await done($, ['r2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouDepoisDaMensagem(h, 'Tratar a mensagem', AGORA + 1800, AGORA + 2500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Conferir a reescrita'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('a filha aberta num pedido antigo que recebeu mensagem de uma tarefa do pedido vigente: o cartão do pedido do usuário nela fica sob essa tarefa, não fecha o pedido', async ($: any, on: any) => {
+  responderEnvio(on)
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 2500)
+  h.filha(K1).painel = { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Limpar as refs', 'feita')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 2600)] }
+  await aviso($)
+  await done($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouDepoisDaMensagem(h, 'Limpar as refs', AGORA + 2600, AGORA + 3500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})

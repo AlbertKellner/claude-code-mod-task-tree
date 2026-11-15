@@ -1523,3 +1523,29 @@ test('com a carta na única subtarefa que perguntava, o done dela avisa que a me
   await resp
   expect((await done($, ['1'])).texto).toContain('ainda está na fila')
 })
+
+// Regra: envios.entrega-imediata-gasta-o-seu-recebimento
+test('depois de uma entrega na hora, a tarefa da carta da fila fecha no segundo recebimento, não no primeiro', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  env.modo = 'entregue'
+  await envio($, 'local_x', 'na hora')
+  await start($, ['2'])
+  env.modo = 'fila'
+  await envio($, 'local_x', 'na fila')
+  h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_x', AGORA + 2)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+})

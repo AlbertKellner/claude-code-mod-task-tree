@@ -267,8 +267,9 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    último nível 1 do pedido. A tarefa com pergunta aberta (`askingAnchors`: pergunta, plano a aprovar,
    escolha do fim do turno) só recebe quando o pedido não tem outra: se a em andamento escolhida pergunta,
    vale a em andamento iniciada por último que não pergunta (sem relógio, a última na ordem dos starts),
-   senão a ordem acima sem as que perguntam, no pedido da tarefa da pergunta (também quando o pedido
-   aberto ainda não tem tarefas: a saída "nenhuma" só vale com nada em andamento), sem contar os pais
+   senão a ordem acima sem as que perguntam, no pedido mais recente que tem tarefas; só quando o pedido
+   aberto ainda não tem tarefas, no pedido da tarefa da pergunta (a saída "nenhuma" só vale com nada em
+   andamento), sem contar os pais
    da tarefa da pergunta (2026-11-15, "Não conta (Recomendado)"); sem outra, a própria tarefa da pergunta;
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
@@ -710,7 +711,8 @@ mantida), em `draw/layout.ts`:
   cartão vivo de um pedido fora de vista vai solto ao fim, com o pedido de origem no título (`loosen`;
   sessoes.cartao-vivo-nunca-some); o da tarefa que saiu do plano vai ao nível 1 que a continha
   (`moveToLevelOne`, no plan; pedidos.replano-leva-o-cartao-ao-nivel-1); o do turno digitado na filha
-  vai à tarefa da mãe em andamento quando ele digitou, ou ao fim do pedido vigente
+  vai à tarefa que a mãe tinha em andamento quando ele digitou, senão à tarefa da própria filha no
+  pedido vigente, senão ao fim do pedido vigente
   (sessoes.turno-proprio-da-filha-no-pedido-vigente); o aberto antes do plan fica solto até o plan o
   adotar (`adoptOrphans`; sessoes.aberta-antes-do-plan-e-adotada). `lastAnchor` é a tarefa da rodada
   atual da sessão: onde ela trabalha (`roundAt`, `inFlight`, `tiesOf`) e a origem que fecha para
@@ -2300,6 +2302,12 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   `resolveAnchor` e o mandava a um nível 1 antigo de mesmo id; a neta de dois turnos digitados, publicada sem
   o primeiro, não achava o lugar (busca nova `keptPlace`); as tarefas da decisão eram lidas antes dos
   arquivos das filhas; o lugar numa tarefa que sumiu fechava o pedido para sempre.
+- O lugar segue três candidatas, nesta ordem: a tarefa que a mãe tinha em andamento quando ele digitou
+  (só a que ela mesma iniciou; a acesa por outra filha ou subagente não conta: 2026-11-15, "Não conta
+  (Recomendado)"); senão a tarefa da própria filha (a da última mensagem que a mãe lhe mandou, senão a de
+  abertura) se ela é do pedido vigente, com a filha trabalhando ou parada (2026-11-15, "Sob a tarefa ◉
+  (Recomendado)" e "Sob a tarefa de origem (Recomendado)"); senão o fim do pedido vigente. Na revisão
+  entraram os testes do ramo da última mensagem.
 
 ## Achados baixos: corte de texto e números do desenho (2026-11-15)
 
