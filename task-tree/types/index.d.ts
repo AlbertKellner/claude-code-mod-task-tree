@@ -290,6 +290,8 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // work starts (a plan or start with no open task left).
 // `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
 // the state so a reload of the mod mid-turn does not lose it.
+// `marks`: the request's marks (planned, answeredInChat, briefBeforePlan; see hooks/panel marks),
+// in the state so a reload keeps them; a /clear or a resume drops them.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
 // `turnEnded`: when this session's turn ended (its clock), until the next prompt (then null):
@@ -308,6 +310,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; closedBySubs: { id: string; title: string; how: 'done' | 'failed' | 'interrupted' }[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; closedBySubs: { id: string; title: string; how: 'done' | 'failed' | 'interrupted' }[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; marks: { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean }; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

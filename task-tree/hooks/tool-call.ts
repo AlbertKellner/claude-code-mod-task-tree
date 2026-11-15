@@ -13,7 +13,7 @@ import { debugOnce } from '../io/log'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current, keepRounds, keepSends } from '../draw/layout'
-import { reminders, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
 
@@ -75,7 +75,7 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
     const r = await next(e)
     // Answered by a chat message instead of an option: that message is still to come.
     const inChat = /did not answer|sent a message instead/i.test(JSON.stringify(r.result ?? r))
-    if (inChat && agent === MAIN) reminders.answeredInChat = true
+    if (inChat && agent === MAIN) await setMarks($, { answeredInChat: true })
     try {
       const { value = [] } = await $.state.get(groupsState)
       if (!hasOpen(value.find((g: Group) => g.agent === agent)?.tasks ?? [])) return r
@@ -258,7 +258,7 @@ async function reminder($: any, c: Call, r: any) {
   // Measured on the current request: a task only pending from an earlier one does not silence it; a
   // task in progress, of any request (a start on an old one is the expected way to go on), does.
   const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-  if (reminders.planned || hasOpen(requestTasks(value as Group[])) || current(all).anchor !== undefined) {
+  if ((await marks($)).planned || hasOpen(requestTasks(value as Group[])) || current(all).anchor !== undefined) {
     reminders.unplanned = 0
     return r
   }

@@ -1860,6 +1860,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
     },
+    "task-tree/tests/lembretes.test.ts::a mensagem de outra sessão entre a pergunta dispensada e a resposta não é dita como resposta; a da pessoa é": {
+      "regras": [
+        "lembretes.resposta-pelo-chat-so-na-mensagem-da-pessoa"
+      ],
+      "hash": "63777ca0647382a5",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: as marcas do pedido sobrevivem à recarga e só a pessoa gasta a da resposta"
+    },
     "task-tree/tests/lembretes.test.ts::a mensagem entregue no meio do turno traz o lembrete de que continua o pedido em curso, não o de pedido novo": {
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
@@ -2240,6 +2250,46 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::recarga depois de planejar e fechar tudo, 1/2: o pedido planeja e fecha": {
+      "regras": [
+        "lembretes.marcas-do-pedido-sobrevivem-a-recarga"
+      ],
+      "hash": "98f26acf616c6d3f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: as marcas do pedido sobrevivem à recarga e só a pessoa gasta a da resposta"
+    },
+    "task-tree/tests/lembretes.test.ts::recarga depois de planejar e fechar tudo, 2/2: a chamada seguinte não traz o lembrete de planejar": {
+      "regras": [
+        "lembretes.marcas-do-pedido-sobrevivem-a-recarga"
+      ],
+      "hash": "0f00a63bf01d86c1",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: as marcas do pedido sobrevivem à recarga e só a pessoa gasta a da resposta"
+    },
+    "task-tree/tests/lembretes.test.ts::recarga entre a pergunta dispensada e a resposta, 1/2: a pergunta vai para o chat": {
+      "regras": [
+        "lembretes.marcas-do-pedido-sobrevivem-a-recarga"
+      ],
+      "hash": "beac29bc5e3852e7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: as marcas do pedido sobrevivem à recarga e só a pessoa gasta a da resposta"
+    },
+    "task-tree/tests/lembretes.test.ts::recarga entre a pergunta dispensada e a resposta, 2/2: a mensagem da pessoa é dita como a resposta": {
+      "regras": [
+        "lembretes.marcas-do-pedido-sobrevivem-a-recarga"
+      ],
+      "hash": "9ee14f439d6989f6",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: as marcas do pedido sobrevivem à recarga e só a pessoa gasta a da resposta"
     },
     "task-tree/tests/lembretes.test.ts::seguir numa tarefa antiga com start cala o lembrete": {
       "regras": [

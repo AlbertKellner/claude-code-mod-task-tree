@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
-import { AGORA, fixar, host, responderEnvio } from './kit/ambiente'
+import { AGORA, estado, fixar, host, responderEnvio } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
 import { abrirSessao, aviso, envio, falha, mensagemDe } from './kit/cenario'
 
@@ -699,4 +699,65 @@ test('as descrições das ferramentas e do comando dizem o essencial de cada uma
   expect(desc('start')).toContain('em andamento')
   expect(String(ferramentas['done']?.inputSchema?.properties?.cancel?.description ?? '')).toContain('não serão feitas')
   expect(JSON.stringify(comandos)).toContain('Abre o painel')
+})
+
+// As marcas do pedido (se já usou o painel, se a pergunta foi dispensada para o chat) gravadas antes
+// de uma recarga do mod, e lidas pelo módulo novo.
+const PLANEJOU: Record<string, unknown> = {}
+const DISPENSOU: Record<string, unknown> = {}
+const DISPENSA = 'User did not answer this question — they sent a message instead.'
+
+// Regra: lembretes.marcas-do-pedido-sobrevivem-a-recarga
+test('recarga depois de planejar e fechar tudo, 1/2: o pedido planeja e fecha', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, PLANEJOU, 'captura')
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1', '2'], 'Feito')
+  expect(Object.keys(PLANEJOU).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: lembretes.marcas-do-pedido-sobrevivem-a-recarga
+test('recarga depois de planejar e fechar tudo, 2/2: a chamada seguinte não traz o lembrete de planejar', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, PLANEJOU, 'semear')
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  expect(Object.keys(PLANEJOU).length, 'o 1/2 não gravou o state').toBeGreaterThan(0)
+  const r = await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'git status' })
+  expect(JSON.stringify(r?.context ?? [])).not.toContain('sem plano aberto')
+})
+
+// Regra: lembretes.marcas-do-pedido-sobrevivem-a-recarga
+test('recarga entre a pergunta dispensada e a resposta, 1/2: a pergunta vai para o chat', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: DISPENSA }))
+  fixar(on)
+  estado(on, DISPENSOU, 'captura')
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  expect(contextoDe(await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] }))).toContain('vai responder por mensagem no chat')
+  await fimDoTurno($)
+  expect(Object.keys(DISPENSOU).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: lembretes.marcas-do-pedido-sobrevivem-a-recarga
+test('recarga entre a pergunta dispensada e a resposta, 2/2: a mensagem da pessoa é dita como a resposta', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, DISPENSOU, 'semear')
+  expect(Object.keys(DISPENSOU).length, 'o 1/2 não gravou o state').toBeGreaterThan(0)
+  expect(contexto(await pedido($, 'prefiro a segunda'))).toContain('Esta mensagem é a resposta do usuário à pergunta anterior')
+})
+
+// Regra: lembretes.resposta-pelo-chat-so-na-mensagem-da-pessoa
+test('a mensagem de outra sessão entre a pergunta dispensada e a resposta não é dita como resposta; a da pessoa é', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: DISPENSA }))
+  await iniciar($, on)
+  await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] })
+  await fimDoTurno($)
+  expect(contexto(await mensagemDe($, 'local_x', 'oi'))).not.toContain('resposta do usuário')
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'prefiro a segunda'))).toContain('Esta mensagem é a resposta do usuário à pergunta anterior')
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'outra coisa'))).not.toContain('resposta do usuário')
 })

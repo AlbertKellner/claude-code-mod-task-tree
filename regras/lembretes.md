@@ -253,6 +253,28 @@ Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por text
 Código: hooks/tool-call.ts
 Estado: coberto
 
+### lembretes.marcas-do-pedido-sobrevivem-a-recarga
+O que o pedido já fez no painel vale depois de uma recarga do mod.
+
+- Dado um pedido em que o modelo já planejou e fechou tudo, ou uma pergunta dispensada para o chat que ainda espera a mensagem da pessoa
+- Quando o mod é recarregado (um arquivo dele é salvo) antes da chamada ou da mensagem seguinte
+- Então a chamada seguinte não traz o lembrete de planejar, e a mensagem seguinte da pessoa ainda é dita "a resposta do usuário à pergunta anterior"; um /clear ou uma retomada zeram essas marcas
+
+Origem: auditoria 2026-11-10 (as marcas do pedido eram variáveis do módulo, zeradas na recarga); aplica lembretes.primeira-chamada-sem-plano e lembretes.resposta-pelo-chat, sem mudar nenhuma regra.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, hooks/prompt-submit.ts, state/durability.ts
+Estado: coberto
+
+### lembretes.resposta-pelo-chat-so-na-mensagem-da-pessoa
+Só a mensagem da pessoa é dita como a resposta à pergunta dispensada para o chat.
+
+- Dado uma pergunta que o usuário dispensou para responder por mensagem, com o turno já encerrado
+- Quando chega antes a mensagem de outra sessão, e depois a da pessoa
+- Então a mensagem da outra sessão leva o lembrete dela sem "a resposta do usuário à pergunta anterior", e a da pessoa, a seguinte, leva a frase, uma vez
+
+Origem: auditoria 2026-11-10 (a mensagem de outra sessão levava o prefixo e gastava a marca); aplica lembretes.resposta-pelo-chat ("a mensagem seguinte da pessoa"), sem mudar nenhuma regra.
+Código: hooks/tool-call.ts, hooks/prompt-submit.ts, hooks/panel.ts
+Estado: coberto
+
 ### lembretes.wrap-up-sem-resumo
 O wrap_up sem summary no turno avisa que falta o resumo.
 

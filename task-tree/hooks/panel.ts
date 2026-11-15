@@ -199,6 +199,7 @@ const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
+const marksState = { plugin: 'task-tree', key: 'marks' } as const
 const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 const namesState = { plugin: 'task-tree', key: 'names' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -210,14 +211,29 @@ export async function lastBrief($: any): Promise<string | undefined> {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
-// The request's reminders, variables of the module (a reload starts them over): the main loop's
-// tool calls since a plan was last open (see the tool.call reminder); whether the current request
-// already used the panel (a plan taken, a start, or a done that closed a task of this request: with
-// everything closed, its last calls need no reminder to plan); whether the last question was answered by a chat message instead of an option
-// (that message, at the next prompt, is the answer); whether the summary kept was given before a
-// plan of the same turn (a step's, so the last done still asks for one; a reload forgets the mark,
-// and then only that second reminder is lost).
-export const reminders = { unplanned: 0, planned: false, answeredInChat: false, briefBeforePlan: false }
+// The request's marks, in the state (a reload of the mod keeps them; a /clear or a resume drops them,
+// dropHeld): whether the current request already used the panel (a plan taken, a start, or a done
+// that closed a task of this request: with everything closed, its last calls need no reminder to
+// plan); whether the last question was answered by a chat message instead of an option (the
+// person's next message is the answer; a message of another session leaves the mark); whether the
+// summary kept was given before a plan of the same turn (a step's, so the last done still asks for one).
+export type Marks = { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean }
+export async function marks($: any): Promise<Marks> {
+  const { value } = await $.state.get(marksState)
+  const v = value !== null && typeof value === 'object' ? value as Partial<Marks> : {}
+  return { planned: v.planned === true, answeredInChat: v.answeredInChat === true, briefBeforePlan: v.briefBeforePlan === true }
+}
+// Changes the marks given, in one write; nothing is written when none changes.
+export async function setMarks($: any, m: Partial<Marks>) {
+  const now = await marks($)
+  if ((Object.keys(m) as (keyof Marks)[]).every(k => now[k] === m[k])) return
+  await $.state.set(marksState, { ...now, ...m })
+}
+
+// The main loop's tool calls since a plan was last open (see the tool.call reminder), a variable of
+// the module: a reload starts the count over (the reminder then comes once more, only in a request
+// that did not plan).
+export const reminders = { unplanned: 0 }
 
 // The time now, or undefined where it cannot be read (the test kit without a clock).
 export async function stamp($: any): Promise<number | undefined> {
@@ -598,11 +614,12 @@ export async function restore($: any, id: string): Promise<boolean> {
   if (groups) await replace($, groups)
   return groups !== undefined
 }
-// The waits and the done's summary belong to the session that set them: a /clear
+// The waits, the done's summary and the request's marks belong to the session that set them: a /clear
 // or a resume drops them, without publishing (the replace that follows publishes).
 export async function dropHeld($: any) {
   await $.state.set(waitsState, [])
   await $.state.set(briefState, '')
+  await $.state.set(marksState, { planned: false, answeredInChat: false, briefBeforePlan: false })
 }
 
 // The groups' "first use" of the table (restoredAt): session.start brings them back from the store

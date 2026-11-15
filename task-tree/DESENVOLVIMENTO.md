@@ -35,7 +35,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     `startsWork`/`setWork`/`joinWork`/`restoreWork`/`restoreWorkOf`), as ligações (`keptLinks`/
     `keptLink`/`saveLinks`/`ensureLinks`, `forgetChildren` e `isLeftBehind` do `/clear`, `renameAnchors`,
     `moveToLevelOne`, `renameFolds`), `settledSubs`, `selfId`/`knownId`/`ownId`, `learnNames`,
-    `lastBrief`, `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
+    `lastBrief`, `marks`/`setMarks` (as marcas do pedido, na chave `marks` do state), `reminders` (só a contagem `unplanned`), `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
   - `sessions.ts` (556): as sessões que esta abriu: `refreshChildren` (os passos de `io/host.ts`; uma
     leitura por vez, `reading`/`readAgain`, e `children` gravado por `update`), `summarize`,
     `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`, `settledBy`, `endedNote`,
@@ -122,7 +122,7 @@ Na ordem de `register.tsx`:
 |---|---|---|---|
 | `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada); com o state vazio (processo novo), `restore` do store e, sem cópia no store, `restoreFromOwnFile` (o arquivo publicado); `restoreWork`, `restoreTurn` e, no processo novo, `parkDeadTurn` (o turno que o store dá em curso morreu com o processo anterior); `ensureLinks`; abre o pane uma vez por processo (`paneOpened`); `refreshChildren`, `watchSessions` e, no processo novo, `sweepPublished` |
 | `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: `dropHeld`, esvazia `sends`, `receipts`, `work`, o fim do turno (`clearTurn`), as filhas (`forgetChildren`: os cartões somem e não voltam) e `collapsed` (as dobras), guardando as tarefas e os turnos do grupo principal em `past` (os 5 `/clear` mais recentes, o aberto como interrompido) e os intervalos parados, fechados; `resume`: `dropHeld`, `restore` do store (sem cópia, o painel fica vazio), `restoreWorkOf`, `restoreTurn` e `parkDeadTurn` |
-| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
+| `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders.unplanned` e as marcas `planned`/`briefBeforePlan` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
 | `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | recusa, sem tocar o painel nem o nome do pedido, a entrada que não cabe (`planInputError`: lista vazia, tarefa sem `id` ou `title` em texto, `:` num id, `/` no id do nível 1, quarto nível); `build` (que aceita a subtarefa já com o prefixo do nível 1, como os lembretes a mostram) + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno), e, no loop principal, também um concluído desse pedido (reabre mantendo os ✓); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), passa ao nível 1 as ligações a uma subtarefa que o replano no lugar deixou de fora (`moveToLevelOne`), põe os níveis 1 no turno atual (que o `request` do primeiro plan do pedido renomeia, uma vez só: a marca `named` no turno), tira os `sends` do que foi replanejado, adota o que o pedido mandou, abriu ou lançou antes do primeiro plan (`adoptOrphans`), junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`); renomeia as dobras das tarefas renomeadas (`renameFolds`); avisos do plan (`PLAN`); a escolha entre replanejar e renomear, e as listas que as etapas seguintes usam (renomeados, dobras, subtarefas deixadas de fora, avisos), saem de dentro da gravação (`change`), sobre o painel como ela o encontra, refeitas se outra escrita entrou no meio; não abre o pane (ele abre no processo novo, na mensagem da pessoa e com `/task-tree`) |
@@ -140,7 +140,7 @@ Na ordem de `register.tsx`:
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
 
 Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
-elas (por isso cada uma marca `reminders.planned` por conta própria).
+elas (por isso cada uma marca `planned`, nas marcas do pedido do state, por conta própria).
 
 O nome do destino na carta (auditoria 2026-11-10): `nameOf`, dentro de `panel` (`draw/layout.ts`), procura
 o destino entre as filhas do painel desenhado e as de quem desenha (a entrada sem nome, "Sessão…", não
@@ -243,15 +243,15 @@ começo; a tag citada dentro de uma mensagem não conta), guarda `from`/`at` (os
 ou um hand-back não abre turno: leva só `endedNote`, `takenNote` e um lembrete curto (`PROMPT.handback`,
 `.background` ou `.notice`) e, com tarefa parada com Esc ainda sem `start` no grupo principal, também
 `PROMPT.parked` com a lista delas (2026-11-13, "Acrescentar (Recomendado)"). Os outros (a pessoa, outra sessão) tiram a pergunta aberta do loop
-principal, zeram `reminders.unplanned`/`planned`, abrem um turno (`openTurn`: título com até 60
+principal, zeram `reminders.unplanned` e as marcas `planned`/`briefBeforePlan` (no state: sobrevivem à recarga; o `/clear` e a retomada as zeram, `dropHeld`), abrem um turno (`openTurn`: título com até 60
 caracteres da mensagem sem tags; turnos sem tarefa são descartados, por um `Set` dos turnos das
 tarefas, salvo os 20 mais recentes que têm resumo: o pedido respondido sem tarefa, só com a linha ↩), releem a lista se está velha e
-levam `PROMPT.open` (as tarefas abertas antes; com `answeredInChat`, "esta mensagem é a resposta") e
+levam `PROMPT.open` (as tarefas abertas antes; com a marca `answeredInChat`, "esta mensagem é a resposta", só na mensagem da pessoa, que é a única que gasta a marca) e
 `PROMPT.request`. A mensagem entregue com o turno em curso (`e.turnId` preenchido: o relato de uma
 sessão que esta abriu, `fromChildren`, ou a mensagem que a pessoa digita por cima do turno, que o app
 entrega dentro do turno) continua o pedido em curso (decisão do usuário, 2026-11-12: "Entra no
 pedido em curso (Recomendado)"): mantém a pergunta e o plano abertos, não abre turno nem zera
-`reminders`, e leva `PROMPT.midTurn` no lugar de `PROMPT.open` e `PROMPT.request`; o `plan` seguinte
+as marcas, e leva `PROMPT.midTurn` no lugar de `PROMPT.open` e `PROMPT.request`; o `plan` seguinte
 fica no último turno, e o replano com o mesmo id guarda o estado. Não vale depois de um Esc
 (`turnAborted`/`replanDue`: a mensagem abre o pedido e pede o replano) nem sem turno nenhum aberto.
 Antes ela abria um turno na hora, e o replano seguinte, no mesmo turno do modelo, deixava o nível 1 em

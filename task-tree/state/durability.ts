@@ -79,6 +79,7 @@ export const TABLE: readonly Row[] = [
   { key: 'closedBySubs', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of the main loop the end of their subagents closed or marked ✕ (settleBySubs), until the model is told once (subsNote)' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
+  { key: 'marks', lives: 'state', merge: 'none', restoredAt: [], note: 'the request\'s marks (whether it used the panel, whether a question waits for the person\'s message as its answer, whether the summary kept came before a plan); in the state so a reload keeps them; a /clear or a resume drops them' },
   { key: 'paneOpened', lives: 'state', merge: 'none', restoredAt: [], note: 'session.start opened the panel in this process: a reload keeps it, so it does not open again a panel the person closed; a new process opens it once' },
   { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
   // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a
@@ -109,7 +110,7 @@ export const TABLE: readonly Row[] = [
   { key: 'poller', lives: 'module', merge: 'none', restoredAt: [], note: 'the 3 s reread of the sessions, started again likewise (the pane\'s drawing too)' },
   { key: 'engineSeen', lives: 'module', merge: 'none', restoredAt: [], note: 'the host\'s model per session, a minute each' },
   { key: 'samples', lives: 'module', merge: 'none', restoredAt: [], note: 'the turn\'s model calls so far (tokens out, duration), the last 20, for the output rate; a reload mid-turn starts them over (the state keeps the last rate)' },
-  { key: 'unplanned, planned, answeredInChat, briefBeforePlan', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message, whether the summary kept came before a plan' },
+  { key: 'unplanned', lives: 'module', merge: 'none', restoredAt: [], note: 'the main loop\'s calls without a plan, for the reminder to plan; a reload starts the count over (the reminder comes once more, only in a request that did not plan)' },
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
   { key: 'pendingTools, toolsWrote, toolsTimer', lives: 'module', merge: 'none', restoredAt: [], note: 'the subagents\' tool lines not written yet, when they were last written and the timer that writes them (at most once a second for all, hooks/agents subTool); a reload drops the pending lines: the next call writes at once' },

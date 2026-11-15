@@ -10,7 +10,7 @@ import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } fro
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { reminders, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { marks, setMarks, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime, settledBy } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -44,7 +44,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     if (bad !== undefined) return { result: bad, isError: true as const }
     // A summary given before this plan was a step's, not the turn's: it no longer silences the
     // reminder of the last done (a new summary clears the mark).
-    if (agent === MAIN) reminders.briefBeforePlan = true
+    if (agent === MAIN) await setMarks($, { briefBeforePlan: true })
     const fresh = build(input.tasks as InNode[], 1, undefined, await stamp($))
     const request = typeof input.request === 'string' ? input.request.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
     const dup = duplicates(fresh)
@@ -52,7 +52,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
       return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true as const }
     }
     // Only a plan taken counts as using the panel in this request (a refused one does not).
-    if (agent === MAIN) reminders.planned = true
+    if (agent === MAIN) await setMarks($, { planned: true })
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
     // (replaced in its place, the tasks that keep their id keeping their state: carry) when it is of
@@ -308,7 +308,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     const brief = typeof input.summary === 'string' ? input.summary.replace(/^\s*↩\s*/, '') : ''
     if (agent === MAIN && brief.trim() !== '') {
       await $.state.set(briefState, brief)
-      reminders.briefBeforePlan = false
+      await setMarks($, { briefBeforePlan: false })
     }
     let notes: string[] = []
     let closed: string[] = []
@@ -376,11 +376,11 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       // summary, or on a task of an earlier request, did not (the reminder to plan still comes).
       const mine = requestTasks(groups)
       const ofRequest = new Set(flat(mine).map(t => t.id))
-      if (closed.some(id => ofRequest.has(id))) reminders.planned = true
+      if (closed.some(id => ofRequest.has(id))) await setMarks($, { planned: true })
       // The last step of the current request closed with no summary: the request would have no ↩
       // line, or the ↩ of a step before a later plan (the answer to a question) instead of the work's.
       // A task left open by an earlier request does not hide it.
-      if (((await lastBrief($)) === undefined || reminders.briefBeforePlan) && closed.length > 0 && !hasOpen(mine))
+      if (((await lastBrief($)) === undefined || (await marks($)).briefBeforePlan) && closed.length > 0 && !hasOpen(mine))
         notes.push(DONE.noSummary)
     }
     const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
@@ -397,7 +397,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
 export async function startTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
-    if (agent === MAIN) reminders.planned = true
+    if (agent === MAIN) await setMarks($, { planned: true })
     if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { ids?: unknown }
     if (notList(input.ids)) return { result: NOT_A_LIST('ids'), isError: true as const }

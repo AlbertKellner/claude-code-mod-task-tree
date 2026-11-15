@@ -8,7 +8,7 @@
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { learnNames, reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { learnNames, marks, reminders, setMarks, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { subsNote } from './agents'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
@@ -173,8 +173,8 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       const { value: groups = [] } = await $.state.get(groupsState)
       const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
       // The person's message may be the answer to a question dismissed for the chat (see asked).
-      const answered = !it.peer && reminders.answeredInChat
-      if (!it.peer) reminders.answeredInChat = false
+      const answered = !it.peer && (await marks($)).answeredInChat
+      if (!it.peer) await setMarks($, { answeredInChat: false })
       return next({
         ...e,
         context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), PROMPT.midTurn(hasOpen(tasks) ? openList(tasks) : '', answered)],
@@ -183,8 +183,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   }
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
-  reminders.planned = false
-  reminders.briefBeforePlan = false
+  await setMarks($, { planned: false, briefBeforePlan: false })
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
   await openTurn($, it.title, !it.peer, it.from)
@@ -207,11 +206,14 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   }
   // After an interrupted turn, the message that comes next, the person's or another session's, asks
   // for a replan of the panel instead of the list of what was left open (the replan covers it).
+  // Only the person's message is the answer to a question dismissed for the chat: one of another
+  // session neither says so nor spends the mark.
+  const answered = !it.peer && (await marks($)).answeredInChat
   const left = aborted && hasOpen(tasks)
-    ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), reminders.answeredInChat) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
+    ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), answered) : PROMPT.interruptedByYou(openList(tasks), answered)
     : aborted && it.peer ? PROMPT.interruptedEmpty
-    : hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
-  reminders.answeredInChat = false
+    : hasOpen(tasks) ? PROMPT.open(openList(tasks), answered) : undefined
+  if (!it.peer) await setMarks($, { answeredInChat: false })
   return next({
     ...e,
     context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks))],
