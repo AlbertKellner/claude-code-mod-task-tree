@@ -2847,6 +2847,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
     },
+    "task-tree/tests/subagentes.test.ts::a nova tentativa decide também quando termina mal: parada, a tarefa fica ✕ 'interrompida'": {
+      "regras": [
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "77ea6b47f43ade26",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: ✓, vale a última (Recomendado)"
+    },
     "task-tree/tests/subagentes.test.ts::a pergunta aberta de um subagente, numa tarefa dele de mesmo id, não segura a tarefa da sessão": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -3197,6 +3207,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente falha e outro, lançado depois da mesma tarefa, conclui: a tarefa fica ✓ e o cartão do primeiro segue 'falhou'": {
+      "regras": [
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "34c1186fc70ba8c7",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: ✓, vale a última (Recomendado)"
     },
     "task-tree/tests/subagentes.test.ts::o subagente lançado antes do plan do pedido termina a lista, o plan o adota e o fim dele não fecha a tarefa que o adotou": {
       "regras": [

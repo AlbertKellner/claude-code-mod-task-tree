@@ -1945,6 +1945,12 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `parkDeadTurn` o deixa falso). A mensagem seguinte da pessoa recebe `PROMPT.failedByError`; os turnos que
   não abrem pedido listam as que falharam em `PROMPT.failedTasks`; o cartão da filha parada assim diz
   "falhou" (`anyFailed`).
+- Relançar depois de falha (2026-11-14, "✓, vale a última (Recomendado)"): no `settleBySubs`, um
+  subagente da folha deixa de contar quando outro da mesma folha foi lançado depois do fim dele (`at`
+  estritamente maior que o `end`): a nova tentativa decide. Entre os que restam (a última e os que
+  rodaram com ela) segue valendo o pior (falhou, depois interrompido, depois concluído). O instante do
+  fechamento e o início dados à tarefa seguem saindo de todos os subagentes da folha; o cartão do que
+  falhou segue "falhou" embaixo dela.
 - Filha arquivada não é relida e o publicado corta a profundidade (correção direta, 2026-11-14): o
   arquivo de uma filha arquivada já lida como arquivada não é aberto de novo a cada leitura de 3 s
   (`readFiles` com `known`, `Read.skipped`; desarquivada, volta a ser lida); no nível `DEEP`,

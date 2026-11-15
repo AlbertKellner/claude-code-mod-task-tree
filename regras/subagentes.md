@@ -106,9 +106,10 @@ A tarefa de onde saiu um subagente que falhou ou foi interrompido reflete esse f
 
 - Dado uma tarefa cujos subagentes terminaram, algum deles "falhou" ou "interrompido", e nada mais em execução nela
 - Quando o turno termina
-- Então a tarefa fica ✕, com "falhou" se um falhou, senão "interrompida"; com fins mistos vale o pior (falhou, depois interrompido, depois concluído), derivado das respostas acima
+- Então a tarefa fica ✕, com "falhou" se um falhou, senão "interrompida"; entre subagentes que rodaram juntos vale o pior (falhou, depois interrompido, depois concluído); quando um subagente é lançado depois do fim de outro da mesma tarefa (uma nova tentativa), conta o fim do último, e os que terminaram antes desse lançamento não contam: a nova tentativa concluída deixa a tarefa ✓, com o cartão do que falhou ainda "falhou" embaixo dela
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "interrompido se é interrompido, falha se ele falhou").
+Reescrito: 2026-11-14, decisão do usuário ("✓, vale a última (Recomendado)"); desfaz, para a nova tentativa lançada depois do fim da anterior, "com fins mistos vale o pior" (derivado das respostas de 2026-11-09). O teste do misto lançado junto não muda.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -159,9 +160,10 @@ Reaberta com start, a tarefa não fecha de novo pelos subagentes que terminaram 
 
 Também: a tarefa (pendente ou iniciada) cujo subagente terminou antes do primeiro start dela não foi reaberta e segue fechando no fim do turno ("Fecha também").
 
-Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (segue valendo o pior); o fim de um subagente depois do Esc.
+Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (lançados juntos, vale o pior; lançado depois do fim do outro, vale o último: subagentes.pai-reflete-falha-ou-interrupcao); o fim de um subagente depois do Esc.
 
 Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores); aplica turnos.iniciada-aguarda-no-fim ("salvo a tarefa cujo trabalho era só subagentes") e subagentes.pai-conclui-no-fim-do-turno ("Fecha de fato (Recomendado)", "Fecha também") ao fim que já foi refletido, sem mudar nenhuma delas nem subagentes.pai-reflete-falha-ou-interrupcao.
+Reescrito: 2026-11-14, texto: remete à decisão "✓, vale a última (Recomendado)"; os testes deste cenário não mudam.
 Código: state/tasks.ts
 Estado: coberto
 
