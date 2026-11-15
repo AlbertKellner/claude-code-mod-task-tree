@@ -375,5 +375,5 @@ A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizonta
 - Então não há linha horizontal atravessando o painel nem as bordas do cartão; a seção é só o ▸/▾ e o texto apagado
 
 Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
-Código: draw/svg.ts
+Código: draw/desktop.tsx
 Estado: checklist (pintura real)

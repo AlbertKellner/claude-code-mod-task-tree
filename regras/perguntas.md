@@ -2,7 +2,7 @@
 
 As esperas de pergunta, plano e escolha.
 
-Código da área: hooks/tool-call.ts, hooks/panel.ts, draw/layout.ts
+Código da área: hooks/tool-call.ts, hooks/panel.ts, draw/layout.ts, hooks/prompt-submit.ts, hooks/turn.ts
 
 ### perguntas.sem-tarefa-recusada
 A pergunta sem tarefa aberta do pedido atual, nem tarefa em andamento, é recusada.

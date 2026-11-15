@@ -2,7 +2,7 @@
 
 O fim do turno, normal ou com Esc, e a mensagem seguinte.
 
-Código da área: draw/layout.ts, hooks/turn.ts, hooks/panel.ts, hooks/prompt-submit.ts
+Código da área: draw/layout.ts, hooks/turn.ts, hooks/panel.ts, hooks/prompt-submit.ts, hooks/tool-call.ts, hooks/tools.ts
 
 ### turnos.iniciada-aguarda-no-fim
 A tarefa iniciada e aberta aguarda no fim do turno.

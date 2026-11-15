@@ -36,7 +36,7 @@ O pedido finalizado sai do trabalho quando um pedido novo começa trabalho.
 
 Origem: decisão do usuário, 2026-10-22 ("segundo a regra antiga, na visão resumida, ficam somente as tarefas novas do turno"); commit 6599050.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
-Código: hooks/panel.ts, hooks/command.ts
+Código: hooks/panel.ts
 Estado: coberto
 
 ### cabecalho.resumida-limpa-so-com-tudo-concluido
@@ -48,7 +48,7 @@ O trabalho só é limpo quando tudo à vista está concluído.
 
 Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit 897c0d7.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
-Código: hooks/panel.ts, hooks/command.ts
+Código: hooks/panel.ts
 Estado: coberto
 
 ### cabecalho.interrompida-fora-do-total

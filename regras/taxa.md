@@ -2,7 +2,7 @@
 
 O "n toks/s" do cabeçalho, do cartão da filha e do cartão de subagente.
 
-Código da área: hooks/turn.ts, hooks/agents.ts
+Código da área: hooks/turn.ts, hooks/agents.ts, draw/desktop.tsx, draw/head.tsx, draw/svg.ts, draw/layout.ts, io/publish.ts, io/host.ts
 
 ### taxa.velocidade-de-geracao
 O toks/s é a velocidade de escrita da resposta, do primeiro chunk ao 'stop'.
