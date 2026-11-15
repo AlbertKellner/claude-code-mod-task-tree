@@ -418,11 +418,14 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     const free = batch.find(t => !used.some(u => u.anchor === t.id))
     return (free ?? newest).id
   }
-  const asks = (t: TaskNode) => asking.includes(t.id)
+  // An asking task and its parents are no candidates (the person, 2026-11-15: "Não conta
+  // (Recomendado)": the parent of the asking task is no other task of the request).
+  const asks = (t: TaskNode) => flat([t]).some(x => asking.includes(x.id))
   const calm = flat(mine).filter(t => !asks(t)).map(t => ({ ...t, children: [] }))
   const level1 = [...mine].reverse().find(t => !asks(t))
-  // Only when the asking task is all the request has, the card goes to it, as before.
-  return startedLast(calm)?.id ?? level1?.id ?? startedLast(mine)?.id ?? mine[mine.length - 1]?.id
+  const askers = flat(mine).filter(t => asking.includes(t.id)).map(t => ({ ...t, children: [] }))
+  // With no other candidate, the card goes to the asking task itself, never to its parent.
+  return startedLast(calm)?.id ?? level1?.id ?? startedLast(askers)?.id ?? askers[askers.length - 1]?.id ?? startedLast(mine)?.id ?? mine[mine.length - 1]?.id
 }
 
 // The tasks of the main loop with a question still open under them (sendAnchor's `asking`): the

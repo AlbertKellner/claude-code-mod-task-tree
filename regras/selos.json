@@ -1621,6 +1621,17 @@
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
     },
+    "task-tree/tests/envios.test.ts::com a carta na única subtarefa que perguntava, o done dela avisa que a mensagem ainda está na fila": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta",
+        "envios.done-com-carta-na-fila"
+      ],
+      "hash": "cd62af55703ad42a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o pai da tarefa que pergunta não é candidato (\"Não conta (Recomendado)\", 2026-11-15)"
+    },
     "task-tree/tests/envios.test.ts::com a escolha do fim do turno aberta numa tarefa, o envio do turno de um aviso vai à outra pendente": {
       "regras": [
         "envios.nunca-na-tarefa-da-pergunta"
@@ -1670,6 +1681,26 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
+    "task-tree/tests/envios.test.ts::com a pergunta na única subtarefa do plano, a carta fica nela, não no pai": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "33f6cd0675f82f5f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o pai da tarefa que pergunta não é candidato (\"Não conta (Recomendado)\", 2026-11-15)"
+    },
+    "task-tree/tests/envios.test.ts::com a pergunta numa subtarefa e outro plano já concluído no pedido, a carta vai à última iniciada desse plano, não ao pai da pergunta": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "88567d779e9b507e",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o pai da tarefa que pergunta não é candidato (\"Não conta (Recomendado)\", 2026-11-15)"
     },
     "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
       "regras": [

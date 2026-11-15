@@ -1461,3 +1461,65 @@ test('sem relógio, com a pergunta na iniciada por último e as outras já com c
   expect(cartasDe(p, 'Três'), emTexto(p)).toEqual([])
   expect(cartasDe(p, 'Quatro'), emTexto(p)).toEqual([])
 })
+
+const SO_UM: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta na única subtarefa do plano, a carta fica nela, não no pai', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  expect(cartasDe(p, 'Um').length, emTexto(p)).toBe(1)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta numa subtarefa e outro plano já concluído no pedido, a carta vai à última iniciada desse plano, não ao pai da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [
+    { id: 'A', title: 'Plano A', children: [{ id: 'a1', title: 'a1' }] },
+    { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'B.1' }] },
+  ])
+  await start($, ['a1'])
+  await done($, ['a1'])
+  await relogio.advance(1000)
+  await start($, ['b1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  expect(cartasDe(p, 'a1').length, emTexto(p)).toBe(1)
+  expect(cartasDe(p, 'B.1'), emTexto(p)).toEqual([])
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta, envios.done-com-carta-na-fila
+test('com a carta na única subtarefa que perguntava, o done dela avisa que a mensagem ainda está na fila', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  await relogio.advance(1000)
+  await resp
+  expect((await done($, ['1'])).texto).toContain('ainda está na fila')
+})
