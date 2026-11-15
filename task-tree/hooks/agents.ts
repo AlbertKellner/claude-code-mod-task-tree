@@ -4,30 +4,43 @@
 // model and effort, output rate, the tool in use, its state). Its steps (turn.step), calls (tool.call)
 // and end (turn.complete) keep it current; the panel is published with the groups, so a session's
 // subagents show in its card in the session that opened it.
+// The group lasts from the launch until its request leaves the work: then, if it ended without
+// planning a task and nothing alive depends on it, it is deleted (joinWork, dropSettledSubs); one with
+// tasks of its own stays with its request in "+N pedidos anteriores".
 
 import { update } from 'claude-code'
 import type { AgentInfo, EngineInterface } from 'claude-code'
 
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
-import { MAIN, SUB_BATCH, flat, interrupt, subLive } from '../draw/layout'
+import { MAIN, SUB_BATCH, flat, inFlight, interrupt, subLive } from '../draw/layout'
+import { SUBS } from '../text/rules'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
-import { askingAnchors, change, dropWaits, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
+import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const closedBySubsState = { plugin: 'task-tree', key: 'closedBySubs' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 
-// The tool in use changes many times a second: the card is written at most once every THROTTLE ms
-// per subagent (the pane redraws on every write).
+// The tool in use changes many times a second, in dozens of subagents at once (a workflow): every write
+// goes through change (state, status, store, published file) and redraws the pane. So the cards' tool
+// lines are written at most once every THROTTLE ms for all the subagents together (subTool): a call
+// only counts and keeps its line as pending; one second gone since the last write, the call writes at
+// once (the only one that waits on the write); within it, one timer writes what is pending when the
+// second closes. A subagent's model and rate (subStep) are throttled per subagent.
 const THROTTLE = 1000
 
 const wrote = new Map<string, number>()
 const calls = new Map<string, number>()
+// The tool lines not written yet, by agent; when they were last written; the timer that writes them.
+const pendingTools = new Map<string, string>()
+let toolsWrote = -Infinity
+let toolsTimer: { cancel: () => void } | undefined
 
 function setSub($: any, agent: string, fn: (s: Sub) => Sub) {
   return change($, all => all.map(g => (g.agent === agent && g.sub ? { ...g, sub: fn(g.sub) } : g)))
@@ -45,14 +58,15 @@ async function mainUses($: any): Promise<Uses> {
   const { value: waits = [] } = await $.state.get(waitsState)
   return { kids: kids as Child[], sends: sends as Send[], waits: waits as Wait[] }
 }
-function anchorIn(groups: Group[], parent: string, names: string[], uses: Uses): string | undefined {
+function anchorIn(groups: Group[], parent: string, phrases: string[], uses: Uses): string | undefined {
   const tasks = groups.find(g => g.agent === parent)?.tasks ?? []
   const mine = groups.filter(g => (g.parent ?? MAIN) === parent)
-  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], names)
-  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), names)
+  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], [], undefined, phrases)
+  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), [], openTurnOf(groups)?.id, phrases)
 }
-export async function launchAnchor($: any, groups: Group[], parent: string, names: string[]): Promise<string | undefined> {
-  return anchorIn(groups, parent, names, parent === MAIN ? await mainUses($) : NO_USES)
+// The description and the type are free phrases, not session names (namedFor).
+export async function launchAnchor($: any, groups: Group[], parent: string, phrases: string[]): Promise<string | undefined> {
+  return anchorIn(groups, parent, phrases, parent === MAIN ? await mainUses($) : NO_USES)
 }
 
 // The launches of one message run together: each hook reads the panel before the others write
@@ -63,14 +77,20 @@ export async function launchAnchor($: any, groups: Group[], parent: string, name
 // sessions, messages and questions that also decide the task are read before: launches do not write them.
 export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const r = await next(e)
-  // A resume carries the message a subagent that ended first was left with: it is delivered.
-  if (typeof e?.resume?.agentId === 'string' && e.resume.agentId !== '') await takeSubSend($, e.resume.agentId, String(e.prompt ?? ''), true).catch(() => {})
+  await ensureLinks($)
+  // A resume brings a subagent that ended back to work, on its own card (reviveSub), and carries the
+  // message it was left with: delivered after the card is alive again, so the task it was launched
+  // from does not close on the delivery with it running.
+  if (typeof e?.resume?.agentId === 'string' && e.resume.agentId !== '') {
+    await reviveSub($, e.resume.agentId, e.background === true)
+    await takeSubSend($, e.resume.agentId, String(e.prompt ?? ''), true).catch(() => {})
+  }
   const agent = r?.agentId
   if (typeof agent !== 'string' || agent === '' || e?.resume || e?.isTeammate) return r
   const now = (await stamp($)) ?? 0
   const parent = typeof e.parentAgentId === 'string' && e.parentAgentId !== '' ? e.parentAgentId : MAIN
   const description = String(e.description ?? '')
-  const names = [description, String(e.subagentType ?? '')]
+  const phrases = [description, String(e.subagentType ?? '')]
   const uses = parent === MAIN ? await mainUses($) : NO_USES
   // The Agent call's own record (tool.call) is claimed here: the group needs no other.
   await update($, launchesState, (cur: any) => {
@@ -81,7 +101,7 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const run = typeof e.workflow?.runId === 'string' && e.workflow.runId !== '' ? e.workflow.runId : undefined
   const label = `${String(e.subagentType ?? 'Subagente')}: ${description}`
   await change($, all => {
-    const anchor = anchorIn(all, parent, names, uses)
+    const anchor = anchorIn(all, parent, phrases, uses)
     const mate = all.find(g => g.agent !== agent && g.sub && g.parent === parent && g.anchor === anchor && !g.sub.run && now - g.sub.at <= SUB_BATCH)
     const sub: Sub = {
       at: now,
@@ -96,6 +116,26 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
       : [...all, { agent, label, parent, ...(anchor !== undefined ? { anchor } : {}), tasks: [], sub }]
   })
   return r
+}
+
+// A subagent resumed by the app (agent.spawn with `resume`, the same id) works again: its card, if it
+// has one, says "trabalhando" (or "em segundo plano") again, with no end, its last word now, and its
+// calls counted on from the card's; its launch, batch, run and model stay. Its tasks left ✕ come back
+// only with a start in them; the task it came from, if already closed, stays closed; if open, it waits
+// on it (settleBySubs reads the card). Its next end is an end as always (subEnd). A card dropped from
+// the state (dropSettledSubs, its request out of the work) does not come back.
+async function reviveSub($: any, agent: string, background: boolean) {
+  const { value = [] } = await $.state.get(groupsState)
+  const s = (value as Group[]).find(g => g.agent === agent)?.sub
+  if (!s || subLive(s)) return
+  const now = (await stamp($)) ?? 0
+  calls.set(agent, Math.max(calls.get(agent) ?? 0, s.calls ?? 0))
+  gone.delete(agent)
+  await setSub($, agent, x => {
+    if (subLive(x)) return x
+    const { end: _, tool: __, ...rest } = x
+    return { ...rest, state: background ? 'background' : 'running', seen: now }
+  })
 }
 
 // A subagent's model call: its model and effort, and the call's rate (`toks`, measured in turn.ts by
@@ -133,17 +173,32 @@ export function toolText(e: any): string {
 export async function subTool($: any, agent: string, e: any) {
   // The panel's own tools and the hand-back (the subagent's report, after its work) are not its work.
   if (String(e?.tool ?? '').startsWith('mcp__task-tree__') || e?.tool === 'SubagentHandback') return
-  const n = (calls.get(agent) ?? 0) + 1
-  calls.set(agent, n)
+  calls.set(agent, (calls.get(agent) ?? 0) + 1)
+  pendingTools.set(agent, toolText(e))
   const now = (await stamp($)) ?? 0
-  const { value = [] } = await $.state.get(groupsState)
-  const s = (value as Group[]).find(g => g.agent === agent)?.sub
-  if (!s || (s.state !== 'running' && s.state !== 'background')) return
-  const tool = toolText(e)
-  // The first call, a new tool, or a second gone by: written; else only counted, written later.
-  if (s.tool === tool && now - (wrote.get(agent) ?? -Infinity) < THROTTLE) return
-  wrote.set(agent, now)
-  await setSub($, agent, x => ({ ...x, tool, calls: n, seen: now }))
+  if (now - toolsWrote >= THROTTLE) return writeTools($, now)
+  if (toolsTimer === undefined) toolsTimer = $.clock.after(THROTTLE - (now - toolsWrote), () => void flushTools($).catch(() => {}))
+}
+async function flushTools($: any) {
+  toolsTimer = undefined
+  if (pendingTools.size > 0) await writeTools($, (await stamp($)) ?? 0)
+}
+// One write for every pending line; only a card still alive takes it (one that ended, or was dropped,
+// meanwhile does not get its tool back).
+async function writeTools($: any, now: number) {
+  toolsTimer?.cancel()
+  toolsTimer = undefined
+  toolsWrote = now
+  const lines = new Map(pendingTools)
+  pendingTools.clear()
+  for (const a of lines.keys()) wrote.set(a, now)
+  await change($, all =>
+    all.map(g => {
+      const tool = lines.get(g.agent)
+      if (tool === undefined || !g.sub || !subLive(g.sub)) return g
+      return { ...g, sub: { ...g.sub, tool, calls: calls.get(g.agent) ?? g.sub.calls ?? 1, seen: now } }
+    }),
+  )
 }
 
 // A subagent's turn ending is its end: done, failed, or interrupted (stopped).
@@ -151,6 +206,7 @@ export async function subEnd($: any, agent: string, e: any) {
   const now = (await stamp($)) ?? 0
   const state: Sub['state'] = e?.isAborted ? 'interrupted' : e?.reason === 'error' || e?.reason === 'refusal' ? 'failed' : 'done'
   wrote.delete(agent)
+  pendingTools.delete(agent)
   const n = calls.get(agent)
   calls.delete(agent)
   await setSub($, agent, x => {
@@ -244,6 +300,7 @@ export async function checkSubs($: any) {
     gone.delete(id)
     wrote.delete(id)
     calls.delete(id)
+    pendingTools.delete(id)
   }
   await dropWaits($, w => !ends.has(w.agent))
   if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
@@ -256,12 +313,16 @@ export async function checkSubs($: any) {
 // a leaf still open (started or not) whose work was subagents, all ended, with nothing else going on
 // under it (no session alive, no message queued, no question open), closes: done when they all
 // were, else interrupted, "falhou" when one failed (the worse end decides, failed over interrupted
-// over done). Its parents close by the usual rule; the subagents' cards stay out of the count.
-// A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not launched before the leaf
+// over done, among the subagents that ran together). A subagent launched after another of the leaf
+// ended is a new try: the one that ended before that launch no longer counts, so the last try
+// decides (the person, 2026-11-14: "✓, vale a última (Recomendado)"); its card stays "falhou". Its parents close by the usual rule; the subagents' cards stay out of the count.
+// A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not adopted by a later plan
+// (Sub.adopted, launched with no task), not launched before the leaf
 // was planned (an earlier task's with the same id, in a state written before the anchor was renamed
 // with it), and, once a start reopened the leaf after a close, still running or ended since: one
 // that ended before was reflected in that close.
 const ofLeaf = (s: Sub, leaf: TaskNode) =>
+  s.adopted !== true &&
   !(leaf.plannedAt !== undefined && s.at < leaf.plannedAt) &&
   (leaf.reopenedAt === undefined || s.end === undefined || s.end >= leaf.reopenedAt)
 export async function settleBySubs($: any) {
@@ -271,22 +332,28 @@ export async function settleBySubs($: any) {
   const { value: waits = [] } = await $.state.get(waitsState)
   const subs = (groups as Group[]).filter(g => g.sub && g.anchor !== undefined)
   if (subs.length === 0) return
-  const busy = (owner: string, id: string) =>
-    (waits as Wait[]).some(w => w.anchor === id) ||
-    (owner === MAIN &&
-      ((kids as Child[]).some(c => c.anchor === id && !c.archived && (c.running || c.starting === true)) ||
-        (sends as Send[]).some(s => s.anchor === id && !s.taken && !(s as any).cut)))
+  // What else is still at work in the leaf (inFlight, with the sessions: one alive there holds it).
+  const busy = (owner: string, id: string) => inFlight(groups as Group[], owner, id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })
   const ends = new Map<string, { state: 'done' | 'failed' | 'interrupted'; end: number; at: number }>()
   for (const owner of groups as Group[]) {
     for (const leaf of flat(owner.tasks)) {
       if (leaf.status !== 'open' || leaf.children.length > 0) continue
       const mine = subs.filter(g => (g.parent ?? MAIN) === owner.agent && g.anchor === leaf.id).map(g => g.sub!).filter(s => ofLeaf(s, leaf))
       if (mine.length === 0 || mine.some(s => s.state === 'running' || s.state === 'background') || busy(owner.agent, leaf.id)) continue
-      const state = mine.some(s => s.state === 'failed') ? 'failed' : mine.some(s => s.state === 'interrupted') ? 'interrupted' : 'done'
+      // The last try and the ones that ran with it: none of the leaf launched after its end (strictly).
+      const last = mine.filter(s => !mine.some(o => o !== s && s.end !== undefined && o.at > s.end))
+      const state = last.some(s => s.state === 'failed') ? 'failed' : last.some(s => s.state === 'interrupted') ? 'interrupted' : 'done'
       ends.set(`${owner.agent}|${leaf.id}`, { state, end: Math.max(...mine.map(s => s.end ?? s.at)), at: Math.min(...mine.map(s => s.at)) })
     }
   }
   if (ends.size === 0) return
+  // The main loop's tasks this closes or marks ✕ are told to the model once (subsNote): it would
+  // otherwise read them as still open, or answer a done on one ✕ with no way back.
+  const told = flat((groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []).flatMap(t => {
+    const x = ends.get(`${MAIN}|${t.id}`)
+    return x === undefined ? [] : [{ id: t.id, title: t.title, how: x.state }]
+  })
+  if (told.length > 0) await update($, closedBySubsState, cur => [...(cur ?? []).filter(c => !told.some(t => t.id === c.id)), ...told])
   await change($, all =>
     all.map(g => {
       let tasks = g.tasks
@@ -314,8 +381,10 @@ export async function settleBySubs($: any) {
 // blue even when received). Of the sends to it not taken yet (queued, or given up as not delivered),
 // the first whose text is in what it received; with none and `inOrder` (the main loop's own message,
 // a resume), the oldest. The task it was sent from closes, as at any delivery (watchSends), when it is
-// open, with nothing open under it and no subagent launched from it still running: then that
-// subagent's end closes it (subagentes.um-rodando-mantem-o-pai).
+// open, with nothing open under it and nothing else at work in it (inFlight, without the sessions: a
+// subagent launched from it still running, another letter of it queued, a question open in it): then
+// what ends last closes it (subagentes.um-rodando-mantem-o-pai,
+// envios.entrega-espera-o-que-ainda-roda-na-tarefa).
 const norm = (t: string) => t.replace(/\s+/g, ' ').trim()
 export async function takeSubSend($: any, agent: string, text: string, inOrder: boolean) {
   const { value: sends = [] } = await $.state.get(sendsState)
@@ -328,11 +397,14 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
   await update($, sendsState, (cur: any) =>
     (cur ?? []).map((s: Send, i: number) => (i === hit.i && s.agent === agent ? { ...s, taken: true, cut: false, lost: false, noted: false } : s)),
   )
-  const id = hit.s.anchor
+  // An adopted send (given its task by a later plan) closes none.
+  const id = hit.s.adopted ? undefined : hit.s.anchor
   if (id !== undefined) {
     const now = await stamp($)
+    const { value: after = [] } = await $.state.get(sendsState)
+    const { value: waits = [] } = await $.state.get(waitsState)
     await change($, all => {
-      const live = all.some(g => g.sub && subLive(g.sub) && (g.parent ?? MAIN) === MAIN && g.anchor === id)
+      const live = inFlight(all, MAIN, id, { sends: after as Send[], waits: waits as Wait[] })
       return all.map(g => {
         if (g.agent !== MAIN || live) return g
         const t = flat(g.tasks).find(t => t.id === id)
@@ -349,6 +421,7 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
 // hook was not delivered. It runs inside the subagent's turn: nothing here waits on a prompt.
 export async function agentReceive($: EngineInterface, e: any, next: any) {
   const r = await next(e)
+  await ensureLinks($)
   if (r?.consumed !== undefined || typeof e?.agentId !== 'string' || e.agentId === '') return r
   await takeSubSend($, e.agentId, String(e.text ?? ''), e.origin?.kind === 'coordinator').catch(() => {})
   return r
@@ -390,4 +463,17 @@ export async function strandedSends($: any) {
   )
   if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
   await publishPanel($)
+}
+
+// Once: the tasks the end of their subagents closed or marked ✕ since the model was last told
+// (settleBySubs), for the next prompt or tool call of the main loop.
+export async function subsNote($: any): Promise<string | undefined> {
+  const { value: list = [] } = await $.state.get(closedBySubsState)
+  if (list.length === 0) return undefined
+  await $.state.set(closedBySubsState, [])
+  const item = (x: { id: string; title: string; how: string }) => `"${x.id}" ${x.title}` + (x.how === 'failed' ? ' (falhou)' : x.how === 'interrupted' ? ' (interrompida)' : '')
+  const done = (list as { id: string; title: string; how: string }[]).filter(x => x.how === 'done').map(item)
+  const stopped = (list as { id: string; title: string; how: string }[]).filter(x => x.how !== 'done').map(item)
+  const notes = [...(done.length > 0 ? [SUBS.done(done.join('; '))] : []), ...(stopped.length > 0 ? [SUBS.stopped(stopped.join('; '))] : [])]
+  return notes.join(' ')
 }

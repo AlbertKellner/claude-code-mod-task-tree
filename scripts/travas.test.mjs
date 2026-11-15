@@ -5,9 +5,10 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, write
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
-import { alteradosNoIndice, etapasDoHook } from './mudou.mjs'
-import { aprovarGolden, liberaGolden, liberaTeste } from './selos.mjs'
+import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
+import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead, testesDe } from './selos.mjs'
 import { impacto } from './impacto.mjs'
+import { versaoNova } from './versao.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
@@ -181,6 +182,23 @@ test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', co
   assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
 }))
 
+test('a base do relato é HEAD com mudança fora de commit e o commit anterior sem ela', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+  // Só o commit "base", sem anterior: HEAD.
+  assert.equal(baseDoRelato(dir, env), 'HEAD')
+  writeFileSync(join(dir, ARQ), readFileSync(join(dir, ARQ), 'utf8') + '// um\n')
+  git('commit', '-q', '-am', 'mudou')
+  const anterior = git('rev-parse', 'HEAD~1').stdout.trim()
+  // Logo depois do commit local: o commit anterior.
+  assert.equal(baseDoRelato(dir, env), anterior)
+  // Mudança fora de commit (rastreado, depois não rastreado): HEAD.
+  writeFileSync(join(dir, ARQ), readFileSync(join(dir, ARQ), 'utf8') + '// dois\n')
+  assert.equal(baseDoRelato(dir, env), 'HEAD')
+  git('checkout', '--', ARQ)
+  writeFileSync(join(dir, 'novo.txt'), 'x\n')
+  assert.equal(baseDoRelato(dir, env), 'HEAD')
+}))
+
 // O golden do desenho: só se grava com as palavras do usuário, e um desenho mudado sem aprovação falha.
 const GOLDEN_MJS = join(dirname(fileURLToPath(import.meta.url)), 'golden.mjs')
 test('aprovar o golden sem as palavras do usuário e a data é recusado antes de rodar qualquer coisa', () => {
@@ -307,3 +325,328 @@ test('o núcleo tocado afeta todos os cenários cobertos e o checklist inteiro',
   }
 })
 
+
+const KIT_ARQ = 'task-tree/tests/kit/leitura.ts'
+const lerSelosJson = dir => JSON.parse(readFileSync(join(dir, 'regras', 'selos.json'), 'utf8'))
+
+test('um helper do kit que afirma conta como asserção', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), "import { expect } from 'claude-code/testing'\nexport function esperarX(v: number) {\n  expect(v).toBe(v)\n}\nexport const x = 1\n")
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'esperarX(2)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x')
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(lerSelosJson(dir).testes[UM].assercoes, 2)
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('tirar a única chamada a um helper do arquivo que afirma é perda de asserção', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nfunction duas() {\n  expect(1).toBe(1)\n  expect(2).toBe(2)\n}')
+  trocar(dir, ARQ, '  expect(3).toBe(3)\n', '  expect(3).toBe(3)\n  duas()\n')
+  assert.equal(selos(dir, '--selar', DOIS, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(lerSelosJson(dir).testes[DOIS].assercoes, 3)
+  trocar(dir, ARQ, '  duas()\n', '')
+  const r = selos(dir, '--selar', DOIS, '--tipo', 'refatoracao', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /refatoração não pode tirar asserções/)
+}))
+
+test('--recontar só mexe em assercoes, e recusa com teste mudado sem selo', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), 'export function esperarX(v: number) {\n  return v\n}\nexport const x = 1\n')
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  esperarX(5)\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'motivo um').status, 0)
+  writeFileSync(join(dir, KIT_ARQ), "import { expect } from 'claude-code/testing'\nexport function esperarX(v: number) {\n  expect(v).toBe(5)\n}\nexport const x = 1\n")
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const antes = lerSelosJson(dir).testes[UM]
+  assert.equal(antes.assercoes, 2)
+  const r = selos(dir, '--recontar')
+  assert.equal(r.status, 0, r.stderr)
+  const depois = lerSelosJson(dir).testes[UM]
+  assert.deepEqual(depois, { ...antes, assercoes: 3 })
+  trocar(dir, ARQ, 'expect(3).toBe(3)', 'expect(3).toBe(4)')
+  const recusa = selos(dir, '--recontar')
+  assert.equal(recusa.status, 1)
+  assert.match(recusa.stderr, /::dois/)
+  assert.deepEqual(lerSelosJson(dir).testes[UM], depois)
+}))
+
+// Os selos conferidos contra os de HEAD: apagar, trocar tipo, hash ou asserções à mão não passa.
+const gravarSelosJson = (dir, s) => writeFileSync(join(dir, 'regras', 'selos.json'), `${JSON.stringify(s, null, 2)}\n`)
+const TESTE_DOIS = "\n// Regra: exemplo.b\ntest('dois', async ($: any) => {\n  expect(3).toBe(3)\n})\n"
+const reescrever = (dir, regra, data) => {
+  const de = regra === 'exemplo.a' ? 'Origem: teste das travas.\nEstado: coberto\n\n### exemplo.b' : 'A regra B.\n\n- Dado algo\n- Quando algo\n- Então algo\n\nOrigem: teste das travas.\nEstado: coberto'
+  trocar(dir, 'regras/exemplo.md', de, de.replace('Origem: teste das travas.\n', `Origem: teste das travas.\nReescrito: ${data}, o usuário decidiu.\n`))
+}
+const ontem = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return d.toLocaleDateString('sv-SE')
+})()
+
+test('apagar um teste e o selo dele à mão falha', comMontagem(dir => {
+  trocar(dir, ARQ, TESTE_DOIS, '')
+  const s = lerSelosJson(dir)
+  delete s.testes[DOIS]
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /selo apagado sem registro: .*::dois/)
+}))
+
+test('remover com decisão deixa registro, e a regressão libera', comMontagem(dir => {
+  trocar(dir, ARQ, TESTE_DOIS, '')
+  reescrever(dir, 'exemplo.b', hoje)
+  const r = selos(dir, '--remover', DOIS, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(r.status, 0, r.stderr)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.removidos[DOIS].tipo, 'decisao')
+  assert.equal(agora.removidos[DOIS].reescrito, hoje)
+  const base = selosDeHead(dir)
+  assert.equal(liberaRemovido(agora, base, DOIS, hoje), true)
+  assert.equal(liberaRemovido(agora, base, DOIS, ontem), false)
+  assert.equal(liberaRemovido(agora, base, UM, hoje), false)
+  assert.equal(liberaRemovido(agora, agora, DOIS, undefined), false)
+  assert.equal(liberaRemovido(agora, base, DOIS, undefined), true)
+}))
+
+test('trocar à mão o hash e o tipo não passa', comMontagem(dir => {
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(3)')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.testes[UM].tipo = 'novo'
+  gravarSelosJson(dir, s)
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /tipo `novo` em teste que já existia: .*::um/)
+  s.testes[UM].tipo = 'decisao'
+  gravarSelosJson(dir, s)
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /decisão sem `Reescrito:`: .*::um/)
+  reescrever(dir, 'exemplo.a', hoje)
+  r = conferir(dir)
+  assert.equal(r.status, 0, r.stderr)
+}))
+
+test('o número de asserções escrito à mão não vale', comMontagem(dir => {
+  const s = lerSelosJson(dir)
+  s.testes[UM].assercoes = 9
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /asserções do selo diferentes das contadas: .*::um \(selo 9, contadas 2\)/)
+}))
+
+test('apagar um cenário do golden junto com o selo falha', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+  mkdirSync(join(dir, 'task-tree', 'tests', 'golden'), { recursive: true })
+  aprovarGolden(dir, { principal: { arvore: { t: 'Box' }, svgs: [] }, filha: { arvore: { t: 'Text' }, svgs: [] } }, `"está certo", ${hoje}`)
+  git('add', '-A')
+  git('commit', '-q', '-m', 'golden')
+  assert.equal(conferir(dir).status, 0)
+  trocar(dir, 'task-tree/tests/golden/desenho.ts', ',"principal":{"arvore":{"t":"Box"},"svgs":[]}', '')
+  const s = lerSelosJson(dir)
+  delete s.golden.principal
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /cenário do golden sumido: principal/)
+}))
+
+test('renomear um teste leva o selo', comMontagem(dir => {
+  const UNO = `${ARQ}::uno`
+  trocar(dir, ARQ, "test('um'", "test('uno'")
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'refatoracao', '--motivo', 'nome melhor')
+  assert.equal(r.status, 0, r.stderr)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.removidos[UM].para, UNO)
+  assert.ok(agora.testes[UNO])
+  assert.equal(liberaRemovido(agora, selosDeHead(dir), UM, hoje), false)
+}))
+
+test('renomear com o corpo mudado não é refatoração', comMontagem(dir => {
+  const UNO = `${ARQ}::uno`
+  trocar(dir, ARQ, "test('um'", "test('uno'")
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(3)')
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'refatoracao', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /renome puro/)
+}))
+
+// O selo cobre o que o teste alcança por tabela, os arquivos de apoio (fixtures) e a migração do hash.
+const gitEm = dir => (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+// Os selos da montagem regravados como os do algoritmo 1 (sem o campo, hash antigo) e postos em commit.
+const paraAlgoritmo1 = dir => {
+  const s = lerSelosJson(dir)
+  delete s.algoritmo
+  const antigos = new Map(testesDe(ARQ, readFileSync(join(dir, ARQ), 'utf8'), ['expect'], 1).map(t => [t.nome, t.hash]))
+  for (const [chave, selo] of Object.entries(s.testes)) selo.hash = antigos.get(chave.slice(chave.indexOf('::') + 2))
+  gravarSelosJson(dir, s)
+  gitEm(dir)('commit', '-q', '-am', 'algoritmo 1')
+  return s
+}
+
+test('mudar uma constante usada só por outra declaração do teste falha', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nconst C = 3\nfunction usaC() {\n  return C\n}')
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  usaC()\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(conferir(dir).status, 0)
+  trocar(dir, ARQ, 'const C = 3', 'const C = 30')
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /o teste mudou sem selo novo: .*::um/)
+}))
+
+test('mudar uma fixture sem selar falha', comMontagem(dir => {
+  const FIX = 'task-tree/tests/fixtures/x.ts'
+  mkdirSync(join(dir, 'task-tree', 'tests', 'fixtures'))
+  writeFileSync(join(dir, FIX), 'export const FORMATOS = [1, 2]\n')
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /arquivo de apoio dos testes sem selo: task-tree\/tests\/fixtures\/x\.ts/)
+  assert.equal(selos(dir, '--kit', FIX, '--tipo', 'novo', '--motivo', 'x').status, 0)
+  assert.equal(conferir(dir).status, 0)
+  writeFileSync(join(dir, FIX), 'export const FORMATOS = [1]\n')
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /o arquivo de apoio dos testes mudou sem selo novo: task-tree\/tests\/fixtures\/x\.ts/)
+  assert.equal(selos(dir, '--kit', FIX, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('--migrar regrava o hash e mantém tipo, data e motivo', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nconst C = 3\nfunction usaC() {\n  return C\n}')
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  usaC()\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'motivo um').status, 0)
+  gitEm(dir)('commit', '-q', '-am', 'um com usaC')
+  const antes = paraAlgoritmo1(dir)
+  mkdirSync(join(dir, 'task-tree', 'tests', 'fixtures'))
+  writeFileSync(join(dir, 'task-tree/tests/fixtures/x.ts'), 'export const X = 1\n')
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /selos do algoritmo 1/)
+  assert.match(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').stderr, /rode --migrar antes/)
+  // Um teste mudado antes da migração: recusa tudo, e o selos.json fica como estava.
+  trocar(dir, ARQ, 'expect(3).toBe(3)', 'expect(3).toBe(4)')
+  r = selos(dir, '--migrar')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /selar antes de migrar\): .*::dois/)
+  assert.deepEqual(lerSelosJson(dir), antes)
+  trocar(dir, ARQ, 'expect(3).toBe(4)', 'expect(3).toBe(3)')
+  r = selos(dir, '--migrar')
+  assert.equal(r.status, 0, r.stderr)
+  const depois = lerSelosJson(dir)
+  assert.equal(depois.algoritmo, 2)
+  const novos = new Map(testesDe(ARQ, readFileSync(join(dir, ARQ), 'utf8')).map(t => [t.nome, t.hash]))
+  assert.notEqual(depois.testes[UM].hash, antes.testes[UM].hash)
+  for (const [chave, s] of Object.entries(depois.testes)) {
+    const { hash, ...resto } = s
+    const { hash: _velho, ...restoAntes } = antes.testes[chave]
+    assert.deepEqual(resto, restoAntes)
+    assert.equal(hash, novos.get(chave.slice(chave.indexOf('::') + 2)))
+  }
+  assert.equal(depois.testes[UM].tipo, 'refatoracao')
+  assert.equal(depois.testes[UM].motivo, 'motivo um')
+  assert.equal(depois.kit['task-tree/tests/fixtures/x.ts'].tipo, 'novo')
+  assert.deepEqual(depois.kit[KIT_ARQ], antes.kit[KIT_ARQ])
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('com o algoritmo da base diferente, a conferência não acusa os hashes migrados e segue comparando com a base', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nconst C = 3\nfunction usaC() {\n  return C\n}')
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  usaC()\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  gitEm(dir)('commit', '-q', '-am', 'um com usaC')
+  paraAlgoritmo1(dir)
+  assert.equal(selos(dir, '--migrar').status, 0)
+  let r = conferir(dir)
+  assert.equal(r.status, 0, r.stderr)
+  // A base (algoritmo 1) é recalculada pelo algoritmo 2: o teste mudado e selado como "novo" é acusado.
+  trocar(dir, ARQ, 'const C = 3', 'const C = 30')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.testes[UM].tipo = 'novo'
+  gravarSelosJson(dir, s)
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /tipo `novo` em teste que já existia: .*::um/)
+  // Com a base do mesmo algoritmo (a migração em commit), acusa igual.
+  gitEm(dir)('commit', '-q', '-am', 'migrado')
+  trocar(dir, ARQ, 'const C = 30', 'const C = 300')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s2 = lerSelosJson(dir)
+  s2.testes[UM].tipo = 'novo'
+  gravarSelosJson(dir, s2)
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /tipo `novo` em teste que já existia: .*::um/)
+}))
+
+// A tabela de durabilidade (state/durability.ts) contra as chaves do state do mod (types/index.d.ts).
+function durabilidade(chaves, linhas) {
+  const dir = mapa('Código da área: hooks/turn.ts', '')
+  mkdirSync(join(dir, 'task-tree', 'types'), { recursive: true })
+  mkdirSync(join(dir, 'task-tree', 'state'), { recursive: true })
+  const tipos = ["declare module 'claude-code' {", '  interface PluginState {', `    'task-tree': { ${chaves.join('; ')} }`, '  }', '}', '']
+  writeFileSync(join(dir, 'task-tree', 'types', 'index.d.ts'), tipos.join('\n'))
+  const tabela = linhas.map(([k, l]) => `  { key: '${k}', lives: '${l}', merge: 'none', restoredAt: [], note: '' },`)
+  writeFileSync(join(dir, 'task-tree', 'state', 'durability.ts'), ['export const TABLE = [', ...tabela, ']', ''].join('\n'))
+  return dir
+}
+
+test('uma chave do state sem linha na tabela de durabilidade falha o check', () => {
+  const casos = [
+    // Completa: passa.
+    [['groups: Group[]', 'sent: { from: string; at: number }[]'], [['groups', 'state+store'], ['sent', 'state'], ['loaded', 'module']], 0, null],
+    // A tabela perdeu a linha de uma chave do state.
+    [['groups: Group[]', 'sent: { from: string; at: number }[]'], [['groups', 'state+store']], 1, /chave do state sem linha na tabela de durabilidade: sent/],
+    // Os tipos perderam a chave que a tabela diz estar no state.
+    [['groups: Group[]'], [['groups', 'state+store'], ['sent', 'state']], 1, /linha da tabela de durabilidade sem chave no state: sent/],
+  ]
+  for (const [chaves, linhas, status, erro] of casos) {
+    const dir = durabilidade(chaves, linhas)
+    try {
+      const r = regrasEm(dir)
+      assert.equal(r.status, status, r.stderr)
+      if (erro) assert.match(r.stderr, erro)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+})
+
+// Release (.github/workflows/release.yml): a conta da versão nova.
+test('BREAKING CHANGE no meio do texto não sobe a major', () => {
+  assert.equal(versaoNova('fix: x', 'sem BREAKING CHANGE neste PR', '0.15.2').level, 'patch')
+  assert.equal(versaoNova('feat: x', 'A regra: `BREAKING CHANGE:` no rodapé sobe a major.', '0.15.2').level, 'minor')
+})
+
+test('uma linha BREAKING CHANGE: no rodapé sobe a major, com LF e com CRLF', () => {
+  assert.deepEqual(versaoNova('fix: x', 'texto\n\nBREAKING CHANGE: muda tudo', '0.15.2'), { level: 'major', nova: '1.0.0' })
+  assert.equal(versaoNova('fix: x', 'texto\r\n\r\nBREAKING CHANGE: muda tudo\r\n', '0.15.2').level, 'major')
+  assert.equal(versaoNova('fix: x', 'texto\n  BREAKING-CHANGE: muda tudo', '0.15.2').level, 'major')
+})
+
+test('o ! depois do tipo sobe a major, feat sobe a minor e o resto é patch', () => {
+  assert.equal(versaoNova('feat(task-tree)!: x', '', '0.15.2').nova, '1.0.0')
+  assert.equal(versaoNova('feat(task-tree): x', '', '0.15.2').nova, '0.16.0')
+  assert.equal(versaoNova('fix(task-tree): x', '', '0.15.2').nova, '0.15.3')
+})
+
+test('título fora do formato Conventional Commits vira patch com aviso', () => {
+  for (const titulo of ['Feat: x', 'feature: x', 'feat add x']) {
+    const r = versaoNova(titulo, '', '0.15.2')
+    assert.equal(r.level, 'patch', titulo)
+    assert.equal(r.nova, '0.15.3', titulo)
+    assert.match(r.aviso ?? '', /fora do formato Conventional Commits/, titulo)
+  }
+})
+
+test('título no formato não traz aviso', () => {
+  for (const titulo of ['fix(task-tree): x', 'feat: x', 'chore(release): x', 'feat(task-tree)!: x'])
+    assert.equal(versaoNova(titulo, '', '0.15.2').aviso, undefined, titulo)
+})

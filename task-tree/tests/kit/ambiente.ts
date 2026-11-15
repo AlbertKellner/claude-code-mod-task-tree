@@ -11,9 +11,18 @@ export const PROPS = (colunas = 60) =>
 // Chamar antes da primeira chamada a $.
 export function fixar(on: any, opcoes: { agora?: number } = {}) {
   const relogio = mock.clock(on, { now: opcoes.agora ?? AGORA })
-  // Barra de status e log do host: o mod só escreve neles.
-  on('ui.status', () => ({ value: undefined }))
-  on('ui.log', () => ({ value: undefined }))
+  // Barra de status e log do host: o mod só escreve neles. As linhas do log ficam em `log`; o último
+  // texto do status, em `status()` (undefined quando apagado ou nunca escrito).
+  const log: string[] = []
+  let ultimo: string | undefined
+  on('ui.status', (_$: any, e: any) => {
+    ultimo = typeof e === 'string' ? e : (e?.text ?? undefined)
+    return { value: undefined }
+  })
+  on('ui.log', (_$: any, e: any) => {
+    log.push(String(e?.text ?? ''))
+    return { value: undefined }
+  })
   // Abaixo do mod, o prompt e o fim do turno só ecoam (o mod já fez a parte dele).
   on('prompt.submit', (_$: any, e: any) => e)
   // A entrega a um subagente (session.receive): o núcleo a enfileira com o texto dela.
@@ -24,7 +33,7 @@ export function fixar(on: any, opcoes: { agora?: number } = {}) {
   on('command.register', () => ({ value: {} }))
   on('tool.register', () => ({ value: {} }))
   on('classic.SessionStart', () => ({}))
-  return { relogio }
+  return { relogio, log, status: () => ultimo }
 }
 
 // Os subagentes que o host lista (agent.list), para as chamadas com agentId. Chamar antes da
@@ -37,11 +46,13 @@ export function subagente(on: any, ...ids: string[]) {
 export const SESSAO = 'uuid-eu'
 
 // Um store que passa de um teste ao outro do mesmo arquivo (o objeto é do arquivo): um teste grava,
-// o seguinte (módulo novo, state vazio: outro processo) lê. Chamar antes da primeira chamada a $.
-export function armazem(on: any, dados: Record<string, unknown>) {
+// o seguinte (módulo novo, state vazio: outro processo) lê. `recusar`: o store recusa a gravação
+// enquanto ele responder true sobre o objeto (o store cheio). Chamar antes da primeira chamada a $.
+export function armazem(on: any, dados: Record<string, unknown>, opcoes: { recusar?: (dados: Record<string, unknown>) => boolean } = {}) {
   on('session.id', () => ({ value: SESSAO }))
   on('store.get', (_$: any, e: any) => ({ value: dados[e.key] }))
   on('store.set', (_$: any, e: any) => {
+    if (opcoes.recusar?.(dados)) return { deny: 'store acima de 4 MiB' }
     dados[e.key] = e.value === undefined ? undefined : JSON.parse(JSON.stringify(e.value))
     return { value: undefined }
   })
@@ -80,7 +91,17 @@ export const EU = 'local_00000000-0000-0000-0000-00000000e0e0'
 const CASA = 'C:/u'
 // `proprio()`: o último arquivo que esta sessão publicou (o que a sessão mãe lê e desenha no cartão).
 // `pedidosAoApp()`: as ferramentas do app que o mod chamou (mcp.call), na ordem.
-export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[] }
+// `gravados()`: o último texto gravado em cada arquivo publicado, pelo id da sessão (as outras também).
+// `leituras(id)`: quantas vezes o arquivo publicado daquela sessão foi lido (fs.read).
+export type Host = { recebeu(id: string, at: number): void; filha(id: string): Filha; proprio(): any; pedidosAoApp(): string[]; gravados(): Record<string, string>; leituras(id: string): number }
+// `pasta`: o que o host lista na pasta dos arquivos publicados (fs.list); `listaFalha`: a lista de
+// todas as sessões (list_sessions sem `linked`) responde erro. O get_session de um id que não é
+// desta sessão nem de `sessoes` responde o erro do app ("Session <id> not found.").
+// `arquivoProprio`: o texto do arquivo que esta sessão publicou antes (o host o serve na leitura dele).
+// `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
+// `git`: a raiz desta sessão ($.session.root) e o texto do `.git/HEAD` dela; sem ele, a sessão não
+// tem raiz (o cabeçalho fica sem repositório).
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string } }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -90,36 +111,53 @@ export type Filha = {
   arquivada?: boolean
   aguardando?: boolean
   aborted?: boolean
-  painel?: { tasks: any[]; turns?: any[]; agentes?: any[] } // o grupo principal publicado (e os grupos dos subagentes dela)
+  painel?: { tasks: any[]; turns?: any[]; agentes?: any[]; work?: string[]; filhas?: any[] } // o grupo principal publicado (e os grupos dos subagentes dela), o trabalho e as filhas dela
   git?: { repo: string; branch?: string; kind?: 'folder' }
   rate?: { toks: number; live: boolean }
   contexto?: number // o % da janela de contexto publicado (o anel do cartão)
+  modelo?: string // o modelo e o esforço publicados (engine), à esquerda do anel no cartão
   recebidas?: { from: string; at: number }[] // received além do que recebeu() acrescenta (de irmãs)
   envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
+  iniciadaPor?: string // quem a iniciou, na lista do host; padrão esta sessão (EU): outro id faz dela uma sessão ligada que não é filha (a mãe, uma irmã)
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
-export function host(on: any, sessoes: Filha[]): Host {
+export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host {
   const recebidas: Record<string, { from: string; at: number }[]> = {}
   const abertas: string[] = []
   const pedidos: string[] = []
+  const lidas: Record<string, number> = {}
   const texto = (t: string) => ({ value: { content: [{ type: 'text', text: t }] } })
   on('mcp.call', (_$: any, e: any) => {
     pedidos.push(String(e.tool))
-    if (e.tool === 'get_session') return texto(JSON.stringify({ sessionId: EU }))
+    if (e.tool === 'get_session') {
+      const id = String(e.args?.session_id ?? 'self')
+      if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
+      return { value: { content: [{ type: 'text', text: `Session ${id} not found.` }], isError: true } }
+    }
+    if (e.tool === 'list_sessions' && opcoes.listaFalha && e.args?.linked !== true) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
     if (e.tool === 'list_sessions')
       return texto(
         JSON.stringify(
-          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: EU })),
+          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: s.iniciadaPor ?? EU })),
         ),
       )
     return texto('')
   })
   on('env.get', (_$: any, e: any) => ({ value: e.name === 'USERPROFILE' ? CASA : undefined }))
+  const git = opcoes.git
+  const naRaiz = (path: unknown, resto: string) => git !== undefined && String(path).replace(/\\/g, '/') === `${git.raiz}/${resto}`
+  if (git) {
+    on('session.root', () => ({ value: git.raiz }))
+    on('fs.exists', (_$: any, e: any) => ({ value: naRaiz(e.path, '.git') }))
+  }
   on('fs.read', (_$: any, e: any) => {
     // O host devolve o caminho com a barra do sistema (\ no Windows).
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
+    if (m) lidas[m[1]!] = (lidas[m[1]!] ?? 0) + 1
+    if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
+    if (git && naRaiz(e.path, '.git/HEAD')) return { value: git.head }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
     if (s.publicado !== undefined) return { value: s.publicado }
@@ -129,18 +167,27 @@ export function host(on: any, sessoes: Filha[]): Host {
         waiting: s.aguardando === true,
         ...(s.aborted ? { aborted: true } : {}),
         waits: [],
-        children: [],
+        children: s.painel?.filhas ?? [],
+        ...(s.painel?.work ? { work: s.painel.work } : {}),
         groups: s.painel ? [{ agent: '', label: '', tasks: s.painel.tasks, ...(s.painel.turns ? { turns: s.painel.turns } : {}) }, ...(s.painel.agentes ?? [])] : [],
         ...(s.git ? { git: { ...s.git, at: AGORA } } : {}),
         ...(s.rate ? { rate: { ...s.rate, at: AGORA } } : {}),
         ...(s.contexto !== undefined ? { context: { percent: s.contexto, at: AGORA } } : {}),
+        ...(s.modelo !== undefined ? { engine: s.modelo } : {}),
         received: [...(s.recebidas ?? []), ...(recebidas[s.id] ?? [])],
         ...(s.envios ? { sends: s.envios } : {}),
       }),
     }
   })
   let meu: any
+  const gravados: Record<string, string> = {}
+  on('fs.list', (_$: any, e: any) => {
+    if (!/task-tree-waits$/.test(String(e.path)) || !opcoes.pasta) return { deny: 'sem pasta' }
+    return { value: opcoes.pasta.map(a => ({ ...a, kind: 'file', isLink: false })) }
+  })
   on('fs.write', (_$: any, e: any) => {
+    const g = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
+    if (g) gravados[g[1]!] = String(e.text ?? e.content ?? '')
     if (/task-tree-waits[\\/]/.test(String(e.path)) && String(e.path).includes(EU)) meu = JSON.parse(String(e.text ?? e.content ?? 'null'))
     return { value: undefined }
   })
@@ -158,6 +205,8 @@ export function host(on: any, sessoes: Filha[]): Host {
     },
     proprio: () => meu,
     pedidosAoApp: () => [...pedidos],
+    gravados: () => ({ ...gravados }),
+    leituras: id => lidas[id] ?? 0,
   }
 }
 

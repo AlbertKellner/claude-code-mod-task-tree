@@ -21,6 +21,11 @@ export type TaskNode = {
   // When a start last reopened it after it closed: the subagents that ended before were already
   // reflected in that close and no longer close it (hooks/agents, settleBySubs).
   reopenedAt?: number
+  // The ms the task stood stopped with the turn going on: an open task with a close marked (a stop, or
+  // a turn's end, rest) started again adds the time from that close to the start, less what the
+  // session's idle spans (Group.idle) already cover there. Its own line's time leaves it out
+  // (draw/layout, timeOf; the person, 2026-11-14: "Só com turno em curso (Recomendado)"). Absent: none.
+  pause?: number
   // A level-1 task of the main group: the turn (the person's message) it was planned in.
   turn?: number
   // A message task: a message to another session (SendMessage) went out from it. It keeps the ✉ in
@@ -30,12 +35,14 @@ export type TaskNode = {
   // A message task left out of a replan while its message is still queued: kept, drawn until delivered.
   kept?: boolean
   // Closed by the panel as interrupted because the subagent launched from it failed (hooks/agents,
-  // settleBySubs): drawn ✕ with "falhou" instead of "interrompida".
+  // settleBySubs): drawn ✕ with "falhou" instead of "interrompida". Also on an open leaf with `stopped`:
+  // the turn it was in progress in died by an error (park), until a start or a done takes it away.
   failed?: boolean
   // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
   // by that stop (halt in draw/layout); never kept nor published.
   halted?: boolean
-  // A leaf started and open when the person stopped the turn (Esc). Kept on the task (state, store,
+  // A leaf started and open when the person stopped the turn (Esc), or when the turn died by an error
+  // (with `failed`). Kept on the task (state, store,
   // published panel) from that stop until a start begins it again, a done closes it or a plan
   // replaces it; its clock stopped at the stop (`endedAt`). Meanwhile every drawing reads it as
   // interrupted, in the turns that come after too (halt and stay in draw/layout; park in state/tasks).
@@ -46,15 +53,19 @@ export type TaskNode = {
 
 // One message of the person in the main loop: its level-1 tasks are drawn under it, titled with
 // what was asked (the start of the message, until a plan names it with `request`).
-// `reply`: what the session answered when the turn ended (its end-of-turn recap, else its final
-// message), shown under the turn's tasks in its card; absent while the turn runs.
-// reply: the turn's answer (whole); brief: it in at most 120 characters, the ↩ line.
+// `brief`: the turn's answer in at most 120 characters (done's summary), the ↩ line; absent while the
+// turn runs and in a turn with no summary. Files of earlier versions may hold a `reply` (the whole
+// answer), which nothing reads and the next end of turn drops. A turn with no
+// level-1 task is dropped at the next message (openTurn) unless it has a `brief`: a request answered
+// with no plan, drawn with only its ↩ line (the 20 most recent are kept).
 // `own`: a turn the person opened by typing in that session (not a message of another session): its
 // card goes at the end of the request that opened the session, not under the last message's task.
 // `msg` and `from`: a turn opened by another session's message (its first, when several came
 // together), and who sent it (its id and name as the message's tag says them). Its level-1 tasks
 // derive from that message: they show the ✉ of a message received, in their own state's color.
-export type Turn = { id: number; title: string; at?: number; reply?: string; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string } }
+// `named`: a plan's `request` already titled it; a later plan's request leaves the title. Absent until
+// then, and in turns of earlier versions (whose first plan with a request after the update still names it).
+export type Turn = { id: number; title: string; at?: number; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string }; named?: boolean }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under
@@ -67,7 +78,17 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // last heard from it (a call, a step); where its time stops when its end never comes (hooks/agents,
 // checkSubs); absent until its first call, and from earlier versions. Absent from the
 // main group, from a subagent's group made before its launch was heard, and from earlier versions.
-export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub }
+// `past`: the main group's only: what the session had done before each /clear (its tasks, what was open
+// read as interrupted, and its turns), the 5 most recent, oldest first. Its own panel does not draw it;
+// published inside the group, it keeps the card of the session above (split in draw/layout): the person,
+// 2026-11-14, "Mantém o histórico (Recomendado)". Absent with no /clear and from earlier versions.
+// `idle` (main group only): the spans the session stood stopped (the turn ended and nothing alive:
+// no session at work, no letter queued, no subagent alive; hooks/panel, setIdle), the last one open
+// (no `to`) while it lasts, at most IDLE_KEEP. The times of the lines, the request and the header
+// leave them out (draw/layout, idleIn); a card's lines use the ones its session published. Absent: none.
+export type Idle = { from: number; to?: number }
+export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub; past?: Past[]; idle?: Idle[] }
+export type Past = { at: number; tasks: TaskNode[]; turns?: Turn[] }
 export type Sub = {
   at: number
   end?: number
@@ -79,6 +100,9 @@ export type Sub = {
   calls: number
   batch: number
   run?: string
+  // Launched with no task, before the request's first plan, which gave it one (hooks/tools,
+  // adoptOrphans): its end closes no task (ofLeaf, hooks/agents).
+  adopted?: boolean
 }
 
 // An Agent call, recorded at launch until the subagent's group claims it.
@@ -91,8 +115,10 @@ export type Wait = {
   kind: 'question' | 'choice' | 'plan' | 'permission'
   tool: string
   key: string
-  // The task in progress of the loop when it was opened (a question, a plan, a choice): no message
-  // is anchored there while it waits (sendAnchor). Absent from earlier versions and for a permission.
+  // The task in progress of the loop when it was opened (a question, a plan, a choice), or with none
+  // the one a letter would go to (hooks/tool-call, askAnchor): no message is anchored there while it
+  // waits (sendAnchor); with nothing in progress when drawn, the notice goes under it. Absent from
+  // earlier versions and for a permission.
   anchor?: string
 }
 
@@ -150,6 +176,10 @@ export type Published = {
   work?: string[]
   received?: { from: string; at: number }[]
   sends?: Send[]
+  // The turn's end as the store's `turn` record holds it (when it ended, null while going on; whether
+  // it was stopped; whether a replan is due; whether the stop was an error, `failed`), for the panel to
+  // come back from this file when the store no longer has it; absent from earlier versions.
+  turn?: { ended: number | null; aborted: boolean; replan: boolean; failed?: boolean }
 }
 
 // A session this one opened with start_session (the desktop app's linked sessions):
@@ -185,6 +215,9 @@ export type Child = {
   // Drawn only: this card is the session's leading round (the one its state and last message
   // belong to); an earlier round's card left with open tasks is a discarded round.
   lead?: boolean
+  // Drawn only: an earlier round (before the leading one) the session left with a task open when it
+  // went on to the next: its card says "substituída", gray, and is not a session at work.
+  replaced?: boolean
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // panel draws it when that task is in the current work.
   lastAnchor?: string
@@ -194,8 +227,13 @@ export type Child = {
   rounds?: { at: number; anchor?: string }[]
   // Drawn only: which of those cards this is (0 the opening message's).
   part?: number
+  // Drawn only: a card of the work the session had done before a /clear (its main group's `past`), when
+  // that /clear came: never at work but for the latest while nothing came after it; its rows keyed by it.
+  history?: number
   // Drawn only: a card of a turn the person opened by typing in that session, its text.
   ownTurn?: string
+  // Drawn only: how many turns the person typed in that session share this card (same request in force).
+  ownCount?: number
   // Drawn only: a card at work drawn loose at the end, its request cut from sight: that request's title.
   loose?: string
   // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:
@@ -207,6 +245,12 @@ export type Child = {
   openedAt?: number
   panel?: Panel
   tasks?: TaskNode[]
+  // An archived session whose ties are all out of the current work (its request went to "+N pedidos
+  // anteriores"), kept as one line: its card's count (done, total, interrupted) in place of its panel,
+  // which is neither kept, read again nor published (hooks/sessions, summarize). The person,
+  // 2026-11-14: "Vira linha resumida (Recomendado)". Unarchived, or with its request back in the work,
+  // its file is read again and the card is whole.
+  summary?: { d: number; n: number; x: number }
 }
 
 // A message the main loop sent another session (SendMessage) that was queued, not yet taken up:
@@ -218,24 +262,33 @@ export type Child = {
 // (a taken send is kept, its letter green under its task, the last 20); `cut`: dropped before delivery.
 // `lost` (with `cut`): the session it went to was archived with it still queued, so it is not delivered
 // (its letter gray, "não entregue"); undone if the session is listed again unarchived.
+// `adopted`: sent before the request's first plan, with no task, and given one by that plan (hooks/tools,
+// adoptOrphans): only its place; its delivery closes no task (the task did not send it).
 // `agent`: the id of this session's subagent it went to (SendMessage to a subagent, not a session):
 // taken when that subagent receives it (its session.receive) or is resumed with it (agent.spawn with
 // `resume`); `lost` (with `cut`) when it ended without receiving it (hooks/agents, strandedSends).
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string }
+export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }
 
 // `ended`: the sessions whose turn ended, until the main loop is reminded of their task.
+// `closedBySubs`: the main loop's tasks the end of their subagents closed or marked ✕ (settleBySubs),
+// with how they ended, until the model is told (subsNote).
 // `sends`: messages to other sessions still queued, until taken up and the main loop reminded.
 // `received`: the messages of other sessions this one got (from, when), published for their senders
 // to confirm a queued SendMessage.
+// `receipts`: per session a message went to (its id), how far its `received` was already matched to
+// the sends of this one (watchSends): the instant of the last receipt used and how many of that same
+// instant were used (a batch delivery writes several at once). In the state and the links record, so a
+// reload or a new process does not match an old receipt again.
+// `names`: the names of the sessions this one knows by id (the host's linked list, the tag of a message
+// received, its own from get_session), for the letters to a session that is not a child (the mother, a
+// sister): "Para <nome>". Only in the state: the 3 s reread makes it again in a new process.
 // `work`: the main group's level-1 tasks of the current work, drawn by the panel until new
 // work starts (a plan or start with no open task left).
 // `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
 // the state so a reload of the mod mid-turn does not lose it.
-// `recap`: the end-of-turn box's recap (wrap_up), the turn's answer for the card, until the turn
-// ends (then ''); in the state for the same reason.
 // `collapsed`: the pane's open/closed lines the person chose (true closed, false open); a line
 // with no entry keeps its default.
 // `turnEnded`: when this session's turn ended (its clock), until the next prompt (then null):
@@ -246,12 +299,14 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // the person's or another session's, gets the reminder to replan the panel. A turn that opens no
 // request (the app's notice, a hand-back, a background task's notification) leaves it as it is,
 // though its normal end sets turnAborted back to false.
+// `turnFailed`: that stop was a turn that died by an error (an API failure, the context limit, a
+// refusal), until the next request: its reminder says so, and the tasks it stopped read "falhou".
 // `rate`: this session's output rate (turn.step measures it), for its own header and published for
 // its card; in the state so a reload mid-turn keeps the last value.
 // `git`: this session's repository and branch (refreshGit reads them), for its own header and
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; replanDue: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; closedBySubs: { id: string; title: string; how: 'done' | 'failed' | 'interrupted' }[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

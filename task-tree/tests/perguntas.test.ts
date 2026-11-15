@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { fixar, responderDepois } from './kit/ambiente'
-import { ferramenta, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { done, ferramenta, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -19,6 +19,62 @@ test('sem tarefa aberta, a pergunta é recusada', async ($: any, on: any) => {
   expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
 })
 
+// Regra: perguntas.sem-tarefa-recusada
+test('no pedido novo sem plano, um passo pendente do pedido anterior não libera a pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  const r = await ferramenta($, 'AskUserQuestion', PERGUNTA)
+  expect(r.erro).toBe(true)
+  expect(r.texto).toContain('deste pedido')
+  const p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.sem-tarefa-recusada
+test('uma tarefa em andamento de um pedido anterior libera a pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  esperarEstado(p, 'Um', 'andamento')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
+  await relogio.advance(1000)
+  expect((await resp).erro).toBe(false)
+})
+
+// Regra: perguntas.sem-tarefa-recusada
+test('depois do plan do pedido novo, a pergunta passa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B' }])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  await relogio.advance(1000)
+  expect((await resp).erro).toBe(false)
+})
+
 // Regra: perguntas.espera-sob-a-tarefa
 test('com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamento', async ($: any, on: any) => {
   const { relogio } = fixar(on)
@@ -33,6 +89,57 @@ test('com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamen
   esperarEstado(p, 'Um', 'andamento')
   expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
   expect(linha(p, RESPOSTA).nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Um').nivel)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.espera-sob-a-pendente
+test('pergunta com tarefa pendente e nenhuma em andamento: a espera fica sob a pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  esperarEstado(p, 'Um', 'pendente')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
+  expect(linha(p, RESPOSTA).nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Um').nivel)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.espera-sob-a-pendente
+test('a escolha do wrap_up com tudo concluído fica sob a última tarefa trabalhada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'], 'Feito')
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  const p = await painel($)
+  const espera = linha(p, 'Aguardando sua escolha')
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(p.indexOf(espera), emTexto(p)).toBe(p.indexOf(linha(p, 'Dois')) + 1)
+  expect(espera.nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Dois').nivel)
+})
+
+// Regra: perguntas.espera-sob-a-pendente
+test('com uma tarefa em andamento, a espera segue sob ela mesmo havendo pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'pendente')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Dois')) + 1)
   await relogio.advance(1000)
   await resp
 })
@@ -149,4 +256,55 @@ test('o pedido de permissão aparece como espera; o de pergunta, não', async ($
   await $.classic.PermissionRequest({ tool_name: 'Bash' })
   p = await painel($)
   expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
+})
+// Regra: perguntas.permissao-sai-com-a-ultima-chamada
+test('com duas chamadas da mesma ferramenta em curso, o aviso de permissão fica até a última terminar', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  on('classic.PermissionRequest', () => ({}))
+  on('tool.call', { tool: 'Bash' }, async (_$: any, e: any) => {
+    await relogio.sleep(((e.input ?? e) as { command?: string }).command === 'rápido' ? 500 : 2000)
+    return { result: 'ok' }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const rapida = ferramenta($, 'Bash', { command: 'rápido' })
+  const lenta = ferramenta($, 'Bash', { command: 'lento' })
+  await relogio.settle()
+  await $.classic.PermissionRequest({ tool_name: 'Bash' })
+  await relogio.advance(500)
+  await rapida
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
+  await relogio.advance(1500)
+  await lenta
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão')), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.permissao-sai-com-a-ultima-chamada
+test('o fim do turno tira o aviso de permissão que sobrou', async ($: any, on: any) => {
+  fixar(on)
+  on('classic.PermissionRequest', () => ({}))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.classic.PermissionRequest({ tool_name: 'Bash' })
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão: Bash')), emTexto(p)).toBe(true)
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Aguardando permissão')), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.wrapup-que-falha-nao-espera
+test('o wrap_up com pergunta que falha não deixa "Aguardando sua escolha"', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'erro', isError: true }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
 })

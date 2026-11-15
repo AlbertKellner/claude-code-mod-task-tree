@@ -3,10 +3,12 @@ import { host, subagente } from './kit/ambiente'
 import { fimDoSubagente } from './kit/cenario'
 import { linha as umaLinha } from './kit/leitura'
 import { fixar } from './kit/ambiente'
-import { done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { abrirSessao, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, painel } from './kit/leitura'
-import { aviso } from './kit/cenario'
+import { aviso, falha, ferramenta, iniciarSessao } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
+import { AGORA, armazem, SESSAO } from './kit/ambiente'
+import { comHistorico } from './kit/leitura'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
 // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
@@ -267,13 +269,16 @@ test('o pai iniciado e parado com Esc não reacende no prompt seguinte; o start 
   await aviso($)
   let p = await painel($)
   semNadaAceso(p)
-  for (const t of ['Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'pendente')
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  esperarEstado(p, 'Dois.dois', 'pendente')
+  esperarEstado(p, 'Dois', 'pendente')
   await fimDoTurno($)
   await pedido($, 'segue')
   await start($, ['1'])
   p = await painel($)
   esperarEstado(p, 'Um', 'andamento')
   esperarEstado(p, 'Dois', 'pendente')
+  esperarEstado(p, 'Dois.um', 'interrompida')
   await start($, ['2'])
   p = await painel($)
   esperarEstado(p, 'Dois', 'andamento')
@@ -410,4 +415,433 @@ test('o ↩ que o summary já traz não se repete na linha da resposta', async (
   const linha = p.find(l => l.texto.includes('Resumo Y'))
   expect(linha?.texto.includes('↩ ↩'), emTexto(p)).toBe(false)
   expect(linha?.texto.includes('↩'), emTexto(p)).toBe(true)
+})
+
+// Regra: turnos.resumo-de-turno-parado-nao-passa-adiante
+test('o resumo de um turno parado com Esc não vira o ↩ do pedido seguinte, e o done final sem resumo volta a avisar', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo A')
+  await esc($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê' }] }])
+  await start($, ['b1'])
+  const r = await done($, ['b1'])
+  await fimDoTurno($)
+  expect(r.texto).toContain('falta o summary')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('Resumo A')), emTexto(p)).toBe(false)
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.brief === 'Resumo A'), JSON.stringify(h.proprio())).toBe(false)
+})
+
+// A tarefa que o fim normal deixou ◷ segue ◷ até o start nela. Origem: decisão do usuário de
+// 2026-11-14 ("Seguir ◷ até o start (Recomendado)"), que estende ao fim normal a do Esc de 2026-11-12.
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await fimDoTurno($)
+  const noFim = await painel($)
+  await relogio.advance(5000)
+  await pedido($, 'segue')
+  await relogio.advance(5000)
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  semNadaAceso(p)
+  for (const t of ['Dois.um', 'Dois', 'Plano A', 'Pedido um']) expect(umaLinha(p, t).texto, emTexto(p)).toBe(umaLinha(noFim, t).texto)
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(0)
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(2)
+})
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('um turno que não abre pedido não reacende a tarefa que aguardava', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await fimDoTurno($)
+  for (const [nome, prompt] of PROMPTS_SEM_PEDIDO) {
+    await relogio.advance(5000)
+    await prompt($)
+    let p = await painel($)
+    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no turno:\n${emTexto(p)}`).toBe('aguardando')
+    semNadaAceso(p)
+    await fimDoTurno($)
+    p = await painel($)
+    expect(umaLinha(p, 'Dois.um').estado, `${nome}, no fim do turno:\n${emTexto(p)}`).toBe('aguardando')
+  }
+})
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('o Esc num turno seguinte não interrompe a tarefa que aguardava sem start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await fimDoTurno($)
+  await pedido($, 'segue')
+  await start($, ['1'])
+  await esc($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  esperarEstado(p, 'Dois.um', 'aguardando')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(1)
+})
+
+// Regra: turnos.aguardando-segue-ate-o-start
+test('o done em tarefas que aguardavam as conclui sem o aviso de etapas sem start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1', '2.1'])
+  await fimDoTurno($)
+  await pedido($, 'segue')
+  const r = await done($, ['1', '2.1'])
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Dois.um', 'concluida')
+  expect(r.texto).not.toContain('fecharam juntas sem start')
+})
+
+// Regra: sessoes.cartao-parado-mostra-o-tempo-do-turno
+test('o fim normal do turno vai no painel publicado: a tarefa que aguardava leva a hora do fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await fimDoTurno($)
+  const todas = (l: any[]): any[] => l.flatMap(t => [t, ...todas(t.children ?? [])])
+  const tarefas = todas((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.tasks ?? [])
+  const de = (titulo: string) => tarefas.find(t => t.title === titulo)
+  const json = JSON.stringify(h.proprio())
+  expect(de('Dois.um')?.endedAt, json).toBe(AGORA + 3000)
+  expect(de('Dois.um')?.startedAt, json).toBe(AGORA)
+  expect(de('Dois.um')?.started, json).toBe(undefined)
+  expect(de('Dois')?.endedAt, json).toBe(AGORA + 3000)
+  expect(de('Plano A')?.endedAt, json).toBe(AGORA + 3000)
+})
+
+// O pedido respondido sem tarefa guarda o seu ↩. Origem: decisão do usuário de 2026-11-14 ("Pedido
+// próprio (Recomendado)"): a resposta de um turno sem plano ia para o último pedido com tarefas.
+const SO_UM: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
+const indice = (p: Linha[], quem: (l: Linha) => boolean) => p.findIndex(quem)
+async function perguntaRapida($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo um')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pergunta rápida')
+  await done($, [], 'Resposta rápida')
+  await fimDoTurno($)
+  return { h, relogio }
+}
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('o resumo de um pedido respondido sem tarefa fica num pedido próprio e não troca o ↩ do anterior', async ($: any, on: any) => {
+  const { h } = await perguntaRapida($, on)
+  const p = await painel($)
+  const um = indice(p, l => l.texto.includes('↩') && l.texto.includes('Resumo um'))
+  const rapida = indice(p, l => l.texto.includes('↩') && l.texto.includes('Resposta rápida'))
+  const pedidoRapido = indice(p, l => l.titulo === 'Pergunta rápida')
+  const pedidoUm = indice(p, l => l.titulo === 'Pedido um')
+  expect(um, emTexto(p)).toBeGreaterThanOrEqual(0)
+  expect(rapida, emTexto(p)).toBeGreaterThanOrEqual(0)
+  expect(pedidoRapido, emTexto(p)).toBeGreaterThan(pedidoUm)
+  expect(pedidoRapido, emTexto(p)).toBeLessThan(rapida)
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(1)
+  expect(cabecalho(p).total, emTexto(p)).toBe(1)
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.brief === 'Resumo um'), JSON.stringify(turnos)).toBe(true)
+  expect(turnos.some(u => u.brief === 'Resposta rápida'), JSON.stringify(turnos)).toBe(true)
+})
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('sem resumo, a resposta de um pedido sem tarefa não é gravada em pedido nenhum', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo um')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pergunta')
+  await fimDoTurno($, 'texto da resposta')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Resumo um')), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Pergunta'), emTexto(p)).toBe(false)
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.reply === 'texto da resposta'), JSON.stringify(turnos)).toBe(false)
+})
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('a mensagem que continua o plano anterior deixa o resumo no pedido dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continua')
+  await start($, ['2.1'])
+  await done($, ['2.1'], 'Tudo feito')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Tudo feito')), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'continua'), emTexto(p)).toBe(false)
+})
+
+// Regra: turnos.pedido-sem-tarefa-tem-o-seu-resumo
+test('o pedido só com resumo sai de vista com os pedidos antigos quando um pedido novo limpa o painel', async ($: any, on: any) => {
+  const { relogio } = await perguntaRapida($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }])
+  await start($, ['b1'])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Pergunta rápida'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(true)
+  const h = await comHistorico($, 2)
+  expect(h.some(l => l.titulo === 'Pergunta rápida'), emTexto(h)).toBe(true)
+  expect(h.some(l => l.texto.includes('↩') && l.texto.includes('Resposta rápida')), emTexto(h)).toBe(true)
+})
+
+// O turno que morre por erro deixa ✕ "falhou". Origem: decisão do usuário de 2026-11-14 ("✕ \"falhou\"
+// (Recomendado)"): era tratado como fim normal (◷).
+
+// Regra: turnos.turno-que-falha-deixa-falhou
+test('o turno que morre por erro deixa a tarefa em andamento ✕ "falhou", fora da contagem, até o start nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await relogio.advance(3000)
+  await falha($)
+  let p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).toContain('falhou')
+  esperarEstado(p, 'Um', 'pendente')
+  esperarEstado(p, 'Dois.dois', 'pendente')
+  expect(cabecalho(p).total, emTexto(p)).toBe(2)
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(1)
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(0)
+  await aviso($)
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'interrompida')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).toContain('falhou')
+  semNadaAceso(p)
+  await pedido($, 'segue')
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).not.toContain('falhou')
+  expect(cabecalho(p).total, emTexto(p)).toBe(3)
+})
+
+// Regra: turnos.turno-que-falha-deixa-falhou
+test('o done na tarefa que falhou, sem start, a conclui', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2.1'])
+  await falha($)
+  await pedido($, 'segue')
+  const r = await done($, ['2.1'])
+  expect(r.erro, r.texto).toBe(false)
+  const p = await painel($)
+  esperarEstado(p, 'Dois.um', 'concluida')
+  expect(umaLinha(p, 'Dois.um').texto, emTexto(p)).not.toContain('falhou')
+})
+
+// O tempo no fim do texto de uma linha; o do cabeçalho, depois do "p%" na linha do topo (terminal).
+const tempoNoFim = (p: Linha[], quem: string): string | undefined => /(\d+(?::\d{2})+)\s*$/.exec(umaLinha(p, quem).texto)?.[1]
+const tempoDoTopo = (p: Linha[]): string | undefined => {
+  const topo = p.find(l => l.cabecalho && / \d+ de \d+ · \d+%/.test(l.texto))
+  return topo ? /\d+%\s+(\d+(?::\d{2})+)/.exec(topo.texto)?.[1] : undefined
+}
+const FILHA_T = 'local_19191919-1919-1919-1919-191919191919'
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso
+test('a tarefa que atravessa turnos conta só o tempo com o turno em curso, e o pai, o pedido e o cabeçalho também', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await relogio.advance(300_000)
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(tempoNoFim(p, 'Um'), emTexto(p)).toBe('5:00')
+  await relogio.advance(3_600_000)
+  await pedido($, 'continue')
+  // A tarefa ◷ segue ◷ até o start (A-07): retomada, segue de 5:00.
+  await start($, ['1'])
+  await relogio.advance(5000)
+  p = await painel($)
+  for (const quem of ['Um', 'Plano A', 'Pedido um']) expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBe('5:05')
+  expect(tempoDoTopo(p), emTexto(p)).toBe('5:05')
+})
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso, turnos.parada-segue-interrompida-ate-o-start
+test('depois do Esc, a tarefa retoma do tempo em que parou quando recebe start de novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  await relogio.advance(300_000)
+  await esc($)
+  await relogio.advance(3_600_000)
+  await pedido($, 'Pedido dois')
+  await start($, ['2'])
+  await relogio.advance(600_000)
+  await start($, ['1'])
+  await relogio.advance(5000)
+  const p = await painel($)
+  expect(tempoNoFim(p, 'Um'), emTexto(p)).toBe('5:05')
+  expect(tempoNoFim(p, 'Pedido um'), emTexto(p)).toBe('15:05')
+})
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso
+test('no cartão da filha, o tempo parado entre os turnos dela não entra', async ($: any, on: any) => {
+  fixar(on)
+  const tarefa = { id: 'f1', title: 'Da filha', status: 'done', startedAt: AGORA - 3_900_000, endedAt: AGORA, children: [] }
+  const arquivo = { version: 1, waiting: false, waits: [], children: [], groups: [{ agent: '', label: '', tasks: [tarefa], idle: [{ from: AGORA - 3_780_000, to: AGORA - 180_000 }] }] }
+  host(on, [{ id: FILHA_T, nome: 'filha-t', rodando: false, publicado: JSON.stringify(arquivo) }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(tempoNoFim(p, 'Da filha'), emTexto(p)).toBe('5:00')
+})
+
+// Regra: turnos.tempo-so-com-o-turno-em-curso, cabecalho.tempo-para-no-fim-do-turno
+test('com a filha trabalhando depois do fim do turno, o intervalo parado só começa quando ela para', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: FILHA_T, nome: 'filha-t', painel: { tasks: [{ id: 'f1', title: 'Da filha', status: 'open', children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(60_000)
+  let p = await painel($)
+  expect(tempoDoTopo(p), emTexto(p)).toBe('1:00')
+  h.filha(FILHA_T).rodando = false
+  await aviso($)
+  await fimDoTurno($)
+  await relogio.advance(3_600_000)
+  await pedido($, 'Pedido dois')
+  await relogio.advance(5000)
+  p = await painel($)
+  expect(tempoDoTopo(p), emTexto(p)).toBe('1:05')
+})
+
+// Regra: turnos.resposta-inteira-nao-e-guardada
+test('o fim do turno não guarda nem publica a resposta inteira', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo curto')
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'Recap do fim do turno' })
+  await fimDoTurno($, 'Texto inteiro da resposta final')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('↩') && l.texto.includes('Resumo curto')), emTexto(p)).toBe(true)
+  const arquivo = JSON.stringify(h.proprio())
+  const turnos = ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]
+  expect(turnos.some(u => u.brief === 'Resumo curto'), arquivo).toBe(true)
+  expect(turnos.some(u => 'reply' in u), arquivo).toBe(false)
+  expect(arquivo).not.toContain('Recap do fim do turno')
+  expect(arquivo).not.toContain('Texto inteiro da resposta final')
+})
+
+// Regra: turnos.resposta-inteira-nao-e-guardada
+test('a resposta guardada por uma versão anterior sai na gravação seguinte', async ($: any, on: any) => {
+  fixar(on)
+  const loja: Record<string, unknown> = {
+    [`session:${SESSAO}`]: [{ agent: '', label: '', turns: [{ id: 1, title: 'Pedido antigo', reply: 'Resposta antiga inteira', brief: 'Resumo antigo' }], tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done', turn: 1, children: [] }] }],
+    sessions: [SESSAO],
+  }
+  armazem(on, loja)
+  const h = host(on, [])
+  await iniciarSessao($)
+  await pedido($, 'Pedido novo')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  await done($, ['1'], 'Resumo novo')
+  await fimDoTurno($)
+  const guardado = JSON.stringify(loja[`session:${SESSAO}`])
+  expect(guardado).toContain('Resumo novo')
+  expect(guardado).not.toContain('Resposta antiga inteira')
+  expect(JSON.stringify(h.proprio())).not.toContain('Resposta antiga inteira')
+})
+
+// Regra: turnos.tempo-conta-do-primeiro-start
+test('o tempo do pai e do pedido não pula no fim do turno com passos pendentes', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await relogio.advance(120_000)
+  await start($, ['1'])
+  await relogio.advance(5000)
+  await done($, ['1'])
+  let p = await painel($)
+  for (const quem of ['Plano A', 'Pedido um']) expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBe('0:05')
+  await fimDoTurno($)
+  p = await painel($)
+  for (const quem of ['Plano A', 'Pedido um']) expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBe('0:05')
+})
+
+// Regra: turnos.tempo-conta-do-primeiro-start
+test('com tudo fechado, o tempo segue contando do primeiro start', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await relogio.advance(120_000)
+  await start($, ['1'])
+  await relogio.advance(5000)
+  await done($, ['1'])
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(tempoNoFim(p, 'Plano A'), emTexto(p)).toBe('0:05')
+  await pedido($, 'continue')
+  await start($, ['2'])
+  await relogio.advance(5000)
+  await done($, ['2'])
+  p = await painel($)
+  expect(tempoNoFim(p, 'Plano A'), emTexto(p)).toBe('0:10')
 })

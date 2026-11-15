@@ -68,12 +68,12 @@ Estado: coberto
 ### lembretes.primeira-chamada-sem-plano
 O lembrete de planejar na primeira ferramenta sem plano.
 
-- Dado um pedido sem plan
+- Dado um pedido em que o modelo ainda não usou o painel (nenhum plan aceito, nenhum start, nenhum done em tarefa deste pedido), sem tarefa aberta própria e sem tarefa em andamento
 - Quando o modelo chama a primeira ferramenta e, depois, a cada 10
-- Então ele recebe o lembrete de planejar
+- Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden").
-Código: hooks/tool-call.ts
+Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts
 Estado: coberto
 
 ### lembretes.regras-no-prompt-de-sistema
@@ -115,4 +115,173 @@ Os textos ao modelo dizem que a tarefa parada com Esc só volta com start nela.
 - Então, além do lembrete curto, o modelo recebe a lista das tarefas paradas e a frase de que um turno aberto por aviso automático ou por retorno de subagente não as retoma, e cada uma só volta a andamento com start nela; a pendente nunca iniciada não entra na lista; sem Esc, ou depois do start ou do done na parada, o aviso leva só o lembrete curto; as regras do prompt de sistema dizem a regra para qualquer turno (nem a mensagem seguinte nem o start em outra tarefa a reacendem; o done a conclui sem start)
 
 Origem: decisão do usuário, 2026-11-13 ("Acrescentar (Recomendado)"), sobre a sugestão da correção de 2026-11-12 (turnos.parada-segue-interrompida-ate-o-start, "Segue ✕ até novo start (Recomendado)"): no turno de um aviso, o texto ao modelo era só "start no que começa".
+Estado: coberto
+
+### lembretes.cancelar-o-que-a-mensagem-substitui
+Os textos ao modelo mandam cancelar, não concluir, o que a mensagem nova substitui.
+
+- Dado tarefas abertas quando chega uma mensagem (depois de um fim normal, depois de um Esc, ou no meio do turno)
+- Quando o modelo lê o lembrete dela, as regras do painel e a descrição do done
+- Então eles dizem para fechar com done o que foi concluído e passar em `cancel` o que a mensagem substitui e não será feito, que fica ✕ fora da contagem
+
+Origem: decisão do usuário, 2026-11-14 ("✕ fora do x/y (Recomendado)"); antes, os três lembretes mandavam done no que a mensagem "substitui".
+Código: hooks/tools.ts, hooks/session-start.ts
+Estado: coberto
+
+### lembretes.aguardando-so-volta-com-start
+Os textos ao modelo dizem que a tarefa que ficou aguardando no fim do turno só volta com start nela.
+
+- Dado uma tarefa em andamento quando o turno terminou normalmente
+- Quando o modelo lê as regras do painel e o lembrete da mensagem seguinte
+- Então eles dizem que ela segue aguardando (◷) até o start nela, que a mensagem seguinte não a reacende e que o done a conclui sem start
+
+Origem: decisão do usuário, 2026-11-14 ("Seguir ◷ até o start (Recomendado)").
+Estado: coberto
+
+### lembretes.replanejar-apos-turno-que-falhou
+Depois de um turno que morreu por erro, a mensagem seguinte pede para replanejar e diz o erro.
+
+- Dado um turno que terminou por erro de API, limite de contexto ou recusa, com tarefas abertas
+- Quando chega a mensagem seguinte da pessoa, ou um prompt que não abre pedido
+- Então a mensagem da pessoa traz o pedido de replanejar dizendo que o turno terminou com erro, com a lista das abertas, uma vez; o prompt que não abre pedido lista as tarefas que ficaram ✕ "falhou" e diz que só voltam com start nelas; a mensagem de outra sessão segue com o pedido de replanejar dela
+
+Origem: decisão do usuário, 2026-11-14 ("✕ \"falhou\" (Recomendado)": "a mensagem seguinte recebe o pedido de replanejar").
+Código: hooks/panel.ts, state/durability.ts
+Estado: coberto
+
+### lembretes.filha-terminou-o-turno
+Quando uma sessão filha termina o turno, o modelo é lembrado da tarefa de origem daquele trabalho.
+
+- Dado uma filha aberta de uma tarefa, que depois recebeu mensagens enviadas de outras tarefas
+- Quando ela termina um turno
+- Então, uma vez, o modelo recebe o lembrete de conferir o relato e fechar o que o trabalho delegado concluiu, citando a tarefa da última mensagem que a filha já tratou, se ela segue aberta, senão a tarefa em que a filha foi aberta; a mensagem ainda na fila não muda a tarefa citada; sem nenhuma das duas aberta, não há lembrete
+
+Origem: regra do painel desde a entrada do mod (o lembrete, sem cenário até aqui); auditoria 2026-11-10 (triagem de 2026-11-13: o lembrete olhava só a tarefa de abertura, enquanto o painel já tratava a tarefa da última rodada como a origem). Aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
+Código: hooks/sessions.ts, hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.planejar-antes-de-delegar
+As regras do painel pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente.
+
+- Dado as regras do painel no prompt de sistema
+- Quando o modelo as lê
+- Então elas dizem para planejar e dar start antes de delegar, e que o que for criado antes do plan fica solto no fim até o primeiro plan do pedido, que o adota
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)": "as regras pedem planejar antes de abrir sessão ou lançar subagente").
+Estado: coberto
+
+### lembretes.resumo-e-a-linha-de-resposta
+Os textos ao modelo dizem que a linha ↩ é o summary do done, e que sem ele não há linha ↩.
+
+- Dado as regras do painel e a descrição do summary do done
+- Quando o modelo os lê
+- Então eles dizem que o summary é a linha ↩ do painel e que, sem ele, o pedido fica sem linha ↩; não prometem tooltip nem resumo tirado da resposta
+
+Origem: auditoria 2026-11-10 (os textos prometiam tooltip e a primeira frase da resposta); aplica visual.tooltip (2026-11-09) e turnos.resumo-sem-resposta-final.
+Código: hooks/session-start.ts
+Estado: coberto
+
+### lembretes.regra-dos-subagentes
+As regras do painel descrevem o cartão do subagente e o fechamento da tarefa pelos subagentes.
+
+- Dado as regras do painel no prompt de sistema
+- Quando o modelo as lê
+- Então elas dizem que cada subagente lançado tem um cartão sob a tarefa do lançamento, que o que ele deixa aberto vira interrompido, que a tarefa fecha sozinha quando todos terminam e o turno acaba (concluída, ou interrompida se algum falhou ou foi parado) e que o start nela a reabre
+
+Origem: auditoria 2026-11-10 (a regra dizia só "ganham um grupo próprio"); aplica subagentes.cartao-desde-o-lancamento, subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09).
+Estado: coberto
+
+### lembretes.done-antes-do-plan
+Com tarefas abertas, a mensagem nova pede primeiro o done do que ela conclui, depois o plan.
+
+- Dado tarefas abertas quando chega uma mensagem que abre pedido novo
+- Quando o modelo recebe os lembretes dela, e quando lê a primeira regra do painel
+- Então a ordem é uma só: fechar com done o que a mensagem conclui (e cancelar o que ela substitui) e, depois disso, plan com o pedido novo, sem repetir os ids das tarefas ainda abertas; sem tarefas abertas, o lembrete segue mandando o plan como primeira chamada
+
+Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (465b09e), para o caso da mensagem com tarefas abertas.
+Estado: coberto
+
+### lembretes.retorno-de-subagente
+O retorno de um subagente traz o lembrete curto de atualizar o painel.
+
+- Dado um subagente que devolve o trabalho ao loop principal
+- Quando o prompt de retorno chega
+- Então o modelo recebe o lembrete de que o subagente terminou e de marcar com done o que ele concluiu; não recebe o lembrete de pedido novo, e a mensagem seguinte da pessoa não traz esse lembrete
+
+Origem: regra do painel (texto em text/rules.ts desde o commit 758dbb7, 2026-10-22); cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### lembretes.tarefa-em-segundo-plano
+A notificação de uma tarefa em segundo plano traz o lembrete curto de atualizar o painel.
+
+- Dado uma tarefa em segundo plano (um subagente, um comando) que terminou
+- Quando a notificação dela chega (origem task-notification)
+- Então o modelo recebe o lembrete de que a tarefa em segundo plano terminou e de marcar com done o que ela concluiu; não recebe o lembrete de pedido novo nem o do retorno de subagente
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### lembretes.aviso-do-app
+O aviso do app traz só o lembrete curto de manter o painel em dia.
+
+- Dado um aviso do app (uma sessão terminou o turno)
+- Quando o prompt do aviso chega
+- Então o modelo recebe o lembrete de manter o painel em dia (done no que terminou, start no que começa), sem o lembrete de pedido novo; a mensagem da pessoa não traz esse lembrete
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### lembretes.resposta-por-opcao
+A pergunta respondida por opção pede done no que a resposta concluiu e plan com as próximas tarefas.
+
+- Dado uma tarefa aberta e uma pergunta (AskUserQuestion) respondida por uma das opções
+- Quando a resposta volta ao modelo
+- Então o resultado traz que o usuário respondeu, com o pedido de done no que a resposta concluiu e de plan com as próximas tarefas; não traz o aviso de resposta pelo chat
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.resposta-pelo-chat
+A pergunta dispensada para o chat avisa que a mensagem seguinte é a resposta.
+
+- Dado uma tarefa aberta e uma pergunta que o usuário dispensa para responder por mensagem
+- Quando a resposta volta ao modelo, e depois chega a mensagem seguinte da pessoa
+- Então o resultado avisa que o usuário vai responder por mensagem no chat; a mensagem seguinte é dita "a resposta do usuário à pergunta anterior", só ela (a outra depois dela não)
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.wrap-up-sem-resumo
+O wrap_up sem summary no turno avisa que falta o resumo.
+
+- Dado um turno sem done com summary
+- Quando o modelo chama o wrap_up
+- Então o resultado avisa que falta o resumo do turno e pede o done com summary; depois de um done com summary, o wrap_up não avisa
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.wrap-up-com-abertas
+O wrap_up com tarefas abertas as lista.
+
+- Dado tarefas abertas no painel
+- Quando o modelo chama o wrap_up
+- Então o resultado diz que o turno termina com tarefas abertas, com a lista delas, e pede o done nas concluídas; com tudo fechado, não diz
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.descricoes-das-ferramentas
+As descrições das ferramentas do painel e do comando dizem o essencial de cada uma.
+
+- Dado o mod carregado numa sessão
+- Quando o motor registra as ferramentas (plan, start, done) e o comando /task-tree
+- Então a descrição do plan diz os 3 níveis e o request; a do done, que marca concluídas e o summary; a do start, que marca em andamento; a do cancel, as tarefas que não serão feitas; a do comando, que abre o painel
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/register.tsx
 Estado: coberto

@@ -9,10 +9,22 @@ Os números do cabeçalho somam o que está desenhado.
 
 - Dado linhas recolhidas no painel
 - Quando o cabeçalho é desenhado
-- Então os números somam o que o painel mostra, e recolher não muda nada
+- Então os números somam o que o painel mostra, e recolher não muda nada, nos números, nos chips e na faixa (cabecalho.recolher-nao-muda-chips-nem-faixa)
 
 Origem: decisão do usuário, 2026-10-23 ("deve somar as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa visao"; "as colapsada, mas que estao nessa visao, tambem entram"); commit 3e79cb8.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); não há mais visões.
+Reescrito: 2026-11-14, texto: a regra vale também para os chips e a faixa (auditoria 2026-11-10); o teste deste cenário não muda.
+Estado: coberto
+
+### cabecalho.recolher-nao-muda-chips-nem-faixa
+Recolher uma linha não muda os chips nem a faixa do cabeçalho.
+
+- Dado um aviso de espera, uma carta na fila, uma sessão filha viva ou subagentes vivos embaixo de uma tarefa, de um pedido ou dentro de um cartão
+- Quando a pessoa recolhe essa linha
+- Então os chips "aguardando", "aguardando sessão", "sessões ativas" e "subagentes" e a cor da faixa ficam como estavam: a linha recolhida conta o que esconde
+
+Origem: auditoria 2026-11-10 (os chips e a faixa eram contados por linha desenhada); aplica cabecalho.numeros-somam-o-desenhado (decisão do usuário, 2026-10-23: "as colapsada, mas que estao nessa visao, tambem entram") aos chips e à faixa, sem mudar a regra.
+Código: hooks/render.tsx
 Estado: coberto
 
 ### cabecalho.resumida-exclui-pedido-finalizado
@@ -79,12 +91,14 @@ Os pedidos fora do trabalho viram "+N pedidos anteriores".
 
 - Dado pedidos fora do trabalho atual, sem nada aberto
 - Quando o painel é desenhado
-- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, só no texto alternativo da barra do cabeçalho); no máximo três pedidos sem nada aberto ficam desenhados; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
+- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, na própria linha "+N pedidos anteriores" e no texto alternativo da barra: cabecalho.sessao-inteira-na-linha-do-historico); no máximo três pedidos sem nada aberto ficam desenhados; um pedido anterior com algo aberto fica desenhado inteiro, com os níveis 1 já concluídos, e não entra na conta de "+N pedidos anteriores"; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o total da sessão inteira vai no texto alternativo da barra, não num tooltip.
+Reescrito: 2026-11-14, texto: o pedido anterior com algo aberto é desenhado inteiro e não é contado em "+N" (auditoria 2026-11-10); aplica a decisão de 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"), sem mudar a regra. Os testes deste cenário não mudam.
+Reescrito: 2026-11-14, decisão do usuário ("Na linha +N (Recomendado)"): o total da sessão inteira aparece na linha "+N pedidos anteriores". Os testes deste cenário não mudam.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos
@@ -103,7 +117,7 @@ O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de cont
 
 - Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB (no app desktop, também acima de 95.000 caracteres de texto), com ou sem algo aberto pela pessoa
 - Quando é desenhado
-- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB ou, no app desktop, de 95.000 caracteres de texto, ou só cabe nessas duas linhas (cabecalho.aviso-de-painel-grande-volta)
+- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; se a tarefa em andamento dele está depois desse corte (o das 400 linhas ou o do tamanho), é desenhado o trecho onde ela está, com os pais do trecho acima, "+N linhas anteriores" antes e "+N linhas" depois (quando sobra), e os chips e a faixa contam o trabalho em curso; o que vem depois do último pedido (aviso sem tarefa, cartão solto, subagente sem tarefa de origem) segue desenhado, com o espaço dele reservado; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB ou, no app desktop, de 95.000 caracteres de texto, ou só cabe nessas duas linhas (cabecalho.aviso-de-painel-grande-volta)
 
 Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
@@ -112,6 +126,8 @@ Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendad
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto das linhas no lugar do `alt` de cada imagem e usa títulos mais longos, porque a linha nativa pesa menos; a regra não muda.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG") com a mesma regra de corte ("Cortar os mais antigos (Recomendado)"): no app desktop o corte também conta os caracteres de texto desenhados (os textos, o `alt` e o rótulo), até 95.000, porque o app só desenha os primeiros 100.000 e a linha nativa leva o título no texto e no `alt`; o terminal não muda.
 Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): o aviso também sai quando o que não cabe é o texto, ou quando só as duas linhas do piso cabem.
+Reescrito: 2026-11-14, texto: o bloco pequeno depois do último pedido não entra no lugar dele (auditoria 2026-11-10); a regra não muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Trecho da em andamento (Recomendado)") e decisão do usuário de 2026-11-15 ("Trecho, nos dois cortes (Recomendado)"): no pedido com a tarefa em andamento depois do corte, por linhas ou por tamanho, o desenho mostra o trecho dela; muda, para esse caso, o desenho aprovado em 2026-10-22 ("Sim, com o corte"). O teste do pedido só acima de 600 KB passa a preparar o pedido sem tarefa em andamento e segue afirmando o mesmo.
 Código: hooks/render.tsx
 Estado: coberto
 
@@ -168,4 +184,48 @@ O que saiu do trabalho fica em "+N pedidos anteriores", com os cartões das filh
 - Então o pedido é desenhado, com o cartão e as tarefas da filha sob a tarefa de origem
 
 Origem: decisão do usuário, 2026-11-04 ("Ficam em '+N pedidos anteriores' (Recomendado)").
+Estado: coberto
+
+### cabecalho.status-igual-a-sessao-inteira
+O status "Tarefas d/n" embaixo da caixa de mensagem conta o mesmo que a sessão inteira do cabeçalho.
+
+- Dado tarefas desta sessão e das filhas, com uma filha "encerrada" ou uma rodada descartada
+- Quando o status é escrito
+- Então ele diz "Tarefas d/n" com as feitas e o total da sessão inteira, os mesmos do cabeçalho: sem as pendentes da filha encerrada, sem a rodada descartada e sem as interrompidas; com tudo feito, some
+
+Origem: auditoria 2026-11-10 (o status somava sem repartir as rodadas nem tirar a filha encerrada); aplica sessoes.filha-parada-com-origem-fechada-sai-da-contagem e sessoes.rodada-descartada-fora-da-contagem, sem mudar nenhuma regra.
+Código: hooks/panel.ts
+Estado: coberto
+
+### cabecalho.sessao-inteira-na-linha-do-historico
+Com pedidos escondidos, a linha "+N pedidos anteriores" diz o total da sessão inteira.
+
+- Dado pedidos em "+N pedidos anteriores", com o cabeçalho contando só o que está à vista
+- Quando o painel é desenhado, no app desktop e no terminal
+- Então a linha "+N pedidos anteriores" traz, à direita, "sessão inteira: a de b"; só quando esse total difere do mostrado no cabeçalho; a linha de dentro de um cartão de filha não o traz
+
+Origem: decisão do usuário, 2026-11-14 ("Na linha +N (Recomendado)"), à pergunta "Quer ver esse total no app?" (no app desktop o total só existia no texto alternativo da barra).
+Código: hooks/render.tsx, draw/desktop.tsx
+Estado: coberto
+
+### cabecalho.tempo-para-no-fim-do-turno
+Com o turno encerrado, o tempo do cabeçalho para no fim do turno.
+
+- Dado o turno encerrado e tarefas ainda abertas (○ ou ◷) à vista
+- Quando o painel é redesenhado, logo depois ou horas depois
+- Então o tempo do cabeçalho é o do fim do turno, como o das linhas; com sessão filha trabalhando, carta na fila ou subagente rodando, ele segue contando, com o relógio de 1 s ligado; na mensagem seguinte, volta a contar
+
+Origem: decisão do usuário, 2026-11-14 ("Parar no fim do turno (Recomendado)").
+Código: hooks/render.tsx, hooks/sessions.ts
+Estado: coberto
+
+### cabecalho.toks-e-ultracode-em-qualquer-largura
+O cabeçalho desenha o toks/s e 'ultracode' em qualquer largura.
+
+- Dado a própria sessão com o toks/s medido ou o interruptor de ultracode ligado
+- Quando o cabeçalho é desenhado no app desktop, num painel estreito (menos de 84 colunas) ou largo
+- Então o toks/s e "ultracode" aparecem desenhados no bloco de números, não só no texto alternativo: no largo, na linha do tempo; no estreito, em linhas próprias abaixo do tempo; sem eles, o cabeçalho estreito fica como antes
+
+Origem: decisão do usuário, 2026-11-14 ("Os dois sempre"); desfaz, para o toks/s, o cabeçalho estreito sem ele do desenho V4 ("gostei da V4", 2026-11-03).
+Código: hooks/render.tsx, draw/head.tsx
 Estado: coberto

@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { painel as desenho } from './kit/leitura'
-import { AGORA, fixar, host } from './kit/ambiente'
+import { AGORA, fixar, host, responderEnvio } from './kit/ambiente'
 import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
-import { abrirSessao, aviso, mensagemDe } from './kit/cenario'
+import { abrirSessao, aviso, envio, falha, mensagemDe } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -134,6 +134,59 @@ test('sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete
   const r = await $.tool.call({ tool: 'Bash', tool_use_id: 'b12', command: 'ls' })
   expect(JSON.stringify(r?.context ?? [])).not.toContain('sem plano aberto')
   await desenho($)
+})
+
+// Pedido um deixa "Dois" pendente; o pedido dois começa.
+async function pendenteAntiga($: any, on: any) {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+}
+const lembraNaFerramenta = async ($: any, id: string) => {
+  const r = await $.tool.call({ tool: 'Bash', tool_use_id: id, command: 'ls' })
+  return JSON.stringify(r?.context ?? []).includes('sem plano aberto')
+}
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('pedido novo sem plano, com um passo pendente do pedido anterior: o lembrete de planejar sai', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('fechar com done um passo do pedido anterior não conta como planejar o pedido novo', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  await done($, ['2'])
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('o plan recusado por ids repetidos não cala o lembrete', async ($: any, on: any) => {
+  fixar(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  expect((await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '1', title: 'Outro' }] }])).erro).toBe(true)
+  expect(await lembraNaFerramenta($, 'b1')).toBe(true)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano
+test('seguir numa tarefa antiga com start cala o lembrete', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  await start($, ['2'])
+  expect(await lembraNaFerramenta($, 'b1')).toBe(false)
+})
+
+// Regra: lembretes.primeira-chamada-sem-plano, arvore.done-sem-summary-e-varias-sem-start
+test('o done que fecha a última tarefa do pedido atual cobra o summary mesmo com pendente antiga', async ($: any, on: any) => {
+  await pendenteAntiga($, on)
+  await plan($, [{ id: 'B', title: 'Plano B' }])
+  await start($, ['B'])
+  expect((await done($, ['B'])).texto).toContain('falta o summary')
 })
 
 // Regra: lembretes.regras-no-prompt-de-sistema
@@ -327,4 +380,323 @@ test('as regras do prompt de sistema dizem que a tarefa parada com Esc só volta
   expect(regras).toContain('até um novo mcp__task-tree__start nela')
   expect(regras).toContain('aviso automático')
   expect(regras).toContain('retorno de subagente')
+})
+
+// Regra: lembretes.cancelar-o-que-a-mensagem-substitui
+test('os lembretes de mensagem nova, as regras e a descrição do done mandam cancelar o que a mensagem substitui', async ($: any, on: any) => {
+  // Como fixar, mas com o tool.register que guarda as descrições (fixar já o ocupa).
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('prompt.submit', (_$: any, e: any) => e)
+  on('turn.complete', () => ({ text: '' }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
+  on('prompt.compose', () => ({ sections: [] }))
+  const descricoes: Record<string, string> = {}
+  on('tool.register', (_$: any, e: any) => {
+    descricoes[String(e.name)] = String(e.description ?? '') + ' ' + JSON.stringify(e.inputSchema ?? {})
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  const nova = contexto(await pedido($, 'Outra coisa'))
+  expect(nova).toContain('cancel')
+  expect(nova).toContain(ABERTAS)
+  await esc($)
+  const depois = contexto(await pedido($, 'Mudei de ideia'))
+  expect(depois).toContain('cancele o que ela substitui')
+  const digitada = contexto(await digitadaNoMeio($, 'mais uma coisa'))
+  expect(digitada).toContain('cancele')
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('`cancel`')
+  expect(descricoes['done'] ?? '').toContain('cancel')
+})
+
+// Regra: lembretes.aguardando-so-volta-com-start
+test('as regras e o lembrete da mensagem seguinte dizem que a tarefa que aguardava só volta com start nela', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  const ctx = contexto(await pedido($, 'Próximo'))
+  expect(ctx).toContain('seguem aguardando (◷)')
+  expect(ctx).toContain(ABERTAS)
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('termina normalmente fica aguardando')
+})
+
+// Regra: lembretes.replanejar-apos-turno-que-falhou
+test('depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez', async ($: any, on: any) => {
+  await iniciar($, on)
+  await falha($)
+  const ctx = contexto(await pedido($, 'Agora segue'))
+  expect(ctx).toContain(REPLANEJAR)
+  expect(ctx).toContain('terminou com erro')
+  expect(ctx).not.toContain('o usuário interrompeu')
+  expect(ctx).not.toContain(ABERTAS)
+  await fimDoTurno($)
+  const depois = contexto(await pedido($, 'Mais uma'))
+  expect(depois).not.toContain(REPLANEJAR)
+  expect(depois).not.toContain('terminou com erro')
+})
+
+// Regra: lembretes.replanejar-apos-turno-que-falhou
+test('depois de um turno que morreu por erro, o aviso do app diz que a tarefa segue ✕ "falhou"', async ($: any, on: any) => {
+  await iniciar($, on)
+  await falha($)
+  const ctx = contexto(await aviso($))
+  expect(ctx).toContain('seguem ✕ "falhou"')
+  expect(ctx).not.toContain('o usuário parou (Esc)')
+})
+
+// A filha aberta da tarefa 1 que recebe uma mensagem enviada da 2. `entregue`: a filha trata a
+// mensagem (a entrega e o received dela); senão a mensagem fica na fila. `fecha`: as tarefas
+// concluídas antes do turno da filha terminar.
+async function filhaComMensagem($: any, on: any, entregue: boolean, fecha: { antes?: string[]; depois?: string[] }) {
+  const { relogio } = fixar(on)
+  const env = responderEnvio(on)
+  if (entregue) env.modo = 'entregue'
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [], turns: [] } }])
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  if (fecha.antes) await done($, fecha.antes)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  if (entregue) {
+    h.recebeu(K1, AGORA + 1500)
+    await aviso($)
+  }
+  if (fecha.depois) await done($, fecha.depois)
+  h.filha(K1).rodando = false
+  return contexto(await aviso($))
+}
+
+// Regra: lembretes.filha-terminou-o-turno
+test('quando a filha termina o turno de uma mensagem, o lembrete cita a tarefa de onde a mensagem saiu', async ($: any, on: any) => {
+  const ctx = await filhaComMensagem($, on, true, { antes: ['1'] })
+  expect(ctx).toContain('terminou o turno a sessão')
+  expect(ctx).toContain('tarefa de origem "A/2" Dois')
+})
+
+// Regra: lembretes.filha-terminou-o-turno
+test('com a mensagem nova ainda na fila, o lembrete do turno que terminou cita a tarefa de abertura', async ($: any, on: any) => {
+  const ctx = await filhaComMensagem($, on, false, {})
+  expect(ctx).toContain('tarefa de origem "A/1" Um')
+  expect(ctx).not.toContain('tarefa de origem "A/2"')
+})
+
+// Regra: lembretes.filha-terminou-o-turno
+test('com a tarefa da rodada já fechada e a de abertura aberta, o lembrete cita a de abertura', async ($: any, on: any) => {
+  const ctx = await filhaComMensagem($, on, true, { depois: ['2'] })
+  expect(ctx).toContain('tarefa de origem "A/1" Um')
+})
+
+// Regra: lembretes.planejar-antes-de-delegar
+test('as regras pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente', async ($: any, on: any) => {
+  fixar(on)
+  on('prompt.compose', () => ({ sections: [] }))
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  expect(regras).toContain('Planeje antes de delegar')
+  expect(regras).toContain('o primeiro plan do pedido o adota')
+})
+
+// As regras do prompt de sistema e o que o tool.register recebeu (descrição e inputSchema de cada ferramenta).
+async function textosAoModelo($: any, on: any) {
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('prompt.compose', () => ({ sections: [] }))
+  const ferramentas: Record<string, any> = {}
+  on('tool.register', (_$: any, e: any) => {
+    ferramentas[String(e.name)] = e
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  return { regras, ferramentas }
+}
+
+// Regra: lembretes.resumo-e-a-linha-de-resposta
+test('as regras e a descrição do summary dizem que sem summary o pedido fica sem linha ↩', async ($: any, on: any) => {
+  const { regras, ferramentas } = await textosAoModelo($, on)
+  const summary = String(ferramentas['done']?.inputSchema?.properties?.summary?.description ?? '')
+  for (const texto of [regras, summary]) {
+    expect(texto).toContain('sem linha ↩')
+    expect(texto).not.toContain('tooltip')
+    expect(texto).not.toContain('primeira frase')
+  }
+})
+
+// Regra: lembretes.regra-dos-subagentes
+test('as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha', async ($: any, on: any) => {
+  const { regras } = await textosAoModelo($, on)
+  expect(regras).toContain('aparece como um cartão')
+  expect(regras).toContain('fecha a tarefa sozinho')
+  expect(regras).toContain('chame start nela')
+  expect(regras).not.toContain('Subagentes que usam o painel')
+})
+
+// Regra: lembretes.done-antes-do-plan
+test('com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await pedido($, 'Agora faça outra coisa'))
+  expect(ctx).toContain('Primeiro feche com mcp__task-tree__done')
+  expect(ctx).toContain('depois disso')
+  expect(ctx.indexOf('Primeiro feche com mcp__task-tree__done')).toBeLessThan(ctx.indexOf(PEDIDO_NOVO))
+})
+
+// Regra: lembretes.done-antes-do-plan
+test('sem tarefas abertas, o lembrete de pedido novo manda o plan primeiro', async ($: any, on: any) => {
+  fixar(on)
+  const vazio = contexto(await pedido($, 'Primeiro pedido'))
+  expect(vazio).toContain(PEDIDO_NOVO)
+  expect(vazio).not.toContain('Primeiro feche')
+  await plan($, [{ id: 'A', title: 'Plano A' }])
+  await start($, ['A'])
+  await done($, ['A'], 'Feito')
+  await fimDoTurno($)
+  const depois = contexto(await pedido($, 'Segundo pedido'))
+  expect(depois).toContain(PEDIDO_NOVO)
+  expect(depois).not.toContain('Primeiro feche')
+})
+
+// Regra: lembretes.done-antes-do-plan
+test('a primeira regra do painel diz done antes do plan quando a mensagem conclui tarefas abertas', async ($: any, on: any) => {
+  const { regras } = await textosAoModelo($, on)
+  expect(regras).toContain('feche-as primeiro com mcp__task-tree__done')
+  expect(regras.indexOf('feche-as primeiro')).toBeLessThan(regras.indexOf('a primeira chamada de ferramenta é mcp__task-tree__plan'))
+})
+
+// ---- Um cenário por texto ao modelo (decisão do usuário de 2026-11-14: "Cenário por texto
+// (Recomendado)"): cada teste confere quando o texto sai, e quando não sai, e um ou dois trechos.
+const HAND_BACK = '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>'
+const WRAP_UP = 'mcp__ccd_turn__wrap_up'
+const contextoDe = (r: any) => JSON.stringify(r?.context ?? [])
+
+// Regra: lembretes.retorno-de-subagente
+test('o retorno de um subagente traz o lembrete curto de marcar com done o que ele concluiu', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await $.prompt.submit({ text: HAND_BACK }))
+  expect(ctx).toContain('o subagente terminou')
+  expect(ctx).toContain('mcp__task-tree__done')
+  expect(ctx).not.toContain(PEDIDO_NOVO)
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'Outro pedido'))).not.toContain('o subagente terminou')
+})
+
+// Regra: lembretes.tarefa-em-segundo-plano
+test('a notificação de uma tarefa em segundo plano traz o lembrete curto de atualizar o painel', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await $.prompt.submit({ text: 'tarefa em segundo plano terminou', origin: { kind: 'task-notification' } }))
+  expect(ctx).toContain('uma tarefa em segundo plano')
+  expect(ctx).toContain('terminou')
+  expect(ctx).not.toContain(PEDIDO_NOVO)
+  expect(ctx).not.toContain('o subagente terminou')
+})
+
+// Regra: lembretes.aviso-do-app
+test('o aviso do app traz só o lembrete curto de manter o painel em dia', async ($: any, on: any) => {
+  await iniciar($, on)
+  await fimDoTurno($)
+  const ctx = contexto(await aviso($))
+  expect(ctx).toContain(CURTO)
+  expect(ctx).not.toContain(PEDIDO_NOVO)
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'Outro pedido'))).not.toContain(CURTO)
+})
+
+// Regra: lembretes.resposta-por-opcao
+test('a pergunta respondida por opção devolve o pedido de done no que a resposta concluiu e de plan com as próximas', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: 'Opção A' }))
+  await iniciar($, on)
+  const ctx = contextoDe(await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] }))
+  expect(ctx).toContain('o usuário respondeu')
+  expect(ctx).toContain('mcp__task-tree__plan')
+  expect(ctx).not.toContain('vai responder por mensagem')
+})
+
+// Regra: lembretes.resposta-pelo-chat
+test('a pergunta dispensada para o chat avisa que a mensagem seguinte é a resposta, e essa mensagem é dita como resposta uma vez', async ($: any, on: any) => {
+  on('tool.call', { tool: 'AskUserQuestion' }, () => ({ result: 'User did not answer this question — they sent a message instead.' }))
+  await iniciar($, on)
+  const ctx = contextoDe(await $.tool.call({ tool: 'AskUserQuestion', tool_use_id: 'q1', questions: [] }))
+  expect(ctx).toContain('vai responder por mensagem no chat')
+  expect(ctx).not.toContain('o usuário respondeu')
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'prefiro a segunda'))).toContain('Esta mensagem é a resposta do usuário à pergunta anterior')
+  await fimDoTurno($)
+  expect(contexto(await pedido($, 'outra coisa'))).not.toContain('resposta do usuário')
+})
+
+// Regra: lembretes.wrap-up-sem-resumo
+test('o wrap_up sem summary no turno avisa que falta o resumo; com o summary dado, não', async ($: any, on: any) => {
+  on('tool.call', { tool: WRAP_UP }, () => ({ result: 'ok' }))
+  await iniciar($, on)
+  expect(contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w1', recap: 'r' }))).toContain('falta o resumo do turno')
+  await done($, ['1', '2'], 'Feito')
+  expect(contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w2', recap: 'r' }))).not.toContain('falta o resumo do turno')
+})
+
+// Regra: lembretes.wrap-up-com-abertas
+test('o wrap_up com tarefas abertas as lista; com tudo fechado, não', async ($: any, on: any) => {
+  on('tool.call', { tool: WRAP_UP }, () => ({ result: 'ok' }))
+  await iniciar($, on)
+  const ctx = contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w1', recap: 'r' }))
+  expect(ctx).toContain('o turno termina com tarefas abertas')
+  expect(ctx).toContain('Dois')
+  await done($, ['1', '2'], 'Feito')
+  expect(contextoDe(await $.tool.call({ tool: WRAP_UP, tool_use_id: 'w2', recap: 'r' }))).not.toContain('o turno termina com tarefas abertas')
+})
+
+// Regra: lembretes.descricoes-das-ferramentas
+test('as descrições das ferramentas e do comando dizem o essencial de cada uma', async ($: any, on: any) => {
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('prompt.compose', () => ({ sections: [] }))
+  const comandos: any[] = []
+  on('command.register', (_$: any, e: any) => {
+    comandos.push(e)
+    return { value: {} }
+  })
+  const ferramentas: Record<string, any> = {}
+  on('tool.register', (_$: any, e: any) => {
+    ferramentas[String(e.name)] = e
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  const desc = (nome: string) => String(ferramentas[nome]?.description ?? '')
+  expect(desc('plan')).toContain('Até 3 níveis')
+  expect(desc('plan')).toContain('request')
+  expect(desc('done')).toContain('concluídas')
+  expect(desc('done')).toContain('summary')
+  expect(desc('start')).toContain('em andamento')
+  expect(String(ferramentas['done']?.inputSchema?.properties?.cancel?.description ?? '')).toContain('não serão feitas')
+  expect(JSON.stringify(comandos)).toContain('Abre o painel')
 })

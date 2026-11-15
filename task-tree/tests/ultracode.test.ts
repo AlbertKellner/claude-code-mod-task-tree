@@ -93,3 +93,21 @@ test('com a sessão em ultracode, o cartão de subagente não diz "ultracode"', 
   expect(sub).toContain('ler o kit')
   expect(sub).not.toContain('ultracode')
 })
+
+// Só o que o cabeçalho do app desenha: os pedaços de texto, sem os textos alternativos dos Svg.
+const desenhadoNoTopo = async ($: any, colunas: number) =>
+  (await noApp($, { colunas })).cabecalho.pedacos.filter(p => p.tipo === 'texto').map(p => p.texto).join(' ')
+
+// Regra: ultracode.cabecalho, cabecalho.toks-e-ultracode-em-qualquer-largura
+test("com o interruptor ligado, 'ultracode' é desenhado no cabeçalho a 60 e a 100 colunas, não só no texto alternativo", async ($: any, on: any) => {
+  fixar(on)
+  base(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  for (const colunas of [60, 100]) expect(await desenhadoNoTopo($, colunas), `${colunas} colunas`).toContain('ultracode')
+  await $.prompt.attachment(anexo('ultra_effort_exit'))
+  for (const colunas of [60, 100]) expect(await desenhadoNoTopo($, colunas), `${colunas} colunas`).not.toContain('ultracode')
+})

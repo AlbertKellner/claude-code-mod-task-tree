@@ -8,7 +8,8 @@
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
-import { reminders, dropWaits, ensureGroups, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { learnNames, reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { subsNote } from './agents'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -16,6 +17,7 @@ import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watc
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
+const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 
 // The main loop's group; a subagent's is keyed by its agentId.
@@ -27,25 +29,61 @@ const NO_TURN = ['task-notification', 'observer', 'observer-activity', 'auto-con
 // What a prompt is, with the app's status blocks (`<system-reminder>…</system-reminder>`, put in
 // front of a session's first message and of queued deliveries) taken out: another session's message,
 // a subagent handing back, the app's own notice, or a request.
-export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string } }
+export type Said = { body: string; peer: boolean; handback: boolean; notice: boolean; title: string; from?: { id: string; name?: string }; froms: string[]; names: [string, string][] }
 export function said(text: string): Said {
   const body = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
-  const peer = /<cross-session-message\b/.test(body)
-  const handback = !peer && (/^<agent-message from="(?!local_)/.test(body) || /\[Subagent hand-back\]/.test(body))
+  const head = lead(body)
+  const messages = topMessages(head)
+  const peer = messages.length > 0
+  const handback =
+    !peer && (/^<agent-message from="(?!local_)/.test(head) || /^\[Subagent hand-back\]/.test(head) || /^<agent-message\b[^>]*>\s*\[Subagent hand-back\]/.test(head))
   const notice = !peer && !handback && (body === '' || body.startsWith('<side-sessions-event>'))
-  const inner = /<cross-session-message[^>]*>([\s\S]*?)(<\/cross-session-message>|$)/.exec(body)?.[1]
   // Who sent it (the first message's tag): its id and the name the tag gives.
-  const tag = /<cross-session-message\b[^>]*>/.exec(body)?.[0] ?? ''
-  const id = /\bfrom="([^"]+)"/.exec(tag)?.[1]
-  const name = /\bname="([^"]*)"/.exec(tag)?.[1]
-  const from = peer && id ? { id, ...(name ? { name } : {}) } : undefined
-  return { body, peer, handback, notice, title: peer && inner !== undefined ? inner : body, ...(from ? { from } : {}) }
+  const first = messages[0]
+  const from = first?.id ? { id: first.id, ...(first.name ? { name: first.name } : {}) } : undefined
+  // Every top-level message's sender, for the receipts (noteReceived) and fromChildren.
+  const froms = messages.flatMap(m => (m.id ? [m.id] : []))
+  // The names their tags give, for the letters back to them (learnNames).
+  const names = messages.flatMap((m): [string, string][] => (m.id && m.name ? [[m.id, m.name]] : []))
+  return { body, peer, handback, notice, title: first !== undefined ? first.inner : body, ...(from ? { from } : {}), froms, names }
+}
+
+// The marks of another session's message and of a subagent's hand-back count only where they open
+// the prompt (a tag quoted or pasted in the person's text is not one): at the start of the body, or
+// after one opening line the app puts before them ("Another Claude session sent a message:"), taken
+// by its form (short, no `<`, ending in ":"), not its words.
+const MARK = /^(<cross-session-message\b|<agent-message\b|\[Subagent hand-back\])/
+function lead(body: string): string {
+  const m = /^[^\n<]{0,79}:[ \t]*\r?\n\s*/.exec(body)
+  if (m === null) return body
+  const rest = body.slice(m[0].length)
+  return MARK.test(rest) ? rest : body
+}
+
+// The messages of other sessions at the top level, read in sequence from the start: a tag, its body
+// up to the first closing tag, blanks, the next tag; the reading stops at the first stretch that is
+// not a tag. A tag quoted inside a message does not count.
+export function topMessages(head: string): { id?: string; name?: string; inner: string }[] {
+  const out: { id?: string; name?: string; inner: string }[] = []
+  const CLOSE = '</cross-session-message>'
+  let rest = head
+  for (;;) {
+    const tag = /^<cross-session-message\b[^>]*>/.exec(rest)
+    if (tag === null) break
+    const id = /\bfrom="([^"]+)"/.exec(tag[0])?.[1]
+    const name = /\bname="([^"]*)"/.exec(tag[0])?.[1]
+    const after = rest.slice(tag[0].length)
+    const end = after.indexOf(CLOSE)
+    out.push({ ...(id ? { id } : {}), ...(name ? { name } : {}), inner: end < 0 ? after : after.slice(0, end) })
+    if (end < 0) break
+    rest = after.slice(end + CLOSE.length).trimStart()
+  }
+  return out
 }
 
 // Whether every message of other sessions in a prompt comes from a session this one opened (its
 // report), as the host lists them; an entry a send made, not yet seen by the host, is not one.
-async function fromChildren($: any, text: string): Promise<boolean> {
-  const froms = [...text.matchAll(/<cross-session-message[^>]*\bfrom="([^"]+)"/g)].map(m => m[1] as string)
+async function fromChildren($: any, froms: string[]): Promise<boolean> {
   if (froms.length === 0) return false
   const { value: children = [] } = await $.state.get(childrenState)
   return froms.every(id => (children as Child[]).some(c => c.id === id && c.starting !== true))
@@ -64,7 +102,9 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   const it = said(text)
   // Another session's messages are kept (from, when) and published, whatever this prompt turns out
   // to be: the sender confirms its queued SendMessage by them (watchSends).
-  await noteReceived($, text)
+  await ensureLinks($)
+  await noteReceived($, it.froms)
+  await learnNames($, it.names)
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)
   // A turn of this session was interrupted (stopped) and no request came since: the next request, the
@@ -83,19 +123,24 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     if (it.notice) await refreshChildren($).catch(() => {})
     const note = await endedNote($)
     const taken = await takenNote($)
+    const subs = await subsNote($)
     // Tasks the person stopped (Esc) and no start took up since: only a start brings them back
     // (lembretes.parada-so-volta-com-start).
     await ensureGroups($)
     const { value: kept = [] } = await $.state.get(groupsState)
-    const parked = flat(kept.find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'open' && t.stopped)
+    const stoppedOpen = flat(kept.find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'open' && t.stopped)
+    // Those of a turn that died by an error say "falhou" (lembretes.replanejar-apos-turno-que-falhou).
+    const parked = stoppedOpen.filter(t => t.failed !== true)
+    const failedOpen = stoppedOpen.filter(t => t.failed === true)
     return next({
       ...e,
       context: [
         ...(e.context ?? []),
         ...(note ? [note] : []),
-        ...(taken ? [taken] : []),
+        ...(taken ? [taken] : []), ...(subs ? [subs] : []),
         it.handback ? PROMPT.handback : kind === 'task-notification' ? PROMPT.background : PROMPT.notice,
         ...(parked.length > 0 ? [PROMPT.parked(openList(parked))] : []),
+        ...(failedOpen.length > 0 ? [PROMPT.failedTasks(openList(failedOpen))] : []),
       ],
     })
   }
@@ -117,13 +162,14 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // A message of a session this one did not open (the one that opened it, a sister) still opens its
   // request: that session draws this one's card by the turns its messages open (the person,
   // 2026-10-21: "o novo vai sob a tarefa da principal que mandou a mensagem").
-  if (midTurn && !aborted && (!it.peer || (await fromChildren($, it.body)))) {
+  if (midTurn && !aborted && (!it.peer || (await fromChildren($, it.froms)))) {
     await ensureGroups($)
     const { value: held = [] } = await $.state.get(groupsState)
     if ((held.find(g => g.agent === MAIN)?.turns ?? []).length > 0) {
       await refreshStale($).catch(() => {})
       const note = await endedNote($)
       const taken = await takenNote($)
+      const subs = await subsNote($)
       const { value: groups = [] } = await $.state.get(groupsState)
       const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
       // The person's message may be the answer to a question dismissed for the chat (see asked).
@@ -131,13 +177,14 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
       if (!it.peer) reminders.answeredInChat = false
       return next({
         ...e,
-        context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), PROMPT.midTurn(hasOpen(tasks) ? openList(tasks) : '', answered)],
+        context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), PROMPT.midTurn(hasOpen(tasks) ? openList(tasks) : '', answered)],
       })
     }
   }
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
   reminders.planned = false
+  reminders.briefBeforePlan = false
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
   await openTurn($, it.title, !it.peer, it.from)
@@ -145,25 +192,29 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   await refreshStale($).catch(() => {})
   const note = await endedNote($)
   const taken = await takenNote($)
+  const subs = await subsNote($)
   // What the last request left open (a question answered here, work this message replaces)
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
+  // The stop was a turn that died by an error: the person's message is told so.
+  const failed = aborted && (await $.state.get(turnFailedState)).value === true
   if (aborted) {
     await $.state.set(turnAbortedState, false)
     await $.state.set(replanDueState, false)
+    await $.state.set(turnFailedState, false)
     await saveTurn($)
   }
   // After an interrupted turn, the message that comes next, the person's or another session's, asks
   // for a replan of the panel instead of the list of what was left open (the replan covers it).
   const left = aborted && hasOpen(tasks)
-    ? it.peer ? PROMPT.interrupted(openList(tasks)) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
+    ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), reminders.answeredInChat) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
     : aborted && it.peer ? PROMPT.interruptedEmpty
     : hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
   reminders.answeredInChat = false
   return next({
     ...e,
-    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(left ? [left] : []), PROMPT.request],
+    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks))],
   })
 }
 

@@ -9,13 +9,14 @@ O ✉ fica na tarefa até a entrega.
 
 - Dado uma tarefa de onde saiu uma mensagem a outra sessão, ainda na fila
 - Quando a tarefa é concluída antes da entrega
-- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou; se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue; se o subagente destino parar antes de recebê-la, vale envios.subagente-parado-nao-entregue
+- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou, quando nada mais está em execução nela (envios.entrega-espera-o-que-ainda-roda-na-tarefa); se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue; se o subagente destino parar antes de recebê-la, vale envios.subagente-parado-nao-entregue
 
 Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é uma linha própria sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o mesmo cinza "não entregue" vale para a carta ao subagente que para antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-14, texto: a entrega só conclui a tarefa quando nada mais está em execução nela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### envios.entrega-imediata-fica-verde
@@ -34,12 +35,15 @@ Estado: coberto
 Depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem.
 
 - Dado uma tarefa de mensagem em andamento cuja mensagem foi entregue na hora
-- Quando o turno termina, normal ou com Esc
-- Então a carta segue verde; a tarefa iniciada fica ✕ no Esc, como qualquer outra (entregue a mensagem, ela é uma tarefa comum)
+- Quando o turno em que ela está em andamento termina, normal ou com Esc
+- Então a carta segue verde; a tarefa iniciada fica ✕ no Esc, como qualquer outra (entregue a mensagem, ela é uma tarefa comum), salvo enquanto a sessão destino segue trabalhando sob ela (turnos.esc-com-trabalho-delegado-vivo); no cartão que a sessão mãe desenha dessa filha, parada com Esc ou arquivada, a carta já entregue também segue verde
 
 Origem: decisão do usuário, 2026-10-28 ("a mensagem foi entregue; não é interrompida"; o ✉ verde igual com a tarefa aberta ou concluída está bom).
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); só a carta ficava verde no Esc; a tarefa passa a ser tratada como qualquer outra.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
+Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); a tarefa que um fim normal deixou ◷ não é interrompida por um Esc posterior sem start nela; o teste passa a dar start antes do Esc.
+Reescrito: 2026-11-14, decisão do usuário ("Segue ◉/◷ (Recomendado)"); com a sessão destino trabalhando sob a tarefa, o Esc não a interrompe; o destino do teste passa a parado.
+Reescrito: 2026-11-14, texto: o cartão da filha parada mostra a carta como o painel dela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 
@@ -48,7 +52,7 @@ O ✉ mantém o ícone e muda só a cor.
 
 - Dado uma tarefa de mensagem
 - Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la, ou o subagente parado antes de recebê-la)
-- Então a carta muda só de cor (azul na fila, verde entregue, cinza descartada antes da entrega ou não entregue); a tarefa tem o ícone comum e conta
+- Então a carta muda só de cor (azul na fila, verde entregue, cinza quando a tarefa de onde saiu foi interrompida por um plano novo, desde o plan e também depois da entrega, ou quando não é entregue); a tarefa tem o ícone comum e conta; a tarefa que fecha ✕ pelo fim de um subagente não muda a cor da carta já entregue dela
 
 Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
@@ -57,7 +61,20 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)"); a carta do plano abandonado por um pedido novo que reusa o id segue à vista, sob a tarefa de origem, enquanto a sessão trabalha ou a carta está na fila (pedidos.id-reusado-segura-pedido-com-sessao-viva); desfaz, para esse caso, "Ficam em '+N pedidos anteriores'": o teste deixa de abrir a linha. A cor não muda.
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza "não entregue" vale também para o subagente parado antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-14, texto alinhado ao teste e à decisão de 2026-11-12 ("Cinza já no plan (Recomendado)"); nenhuma regra muda e os testes não mudam.
+Reescrito: 2026-11-14, texto: a tarefa ✕ pelo fim de um subagente não deixa cinza a carta já entregue (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
+Estado: coberto
+
+### envios.aviso-da-entrega-diz-o-que-o-painel-fez
+O aviso da entrega só diz que o painel concluiu a tarefa quando ela ficou concluída.
+
+- Dado uma carta na fila
+- Quando a sessão destino toma a mensagem e o modelo recebe o aviso "recebimento confirmado"
+- Então o aviso diz que o painel concluiu a tarefa do envio só quando ela está ✓; se ela foi interrompida por um plano novo, saiu do plano ou segue aberta (subtarefa aberta, ou algo ainda em execução nela), diz que o painel não a concluiu e que o modelo a fecha quando o trabalho terminar
+
+Origem: auditoria 2026-11-10 (o lembrete "recebimento confirmado" dizia "o painel já concluiu a tarefa do envio" sem ter concluído); aplica envios.fica-ate-entrega, sem mudar nenhuma regra.
+Código: text/rules.ts
 Estado: coberto
 
 ### envios.ancora-no-lote-recente
@@ -73,28 +90,42 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Estado: coberto
 
 ### envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
-Sem nada em andamento, o envio vai à pendente planejada por último.
+Sem nada em andamento, o envio vai às pendentes planejadas por último, pela ordem.
 
-- Dado nada em andamento no pedido atual
+- Dado nada em andamento no pedido atual, que já tem plano (sem plano: envios.antes-do-plan-fica-solta-e-o-plan-adota)
 - Quando sai uma mensagem
-- Então ela vai à pendente planejada por último; sem pendente, à última iniciada
+- Então ela vai, nesta ordem: à pendente cujo título casa com o nome da sessão destino (envios.carta-pelo-nome-da-sessao); senão, entre as pendentes do plan mais recente do pedido, à primeira na ordem do plano ainda sem carta, sessão ou subagente; todas já com um deles, à última delas; sem nenhuma pendente, à tarefa iniciada por último, mesmo concluída; sem nenhuma iniciada, ao último nível 1 do pedido
 
 Origem: decisão do usuário, 2026-10-23 ("Várias pendentes: a última planejada. Nenhuma pendente: última iniciada"); commits b742294 e 5f3df6e.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-09, decisão do usuário ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome"): com várias pendentes planejadas juntas, o envio vai à primeira delas ainda sem carta, na ordem do plano (antes, à última), depois de tentar o nome da sessão (envios.carta-pelo-nome-da-sessao).
+Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): vale para o pedido que já tem plano.
+Reescrito: 2026-11-14, texto completado com a ordem que o código já segue (auditoria 2026-11-10: o corpo dizia só "a pendente planejada por último"); nenhuma regra muda e os testes existentes não mudam.
+Estado: coberto
+
+### envios.com-andamento-fica-sob-a-tarefa-em-andamento
+Com uma tarefa em andamento, a carta e o cartão ficam sob ela, não sob o passo planejado depois.
+
+- Dado uma tarefa em andamento (◉) e um passo novo pendente (○) planejado depois do start dela, no mesmo pedido
+- Quando sai uma mensagem, abre uma sessão ou é lançado um subagente
+- Então a carta e o cartão ficam sob a tarefa em andamento; o passo novo segue ○ até o start nele e não fecha sozinho na entrega (quem fecha é a tarefa do envio)
+
+Origem: decisão do usuário, 2026-11-14 ("Sob a em andamento (Recomendado)"); desfaz o pedido registrado no DESENVOLVIMENTO.md ("o segundo painel de implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem de solicitação"), que mandava a carta para o passo planejado depois do start.
+Código: hooks/agents.ts
 Estado: coberto
 
 ### envios.carta-pelo-nome-da-sessao
 A carta vai à tarefa cujo título casa com o nome da sessão destino.
 
 - Dado várias tarefas candidatas (pendentes sem nada em andamento, ou várias em andamento)
-- Quando sai uma mensagem, ou abre uma sessão, cujo nome casa com o título de uma única candidata (sem acento, sem hífen e sem diferença de maiúsculas: o título contém o nome, ou o nome contém o começo do título antes de ":")
-- Então a carta e o cartão ficam sob essa tarefa; sem casamento único, vale a ordem: a primeira pendente planejada junto ainda sem carta
+- Quando sai uma mensagem, ou abre uma sessão, cujo nome casa com o título de uma única candidata (sem acento, sem hífen e sem diferença de maiúsculas: o título contém o nome, o nome contém o começo do título antes de ":", ou uma palavra do nome, com 4 letras ou mais, é palavra do título)
+- Então a carta e o cartão ficam sob essa tarefa; sem casamento único, vale a ordem: a primeira pendente planejada junto ainda sem carta; o título da sessão nova e a descrição e o tipo de um subagente são frases livres: só levam o cartão a uma tarefa quando o título dela contém a frase inteira, em palavras inteiras, ou a frase contém o começo do título; uma palavra em comum não decide
 
 Origem: decisão do usuário, 2026-11-09 ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome").
-Código: hooks/tool-call.ts, hooks/sessions.ts
+Código: hooks/tool-call.ts, hooks/sessions.ts, hooks/agents.ts
 Reescrito: 2026-11-09, decisão do usuário ("Sim, por palavra (Recomendado)"): casa também quando uma palavra do nome, com 4 letras ou mais, é palavra do título de uma única candidata ("analise-plano" com "Subagente da hora na análise"); um subagente lançado de uma tarefa conta como carta para o envio seguinte.
+Reescrito: 2026-11-14, decisão do usuário ("Só no nome (Recomendado)"): o casamento por uma palavra vale só para o nome da sessão (o destino da mensagem, o nome da sessão aberta); para o título da sessão e para a descrição e o tipo do subagente, só a frase inteira. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### envios.fila-nao-interrompe-no-fim-do-turno
@@ -121,6 +152,17 @@ Origem: decisão do usuário, 2026-10-24 ("o ícone do 'analisar a tarefa' dever
 Reescrito: 2026-10-30, decisão do usuário ("as cartas deveriam representar somente quando uma sessão se comunica com outra… Quando o pedido fosse recebido, ele seria representado por uma carta, e as tarefas derivadas dessa mensagem (pedido) deveriam ter os icones de tarefas, não de cartas"; "Sim, uma carta por mensagem (Recomendado)"; "Azul tratando, verde concluído, cinza interrompido (Recomendado)"); desfaz o ajuste de 2026-10-24 e volta ao pedido original do mesmo dia ("as tarefas partem como subtarefas da tarefa de recebimento").
 Reescrito: 2026-11-12, decisão do usuário ("Entra no pedido em curso (Recomendado)"); exceção a "uma carta por mensagem" (2026-10-30): o relato de uma sessão que esta abriu, entregue no meio do turno, continua o pedido em curso, sem linha nem ✉ de recebida. Os testes não mudam.
 Código: hooks/prompt-submit.ts, draw/layout.ts
+Estado: coberto
+
+### envios.carta-mostra-o-nome-do-destino
+A carta diz o nome da sessão destino, também quando ela não é filha desta sessão.
+
+- Dado uma mensagem enviada pelo id a uma sessão que não é filha de quem envia (a mãe, uma irmã)
+- Quando a carta é desenhada, no painel de quem enviou ou no cartão dela na sessão mãe
+- Então ela diz "Para <nome>: …" com o nome que a lista de sessões do app ou a mensagem recebida dessa sessão informaram; no cartão da filha, o destino que é a própria sessão que desenha aparece com o nome dela, quando o app o informa; sem nome conhecido, os oito primeiros caracteres do id, como antes
+
+Origem: auditoria 2026-11-10 (irmã e mãe apareciam como 8 caracteres do id); aplica envios.carta-sob-a-tarefa ("Para <sessão>: <mensagem>"), sem mudar nenhuma regra.
+Código: draw/layout.ts, hooks/render.tsx, hooks/prompt-submit.ts
 Estado: coberto
 
 ### envios.carta-sob-a-tarefa
@@ -212,3 +254,67 @@ No app, a carta para um subagente real fica verde ao ser recebida e cinza "não 
 Origem: decisão do usuário, 2026-11-13 ("Cinza \"não entregue\" (Recomendado)"); o que o harness não alcança de envios.subagente-parado-nao-entregue e envios.subagente-recebe-fica-verde.
 Código: hooks/agents.ts
 Estado: checklist (subagente real, o motor e o relógio de 1 s não rodam no harness)
+
+### envios.envio-que-falha-nao-deixa-rastro
+O envio que falha não deixa carta nem rodada.
+
+- Dado uma mensagem a uma sessão filha cujo envio falha
+- Quando a filha abre o turno seguinte
+- Então não há carta do envio que falhou, e as tarefas do turno seguinte seguem no cartão em que a filha já estava, não num cartão novo sob a tarefa do envio
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a rodada era gravada antes de saber se o envio falhou); aplica sessoes.um-cartao-por-mensagem, sem mudá-la.
+Estado: coberto
+
+### envios.antes-do-plan-fica-solta-e-o-plan-adota
+A carta enviada antes do plan do pedido fica solta no fim, e o plan do pedido a adota.
+
+- Dado um pedido novo ainda sem plano, com ou sem tarefas abertas de pedidos anteriores, e nada em andamento
+- Quando o modelo manda uma mensagem a outra sessão, e depois planeja o pedido
+- Então, até o plan, a carta fica no fim do painel, fora de qualquer tarefa, e nenhuma tarefa de pedido anterior ganha carta nem fecha na entrega; no primeiro plan do pedido, a carta passa para a tarefa dele escolhida como em qualquer envio (o nome da sessão, senão a primeira pendente ainda sem carta) e fica lá; a tarefa que a adotou não fecha sozinha na entrega
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"), sobre os achados da auditoria de 2026-11-10 (a carta ia a uma pendente do pedido anterior, que fechava sozinha). Refina "envio feito sem tarefa em andamento ancora na última iniciada do pedido atual" (2026-10-23) para o pedido ainda sem tarefas.
+Código: hooks/tools.ts, draw/layout.ts, text/rules.ts
+Estado: coberto
+
+### envios.entrega-espera-o-que-ainda-roda-na-tarefa
+A entrega só conclui a tarefa quando nada mais está em execução nela.
+
+- Dado uma tarefa com a carta dela na fila e, ainda, um subagente lançado dela rodando, outra carta dela na fila ou uma pergunta aberta nela
+- Quando a sessão (ou o subagente) destino toma a carta
+- Então a carta fica verde e a tarefa segue aberta; ela fecha quando o último termina: pelo fim do subagente (refletindo o fim dele), pela entrega da outra carta, ou pelo done do modelo depois da resposta; a sessão que tomou a carta e segue trabalhando não segura a conclusão (o desenho mantém a linha ◉ enquanto ela trabalha)
+
+Origem: auditoria 2026-11-10 (os dois fechamentos automáticos usavam condições diferentes); aplica subagentes.um-rodando-mantem-o-pai ("até o último terminar (e a carta ser entregue)") e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila, sem mudar a decisão de 2026-10-30 ("Sim, conclusão automática como hoje").
+Código: hooks/agents.ts, draw/layout.ts
+Estado: coberto
+
+### envios.carta-uma-vez-no-cartao-da-origem
+Cada carta aparece uma vez: no cartão e no pedido da tarefa de onde saiu.
+
+- Dado uma filha com mais de um cartão que mandou uma mensagem, ou uma carta na fila cuja tarefa saiu do plano num replano
+- Quando o painel é desenhado
+- Então a carta da filha aparece só no cartão que tem a tarefa de origem (sem ela, no do turno em que foi enviada), e o chip "aguardando sessão" a conta uma vez; a carta cuja tarefa saiu do plano pende do nível 1 do pedido em que foi enviada, nunca de outro pedido, e esse pedido segue à vista enquanto ela está na fila; com o pedido dela em "+N pedidos anteriores", ela fica lá com ele
+
+Origem: auditoria 2026-11-10 (a carta se repetia em todos os cartões de rodada, e a carta órfã de replano passava ao pedido novo); aplica envios.carta-sob-a-tarefa, pedidos.replano-mantem-envio-ate-entrega e a decisão de 2026-11-12 ("Sim, fica à vista (Recomendado)"), sem mudar nenhuma regra.
+Código: draw/layout.ts
+Estado: coberto
+
+### envios.aviso-de-envio-na-fila
+O envio que fica na fila pede para manter a tarefa do envio em andamento.
+
+- Dado uma tarefa em andamento
+- Quando o modelo manda uma mensagem que fica na fila (a outra sessão ou a um subagente)
+- Então o resultado diz que a mensagem ficou na fila, cita a tarefa do envio e pede para mantê-la em andamento; para um subagente, diz que é para o subagente; na entrega imediata, não diz
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Estado: coberto
+
+### envios.done-com-carta-na-fila
+O done que fecha a tarefa de uma carta ainda na fila avisa.
+
+- Dado uma tarefa com uma carta ainda na fila
+- Quando o modelo fecha a tarefa com done
+- Então o resultado avisa que a mensagem ainda está na fila, sem confirmação de recebimento; com a carta entregue, não avisa
+
+Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Código: hooks/tools.ts
+Estado: coberto

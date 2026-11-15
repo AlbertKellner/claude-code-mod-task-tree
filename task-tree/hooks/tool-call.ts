@@ -1,20 +1,20 @@
 // tool.call, the generic hook: one handler per responsibility, run in order (R17). Before the call:
 // a launch (Agent) records the task the loop is on; a question or a plan to approve takes the whole
-// call (the wait while it is open, the answer's reminder); a wrap_up keeps its recap and its
-// question as a wait. After the call, for the main loop only: the clocks and the sessions' list come
+// call (the wait while it is open, the answer's reminder); a wrap_up keeps its question as a wait. After the call, for the main loop only: the clocks and the sessions' list come
 // back, a start_session records its session, then each note handler adds, in order, what it has to say
-// to the result (a message only queued, a session that ended its turn, a message taken up, what a
-// wrap_up leaves open) and, last, the reminder to plan: the first call with no open plan, and every
-// 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
+// to the result (a message only queued, a session that ended its turn, a message taken up, a task the
+// end of its subagents closed or marked ✕, what a
+// wrap_up leaves open) and, last, the reminder to plan: the first call of a request that has not
+// used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
 
 import { update } from 'claude-code'
 
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, addWait, askingAnchors, dropWaits, lastBrief, openList, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
-import { endedNote, keepTime, recordStart, refreshStale, takenNote, watchSessions } from './sessions'
-import { launchAnchor, subTool } from './agents'
+import { reminders, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
+import { launchAnchor, subTool, subsNote } from './agents'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -23,7 +23,6 @@ const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
-const recapState = { plugin: 'task-tree', key: 'recap' } as const
 
 // What the handlers share about one call: the loop that made it (`agent`), the event, when a
 // message was sent (`sentAt`, before the call: a message delivered at once opens the session's turn
@@ -50,11 +49,15 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
   const { agent, e } = c
   const kind = e.tool === 'AskUserQuestion' ? 'question' : e.tool === 'ExitPlanMode' ? 'plan' : undefined
   if (!kind) return undefined
-  // A question belongs to the task in progress it asks about: the main loop asking with none open
-  // is refused (ExitPlanMode is let through: plan mode may hold the panel's tools).
+  // A question belongs to a task of the request it is asked in: the main loop asking with no open
+  // task of the current request (requestTasks; a panel with no turns kept, any open task) and none
+  // in progress, of any request, is refused. A task only pending from an earlier request does not
+  // let it through (the person, 2026-11-14: "Não (Recomendado)"). ExitPlanMode and the wrap_up's
+  // choice are let through, as first designed: it is not that plan mode holds the panel's tools.
   if (kind === 'question' && agent === MAIN) {
     const { value = [] } = await $.state.get(groupsState)
-    if (!hasOpen(value.find((g: Group) => g.agent === MAIN)?.tasks ?? [])) {
+    const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+    if (!hasOpen(requestTasks(value as Group[])) && current(all).anchor === undefined) {
       return { deny: ASK.refused }
     }
   }
@@ -75,11 +78,13 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
 
 // The desktop app's end-of-turn box with a question and buttons (wrap_up with `ask`): the call
 // returns at once and the turn ends, but the person is still asked. The notice stays until the next
-// prompt (prompt.submit drops it) or a wrap_up with no question. The recap is kept for the card.
+// prompt (prompt.submit drops it) or a wrap_up with no question. Its recap is not kept: the turn's
+// answer in the panel is the done's summary (the person, 2026-11-14: "Tirar, basta o ↩ (Recomendado)").
+// After the call, only one that went through: the earlier choice goes and, with `ask`, the new one waits.
 async function wrapUpAsk($: any, c: Call) {
   if (String(c.e.tool) !== 'mcp__ccd_turn__wrap_up') return
-  const input = (c.e.input ?? c.e) as { ask?: unknown; recap?: unknown }
-  if (c.agent === MAIN && typeof input.recap === 'string' && input.recap.trim() !== '') await $.state.set(recapState, input.recap)
+  if (c.r?.isError === true || c.r?.deny !== undefined) return
+  const input = (c.e.input ?? c.e) as { ask?: unknown }
   const key = `${c.agent}:wrap_up:ask`
   await dropWaits($, w => w.key !== key)
   if (typeof input.ask === 'string' && input.ask.trim() !== '') {
@@ -89,9 +94,14 @@ async function wrapUpAsk($: any, c: Call) {
 
 // The task a question is asked from: the asking loop's task in progress, kept on its wait so no
 // message is anchored there while it waits (sendAnchor's `asking`).
+// The task a wait (a question, a plan to approve, a wrap_up's choice) hangs under: the one in
+// progress; with none, the one a letter would go to, counting no letters nor cards (sendAnchor: the
+// current request's pending task, else its task started last, else its last level-1 task). The
+// person, 2026-11-14: "Pendurar na pendente (Recomendado)".
 async function askAnchor($: any, agent: string): Promise<{ anchor?: string }> {
   const { value = [] } = await $.state.get(groupsState)
-  const { anchor } = current((value as Group[]).find(g => g.agent === agent)?.tasks ?? [])
+  const tasks = (value as Group[]).find(g => g.agent === agent)?.tasks ?? []
+  const anchor = current(tasks).anchor ?? sendAnchor(tasks, [], [], [], agent === MAIN ? openTurnOf(value as Group[])?.id : undefined)
   return anchor === undefined ? {} : { anchor }
 }
 
@@ -103,6 +113,9 @@ const sentMessage: Notes = async ($, c, notes) => {
   const { e, r, sentAt } = c
   if (String(e.tool) !== 'SendMessage') return
   const out = JSON.stringify(r.result ?? r)
+  // A failed send leaves no trace: no letter, no round, no entry (its session's next turn stays in the
+  // card it was in, not one under the task of the failed send).
+  const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   const to = String(e.to ?? e.input?.to ?? '')
   // The message's start, its letter's title.
   const said = String(e.message ?? e.input?.message ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
@@ -116,23 +129,36 @@ const sentMessage: Notes = async ($, c, notes) => {
   // The receiving session's names, to match a task's title (sendAnchor): what `to` says, and the name
   // the host lists for that id.
   const names = [to, ...(kids0 as Child[]).filter(k => k.id === to).map(k => k.name)].filter(n => n !== '' && !/^local_/.test(n))
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names)
+  // Before the request's first plan: none (drawn loose until the plan adopts it).
+  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
   // The session is used for the task in progress: the summary view draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
-    // sent from once the session takes it up (see split). A session the host's list does not hold
-    // yet (just opened, or listed late) gets its entry here, with the round, as recordStart does:
-    // the round was lost, and the card of the turn the message opened had no task to go under.
+    // sent from once the session takes it up (see split). A session not among the children yet gets
+    // its round only if it is this session's (see below): the round was lost, and the card of the
+    // turn the message opened had no task to go under.
     const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
-    if (to !== '') {
+    const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
+    // A session left behind by a /clear gets no card: only the letter (forgetChildren).
+    if (to !== '' && !failed && !isLeftBehind(to)) {
+      // A local_ id not among the children: the host's list read now. Listed as one of this
+      // session's, it gets the round as any child (and the send's task as its origin, if it had
+      // none); else, one this session opened that the list leaves out (its tie kept, keptLink), an
+      // entry with its kept ties and the round. Any other (the mother, a sister, a session this one did
+      // not open) gets no entry: only the letter under the task.
+      const fresh = to.startsWith('local_') && !(kids0 as Child[]).some(mine)
+      if (fresh) await refreshChildren($).catch(() => {})
+      const kept = keptLink(to)
       await update($, childrenState, cur => {
         const list = cur ?? []
-        const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
         if (list.some(mine)) {
-          return list.map(ch => (mine(ch) ? { ...ch, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
+          return list.map(ch => (mine(ch) ? { ...ch, ...(fresh && ch.anchor === undefined && anchor !== undefined ? { anchor } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
         }
-        if (!to.startsWith('local_')) return list
-        return [...list, { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: round }]
+        if (!to.startsWith('local_') || kept === undefined) return list
+        return [
+          ...list,
+          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(kept.rounds ?? []), ...round].slice(-20), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
+        ]
       })
     }
   }
@@ -145,7 +171,6 @@ const sentMessage: Notes = async ($, c, notes) => {
   // is kept taken, the ✉ green at once, and the task stays in progress until the model's done (the
   // person, 2026-10-28; the ✉ "para sinalizar que essa etapa esta em andamento", 2026-10-21). A failed
   // send keeps none.
-  const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   // A message to one of this session's subagents (not a session): its delivery is that subagent's
   // (hooks/agents), not a session's list or file.
   const agent = to !== '' && !failed && !to.startsWith('local_') ? await subagentOf($, to) : undefined
@@ -178,12 +203,16 @@ async function subagentOf($: any, to: string): Promise<string | undefined> {
   }
 }
 
-// The sessions' reminders: one whose turn ended, one that took up a queued message.
+// The sessions' reminders: one whose turn ended, one that took up a queued message; and the tasks
+// the end of their subagents closed or marked ✕.
 const sessionNotes: Notes = async ($, _c, notes) => {
   const ended = await endedNote($)
   if (ended) notes.push(ended)
   const taken = await takenNote($)
   if (taken) notes.push(taken)
+  // And the tasks the end of their subagents closed or marked ✕ (subsNote).
+  const subs = await subsNote($)
+  if (subs) notes.push(subs)
 }
 
 // The end of a turn in the desktop app: what is still open is listed, so nothing finished is left
@@ -206,7 +235,10 @@ async function reminder($: any, c: Call, r: any) {
     return r
   }
   const { value = [] } = await $.state.get(groupsState)
-  if (reminders.planned || hasOpen(value.find((g: Group) => g.agent === MAIN)?.tasks ?? [])) {
+  // Measured on the current request: a task only pending from an earlier one does not silence it; a
+  // task in progress, of any request (a start on an old one is the expected way to go on), does.
+  const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+  if (reminders.planned || hasOpen(requestTasks(value as Group[])) || current(all).anchor !== undefined) {
     reminders.unplanned = 0
     return r
   }
@@ -223,18 +255,29 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
   // A call of the main loop: its turn is running, what the last one left open is in progress again.
   if (c.agent === MAIN) await wake($)
-  // A subagent's call: the tool its card shows (hooks/agents).
+  // A subagent's call: the tool its card shows (hooks/agents); the cards are written at most once a
+  // second for all the subagents, so this call waits on a write only once a second at most.
   else await subTool($, c.agent, e)
+  // The links come back from the store before the launch writes one (a new process).
+  await ensureLinks($)
   await launch($, c)
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered
-  await wrapUpAsk($, c)
   c.sentAt = String(e.tool) === 'SendMessage' ? await stamp($) : undefined
+  // The permission wait of this tool stays while another call of it, by the same agent, is in progress.
+  const busy = `${c.agent}:${e.tool}`
+  inCall.set(busy, (inCall.get(busy) ?? 0) + 1)
   try {
     c.r = await next(e)
   } finally {
-    await dropWaits($, w => w.key !== `${c.agent}:${e.tool}`)
+    const left = Math.max(0, (inCall.get(busy) ?? 0) - 1)
+    if (left > 0) inCall.set(busy, left)
+    else {
+      inCall.delete(busy)
+      await dropWaits($, w => w.key !== busy)
+    }
   }
+  await wrapUpAsk($, c)
   if (c.agent !== MAIN) return c.r
   // After a reload the clock is gone with the old module: the next call starts it again.
   await keepTime($)
@@ -243,7 +286,7 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
   if (String(e.tool) === 'mcp__ccd_session__start_session') {
     const out = JSON.stringify(c.r.result ?? c.r)
     const input = ((e as any).input ?? e) as { name?: unknown; title?: unknown }
-    await recordStart($, out, [input.name, input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
+    await recordStart($, out, [input.name].filter((n): n is string => typeof n === 'string' && n !== ''), [input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
   }
   if (c.r.deny !== undefined) return c.r
   const notes: string[] = []

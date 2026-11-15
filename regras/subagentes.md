@@ -36,6 +36,17 @@ Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)").
 Código: hooks/tool-call.ts
 Estado: coberto
 
+### subagentes.ferramenta-em-uso-com-freio
+As chamadas de ferramenta dos subagentes atualizam os cartões no máximo uma vez por segundo.
+
+- Dado vários subagentes rodando sem usar o painel, com muitas chamadas de ferramenta por segundo
+- Quando eles chamam ferramentas
+- Então o painel é gravado no máximo uma vez por segundo para todos eles; a linha "ferramenta · N chamadas" de cada cartão chega em até 1 s, com a contagem exata; o cartão que terminou nesse intervalo não ganha a ferramenta de volta
+
+Origem: auditoria 2026-11-10 (cada chamada com texto diferente regravava o painel inteiro antes de a ferramenta rodar); aplica subagentes.corpo-e-as-tarefas-ou-a-ferramenta, sem mudar a regra.
+Código: hooks/tool-call.ts
+Estado: coberto
+
 ### subagentes.terminado-segue-cartao
 Terminado, o cartão segue como cartão, com a palavra de estado.
 
@@ -57,15 +68,36 @@ Workflow, ou mais de três subagentes lançados juntos, ficam num cartão de gru
 Origem: decisão do usuário, 2026-11-09 ("Cartão + grupo (Recomendado)").
 Estado: coberto
 
+### subagentes.espera-no-cartao-de-grupo
+No cartão de grupo, o agente que espera a pessoa mostra a espera na linha dele.
+
+- Dado um cartão "N subagentes" ou "Workflow · N agentes" com as linhas dos agentes fechadas
+- Quando um dos agentes pede permissão, abre uma pergunta ou um plano a aprovar
+- Então a linha dele mostra "Aguardando permissão: <ferramenta>" (ou o texto da espera) no lugar da ferramenta, com o ícone de espera, e conta no chip "aguardando" e na faixa, também com o cartão de grupo recolhido; terminada a espera, a linha volta a mostrar a ferramenta
+
+Origem: auditoria 2026-11-10 (o aviso de espera de um agente só existia dentro do cartão próprio dele); aplica perguntas.permissao-espera e cabecalho.recolher-nao-muda-chips-nem-faixa, sem mudar nenhuma regra.
+Estado: coberto
+
 ### subagentes.fora-da-contagem
 O subagente não entra no "d de n" e ganha a pílula "N subagentes".
 
 - Dado subagentes rodando sem usar o painel
 - Quando o cabeçalho é desenhado
-- Então o "d de n" não muda, e a pílula diz quantos subagentes estão rodando
+- Então o "d de n" não muda, e a pílula diz quantos subagentes estão rodando; as tarefas que um subagente planeja contam (subagentes.tarefas-do-subagente-contam-acima)
 
 Origem: decisão do usuário, 2026-11-09 ("Fora da contagem").
+Reescrito: 2026-11-14, decisão do usuário ("No cabeçalho e acima"): só o cartão fica fora da contagem; as tarefas planejadas pelo subagente contam. O teste deste cenário não muda.
 Código: draw/svg.ts, hooks/render.tsx
+Estado: coberto
+
+### subagentes.tarefas-do-subagente-contam-acima
+As tarefas que um subagente planeja contam no cabeçalho e nas linhas acima do cartão dele.
+
+- Dado um subagente que usa o painel e planeja tarefas, com o cartão sob a tarefa de onde foi lançado
+- Quando o painel é desenhado, com o cartão aberto, recolhido ou num cartão de grupo, e com a tarefa de origem ou o pedido recolhidos ou não
+- Então as tarefas dele entram no "d de n" do cabeçalho e no x/y da tarefa de origem, dos pais dela e do pedido; as interrompidas ficam fora do total; recolher qualquer dessas linhas não muda os números; o cartão em si segue fora da contagem (subagentes.fora-da-contagem)
+
+Origem: decisão do usuário, 2026-11-14 ("No cabeçalho e acima"), à pergunta "As tarefas de um subagente contam onde?".
 Estado: coberto
 
 ### subagentes.na-filha
@@ -78,6 +110,26 @@ O subagente de uma sessão filha aparece no cartão dela.
 Origem: decisão do usuário, 2026-11-09 ("na raiz, ou dentro de uma sessão filha").
 Código: io/publish.ts
 Estado: coberto
+
+### subagentes.retomado-volta-a-trabalhando
+O subagente retomado volta a "trabalhando" no mesmo cartão.
+
+- Dado um subagente que terminou (o cartão "concluído", "falhou" ou "interrompido")
+- Quando o app o retoma (com uma mensagem, sob o mesmo id)
+- Então o cartão volta a "trabalhando" (ou "em segundo plano"), sem fim, na pílula "N subagentes", com a ferramenta em uso e a contagem de chamadas seguindo de onde estava; o fim seguinte vale como fim; as tarefas dele que ficaram ✕ só voltam com start nelas; a tarefa de origem já fechada não reabre, e a ainda aberta espera por ele
+
+Origem: auditoria 2026-11-10 (o lançamento com retomada não tocava o cartão); aplica subagentes.um-rodando-mantem-o-pai, turnos.parada-segue-interrompida-ate-o-start ("só o start nela a reacende") e subagentes.workflow-sem-sinal-vira-interrompido ("a tarefa de origem já fechada não reabre"), sem mudar nenhuma regra.
+Estado: coberto
+
+### subagentes.retomado-no-app
+No app, o subagente real retomado volta a "trabalhando".
+
+- Dado um subagente real que terminou, com o cartão sob a tarefa de origem
+- Quando o modelo manda uma mensagem a ele e o app o retoma
+- Então o cartão volta a "trabalhando", com a ferramenta em uso, e a pílula o conta; ao terminar de novo, diz o novo fim
+
+Origem: auditoria 2026-11-10; o teste simula a retomada pelo lançamento com o mesmo id, não a retomada real.
+Estado: checklist (retomada real de subagente no app)
 
 ### subagentes.cartao-no-app
 O cartão no app: cores nos dois temas, modelo e ferramenta de um subagente real.
@@ -92,11 +144,13 @@ Estado: checklist (subagente real no app)
 ### subagentes.pai-conclui-no-fim-do-turno
 A tarefa de onde saíram subagentes, todos concluídos, fica ✓ quando nada mais está em execução.
 
-- Dado uma tarefa sem subtarefas, iniciada ou pendente, com um ou mais subagentes lançados dela, todos "concluído", e nada mais em execução nela (nenhum subagente rodando, nenhuma sessão filha viva, nenhuma carta na fila, nenhuma pergunta aberta)
-- Quando o turno termina (ou o último subagente em segundo plano termina depois do turno)
+- Dado uma tarefa sem subtarefas, iniciada ou pendente, com um ou mais subagentes lançados dela, todos "concluído", e nada mais em execução nela (nenhum subagente rodando, nenhuma sessão filha viva nela, aberta ali ou com a rodada atual ali, trabalhando, abrindo ou esperando a pessoa, nenhuma carta na fila, nenhuma pergunta aberta do mesmo dono)
+- Quando o turno termina (ou o último subagente em segundo plano termina depois do turno, mesmo parado com Esc: subagentes.fim-depois-do-esc-fecha-a-tarefa)
 - Então a tarefa fica ✓ sozinha, com o tempo parado no fim do último subagente; o pai e o pedido seguem a regra de sempre; o x/y conta a tarefa; o cartão segue "concluído" e fora da contagem; um `done` do modelo depois disso só acrescenta o resumo
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)"; para a pendente sem start: "Fecha também").
+Reescrito: 2026-11-14, texto: a sessão viva conta aberta ali ou com a rodada atual ali, também esperando a pessoa, e a pergunta aberta só conta a do mesmo dono (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-14, texto: o Quando remete ao fim do subagente depois do Esc (subagentes.fim-depois-do-esc-fecha-a-tarefa); os testes deste cenário não mudam.
 Código: hooks/turn.ts
 Estado: coberto
 
@@ -105,9 +159,10 @@ A tarefa de onde saiu um subagente que falhou ou foi interrompido reflete esse f
 
 - Dado uma tarefa cujos subagentes terminaram, algum deles "falhou" ou "interrompido", e nada mais em execução nela
 - Quando o turno termina
-- Então a tarefa fica ✕, com "falhou" se um falhou, senão "interrompida"; com fins mistos vale o pior (falhou, depois interrompido, depois concluído), derivado das respostas acima
+- Então a tarefa fica ✕, com "falhou" se um falhou, senão "interrompida"; entre subagentes que rodaram juntos vale o pior (falhou, depois interrompido, depois concluído); quando um subagente é lançado depois do fim de outro da mesma tarefa (uma nova tentativa), conta o fim do último, e os que terminaram antes desse lançamento não contam: a nova tentativa concluída deixa a tarefa ✓, com o cartão do que falhou ainda "falhou" embaixo dela
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "interrompido se é interrompido, falha se ele falhou").
+Reescrito: 2026-11-14, decisão do usuário ("✓, vale a última (Recomendado)"); desfaz, para a nova tentativa lançada depois do fim da anterior, "com fins mistos vale o pior" (derivado das respostas de 2026-11-09). O teste do misto lançado junto não muda.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -116,33 +171,48 @@ Com um subagente ainda rodando, a tarefa de onde saiu não fecha.
 
 - Dado uma tarefa com um subagente concluído e outro rodando, ou com uma carta na fila
 - Quando o turno termina
-- Então a tarefa não fecha e o x/y não muda até o último terminar (e a carta ser entregue)
+- Então a tarefa não fecha e o x/y não muda até o último terminar (e a carta ser entregue); a entrega de uma carta dela também não a fecha enquanto um subagente dela roda
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao").
+Reescrito: 2026-11-14, texto: a entrega de uma carta da tarefa também espera o subagente dela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### subagentes.id-reusado-nao-herda-cartao
 Um plano que reusa o id de uma tarefa com subagente não herda o cartão dele.
 
 - Dado uma tarefa de onde saiu um subagente (o cartão sob ela), fechada, ou aberta de um pedido anterior
-- Quando um plan com o mesmo id a renomeia (pedido novo, nível 1 concluído, ou o replano de um subagente sobre as tarefas dele)
+- Quando um plan com o mesmo id a renomeia (pedido novo, ou o replano de um subagente sobre as tarefas dele; no mesmo pedido do loop principal, o nível 1 concluído reabre e o cartão segue sob a mesma tarefa: pedidos.nivel1-concluido-e-historico)
 - Então o cartão fica com a cópia antiga, como o da sessão e a carta; não aparece sob a tarefa nova, que no fim do turno segue como o turno a deixou, sem fechar pelo subagente antigo
 
 Origem: auditoria 2026-11-10 (plano que reusa um id não renomeia a âncora dos grupos de subagente); aplica subagentes.cartao-desde-o-lancamento ("o cartão aparece embaixo dessa tarefa") e pedidos.plano-anterior-vira-historico, como a renomeação já fazia com sessões, cartas e lançamentos, sem mudar subagentes.pai-conclui-no-fim-do-turno.
 Código: hooks/tools.ts, hooks/panel.ts
+Reescrito: 2026-11-14, decisão do usuário ("Reabre mantendo os ✓ (Recomendado)"); o nível 1 concluído do loop principal, replanejado no mesmo pedido, deixa de ser renomeado. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### subagentes.cartao-fica-com-a-origem-fechada
 Fechada a tarefa de onde saiu o subagente, o cartão dele segue embaixo dela.
 
 - Dado uma tarefa de onde saiu um subagente, à vista no trabalho atual
-- Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela
-- Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; sai junto com o pedido da tarefa, quando ele sai do trabalho ("+N pedidos anteriores"), como o cartão da sessão e a carta
+- Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela (no mesmo pedido; num pedido ainda sem plano vale subagentes.lancado-antes-do-plan-e-adotado)
+- Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; quando o pedido da tarefa sai do trabalho ("+N pedidos anteriores"), o subagente terminado que não planejou tarefas é apagado (do painel, do que é guardado e do que é publicado), e o que tem tarefas próprias vai guardado com o pedido, como o cartão da sessão e a carta; ao abrir "+N pedidos anteriores", as tarefas antigas aparecem sem os cartões de subagente
 
 Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho segue sem ser desenhado solto no fim (depende de o cartão vivo terminar quando o fim do subagente não chega).
 
 Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
 Código: draw/layout.ts
+Reescrito: 2026-11-14, decisão do usuário ("Apagar os sem tarefas (Recomendado)"): o cartão do subagente terminado sem tarefas não vai para o histórico.
+Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): o lançamento num pedido ainda sem plano não vai à tarefa fechada do pedido anterior.
+Estado: coberto
+
+### subagentes.tarefa-em-andamento-com-subagente-rodando
+Enquanto um subagente lançado dela roda, a tarefa aberta aparece em andamento.
+
+- Dado uma tarefa aberta, com ou sem start, com um subagente lançado dela (ou de uma tarefa aberta de baixo dela) rodando ("trabalhando" ou "em segundo plano"), ou um subagente terminado dela que lançou outro ainda rodando
+- Quando o painel é desenhado, com o turno em curso ou terminado
+- Então a tarefa, os pais e o pedido aparecem ◉, com o tempo correndo; a iniciada não fica ◷ no fim do turno enquanto ele roda; quando ele termina, vale a regra de sempre (dentro do turno, a tarefa volta ao que era; com o turno terminado, fecha pelo fim dele); a tarefa já concluída segue ✓ com o cartão embaixo (subagentes.cartao-fica-com-a-origem-fechada); a tarefa que o Esc parou segue ◷ enquanto ele roda (turnos.esc-com-trabalho-delegado-vivo); os chips não mudam: o subagente conta na pílula "N subagentes"
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, ◉ como a filha (Recomendado)"); exceção a arvore.sem-start-nada-acende ("sem start, nada aceso", 2026-10-23), como a da sessão filha. A tarefa concluída com o subagente em segundo plano: decisão do usuário, 2026-11-14 ("Segue ✓ (Recomendado)").
+Código: hooks/sessions.ts
 Estado: coberto
 
 ### subagentes.reaberta-nao-fecha-pelo-subagente-antigo
@@ -154,9 +224,11 @@ Reaberta com start, a tarefa não fecha de novo pelos subagentes que terminaram 
 
 Também: a tarefa (pendente ou iniciada) cujo subagente terminou antes do primeiro start dela não foi reaberta e segue fechando no fim do turno ("Fecha também").
 
-Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (segue valendo o pior); o fim de um subagente depois do Esc.
+Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (lançados juntos, vale o pior; lançado depois do fim do outro, vale o último: subagentes.pai-reflete-falha-ou-interrupcao).
 
 Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores); aplica turnos.iniciada-aguarda-no-fim ("salvo a tarefa cujo trabalho era só subagentes") e subagentes.pai-conclui-no-fim-do-turno ("Fecha de fato (Recomendado)", "Fecha também") ao fim que já foi refletido, sem mudar nenhuma delas nem subagentes.pai-reflete-falha-ou-interrupcao.
+Reescrito: 2026-11-14, texto: remete à decisão "✓, vale a última (Recomendado)"; os testes deste cenário não mudam.
+Reescrito: 2026-11-14, texto: o fim de um subagente depois do Esc sai do "Fora deste cenário" (passou a ter cenário: subagentes.fim-depois-do-esc-fecha-a-tarefa); os testes deste cenário não mudam.
 Código: state/tasks.ts
 Estado: coberto
 
@@ -170,6 +242,7 @@ Um subagente lançado antes de a tarefa ser planejada não a fecha.
 Fora deste cenário: nesse painel antigo, o cartão segue desenhado sob a tarefa nova.
 
 Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores; a defesa por tempo para os dados já gravados, proposta com a correção da âncora); aplica subagentes.id-reusado-nao-herda-cartao ("sem fechar pelo subagente antigo") ao que já estava gravado.
+Reescrito: 2026-11-14, decisão do usuário ("Sim, ajustar a preparação (Recomendado)"): o subagente terminado sem tarefas do pedido anterior já sai com o pedido (subagentes.terminado-sem-tarefas-sai-com-o-pedido), então o teste monta ele mesmo o grupo antigo gravado; o que se afirma não muda.
 Estado: coberto
 
 ### subagentes.lancados-juntos-se-veem
@@ -262,3 +335,47 @@ No app, o cartão do subagente que morreu com o processo fica "interrompido"; o 
 
 Origem: decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)"); o teste simula a lista de agentes do app, não o reinício real nem o que o app lista depois dele.
 Estado: checklist (reinício real do app e /model com subagente em segundo plano)
+
+### subagentes.terminado-sem-tarefas-sai-com-o-pedido
+O subagente terminado que não planejou tarefas é apagado quando o pedido dele sai do trabalho atual.
+
+- Dado um pedido com subagentes já terminados, uns sem tarefas no painel e outros com tarefas próprias
+- Quando o pedido sai do trabalho atual (a mensagem seguinte começa trabalho novo, sem nada aberto à vista nele)
+- Então os subagentes sem tarefas saem do painel, do que é guardado e do que é publicado: ao abrir "+N pedidos anteriores" as tarefas antigas aparecem sem eles, e um start que reabra uma tarefa antiga não os traz de volta; os que têm tarefas próprias seguem guardados e publicados com o pedido; o que ainda roda, ou tem quem dependa dele, fica até terminar e sai com o trabalho novo seguinte; no trabalho atual nada muda
+
+Origem: decisão do usuário, 2026-11-14 ("Apagar os sem tarefas (Recomendado)"), à pergunta sobre os cartões de subagentes terminados que ficavam guardados para sempre (uma sessão com 524 deles); limita ao trabalho atual subagentes.terminado-segue-cartao e subagentes.cartao-fica-com-a-origem-fechada.
+Código: hooks/panel.ts, hooks/tools.ts
+Estado: coberto
+
+### subagentes.lancado-antes-do-plan-e-adotado
+O subagente lançado antes do plan do pedido termina a lista, e o plan do pedido o adota.
+
+- Dado um pedido novo ainda sem plano e nada em andamento
+- Quando o modelo lança um subagente, e depois planeja o pedido
+- Então, até o plan, o cartão termina a lista, sem tarefa de pedido anterior; no primeiro plan do pedido, passa para a tarefa cujo título casa com a descrição ou o tipo dele, senão para a primeira pendente; o fim dele não fecha a tarefa que o adotou (subagentes.lancado-antes-da-tarefa-nao-conta)
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)").
+Código: hooks/tools.ts, hooks/panel.ts
+Estado: coberto
+
+### subagentes.fim-depois-do-esc-fecha-a-tarefa
+Depois do Esc, o fim do último subagente da tarefa a fecha como no fim normal do turno.
+
+- Dado uma tarefa iniciada quando a pessoa para o turno (Esc), com um subagente em segundo plano lançado dela ainda rodando
+- Quando o subagente termina, com o turno já parado
+- Então a tarefa fecha sozinha como no fim normal: ✓ se ele concluiu, ✕ "falhou" se falhou, ✕ "interrompida" se foi parado, sem start nem done; antes disso ela não fecha e segue ◷ enquanto ele roda (turnos.esc-com-trabalho-delegado-vivo); o cartão segue embaixo dela com a palavra de estado; na mesma hora fecham também, pelos subagentes delas, as outras tarefas que o Esc deixou ✕ e cujos subagentes já tinham terminado antes do Esc, com nada mais em execução nelas
+
+Origem: decisão do usuário, 2026-11-14 ("Fecha como no fim normal"), à pergunta sobre o fim de um subagente em segundo plano depois do Esc; exceção a turnos.parada-segue-interrompida-ate-o-start ("Segue ✕ até novo start (Recomendado)", 2026-11-12) para a tarefa cujo subagente termina depois. Para as outras paradas com Esc cujos subagentes terminaram antes: decisão do usuário, 2026-11-14 ("Todas, como hoje").
+Código: hooks/turn.ts, hooks/agents.ts, state/tasks.ts
+Estado: coberto
+
+### subagentes.modelo-avisado-do-fechamento
+O modelo é avisado, uma vez, quando o fim dos subagentes fecha ou interrompe uma tarefa.
+
+- Dado uma tarefa do loop principal fechada pelo painel porque os subagentes lançados dela terminaram (✓), ou marcada ✕ porque um falhou ou foi parado
+- Quando chega o prompt seguinte, ou a próxima chamada de ferramenta do loop principal
+- Então o modelo recebe a nota com a tarefa e como ela ficou: concluída sozinha (reabrir com start se ainda havia o que fazer), ou interrompida, com "falhou" quando foi falha (start nela para refazer); a nota sai uma vez
+
+Origem: auditoria 2026-11-10 (o fechamento automático não deixava nota); aplica subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09), sem mudá-las.
+Código: hooks/prompt-submit.ts, hooks/tool-call.ts, text/rules.ts
+Estado: coberto

@@ -1,23 +1,33 @@
-// Os testes existentes que mudaram, para o relato: contra HEAD (padrão) ou contra a base do PR
-// (--pr: merge-base com origin/main, ou main). Mostra as regras, o selo novo e o corpo antes e depois.
+// Os testes existentes que mudaram, para o relato: contra HEAD com mudança fora de commit, ou contra o
+// commit anterior sem ela (logo depois do commit local); --base <ref>; ou a base do PR (--pr:
+// merge-base com origin/main, ou main). Mostra as regras, o selo novo e o corpo antes e depois.
 // Relato, não trava: sai sempre com 0 (quem trava são as etapas selos e regressao do check).
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { baseDoRelato } from './mudou.mjs'
 import { extrair } from './selos.mjs'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const git = (...a) => spawnSync('git', ['-C', raiz, ...a], { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 })
 
-let base = 'HEAD'
+let base
+let rotulo
+const curto = ref => git('rev-parse', '--short', ref).stdout.toString().trim()
 // --base <ref>: contra esse commit (a CI, a base do PR).
 const iBase = process.argv.indexOf('--base')
-if (iBase >= 0 && process.argv[iBase + 1]) base = process.argv[iBase + 1]
-else if (process.argv.includes('--pr')) {
+if (iBase >= 0 && process.argv[iBase + 1]) {
+  base = process.argv[iBase + 1]
+  rotulo = base
+} else if (process.argv.includes('--pr')) {
   const alvo = git('rev-parse', '--verify', '--quiet', 'origin/main').status === 0 ? 'origin/main' : 'main'
   base = git('merge-base', 'HEAD', alvo).stdout.toString().trim()
+  rotulo = `a base do PR (${base.slice(0, 7)})`
+} else {
+  base = baseDoRelato(raiz)
+  rotulo = base === 'HEAD' ? 'HEAD' : `o último commit (${curto('HEAD')} contra ${curto(base)}), porque não há mudança fora de commit`
 }
 
 // Os testes e o catálogo da base, numa pasta temporária.
@@ -36,7 +46,7 @@ try {
   const mudados = Object.keys(antes).filter(k => depois[k] && depois[k].hash !== antes[k].hash)
   const removidos = Object.keys(antes).filter(k => !depois[k])
   const novos = Object.keys(depois).filter(k => !antes[k])
-  console.log(`Testes existentes alterados desde ${base === 'HEAD' ? 'HEAD' : `a base do PR (${base.slice(0, 7)})`}: ${mudados.length ? mudados.length : 'nenhum'}`)
+  console.log(`Testes existentes alterados desde ${rotulo}: ${mudados.length ? mudados.length : 'nenhum'}`)
   for (const k of mudados) {
     const s = selos[k]
     console.log(`\n## ${k}`)

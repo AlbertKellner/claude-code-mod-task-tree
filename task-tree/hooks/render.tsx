@@ -5,8 +5,8 @@
 
 import { atom, read, update } from 'claude-code'
 
-import type { Send } from '../types'
-import { MAIN, MAX_ROWS, settle, flat, hasOpen, leftWaiting, withMain, count, total, atWork, sessionTime, current, startedLast, layout, guides, labelCols, split, newBreaksMemo, gitLabel } from '../draw/layout'
+import type { Child, Send } from '../types'
+import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
@@ -15,7 +15,7 @@ import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
-import { stayed } from '../draw/layout'
+import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -76,6 +76,7 @@ const workState = { plugin: 'task-tree', key: 'work' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
+const namesState = { plugin: 'task-tree', key: 'names' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Boxes and Texts, the terminal's text. `$` is for the presses.
@@ -212,16 +213,12 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { value: sessionsError = '' } = await $.state.get(childrenErrorState)
   // Every send of this session, queued and taken up (see watchSends): their letters.
   const { value: sends = [] } = await $.state.get(sendsState)
-  // The whole session's count, for the header's tooltip; the header itself counts what the
+  // The whole session's count, for the bar's alt text and the "+N pedidos anteriores" line; the header itself counts what the
   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
-  const ownTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
-  // What the person stopped and was not started again is out of it too, as in the drawing (stay): the
-  // tooltip said "sessão inteira" with one task more than the header, nothing being out of sight.
-  const queuedFrom = (sends as Send[]).filter(s => !s.taken && !s.cut).flatMap(s => (s.anchor === undefined ? [] : [s.anchor]))
-  const [ad, an] = total({ groups: stayed(withMain(held ?? []), queuedFrom), waits, children: sessions }, 0, c =>
-    split(c, sessions, knownId(), ownTasks, undefined, newBreaksMemo()).map(r => settle(r, ownTasks, sends as Send[])),
-  )
+  // What the person stopped and was not started again is out of it too, as in the drawing, and so is
+  // delegated work alive below a task: sessionTotal, the same count as the status's.
+  const [ad, an] = sessionTotal(held ?? [], sessions as Child[], sends as Send[], knownId())
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
   const now = await stamp($)
   // What the person opened or closed.
@@ -245,7 +242,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
-  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
+  // The names of sessions known by id, for the letters to one that is not a child.
+  const { value: names } = await $.state.get(namesState)
+  const model = { groups: held ?? [], waits, children: sessions, sends: sends as Send[], work: work as string[], ...(names ? { names } : {}), ...(typeof ended === 'number' ? { ended, ...(aborted === true ? { aborted: true } : {}) } : {}) }
   // One drawing of what was read above, in at most `maxRows` lines: nothing below reads the state or
   // waits, so the size limit can ask for it again with fewer lines. `all`: the lines it stands for,
   // the ones a limit left out too.
@@ -275,11 +274,21 @@ export async function render($: EngineInterface, e: any, next: any) {
   const head = short ? clip(headTask?.title ?? 'Tarefas') : (headTask?.title ?? 'Tarefas')
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
-  // group limit, the drawn groups'. The whole session's count stays in the tooltip.
+  // group limit, the drawn groups'. The whole session's count goes in the bar's alt text and the
+  // "+N pedidos anteriores" line.
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
-  const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
-  const headTime = sessionTime(shown, tally(r => r.live) > 0 || hasOpen(shown), now)
+  // The chips' other numbers: the drawn lines and what the folded ones hide (tallyOf).
+  const tally = tallyOf(lines)
+  // Its time runs to now only while the 1 s clock runs too (anyRunning): the turn going on with
+  // something open, or, the turn ended, a session at work, a letter queued or a subagent alive. With
+  // the turn ended and none of that, it stops at the turn's end (the person, 2026-11-14: "Parar no fim
+  // do turno (Recomendado)"); with all closed, at the last end.
+  const alive = tally.live > 0 || tally.sends > 0 || tally.subs > 0
+  const going = typeof ended === 'number' ? alive : alive || hasOpen(shown)
+  const stopped = !going && typeof ended === 'number' && hasOpen(shown)
+  // The session's idle spans are left out (Group.idle; "Só com turno em curso (Recomendado)").
+  const headTime = sessionTime(shown, going || stopped, going ? now : stopped ? (ended as number) : now, idleOf(held ?? []))
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.
@@ -290,10 +299,19 @@ export async function render($: EngineInterface, e: any, next: any) {
   const resting = open.filter(leftWaiting).length
   const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
-  const waitingNow = tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting
-  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent' && r.msg === 'queued'), pending, lines.reduce((a, r) => a + (r.subs ?? 0), 0))
+  // The main panel's "+N pedidos anteriores" line says it too, on its right (the person, 2026-11-14:
+  // "Na linha +N (Recomendado)"): only there and only when it differs; a card's history line does not
+  // (the count is this session's). Its title stays as it is.
+  const rows = whole ? lines.map(r => (r.key === 'sec:turns' ? { ...r, meta: whole } : r)) : lines
+  const waitingNow = tally.waits + resting
+  const list = chips(active, waitingNow, x, tally.live, tally.sends, pending, tally.subs)
   // The header's general state, the color of its band (headerState).
-  const state = headerState({ active, waiting: waitingNow, live: tally(r => r.live), pending, d, n, x })
+  // With the turn going on, a task of this session started in the request now (or later): the band
+  // stays in progress between a done and the next start (headerState).
+  const since = lastTurnAt(held ?? [])
+  const lastStart = startedLast(mainTasks)?.startedAt
+  const started = typeof ended !== 'number' && since !== undefined && typeof lastStart === 'number' && lastStart >= since
+  const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x, started })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
@@ -310,7 +328,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
     const top = desktopHead(ui, { title: head, d, n, chips: list, time: headTime, rate: headRate, git: headGit, state, ultracode: ultracode === true, alt, whole, cols })
-    return drawDesktop($, ui, lines, cols, top, { errorLine })
+    return drawDesktop($, ui, rows, cols, top, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -341,7 +359,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ))}
           </Text>,
         ]
-  return drawTerminal($, ui, lines, header, errorLine)
+  return drawTerminal($, ui, rows, header, errorLine)
   }
   // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
   // long session's history, 1.3 MB). A drawing past it is made again with fewer lines, the oldest

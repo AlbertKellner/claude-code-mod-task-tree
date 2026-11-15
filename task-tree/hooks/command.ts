@@ -1,6 +1,7 @@
 // /task-tree: opens the pane and says what the app answered.
 
 import { PANE, DRAW_LIMIT, drawn, publishPanel } from './panel'
+import { storeFailure } from '../state/durability'
 
 // Opens the panel, asked by the person (placed at any width), and says what the app answered and
 // which panes it holds, so a panel that does not show up can be told apart: undrawn (the width),
@@ -21,9 +22,11 @@ export async function commandRun($: EngineInterface, e: any) {
       .join(', ')
   } catch {}
   void publishPanel($).catch(() => {})
+  // Only with a failed write kept: the panel on screen is right, but it is not being saved.
+  const store = storeFailure.what ? ` Store: a última gravação de ${storeFailure.what} falhou (${storeFailure.error}); o painel na tela está certo, mas não está sendo salvo.` : ''
   return {
-    text: opened?.isPlaced
+    text: (opened?.isPlaced
       ? `Painel de tarefas aberto. Painéis: ${panes || 'nenhum'}. Desenho: ${Math.round(drawn.size / 1024)} KB de ${Math.round(DRAW_LIMIT / 1024)} KB.`
-      : `O app não pôs o painel na tela: ${String(opened?.reason ?? 'sem motivo')}. Painéis: ${panes || 'nenhum'}.`,
+      : `O app não pôs o painel na tela: ${String(opened?.reason ?? 'sem motivo')}. Painéis: ${panes || 'nenhum'}.`) + store,
   }
 }

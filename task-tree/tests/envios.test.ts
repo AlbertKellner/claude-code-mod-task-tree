@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host, lancaveis, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
 import { aviso, done, envio, esc, ferramenta, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, mensagemDe, pedido, plan, recebidaPeloSubagente, retomadaDoSubagente, start, type No } from './kit/cenario'
-import { cabecalho, cartaSob, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
+import { cabecalho, cartaSob, cartoes, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const PERGUNTA = {
@@ -151,6 +151,31 @@ test('sem tarefa em andamento nem pendente, o envio vai à última iniciada', as
   esperarCartaSob(await painel($), 'Um', 'fila')
 })
 
+// Regra: envios.com-andamento-fica-sob-a-tarefa-em-andamento
+test('com uma tarefa em andamento e um passo planejado depois, a carta fica sob a tarefa em andamento, e a entrega conclui essa tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  // A sessão destino parada: uma filha trabalhando manteria a tarefa ◉.
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'n', title: 'Novo' }] }])
+  await envio($, 'local_x', 'mandada de Um')
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cartasDe(p, 'Novo'), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Novo', 'pendente')
+  // Recebida depois do envio (o relógio andou 1 s).
+  h.recebeu('local_x', AGORA + 2000)
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Novo', 'pendente')
+})
+
 // Regra: envios.pedido-recebido-mostra-carta
 test('o nível 1 aberto por mensagem recebida mostra a carta, na cor do seu estado', async ($: any, on: any) => {
   fixar(on)
@@ -190,6 +215,75 @@ test('a tarefa de mensagem que o replano tira fica visível até a entrega', asy
   esperarCartaSob(p, 'Plano A', 'entregue')
 })
 
+// Regra: envios.carta-uma-vez-no-cartao-da-origem, pedidos.replano-mantem-envio-ate-entrega
+test('a carta na fila cuja tarefa saiu num replano segue no pedido dela, que fica à vista com o pedido novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await plan($, [{ ...A[0]!, children: [A[0]!.children![1]!] }])
+  await start($, ['2'])
+  await done($, ['2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(true)
+  esperarCartaSob(p, 'Plano A', 'fila')
+  expect(cartasDe(p, 'Plano B'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.carta-uma-vez-no-cartao-da-origem, pedidos.replano-mantem-envio-ate-entrega
+test("a carta na fila cuja tarefa saiu num replano não pende de outro pedido quando o dela está em '+N pedidos anteriores'", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_s')
+  await plan($, [{ ...A[0]!, children: [A[0]!.children![1]!] }])
+  await start($, ['2'])
+  await done($, ['2'])
+  await fimDoTurno($)
+  for (const n of ['B', 'C', 'D', 'E']) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${n}`)
+    await plan($, [{ id: n, title: `Plano ${n}`, children: [{ id: `${n}1`, title: `${n} um` }] }])
+    await start($, [`${n}1`])
+    await done($, [`${n}1`])
+    await fimDoTurno($)
+  }
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo.startsWith('+') && l.titulo.includes('pedidos anteriores')), emTexto(p)).toBe(true)
+  for (const n of ['C', 'D', 'E']) expect(cartasDe(p, `Plano ${n}`), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.cor-por-estado
+test('a carta já entregue de uma tarefa que fechou ✕ pelo subagente que falhou segue verde', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['f1'])
+  host(on, [{ id: 'local_x', rodando: false }])
+  const env = responderEnvio(on)
+  env.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await lancar($, { descricao: 'tentar' })
+  await fimDoSubagenteCom($, 'f1', { erro: true })
+  await fimDoTurno($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+  esperarCartaSob(p, 'Um', 'entregue')
+})
+
 // Regra: envios.entrega-imediata-fica-verde
 test('a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done', async ($: any, on: any) => {
   fixar(on)
@@ -216,7 +310,9 @@ test('a entrega imediata aparece entregue na hora e a tarefa segue em andamento 
 // Regra: envios.esc-apos-entrega-imediata
 test('depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem', async ($: any, on: any) => {
   fixar(on)
-  host(on, [{ id: 'local_x' }])
+  // A sessão destino já terminou o turno: trabalhando sob a tarefa, ela poupa a tarefa do Esc
+  // (turnos.esc-com-trabalho-delegado-vivo).
+  host(on, [{ id: 'local_x', rodando: false }])
   const env = responderEnvio(on)
   env.modo = 'entregue'
   await pedido($, 'Pedido um')
@@ -225,6 +321,8 @@ test('depois de uma entrega imediata, o fim do turno e o Esc não interrompem a 
   await envio($, 'local_x')
   await fimDoTurno($)
   esperarCartaSob(await painel($), 'Um', 'entregue')
+  await pedido($, 'segue')
+  await start($, ['1'])
   await esc($)
   const p = await painel($)
   // A carta segue verde; a tarefa, entregue a mensagem, é como qualquer outra: o Esc a interrompe.
@@ -372,6 +470,79 @@ test('sem casamento pelo nome, os envios vão às pendentes planejadas juntas, p
   const p = await painel($)
   expect(cartasDe(p, 'Um').join(' | '), emTexto(p)).toContain('primeira')
   expect(cartasDe(p, 'Dois').join(' | '), emTexto(p)).toContain('segunda')
+})
+
+// Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
+test('sem nada em andamento, três envios e duas pendentes planejadas juntas: a primeira, a segunda e de novo a última', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }, { id: 'local_z' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await envio($, 'local_x', 'primeira')
+  await envio($, 'local_y', 'segunda')
+  await envio($, 'local_z', 'terceira')
+  const p = await painel($)
+  const um = cartasDe(p, 'Um').join(' | ')
+  const dois = cartasDe(p, 'Dois').join(' | ')
+  expect(um, emTexto(p)).toContain('primeira')
+  expect(dois, emTexto(p)).toContain('segunda')
+  expect(dois, emTexto(p)).toContain('terceira')
+  expect(um, emTexto(p)).not.toContain('terceira')
+})
+
+// Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
+test('sem nada em andamento, o envio vai à pendente do plan mais recente do pedido, não à do primeiro', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await relogio.advance(1000)
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'n', title: 'Novo' }] }])
+  await envio($, 'local_x', 'para o novo')
+  const p = await painel($)
+  expect(cartasDe(p, 'Novo').join(' | '), emTexto(p)).toContain('para o novo')
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  expect(cartasDe(p, 'Dois'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
+  h.recebeu('local_x', AGORA)
+  const texto = await contexto(aviso($))
+  expect(texto, 'o aviso da entrega').toContain('recebimento confirmado')
+  expect(texto).not.toContain('já concluiu a tarefa do envio')
+  expect(texto).toContain('não concluiu a tarefa do envio')
+})
+
+// Regra: envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('a entrega que conclui a tarefa diz que o painel a concluiu', async ($: any, on: any) => {
+  fixar(on)
+  // A sessão destino parada: uma filha trabalhando manteria a tarefa ◉.
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await aviso($)
+  h.recebeu('local_x', AGORA)
+  const texto = await contexto(aviso($))
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  expect(texto, 'o aviso da entrega').toContain('já concluiu a tarefa do envio')
 })
 
 // Regra: envios.carta-pelo-nome-da-sessao
@@ -678,4 +849,216 @@ test('o subagente recebe a mensagem na rodada seguinte: a carta fica verde; a ta
   await fimDoTurno($)
   p = await painel($)
   esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: sessoes.destino-que-nao-e-filha-nao-vira-cartao
+test('a mensagem a uma sessão que esta não abriu deixa só a carta: sem cartão e sem sessão ativa', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_99999999-9999-9999-9999-999999999999')
+  const p = await painel($)
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe('fila')
+  expect(p.some(l => l.sessao), emTexto(p)).toBe(false)
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(0)
+  expect(h.proprio()?.children ?? []).toEqual([])
+})
+
+// Regra: envios.envio-que-falha-nao-deixa-rastro
+test('o envio que falha não grava rodada: o turno seguinte da filha segue no cartão dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  on('tool.call', { tool: 'SendMessage' }, () => ({ result: '{"success":false,"message":"no such session"}' }))
+  const K1 = 'local_11111111-1111-1111-1111-111111111111'
+  const tarefaDoTurno = (turn: number, id: string, title: string) => ({ id, short: id, title, status: 'open', started: 1, startedAt: AGORA, children: [], turn })
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefaDoTurno(1, '1', 'f1')], turns: [{ id: 1, title: 'turno 1', at: AGORA + 10 }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }])
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_session__start_session', { title: 'filha' })
+  await aviso($)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [tarefaDoTurno(1, '1', 'f1'), tarefaDoTurno(2, '2', 'f2')],
+    turns: [{ id: 1, title: 'turno 1', at: AGORA + 10 }, { id: 2, title: 'turno 2', at: AGORA + 1500 }],
+  }
+  await aviso($)
+  const p = await painel($)
+  const cs = cartoes(p, 'filha-um')
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  // O turno 1 da filha fica dobrado em "+1 pedidos anteriores" no mesmo cartão; o 2 vem aberto nele.
+  expect(cs[0]?.tarefas, emTexto(p)).toContain('f2')
+  expect(cs[0]?.tarefas.some(t => t.startsWith('+1 pedidos anteriores')), emTexto(p)).toBe(true)
+  expect(cartaSob(p, 'Dois'), emTexto(p)).toBeUndefined()
+})
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota
+test('a carta enviada antes do plan do pedido novo fica solta no fim, não fecha tarefa do pedido anterior, e o plan do pedido a adota', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await envio($, 'local_x', 'Revise')
+  await aviso($)
+  let p = await painel($)
+  expect(cartaSob(p, 'Dois'), emTexto(p)).toBeUndefined()
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBeUndefined()
+  const carta = linha(p, 'Para outra: Revise')
+  expect(carta.carta, emTexto(p)).toBe('fila')
+  const ultimoPedido = Math.max(...p.map((l, i) => (l.titulo.startsWith('Pedido ') ? i : -1)))
+  expect(p.indexOf(carta), emTexto(p)).toBeGreaterThan(ultimoPedido)
+  esperarEstado(p, 'Dois', 'pendente')
+  h.recebeu('local_x', AGORA + 1000)
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(linha(p, 'Para outra: Revise').carta, emTexto(p)).toBe('entregue')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }, { id: 'b2', title: 'Bê dois' }] }])
+  p = await painel($)
+  esperarCartaSob(p, 'Bê um', 'entregue')
+  esperarEstado(p, 'Bê um', 'pendente')
+})
+
+// Regra: envios.entrega-espera-o-que-ainda-roda-na-tarefa, subagentes.um-rodando-mantem-o-pai
+test('com um subagente da tarefa ainda rodando, a entrega da carta não conclui a tarefa; o fim dele, sim', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  // A sessão destino parada: ela não segura a tarefa depois da entrega.
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um', segundoPlano: true })
+  await envio($, 'local_x', 'Revise o PR')
+  await fimDoTurno($)
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(0)
+  await fimDoSubagente($, 'sub-1')
+  // O aviso abriu um turno: o fechamento pelos subagentes roda com o turno terminado.
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: envios.entrega-espera-o-que-ainda-roda-na-tarefa, envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila
+test('duas cartas na fila da mesma tarefa: a primeira entrega não a conclui; a segunda, sim', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }, { id: 'local_y', nome: 'mais', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'Revise o PR')
+  await envio($, 'local_y', 'Rode os testes')
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  let p = await painel($)
+  esperarCarta(p, 'Para outra: Revise o PR', 'entregue')
+  esperarCarta(p, 'Para mais: Rode os testes', 'fila')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_y', AGORA)
+  await aviso($)
+  p = await painel($)
+  esperarCarta(p, 'Para outra: Revise o PR', 'entregue')
+  esperarCarta(p, 'Para mais: Rode os testes', 'entregue')
+  esperarEstado(p, 'Um', 'concluida')
+})
+
+const MAE = 'local_aaaaaaaa-1111-2222-3333-444444444444'
+const IRMA_DOCS = 'local_bbbbbbbb-1111-2222-3333-444444444444'
+
+// Regra: envios.carta-mostra-o-nome-do-destino
+test('a carta para uma sessão que não é filha mostra o nome que veio na mensagem dela', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  responderEnvio(on)
+  await mensagemDe($, MAE, 'faça X')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, MAE, 'feito')
+  const p = await painel($)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toBe('Para outra: feito')
+})
+
+// Regra: envios.carta-mostra-o-nome-do-destino
+test('a carta para uma irmã listada pelo app mostra o nome dela', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: IRMA_DOCS, nome: 'irma-docs', iniciadaPor: MAE }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await aviso($)
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'irma-docs'), emTexto(p)).toBe(false)
+  await envio($, IRMA_DOCS, 'veja a doc')
+  p = await painel($)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toBe('Para irma-docs: veja a doc')
+})
+
+// ---- Um cenário por texto ao modelo (decisão do usuário de 2026-11-14: "Cenário por texto (Recomendado)").
+const NA_FILA = 'ficou na fila'
+
+// Regra: envios.aviso-de-envio-na-fila
+test('o envio que fica na fila pede para manter a tarefa em andamento; a entrega imediata, não', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  const modo = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const fila = await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's1', to: 'local_x', message: 'oi' }))
+  expect(fila).toContain(NA_FILA)
+  expect(fila).toContain('Um')
+  modo.modo = 'entregue'
+  await start($, ['2'])
+  expect(await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's2', to: 'local_x', message: 'oi' }))).not.toContain(NA_FILA)
+})
+
+// Regra: envios.aviso-de-envio-na-fila
+test('o envio na fila para um subagente diz que é para o subagente', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  const ctx = await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's1', to: 'sub-1', message: 'oi' }))
+  expect(ctx).toContain('para o subagente')
+  expect(ctx).toContain(NA_FILA)
+})
+
+// Regra: envios.done-com-carta-na-fila
+test('o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  const modo = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  expect((await done($, ['1'])).texto).toContain('ainda está na fila')
+  modo.modo = 'entregue'
+  await start($, ['2'])
+  await envio($, 'local_x')
+  expect((await done($, ['2'])).texto).not.toContain('ainda está na fila')
 })

@@ -48,13 +48,24 @@ test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pende
 `scripts/regras.mjs`, a primeira etapa do `npm run check`, falha quando: um id se repete ou tem
 formato inválido; um cenário não tem `Estado:` válido; um cenário `coberto` não é citado por
 nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pendente` ou
-`checklist`; ou um `test(` não tem `// Regra:` acima.
+`checklist`; um `test(` não tem `// Regra:` acima; ou uma chave do state do mod não tem linha na
+tabela de durabilidade (e vice-versa).
 
 ## Selo dos testes e do kit
 
 `regras/selos.json` guarda, para cada teste que cita uma regra `coberto`, o hash do corpo (sem
-comentários nem espaços, com as declarações de topo que ele usa) e o número de asserções (`expect`,
-`esperarEstado`, `esperarCarta`, `linha`, `antes`). Cada arquivo de `tests/kit/` tem o seu hash.
+comentários nem espaços, com tudo o que ele alcança no arquivo: as declarações de topo que ele cita, as
+que essas citam, e assim por diante) e o número de asserções (`expect`, os helpers de
+`tests/kit/leitura.ts` que afirmam e as funções do próprio arquivo que o teste chama).
+Cada arquivo de `tests/kit/` tem o seu hash, e também cada arquivo de apoio dos testes (o que está em
+`tests/` sem ser teste, kit nem golden; hoje, `tests/fixtures/`): fica na mesma seção `kit` e se sela
+pelo mesmo `--kit <arquivo>`. O campo `algoritmo` diz a versão do cálculo do hash (2 desde o alcance por
+tabela); quando ele muda, `node scripts/selos.mjs --migrar` regrava os hashes dos selos que conferem pelo
+algoritmo anterior, sem mexer em tipo, data, motivo, regras e asserções (com algum teste mudado sem selo,
+recusa tudo). Contra uma base selada por outro algoritmo, a etapa `selos` e a `regressao` recalculam o
+hash dos testes da base pelo algoritmo atual, e a comparação com a base segue valendo. Quando a contagem muda sem o teste mudar (um helper do kit
+passou a afirmar), `node scripts/selos.mjs --recontar` regrava só o campo `assercoes` dos selos que
+conferem com o teste; com algum teste mudado sem selo, ele recusa.
 
 ```json
 "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
@@ -79,12 +90,24 @@ Selar é um passo explícito, que aparece no diff de `selos.json`:
 npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao|refatoracao|novo --motivo "…"
 node scripts/selos.mjs --kit <arquivo> --tipo refatoracao --motivo "…"
 node scripts/selos.mjs --remover "<arquivo>::<nome>" --tipo decisao --motivo "…"
+node scripts/selos.mjs --renomear "<chave antiga>" --para "<chave nova>" --tipo refatoracao|decisao --motivo "…"
 node scripts/selos.mjs --novos --motivo "…"   # sela como "novo" os testes e o kit ainda sem selo
 ```
 
-A etapa `selos` do `npm run check` falha quando: um teste selado mudou sem selo novo; um teste
-coberto não tem selo; um teste selado sumiu; um arquivo do kit mudou sem selo; ou um selo
-`refatoracao`/`novo` tem menos asserções que o de `HEAD`. A etapa `travas` testa essas regras num
+`--remover` (exige `Reescrito:` em cada regra, com data igual ou posterior à do selo) apaga o selo e
+grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado, o hash que saiu e o
+tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos` com `para`:
+`refatoracao` só para renome puro (o hash do corpo é o mesmo), `decisao` para corpo mudado, com a
+exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
+`removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada.
+
+A etapa `selos` do `npm run check` confere os selos contra os de `HEAD` (ou `--base`) e falha quando:
+um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste selado sumiu; um selo de
+`HEAD` foi apagado sem registro em `removidos`; um selo `refatoracao`/`novo` tem menos asserções que o
+de `HEAD`; um teste que já existia ganhou hash novo com tipo `novo`; um selo `decisao` com hash novo
+não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`); as asserções do selo
+são diferentes das contadas no teste; ou um cenário do golden (os previstos, com `tests/golden.test.ts`
+no repositório, e os de `HEAD`) sumiu do desenho ou do selo. A etapa `travas` testa essas regras num
 repositório temporário.
 
 ## Mapa de código (matriz de impacto)
@@ -127,6 +150,8 @@ Relato da implementação:
 ```markdown
 ### Relato
 - Commit: <hash> <título>.
+- Os dois comandos abaixo rodam depois do commit local: sem mudança fora de commit, comparam o
+  último commit (a primeira linha da saída diz a base).
 - `npm run check`: <resumo das etapas>.
 - `npm run testes:alterados`: <saída colada; "nenhum" se nenhum teste existente mudou>.
 - `npm run impacto`: <saída sobre o diff real; divergência do previsto no brief, explicada>.

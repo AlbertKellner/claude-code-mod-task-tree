@@ -1,5 +1,56 @@
 {
+  "algoritmo": 2,
   "testes": {
+    "task-tree/tests/arvore.test.ts::a recusa do start num pai fechado diz o que o painel mostra e os dois caminhos": {
+      "regras": [
+        "arvore.start-recusa-pai-concluido"
+      ],
+      "hash": "dd135a27401ffa65",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
+    },
+    "task-tree/tests/arvore.test.ts::as regras, a descrição do start e a recusa dizem o mesmo para refazer um pai": {
+      "regras": [
+        "arvore.start-recusa-pai-concluido"
+      ],
+      "hash": "8dba0e72c7e7fc0c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
+    },
+    "task-tree/tests/arvore.test.ts::cancelar um pai interrompe só o que estava aberto embaixo, e avisa o id já fechado ou inexistente": {
+      "regras": [
+        "arvore.cancelar-tarefa-abandonada"
+      ],
+      "hash": "7cc0703ef4efe6cf",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
+    },
+    "task-tree/tests/arvore.test.ts::com a tarefa atual interrompida e a de histórico concluída, o start pelo id curto reabre a atual": {
+      "regras": [
+        "arvore.id-curto-nao-alcanca-o-historico"
+      ],
+      "hash": "0f12578658e5982d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: id curto fora do histórico"
+    },
+    "task-tree/tests/arvore.test.ts::done com cancel deixa a tarefa abandonada interrompida, fora do x/y, e o pai fecha com o que sobrou": {
+      "regras": [
+        "arvore.cancelar-tarefa-abandonada"
+      ],
+      "hash": "cce29e6e3904e576",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
+    },
     "task-tree/tests/arvore.test.ts::id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve": {
       "regras": [
         "arvore.ids-curtos-e-avisos"
@@ -10,6 +61,16 @@
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
     },
+    "task-tree/tests/arvore.test.ts::o aviso de falta do summary diz que só vale para o último passo do turno": {
+      "regras": [
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "d757c75977d59b4d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: falta o summary só no último passo"
+    },
     "task-tree/tests/arvore.test.ts::o done avisa a falta do summary no fim e as etapas fechadas juntas sem start": {
       "regras": [
         "arvore.done-sem-summary-e-varias-sem-start"
@@ -19,6 +80,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/arvore.test.ts::o id curto não alcança as tarefas de histórico: start numa concluída não é ambíguo e o id que só existe no histórico não existe": {
+      "regras": [
+        "arvore.id-curto-nao-alcanca-o-historico"
+      ],
+      "hash": "5126c2fcd8bff804",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: id curto fora do histórico"
     },
     "task-tree/tests/arvore.test.ts::pai fecha sozinho quando todos os filhos fecham": {
       "regras": [
@@ -36,10 +107,20 @@
         "arvore.plan-recusa-ids-repetidos"
       ],
       "hash": "1f7d3902481e2d82",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/arvore.test.ts::start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta, de verdade": {
+      "regras": [
+        "arvore.start-no-pai-inicia-a-primeira-subtarefa"
+      ],
+      "hash": "7c382fd01da8b1ba",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Inicia a 1ª subtarefa (Recomendado)\""
     },
     "task-tree/tests/arvore.test.ts::start reabre os pais de uma tarefa concluída e recusa tarefa concluída com subtarefas": {
       "regras": [
@@ -51,6 +132,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/arvore.test.ts::um resumo dado antes de um plan não cala a cobrança do done final": {
+      "regras": [
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "df196cdbf21387a5",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: falta o summary só no último passo"
     },
     "task-tree/tests/cabecalho.test.ts::\"+N pedidos anteriores\" abre com um clique, fechado por padrão, e fecha de novo": {
       "regras": [
@@ -67,10 +158,20 @@
         "cabecalho.interrompida-fora-do-total"
       ],
       "hash": "8aa14ca32377c411",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::aberta a linha, com tudo desenhado, ela não repete o total": {
+      "regras": [
+        "cabecalho.sessao-inteira-na-linha-do-historico"
+      ],
+      "hash": "0adc05a44bf54d15",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Na linha +N (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o corte das 400 linhas deixa a linha à vista, logo depois de \"+N linhas anteriores\"": {
       "regras": [
@@ -86,41 +187,91 @@
       "regras": [
         "cabecalho.corte-preserva-historico-aberto"
       ],
-      "hash": "fb85ab0316dd6316",
-      "assercoes": 9,
-      "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "decisão do usuário, 2026-11-13: \"Preservar a linha (Recomendado)\""
+      "hash": "6c2abbee6553683f",
+      "assercoes": 10,
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
     },
     "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o desenho acima de 600 KB corta os mais antigos, sem aviso, e volta inteiro quando ela fecha": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "9b158968c5fab57f",
+      "hash": "6b87cb9f835a2179",
       "assercoes": 7,
-      "tipo": "decisao",
-      "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
+    },
+    "task-tree/tests/cabecalho.test.ts::com a tarefa em andamento dentro do começo, o corte segue guardando o começo": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "8dec5a6b729ef6d3",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Trecho da em andamento (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::com algo aberto à vista, a resumida mantém o pedido anterior": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
       ],
       "hash": "b704ac6bedda88f4",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::com o turno encerrado e tarefas abertas, o tempo do cabeçalho para no fim do turno": {
+      "regras": [
+        "cabecalho.tempo-para-no-fim-do-turno"
+      ],
+      "hash": "6ffb4ad3ae66f45a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Parar no fim do turno (Recomendado)"
+    },
+    "task-tree/tests/cabecalho.test.ts::com o turno encerrado e uma carta na fila (ou a filha trabalhando), o tempo do cabeçalho segue contando": {
+      "regras": [
+        "cabecalho.tempo-para-no-fim-do-turno"
+      ],
+      "hash": "adf6739d23d31279",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Parar no fim do turno (Recomendado)"
+    },
+    "task-tree/tests/cabecalho.test.ts::com pedidos escondidos, a linha '+N pedidos anteriores' diz o total da sessão inteira": {
+      "regras": [
+        "cabecalho.sessao-inteira-na-linha-do-historico"
+      ],
+      "hash": "70679a6b8d3e22a3",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Na linha +N (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::dois starts no mesmo instante: o título é o do último da lista do start": {
       "regras": [
         "cabecalho.titulo-desempata-pela-ordem-do-start"
       ],
       "hash": "e52851a6d5f8c107",
-      "assercoes": 2,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "empate de starts"
+    },
+    "task-tree/tests/cabecalho.test.ts::num pedido grande demais, com a tarefa em andamento depois do corte, o painel mostra o trecho dela": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "b1ffb18adfb29a4e",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Trecho da em andamento (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::o cartão parado, sem tarefa de origem e de antes dos três últimos pedidos vira \"+1 cartões antigos de sessões\"": {
       "regras": [
@@ -138,7 +289,7 @@
         "cabecalho.resumida-limpa-so-com-tudo-concluido"
       ],
       "hash": "256d158fc236b10b",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -148,7 +299,7 @@
         "cabecalho.titulo-e-a-ultima-iniciada"
       ],
       "hash": "6503053e909ba609",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "título do cabeçalho"
@@ -158,7 +309,7 @@
         "cabecalho.chips-contam-folhas"
       ],
       "hash": "030c448b1b4832a2",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -168,7 +319,7 @@
         "cabecalho.numeros-somam-o-desenhado"
       ],
       "hash": "c1f2a061ba734aca",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
@@ -183,25 +334,68 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::recolher a tarefa com a pergunta aberta não tira o 'aguardando'": {
+      "regras": [
+        "cabecalho.recolher-nao-muda-chips-nem-faixa",
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "6ceb57afeec7fb1f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a linha recolhida leva os chips e a faixa"
+    },
+    "task-tree/tests/cabecalho.test.ts::recolher a tarefa de origem ou o pedido não tira a sessão ativa, a carta na fila nem os subagentes dos chips": {
+      "regras": [
+        "cabecalho.recolher-nao-muda-chips-nem-faixa",
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "a302d91dd5397b42",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a linha recolhida leva os chips e a faixa"
+    },
+    "task-tree/tests/cabecalho.test.ts::recolher o cartão da filha que espera, a tarefa de origem ou o pedido não tira o 'aguardando' nem muda a faixa": {
+      "regras": [
+        "cabecalho.recolher-nao-muda-chips-nem-faixa",
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "f2b29ec5ad2e7ff2",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a linha recolhida leva os chips e a faixa"
+    },
     "task-tree/tests/cabecalho.test.ts::sem nada aberto, um desenho acima de 600 KB perde os pedidos mais antigos até caber, sem aviso": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "99c0c0303bf60a74",
+      "hash": "e1692d304b873bec",
       "assercoes": 7,
-      "tipo": "decisao",
-      "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
     },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.limites-de-linhas"
       ],
       "hash": "c69adb9ab6c4d893",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::um aviso sem tarefa depois de um pedido grande demais não esconde o pedido": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "6b727c366f2a533f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o corte reserva o espaço do que vem depois do último pedido"
     },
     "task-tree/tests/cabecalho.test.ts::um pedido grande demais é desenhado até o limite e fecha com \"+N linhas\"": {
       "regras": [
@@ -217,11 +411,21 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "4d1223ac5ce5b872",
+      "hash": "77a381977dce2a75",
       "assercoes": 6,
       "tipo": "decisao",
-      "data": "2026-11-13",
-      "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado); a preparação deixa o pedido sem tarefa em andamento, as asserções não mudam"
+    },
+    "task-tree/tests/cabecalho.test.ts::um pedido só acima de 600 KB, com a tarefa em andamento no fim, mostra o trecho dela": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "0ad7ea1340ba9b81",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::um título enorme no cabeçalho leva ao aviso, e \"Voltar\" traz o painel de volta com os textos encurtados": {
       "regras": [
@@ -243,32 +447,152 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13: \"Manter como rede (Recomendado)\""
     },
+    "task-tree/tests/durabilidade.test.ts::/clear com espera e carta: o arquivo publicado sai sem espera e sem cartas": {
+      "regras": [
+        "durabilidade.clear-publica-limpo"
+      ],
+      "hash": "1daeb7cdc8ebd33a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
         "durabilidade.clear-esvazia"
       ],
       "hash": "5382f5e3df3ecf0d",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::/clear numa sessão com filha: o cartão some e não volta sob a tarefa nova de mesmo id": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "d97c8ceab33fc6ea",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::a filha recém-aberta que a lista do host ainda não traz segue sob a tarefa de origem quando passa a ser listada": {
+      "regras": [
+        "durabilidade.filha-recem-aberta-ainda-nao-listada"
+      ],
+      "hash": "fdee08a25efeaf0c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
     },
     "task-tree/tests/durabilidade.test.ts::a lista do host deixa uma filha de fora e depois a lista de novo: o cartão volta sob a mesma tarefa": {
       "regras": [
         "durabilidade.ligacoes-com-lista-parcial-do-host"
       ],
       "hash": "f5cdbe079594ecb8",
-      "assercoes": 4,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::a mensagem de outra sessão e o aviso do app não reabrem": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "1dc929aaeb67020f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::a recarga do mod não reabre o painel, 1/2: o processo abre": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "12ebae722bf12f60",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::a recarga do mod não reabre o painel, 2/2: o módulo novo com o state mantido não abre": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "54c945aa57723561",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::a sessão que volta à lista regrava trabalho, fim do turno e ligações": {
+      "regras": [
+        "durabilidade.store-cheio-nao-perde-em-silencio"
+      ],
+      "hash": "b145a27015bc1b7a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: store cheio"
+    },
+    "task-tree/tests/durabilidade.test.ts::com a lista do app em erro, nada é esvaziado": {
+      "regras": [
+        "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
+      ],
+      "hash": "adbd6fe5b87164df",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/durabilidade.test.ts::com o painel no store, o arquivo não é lido como painel": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "bf4b15dfe3f4f58b",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
+    "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 1/2: o /clear com a filha trabalhando": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "f9144a1f9c833620",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::depois de uma recarga, a filha de antes do /clear segue sem cartão, 2/2: o módulo novo não a traz de volta": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "e9ac7c45d3e0700a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::depois do /clear, o plano que reusa o id de uma tarefa recolhida nasce aberto": {
+      "regras": [
+        "durabilidade.clear-esvazia"
+      ],
+      "hash": "3fd6ff7411d5d7a6",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o /clear limpa as dobras"
     },
     "task-tree/tests/durabilidade.test.ts::fim do turno com Esc no reinício, 1/2: o turno é parado com uma tarefa iniciada": {
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
-      "hash": "ef1c12dd22f51a16",
-      "assercoes": 0,
+      "hash": "652b490a7be0fa63",
+      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -278,7 +602,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "f0a1b9ccc7bcd643",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -287,8 +611,8 @@
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
-      "hash": "dc18d783f4c01fca",
-      "assercoes": 0,
+      "hash": "183a8d616e9d2166",
+      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -298,7 +622,7 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "8dd62a248473dc11",
-      "assercoes": 3,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -307,8 +631,8 @@
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
-      "hash": "7a49d26f0933370c",
-      "assercoes": 0,
+      "hash": "7fe8ec2f4cd254ce",
+      "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
@@ -318,20 +642,100 @@
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
       "hash": "19504e1c5c185b8d",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "fim do turno no reinício"
+    },
+    "task-tree/tests/durabilidade.test.ts::fora do app, sem painel no store, o painel volta vazio": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "8b506f35060b944f",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
+    "task-tree/tests/durabilidade.test.ts::o /clear guarda no painel publicado o que a sessão tinha feito, e o painel dela fica vazio": {
+      "regras": [
+        "sessoes.clear-na-filha-mantem-o-historico"
+      ],
+      "hash": "466c0ace7fbc36f3",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Mantém o histórico (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::o arquivo de uma sessão que o app não lista mais é esvaziado, e o de uma listada não": {
+      "regras": [
+        "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
+      ],
+      "hash": "dfc6fa1e4b2dfd73",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/durabilidade.test.ts::o plan não reabre o painel que a pessoa fechou; a mensagem seguinte dela reabre": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "91af37ea93f6545a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::o processo novo abre o painel": {
+      "regras": [
+        "durabilidade.painel-fechado-reabre-so-na-mensagem"
+      ],
+      "hash": "2166f87f8395aacd",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
     },
     "task-tree/tests/durabilidade.test.ts::os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato": {
       "regras": [
         "durabilidade.formatos-antigos-do-publicado"
       ],
-      "hash": "249c0312aefc58f2",
-      "assercoes": 4,
+      "hash": "b3be7e192f0bf282",
+      "assercoes": 5,
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "afirma o número de formatos da fixture"
+    },
+    "task-tree/tests/durabilidade.test.ts::painel fora do store, 1/2: a sessão publica o painel": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "5c151894c3755906",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
+    "task-tree/tests/durabilidade.test.ts::painel fora do store, 2/2: o processo novo o traz do arquivo publicado": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "9481043441669891",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
+    },
+    "task-tree/tests/durabilidade.test.ts::painel fora do store, sem session.start: o primeiro uso o traz do arquivo": {
+      "regras": [
+        "durabilidade.painel-volta-do-arquivo-publicado"
+      ],
+      "hash": "46edd4499be83f1b",
+      "assercoes": 3,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\"; a tarefa que o fim do turno deixou ◷ segue ◷ no aviso do app"
     },
     "task-tree/tests/durabilidade.test.ts::parada com Esc no reinício, 1/2: o Esc para a tarefa e um aviso é tratado até o fim": {
       "regras": [
@@ -348,17 +752,97 @@
         "durabilidade.parada-com-esc-sobrevive-ao-reinicio"
       ],
       "hash": "9f5e4bb85f70e481",
-      "assercoes": 4,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do primeiro turno, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "6aa6cfc2cf5d4a20",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do primeiro turno, 2/2: o processo novo a desenha interrompida até o start nela": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "48bd81cca558fd21",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do turno, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "7bd75918f17d53b3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto no meio do turno, 2/2: a mensagem seguinte pede para replanejar": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "f7d1e24921ea4ad3",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto num turno seguinte, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "464d2906fc9b2299",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo morto num turno seguinte, 2/2: o processo novo a desenha interrompida até o start nela": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "f00f141238f6253b",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo novo sem session.start, 1/2: a filha aberta sob a tarefa e a carta na fila": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "1dfa376b208dcd02",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::processo novo sem session.start, 2/2: as ligações voltam antes da primeira escrita": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "4996c3d28a3807a7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
     },
     "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: a filha aberta sob uma tarefa": {
       "regras": [
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
       ],
       "hash": "b4d18df3dd38e88e",
-      "assercoes": 1,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -368,16 +852,6 @@
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
       ],
       "hash": "fb707b03807917a0",
-      "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
-    },
-    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o recap do wrap_up no state": {
-      "regras": [
-        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
-      ],
-      "hash": "3f971ccbf9b8e329",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -408,17 +882,7 @@
         "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
       ],
       "hash": "c9192dd061eebcd7",
-      "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "durabilidade (tarefa 7)"
-    },
-    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da recarga": {
-      "regras": [
-        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
-      ],
-      "hash": "e762b21f9e70918d",
-      "assercoes": 1,
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
@@ -432,6 +896,86 @@
       "tipo": "novo",
       "data": "2026-10-29",
       "motivo": "resumo do done na recarga e sem resposta final"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com a carta já avisada, 1/2: a carta entregue e o lembrete dado": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "fc6ff3aa4a7c34ba",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com a carta já avisada, 2/2: o módulo novo não repete a carta nem o lembrete": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "c43a3f38bad86441",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com duas mensagens na fila, 1/2: a filha toma a primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "c25e4ca45ef34408",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com duas mensagens na fila, 2/2: o módulo novo não confirma a segunda com o recibo da primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "3a3ddd65e3e28334",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 1/2: o plan renomeia a tarefa antiga": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "c2383c018064036d",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 2/2: a carta não aparece sob a tarefa nova": {
+      "regras": [
+        "durabilidade.recarga-nao-funde-as-ligacoes"
+      ],
+      "hash": "c96cbd93b4e2281a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::reinício com duas mensagens na fila, 1/2: a filha toma a primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "848d06e9217ff178",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
+    },
+    "task-tree/tests/durabilidade.test.ts::reinício com duas mensagens na fila, 2/2: o processo novo não confirma a segunda com o recibo da primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "ca71eddaea24c2e9",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
     },
     "task-tree/tests/durabilidade.test.ts::reinício com session.start, 1/2: o painel vai ao store": {
       "regras": [
@@ -448,10 +992,30 @@
         "durabilidade.reinicio-restaura-do-store"
       ],
       "hash": "19fc5a0d8aba02de",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start com o turno em curso, 1/2: a tarefa fica em andamento no store": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "59864ba5bcacac99",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
+    },
+    "task-tree/tests/durabilidade.test.ts::respawn sem session.start com o turno em curso, 2/2: segue em andamento": {
+      "regras": [
+        "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
+      ],
+      "hash": "1d2c086c8a398e63",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: processo morto no meio do turno fica ✕ interrompida"
     },
     "task-tree/tests/durabilidade.test.ts::respawn sem session.start, 1/2: dois pedidos e a visão resumida no store": {
       "regras": [
@@ -473,6 +1037,46 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/durabilidade.test.ts::retomada com espera da sessão anterior, 1/2: uma escolha do wrap_up e um resumo no state": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "52ea885892d8d963",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada com espera da sessão anterior, 2/2: a espera e o resumo da anterior não passam": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "1a832e9facb80b04",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada sem painel guardado, 1/2: um painel no state": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "4b9fc5aeece05764",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada sem painel guardado, 2/2: a retomada esvazia o painel": {
+      "regras": [
+        "durabilidade.retomada-nao-herda-a-sessao-anterior"
+      ],
+      "hash": "c50665290902450b",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: /clear e retomada limpos"
+    },
     "task-tree/tests/durabilidade.test.ts::retomada, 1/2: um painel diferente no state (o plano B)": {
       "regras": [
         "durabilidade.reinicio-restaura-do-store"
@@ -493,32 +1097,164 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::store cheio: a gravação que falha apaga as sobras e tenta de novo": {
+      "regras": [
+        "durabilidade.store-cheio-nao-perde-em-silencio"
+      ],
+      "hash": "98a847a492da202e",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: store cheio"
+    },
+    "task-tree/tests/durabilidade.test.ts::store que não aceita nada: o painel segue na tela e o log diz": {
+      "regras": [
+        "durabilidade.store-cheio-nao-perde-em-silencio"
+      ],
+      "hash": "4ad21884652e77fd",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "auditoria: store cheio"
+    },
+    "task-tree/tests/durabilidade.test.ts::turno que falhou no reinício, 1/2: o turno morre por erro com uma tarefa iniciada": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "9b17ef9e47c6601c",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::turno que falhou no reinício, 2/2: a iniciada segue ✕ \"falhou\" e o pedido seguinte pede para replanejar dizendo o erro": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "25fbb39a31aba984",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::uma mensagem nova à filha de antes do /clear mostra a carta, sem cartão": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "bfa933d53cb7c7b1",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::uma sessão aberta depois do /clear aparece sob a tarefa dela": {
+      "regras": [
+        "durabilidade.clear-tira-os-cartoes-das-filhas"
+      ],
+      "hash": "625c56b6e9bcf4c3",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
     "task-tree/tests/envios.test.ts::a carta de envio é uma linha sob a tarefa; a tarefa conta e o painel a conclui na entrega": {
       "regras": [
         "envios.carta-sob-a-tarefa"
       ],
       "hash": "41c74aedb7fc71f1",
-      "assercoes": 7,
+      "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
+    },
+    "task-tree/tests/envios.test.ts::a carta enviada antes do plan do pedido novo fica solta no fim, não fecha tarefa do pedido anterior, e o plan do pedido a adota": {
+      "regras": [
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota"
+      ],
+      "hash": "e4ef44e2cc9a9d50",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
+    "task-tree/tests/envios.test.ts::a carta já entregue de uma tarefa que fechou ✕ pelo subagente que falhou segue verde": {
+      "regras": [
+        "envios.cor-por-estado"
+      ],
+      "hash": "366cae47a78c9bd3",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a carta entregue segue verde no cartão parado e na tarefa ✕ pelo subagente"
+    },
+    "task-tree/tests/envios.test.ts::a carta na fila cuja tarefa saiu num replano não pende de outro pedido quando o dela está em '+N pedidos anteriores'": {
+      "regras": [
+        "envios.carta-uma-vez-no-cartao-da-origem",
+        "pedidos.replano-mantem-envio-ate-entrega"
+      ],
+      "hash": "d3105f0464720cf8",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "cada carta uma vez, no cartão e no pedido da origem"
+    },
+    "task-tree/tests/envios.test.ts::a carta na fila cuja tarefa saiu num replano segue no pedido dela, que fica à vista com o pedido novo": {
+      "regras": [
+        "envios.carta-uma-vez-no-cartao-da-origem",
+        "pedidos.replano-mantem-envio-ate-entrega"
+      ],
+      "hash": "400e940fe5ca51e9",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "cada carta uma vez, no cartão e no pedido da origem"
     },
     "task-tree/tests/envios.test.ts::a carta para um subagente parado com Esc antes de recebê-la fica cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez; a tarefa fica interrompida": {
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "d2c9f5c6a2b88968",
-      "assercoes": 7,
+      "hash": "64717036cbe12949",
+      "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
+    },
+    "task-tree/tests/envios.test.ts::a carta para uma irmã listada pelo app mostra o nome dela": {
+      "regras": [
+        "envios.carta-mostra-o-nome-do-destino"
+      ],
+      "hash": "13bc5957d1ed5aaa",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o nome do destino na carta"
+    },
+    "task-tree/tests/envios.test.ts::a carta para uma sessão que não é filha mostra o nome que veio na mensagem dela": {
+      "regras": [
+        "envios.carta-mostra-o-nome-do-destino"
+      ],
+      "hash": "d3b75e2da699aa3e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o nome do destino na carta"
+    },
+    "task-tree/tests/envios.test.ts::a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa": {
+      "regras": [
+        "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
+      ],
+      "hash": "73223ad7b1ae2b7b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o aviso da entrega só diz que concluiu quando concluiu"
     },
     "task-tree/tests/envios.test.ts::a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done": {
       "regras": [
         "envios.entrega-imediata-fica-verde"
       ],
       "hash": "7cd09c8cfc47af42",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -529,10 +1265,30 @@
         "envios.entrega-imediata-fica-verde"
       ],
       "hash": "c7286b1fd5e15106",
-      "assercoes": 0,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::a entrega que conclui a tarefa diz que o painel a concluiu": {
+      "regras": [
+        "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
+      ],
+      "hash": "ea56fe8e5ccdf7d3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o aviso da entrega só diz que concluiu quando concluiu"
+    },
+    "task-tree/tests/envios.test.ts::a mensagem a uma sessão que esta não abriu deixa só a carta: sem cartão e sem sessão ativa": {
+      "regras": [
+        "sessoes.destino-que-nao-e-filha-nao-vira-cartao"
+      ],
+      "hash": "6b01caecb1f9c406",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
     },
     "task-tree/tests/envios.test.ts::a mensagem de um plano interrompido fica cinza depois da entrega": {
       "regras": [
@@ -549,7 +1305,7 @@
         "envios.destino-arquivado-nao-entregue"
       ],
       "hash": "57583c91834d0c56",
-      "assercoes": 11,
+      "assercoes": 17,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
@@ -559,7 +1315,7 @@
         "envios.destino-arquivado-nao-entregue"
       ],
       "hash": "6a405bf5bc4817fa",
-      "assercoes": 7,
+      "assercoes": 13,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
@@ -569,7 +1325,7 @@
         "pedidos.replano-mantem-envio-ate-entrega"
       ],
       "hash": "54a6d7c33c691091",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -579,7 +1335,7 @@
         "envios.ancora-no-lote-recente"
       ],
       "hash": "07fbf8bdfaccb71d",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -589,7 +1345,7 @@
         "envios.ancora-no-lote-recente"
       ],
       "hash": "e627da9783cd7a6f",
-      "assercoes": 0,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -609,7 +1365,7 @@
         "envios.destino-arquivado-nao-entregue"
       ],
       "hash": "c9486d03627c776e",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
@@ -618,8 +1374,8 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "651b6fc9176a612a",
-      "assercoes": 2,
+      "hash": "8c866cfdd19226b1",
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -629,7 +1385,7 @@
         "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
       ],
       "hash": "6f79fbcf51559c64",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "carta de envio sob a tarefa"
@@ -639,7 +1395,7 @@
         "envios.entrega-com-lista-de-sessoes-em-erro"
       ],
       "hash": "654719f8ad37cea0",
-      "assercoes": 2,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: carta na fila sem saída com a lista em erro"
@@ -649,40 +1405,112 @@
         "envios.carta-pelo-nome-da-sessao"
       ],
       "hash": "76f4006b4e43bbc9",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/envios.test.ts::com um subagente da tarefa ainda rodando, a entrega da carta não conclui a tarefa; o fim dele, sim": {
+      "regras": [
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
+        "subagentes.um-rodando-mantem-o-pai"
+      ],
+      "hash": "9f9e928c44a2baaf",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
+    "task-tree/tests/envios.test.ts::com uma tarefa em andamento e um passo planejado depois, a carta fica sob a tarefa em andamento, e a entrega conclui essa tarefa": {
+      "regras": [
+        "envios.com-andamento-fica-sob-a-tarefa-em-andamento"
+      ],
+      "hash": "cbd10b4fe3f53070",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
     },
     "task-tree/tests/envios.test.ts::depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem": {
       "regras": [
         "envios.esc-apos-entrega-imediata"
       ],
-      "hash": "ea22dd3525fa71a4",
-      "assercoes": 4,
+      "hash": "01a7914597aae8b0",
+      "assercoes": 6,
       "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\"; o destino do teste passa a parado, porque com ele trabalhando a tarefa não é interrompida"
+    },
+    "task-tree/tests/envios.test.ts::duas cartas na fila da mesma tarefa: a primeira entrega não a conclui; a segunda, sim": {
+      "regras": [
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
+        "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
+      ],
+      "hash": "6e6aab435f6c4403",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
+    "task-tree/tests/envios.test.ts::o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não": {
+      "regras": [
+        "envios.done-com-carta-na-fila"
+      ],
+      "hash": "f9487daf5a26dc08",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
       "regras": [
         "envios.fila-nao-interrompe-no-fim-do-turno"
       ],
       "hash": "24bfd5c87e4ec60b",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::o envio na fila para um subagente diz que é para o subagente": {
+      "regras": [
+        "envios.aviso-de-envio-na-fila"
+      ],
+      "hash": "6bfdd440be12d6e0",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/envios.test.ts::o envio nunca vai à tarefa com pergunta aberta": {
       "regras": [
         "envios.ancora-no-lote-recente"
       ],
       "hash": "760f7fee90330c41",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
+    },
+    "task-tree/tests/envios.test.ts::o envio que falha não grava rodada: o turno seguinte da filha segue no cartão dela": {
+      "regras": [
+        "envios.envio-que-falha-nao-deixa-rastro"
+      ],
+      "hash": "63645d5b07655b98",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
+    },
+    "task-tree/tests/envios.test.ts::o envio que fica na fila pede para manter a tarefa em andamento; a entrega imediata, não": {
+      "regras": [
+        "envios.aviso-de-envio-na-fila"
+      ],
+      "hash": "105cfb46690e657f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
     },
     "task-tree/tests/envios.test.ts::o mesmo plano num pedido da pessoa não mostra carta nenhuma": {
       "regras": [
@@ -709,7 +1537,7 @@
         "envios.subagente-recebe-fica-verde"
       ],
       "hash": "050f585f35f1dabf",
-      "assercoes": 5,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -720,7 +1548,7 @@
         "envios.cor-por-estado"
       ],
       "hash": "7e7e763f380a5a10",
-      "assercoes": 2,
+      "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -730,7 +1558,7 @@
         "envios.carta-pelo-nome-da-sessao"
       ],
       "hash": "4df388c4d16d47ba",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "carta pelo nome da sessão"
@@ -740,17 +1568,37 @@
         "envios.carta-pelo-nome-da-sessao"
       ],
       "hash": "e5c3c175e6867dd4",
-      "assercoes": 3,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "carta pelo nome da sessão"
+    },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, o envio vai à pendente do plan mais recente do pedido, não à do primeiro": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "6cd8165015f0bb56",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "lote planejado por último, sem teste até a auditoria de 2026-11-10"
+    },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, três envios e duas pendentes planejadas juntas: a primeira, a segunda e de novo a última": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "76094fc95501568a",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "desempate do envio sem nada em andamento, sem teste até a auditoria de 2026-11-10"
     },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
       "regras": [
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
       ],
       "hash": "c45318e1469283ab",
-      "assercoes": 0,
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -760,7 +1608,7 @@
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
       ],
       "hash": "f0b780974c79d7ad",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -769,8 +1617,8 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "ff170d2a3a231f7e",
-      "assercoes": 4,
+      "hash": "6449b48c2b34dd29",
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -779,8 +1627,8 @@
       "regras": [
         "envios.subagente-recebe-fica-verde"
       ],
-      "hash": "3ac31e0b49b1ee17",
-      "assercoes": 2,
+      "hash": "69c4e80f09438aa3",
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -789,8 +1637,8 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "2c2c0aec597c482a",
-      "assercoes": 2,
+      "hash": "a40acb2d78e241f8",
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "pendência 1: carta para subagente (decisão do usuário, 2026-11-13, Cinza \"não entregue\" (Recomendado))"
@@ -820,8 +1668,8 @@
         "visual.golden-gera-desenho",
         "visual.desenho-envios"
       ],
-      "hash": "47a64c4d4d52d62e",
-      "assercoes": 0,
+      "hash": "e702f5e5a298ad5d",
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -831,19 +1679,41 @@
         "visual.golden-gera-desenho",
         "visual.desenho-cartao-filha"
       ],
-      "hash": "3d2e07586316bd36",
-      "assercoes": 0,
+      "hash": "bf48d0d9efbca54f",
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/golden.test.ts::golden: filha-modelo-e-carta": {
+      "regras": [
+        "visual.golden-gera-desenho",
+        "visual.desenho-filha-modelo-e-carta"
+      ],
+      "hash": "4165ea1f8a5351d5",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: golden ampliado"
+    },
+    "task-tree/tests/golden.test.ts::golden: largo": {
+      "regras": [
+        "visual.golden-gera-desenho",
+        "visual.desenho-cabecalho-largo"
+      ],
+      "hash": "7e5f63137e80af81",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: golden ampliado"
     },
     "task-tree/tests/golden.test.ts::golden: principal": {
       "regras": [
         "visual.golden-gera-desenho",
         "visual.desenho-principal"
       ],
-      "hash": "cb55842b2a59e403",
-      "assercoes": 0,
+      "hash": "8eceb83b4f09ea63",
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -853,8 +1723,8 @@
         "visual.golden-gera-desenho",
         "visual.desenho-subagente"
       ],
-      "hash": "4e328e88b87186dd",
-      "assercoes": 0,
+      "hash": "ca51c69713f8eccd",
+      "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
@@ -873,7 +1743,7 @@
       "regras": [
         "lembretes.parada-so-volta-com-start"
       ],
-      "hash": "f86065bdbff0694c",
+      "hash": "3d819974810c39cd",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -883,21 +1753,81 @@
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
       ],
-      "hash": "acb74b8c7ba8fcc2",
+      "hash": "56e662bf7c9644a7",
       "assercoes": 17,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
     },
+    "task-tree/tests/lembretes.test.ts::a notificação de uma tarefa em segundo plano traz o lembrete curto de atualizar o painel": {
+      "regras": [
+        "lembretes.tarefa-em-segundo-plano"
+      ],
+      "hash": "b7eb0db349de4d39",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::a pergunta dispensada para o chat avisa que a mensagem seguinte é a resposta, e essa mensagem é dita como resposta uma vez": {
+      "regras": [
+        "lembretes.resposta-pelo-chat"
+      ],
+      "hash": "a69240fa596ec599",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::a pergunta respondida por opção devolve o pedido de done no que a resposta concluiu e de plan com as próximas": {
+      "regras": [
+        "lembretes.resposta-por-opcao"
+      ],
+      "hash": "3204fb4129b1a853",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::a primeira regra do painel diz done antes do plan quando a mensagem conclui tarefas abertas": {
+      "regras": [
+        "lembretes.done-antes-do-plan"
+      ],
+      "hash": "fdd841b1b7663039",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: done, depois plan"
+    },
     "task-tree/tests/lembretes.test.ts::a resposta dada pelo chat a uma pergunta, entregue no meio do turno, é dita como resposta e continua o pedido": {
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
       ],
-      "hash": "5e111f36fe949261",
+      "hash": "c902f267db97a611",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
+    },
+    "task-tree/tests/lembretes.test.ts::as descrições das ferramentas e do comando dizem o essencial de cada uma": {
+      "regras": [
+        "lembretes.descricoes-das-ferramentas"
+      ],
+      "hash": "b10b7e95cb69b487",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha": {
+      "regras": [
+        "lembretes.regra-dos-subagentes"
+      ],
+      "hash": "bc37fe6d5993dc75",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
     },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
@@ -919,21 +1849,101 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
     },
+    "task-tree/tests/lembretes.test.ts::as regras e a descrição do summary dizem que sem summary o pedido fica sem linha ↩": {
+      "regras": [
+        "lembretes.resumo-e-a-linha-de-resposta"
+      ],
+      "hash": "4ae42c530a8ed72a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras e o lembrete da mensagem seguinte dizem que a tarefa que aguardava só volta com start nela": {
+      "regras": [
+        "lembretes.aguardando-so-volta-com-start"
+      ],
+      "hash": "eb6cf42d28e5421e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::as regras e o lembrete depois do Esc dizem que o estado só fica no replano da mesma mensagem": {
       "regras": [
         "lembretes.estado-guardado-so-no-mesmo-pedido"
       ],
-      "hash": "6b6a8dcd51d5bb2e",
+      "hash": "d746fd22aaaed64f",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::as regras pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente": {
+      "regras": [
+        "lembretes.planejar-antes-de-delegar"
+      ],
+      "hash": "8aa87b111dfe525a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::com a mensagem nova ainda na fila, o lembrete do turno que terminou cita a tarefa de abertura": {
+      "regras": [
+        "lembretes.filha-terminou-o-turno"
+      ],
+      "hash": "e541c888ae8a8615",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::com a tarefa da rodada já fechada e a de abertura aberta, o lembrete cita a de abertura": {
+      "regras": [
+        "lembretes.filha-terminou-o-turno"
+      ],
+      "hash": "38f5514d30a56bce",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan": {
+      "regras": [
+        "lembretes.done-antes-do-plan"
+      ],
+      "hash": "48238d1ad682b3ce",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: done, depois plan"
+    },
+    "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, a mensagem da pessoa pede para replanejar dizendo o erro, uma vez": {
+      "regras": [
+        "lembretes.replanejar-apos-turno-que-falhou"
+      ],
+      "hash": "fff0a8ceecdb6bad",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::depois de um turno que morreu por erro, o aviso do app diz que a tarefa segue ✕ \"falhou\"": {
+      "regras": [
+        "lembretes.replanejar-apos-turno-que-falhou"
+      ],
+      "hash": "9e6e08eb5c971bdc",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::depois do Esc e de um aviso do app, a mensagem de outra sessão ainda pede para replanejar": {
       "regras": [
         "lembretes.replanejar-apos-esc-com-aviso-no-meio"
       ],
-      "hash": "abed49138f309bc5",
+      "hash": "ab94f0105369f591",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -943,7 +1953,7 @@
       "regras": [
         "lembretes.esc-sem-abertas"
       ],
-      "hash": "994d2a02b82e6754",
+      "hash": "9a293d41b3d1cd7f",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -953,7 +1963,7 @@
       "regras": [
         "lembretes.replanejar-apos-esc-pessoa"
       ],
-      "hash": "09fc3997a94c1db1",
+      "hash": "d4c78e56940aae22",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -963,7 +1973,7 @@
       "regras": [
         "lembretes.outra-sessao-apos-esc"
       ],
-      "hash": "93274a1ffdc71636",
+      "hash": "56fb6278bb62d0e3",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -973,7 +1983,7 @@
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
       ],
-      "hash": "9fc078d575a94fb4",
+      "hash": "8ccb193c0b7157e7",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -983,7 +1993,7 @@
       "regras": [
         "lembretes.replanejar-apos-esc-com-aviso-no-meio"
       ],
-      "hash": "2788a08468f0bdcc",
+      "hash": "e3ae7d50d67260d2",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -993,7 +2003,7 @@
       "regras": [
         "lembretes.parada-so-volta-com-start"
       ],
-      "hash": "49f9b3a72b5be9d3",
+      "hash": "84d5a0d69d0b3664",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1003,21 +2013,132 @@
       "regras": [
         "lembretes.fim-normal-lista-abertas"
       ],
-      "hash": "c3e3bd63b20e4a38",
+      "hash": "9fc9e5a103f324d7",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/lembretes.test.ts::fechar com done um passo do pedido anterior não conta como planejar o pedido novo": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "902c95f7bef16d82",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
+    "task-tree/tests/lembretes.test.ts::o aviso do app traz só o lembrete curto de manter o painel em dia": {
+      "regras": [
+        "lembretes.aviso-do-app"
+      ],
+      "hash": "ee0b11c39ea18ae5",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::o done que fecha a última tarefa do pedido atual cobra o summary mesmo com pendente antiga": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano",
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "4851b118e6e40e1c",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
     "task-tree/tests/lembretes.test.ts::o lembrete de replanejar vale uma vez só": {
       "regras": [
         "lembretes.replanejar-vale-uma-vez"
       ],
-      "hash": "daa5708ffe7cb9bb",
+      "hash": "551d6b282b2a0902",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/lembretes.test.ts::o plan recusado por ids repetidos não cala o lembrete": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "34271ae85dc5ef7e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
+    "task-tree/tests/lembretes.test.ts::o retorno de um subagente traz o lembrete curto de marcar com done o que ele concluiu": {
+      "regras": [
+        "lembretes.retorno-de-subagente"
+      ],
+      "hash": "159d192b17c9380f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::o wrap_up com tarefas abertas as lista; com tudo fechado, não": {
+      "regras": [
+        "lembretes.wrap-up-com-abertas"
+      ],
+      "hash": "21b4549273057fbb",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::o wrap_up sem summary no turno avisa que falta o resumo; com o summary dado, não": {
+      "regras": [
+        "lembretes.wrap-up-sem-resumo"
+      ],
+      "hash": "9a2a756e75b029c3",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: um cenário por texto ao modelo"
+    },
+    "task-tree/tests/lembretes.test.ts::os lembretes de mensagem nova, as regras e a descrição do done mandam cancelar o que a mensagem substitui": {
+      "regras": [
+        "lembretes.cancelar-o-que-a-mensagem-substitui"
+      ],
+      "hash": "3b6fe7a876d563d6",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::pedido novo sem plano, com um passo pendente do pedido anterior: o lembrete de planejar sai": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "49653ef93717b9fa",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
+    },
+    "task-tree/tests/lembretes.test.ts::quando a filha termina o turno de uma mensagem, o lembrete cita a tarefa de onde a mensagem saiu": {
+      "regras": [
+        "lembretes.filha-terminou-o-turno"
+      ],
+      "hash": "383b5ad57c70bec5",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::seguir numa tarefa antiga com start cala o lembrete": {
+      "regras": [
+        "lembretes.primeira-chamada-sem-plano"
+      ],
+      "hash": "f3d7699840516902",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembrete de planejar pelo pedido atual"
     },
     "task-tree/tests/lembretes.test.ts::sem plano, a primeira ferramenta e cada 10ª depois dela trazem o lembrete de planejar": {
       "regras": [
@@ -1033,21 +2154,62 @@
       "regras": [
         "lembretes.parada-so-volta-com-start"
       ],
-      "hash": "321a3d8006e7bf88",
+      "hash": "a3529ffe3d1c0b08",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
+    "task-tree/tests/lembretes.test.ts::sem tarefas abertas, o lembrete de pedido novo manda o plan primeiro": {
+      "regras": [
+        "lembretes.done-antes-do-plan"
+      ],
+      "hash": "89a1046a0d7ff8c9",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: done, depois plan"
+    },
+    "task-tree/tests/pedidos.test.ts::a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id": {
+      "regras": [
+        "pedidos.dobra-nao-passa-ao-id-reusado"
+      ],
+      "hash": "fe070f47a25d3a62",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: a dobra segue a tarefa renomeada"
+    },
+    "task-tree/tests/pedidos.test.ts::as formas reais seguem valendo: a linha de abertura do app antes da tag, o retorno de subagente e duas mensagens juntas": {
+      "regras": [
+        "pedidos.marca-so-no-comeco-do-prompt"
+      ],
+      "hash": "136202009e69c1d2",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: marcas só no começo do prompt"
     },
     "task-tree/tests/pedidos.test.ts::cada mensagem abre o seu pedido, com o seu plano embaixo": {
       "regras": [
         "pedidos.uma-mensagem-um-pedido"
       ],
       "hash": "6e905cae820e7e06",
-      "assercoes": 4,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e não entra em '+N pedidos anteriores'": {
+      "regras": [
+        "pedidos.resumida-mantem-anteriores-com-algo-aberto",
+        "cabecalho.limites-de-linhas"
+      ],
+      "hash": "6d58241641715445",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o corte dos pedidos anteriores é por pedido, não por nível 1"
     },
     "task-tree/tests/pedidos.test.ts::mensagem entregue no meio do turno continua o pedido em curso: sem pedido novo, e o replano guarda o estado": {
       "regras": [
@@ -1069,15 +2231,105 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
     },
+    "task-tree/tests/pedidos.test.ts::no mesmo pedido, o cartão da filha segue sob a tarefa quando o nível 1 concluído é replanejado": {
+      "regras": [
+        "pedidos.nivel1-concluido-e-historico"
+      ],
+      "hash": "2f1061b38e89ce51",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\""
+    },
+    "task-tree/tests/pedidos.test.ts::no mesmo pedido, o plan com o id de um nível 1 concluído e um passo a mais o reabre mantendo os concluídos": {
+      "regras": [
+        "pedidos.nivel1-concluido-e-historico"
+      ],
+      "hash": "6985c16d07f2246e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\""
+    },
+    "task-tree/tests/pedidos.test.ts::o cartão da filha cuja tarefa de origem sai do plano fica sob o nível 1, vivo ou concluído, e segue contando": {
+      "regras": [
+        "pedidos.replano-leva-o-cartao-ao-nivel-1"
+      ],
+      "hash": "086aa88e2b07af9d",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sob o nível 1 (Recomendado)\""
+    },
     "task-tree/tests/pedidos.test.ts::o pedido concluído cujo id o pedido novo reusa segue à vista enquanto outro pedido do trabalho tem algo aberto": {
       "regras": [
         "pedidos.resumida-mantem-anteriores-com-algo-aberto"
       ],
       "hash": "c071ab99d11c2128",
-      "assercoes": 5,
+      "assercoes": 9,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "auditoria 2026-11-10: o trabalho atual segue a renomeação do nível 1"
+    },
+    "task-tree/tests/pedidos.test.ts::o plan avisa o nível 1 de pedido anterior que ficou como histórico, com as abertas interrompidas": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "bf53b7e752c987dc",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o plan avisa o nível 1 fechado que ficou como histórico": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "fd2923f349669e81",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o replano no mesmo pedido diz quantas tarefas mantiveram o estado": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "1eabad80dea19a94",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o request de outro plan do mesmo pedido não muda o título; o pedido seguinte ganha o seu": {
+      "regras": [
+        "pedidos.titulo-vem-do-request"
+      ],
+      "hash": "1d30f378b8293757",
+      "assercoes": 13,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Não, vale o 1º (Recomendado)\""
+    },
+    "task-tree/tests/pedidos.test.ts::o texto colado com a tag de outra sessão no meio abre pedido da pessoa e não grava recebimento": {
+      "regras": [
+        "pedidos.marca-so-no-comeco-do-prompt"
+      ],
+      "hash": "7a50064e47780d62",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: marcas só no começo do prompt"
+    },
+    "task-tree/tests/pedidos.test.ts::o texto com a marca de retorno de subagente no meio abre pedido da pessoa": {
+      "regras": [
+        "pedidos.marca-so-no-comeco-do-prompt"
+      ],
+      "hash": "e36ee4d8eafb6167",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: marcas só no começo do prompt"
     },
     "task-tree/tests/pedidos.test.ts::o título do pedido vem do request do plan": {
       "regras": [
@@ -1124,7 +2376,7 @@
         "arvore.pai-fecha-com-nada-aberto-embaixo"
       ],
       "hash": "f5fedec5bb7a2b71",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
@@ -1133,11 +2385,11 @@
       "regras": [
         "pedidos.nivel1-concluido-e-historico"
       ],
-      "hash": "9329fee4a72268c3",
-      "assercoes": 1,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "linha de base"
+      "hash": "c6596dd8dfc1d58c",
+      "assercoes": 3,
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Reabre mantendo os ✓ (Recomendado)\"; o teste passa ao pedido seguinte, onde o histórico segue valendo"
     },
     "task-tree/tests/pedidos.test.ts::plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o anterior em pedido novo": {
       "regras": [
@@ -1145,7 +2397,7 @@
         "pedidos.plano-anterior-vira-historico"
       ],
       "hash": "7b864af6a3bda605",
-      "assercoes": 7,
+      "assercoes": 11,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
@@ -1159,6 +2411,16 @@
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
+    },
+    "task-tree/tests/pedidos.test.ts::replano com os ids completos que os lembretes mostram mantém a concluída e a em andamento": {
+      "regras": [
+        "pedidos.replano-aceita-o-id-completo"
+      ],
+      "hash": "978e4923dbc5f404",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o plan aceita o id completo dos lembretes"
     },
     "task-tree/tests/pedidos.test.ts::replano mantém o concluído e acrescenta a nova pendente": {
       "regras": [
@@ -1195,10 +2457,20 @@
         "pedidos.aviso-do-app-nao-abre-pedido"
       ],
       "hash": "420c5ea0f6dcd083",
-      "assercoes": 5,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/pedidos.test.ts::um plano sem ids repetidos não traz avisos": {
+      "regras": [
+        "pedidos.plan-avisa-o-que-fez-as-tarefas-antigas"
+      ],
+      "hash": "2d2b1269ce44e22c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: avisos na resposta do plan"
     },
     "task-tree/tests/perguntas.test.ts::ExitPlanMode mostra a espera da aprovação do plano até a resposta": {
       "regras": [
@@ -1209,6 +2481,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::a escolha do wrap_up com tudo concluído fica sob a última tarefa trabalhada": {
+      "regras": [
+        "perguntas.espera-sob-a-pendente"
+      ],
+      "hash": "48c67fe5d9e1b9bd",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
     },
     "task-tree/tests/perguntas.test.ts::a escolha do wrap_up fica até a próxima mensagem": {
       "regras": [
@@ -1230,6 +2512,36 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::com duas chamadas da mesma ferramenta em curso, o aviso de permissão fica até a última terminar": {
+      "regras": [
+        "perguntas.permissao-sai-com-a-ultima-chamada"
+      ],
+      "hash": "46828cc6ae18b180",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: aviso de permissão por chamadas em curso"
+    },
+    "task-tree/tests/perguntas.test.ts::com uma tarefa em andamento, a espera segue sob ela mesmo havendo pendente": {
+      "regras": [
+        "perguntas.espera-sob-a-pendente"
+      ],
+      "hash": "a687af6494dde1cd",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
+    },
+    "task-tree/tests/perguntas.test.ts::depois do plan do pedido novo, a pergunta passa": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "a4c26fda494d2dcf",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
+    },
     "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
       "regras": [
         "perguntas.mensagem-no-meio-do-turno-mantem-espera"
@@ -1240,6 +2552,26 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: a mensagem entregue no meio do turno derrubava a pergunta ou o plano ainda abertos"
     },
+    "task-tree/tests/perguntas.test.ts::no pedido novo sem plano, um passo pendente do pedido anterior não libera a pergunta": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "af3473ed9dd3c862",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
+    },
+    "task-tree/tests/perguntas.test.ts::o fim do turno tira o aviso de permissão que sobrou": {
+      "regras": [
+        "perguntas.permissao-sai-com-a-ultima-chamada"
+      ],
+      "hash": "591903569d5d8e84",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: rede de segurança do aviso de permissão"
+    },
     "task-tree/tests/perguntas.test.ts::o pedido de permissão aparece como espera; o de pergunta, não": {
       "regras": [
         "perguntas.permissao-espera"
@@ -1249,6 +2581,26 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/perguntas.test.ts::o wrap_up com pergunta que falha não deixa \"Aguardando sua escolha\"": {
+      "regras": [
+        "perguntas.wrapup-que-falha-nao-espera"
+      ],
+      "hash": "dc2e114dd794ac0b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: espera do wrap_up só depois de a chamada dar certo"
+    },
+    "task-tree/tests/perguntas.test.ts::pergunta com tarefa pendente e nenhuma em andamento: a espera fica sob a pendente": {
+      "regras": [
+        "perguntas.espera-sob-a-pendente"
+      ],
+      "hash": "33a1d9d51ec53745",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
     },
     "task-tree/tests/perguntas.test.ts::respondida pelo chat, a espera some na hora e a tarefa segue em andamento": {
       "regras": [
@@ -1280,32 +2632,103 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/perguntas.test.ts::uma tarefa em andamento de um pedido anterior libera a pergunta": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "72454bbb95f622b9",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
+    },
     "task-tree/tests/sessoes.test.ts::a cadeia de irmãs fica na sequência, sob a tarefa da mãe, sem cartão dentro de cartão": {
       "regras": [
         "sessoes.cadeia-sem-cartao-dentro-de-cartao"
       ],
-      "hash": "7fd16f80721065c0",
+      "hash": "8633e845dd3f7640",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a carta da filha com dois cartões aparece uma vez, no cartão da tarefa de origem": {
+      "regras": [
+        "envios.carta-uma-vez-no-cartao-da-origem"
+      ],
+      "hash": "955e05934e50aeeb",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "cada carta uma vez, no cartão e no pedido da origem"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha arquivada cujo pedido saiu do trabalho vira uma linha com nome e contagem": {
+      "regras": [
+        "sessoes.arquivada-antiga-vira-linha"
+      ],
+      "hash": "751d7ee848d90a70",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Vira linha resumida (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::a filha cujo turno morreu por erro: o cartão diz \"falhou\", a tarefa fica ✕ \"falhou\" e a rodada sai da contagem": {
+      "regras": [
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "42b68840e6894fdd",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a filha encerrada não segura a visão no pedido novo": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "b59f9c09c6c595c0",
-      "assercoes": 3,
+      "hash": "2733b67feeecb9ab",
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha para primeiro com pendentes: o lembrete diz quantas, e o done que fecha a origem avisa que saíram da contagem": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "465ffde7278eb665",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: aviso das pendentes nas duas ordens"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc com carta na fila mostra a tarefa do envio aguardando": {
+      "regras": [
+        "sessoes.regras-de-cartao-valem-para-netas"
+      ],
+      "hash": "00399d7a6fec722e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: regras de cartão dentro do cartão"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc com concluídas, uma iniciada e pendentes: tudo desenhado, nada na conta da mãe": {
+      "regras": [
+        "sessoes.rodada-descartada-fora-da-contagem",
+        "sessoes.filha-parada-pendentes-seguem-pendentes"
+      ],
+      "hash": "964566d82a43d740",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Rodada fora da conta (Recomendado)\"; trava a contagem que os cenários passam a dizer"
     },
     "task-tree/tests/sessoes.test.ts::a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada": {
       "regras": [
         "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
       ],
-      "hash": "daa9d0de7629daa2",
-      "assercoes": 12,
+      "hash": "11552da62591f104",
+      "assercoes": 16,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -1314,8 +2737,8 @@
       "regras": [
         "sessoes.filha-parada-com-esc-sem-pendente"
       ],
-      "hash": "5192b3c7aaab1f70",
-      "assercoes": 8,
+      "hash": "72aeb2ff63bdf730",
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 10"
@@ -1324,8 +2747,8 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "803c4b988f2d33ce",
-      "assercoes": 2,
+      "hash": "d8bf1d640a388802",
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1335,18 +2758,28 @@
         "sessoes.filha-trabalhando-mantem-pais-em-andamento",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "66466e5ea24a6212",
-      "assercoes": 5,
+      "hash": "f0f8ef11fa853761",
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha vai ao arquivo publicado cortada ao trabalho atual dela": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "ad287e2a3a06e2c4",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
     "task-tree/tests/sessoes.test.ts::a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega": {
       "regras": [
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
       ],
-      "hash": "f7682742a3205841",
-      "assercoes": 1,
+      "hash": "174cb48299d91b39",
+      "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -1355,18 +2788,38 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "1d6f682b5e334137",
+      "hash": "eab3718d41f9ed3b",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
     },
+    "task-tree/tests/sessoes.test.ts::a neta parada só com pendentes e origem fechada fica \"encerrada\" e sai da contagem da orquestradora": {
+      "regras": [
+        "sessoes.regras-de-cartao-valem-para-netas"
+      ],
+      "hash": "fdc0c4878a2419fb",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: regras de cartão dentro do cartão"
+    },
+    "task-tree/tests/sessoes.test.ts::a neta que trabalha sob um pedido da filha fora do trabalho aparece solta no fim do cartão da filha": {
+      "regras": [
+        "sessoes.regras-de-cartao-valem-para-netas"
+      ],
+      "hash": "81a0748368d8c619",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: regras de cartão dentro do cartão"
+    },
     "task-tree/tests/sessoes.test.ts::a rodada anterior deixada com tarefa aberta sai da contagem, ✓ inclusive, e continua desenhada": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
-      "hash": "16c24433fac7332c",
-      "assercoes": 2,
+      "hash": "c973a369df0fe98c",
+      "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -1375,27 +2828,47 @@
       "regras": [
         "pedidos.rodada-descartada-nao-segura-a-visao"
       ],
-      "hash": "f94c71923380ffd5",
-      "assercoes": 1,
+      "hash": "6c8289b852a6f321",
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "bug: rodada descartada segurava a visão"
+    },
+    "task-tree/tests/sessoes.test.ts::a sessão aberta antes do plan do pedido fica solta no fim, mesmo concluída, e o plan a adota pelo nome": {
+      "regras": [
+        "sessoes.aberta-antes-do-plan-e-adotada"
+      ],
+      "hash": "647d100aa3b8c1fc",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
-      "hash": "f85f9c636dd02b2a",
-      "assercoes": 4,
+      "hash": "249a2b80b9b1e625",
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::a tarefa concluída com a filha trabalhando embaixo mostra só o tempo próprio, que não corre nem regride": {
+      "regras": [
+        "sessoes.tempo-da-tarefa-concluida-com-filha"
+      ],
+      "hash": "000658fe6a14e9f2",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
     },
     "task-tree/tests/sessoes.test.ts::cada mensagem à filha, em turnos diferentes, tem o seu cartão sob a tarefa da mensagem": {
       "regras": [
         "sessoes.um-cartao-por-mensagem"
       ],
-      "hash": "17ebedb172da51d8",
+      "hash": "47665c0fac883230",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -1405,18 +2878,29 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "62b3999dd25a1a2e",
-      "assercoes": 1,
+      "hash": "10c18bdfdf7256ff",
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
+    },
+    "task-tree/tests/sessoes.test.ts::com a origem aberta, o status conta as pendentes da filha": {
+      "regras": [
+        "cabecalho.status-igual-a-sessao-inteira",
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "58e4413380d4854c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o status usa a conta da sessão inteira"
     },
     "task-tree/tests/sessoes.test.ts::com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rodada nova segue em andamento": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem-do-pai"
       ],
-      "hash": "b2311e892e2c3b19",
-      "assercoes": 4,
+      "hash": "d4855cc3e16dade5",
+      "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
@@ -1425,8 +2909,8 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "644d317efe2777f7",
-      "assercoes": 1,
+      "hash": "7c4b676083fe2e61",
+      "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1455,7 +2939,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "069e4029f77995e8",
+      "hash": "62219fc5d7d7810e",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -1466,11 +2950,32 @@
         "sessoes.turno-proprio-da-filha-no-pedido-vigente",
         "cabecalho.limites-de-linhas"
       ],
-      "hash": "55ff4d54724ac0b2",
-      "assercoes": 4,
+      "hash": "d60a4709cfbdf6af",
+      "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/sessoes.test.ts::com uma tarefa em andamento e um passo planejado depois, a sessão aberta fica sob a tarefa em andamento": {
+      "regras": [
+        "envios.com-andamento-fica-sob-a-tarefa-em-andamento",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "44575394c9b5160b",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
+    },
+    "task-tree/tests/sessoes.test.ts::depois do /clear na filha, o cartão dela na mãe mantém as tarefas feitas e a contagem": {
+      "regras": [
+        "sessoes.clear-na-filha-mantem-o-historico"
+      ],
+      "hash": "dac5662f7cb04003",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Mantém o histórico (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::depois que a sessão para e a carta é entregue, o pedido seguinte leva o pedido de id reusado para \"+N pedidos anteriores\"": {
       "regras": [
@@ -1482,24 +2987,55 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::desarquivada, a filha resumida volta ao cartão inteiro": {
+      "regras": [
+        "sessoes.arquivada-antiga-vira-linha"
+      ],
+      "hash": "81021c7558a65948",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Vira linha resumida (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::dois turnos digitados na filha com o mesmo pedido da mãe em curso ficam num cartão só, com uma linha de pedido por turno": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "a4787e673dab4aa8",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda": {
       "regras": [
         "sessoes.filha-arquivada-interrompe",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "6aa91734264e0fba",
-      "assercoes": 2,
+      "hash": "30c37a6b9f06e813",
+      "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/sessoes.test.ts::filha encerrada: o status sob a caixa de mensagem conta como a sessão inteira": {
+      "regras": [
+        "cabecalho.status-igual-a-sessao-inteira",
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "b5fe38f2a1ed55c8",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o status usa a conta da sessão inteira"
     },
     "task-tree/tests/sessoes.test.ts::filha parada só com pendentes e origem fechada: encerrada, fora da contagem, ✓ contam": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "62b398fcdb2907f3",
-      "assercoes": 2,
+      "hash": "efedeeb9b71b5e59",
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "filha encerrada com origem fechada"
@@ -1509,37 +3045,127 @@
         "sessoes.filha-parada-pendentes-seguem-pendentes",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "a6daa2ae418d2a4a",
-      "assercoes": 5,
+      "hash": "fa7afe08c529eaed",
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
+    },
+    "task-tree/tests/sessoes.test.ts::leituras pedidas ao mesmo tempo rodam uma de cada vez": {
+      "regras": [
+        "sessoes.leitura-das-filhas-uma-por-vez"
+      ],
+      "hash": "5dd8a115efb6a7b4",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: leitura das filhas"
     },
     "task-tree/tests/sessoes.test.ts::mensagens entregues juntas: o cartão do turno vai à tarefa da última": {
       "regras": [
         "sessoes.mensagens-juntas-vao-a-ultima"
       ],
-      "hash": "492c8a3f8fdd1674",
+      "hash": "fa2e2d81385c5759",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::na avó, o cartão da neta não tem \"+N pedidos anteriores\"": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "4a1caebf11d99a23",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/sessoes.test.ts::no Esc, a tarefa com a filha trabalhando embaixo segue em andamento; quando a filha para, fica interrompida até o start": {
+      "regras": [
+        "turnos.esc-com-trabalho-delegado-vivo"
+      ],
+      "hash": "3c4de712b36ae09e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha parada com Esc, a carta já entregue segue verde": {
+      "regras": [
+        "envios.esc-apos-entrega-imediata"
+      ],
+      "hash": "ee3e7cb768a5d9c2",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a carta entregue segue verde no cartão parado e na tarefa ✕ pelo subagente"
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela": {
+      "regras": [
+        "sessoes.cartao-parado-mostra-o-tempo-do-turno"
+      ],
+      "hash": "a791336752691bc1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o fim do turno vai na tarefa publicada"
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha, a carta para a própria mãe mostra o nome da mãe quando o app o informa": {
+      "regras": [
+        "envios.carta-mostra-o-nome-do-destino"
+      ],
+      "hash": "85d867b7c4cafb65",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o nome do destino na carta"
+    },
     "task-tree/tests/sessoes.test.ts::no cartão da filha, o pedido que veio por mensagem tem a sua carta, mesmo com uma tarefa só": {
       "regras": [
         "sessoes.pedido-recebido-aparece-no-cartao"
       ],
-      "hash": "9a11879901c97f8e",
+      "hash": "3649edc9c0ddd8e5",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-30",
       "motivo": "carta de recebimento na linha do pedido"
     },
+    "task-tree/tests/sessoes.test.ts::no cartão de uma filha parada com Esc, a tarefa com neta trabalhando segue em andamento": {
+      "regras": [
+        "turnos.esc-com-trabalho-delegado-vivo"
+      ],
+      "hash": "8a26a953903299d9",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::o arquivo de uma filha arquivada não é relido a cada leitura, e o cartão segue igual": {
+      "regras": [
+        "sessoes.arquivada-nao-e-relida"
+      ],
+      "hash": "a307982df42eea38",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: higiene da leitura das filhas"
+    },
+    "task-tree/tests/sessoes.test.ts::o arquivo publicado não leva a cópia antiga das tarefas": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "003c3de703eacd7d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
     "task-tree/tests/sessoes.test.ts::o busto da sessão só na tarefa de que o cartão pende": {
       "regras": [
         "sessoes.busto-so-no-pai"
       ],
-      "hash": "8cffdff8a700e8ce",
+      "hash": "c1fef239d44dafe9",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -1549,7 +3175,7 @@
       "regras": [
         "sessoes.cartao-sob-a-tarefa-de-origem"
       ],
-      "hash": "93c76a1cb0134009",
+      "hash": "c14c7beacaba3e92",
       "assercoes": 11,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -1560,17 +3186,27 @@
         "sessoes.cartao-parado-sem-pedidos-anteriores-a-mais"
       ],
       "hash": "248169b9efc52c6b",
-      "assercoes": 4,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 11"
+    },
+    "task-tree/tests/sessoes.test.ts::o cartão da rodada largada diz \"substituída\", com a filha rodando e parada; o da rodada atual segue como o que vale": {
+      "regras": [
+        "sessoes.rodada-largada-diz-substituida"
+      ],
+      "hash": "315987b5baca1e76",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"\\\"Substituída\\\", cinza (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::o cartão mostra toks/s e repositório com branch": {
       "regras": [
         "sessoes.toks-e-repo-branch-no-cartao"
       ],
-      "hash": "12b4ee175c622db6",
-      "assercoes": 0,
+      "hash": "f38c46849f6ecd92",
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
@@ -1579,28 +3215,79 @@
       "regras": [
         "sessoes.cartao-vivo-nunca-some"
       ],
-      "hash": "26cca34227b2e087",
+      "hash": "48c272d33538af68",
       "assercoes": 7,
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/sessoes.test.ts::o done que fecha a origem de uma filha sem pendentes não avisa": {
+      "regras": [
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "ea4d045b2f0749cd",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: aviso das pendentes nas duas ordens"
+    },
+    "task-tree/tests/sessoes.test.ts::o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "f4133bcded3fe3ad",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
+    "task-tree/tests/sessoes.test.ts::o painel publicado leva três níveis de sessões abaixo desta e corta o resto": {
+      "regras": [
+        "sessoes.publicado-corta-a-profundidade"
+      ],
+      "hash": "17fd073da4c5b69f",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: higiene do arquivo publicado"
+    },
+    "task-tree/tests/sessoes.test.ts::o pedido com tudo concluído e a filha trabalhando embaixo mostra o tempo das tarefas dele, parado": {
+      "regras": [
+        "sessoes.tempo-da-tarefa-concluida-com-filha"
+      ],
+      "hash": "dd8d22e26491f713",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
+    },
     "task-tree/tests/sessoes.test.ts::o pedido que saiu do trabalho volta com o cartão da filha ao abrir \"+N pedidos anteriores\"": {
       "regras": [
         "cabecalho.historico-guarda-o-que-saiu"
       ],
-      "hash": "7fbfbc4b2d668668",
+      "hash": "6992adc8ea16af82",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "só a visão resumida, 2026-11-04"
+    },
+    "task-tree/tests/sessoes.test.ts::o trabalho da filha depois do /clear aparece num cartão novo, e o histórico segue no dele": {
+      "regras": [
+        "sessoes.clear-na-filha-mantem-o-historico"
+      ],
+      "hash": "c9edd1ead1dbe6cb",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Mantém o histórico (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::o turno 1 próprio que começa bem depois da abertura (a filha limpa com /clear) segue como pedido do usuário na filha": {
       "regras": [
         "sessoes.turno-de-abertura-da-filha-sob-a-origem",
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "3290535052127c86",
+      "hash": "99bcba8f92a88861",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-10",
@@ -1610,27 +3297,48 @@
       "regras": [
         "sessoes.turno-de-abertura-da-filha-sob-a-origem"
       ],
-      "hash": "37a5e7c4dca9d8d2",
+      "hash": "f77e8e2ddbb1564e",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 3"
     },
+    "task-tree/tests/sessoes.test.ts::o turno digitado na filha depois da rodada da mãe é a rodada atual: conta no cabeçalho, parado ou entre um done e o start seguinte": {
+      "regras": [
+        "sessoes.rodada-da-frente-e-a-mais-recente"
+      ],
+      "hash": "3ba2737565fb2bd7",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: rodada da frente pelo tempo"
+    },
     "task-tree/tests/sessoes.test.ts::o turno que o usuário abriu na filha pendura no fim do pedido da mãe vigente quando ele digitou": {
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "d80a949186d6b638",
+      "hash": "9044c8018dd10c9c",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-03",
       "motivo": "turno próprio da filha no pedido vigente"
     },
+    "task-tree/tests/sessoes.test.ts::o título da sessão nova com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "93369f27d717f67b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
     "task-tree/tests/sessoes.test.ts::plan que reusa o id do nível 1 num pedido novo deixa o cartão com tarefa aberta sob a tarefa de origem, com o pedido antigo à vista": {
       "regras": [
         "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
       ],
-      "hash": "a78432d6e6279145",
+      "hash": "d36c307393f56390",
       "assercoes": 9,
       "tipo": "novo",
       "data": "2026-11-10",
@@ -1640,18 +3348,28 @@
       "regras": [
         "pedidos.id-reusado-segura-pedido-com-sessao-viva"
       ],
-      "hash": "631a84cfad55fcab",
+      "hash": "dea486b1b3dc7f12",
       "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::sem nome que case, a sessão aberta antes do plan vai à primeira pendente do plan": {
+      "regras": [
+        "sessoes.aberta-antes-do-plan-e-adotada"
+      ],
+      "hash": "13a0f67823d544f8",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::sessão numa pasta sem git mostra a pasta, sem branch": {
       "regras": [
         "sessoes.pasta-sem-git"
       ],
-      "hash": "f56b7836e2f1d360",
-      "assercoes": 2,
+      "hash": "2b6b4c6ea9d587cc",
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "sessões filhas (tarefa 5, commit A)"
@@ -1666,12 +3384,115 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::turnos digitados com pedidos diferentes da mãe em curso ficam em cartões diferentes": {
+      "regras": [
+        "sessoes.turno-proprio-da-filha-no-pedido-vigente"
+      ],
+      "hash": "ce7368d766ca80e6",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Um cartão só (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::uma rodada antiga da neta, de pedido cortado, não quebra o cartão": {
+      "regras": [
+        "sessoes.publicado-enxuto"
+      ],
+      "hash": "c9cba1556ead36f2",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/sessoes.test.ts::uma sessão rodando com uma rodada antiga deixada aberta conta uma vez em sessões ativas": {
+      "regras": [
+        "sessoes.sessao-conta-uma-vez-no-chip"
+      ],
+      "hash": "f0a662ff0fe7cdc6",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: a sessão conta uma vez no chip"
+    },
+    "task-tree/tests/subagentes.test.ts::a descrição do subagente com só uma palavra em comum com uma tarefa não decide: o cartão segue a ordem": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "53532b27e7ba57da",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::a descrição inteira dentro do título leva o cartão a essa tarefa": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "5b8e95292ec682b6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::a ferramenta pendente de um subagente que terminou não volta ao cartão dele": {
+      "regras": [
+        "subagentes.ferramenta-em-uso-com-freio"
+      ],
+      "hash": "4d7134e9bcf12337",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "freio por tempo nas gravações do cartão do subagente"
+    },
+    "task-tree/tests/subagentes.test.ts::a nota sai também no resultado da ferramenta seguinte, com o turno em curso": {
+      "regras": [
+        "subagentes.modelo-avisado-do-fechamento"
+      ],
+      "hash": "210f49781e966a86",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
+    },
+    "task-tree/tests/subagentes.test.ts::a nova tentativa decide também quando termina mal: parada, a tarefa fica ✕ 'interrompida'": {
+      "regras": [
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "77ea6b47f43ade26",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: ✓, vale a última (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::a pergunta aberta de um subagente, numa tarefa dele de mesmo id, não segura a tarefa da sessão": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "3a58f9c3aa6ebd8b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
+    "task-tree/tests/subagentes.test.ts::a tarefa iniciada com subagente em segundo plano segue em andamento depois do fim do turno": {
+      "regras": [
+        "subagentes.tarefa-em-andamento-com-subagente-rodando",
+        "turnos.iniciada-aguarda-no-fim"
+      ],
+      "hash": "76f0a7f0f1e9e70e",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sim, ◉ como a filha (Recomendado)"
+    },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
       "hash": "3e40470cceec5936",
-      "assercoes": 9,
+      "assercoes": 13,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
@@ -1691,7 +3512,7 @@
       "regras": [
         "subagentes.workflow-sem-sinal-vira-interrompido"
       ],
-      "hash": "7256ee402ee4767c",
+      "hash": "43a89ca9e2f47491",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -1702,7 +3523,7 @@
         "subagentes.workflow-sem-sinal-vira-interrompido",
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "0359fc4117ac74a8",
+      "hash": "4e009883899627b2",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -1712,18 +3533,58 @@
       "regras": [
         "subagentes.workflow-sem-sinal-vira-interrompido"
       ],
-      "hash": "58319f7ebb6d846a",
+      "hash": "c43d386c241905ae",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::as tarefas que o subagente deixou interrompidas só voltam com start dele": {
+      "regras": [
+        "subagentes.retomado-volta-a-trabalhando"
+      ],
+      "hash": "cd8bbf85f3a2809e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
+    },
+    "task-tree/tests/subagentes.test.ts::as tarefas que o subagente planeja contam no cabeçalho e no x/y da tarefa de origem e do pedido, com o cartão aberto ou a tarefa recolhida": {
+      "regras": [
+        "subagentes.tarefas-do-subagente-contam-acima"
+      ],
+      "hash": "c797176262dfc455",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
+    },
+    "task-tree/tests/subagentes.test.ts::com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "24cca72017f54298",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
+    "task-tree/tests/subagentes.test.ts::com a sessão trabalhando na rodada dela nessa tarefa, o subagente concluído não a fecha no fim do turno": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "9a8b4b8a693ec5fc",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
     },
     "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
       "hash": "dcf3324b22fa9b03",
-      "assercoes": 9,
+      "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 5"
@@ -1733,8 +3594,8 @@
         "subagentes.lancados-juntos-se-veem",
         "subagentes.cartao-desde-o-lancamento"
       ],
-      "hash": "5a3b24ac7a65efa1",
-      "assercoes": 3,
+      "hash": "e5931cb007256be8",
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
@@ -1744,10 +3605,21 @@
         "subagentes.cartao-desde-o-lancamento"
       ],
       "hash": "fbba245f620e37e8",
-      "assercoes": 3,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com o subagente retomado rodando, a tarefa de origem aberta não fecha no fim do turno; a já fechada não reabre": {
+      "regras": [
+        "subagentes.retomado-volta-a-trabalhando",
+        "subagentes.um-rodando-mantem-o-pai"
+      ],
+      "hash": "1025702231e966d9",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
     },
     "task-tree/tests/subagentes.test.ts::com o turno terminado, o subagente que o app passa a listar como parado ou concluído encerra o cartão, e a tarefa de origem reflete o fim": {
       "regras": [
@@ -1755,8 +3627,8 @@
         "subagentes.pai-reflete-falha-ou-interrupcao",
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
-      "hash": "84b14e55521ab203",
-      "assercoes": 13,
+      "hash": "ab2d12ad13df9300",
+      "assercoes": 15,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
@@ -1767,7 +3639,7 @@
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
       "hash": "817255071a5c660b",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
@@ -1781,6 +3653,47 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com uma tarefa em andamento e um passo planejado depois, o subagente lançado fica sob a tarefa em andamento": {
+      "regras": [
+        "envios.com-andamento-fica-sob-a-tarefa-em-andamento",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "2547bead59928bfe",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::depois do Esc, o fim do subagente em segundo plano fecha a tarefa que ele deixou: ✓ se concluiu": {
+      "regras": [
+        "subagentes.fim-depois-do-esc-fecha-a-tarefa"
+      ],
+      "hash": "f9753ac817650e0d",
+      "assercoes": 15,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Fecha como no fim normal"
+    },
+    "task-tree/tests/subagentes.test.ts::depois do Esc, o fim do subagente em segundo plano fecha também a parada cujo subagente terminou antes do Esc": {
+      "regras": [
+        "subagentes.fim-depois-do-esc-fecha-a-tarefa"
+      ],
+      "hash": "0495a86c67469fe2",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Todas, como hoje"
+    },
+    "task-tree/tests/subagentes.test.ts::depois do Esc, o subagente em segundo plano que falha deixa a tarefa ✕ 'falhou'": {
+      "regras": [
+        "subagentes.fim-depois-do-esc-fecha-a-tarefa"
+      ],
+      "hash": "96abfa180bfdd874",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Fecha como no fim normal"
     },
     "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
       "regras": [
@@ -1813,22 +3726,32 @@
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
     },
-    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
+    "task-tree/tests/subagentes.test.ts::lançado de uma tarefa sem start, o subagente rodando deixa a tarefa, o pai e o pedido em andamento": {
+      "regras": [
+        "subagentes.tarefa-em-andamento-com-subagente-rodando"
+      ],
+      "hash": "5bc7b5dd73f1c66a",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sim, ◉ como a filha (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
       ],
-      "hash": "42efd176ce0a2c8b",
-      "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-10",
-      "motivo": "auditoria 2026-11-10, achado alto 5"
+      "hash": "4660b789666203a6",
+      "assercoes": 7,
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\"; num pedido sem plano o cartão termina a lista"
     },
     "task-tree/tests/subagentes.test.ts::lançado por um subagente sem tarefas, o cartão fica no fim do cartão dele e sai com ele, sem ficar solto no fim do painel": {
       "regras": [
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
       ],
       "hash": "c0b20540ce69bea0",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -1839,7 +3762,7 @@
         "subagentes.cartao-mostra-modelo-e-estado"
       ],
       "hash": "a507f9a316496285",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1849,10 +3772,61 @@
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
       "hash": "ceb28a25e16202f5",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::muitas chamadas de ferramenta de subagentes no mesmo segundo gravam o painel uma vez; a linha da ferramenta chega em até 1 s": {
+      "regras": [
+        "subagentes.ferramenta-em-uso-com-freio"
+      ],
+      "hash": "e5616c145efd26af",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "freio por tempo nas gravações do cartão do subagente"
+    },
+    "task-tree/tests/subagentes.test.ts::no Esc, a tarefa com subagente em segundo plano aguarda enquanto ele roda": {
+      "regras": [
+        "turnos.esc-com-trabalho-delegado-vivo"
+      ],
+      "hash": "f3bdde9403470d70",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
+    },
+    "task-tree/tests/subagentes.test.ts::no cartão de grupo, o agente que pede permissão mostra a espera na linha dele e conta no chip 'aguardando', também com o cartão recolhido": {
+      "regras": [
+        "subagentes.espera-no-cartao-de-grupo",
+        "perguntas.permissao-espera"
+      ],
+      "hash": "b21c255d58780429",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a espera de um agente aparece e conta no cartão de grupo"
+    },
+    "task-tree/tests/subagentes.test.ts::no mesmo pedido, com tudo concluído, o lançamento vai à última tarefa iniciada, já fechada": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "hash": "fb2944874b92b697",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
+    "task-tree/tests/subagentes.test.ts::num cartão de grupo, as tarefas de um agente contam com a linha dele fechada": {
+      "regras": [
+        "subagentes.tarefas-do-subagente-contam-acima"
+      ],
+      "hash": "9c8bef1f8f5b3146",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
     },
     "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
       "regras": [
@@ -1860,7 +3834,7 @@
         "subagentes.na-filha"
       ],
       "hash": "054c68659e3829c4",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -1871,17 +3845,27 @@
         "subagentes.na-filha"
       ],
       "hash": "b757df2f32a678de",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
+    },
+    "task-tree/tests/subagentes.test.ts::o cartão do subagente cuja tarefa de origem sai do plano fica sob o nível 1 depois de terminar": {
+      "regras": [
+        "pedidos.replano-leva-o-cartao-ao-nivel-1"
+      ],
+      "hash": "9617b08326169287",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sob o nível 1 (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::o cartão do subagente lançado por outro não vai para uma tarefa da sessão que tem o mesmo id da tarefa de quem o lançou": {
       "regras": [
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
       ],
       "hash": "a9abd158b2baa2e4",
-      "assercoes": 3,
+      "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -1890,11 +3874,21 @@
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "9a21bf761e2f3c70",
+      "hash": "685ea090ea462bf4",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
+    },
+    "task-tree/tests/subagentes.test.ts::o done numa tarefa interrompida diz que o start a reabre": {
+      "regras": [
+        "arvore.done-em-interrompida-indica-o-start"
+      ],
+      "hash": "ce8088e45f3dc695",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
     },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
@@ -1906,12 +3900,32 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
     },
+    "task-tree/tests/subagentes.test.ts::o subagente ainda em segundo plano não sai com o pedido": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "168f30b221d357a2",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente com tarefas próprias fica no histórico": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "765637cd55155948",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
     "task-tree/tests/subagentes.test.ts::o subagente concluído fecha a tarefa de onde saiu no fim do turno; o pai e a contagem seguem": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
       "hash": "cffe7014737cdf05",
-      "assercoes": 8,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "pai reflete subagente"
@@ -1921,17 +3935,47 @@
         "subagentes.na-filha"
       ],
       "hash": "193c0a0eb20399b1",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente em segundo plano que falha depois do turno: o prompt seguinte diz que a tarefa ficou interrompida e como refazer": {
+      "regras": [
+        "subagentes.modelo-avisado-do-fechamento"
+      ],
+      "hash": "c07505e65c72bc56",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente falha e outro, lançado depois da mesma tarefa, conclui: a tarefa fica ✓ e o cartão do primeiro segue 'falhou'": {
+      "regras": [
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "34c1186fc70ba8c7",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: ✓, vale a última (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente lançado antes do plan do pedido termina a lista, o plan o adota e o fim dele não fecha a tarefa que o adotou": {
+      "regras": [
+        "subagentes.lancado-antes-do-plan-e-adotado"
+      ],
+      "hash": "73554fd26e544c61",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
     "task-tree/tests/subagentes.test.ts::o subagente não entra no \"d de n\" e ganha a pílula de subagentes": {
       "regras": [
         "subagentes.fora-da-contagem"
       ],
       "hash": "fb2224452e081978",
-      "assercoes": 2,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1951,16 +3995,47 @@
         "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
       ],
       "hash": "52c688c58731da3c",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente retomado volta a 'trabalhando', conta na pílula e segue a contagem de chamadas; o fim seguinte vale como fim": {
+      "regras": [
+        "subagentes.retomado-volta-a-trabalhando"
+      ],
+      "hash": "10e4c0604a347c30",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente terminado sem tarefas sai quando o pedido dele sai do trabalho": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "212f75f24e9e54d8",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
+    "task-tree/tests/subagentes.test.ts::o tipo do subagente que é só um trecho de uma palavra do título não decide": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "5e1f97c02c8a66f8",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
     },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "b37843e67db976b2",
+      "hash": "950afa0ea3b49dd7",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -1971,7 +4046,7 @@
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
       "hash": "1f9ab07523f6d89a",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -1981,18 +4056,28 @@
         "subagentes.id-reusado-nao-herda-cartao"
       ],
       "hash": "d0f6d6507649d1b0",
-      "assercoes": 8,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 4"
+    },
+    "task-tree/tests/subagentes.test.ts::quando os subagentes fecham a tarefa no fim do turno, o modelo é avisado uma vez": {
+      "regras": [
+        "subagentes.modelo-avisado-do-fechamento"
+      ],
+      "hash": "3cc5c9885efb37fa",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: nota do fim dos subagentes e done em tarefa interrompida"
     },
     "task-tree/tests/subagentes.test.ts::quatro lançados juntos da mesma tarefa, com o relógio andando, ficam num cartão de grupo": {
       "regras": [
         "subagentes.lancados-juntos-se-veem",
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
-      "hash": "fd2fe6b546f2f744",
-      "assercoes": 5,
+      "hash": "a2cdd3dc4568f3ec",
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 7"
@@ -2002,7 +4087,7 @@
         "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
       ],
       "hash": "3958e84470188da1",
-      "assercoes": 5,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 6"
@@ -2023,7 +4108,7 @@
         "subagentes.cartao-desde-o-lancamento"
       ],
       "hash": "dacf75940df84246",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
@@ -2033,16 +4118,26 @@
         "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
       ],
       "hash": "ad391ebfaeca3d63",
-      "assercoes": 1,
+      "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::start numa tarefa antiga não traz o cartão de volta": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "ee4bbaf34d708987",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
     },
     "task-tree/tests/subagentes.test.ts::subagente em segundo plano e o processo novo, 1/3: o cartão vivo vai ao store": {
       "regras": [
         "subagentes.sem-fim-vira-interrompido"
       ],
-      "hash": "551f7b4cc75f4a96",
+      "hash": "d90edf61d0da9790",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -2052,8 +4147,8 @@
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "92f3787112d51a39",
-      "assercoes": 6,
+      "hash": "a7a6fc25273e5a97",
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
@@ -2062,8 +4157,8 @@
       "regras": [
         "subagentes.sem-fim-vira-interrompido"
       ],
-      "hash": "4fc95bc4364ef71e",
-      "assercoes": 14,
+      "hash": "39487e08f42fdf79",
+      "assercoes": 15,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, entra nesta rodada (Recomendado)\" (o cartão vivo é conferido contra a lista de agentes do app; o órfão vira \"interrompido\" com o tempo parado)"
@@ -2074,7 +4169,7 @@
         "subagentes.cartao-mostra-modelo-e-estado"
       ],
       "hash": "3900f9332c92caf8",
-      "assercoes": 9,
+      "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
@@ -2084,7 +4179,7 @@
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
       ],
       "hash": "50b93caa4b324c31",
-      "assercoes": 12,
+      "assercoes": 16,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
@@ -2093,21 +4188,21 @@
       "regras": [
         "subagentes.lancado-antes-da-tarefa-nao-conta"
       ],
-      "hash": "694665aa2925dddb",
+      "hash": "f764a0ce5f9f3980",
       "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-11-11",
-      "motivo": "auditoria 2026-11-10, achado alto 6"
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, ajustar a preparação (Recomendado)\": o teste monta o subagente antigo"
     },
     "task-tree/tests/subagentes.test.ts::âncora gravada por versão anterior, 2/2: o fim do turno não fecha a tarefa nova pelo subagente lançado antes dela": {
       "regras": [
         "subagentes.lancado-antes-da-tarefa-nao-conta"
       ],
-      "hash": "13e907247ecc1ae2",
+      "hash": "79e83de682f25261",
       "assercoes": 4,
-      "tipo": "novo",
-      "data": "2026-11-11",
-      "motivo": "auditoria 2026-11-10, achado alto 6"
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, ajustar a preparação (Recomendado)\": a preparação vem do 1/2, que passa a montar o subagente antigo"
     },
     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
       "regras": [
@@ -2150,6 +4245,17 @@
       "data": "2026-11-10",
       "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
     },
+    "task-tree/tests/taxa.test.ts::o toks/s do cabeçalho é desenhado a 60 e a 100 colunas": {
+      "regras": [
+        "taxa.velocidade-de-geracao",
+        "cabecalho.toks-e-ultracode-em-qualquer-largura"
+      ],
+      "hash": "37bf9ab237decb6e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
+    },
     "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
       "regras": [
         "turnos.esc-interrompe-so-a-iniciada"
@@ -2170,6 +4276,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
+    "task-tree/tests/turnos.test.ts::a mensagem que continua o plano anterior deixa o resumo no pedido dele": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "65cfaf054acb7fe9",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::a notificação de uma tarefa em segundo plano não abre pedido": {
       "regras": [
         "turnos.notificacao-de-tarefa-sem-turno"
@@ -2180,12 +4296,74 @@
       "data": "2026-10-28",
       "motivo": "subagente, hand-back e limites do desenho"
     },
+    "task-tree/tests/turnos.test.ts::a resposta guardada por uma versão anterior sai na gravação seguinte": {
+      "regras": [
+        "turnos.resposta-inteira-nao-e-guardada"
+      ],
+      "hash": "faec048dddd3c7d1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); só o resumo ↩ é guardado"
+    },
+    "task-tree/tests/turnos.test.ts::a tarefa que atravessa turnos conta só o tempo com o turno em curso, e o pai, o pedido e o cabeçalho também": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso"
+      ],
+      "hash": "cdc06604a8bb403c",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
+    },
+    "task-tree/tests/turnos.test.ts::com a filha trabalhando depois do fim do turno, o intervalo parado só começa quando ela para": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso",
+        "cabecalho.tempo-para-no-fim-do-turno"
+      ],
+      "hash": "50e9b07e652adc33",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
+    },
+    "task-tree/tests/turnos.test.ts::com tudo fechado, o tempo segue contando do primeiro start": {
+      "regras": [
+        "turnos.tempo-conta-do-primeiro-start"
+      ],
+      "hash": "4a7d71cafce11311",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: o tempo conta do primeiro start"
+    },
+    "task-tree/tests/turnos.test.ts::depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "84a68d850bf21234",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::depois do Esc, a tarefa retoma do tempo em que parou quando recebe start de novo": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso",
+        "turnos.parada-segue-interrompida-ate-o-start"
+      ],
+      "hash": "e4598e9df45de59a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
+    },
     "task-tree/tests/turnos.test.ts::depois do Esc, um prompt que não abre pedido não reacende a tarefa parada, o relógio dela não corre e o fim desse turno não a deixa aguardando": {
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "bb51313001f09f62",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2210,6 +4388,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::no cartão da filha, o tempo parado entre os turnos dela não entra": {
+      "regras": [
+        "turnos.tempo-so-com-o-turno-em-curso"
+      ],
+      "hash": "1bd744c0901a9586",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
     },
     "task-tree/tests/turnos.test.ts::no fim do turno a tarefa iniciada e aberta fica aguardando, e o pai também": {
       "regras": [
@@ -2237,20 +4425,70 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "7a6b3470304ded7e",
-      "assercoes": 7,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o Esc num turno seguinte não interrompe a tarefa que aguardava sem start": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "763827e7db596d55",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o done em tarefas que aguardavam as conclui sem o aviso de etapas sem start": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "29179cca3fe95df5",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::o done na tarefa parada com Esc, sem start, a conclui": {
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "249729534296de32",
-      "assercoes": 4,
+      "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o done na tarefa que falhou, sem start, a conclui": {
+      "regras": [
+        "turnos.turno-que-falha-deixa-falhou"
+      ],
+      "hash": "052c29f0391252cd",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o fim do turno não guarda nem publica a resposta inteira": {
+      "regras": [
+        "turnos.resposta-inteira-nao-e-guardada"
+      ],
+      "hash": "4c5bd76d0cc0f2c0",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); só o resumo ↩ é guardado"
+    },
+    "task-tree/tests/turnos.test.ts::o fim normal do turno vai no painel publicado: a tarefa que aguardava leva a hora do fim": {
+      "regras": [
+        "sessoes.cartao-parado-mostra-o-tempo-do-turno"
+      ],
+      "hash": "3b583b7dee2d7c40",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: o fim do turno vai na tarefa publicada"
     },
     "task-tree/tests/turnos.test.ts::o hand-back de um subagente não abre pedido: o plano seguinte entra no pedido atual": {
       "regras": [
@@ -2266,11 +4504,21 @@
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
-      "hash": "e2b5704f024ad3c1",
-      "assercoes": 6,
+      "hash": "a80955c096a44124",
+      "assercoes": 10,
+      "tipo": "decisao",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Inicia a 1ª subtarefa (Recomendado)\"; a subtarefa iniciada pelo start no pai fica ✕ no Esc"
+    },
+    "task-tree/tests/turnos.test.ts::o pedido só com resumo sai de vista com os pedidos antigos quando um pedido novo limpa o painel": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "07edfafea88abbdd",
+      "assercoes": 4,
       "tipo": "novo",
-      "data": "2026-11-12",
-      "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::o prompt seguinte ao fim do turno volta ao trabalho e o start acende a tarefa": {
       "regras": [
@@ -2287,17 +4535,37 @@
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "91f0030b5002b6dc",
-      "assercoes": 3,
+      "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
+    },
+    "task-tree/tests/turnos.test.ts::o resumo de um pedido respondido sem tarefa fica num pedido próprio e não troca o ↩ do anterior": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "3d07f6d75851959d",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::o resumo de um turno parado com Esc não vira o ↩ do pedido seguinte, e o done final sem resumo volta a avisar": {
+      "regras": [
+        "turnos.resumo-de-turno-parado-nao-passa-adiante"
+      ],
+      "hash": "6b0c125af9218e2b",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "correção direta: resumo e recap zerados em todo fim de turno"
     },
     "task-tree/tests/turnos.test.ts::o start na tarefa parada com Esc a reacende e ela volta a contar; no fim do turno aguarda como qualquer outra": {
       "regras": [
         "turnos.parada-segue-interrompida-ate-o-start"
       ],
       "hash": "a8aa4e6e735fad31",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
@@ -2321,6 +4589,26 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/turnos.test.ts::o tempo do pai e do pedido não pula no fim do turno com passos pendentes": {
+      "regras": [
+        "turnos.tempo-conta-do-primeiro-start"
+      ],
+      "hash": "1032feeb4e7a0701",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: o tempo conta do primeiro start"
+    },
+    "task-tree/tests/turnos.test.ts::o turno que morre por erro deixa a tarefa em andamento ✕ \"falhou\", fora da contagem, até o start nela": {
+      "regras": [
+        "turnos.turno-que-falha-deixa-falhou"
+      ],
+      "hash": "05c8622d76df8111",
+      "assercoes": 17,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"✕ \\\"falhou\\\" (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::o ↩ aparece mesmo quando o turno termina sem texto final": {
       "regras": [
@@ -2362,6 +4650,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/turnos.test.ts::sem resumo, a resposta de um pedido sem tarefa não é gravada em pedido nenhum": {
+      "regras": [
+        "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
+      ],
+      "hash": "0d03df5fd0b2de64",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Pedido próprio (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::sem start, plano novo fica todo pendente": {
       "regras": [
         "arvore.sem-start-nada-acende"
@@ -2371,6 +4669,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::um turno que não abre pedido não reacende a tarefa que aguardava": {
+      "regras": [
+        "turnos.aguardando-segue-ate-o-start"
+      ],
+      "hash": "5305f6a2750de4c1",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
     },
     "task-tree/tests/ultracode.test.ts::a palavra digitada num prompt e o attachment de um subagente não acendem": {
       "regras": [
@@ -2391,6 +4699,17 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/ultracode.test.ts::com o interruptor ligado, 'ultracode' é desenhado no cabeçalho a 60 e a 100 colunas, não só no texto alternativo": {
+      "regras": [
+        "ultracode.cabecalho",
+        "cabecalho.toks-e-ultracode-em-qualquer-largura"
+      ],
+      "hash": "e98fcb85e475bb13",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
     },
     "task-tree/tests/ultracode.test.ts::o cartão da filha diz \"ultracode\" depois do modelo enquanto ela publica o interruptor ligado": {
       "regras": [
@@ -2433,6 +4752,16 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::a faixa segue em andamento entre o done de uma tarefa e o start da seguinte, com o turno em curso": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "4b5159a39b30850f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Em andamento (Recomendado)"
+    },
     "task-tree/tests/visual.test.ts::a linha ↩ do cartão, sem tempo, vai até a borda do cartão antes de cortar": {
       "regras": [
         "visual.titulo-sem-contagem-vai-ate-o-tempo"
@@ -2443,12 +4772,22 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::com tudo desta sessão concluído e a filha trabalhando numa tarefa iniciada dela, a faixa é âmbar, em andamento": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "51c1f1bf60ca74bd",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Âmbar, como hoje"
+    },
     "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
       "regras": [
         "visual.guias-na-faixa-do-cartao"
       ],
       "hash": "a94c38b5313c925a",
-      "assercoes": 6,
+      "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
@@ -2458,7 +4797,7 @@
         "visual.guias-em-caixas-nativas"
       ],
       "hash": "35bd17dfc1d7ffeb",
-      "assercoes": 9,
+      "assercoes": 19,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
@@ -2478,7 +4817,7 @@
         "visual.cartao-e-cabecalho-destacados"
       ],
       "hash": "36bb10f6461a57aa",
-      "assercoes": 3,
+      "assercoes": 12,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "cabeçalho com o fundo e a borda do cartão (decisão do usuário, 2026-11-13: Sim, junto do cartão)"
@@ -2488,7 +4827,7 @@
         "visual.guias-na-faixa-do-cartao"
       ],
       "hash": "fe81980bf620596b",
-      "assercoes": 3,
+      "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "guias em caixas nativas finas (decisão do usuário, 2026-11-13)"
@@ -2498,7 +4837,7 @@
         "visual.cartao-e-cabecalho-destacados"
       ],
       "hash": "c2527794687deed8",
-      "assercoes": 0,
+      "assercoes": 18,
       "tipo": "novo",
       "data": "2026-11-13",
       "motivo": "cartão destacado do painel: fundo e borda próprios (decisão do usuário, 2026-11-13: nao aparece nenhum card)"
@@ -2565,23 +4904,29 @@
     }
   },
   "kit": {
-    "task-tree/tests/kit/ambiente.ts": {
-      "hash": "734fecf1b664171d",
+    "task-tree/tests/fixtures/publicados.ts": {
+      "hash": "6c8266a8f3390187",
       "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "kit: eco do session.receive; lancaveis responde a retomada"
+      "data": "2026-11-15",
+      "motivo": "arquivo de apoio dos testes, selado na migração do hash"
+    },
+    "task-tree/tests/kit/ambiente.ts": {
+      "hash": "f63470a36073079a",
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "filha com modelo publicado; host com a raiz e o .git da sessão"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "b3f9c45b550d7930",
-      "tipo": "novo",
+      "hash": "35279f1270f0562d",
+      "tipo": "refatoracao",
       "data": "2026-11-14",
-      "motivo": "kit: recebidaPeloSubagente, retomadaDoSubagente"
+      "motivo": "roteiro novo: falha (turno que termina por erro); os outros roteiros não mudam"
     },
     "task-tree/tests/kit/leitura.ts": {
-      "hash": "c6d8ba3b659d5b92",
+      "hash": "44ea46b37116d9ac",
       "tipo": "refatoracao",
-      "data": "2026-11-13",
-      "motivo": "leitura da altura e do centro das linhas, dos vãos, dos respiros dos cartões e do tom de uma cor; nenhuma leitura existente muda"
+      "data": "2026-11-15",
+      "motivo": "desenhoDoApp aceita a largura; a marca sorteada do plan vira ~ nas keys do golden"
     }
   },
   "golden": {
@@ -2595,15 +4940,58 @@
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
     },
+    "filha-modelo-e-carta": {
+      "hash": "7fdf7e4ceca6d826",
+      "data": "2026-11-15",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
+    },
+    "largo": {
+      "hash": "b3ba54c0a166982a",
+      "data": "2026-11-15",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
+    },
     "principal": {
-      "hash": "b4286a70fb1aa0ff",
-      "data": "2026-11-13",
-      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
+      "hash": "67f6b666fe473137",
+      "data": "2026-11-14",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
     },
     "subagente": {
       "hash": "1447facdd5440f85",
       "data": "2026-11-13",
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
+    }
+  },
+  "removidos": {
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 1/2: o recap do wrap_up no state": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); a resposta inteira e o recap não são mais guardados",
+      "reescrito": "2026-11-15",
+      "hash": "3f971ccbf9b8e329",
+      "tipo": "decisao"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da recarga": {
+      "regras": [
+        "durabilidade.recarga-mantem-painel-ligacoes-e-resumo"
+      ],
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-14: Tirar, basta o ↩ (Recomendado); a resposta inteira e o recap não são mais guardados",
+      "reescrito": "2026-11-15",
+      "hash": "e762b21f9e70918d",
+      "tipo": "decisao"
+    },
+    "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano depois de um pedido todo concluído, o cartão aparece sob a última tarefa iniciada": {
+      "regras": [
+        "subagentes.cartao-fica-com-a-origem-fechada"
+      ],
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\"; num pedido sem plano o cartão termina a lista",
+      "reescrito": "2026-11-14",
+      "hash": "42efd176ce0a2c8b",
+      "para": "task-tree/tests/subagentes.test.ts::lançado num pedido sem plano, o cartão termina a lista e não vai a tarefa do pedido anterior",
+      "tipo": "decisao"
     }
   }
 }

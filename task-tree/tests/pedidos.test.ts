@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA, fixar, host } from './kit/ambiente'
 import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
-import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, painel, type Linha } from './kit/leitura'
+import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, montar, painel, temBusto, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }]
@@ -16,6 +16,33 @@ test('o título do pedido vem do request do plan', async ($: any, on: any) => {
   const p = await painel($)
   esperarEstado(p, 'Título curto', 'pendente')
   expect(p.some(l => l.titulo === 'uma mensagem bem comprida da pessoa'), emTexto(p)).toBe(false)
+})
+
+// Regra: pedidos.titulo-vem-do-request
+test('o request de outro plan do mesmo pedido não muda o título; o pedido seguinte ganha o seu', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'uma mensagem')
+  await plan($, A, 'Auditar o mod')
+  await plan($, B, 'Relato da auditoria')
+  let p = await painel($)
+  esperarEstado(p, 'Auditar o mod', 'pendente')
+  expect(p.some(l => l.titulo === 'Relato da auditoria'), emTexto(p)).toBe(false)
+  expect(indice(p, 'Plano B'), emTexto(p)).toBeGreaterThan(indice(p, 'Auditar o mod'))
+  expect(linha(p, 'Plano B').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Auditar o mod').nivel)
+  await fimDoTurno($)
+  await aviso($)
+  await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: 'c1', title: 'Cê um' }] }], 'Conferir o relato')
+  p = await painel($)
+  esperarEstado(p, 'Auditar o mod', 'pendente')
+  expect(p.some(l => l.titulo === 'Conferir o relato'), emTexto(p)).toBe(false)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'D', title: 'Plano D', children: [{ id: 'd1', title: 'Dê um' }] }])
+  await plan($, [{ id: 'E', title: 'Plano E', children: [{ id: 'e1', title: 'É um' }] }], 'Título dois')
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Título dois'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Pedido dois'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo === 'Auditar o mod'), emTexto(p)).toBe(true)
 })
 
 // Regra: pedidos.uma-mensagem-um-pedido
@@ -199,17 +226,25 @@ test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a 
 
 // Regra: pedidos.nivel1-concluido-e-historico
 test('plan com o id de um nível 1 concluído deixa o concluído como histórico e põe um plano novo ao lado', async ($: any, on: any) => {
-  fixar(on)
+  // No pedido seguinte (no mesmo pedido, o concluído reabre: decisão do usuário, 2026-11-14,
+  // "Reabre mantendo os ✓ (Recomendado)").
+  const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A2)
   for (const id of ['1', '2.1', '2.2']) {
     await start($, [id])
     await done($, [id])
   }
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
   await plan($, A2)
-  const p = await painel($)
+  const p = await comHistorico($, 1)
   const planos = p.filter(l => l.titulo === 'Plano A')
   expect(planos.map(l => l.estado), emTexto(p)).toEqual(['concluida', 'pendente'])
+  const dois = p.findIndex(l => l.titulo === 'Pedido dois')
+  expect(p.indexOf(planos[0]!), emTexto(p)).toBeLessThan(dois)
+  expect(p.indexOf(planos[1]!), emTexto(p)).toBeGreaterThan(dois)
 })
 
 
@@ -314,4 +349,244 @@ test('mensagem entregue no meio do turno continua o pedido em curso: sem pedido 
   p = await painel($)
   expect(pedidosECartas(p), emTexto(p)).toEqual(['Pedido um', 'Recado de outra sessão', 'Pedido dois'])
   expect(linha(p, 'Plano C').nivel, emTexto(p)).toBeGreaterThan(linha(p, 'Pedido dois').nivel)
+})
+
+// Regra: pedidos.replano-aceita-o-id-completo
+test('replano com os ids completos que os lembretes mostram mantém a concluída e a em andamento', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2.1'])
+  await plan($, [
+    {
+      id: 'A',
+      title: 'Plano A',
+      children: [
+        { id: 'A/1', title: 'Um' },
+        { id: 'A/2', title: 'Dois', children: [{ id: 'A/2.1', title: 'Dois.um' }, { id: 'A/2.2', title: 'Dois.dois' }] },
+        { id: 'A/3', title: 'Três' },
+      ],
+    },
+  ])
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Dois.um', 'andamento')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(p.filter(l => l.titulo === 'Um').length, emTexto(p)).toBe(1)
+  expect(emTexto(p)).toContain('1 de 4')
+  expect((await start($, ['3'])).texto).toContain('Em andamento: Três')
+})
+
+// Regra: pedidos.nivel1-concluido-e-historico
+test('no mesmo pedido, o plan com o id de um nível 1 concluído e um passo a mais o reabre mantendo os concluídos', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  for (const id of ['1', '2.1', '2.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  await plan($, comTres())
+  const p = await painel($)
+  expect(p.filter(l => l.titulo === 'Plano A').length, emTexto(p)).toBe(1)
+  expect(['andamento', 'aguardando']).toContain(linha(p, 'Plano A').estado)
+  for (const t of ['Um', 'Dois', 'Dois.um', 'Dois.dois']) esperarEstado(p, t, 'concluida')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(emTexto(p)).toContain('3 de 4')
+})
+
+// Regra: pedidos.nivel1-concluido-e-historico
+test('no mesmo pedido, o cartão da filha segue sob a tarefa quando o nível 1 concluído é replanejado', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false, painel: { tasks: [{ id: '1', short: '1', title: 'Tarefa da filha', status: 'done', children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  for (const id of ['1', '2.1', '2.2']) {
+    if (id !== '1') await start($, [id])
+    await done($, [id])
+  }
+  await plan($, comTres())
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(p.filter(l => l.titulo === 'Um').length, emTexto(p)).toBe(1)
+  esperarEstado(p, 'Um', 'concluida')
+})
+
+// Regra: pedidos.marca-so-no-comeco-do-prompt
+test('o texto colado com a tag de outra sessão no meio abre pedido da pessoa e não grava recebimento', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'no log apareceu isto: <cross-session-message from="local_99999999-9999-9999-9999-999999999999" name="X">oi</cross-session-message> e mais texto')
+  await plan($, A)
+  const p = await painel($)
+  const l = p.find(x => x.titulo.startsWith('no log apareceu isto'))
+  expect(l, emTexto(p)).toBeDefined()
+  expect(l?.carta, emTexto(p)).toBeUndefined()
+  expect(p.some(x => x.titulo === 'oi'), emTexto(p)).toBe(false)
+  expect(h.proprio()?.received ?? []).toEqual([])
+})
+
+// Regra: pedidos.marca-so-no-comeco-do-prompt
+test('o texto com a marca de retorno de subagente no meio abre pedido da pessoa', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await fimDoTurno($)
+  const r = await pedido($, 'o que significa [Subagent hand-back] nesse log?')
+  await plan($, B)
+  expect((r?.context ?? []).join(' | ')).toContain('A PRIMEIRA chamada')
+  const p = await painel($)
+  expect(indice(p, 'Plano B'), emTexto(p)).toBeGreaterThan(indice(p, 'o que significa [Subagent hand-back] nesse log?'))
+})
+
+// Regra: pedidos.marca-so-no-comeco-do-prompt
+test('as formas reais seguem valendo: a linha de abertura do app antes da tag, o retorno de subagente e duas mensagens juntas', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, `Another Claude session sent a message:\n<cross-session-message from="${K1}" from-name="filha">relato</cross-session-message>`)
+  await plan($, A)
+  let p = await painel($)
+  expect(linha(p, 'relato').carta, emTexto(p)).toBeDefined()
+  expect((h.proprio()?.received ?? []).map((r: any) => r.from)).toEqual([K1])
+  await $.prompt.submit({ text: 'Another Claude session sent a message:\n<agent-message from="sub-1">\n[Subagent hand-back] pronto</agent-message>' })
+  await plan($, B)
+  p = await painel($)
+  expect(indice(p, 'Plano B'), emTexto(p)).toBeGreaterThan(indice(p, 'relato'))
+  expect(p.some(x => x.titulo.startsWith('Another')), emTexto(p)).toBe(false)
+  await pedido($, `<cross-session-message from="${K1}" name="filha">um</cross-session-message>\n\n<cross-session-message from="${MAE}" name="mae">dois</cross-session-message>`)
+  expect((h.proprio()?.received ?? []).map((r: any) => r.from)).toEqual([K1, K1, MAE])
+})
+
+// Regra: pedidos.replano-leva-o-cartao-ao-nivel-1
+test('o cartão da filha cuja tarefa de origem sai do plano fica sob o nível 1, vivo ou concluído, e segue contando', async ($: any, on: any) => {
+  fixar(on)
+  const K1 = 'local_11111111-1111-1111-1111-111111111111'
+  const t = (id: string, title: string, feita: boolean, iniciada = false) => ({ id, short: id, title, status: feita ? 'done' : 'open', ...(iniciada ? { started: 1, startedAt: AGORA - 1000 } : {}), children: [] })
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [t('f1', 'Efe um', true), t('f2', 'Efe dois', false, true)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] }])
+  await start($, ['2.1'])
+  await abrirSessao($)
+  await aviso($)
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '3', title: 'Três' }] }])
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Plano A'])
+  expect(p.some(l => l.titulo.startsWith('filha-um · do pedido')), emTexto(p)).toBe(false)
+  expect(linha(p, 'Plano A').texto, emTexto(p)).toContain('1/4')
+  expect(temBusto(p, 'Plano A'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Plano A', 'andamento')
+  h.filha(K1).rodando = false
+  h.filha(K1).painel = { tasks: [t('f1', 'Efe um', true), t('f2', 'Efe dois', true)] }
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Plano A'])
+  esperarPalavra(p, 'filha-um', 'concluída')
+  expect(linha(p, 'Plano A').texto, emTexto(p)).toContain('2/4')
+})
+
+// Regra: pedidos.dobra-nao-passa-ao-id-reusado
+test('a dobra do nível 1 antigo não passa ao nível 1 novo que reusa o id', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Antigo', children: [{ id: '1.1', title: 'Antiga um' }] }])
+  await start($, ['1.1'])
+  await done($, ['1.1'])
+  const m = await montar($)
+  await m.recolher('Antigo')
+  await m.fim()
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '1', title: 'Novo', children: [{ id: '1.1', title: 'Nova um' }] }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Nova um'), emTexto(p)).toBe(true)
+  const h = await comHistorico($, 1)
+  expect(h.some(l => l.titulo === 'Antigo'), emTexto(h)).toBe(true)
+  expect(h.some(l => l.titulo === 'Antiga um'), emTexto(h)).toBe(false)
+})
+
+// Regra: pedidos.resumida-mantem-anteriores-com-algo-aberto, cabecalho.limites-de-linhas
+test("com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e não entra em '+N pedidos anteriores'", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido 1')
+  await plan($, [{ id: 'F', title: 'Fechada' }, { id: 'G', title: 'Aberta' }])
+  await start($, ['F'])
+  await done($, ['F'])
+  await fimDoTurno($)
+  for (let i = 2; i <= 5; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}` }])
+    await start($, [`P${i}`])
+    await done($, [`P${i}`])
+    await fimDoTurno($)
+  }
+  const p = await painel($)
+  esperarEstado(p, 'Fechada', 'concluida')
+  esperarEstado(p, 'Aberta', 'pendente')
+  expect(linha(p, 'Pedido 1').texto, emTexto(p)).toContain('1/2')
+  expect(p.filter(l => l.texto.includes('+1 pedidos anteriores')).length, emTexto(p)).toBe(1)
+  expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(false)
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('o plan avisa o nível 1 de pedido anterior que ficou como histórico, com as abertas interrompidas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  const r = await plan($, [{ ...A[0]!, title: 'Plano A novo' }])
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).toContain('Avisos')
+  expect(r.texto).toContain('pedido anterior')
+  expect(r.texto).toContain('histórico')
+  expect(r.texto).toContain('2 tarefas abertas interrompidas')
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('o plan avisa o nível 1 fechado que ficou como histórico', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await done($, ['1', '2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  const r = await plan($, A)
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).toContain('já estava fechada')
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('o replano no mesmo pedido diz quantas tarefas mantiveram o estado', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  const r = await plan($, [{ ...A[0]!, children: [...A[0]!.children!, { id: '3', title: 'Três' }] }])
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).toContain('2 tarefas mantiveram o estado')
+  expect(r.texto).toContain('1 concluída, 1 em andamento')
+})
+
+// Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
+test('um plano sem ids repetidos não traz avisos', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const r = await plan($, B)
+  expect(r.texto).toContain('Plano exibido')
+  expect(r.texto).not.toContain('Avisos')
 })

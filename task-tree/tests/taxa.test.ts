@@ -61,3 +61,18 @@ test('o cartão de subagente mostra a velocidade dele pela mesma regra', async (
   const p = await painel($)
   expect(p.find(l => l.titulo === 'Explore: ler o kit')?.texto, emTexto(p)).toContain('60 toks/s')
 })
+
+// Só o que o cabeçalho do app desenha: os pedaços de texto, sem os textos alternativos dos Svg.
+const desenhadoNoTopo = async ($: any, colunas: number) =>
+  (await noApp($, { colunas })).cabecalho.pedacos.filter(p => p.tipo === 'texto').map(p => p.texto).join(' ')
+
+// Regra: taxa.velocidade-de-geracao, cabecalho.toks-e-ultracode-em-qualquer-largura
+test('o toks/s do cabeçalho é desenhado a 60 e a 100 colunas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const passo = passos(on, relogio)
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await passo($, { antes: 800, geracao: 2000, tokens: 200 })
+  for (const colunas of [60, 100]) expect(await desenhadoNoTopo($, colunas), `${colunas} colunas`).toContain('100 toks/s')
+})

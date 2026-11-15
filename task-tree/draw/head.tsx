@@ -14,7 +14,8 @@ import { CARD_BORDER, CARD_FILL } from './desktop'
 
 // What render.tsx computes for the header. `alt`: the whole header's words (render.tsx builds them,
 // "estado geral" and "sessão inteira" included), on the bar. `whole`: "sessão inteira: a de b", or ''
-// (it is in `alt` already: the drawing shows the view's count, as before). `cols`: the pane's body
+// (it is in `alt` already, and render.tsx puts it on the "+N pedidos anteriores" line: the header
+// shows the view's count, as before). `cols`: the pane's body
 // columns (bodyColumns).
 export type Head = {
   title: string
@@ -55,14 +56,17 @@ const PILL: Partial<Record<Tone, string>> = {
   done: 'success',
 }
 
-// Narrower than 600 px before (W = 7.2 px a column): no rate and no ultracode, the % smaller.
+// Narrower than 600 px before (W = 7.2 px a column): the % smaller, and the rate and ultracode each on
+// a line of its own below the clock (the person, 2026-11-14: "Os dois sempre"; before, the V4 header
+// left them out there).
 const NARROW = 84
 // The most columns a folder's path takes (160 px in the old drawing): the app cuts it past them.
 const FOLDER_COLS = 22
 
 // Room, in columns, the numbers block leaves the left column (the % large, "d de n", the clock and
 // its tail); `edge`: the border, the band and the paddings around the left column.
-const blockCols = (narrow: boolean, ultra: boolean) => (narrow ? 11 : 18) + (ultra ? ULTRA.length + 3 : 0)
+// Narrow, the block is as wide as its widest line: "1000 toks/s" (11) and "ultracode" (9) fit in it.
+const blockCols = (narrow: boolean, ultra: boolean) => (narrow ? 11 : 18 + (ultra ? ULTRA.length + 3 : 0))
 const edge = 6
 
 // The repository and branch under the title (the person: "coloque essas infos também no topo do
@@ -97,12 +101,12 @@ export function desktopHead(ui: any, head: Head): any {
   const { Box, Text, Svg } = ui
   const empty = head.n === 0 && head.chips.length === 0
   const narrow = head.cols < NARROW
-  const ultra = head.ultracode && !narrow
+  const ultra = head.ultracode
   const room = Math.max(0, head.cols - blockCols(narrow, ultra) - edge)
   const git = !empty && head.git ? gitLine(head.git, room) : ''
   const shown = empty ? [] : pills(head.chips, room)
   const clock = head.time !== undefined ? clockText(head.time) : ''
-  const rate = !narrow && head.rate ? head.rate : undefined
+  const rate = head.rate
   return (
     <Box key="head" flexDirection="row" borderStyle="round" paddingX={0} paddingY={0} overflow="hidden" backgroundColor={CARD_FILL} borderColor={CARD_BORDER} marginBottom={1}>
       <Box key="band" width={1} flexShrink={0} backgroundColor={BAND[head.state.tone] ?? BAND.open} />
@@ -135,7 +139,21 @@ export function desktopHead(ui: any, head: Head): any {
         <Box flexDirection="column" flexShrink={0} alignItems="flex-end" justifyContent="center" paddingX={1}>
           <Text size="title" weight="bold" tabular>{`${percent(head.d, head.n)}%`}</Text>
           <Text size="footnote" color="inactive" tabular>{`${head.d} de ${head.n}`}</Text>
-          {clock || rate || ultra ? (
+          {narrow && (rate || ultra) ? (
+            [
+              clock ? <Text key="clock" size="footnote" color="inactive" tabular>{clock}</Text> : null,
+              rate ? (
+                <Text key="rate" size="footnote" color="inactive" tabular dimColor={!rate.live || undefined}>
+                  {rateText(rate.toks)}
+                </Text>
+              ) : null,
+              ultra ? (
+                <Text key="ultra" size="footnote" color="effortUltra">
+                  {ULTRA}
+                </Text>
+              ) : null,
+            ]
+          ) : clock || rate || ultra ? (
             <Text size="footnote" color="inactive" tabular>
               {clock || null}
               {rate ? (

@@ -3,6 +3,7 @@
 Mod do Claude Code (`task-tree/`) que desenha a árvore de tarefas da sessão num painel lateral.
 Arquitetura e histórico de decisões: [task-tree/DESENVOLVIMENTO.md](task-tree/DESENVOLVIMENTO.md).
 Regras de comportamento, uma por cenário: [regras/](regras/).
+Como o trabalho é conduzido (papéis, perguntas, lotes, paralelismo): @PROCESSO.md
 
 ## Fluxo de trabalho
 
@@ -38,7 +39,9 @@ Etapas, nessa ordem; a primeira que falha para:
 2. `travas`: testa as regras do selo num repositório temporário.
 3. `selos`: confere os testes e o kit contra `regras/selos.json`.
 4. `claude plugin validate . --strict` e `claude plugin validate task-tree --strict`: manifesto do
-   marketplace e do mod; também gera `task-tree/.claude-plugin/types/` (ignorado pelo git).
+   marketplace e do mod. Não gera `task-tree/.claude-plugin/types/` (ignorado pelo git), de que o `tsc`
+   depende: quem grava essa pasta é o motor do Claude Code quando carrega o mod de uma pasta, e ele a
+   regrava a cada atualização do app; num clone novo, sem ela, o `tsc` falha.
 5. `tsc --noEmit`: bloqueia. Usa o tsconfig gerado (strict, noUncheckedIndexedAccess) e o
    `task-tree/tsconfig.json`, que liga `noUnusedLocals` (sem `noUnusedParameters`: os hooks têm
    `($, e, next)` na assinatura).
@@ -60,8 +63,8 @@ os 5 s do kit.
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
 
 Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motivo "…"` (selar um
-teste), `npm run testes:alterados` (os testes existentes que mudaram, para o relato; `-- --pr`
-contra a base do PR) e `npm run impacto` (a matriz de impacto, abaixo).
+teste), `npm run testes:alterados` (os testes existentes que mudaram, para o relato; depois do
+commit local, compara o último commit; `-- --pr` contra a base do PR) e `npm run impacto` (a matriz de impacto, abaixo).
 
 O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude-code\<versão>\`;
 `CLAUDE_BIN` escolhe outro. Use a mesma versão que roda a sessão.
@@ -89,10 +92,13 @@ a regra que ele protege.
 - Mudar a forma de um teste sem mudar o que ele afirma é refatoração (`--tipo refatoracao`): as
   asserções não podem diminuir e o teste antigo precisa continuar passando.
 - Teste novo é selado à mão (`--tipo novo`), e fica protegido a partir do commit seguinte.
+- Tirar ou renomear um teste por decisão do usuário usa `node scripts/selos.mjs --remover` ou
+  `--renomear`, que deixam em `selos.json` (`removidos`) o registro que a etapa `regressao` aceita; o
+  hook passa no mesmo commit do código.
 - Regressão se corrige no código, nunca no teste. Se a mudança precisa alterar um comportamento
   protegido e não há decisão do usuário, pare e pergunte.
 - O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
-  asserções; um arquivo do kit mudou sem selo; ou um teste de `HEAD` falha contra o código novo
+  asserções; um arquivo do kit ou de apoio dos testes (fixtures) mudou sem selo; ou um teste de `HEAD` falha contra o código novo
   sem decisão registrada ("testes antigos, código novo").
 - O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
   commit. Não use `--no-verify`.
@@ -104,7 +110,8 @@ a regra que ele protege.
   arquivo do mod fora do mapa só avisa (decisão do usuário, 2026-10-29: "Só avisar (Recomendado)").
   O núcleo (`hooks/register.tsx`, `hooks/render.tsx`, `types/index.d.ts`) afeta tudo.
 - O brief da análise traz `npm run impacto -- <arquivos que a mudança vai tocar>`; o relato da
-  implementação traz `npm run impacto` sobre o diff real.
+  implementação traz `npm run impacto` sobre o diff real (depois do commit local, compara o último
+  commit).
 - O relato da implementação cola a saída de `npm run testes:alterados` e o resumo do check
   (modelos em [regras/README.md](regras/README.md)).
 
@@ -122,7 +129,8 @@ falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de 
 
 ## Golden do desenho
 
-O desenho do app desktop em 4 cenários (principal, filha trabalhando, envios, subagente; 60 colunas)
+O desenho do app desktop em 6 cenários (principal, filha trabalhando, envios, subagente e filha com
+modelo e cartas, a 60 colunas; largo, a 100)
 fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden.test.ts` e selado em
 `regras/selos.json` (`golden`). Decisão do usuário, 2026-10-28: "Sim, validar antes do commit
 (Recomendado)".
@@ -156,6 +164,8 @@ fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden
 
 Regra nova de como o modelo usa o painel vai em `task-tree/text/rules.ts` (`RULES`, descrições das
 ferramentas, lembretes dos hooks), nunca na memória do Claude Code nem num CLAUDE.md da máquina.
+Todo texto novo ao modelo entra com um cenário que diz quando ele sai e um teste dos trechos essenciais;
+mudar quando um texto sai é mudança de regra (decisão registrada); a redação segue livre.
 
 ## Checklist do app (validação visual do usuário)
 
@@ -163,21 +173,32 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 - largura real e recorte na borda, nos dois temas;
 - cliques no ícone e no anel (botão transparente sobre o `Svg`) e na linha; realce do botão; linha
   nova sem animação; nada pisca à toa;
-- desenho nativo: guias em caixas finas, contínuas entre as linhas, dentro e fora dos cartões e na
+- desenho nativo: o toks/s e 'ultracode' no cabeçalho estreito, em linhas próprias, sem cortar o '%'; guias em caixas finas, contínuas entre as linhas, dentro e fora dos cartões e na
   faixa ao lado deles, alinhadas com os ícones e visíveis nos dois temas; corte do título no fim;
-  alturas do título e do percentual do cabeçalho; a faixa de 1 coluna do cabeçalho; pílulas com borda;
+  alturas do título e do percentual do cabeçalho; o tempo do cabeçalho parado com o turno encerrado; o tempo das linhas e do cabeçalho ao retomar depois de horas; a faixa de 1 coluna do cabeçalho; pílulas com borda;
+  o total da sessão inteira na linha "+N pedidos anteriores";
   cores cruas (`rgba(...)`) e as chaves de tema nos dois temas; o fundo e a borda do cartão e do
   cabeçalho destacados do painel, e o cartão dentro de cartão um degrau igual além do de fora, a cada
   nível, nos dois temas; a altura das linhas com o texto no meio; o respiro dos cartões nos quatro
   lados; o conector da faixa chegando na altura do cabeçalho do cartão;
 - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
-- recarga a quente real (salvar um arquivo com o painel aberto);
-- sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada); carta a subagente real
-  (recebida, parado antes de receber, retomado); avisos do app;
+- recarga a quente real (salvar um arquivo com o painel aberto); o painel fechado pela pessoa segue fechado na recarga e nos plans;
+- sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada, rodada substituída); carta a subagente real
+  (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.
+- processo novo e `/model` no meio do turno (o turno em curso fica ✕ interrompido); o painel de uma sessão
+  fora das 30 do store volta do arquivo publicado; o arquivo de uma sessão apagada é esvaziado;
+- `/clear` real nesta sessão com filhas e numa filha (os cartões e o histórico na mãe);
+- tempos através de turnos reais (a tarefa retoma de onde parou, o cabeçalho para no fim do turno, a
+  linha ◷ conta do primeiro start) e o cabeçalho estreito e largo (toks/s, "ultracode", repositório);
+- workflows reais com muitos subagentes (cartão de grupo com espera, retomada, cliques com o freio das
+  gravações) e o turno que morre por erro real (✕ "falhou" no painel e no cartão);
+- a nota da versão no merge do PR (workflow "Release").
 
 ## Release e PR
 
-- A versão do plugin sobe sozinha no merge do PR, pelo título: `feat…` → minor; `!` depois do tipo
-  ou `BREAKING CHANGE` no corpo → major; o resto → patch. Não edite a versão do `plugin.json`.
+- A versão do plugin sobe sozinha no merge do PR, pelo título: `feat…` → minor; `!` depois do tipo,
+  ou uma linha começando com `BREAKING CHANGE:` no corpo → major (citá-la no meio
+  do texto não conta); o resto → patch; título fora do formato Conventional Commits → patch, com aviso
+  no resumo do workflow. Não edite a versão do `plugin.json`.
 - Título no formato Conventional Commits; descrição e labels atualizadas a cada push.

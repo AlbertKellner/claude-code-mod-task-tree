@@ -9,11 +9,12 @@ O cartão da filha fica sob a tarefa de onde foi aberta.
 
 - Dado uma sessão filha aberta a partir de uma tarefa
 - Quando o painel é desenhado
-- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente)
+- Então o cartão fica sob essa tarefa, ou sob a da última rodada; com várias tarefas em andamento, cada sessão nova vai à tarefa do lote recente ainda sem sessão nem mensagem; um turno que o usuário abriu digitando na filha vai ao pedido vigente da mãe (sessoes.turno-proprio-da-filha-no-pedido-vigente); a sessão aberta num pedido ainda sem plano fica solta até o plan (sessoes.aberta-antes-do-plan-e-adotada)
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (commit 465b09e); "cartão novo vai sob a tarefa que enviou a mensagem", 2026-10-21 (commit 5508b25).
 Reescrito: 2026-10-28, decisão do usuário ("Tarefa sem sessão nem mensagem (Recomendado)... Abrir sessão conta como uso da tarefa"), achado da tarefa 7.
 Reescrito: 2026-11-03, decisão do usuário ("No pedido vigente da orquestradora (Recomendado)"), pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc..."; desfaz, para o turno próprio da filha, "turno aberto direto pelo usuário na filha vira cartão próprio, sem âncora, no fim do pedido de origem".
+Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): a sessão aberta num pedido ainda sem plano fica solta até o plan.
 Código: hooks/panel.ts
 Estado: coberto
 
@@ -21,12 +22,25 @@ Estado: coberto
 O cartão diz em uma palavra o estado da filha, quando ela não está só trabalhando.
 
 - Dado uma filha
-- Quando ela trabalha, espera a pessoa, para com tarefas abertas, para com a origem fechada e só pendentes, termina ou é arquivada
-- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "encerrada", "concluída" ou "arquivada"
+- Quando ela trabalha, espera a pessoa, para com tarefas abertas, para porque o turno dela morreu por erro, para com a origem fechada e só pendentes, termina ou é arquivada
+- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "falhou", "encerrada", "concluída", "arquivada" ou, no cartão da rodada largada, "substituída"
 
 Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); o teste da filha arquivada, que cobre também esta regra, passa a ver o pai ✓.
 Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"): a palavra "encerrada".
+Reescrito: 2026-11-14, decisão do usuário ("✕ \"falhou\" (Recomendado)": "o cartão desta sessão na mãe indica a falha"): a palavra "falhou". Os testes existentes não mudam.
+Reescrito: 2026-11-14, decisão do usuário ("\"Substituída\", cinza (Recomendado)"): a palavra "substituída". Os testes existentes não mudam.
+Estado: coberto
+
+### sessoes.rodada-largada-diz-substituida
+O cartão da rodada que a filha largou diz "substituída", em cinza.
+
+- Dado duas mensagens à mesma filha, de tarefas diferentes, e a filha larga uma tarefa aberta da primeira ao passar à segunda
+- Quando o painel é desenhado, com a filha rodando ou parada
+- Então o cartão da primeira mostra a palavra "substituída" e o busto cinza, sem contar como sessão ativa; as tarefas dele seguem desenhadas e fora da contagem (sessoes.rodada-descartada-fora-da-contagem); o cartão da rodada atual segue com o estado da filha; a rodada mais nova que ainda espera a vez não é "substituída"
+
+Origem: decisão do usuário, 2026-11-14 ("\"Substituída\", cinza (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (dois cartões com o mesmo nome, sem dizer qual vale).
+Código: draw/desktop.tsx, draw/svg.ts
 Estado: coberto
 
 ### sessoes.um-cartao-por-mensagem
@@ -68,7 +82,7 @@ A filha trabalhando mantém a tarefa e os pais em andamento.
 - Quando o modelo chama done nessa tarefa
 - Então a tarefa e os pais seguem ◉ enquanto a filha trabalha
 
-Origem: commit d956e11, 2026-10-24.
+Origem: decisão do usuário, 2026-10-24 ("as linhas pai anteriores somente deveriam ficar como concluídas, quando as filhas fossem concluídas"); commit 8637626. Desfaz "um done explícito da mãe deve valer como concluído" (2026-10-23, commit a818dae).
 Estado: coberto
 
 ### sessoes.filha-parada-com-origem-fechada-sai-da-contagem
@@ -78,7 +92,7 @@ As pendentes de uma filha parada saem da contagem quando a tarefa de origem fech
 - Quando a tarefa de origem do cartão na mãe está fechada
 - Então as pendentes saem do cabeçalho, do chip e do x/y do pai, e não seguram a visão; as ✓ seguem contando; o cartão fica desenhado com as ○ e a palavra "encerrada"; a mãe é avisada de que ela parou com N pendentes; se a filha voltar a trabalhar, tudo volta a contar
 
-Origem: decisão do usuário, 2026-11-04 ("Origem fechada (Recomendado)"), ao pedido "entao pq esse card de plano esta parado? analise se é um bug do mod, ou se podemos fazer melhoria. ele ja deveria estar encerrado".
+Origem: decisão do usuário, 2026-11-04 ("Origem fechada (Recomendado)"), ao pedido "entao pq esse card de plano esta parado? analise se é um bug do mod, ou se podemos fazer melhoria. ele ja deveria estar encerrado"; o aviso nas duas ordens (filha para antes ou depois de a origem fechar), auditoria 2026-11-10.
 Código: draw/layout.ts, hooks/sessions.ts, hooks/render.tsx
 Estado: coberto
 
@@ -87,22 +101,46 @@ Na filha parada, as pendentes seguem pendentes.
 
 - Dado uma filha que terminou o turno com pendentes, com a tarefa de origem aberta ou algo iniciado
 - Quando o cartão é desenhado
-- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
+- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); com o turno interrompido (Esc), a rodada inteira sai da contagem da mãe: as pendentes seguem desenhadas ○, mas fora do cabeçalho, do chip e do x/y da tarefa de origem, até o start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
 
 Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit d57807e.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o cartão sem `work` não pode mostrar uma tarefa só.
 Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"); com a origem fechada e só pendentes vale sessoes.filha-parada-com-origem-fechada-sai-da-contagem.
+Reescrito: 2026-11-14, decisão do usuário ("Rodada fora da conta (Recomendado)"); só o texto ganha a exceção que o código já fazia. Os testes não mudam.
 Estado: coberto
 
 ### sessoes.filha-arquivada-interrompe
 A filha arquivada deixa interrompido o que ficou aberto.
 
-- Dado uma filha arquivada com tarefas abertas
+- Dado uma filha arquivada com tarefas abertas, com o pedido dela no trabalho atual
 - Quando o cartão é desenhado
 - Então o que ficou aberto fica ✕, e o pai fica ✓
 
 Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit 95b1a21.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
+Reescrito: 2026-11-14, decisão do usuário ("Vira linha resumida (Recomendado)"); desfaz "Arquivada fica, como histórico" para o pedido que saiu do trabalho, onde ela vira uma linha (sessoes.arquivada-antiga-vira-linha). O teste não muda.
+Estado: coberto
+
+### sessoes.arquivada-nao-e-relida
+O arquivo de uma filha arquivada não é relido enquanto ela segue arquivada.
+
+- Dado uma sessão filha arquivada, já lida uma vez nesse estado
+- Quando o painel relê as sessões
+- Então o arquivo dela não é aberto de novo, e o cartão segue como estava (as tarefas, a palavra "arquivada", o anel apagado); desarquivada, volta a ser lida
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: toda leitura de 3 s relia o arquivo de cada arquivada); higiene, sem mudar sessoes.filha-arquivada-interrompe.
+Código: io/host.ts
+Estado: coberto
+
+### sessoes.publicado-corta-a-profundidade
+O painel publicado leva só os níveis de sessões que a sessão de cima ainda usa.
+
+- Dado uma cadeia de sessões abertas umas pelas outras, com mais de três níveis abaixo desta
+- Quando esta sessão publica o painel
+- Então o arquivo leva as filhas, as netas e as bisnetas com as tarefas de cada uma, e nada abaixo das bisnetas; o painel desta sessão e o cartão dela na mãe mostram o mesmo de antes
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: as filhas eram republicadas aninhadas sem corte, além da profundidade que o desenho segue).
+Código: hooks/panel.ts, draw/layout.ts
 Estado: coberto
 
 ### sessoes.rodada-descartada-fora-da-contagem
@@ -218,15 +256,16 @@ Código: draw/layout.ts
 Estado: coberto
 
 ### sessoes.turno-proprio-da-filha-no-pedido-vigente
-O turno que o usuário abriu digitando na filha fica no pedido da mãe vigente quando ele digitou.
+Os turnos que o usuário abriu digitando na filha ficam num cartão só, no pedido da mãe vigente quando ele digitou.
 
 - Dado uma filha aberta num pedido antigo da mãe, e o usuário digitando direto nela depois de um pedido novo da mãe
 - Quando a mãe desenha o painel
-- Então o cartão desse turno fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título e o texto digitado no texto alternativo do ícone; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
+- Então o cartão fica no fim do pedido da mãe vigente quando ele digitou (o último pedido da mãe planejado antes; sem nenhum, o de origem), com "pedido do usuário na filha" no título; os turnos digitados com o mesmo pedido da mãe em curso entram no mesmo cartão, cada um com a sua linha de pedido e as suas tarefas embaixo (com um turno só, as tarefas direto no cartão e o texto digitado no texto alternativo do ícone); cartão novo só quando o pedido vigente da mãe é outro; enquanto a filha trabalha nele, o pedido onde ele está segue desenhado
 
 Origem: decisão do usuário, 2026-11-03 ("No pedido vigente da orquestradora (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". O pedido mantido enquanto a filha trabalha corrige um defeito: a conta de "sessão trabalhando sob o pedido" olhava só a rodada da última mensagem.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o texto digitado vai no texto alternativo do ícone da linha, não num tooltip.
+Reescrito: 2026-11-14, decisão do usuário ("Um cartão só (Recomendado)"); desfaz "um cartão por turno" da decisão de 2026-11-03. Os testes existentes não mudam.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -253,3 +292,121 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: draw/layout.ts
 Estado: coberto
 
+
+### sessoes.publicado-enxuto
+O arquivo que a sessão publica leva o painel dela inteiro e as filhas cortadas ao trabalho atual.
+
+- Dado uma sessão com filhas, e filhas com pedidos já concluídos e netas
+- Quando ela publica o painel para a sessão que a abriu
+- Então o arquivo leva os grupos dela inteiros, sem a cópia antiga das tarefas, e cada filha só com o trabalho atual dela (e as netas, do mesmo jeito); o painel da própria sessão não muda; na sessão avó, o cartão de uma neta mostra o trabalho atual, sem "+N pedidos anteriores"; os arquivos de formatos antigos seguem sendo lidos
+
+Origem: decisão do usuário, 2026-11-14 ("Enxugar e esvaziar (Recomendado)"); limita, para as netas vistas pela avó, a decisão de 2026-11-04 ("Ficam em '+N pedidos anteriores' (Recomendado)").
+Código: hooks/panel.ts
+Estado: coberto
+
+### sessoes.cartao-parado-mostra-o-tempo-do-turno
+No cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela.
+
+- Dado uma filha que deu start numa tarefa, trabalhou sem outro start nem done e terminou o turno com ela aberta
+- Quando a mãe desenha o cartão da filha parada
+- Então a tarefa aparece ◷ com o tempo do início ao fim do turno da filha, o mesmo do painel dela, e o tempo do cartão e o do pedido da mãe o seguem; o arquivo publicado leva a hora do fim na própria tarefa; para um arquivo de versão anterior do mod, o relógio para no último início ou fim publicado
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o relógio do cartão parava no último carimbo do painel publicado, 0:00 ou tempo cortado); cumpre turnos.iniciada-aguarda-no-fim ("◷ com o relógio parado"). Corrigido junto com turnos.aguardando-segue-ate-o-start, que grava a hora do fim na tarefa.
+Código: state/tasks.ts, hooks/turn.ts
+Estado: coberto
+
+### sessoes.destino-que-nao-e-filha-nao-vira-cartao
+A mensagem a uma sessão que esta não abriu não cria cartão.
+
+- Dado uma mensagem enviada à sessão mãe, a uma irmã ou a qualquer sessão que esta não abriu
+- Quando o painel é desenhado, aqui e no cartão desta sessão na mãe
+- Então só a carta ✉ aparece sob a tarefa do envio: nenhum cartão "Sessão…", nenhuma sessão ativa a mais no cabeçalho, nenhuma filha a mais no painel publicado
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: todo destino `local_…` fora das filhas ganhava uma entrada "Sessão…" trabalhando); aplica sessoes.mensagem-entre-filhas-no-cartao-da-remetente ("o cartão da destinatária não fica dentro do cartão da remetente").
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### sessoes.leitura-das-filhas-uma-por-vez
+A leitura das sessões filhas roda uma de cada vez.
+
+- Dado leituras pedidas ao mesmo tempo (o relógio de 3 s, um aviso do app, a abertura de uma sessão)
+- Quando uma já está em curso
+- Então as outras esperam e, no fim, roda mais uma só; uma leitura mais antiga nunca grava por cima de uma mais nova, e o fim de turno de uma filha gera um lembrete só
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: leituras sobrepostas gravavam sem conferir a versão).
+Estado: coberto
+
+### sessoes.aberta-antes-do-plan-e-adotada
+A sessão aberta antes do plan do pedido fica solta no fim, e o plan do pedido a adota.
+
+- Dado um pedido novo ainda sem plano e nada em andamento
+- Quando o modelo abre uma sessão filha, e depois planeja o pedido
+- Então, até o plan, o cartão fica no fim do painel, mesmo se a filha já concluiu, sem tarefa de pedido anterior; no primeiro plan do pedido, o cartão passa para a tarefa cujo título casa com o nome da sessão, senão para a primeira pendente, e segue lá, vivo ou concluído
+
+Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"; antes, na resposta livre: "Se existe uma sessão filha ou subagente criados antes do plan, eles deveriam se planejadas para mostrar corretamente na lista").
+Código: hooks/tools.ts, hooks/panel.ts
+Estado: coberto
+
+### sessoes.rodada-da-frente-e-a-mais-recente
+A rodada atual de uma filha é a mais recente, seja de mensagem da mãe, seja de turno digitado nela.
+
+- Dado uma filha com uma rodada da mãe já concluída e, depois, um turno que a pessoa digitou direto nela
+- Quando esse turno tem tarefas abertas, com ou sem uma iniciada, e a filha está parada ou rodando
+- Então o cartão desse turno é o da rodada atual: as tarefas dele contam no cabeçalho e nos chips, e o pedido onde ele está segue à vista enquanto a filha trabalha; a rodada descartada segue sendo a anterior deixada com tarefa aberta (sessoes.rodada-descartada-fora-da-contagem)
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: o turno digitado na filha era sempre lido como a rodada mais antiga); cumpre sessoes.rodada-descartada-fora-da-contagem (decisão do usuário, 2026-10-28: "a rodada descartada é a anterior, não a que está trabalhando") e sessoes.turno-proprio-da-filha-no-pedido-vigente (2026-11-03).
+Estado: coberto
+
+### sessoes.sessao-conta-uma-vez-no-chip
+Uma sessão conta uma vez no chip de sessões ativas, com um cartão ou vários.
+
+- Dado uma filha rodando com mais de um cartão (uma rodada antiga deixada com tarefa aberta e a rodada atual)
+- Quando o cabeçalho conta as sessões ativas
+- Então conta 1 para ela, pelo cartão da rodada atual; os cartões seguem desenhados
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: cada cartão com tarefa aberta de uma sessão rodando contava como uma sessão ativa).
+Código: hooks/render.tsx
+Estado: coberto
+
+### sessoes.regras-de-cartao-valem-para-netas
+As regras de cartão valem também para os cartões dentro do cartão de uma filha.
+
+- Dado uma sessão aberta por uma filha (uma neta), desenhada dentro do cartão da filha
+- Quando ela para só com pendentes e a tarefa de origem dela na filha está fechada; ou trabalha sob um pedido da filha que saiu do trabalho; ou a filha, parada com Esc, tem uma carta na fila
+- Então vale o mesmo que no painel da filha: a neta fica "encerrada", com as ○ desenhadas e fora do x/y do cartão da filha, da tarefa de origem e do cabeçalho (sessoes.filha-parada-com-origem-fechada-sai-da-contagem); o cartão vivo aparece solto no fim do cartão da filha, com o pedido de origem no título (sessoes.cartao-vivo-nunca-some); a tarefa com carta na fila fica ◷ (envios.fila-nao-interrompe-no-fim-do-turno); a rodada da neta dividida por mensagem e a descartada contam como nas filhas diretas
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-13: "encerrada", cartão vivo solto e carta na fila só valiam para as filhas diretas); estende as três regras citadas, sem mudar nenhuma.
+Código: hooks/render.tsx, hooks/panel.ts
+Estado: coberto
+
+### sessoes.tempo-da-tarefa-concluida-com-filha
+A tarefa concluída com filha embaixo mostra só o tempo próprio.
+
+- Dado uma tarefa da mãe concluída com done, com uma sessão filha ainda trabalhando embaixo
+- Quando o painel é desenhado, com a filha trabalhando e depois de ela parar
+- Então a linha da tarefa mostra o tempo do início ao done dela, parado, nos dois momentos (o ícone segue ◉ enquanto a filha trabalha, e o x/y segue somando as tarefas da filha); o pedido com todas as tarefas concluídas mostra o tempo delas, parado; a tarefa aberta com filha trabalhando segue com o tempo correndo
+
+Origem: decisão do usuário, 2026-11-14 ("Só o próprio": "T mostra 0:03 também enquanto a filha trabalha; o relógio dessa linha não corre"), sobre o achado da auditoria de 2026-11-10 (o tempo corria com a filha trabalhando e regredia quando ela parava).
+Estado: coberto
+
+### sessoes.clear-na-filha-mantem-o-historico
+Depois de um /clear numa filha, o cartão dela na mãe mantém o que ela tinha feito.
+
+- Dado uma sessão filha com tarefas feitas
+- Quando a pessoa dá /clear nela, e depois ela trabalha de novo
+- Então o painel da filha fica vazio (durabilidade.clear-esvazia), e o que ela tinha feito segue no painel publicado como histórico: na mãe, o cartão mantém as tarefas (as abertas ficam ✕), o x/y da tarefa de origem e o cabeçalho não encolhem; o trabalho de depois aparece num cartão novo; ficam os 5 /clear mais recentes
+
+Origem: decisão do usuário, 2026-11-14 ("Mantém o histórico (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o /clear na filha apagava da mãe o trabalho dela).
+Código: hooks/session-start.ts, draw/layout.ts
+Estado: coberto
+
+### sessoes.arquivada-antiga-vira-linha
+A filha arquivada cujo pedido saiu do trabalho atual vira uma linha com nome e contagem.
+
+- Dado uma filha arquivada, com o cartão sob uma tarefa de um pedido
+- Quando esse pedido sai do trabalho atual (vai para "+N pedidos anteriores")
+- Então o cartão dela passa a ser uma linha só, com o nome, a contagem e "arquivada", sem as tarefas; o x/y da tarefa de origem e a conta da sessão inteira não mudam; o painel dela deixa de ser guardado, relido e republicado; desarquivada, ou com o pedido de volta ao trabalho, volta ao cartão inteiro
+
+Origem: decisão do usuário, 2026-11-14 ("Vira linha resumida (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (as filhas arquivadas antigas ficavam inteiras no state e no painel publicado, sem teto).
+Código: hooks/sessions.ts, io/host.ts
+Estado: coberto
