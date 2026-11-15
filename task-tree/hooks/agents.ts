@@ -17,6 +17,7 @@ import { SUBS } from '../text/rules'
 import { edit, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
 import { cutText, oneLine } from '../draw/svg'
+import { guardStep } from '../io/log'
 import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
@@ -338,11 +339,17 @@ export async function checkSubs($: any) {
       return { ...g, sub: { ...rest, state, end, ...(n !== undefined ? { calls: n } : {}), ...rates.get(g.agent) } }
     }),
   )
-  // As at its own end (turn.ts): first its tasks reflect the subagents they launched, then what is
-  // still open is interrupted, at the card's end.
-  for (const id of ends.keys()) await settleBySubs($, id)
-  await change($, all =>
-    all.map(g => (ends.has(g.agent) && g.sub?.end !== undefined && !subLive(g.sub) ? { ...g, tasks: g.tasks.map(interrupt(g.sub.end)) } : g)),
+  // As at its own end (turn.ts), in the same order: its waits go (a question or plan of its own still
+  // open on a task no longer holds it), then its tasks reflect the subagents they launched, then what
+  // is still open is interrupted, at the card's end. Each step on its own: a failure goes to the
+  // debug log and the steps after it still run (the card, ended, is not looked at again).
+  const where = 'releitura dos subagentes'
+  await guardStep($, where, 'dropWaits', () => dropWaits($, w => !ends.has(w.agent)))
+  for (const id of ends.keys()) await guardStep($, where, 'settleBySubs', () => settleBySubs($, id))
+  await guardStep($, where, 'interrupt', () =>
+    change($, all =>
+      all.map(g => (ends.has(g.agent) && g.sub?.end !== undefined && !subLive(g.sub) ? { ...g, tasks: g.tasks.map(interrupt(g.sub.end)) } : g)),
+    ),
   )
   for (const id of ends.keys()) {
     gone.delete(id)
@@ -351,8 +358,9 @@ export async function checkSubs($: any) {
     counted.delete(id)
     pendingTools.delete(id)
   }
-  await dropWaits($, w => !ends.has(w.agent))
-  if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
+  await guardStep($, where, 'settleBySubs geral', async () => {
+    if (typeof (await $.state.get(turnEndedState)).value === 'number') await settleBySubs($)
+  })
 }
 
 // The task a subagent was launched from reflects how it ended (the person, 2026-11-09: "falta só

@@ -190,7 +190,10 @@ No fim de um subagente (`turn.complete` dele, ou o cartão encerrado pela lista 
 folha dele de onde saíram subagentes, todos terminados e nada mais em execução nela, reflete o fim deles
 (✓, ou ✕ "falhou"/"interrompida"); só depois o que ficou aberto vira ✕ (2026-11-15, "✓, reflete o lançado
 (Recomendado)"; `subagentes.tarefa-do-subagente-reflete-o-lancado`). A folha cujo lançado ainda roda vira ✕
-com o resto e não reabre quando ele termina.
+com o resto e não reabre quando ele termina. Nos dois caminhos a ordem é a mesma: as esperas do agente
+saem (uma pergunta ou plano dele aberto na folha não a segura), o reflexo, a interrupção do resto; em
+`checkSubs`, cada passo depois do encerramento do cartão roda protegido (`guardStep`, com a falha no log
+de depuração), porque o cartão encerrado não é revisitado.
 O terceiro fechamento automático é o da sessão filha (`closeByEnded`, `hooks/sessions.ts`; 2026-11-15,
 "Fecha a tarefa sozinho (Recomendado)"): a filha que entra em `ended` sem Esc nem erro, com todas as
 folhas do trabalho atual dela concluídas, sem subagente com tarefa aberta e sem sessão dela trabalhando,
@@ -2335,6 +2338,9 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   o turno da sessão já terminado a folha dele fechava ✓ antes (o resultado dependia da ordem). `settleBySubs`
   ganhou o parâmetro `only` (um dono só), chamado no fim do subagente (`hooks/turn.ts`) e no `checkSubs`
   antes da interrupção do resto (subagentes.tarefa-do-subagente-reflete-o-lancado).
+- Revisão do lote: no `checkSubs` o reflexo rodava antes de as esperas do subagente saírem (a pergunta
+  dele aberta na folha a deixava ✕ pela lista do app e ✓ pelo fim comum) e sem proteção (uma falha deixava
+  as tarefas dele ◉ e ○ para sempre). Agora a ordem é a do fim comum, cada passo protegido.
 
 ## Achados baixos: o workflow junto (2026-11-15)
 

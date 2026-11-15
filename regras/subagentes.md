@@ -329,12 +329,13 @@ O cartão vivo de um subagente cujo fim não chegou é encerrado pela lista de a
 
 - Dado um subagente com o cartão "trabalhando" ou "em segundo plano" cujo fim não chegou ao painel: o processo reiniciou (o app, `/model`, uma retomada) e o painel voltou do store com o cartão vivo; ou o app o parou, ou o deu por terminado, sem o fim chegar
 - Quando a releitura de 3 s (a mesma das sessões) não o acha na lista de agentes do app, ou o acha listado como terminado, em duas releituras seguidas
-- Então o cartão fica "interrompido" (listado como terminado, com o fim que a lista diz: "concluído", "falhou" ou "interrompido"), com o tempo parado no último sinal dele (a última chamada ou passo que o cartão registrou; sem nenhum, o lançamento); sai da pílula "N subagentes"; o que ele deixou aberto fica interrompido, como em qualquer fim; e, com o turno terminado, a tarefa de onde saiu reflete esse fim (✕ "interrompida", ✕ "falhou" ou ✓), se nada mais está em execução nela. Um fim que chegue depois vale sobre este
+- Então o cartão fica "interrompido" (listado como terminado, com o fim que a lista diz: "concluído", "falhou" ou "interrompido"), com o tempo parado no último sinal dele (a última chamada ou passo que o cartão registrou; sem nenhum, o lançamento); sai da pílula "N subagentes"; o que ele deixou aberto fica interrompido, como em qualquer fim (antes, a tarefa dele de onde saíram subagentes já terminados reflete o fim deles: subagentes.tarefa-do-subagente-reflete-o-lancado; uma falha nesse passo fica no log de depuração e não impede a interrupção); e, com o turno terminado, a tarefa de onde saiu reflete esse fim (✕ "interrompida", ✕ "falhou" ou ✓), se nada mais está em execução nela. Um fim que chegue depois vale sobre este
 
 Fora deste cenário: os agentes de workflow e o que eles lançam (o app não os lista: ver subagentes.workflow-sem-sinal-vira-interrompido); o cartão gravado por versão anterior, sem o último sinal, para no lançamento; o subagente de uma sessão filha é conferido pela filha, enquanto o processo dela roda.
 
 Origem: auditoria 2026-11-10 (subagente fica "trabalhando" ou "em segundo plano" para sempre quando o fim dele não chega); decisão do usuário, 2026-11-12 ("Sim, entra nesta rodada (Recomendado)", para "O cartão vivo é conferido contra a lista de agentes do app. Os agentes de workflow, que não aparecem nessa lista, usam outro critério. O órfão vira "interrompido" com o tempo parado, e a tarefa de origem pode fechar."); aplica subagentes.pai-reflete-falha-ou-interrupcao e subagentes.pai-conclui-no-fim-do-turno ao fim dado pela lista, sem mudar nenhuma delas.
 Código: hooks/sessions.ts
+Reescrito: 2026-11-15, texto: a ordem dos passos na releitura e a falha de um deles (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### subagentes.vivo-de-verdade-segue-vivo
@@ -440,11 +441,12 @@ Estado: coberto
 A tarefa de um subagente de onde ele lançou outros reflete o fim deles quando ele termina.
 
 - Dado um subagente que usa o painel, com uma tarefa aberta de onde lançou outro subagente, já terminado, e nada mais rodando nela
-- Quando ele termina, com o turno da sessão em curso ou já terminado
-- Então essa tarefa fica ✓ se os lançados dela concluíram, ou ✕ "falhou"/"interrompida" pelo pior fim; o resto que ele deixou aberto fica ✕; a tarefa cujo lançado ainda roda fica ✕ com o resto
+- Quando ele termina, com o turno da sessão em curso ou já terminado, pelo fim dele ou com o cartão encerrado pela lista de agentes do app ou pelos 30 minutos sem sinal
+- Então essa tarefa fica ✓ se os lançados dela concluíram, ou ✕ "falhou"/"interrompida" pelo pior fim; o resto que ele deixou aberto fica ✕; a tarefa cujo lançado ainda roda fica ✕ com o resto; uma pergunta ou um plano dele ainda aberto nessa tarefa sai com ele e não muda o resultado
 
 Origem: decisão do usuário, 2026-11-15 ("✓, reflete o lançado (Recomendado)"); estende às tarefas do subagente "o pai sempre deve refletir seu status" (2026-11-09).
 Código: hooks/turn.ts
+Reescrito: 2026-11-15, texto: vale igual quando o cartão é encerrado pela lista do app, com as esperas dele saindo antes (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### subagentes.terminado-com-sobras-segue-concluido

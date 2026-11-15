@@ -4892,6 +4892,27 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Fecha como no fim normal"
     },
+    "task-tree/tests/subagentes.test.ts::encerrado pela lista do app com uma pergunta dele ainda aberta, o subagente deixa ✓ a tarefa de onde lançou outro já concluído": {
+      "regras": [
+        "subagentes.tarefa-do-subagente-reflete-o-lancado"
+      ],
+      "hash": "d087e2ad3a9902dc",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: as esperas do subagente encerrado saem antes do reflexo, como no fim dele"
+    },
+    "task-tree/tests/subagentes.test.ts::encerrado pela lista do app, o subagente deixa ✓ a tarefa de onde lançou outro já concluído, e ✕ o resto": {
+      "regras": [
+        "subagentes.tarefa-do-subagente-reflete-o-lancado",
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "7669780a28724f4a",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o reflexo dos lançados pelo encerramento da lista do app não tinha teste"
+    },
     "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
       "regras": [
         "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
@@ -4983,6 +5004,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "freio por tempo nas gravações do cartão do subagente"
+    },
+    "task-tree/tests/subagentes.test.ts::na releitura que encerra o cartão, uma falha ao refletir os lançados não impede a interrupção do que o subagente deixou aberto": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "1cdc7ec17910274e",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o passo do reflexo na releitura fica protegido"
     },
     "task-tree/tests/subagentes.test.ts::no Esc, a tarefa com subagente em segundo plano aguarda enquanto ele roda": {
       "regras": [
@@ -5156,6 +5187,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente com tarefas que some da lista do app deixa interrompido o que deixou aberto": {
+      "regras": [
+        "subagentes.sem-fim-vira-interrompido"
+      ],
+      "hash": "f5eb4e7427d6f815",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o encerramento pela lista do app não tinha teste com subagente que tem tarefas"
     },
     "task-tree/tests/subagentes.test.ts::o subagente concluído fecha a tarefa de onde saiu no fim do turno; o pai e a contagem seguem": {
       "regras": [

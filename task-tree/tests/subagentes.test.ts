@@ -1830,3 +1830,81 @@ test('o done numa tarefa interrompida diz que o start a reabre', async ($: any, 
   expect(r.texto).toContain('foi interrompida')
   expect(r.texto).toContain('start')
 })
+
+// O sub-1, conferido pela lista do app, planeja "Ler os testes" e "Corrigir" e dá start na primeira;
+// com `neto`, lança dela o neto-1. A lista começa com os dois rodando. `stubs`: os do teste, antes da
+// primeira chamada a $.
+async function subPelaLista($: any, on: any, neto: boolean, stubs?: (relogio: any) => void) {
+  const { relogio, log } = fixar(on)
+  host(on, [])
+  const app = listaDoApp(on, ['sub-1', 'neto-1'])
+  stubs?.(relogio)
+  app.lista = [listado('sub-1', 'running'), listado('neto-1', 'running')]
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }, { id: 'Y', title: 'Corrigir' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  if (neto) await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  return { relogio, log, app }
+}
+
+// Regra: subagentes.sem-fim-vira-interrompido
+test('o subagente com tarefas que some da lista do app deixa interrompido o que deixou aberto', async ($: any, on: any) => {
+  const { relogio, app } = await subPelaLista($, on, false)
+  app.lista = []
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('interrompido')
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado, subagentes.sem-fim-vira-interrompido
+test('encerrado pela lista do app, o subagente deixa ✓ a tarefa de onde lançou outro já concluído, e ✕ o resto', async ($: any, on: any) => {
+  const { relogio, app } = await subPelaLista($, on, true)
+  await fimDoSubagente($, 'neto-1')
+  app.lista = [listado('neto-1', 'completed')]
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('interrompido')
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('encerrado pela lista do app com uma pergunta dele ainda aberta, o subagente deixa ✓ a tarefa de onde lançou outro já concluído', async ($: any, on: any) => {
+  // A resposta só chega bem depois das releituras que encerram o cartão.
+  const { relogio, app } = await subPelaLista($, on, true, r => responderDepois(on, r, 'AskUserQuestion', 'Opção A', 60000))
+  await fimDoSubagente($, 'neto-1')
+  const resp = chamadaDoSubagente($, 'sub-1', 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  app.lista = [listado('neto-1', 'completed')]
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  const cartao = abaixo(p, 'general-purpose: revisar testes')
+  expect(cartao.some(l => l.estado === 'aguardando' || /aguardando|pergunta/i.test(l.texto)), emTexto(p)).toBe(false)
+  await relogio.advance(60000)
+  await resp
+})
+
+// Regra: subagentes.sem-fim-vira-interrompido
+test('na releitura que encerra o cartão, uma falha ao refletir os lançados não impede a interrupção do que o subagente deixou aberto', async ($: any, on: any) => {
+  let armado = false
+  // Armado, a leitura das sessões filhas falha: o reflexo dos lançados a lê, o encerramento do cartão não.
+  const { relogio, log, app } = await subPelaLista($, on, false, () =>
+    on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'children' ? { deny: 'estouro de teste' } : next(e))),
+  )
+  app.lista = []
+  armado = true
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  armado = false
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('interrompido')
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  expect(log.some(l => l.includes('releitura dos subagentes, passo') && l.includes('estouro de teste')), log.join('\n')).toBe(true)
+})
