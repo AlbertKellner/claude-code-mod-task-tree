@@ -1164,17 +1164,17 @@ export function loosen(c: Child, tasks: TaskNode[], turns: Turn[]): Child {
   return { ...c, anchor: undefined, lastAnchor: undefined, loose: title }
 }
 
-export function trimToWork(p: Panel, level: number): Panel {
-  const groups = withMain(p.groups ?? [])
-  const main = groups.find(g => g.agent === MAIN) as Group
+// The level-1 tasks of the current work, the cut trimToWork draws (the header's title picks among
+// them too: cabecalho.titulo-e-de-tarefa-desenhada).
+export function workTasks(main: Group, work: string[] | undefined): TaskNode[] {
   // A work none of whose tasks are here (a resume, a replan that took them) is no work. With none,
   // the last request with tasks, and with no requests every level-1 task (an older session's card:
   // it took one, and the card hid the rest).
   const present = main.tasks.map(t => t.id)
-  let work = (p.work ?? []).filter(id => present.includes(id))
-  if (work.length === 0) {
+  let wanted = (work ?? []).filter(id => present.includes(id))
+  if (wanted.length === 0) {
     const last = [...(main.turns ?? [])].reverse().find(u => main.tasks.some(t => t.turn === u.id))
-    work = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : present
+    wanted = last ? main.tasks.filter(t => t.turn === last.id).map(t => t.id) : present
   }
   // The requests of the work, whole. A session still at work under a request out of the work does not
   // pull the request back (the person's decision; it did, and a day-old request came back with its
@@ -1182,9 +1182,14 @@ export function trimToWork(p: Panel, level: number): Panel {
   // What is out of the work is not lost: it stays in `whole`, and the "+N pedidos anteriores" line
   // draws it when opened, with its cards (the person, 2026-11-04: "Ficam em '+N pedidos anteriores'
   // (Recomendado)"). So every card stays here; the panel draws those under tasks in sight.
-  const wanted = work
   const turnsIn = main.tasks.filter(t => wanted.includes(t.id)).flatMap(t => (t.turn === undefined ? [] : [t.turn]))
-  const keep = main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
+  return main.tasks.filter(t => wanted.includes(t.id) || (t.turn !== undefined && turnsIn.includes(t.turn)))
+}
+
+export function trimToWork(p: Panel, level: number): Panel {
+  const groups = withMain(p.groups ?? [])
+  const main = groups.find(g => g.agent === MAIN) as Group
+  const keep = workTasks(main, p.work)
   const ids = flat(keep).map(t => t.id)
   const under = (anchor?: string) => anchor !== undefined && ids.includes(anchor)
   // A subagent launched by another subagent hangs from that one's card: under the task of ITS plan

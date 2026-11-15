@@ -136,6 +136,42 @@ test('o título é o nível 1 da tarefa iniciada por último', async ($: any, on
   expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano B')
 })
 
+// Regra: cabecalho.titulo-e-de-tarefa-desenhada
+test('depois do plan de um pedido novo, antes do start, o título é o do plano novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'], 'feito')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  const p = await painel($)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano B')
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(false)
+  expect(tem(p, '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+})
+
+// Regra: cabecalho.vazio-so-sem-tarefas-e-sem-chips
+test("sem tarefas e com uma sessão aberta, o cabeçalho mostra a pílula, não 'Nenhuma tarefa planejada'", async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_f1', rodando: true }])
+  await pedido($, 'Pedido um')
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const c = cabecalho(p)
+  expect(c.vazio, emTexto(p)).toBe(false)
+  expect(c.chips.ativas, emTexto(p)).toBe(1)
+  const d = await noApp($)
+  expect(d.cabecalho.texto, emTextoDoApp(d)).toContain('1 sessão ativa')
+  expect(d.cabecalho.texto, emTextoDoApp(d)).not.toContain('Nenhuma tarefa planejada')
+  expect(estadoGeral(d), emTextoDoApp(d)).toBe('sessão ativa')
+})
+
 // Regra: cabecalho.titulo-desempata-pela-ordem-do-start
 test('dois starts no mesmo instante: o título é o do último da lista do start', async ($: any, on: any) => {
   fixar(on)

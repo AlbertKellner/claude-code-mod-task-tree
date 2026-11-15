@@ -153,6 +153,27 @@ Origem: regra do painel; correção do empate achada no teste da tarefa 6, 2026-
 Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto
 
+### cabecalho.titulo-e-de-tarefa-desenhada
+Sem nada em andamento, o título do cabeçalho é de uma tarefa que o painel desenha.
+
+- Dado um pedido anterior todo concluído, fora do desenho, e um pedido novo com plano e nenhuma tarefa iniciada
+- Quando o cabeçalho é desenhado
+- Então o título é o nível 1 do plano novo, o mesmo que os números contam; com a linha "+N pedidos anteriores" aberta, vale a iniciada por último entre tudo o que está desenhado
+
+Origem: auditoria 2026-11-10 (o título saía de todas as tarefas da sessão e os números só das desenhadas); aplica cabecalho.titulo-e-a-ultima-iniciada dentro do que o cabeçalho conta (cabecalho.resumida-exclui-pedido-finalizado), sem mudar nenhuma regra.
+Código: hooks/panel.ts
+Estado: coberto
+
+### cabecalho.vazio-so-sem-tarefas-e-sem-chips
+"Nenhuma tarefa planejada" só aparece sem tarefas e sem nada vivo.
+
+- Dado nenhuma tarefa no painel e uma sessão aberta, uma carta na fila ou um subagente trabalhando
+- Quando o cabeçalho é desenhado, no app e no terminal
+- Então ele mostra "Tarefas", "0 de 0" e as pílulas do que está vivo, e o texto alternativo diz o mesmo; "Nenhuma tarefa planejada" só com nenhuma tarefa e nenhuma pílula
+
+Origem: auditoria 2026-11-10 (três condições de vazio: o app, o texto alternativo e o terminal); regra do painel, sem decisão nova.
+Estado: coberto
+
 ### cabecalho.historico-abre-com-clique
 "+N pedidos anteriores" abre e fecha com um clique.
 

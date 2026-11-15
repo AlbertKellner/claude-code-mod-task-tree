@@ -6,7 +6,7 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Child, Send } from '../types'
-import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel } from '../draw/layout'
+import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel, workTasks } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
@@ -263,7 +263,13 @@ export async function render($: EngineInterface, e: any, next: any) {
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
   // is in progress, waiting, interrupted and the sessions at work.
-  const mainTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
+  const mainGroup = withMain(held ?? []).find(g => g.agent === MAIN)
+  const mainTasks = mainGroup?.tasks ?? []
+  // Without a task in progress the title is picked among the level-1 tasks in sight, the ones the
+  // numbers count: the current work's, or all with the "+N pedidos anteriores" line open
+  // (cabecalho.titulo-e-de-tarefa-desenhada). An earlier request out of the drawing never names it.
+  const pastOpen = lines.some(r => r.key === 'sec:turns' && r.fold?.open === true)
+  const inSight = pastOpen || !mainGroup ? mainTasks : workTasks(mainGroup, work as string[] | undefined)
   // With none open, the level-1 task a session is still at work under. The task in progress now is the
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
@@ -271,8 +277,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   // With nothing in progress: the task started last (done or not; the person: "o título é o do passo
   // iniciado por último"), then the most recent level-1 task with a session at work under it (by its
   // current round, see atWork: an earlier round's task never), then the most recent request's.
-  const now0 = current(mainTasks).anchor ?? startedLast(mainTasks)?.id
-  const newest = [...mainTasks].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
+  const now0 = current(mainTasks).anchor ?? startedLast(inSight)?.id
+  const newest = [...inSight].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
     newest.find(t => atWork(t, sessions, 0).live) ??
@@ -311,6 +317,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   const rows = whole ? lines.map(r => (r.key === 'sec:turns' ? { ...r, meta: whole } : r)) : lines
   const waitingNow = tally.waits + resting
   const list = chips(active, waitingNow, x, tally.live, tally.sends, pending, tally.subs)
+  // Empty, one condition for the app, its alt text and the terminal: no tasks and no chip
+  // (cabecalho.vazio-so-sem-tarefas-e-sem-chips; desktopHead's own test is the same one).
+  const empty = n + x === 0 && list.length === 0
   // The header's general state, the color of its band (headerState).
   // With the turn going on, a task of this session started in the request now (or later): the band
   // stays in progress between a done and the next start (headerState).
@@ -323,7 +332,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const cols = (e.props as any).bodyColumns || 40
     const alt =
-      (n + x === 0
+      (empty
         ? 'Nenhuma tarefa planejada'
         : [
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
@@ -340,7 +349,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
   // the icon; the ▾/▸ in the guides, before the icon.
   const header =
-    n + x === 0
+    empty
       ? [
           <Box key="head" flexDirection="row">
             <Text dimColor>Nenhuma tarefa planejada.</Text>

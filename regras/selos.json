@@ -303,6 +303,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Na linha +N (Recomendado)"
     },
+    "task-tree/tests/cabecalho.test.ts::depois do plan de um pedido novo, antes do start, o título é o do plano novo": {
+      "regras": [
+        "cabecalho.titulo-e-de-tarefa-desenhada"
+      ],
+      "hash": "6469435a36883962",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o título do cabeçalho sai das tarefas à vista"
+    },
     "task-tree/tests/cabecalho.test.ts::dois starts no mesmo instante: o título é o do último da lista do start": {
       "regras": [
         "cabecalho.titulo-desempata-pela-ordem-do-start"
@@ -426,6 +436,16 @@
       "tipo": "refatoracao",
       "data": "2026-11-15",
       "motivo": "o auxiliar pedidoPesado ganhou o parâmetro paradas (desligado aqui), para o teste do pedido só acima de 600 KB (decisão do usuário, 2026-11-15: Trecho, nos dois cortes (Recomendado)); o teste não muda"
+    },
+    "task-tree/tests/cabecalho.test.ts::sem tarefas e com uma sessão aberta, o cabeçalho mostra a pílula, não 'Nenhuma tarefa planejada'": {
+      "regras": [
+        "cabecalho.vazio-so-sem-tarefas-e-sem-chips"
+      ],
+      "hash": "01025543b520fbc9",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "uma condição só de cabeçalho vazio"
     },
     "task-tree/tests/cabecalho.test.ts::só os três últimos pedidos aparecem na completa; os outros viram \"+N pedidos anteriores\"": {
       "regras": [
