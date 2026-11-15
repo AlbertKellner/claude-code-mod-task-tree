@@ -9,13 +9,14 @@ O ✉ fica na tarefa até a entrega.
 
 - Dado uma tarefa de onde saiu uma mensagem a outra sessão, ainda na fila
 - Quando a tarefa é concluída antes da entrega
-- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou; se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue; se o subagente destino parar antes de recebê-la, vale envios.subagente-parado-nao-entregue
+- Então a carta ✉ fica azul na linha sob a tarefa até a entrega, mesmo com a tarefa concluída; na entrega, verde, e o painel conclui a tarefa que enviou, quando nada mais está em execução nela (envios.entrega-espera-o-que-ainda-roda-na-tarefa); se a sessão destino for arquivada antes de tomar a mensagem, vale envios.destino-arquivado-nao-entregue; se o subagente destino parar antes de recebê-la, vale envios.subagente-parado-nao-entregue
 
 Origem: decisão do usuário, 2026-10-23 ("não mostre como interrompida, deixe como mensagem até ela ser entregue"); commit 109b92d.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta é uma linha própria sob a tarefa.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a carta só fica azul até a entrega enquanto a mensagem ainda pode ser entregue: com a sessão destino arquivada antes de tomá-la, fica cinza "não entregue" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o mesmo cinza "não entregue" vale para a carta ao subagente que para antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-14, texto: a entrega só conclui a tarefa quando nada mais está em execução nela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### envios.entrega-imediata-fica-verde
@@ -260,4 +261,15 @@ A carta enviada antes do plan do pedido fica solta no fim, e o plan do pedido a 
 
 Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)"), sobre os achados da auditoria de 2026-11-10 (a carta ia a uma pendente do pedido anterior, que fechava sozinha). Refina "envio feito sem tarefa em andamento ancora na última iniciada do pedido atual" (2026-10-23) para o pedido ainda sem tarefas.
 Código: hooks/tools.ts, draw/layout.ts, text/rules.ts
+Estado: coberto
+
+### envios.entrega-espera-o-que-ainda-roda-na-tarefa
+A entrega só conclui a tarefa quando nada mais está em execução nela.
+
+- Dado uma tarefa com a carta dela na fila e, ainda, um subagente lançado dela rodando, outra carta dela na fila ou uma pergunta aberta nela
+- Quando a sessão (ou o subagente) destino toma a carta
+- Então a carta fica verde e a tarefa segue aberta; ela fecha quando o último termina: pelo fim do subagente (refletindo o fim dele), pela entrega da outra carta, ou pelo done do modelo depois da resposta; a sessão que tomou a carta e segue trabalhando não segura a conclusão (o desenho mantém a linha ◉ enquanto ela trabalha)
+
+Origem: auditoria 2026-11-10 (os dois fechamentos automáticos usavam condições diferentes); aplica subagentes.um-rodando-mantem-o-pai ("até o último terminar (e a carta ser entregue)") e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila, sem mudar a decisão de 2026-10-30 ("Sim, conclusão automática como hoje").
+Código: hooks/agents.ts, draw/layout.ts
 Estado: coberto

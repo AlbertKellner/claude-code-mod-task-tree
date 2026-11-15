@@ -127,8 +127,16 @@ Carta a um subagente (pendência 1, 2026-11-14; decisão do usuário 2026-11-13,
 mesmo nome não os confirma nem os dá por arquivados). Entregue (`takeSubSend`): no `session.receive` do
 subagente ou na retomada dele (`agent.spawn` com `resume`, o `prompt` é a mensagem), casando o texto do
 envio com o recebido (sem casamento, o mais antigo, só para a mensagem do loop principal e a retomada); a
-tarefa de origem fecha como em `watchSends`, salvo se dela ainda roda um subagente (fecha com o fim dele,
-`settleBySubs`). Não entregue (`strandedSends`, na releitura, depois de `checkSubs`): o cartão do
+tarefa de origem fecha como em `watchSends`, salvo se nela ainda há algo em execução (fecha com o que
+termina por último: o fim do subagente, `settleBySubs`, a entrega da outra carta ou o `done` do modelo).
+"Nada mais em execução na tarefa" é uma função só, `inFlight(groups, owner, id, { sends, waits, children })`
+(`draw/layout.ts`, auditoria 2026-11-10): um subagente vivo daquele dono lançado dela; para o loop
+principal, outra carta dela na fila; uma pergunta, plano ou escolha aberta do mesmo dono nela; e, só
+quando `children` vem, uma sessão do painel viva ali (não arquivada, trabalhando, abrindo ou esperando a
+pessoa, aberta nela ou com a rodada atual nela). `settleBySubs` passa as sessões; as entregas
+(`watchSends`, `takeSubSend`) não, porque a sessão que acabou de tomar a carta está viva na rodada da
+tarefa e a entrega conclui a tarefa (2026-10-30, "Sim, conclusão automática como hoje"; o desenho mantém
+a linha ◉ enquanto ela trabalha). As entregas leem as cartas depois de marcar as desta passada. Não entregue (`strandedSends`, na releitura, depois de `checkSubs`): o cartão do
 subagente encerrado há `SUB_CONFIRM` ms ou mais e a lista do motor sem ele `running`/`pending`/`waiting`/
 `idle` marcam `cut` e `lost`; com o turno terminado, roda `settleBySubs`. A espera existe porque no fim
 normal o motor retoma o subagente com a mensagem encalhada: marcar na hora pintaria cinza e logo verde.

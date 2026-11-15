@@ -12,7 +12,7 @@ import { update } from 'claude-code'
 import type { AgentInfo, EngineInterface } from 'claude-code'
 
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
-import { MAIN, SUB_BATCH, flat, interrupt, subLive } from '../draw/layout'
+import { MAIN, SUB_BATCH, flat, inFlight, interrupt, subLive } from '../draw/layout'
 import { edit, fillStarts, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
 import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
@@ -278,11 +278,8 @@ export async function settleBySubs($: any) {
   const { value: waits = [] } = await $.state.get(waitsState)
   const subs = (groups as Group[]).filter(g => g.sub && g.anchor !== undefined)
   if (subs.length === 0) return
-  const busy = (owner: string, id: string) =>
-    (waits as Wait[]).some(w => w.anchor === id) ||
-    (owner === MAIN &&
-      ((kids as Child[]).some(c => c.anchor === id && !c.archived && (c.running || c.starting === true)) ||
-        (sends as Send[]).some(s => s.anchor === id && !s.taken && !(s as any).cut)))
+  // What else is still at work in the leaf (inFlight, with the sessions: one alive there holds it).
+  const busy = (owner: string, id: string) => inFlight(groups as Group[], owner, id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })
   const ends = new Map<string, { state: 'done' | 'failed' | 'interrupted'; end: number; at: number }>()
   for (const owner of groups as Group[]) {
     for (const leaf of flat(owner.tasks)) {
@@ -321,8 +318,10 @@ export async function settleBySubs($: any) {
 // blue even when received). Of the sends to it not taken yet (queued, or given up as not delivered),
 // the first whose text is in what it received; with none and `inOrder` (the main loop's own message,
 // a resume), the oldest. The task it was sent from closes, as at any delivery (watchSends), when it is
-// open, with nothing open under it and no subagent launched from it still running: then that
-// subagent's end closes it (subagentes.um-rodando-mantem-o-pai).
+// open, with nothing open under it and nothing else at work in it (inFlight, without the sessions: a
+// subagent launched from it still running, another letter of it queued, a question open in it): then
+// what ends last closes it (subagentes.um-rodando-mantem-o-pai,
+// envios.entrega-espera-o-que-ainda-roda-na-tarefa).
 const norm = (t: string) => t.replace(/\s+/g, ' ').trim()
 export async function takeSubSend($: any, agent: string, text: string, inOrder: boolean) {
   const { value: sends = [] } = await $.state.get(sendsState)
@@ -339,8 +338,10 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
   const id = hit.s.adopted ? undefined : hit.s.anchor
   if (id !== undefined) {
     const now = await stamp($)
+    const { value: after = [] } = await $.state.get(sendsState)
+    const { value: waits = [] } = await $.state.get(waitsState)
     await change($, all => {
-      const live = all.some(g => g.sub && subLive(g.sub) && (g.parent ?? MAIN) === MAIN && g.anchor === id)
+      const live = inFlight(all, MAIN, id, { sends: after as Send[], waits: waits as Wait[] })
       return all.map(g => {
         if (g.agent !== MAIN || live) return g
         const t = flat(g.tasks).find(t => t.id === id)

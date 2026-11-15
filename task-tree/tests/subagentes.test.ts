@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
-import { AGORA, armazem, estado, fixar, host, lancaveis, responderEnvio } from './kit/ambiente'
+import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, start, type No } from './kit/cenario'
-import { cabecalho, comHistorico, emTexto, linha, montar, painel } from './kit/leitura'
+import { cabecalho, comHistorico, emTexto, esperarEstado, linha, montar, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
 
@@ -1159,4 +1159,78 @@ test('a descrição inteira dentro do título leva o cartão a essa tarefa', asy
   const p = await lancadoEntre($, on, 'Revisar testes do hover', { descricao: 'revisar testes' })
   expect(abaixo(p, 'Revisar testes do hover').map(l => l.titulo), emTexto(p)).toContain('Explore: revisar testes')
   expect(abaixo(p, 'Ler o kit').map(l => l.titulo), emTexto(p)).not.toContain('Explore: revisar testes')
+})
+
+const K1 = 'local_11111111-1111-1111-1111-111111111111'
+const PERGUNTA = {
+  questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
+}
+
+// Regra: subagentes.pai-conclui-no-fim-do-turno
+test('com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [{ id: K1, nome: 'filha-um' }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  await aviso($)
+  await lancar($, { descricao: 'um' })
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).not.toBe('concluida')
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(0)
+})
+
+// Regra: subagentes.pai-conclui-no-fim-do-turno
+test('com a sessão trabalhando na rodada dela nessa tarefa, o subagente concluído não a fecha no fim do turno', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  host(on, [{ id: K1, nome: 'filha-um' }])
+  const envios = responderEnvio(on)
+  envios.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['1'])
+  await start($, ['2'])
+  await envio($, K1, 'agora a parte dois')
+  await lancar($, { descricao: 'dois' })
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const p = await painel($)
+  // O desenho mantém a linha ◉ enquanto a sessão trabalha: a conta diz se a tarefa fechou.
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(1)
+})
+
+// Regra: subagentes.pai-conclui-no-fim-do-turno
+test('a pergunta aberta de um subagente, numa tarefa dele de mesmo id, não segura a tarefa da sessão', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1', 'sub-2'])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'um', segundoPlano: true })
+  await start($, ['2'])
+  await lancar($, { descricao: 'dois', segundoPlano: true })
+  // O sub-2 tem uma tarefa de mesmo id completo que a folha "Investigar" e abre uma pergunta nela.
+  await plan($, [{ id: 'A', title: 'Plano do sub', children: [{ id: '1', title: 'Folha do sub' }] }], undefined, 'sub-2')
+  await start($, ['1'], 'sub-2')
+  const resp = chamadaDoSubagente($, 'sub-2', 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const p = await painel($)
+  esperarEstado(p, 'Investigar', 'concluida')
+  await relogio.advance(1000)
+  await resp
 })

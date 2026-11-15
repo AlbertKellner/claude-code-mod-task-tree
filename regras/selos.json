@@ -1204,6 +1204,17 @@
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
     },
+    "task-tree/tests/envios.test.ts::com um subagente da tarefa ainda rodando, a entrega da carta não conclui a tarefa; o fim dele, sim": {
+      "regras": [
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
+        "subagentes.um-rodando-mantem-o-pai"
+      ],
+      "hash": "9f9e928c44a2baaf",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
     "task-tree/tests/envios.test.ts::com uma tarefa em andamento e um passo planejado depois, a carta fica sob a tarefa em andamento, e a entrega conclui essa tarefa": {
       "regras": [
         "envios.com-andamento-fica-sob-a-tarefa-em-andamento"
@@ -1223,6 +1234,17 @@
       "tipo": "decisao",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\"; o destino do teste passa a parado, porque com ele trabalhando a tarefa não é interrompida"
+    },
+    "task-tree/tests/envios.test.ts::duas cartas na fila da mesma tarefa: a primeira entrega não a conclui; a segunda, sim": {
+      "regras": [
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
+        "envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila"
+      ],
+      "hash": "6e6aab435f6c4403",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
     },
     "task-tree/tests/envios.test.ts::o envio na fila não vira interrompido no fim do turno, normal ou com Esc": {
       "regras": [
@@ -2825,6 +2847,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
     },
+    "task-tree/tests/subagentes.test.ts::a pergunta aberta de um subagente, numa tarefa dele de mesmo id, não segura a tarefa da sessão": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "3a58f9c3aa6ebd8b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
     "task-tree/tests/subagentes.test.ts::a tarefa que fecha sozinha no fim do turno, ou pelo done do modelo, segue com o cartão \"concluído\" embaixo": {
       "regras": [
         "subagentes.cartao-fica-com-a-origem-fechada"
@@ -2876,6 +2908,26 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"30 minutos sem sinal (Recomendado)\" (agentes de workflow: tempo sem sinal)"
+    },
+    "task-tree/tests/subagentes.test.ts::com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "24cca72017f54298",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
+    },
+    "task-tree/tests/subagentes.test.ts::com a sessão trabalhando na rodada dela nessa tarefa, o subagente concluído não a fecha no fim do turno": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "9a8b4b8a693ec5fc",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "uma noção só de nada em execução na tarefa"
     },
     "task-tree/tests/subagentes.test.ts::com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar": {
       "regras": [

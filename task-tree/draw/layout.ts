@@ -117,6 +117,30 @@ export function spared(groups: Group[], sends: { anchor?: string; taken?: boolea
   const subs = groups.filter(g => g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && subLive(g.sub) && g.anchor !== undefined).map(g => g.anchor as string)
   return [...letters, ...kids, ...subs]
 }
+// Whether something is still at work in the task `id` of the loop `owner`: the one notion of "nothing
+// else in execution in it" both automatic closes read (the audit, 2026-11-10: they used different,
+// incomplete conditions). Yes with (a) a subagent of that loop launched from it still running or in
+// the background (subLive); (b) for the main loop, another letter of it still queued (not taken, not
+// cut); (c) a question, a plan to approve or a choice open of that same loop in it (a subagent's wait
+// in its own task of the same id holds nothing of the main loop's); (d) for the main loop and only
+// when `children` is given, a session of the panel alive there: not archived, working, opening or
+// waiting on the person, opened in it or with its current round in it. The only difference between
+// the two closes: a delivery (watchSends, takeSubSend) passes no `children`, as the session that has
+// just taken the letter is alive in that task's round by definition, and a delivery closes the task
+// (the person, 2026-10-30: "Sim, conclusão automática como hoje"; the drawing keeps the line ◉ while
+// it works); the close by the subagents at the turn's end (settleBySubs) passes them.
+export function inFlight(
+  groups: Group[],
+  owner: string,
+  id: string,
+  at: { sends?: { anchor?: string; taken?: boolean; cut?: boolean }[]; waits?: Wait[]; children?: Child[] } = {},
+): boolean {
+  if (groups.some(g => g.agent !== owner && (g.parent ?? MAIN) === owner && g.anchor === id && subLive(g.sub))) return true
+  if ((at.waits ?? []).some(w => w.agent === owner && w.anchor === id)) return true
+  if (owner !== MAIN) return false
+  if ((at.sends ?? []).some(s => s.anchor === id && !s.taken && !s.cut)) return true
+  return (at.children ?? []).some(c => !c.archived && (c.running || c.starting === true || c.waiting === true) && (c.anchor === id || c.lastAnchor === id))
+}
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
 // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.
 export const leftWaiting = (t: TaskNode) => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt !== undefined

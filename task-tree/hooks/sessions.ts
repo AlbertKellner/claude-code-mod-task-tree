@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, cardTotal, discarded, flat, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
+import { MAIN, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -259,16 +259,21 @@ export async function watchSends($: any, rows: any[]) {
   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
   // have stopped waiting for it), so its card in the mother's pane is not left parked.
-  // An adopted one (given its task by a later plan, Send.adopted) closes none.
+  // An adopted one (given its task by a later plan, Send.adopted) closes none. Nor one with something
+  // else still at work in it (inFlight, read after this pass's marks: a letter delivered now is not
+  // "another queued"), without the sessions: the one that took the letter is alive there by definition.
   const anchors = (sends as Send[]).flatMap((s, i) => (marks[i]?.taken && s.anchor && !s.adopted ? [s.anchor] : []))
   if (anchors.length === 0) return
   const now = await stamp($)
+  const after = (sends as Send[]).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s))
+  const { value: waits = [] } = await $.state.get(waitsState)
   await change($, all =>
     all.map(g => {
       if (g.agent !== MAIN) return g
       let tasks = g.tasks
       for (const id of anchors) {
         const t = flat(tasks).find(t => t.id === id)
+        if (inFlight(all, MAIN, id, { sends: after, waits: waits as Wait[] })) continue
         if (t && t.status === 'open' && !t.children.some(c => c.status === 'open')) tasks = settle(edit(fillStarts(tasks, id, now), id, finish(now)), now)
       }
       return { ...g, tasks }

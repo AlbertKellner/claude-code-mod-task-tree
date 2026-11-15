@@ -92,11 +92,12 @@ Estado: checklist (subagente real no app)
 ### subagentes.pai-conclui-no-fim-do-turno
 A tarefa de onde saíram subagentes, todos concluídos, fica ✓ quando nada mais está em execução.
 
-- Dado uma tarefa sem subtarefas, iniciada ou pendente, com um ou mais subagentes lançados dela, todos "concluído", e nada mais em execução nela (nenhum subagente rodando, nenhuma sessão filha viva, nenhuma carta na fila, nenhuma pergunta aberta)
+- Dado uma tarefa sem subtarefas, iniciada ou pendente, com um ou mais subagentes lançados dela, todos "concluído", e nada mais em execução nela (nenhum subagente rodando, nenhuma sessão filha viva nela, aberta ali ou com a rodada atual ali, trabalhando, abrindo ou esperando a pessoa, nenhuma carta na fila, nenhuma pergunta aberta do mesmo dono)
 - Quando o turno termina (ou o último subagente em segundo plano termina depois do turno)
 - Então a tarefa fica ✓ sozinha, com o tempo parado no fim do último subagente; o pai e o pedido seguem a regra de sempre; o x/y conta a tarefa; o cartão segue "concluído" e fora da contagem; um `done` do modelo depois disso só acrescenta o resumo
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)"; para a pendente sem start: "Fecha também").
+Reescrito: 2026-11-14, texto: a sessão viva conta aberta ali ou com a rodada atual ali, também esperando a pessoa, e a pergunta aberta só conta a do mesmo dono (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Código: hooks/turn.ts
 Estado: coberto
 
@@ -116,9 +117,10 @@ Com um subagente ainda rodando, a tarefa de onde saiu não fecha.
 
 - Dado uma tarefa com um subagente concluído e outro rodando, ou com uma carta na fila
 - Quando o turno termina
-- Então a tarefa não fecha e o x/y não muda até o último terminar (e a carta ser entregue)
+- Então a tarefa não fecha e o x/y não muda até o último terminar (e a carta ser entregue); a entrega de uma carta dela também não a fecha enquanto um subagente dela roda
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao").
+Reescrito: 2026-11-14, texto: a entrega de uma carta da tarefa também espera o subagente dela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### subagentes.id-reusado-nao-herda-cartao
