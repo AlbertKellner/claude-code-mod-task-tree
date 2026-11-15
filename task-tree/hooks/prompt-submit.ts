@@ -184,6 +184,7 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
   reminders.planned = false
+  reminders.briefBeforePlan = false
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
   await openTurn($, it.title, !it.peer, it.from)

@@ -36,6 +36,9 @@ export async function planTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) reminders.planned = true
+    // A summary given before this plan was a step's, not the turn's: it no longer silences the
+    // reminder of the last done (a new summary clears the mark).
+    if (agent === MAIN) reminders.briefBeforePlan = true
     if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { tasks?: InNode[]; request?: string }
     const fresh = build(input.tasks ?? [], 1, undefined, await stamp($))
@@ -248,7 +251,10 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     const input = ((e as any).input ?? e) as { ids?: string[]; cancel?: string[]; summary?: unknown }
     // The panel draws its own ↩ before the summary: one the model wrote too is dropped ("↩ ↩").
     const brief = typeof input.summary === 'string' ? input.summary.replace(/^\s*↩\s*/, '') : ''
-    if (agent === MAIN && brief.trim() !== '') await $.state.set(briefState, brief)
+    if (agent === MAIN && brief.trim() !== '') {
+      await $.state.set(briefState, brief)
+      reminders.briefBeforePlan = false
+    }
     let notes: string[] = []
     let closed: string[] = []
     let unstarted: string[] = []
@@ -310,8 +316,9 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       // The send stays with the closed task: its ✉ is drawn until the session takes the message up
       // (watchSends), whatever the model did with the task. An id used again by a new plan renames the
       // old task and its send with it (renameAnchors), or drops both (a replanned task).
-      // The last step closed with no summary: the request would have no ↩ line.
-      if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
+      // The last step closed with no summary: the request would have no ↩ line, or the ↩ of a step
+      // before a later plan (the answer to a question) instead of the work's.
+      if (((await lastBrief($)) === undefined || reminders.briefBeforePlan) && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
         notes.push(DONE.noSummary)
     }
     const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])

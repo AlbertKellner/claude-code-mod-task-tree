@@ -82,11 +82,11 @@ Estado: coberto
 ### arvore.done-sem-summary-e-varias-sem-start
 Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
 
-- Dado o último done do pedido sem summary, ou várias tarefas fechadas de uma vez sem start
+- Dado o último done do pedido sem summary (também quando o único resumo dado veio antes de um plan do mesmo turno), ou várias tarefas fechadas de uma vez sem start
 - Quando o done responde
-- Então a resposta traz o aviso correspondente
+- Então a resposta traz o aviso correspondente; o do summary diz que só vale se aquele done foi o último passo do turno
 
-Origem: commit 9c054f8, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit 3f06a32, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão").
+Origem: commit 9c054f8, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit 3f06a32, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão"); o aviso no meio do turno e o resumo de antes do plan, auditoria 2026-11-10.
 Código: text/rules.ts
 Estado: coberto
 

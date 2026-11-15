@@ -268,7 +268,7 @@ export const DONE = {
   settled: (sessions: string[]) =>
     `parou com pendentes a sessão ${sessions.join(', a sessão ')}: elas saíram da contagem do painel ao ` +
     'fechar a tarefa de origem; se o trabalho delegado não acabou, retome a sessão',
-  noSummary: `falta o summary: chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩)`,
+  noSummary: `falta o summary: se este done foi o último passo do turno, chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩); se ainda vai planejar ou seguir trabalhando, ignore este aviso e passe o summary no último done`,
   unstarted: (ids: string[]) =>
     `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
     'parado na primeira e elas aparecem com 0:00. Daqui em diante, marque cada etapa com mcp__task-tree__start ' +

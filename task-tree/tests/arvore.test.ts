@@ -99,6 +99,30 @@ test('o done avisa a falta do summary no fim e as etapas fechadas juntas sem sta
   expect((await done($, [], 'Resumo')).texto).not.toContain('falta o summary')
 })
 
+// Regra: arvore.done-sem-summary-e-varias-sem-start
+test('o aviso de falta do summary diz que só vale para o último passo do turno', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'P', title: 'Perguntar' }])
+  await start($, ['P'])
+  const r = await done($, ['P'])
+  expect(r.texto).toContain('falta o summary')
+  expect(r.texto).toContain('último passo do turno')
+})
+
+// Regra: arvore.done-sem-summary-e-varias-sem-start
+test('um resumo dado antes de um plan não cala a cobrança do done final', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'P', title: 'Perguntar' }])
+  await start($, ['P'])
+  expect((await done($, ['P'], 'Usuário escolheu B')).texto).not.toContain('falta o summary')
+  await plan($, [{ id: 'T', title: 'Trabalhar' }])
+  await start($, ['T'])
+  expect((await done($, ['T'])).texto).toContain('falta o summary')
+  expect((await done($, [], 'Trabalho feito')).texto).not.toContain('falta o summary')
+})
+
 // Regra: arvore.plan-recusa-ids-repetidos
 test('plan com ids repetidos é recusado e nada muda no painel', async ($: any, on: any) => {
   fixar(on)

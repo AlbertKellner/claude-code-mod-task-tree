@@ -322,7 +322,7 @@ do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o st
 
 Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
 `refreshedAt`, `reading`/`readAgain` (a leitura das filhas em curso, em `hooks/sessions.ts`), `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
-`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat`
+`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat, briefBeforePlan`
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma

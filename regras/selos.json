@@ -60,6 +60,16 @@
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
     },
+    "task-tree/tests/arvore.test.ts::o aviso de falta do summary diz que só vale para o último passo do turno": {
+      "regras": [
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "d757c75977d59b4d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: falta o summary só no último passo"
+    },
     "task-tree/tests/arvore.test.ts::o done avisa a falta do summary no fim e as etapas fechadas juntas sem start": {
       "regras": [
         "arvore.done-sem-summary-e-varias-sem-start"
@@ -121,6 +131,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/arvore.test.ts::um resumo dado antes de um plan não cala a cobrança do done final": {
+      "regras": [
+        "arvore.done-sem-summary-e-varias-sem-start"
+      ],
+      "hash": "df196cdbf21387a5",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: falta o summary só no último passo"
     },
     "task-tree/tests/cabecalho.test.ts::\"+N pedidos anteriores\" abre com um clique, fechado por padrão, e fecha de novo": {
       "regras": [

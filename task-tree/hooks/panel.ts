@@ -214,8 +214,10 @@ export async function lastBrief($: any): Promise<string | undefined> {
 // tool calls since a plan was last open (see the tool.call reminder); whether the current request
 // already used the panel (plan, start or done: with everything closed, its last calls need no
 // reminder to plan); whether the last question was answered by a chat message instead of an option
-// (that message, at the next prompt, is the answer).
-export const reminders = { unplanned: 0, planned: false, answeredInChat: false }
+// (that message, at the next prompt, is the answer); whether the summary kept was given before a
+// plan of the same turn (a step's, so the last done still asks for one; a reload forgets the mark,
+// and then only that second reminder is lost).
+export const reminders = { unplanned: 0, planned: false, answeredInChat: false, briefBeforePlan: false }
 
 // The time now, or undefined where it cannot be read (the test kit without a clock).
 export async function stamp($: any): Promise<number | undefined> {
