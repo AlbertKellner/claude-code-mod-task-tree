@@ -79,6 +79,28 @@ test('filha parada: a iniciada aguarda e as pendentes seguem pendentes', async (
   esperarEstado(p, 'Nunca', 'pendente')
 })
 
+// Regra: sessoes.palavra-de-estado-do-cartao
+test('a filha que espera a pessoa: o cartão diz "aguardando", segura a tarefa de origem e não gera o lembrete de fim de turno', async ($: any, on: any) => {
+  const tarefas = [tarefa('1', 'Feita', 'feita'), tarefa('2', 'Começada', 'iniciada'), tarefa('3', 'Nunca')]
+  const h = await abrir($, on, { painel: { tasks: tarefas } })
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  let r = await aviso($)
+  let p = await painel($)
+  esperarPalavra(p, 'filha-um', 'aguardando')
+  for (const palavra of ['parada', 'encerrada', 'concluída', 'arquivada']) expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain(palavra)
+  esperarEstado(p, 'Começada', 'andamento')
+  esperarEstado(p, 'Nunca', 'pendente')
+  esperarEstado(p, 'Um', 'andamento')
+  expect(JSON.stringify(r)).not.toContain('terminou o turno')
+  h.filha(K1).aguardando = false
+  r = await aviso($)
+  p = await painel($)
+  esperarPalavra(p, 'filha-um', 'parada')
+  esperarEstado(p, 'Começada', 'aguardando')
+  expect(JSON.stringify(r)).toContain('terminou o turno')
+})
+
 // Regra: sessoes.filha-arquivada-interrompe, sessoes.palavra-de-estado-do-cartao
 test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda', async ($: any, on: any) => {
   const pai = tarefa('P', 'Pai da filha', 'aberta', [tarefa('P/1', 'Feita', 'feita'), tarefa('P/2', 'Aberta')])
@@ -817,6 +839,35 @@ test('filha parada só com pendentes e origem fechada: encerrada, fora da contag
   esperarPalavra(p, 'filha-um', 'encerrada')
   esperarEstado(p, 'Colapso', 'pendente')
   expect([c.feitas, c.total, c.pct, c.chips.pendentes], emTexto(p)).toEqual([4, 4, 100, 0])
+})
+
+// Regra: sessoes.palavra-de-estado-do-cartao, sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('a filha que espera a pessoa só com pendentes e a origem fechada segue "aguardando", contando', async ($: any, on: any) => {
+  fixar(on)
+  responderEnvio(on)
+  const tarefas = [deTurno(1, 'a', 'f1', 'feita'), deTurno(1, 'b', 'f2', 'feita'), deTurno(1, 'c', 'Colapso', 'aberta')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas, turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  await aviso($)
+  await done($, ['1', '9'])
+  await fimDoTurno($)
+  let p = await painel($)
+  esperarPalavra(p, 'filha-um', 'aguardando')
+  expect(p.filter(l => l.texto.includes('encerrada')).map(l => l.titulo), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Colapso', 'pendente')
+  esperarEstado(p, 'Um', 'andamento')
+  expect([cabecalho(p).total, cabecalho(p).chips.pendentes], emTexto(p)).toEqual([5, 1])
+  h.filha(K1).aguardando = false
+  await aviso($)
+  p = await painel($)
+  esperarPalavra(p, 'filha-um', 'encerrada')
+  expect(cabecalho(p).total, emTexto(p)).toBe(4)
 })
 
 // Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem

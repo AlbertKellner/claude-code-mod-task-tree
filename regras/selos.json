@@ -2743,6 +2743,27 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 10"
     },
+    "task-tree/tests/sessoes.test.ts::a filha que espera a pessoa só com pendentes e a origem fechada segue \"aguardando\", contando": {
+      "regras": [
+        "sessoes.palavra-de-estado-do-cartao",
+        "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
+      ],
+      "hash": "440cf771d8b0e48e",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: a filha que espera a pessoa não vira \"encerrada\""
+    },
+    "task-tree/tests/sessoes.test.ts::a filha que espera a pessoa: o cartão diz \"aguardando\", segura a tarefa de origem e não gera o lembrete de fim de turno": {
+      "regras": [
+        "sessoes.palavra-de-estado-do-cartao"
+      ],
+      "hash": "865064f6fb90ee0c",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: a palavra \"aguardando\" do cartão não tinha teste"
+    },
     "task-tree/tests/sessoes.test.ts::a filha que volta a trabalhar volta a contar": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
