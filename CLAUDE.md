@@ -184,6 +184,14 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 - sessões filhas reais (cartão, ✉ e entrega, filha parada e arquivada, rodada substituída); carta a subagente real
   (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app;
 - modelo e esforço no cartão; status embaixo da caixa de mensagem.
+- processo novo e `/model` no meio do turno (o turno em curso fica ✕ interrompido); o painel de uma sessão
+  fora das 30 do store volta do arquivo publicado; o arquivo de uma sessão apagada é esvaziado;
+- `/clear` real nesta sessão com filhas e numa filha (os cartões e o histórico na mãe);
+- tempos através de turnos reais (a tarefa retoma de onde parou, o cabeçalho para no fim do turno, a
+  linha ◷ conta do primeiro start) e o cabeçalho estreito e largo (toks/s, "ultracode", repositório);
+- workflows reais com muitos subagentes (cartão de grupo com espera, retomada, cliques com o freio das
+  gravações) e o turno que morre por erro real (✕ "falhou" no painel e no cartão);
+- a nota da versão no merge do PR (workflow "Release").
 
 ## Release e PR
 

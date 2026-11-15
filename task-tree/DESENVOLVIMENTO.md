@@ -10,8 +10,9 @@ contextos dos hooks; nunca na memória do Claude Code nem num CLAUDE.md da máqu
 
 Esta parte descreve o mod como o código está: escrita na fase 5 sobre a `main` `152da41` (fim da
 fase 4) e atualizada na fase 6, parte A (branch `perf/fase-6-desempenho`, dez commits de desempenho
-sem mudança de desenho; ver "Desempenho (fase 6, parte A)"). Cada afirmação foi conferida contra os
-arquivos citados; os números de linhas são os de `wc -l` em `152da41`, para dar a ordem de grandeza. As notas de cada fase, com os
+sem mudança de desenho; ver "Desempenho (fase 6, parte A)"), e depois lote a lote; conferida de novo
+inteira contra o código em 2026-11-15, no fim dos achados médios (branch `fix/achados-medios`). Os
+números de linhas são os de `wc -l` nessa data, para dar a ordem de grandeza. As notas de cada fase, com os
 pedidos do usuário e os motivos de cada decisão, estão em "Decisões (histórico)", no fim.
 
 ### Módulos
@@ -22,51 +23,66 @@ Pasta `task-tree/`, carregada como plugin (`.claude-plugin/plugin.json`: nome `t
 Quem recebe `$` (o engine) e quem não recebe:
 
 - **Hooks** (`hooks/`), os únicos que registram hooks e que leem e gravam `$.state`:
-  - `register.tsx` (31 linhas): só registra os 14 hooks, cada um pelo nome de uma função importada.
-  - `panel.ts` (490): o estado do painel e como os hooks o mudam: as 14 chaves de `$.state` que este
-    arquivo usa, `change`/`replace`/`persist`, os `ensure*` (volta do store sem `session.start`),
-    `publishPanel`, `showPane`, `addWait`/`dropWaits`/`dropAsked`, a visão (`setView`/`restoreView`),
-    o trabalho atual (`nothingOpen`/`startsWork`/`setWork`/`joinWork`; trabalho novo por turno, com `openInSight` de `draw/layout.ts`), as ligações
-    (`keptLinks`/`saveLinks`/`restoreLinks`/`restoreWork`, e `renameAnchors`, que as renomeia junto
-    com uma tarefa fechada renomeada pelo `plan`), `selfId`/`knownId`, `lastBrief`/`lastRecap`,
-    `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
-  - `sessions.ts` (233): as sessões que esta abriu: `refreshChildren` (os quatro passos de
-    `io/host.ts`; uma leitura por vez, `reading`/`readAgain`, e `children` gravado por `update`), `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`,
-    `endedNote`, os relógios (`ticker`/`tick`/`keepTime`, `POLL`/`poller`/`watchSessions`,
-    `anyRunning`) e `openSession`.
-  - `session-start.ts` (80): `sessionStart` (registra o comando e as três ferramentas, traz o painel
-    do store, abre o pane, lê as sessões) e `classicSessionStart` (`/clear` e `resume`).
-  - `prompt-submit.ts` (98): `said` (classificação pura do prompt, pelas marcas no começo do corpo),
-    `topMessages` (os remetentes, só as tags de topo), `promptSubmit`, `promptCompose`, `NO_TURN`.
-  - `command.ts` (34): `commandRun` (`/task-tree`).
-  - `tools.ts` (208): `planTool`, `doneTool`, `startTool` e os schemas (`node`, `level`).
+  - `register.tsx` (36 linhas): só registra os 18 hooks, cada um pelo nome de uma função importada.
+  - `panel.ts` (1095): o estado do painel e como os hooks o mudam: as chaves de `$.state` que este
+    arquivo usa, `change`/`replace`/`persist`, os `ensure*` (volta do store sem `session.start`:
+    `ensureGroups`, `ensureWork`, `ensureTurn`, `ensureLinks`), o fim do turno no store (`saveTurn`,
+    `restoreTurn`, `parkDeadTurn`, `clearTurn`), `wake`, os intervalos parados (`setIdle`, `IDLE_KEEP`),
+    a volta pelo arquivo publicado (`fromOwnFile`, `restoreFromOwnFile`), `restore`/`keptGroups`/
+    `dropHeld`, `publishPanel`, `refreshGit`, `showPane`, `addWait`/`dropWaits`/`dropPermissions`/
+    `dropAsked` e `inCall`, o turno (`openTurn`, `openTurnOf`, `requestTasks`), a tarefa de um envio
+    (`sendAnchor`, `namedFor`, `usedAnchors`, `askingAnchors`), o trabalho atual (`nothingOpen`/
+    `startsWork`/`setWork`/`joinWork`/`restoreWork`/`restoreWorkOf`), as ligações (`keptLinks`/
+    `keptLink`/`saveLinks`/`ensureLinks`, `forgetChildren` e `isLeftBehind` do `/clear`, `renameAnchors`,
+    `moveToLevelOne`, `renameFolds`), `settledSubs`, `selfId`/`knownId`/`ownId`, `learnNames`,
+    `lastBrief`, `reminders`, `drawn`, `actions`/`act`, `DRAW_LIMIT`, `PANE`.
+  - `sessions.ts` (556): as sessões que esta abriu: `refreshChildren` (os passos de `io/host.ts`; uma
+    leitura por vez, `reading`/`readAgain`, e `children` gravado por `update`), `summarize`,
+    `noteReceived`, `watchSends`, `takenNote`, `refreshStale`, `recordStart`, `settledBy`, `endedNote`,
+    os relógios (`ticker`/`tick`/`keepTime`, `POLL`/`poller`/`watchSessions`, `anyRunning`), `syncIdle`,
+    `openSession` e `sweepPublished` (esvazia os arquivos de sessões que o app não lista).
+  - `session-start.ts` (118): `sessionStart` (registra o comando e as três ferramentas, traz o painel
+    do store ou do arquivo publicado, o trabalho, o fim do turno e as ligações, abre o pane uma vez por
+    processo, lê as sessões) e `classicSessionStart` (`/clear` e `resume`).
+  - `prompt-submit.ts` (225): `said` (classificação pura do prompt, pelas marcas no começo do corpo),
+    `topMessages` (os remetentes, só as tags de topo), `promptSubmit`, `promptCompose`.
+  - `command.ts` (32): `commandRun` (`/task-tree`).
+  - `tools.ts` (393): `planTool`, `doneTool`, `startTool` e os schemas (`node`, `level`).
   - `permission.ts` (22): `permissionRequest`.
-  - `turn.ts` (87): `brief` (pura), `turnStep`, `turnComplete`.
-  - `tool-call.ts` (211): o `tool.call` genérico em handlers por responsabilidade (`launch`, `asked`,
-    `wrapUpAsk`, `sentMessage`, `sessionNotes`, `wrapUpOpen`, `reminder`) e o hook `toolCall`.
-  - `render.tsx` (332): `render` (o pane nas duas superfícies: `drawDesktop`, `drawTerminal`), `press`,
-    o atom `folds` e `setFold`.
+  - `turn.ts` (220): `brief` (pura), `turnStep` (com a taxa: `speedOf`, `MIN_TOKENS`, `MIN_MS`,
+    `MAX_TOKS`), `ultraAttachment`, `turnComplete`.
+  - `tool-call.ts` (299): o `tool.call` genérico em handlers por responsabilidade (`launch`, `asked`,
+    `wrapUpAsk`, `askAnchor`, `sentMessage`, `sessionNotes`, `wrapUpOpen`, `reminder`) e o hook
+    `toolCall`.
+  - `agents.ts` (479): os cartões de subagente: `agentSpawn` (com a retomada), `subStep`, `subTool`,
+    `subEnd`, `checkSubs`, `settleBySubs`, `takeSubSend`, `agentReceive`, `strandedSends`, `subsNote`,
+    `launchAnchor`, `SUB_CONFIRM`, `SUB_IDLE`.
+  - `render.tsx` (444): `render` (o pane nas duas superfícies: `drawDesktop`, `drawTerminal`; o tempo
+    do cabeçalho, `headTime`), `press`, o atom `folds` e `setFold`.
 - **IO** (`io/`), o que fala com o mundo fora do engine, com `$` só onde precisa:
-  - `publish.ts` (137): o arquivo publicado: `PUBLISHED_VERSION`, `parsePublished` (pura), `waitFile`,
-    `readPublished`, `publishWait`, o tipo `Publication`.
-  - `host.ts` (156): a leitura das sessões filhas em quatro passos: `parseSessions` (pura),
-    `listSessions`, `mineOf` (pura), `panelOf` (pura), `readFiles`, `engineText` (pura), `engineOf`
-    (com o cache `engineSeen`), `deriveChildren` (pura).
-  - `log.ts` (6): `debug($, texto)`, uma linha no log de depuração que nunca falha.
+  - `publish.ts` (209): o arquivo publicado: `PUBLISHED_VERSION`, `parsePublished` (pura), `waitFile`,
+    `readPublished`, `publishWait`, `emptyPublished`, o tipo `Publication`.
+  - `host.ts` (232): a leitura das sessões filhas: `parseSessions` (pura), `listSessions`, `mineOf` e
+    `deducedOwn` (puras), `panelOf` (pura), `readFiles`, `engineText` (pura), `engineOf` (com o cache
+    `engineSeen`), `deriveChildren` (pura), `justOpened`, `STARTING_GRACE`, `allSessionIds`,
+    `sessionGone`, `staleFiles`.
+  - `git.ts` (93): `readGit` (repositório e branch pelos arquivos, sem processo), `parseHead`,
+    `shortPath`, `basename`, `parent`.
+  - `log.ts` (14): `debug($, texto)` e `debugOnce`, uma linha no log de depuração que nunca falha.
 - **Estado** (`state/`):
-  - `durability.ts` (167): a tabela de durabilidade `TABLE` e o que a lê (`rowOf`, `restoredAt`,
-    `storeKey`, `STATE_KEYS`, `STORES`, `LINK_KEYS`), o conjunto `loaded`, `merge`/`current`,
-    `Link`/`linkOf`, e o acesso ao store (`loadStore`, `saveStore`, `saveGroups`, `KEEP`): os únicos
-    helpers fora de `hooks/` e `io/` que recebem `$`.
-  - `tasks.ts` (107): as edições puras da árvore: `build`, `duplicates`, `resolve`, `edit`, `finish`,
-    `fillStarts`/`fill`, `settle`, `begin`.
+  - `durability.ts` (235): a tabela de durabilidade `TABLE` e o que a lê (`rowOf`, `restoredAt`,
+    `storeKey`), o conjunto `loaded`, `merge`/`current`, `Link`/`linkOf`, e o acesso ao store
+    (`loadStore`, `saveStore`, que não lança e diz se gravou, `guarded`, `pruneStore`, `storeFailure`,
+    `saveGroups`, `KEEP`): os únicos helpers fora de `hooks/` e `io/` que recebem `$`.
+  - `tasks.ts` (205): as edições puras da árvore: `build`, `duplicates`, `resolve`, `edit`, `finish`,
+    `park`, `rest`, `fillStarts`/`fill`, `settle`, `begin`, `carry`.
 - **Desenho** (`draw/`), puro, sem `$`:
-  - `layout.ts` (932): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os hooks
-    também usam (`MAIN`, `flat`, `count`, `total`, `atWork`, `current`, `split`/`breaks`/`unsent`/`resolveAnchor`, `openInSight`, `rawPanel`, `panelOf`,
-    `trimToWork`, `limitRows`, `guides`, `frames`, `labelCols`, `running`, `sessionTime` etc.) e as
-    constantes `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400,
-    `WAIT_ORIGIN` = 10 000 ms, `REPLY` = "resposta" (exportada, mas o desenho não a usa mais: a linha ↩
-    só existe com resumo, `hasBrief`).
+  - `layout.ts` (2125): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os
+    hooks também usam (`MAIN`, `flat`, `count`, `total`, `sessionTotal`, `atWork`, `split`/`cardsOf`/
+    `spared`/`inFlight`, `openInSight`, `rawPanel`, `panelOf`, `trimToWork`, `trimPublished`,
+    `limitRows`, `firstOpen`, `hasBrief`, as funções de tempo `span`/`stillSpan`/`timeSpan`/`timeOf`/
+    `sessionTime`/`idleIn`/`idleOf`, `guides`, `frames`, `labelCols`, `running` etc.) e as constantes
+    `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400, `WAIT_ORIGIN` = 10 000 ms.
   - `desktop.tsx` (468): a árvore do app desktop em componentes nativos (`desktopTree`,
     `desktopRow`, `iconCell`, `cells`, `GUIDE_COLOR`/`GUIDE_W`/`GUIDE_H`): cada linha é um `Box` em
     linha com as guias em caixas nativas com fundo (uma célula por coluna, no `Box key="guides"` da
@@ -74,18 +90,21 @@ Quem recebe `$` (o engine) e quem não recebe:
     transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo;
     os cartões de sessão são `Box` com borda e fundo translúcido por nível, com respiro nos quatro
     lados, o busto e o anel em `Svg`.
-  - `head.tsx` (157): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
-    pílulas com borda, git em texto e a barra de progresso num `Svg` (com o `alt` do cabeçalho inteiro).
+  - `head.tsx` (178): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
+    pílulas com borda, git em texto e a barra de progresso num `Svg` (com o `alt` do cabeçalho
+    inteiro); abaixo de 84 colunas, o tempo, o toks/s e "ultracode" em `Text` (keys `clock`, `rate` e
+    `ultra`).
   - `icons.ts` (58): as fontes dos `Svg` que restam, guardadas por estado (`stateIcon`, `msgIcon`,
     `bustIcon`, `ringIcon`, `headBar`, `ICON` = 16).
-  - `svg.ts` (245): os desenhos de cada ícone (`icon`, `envelope`, `sessionIcon`, `contextRing`),
+  - `svg.ts` (249): os desenhos de cada ícone (`icon`, `envelope`, `sessionIcon`, `contextRing`),
     `slim`, e os textos e glifos que as duas superfícies usam (`GLYPH`, `prefix`, `ratioBar`,
     `clockText`, `chips`, `headerState`, `rowAlt`, `rightText`, `gitTerm`, `gitAlt`).
-- **Textos** (`text/rules.ts`, 178): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
-  `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`) e `BRIEF` = 120.
-- **Tipos** (`types/index.d.ts`, 145): `TaskNode`, `Turn`, `Group`, `Launch`, `Wait`, `Panel`,
-  `Published`, `Child`, `Send`, `LegacyNode` e o contrato `PluginState['task-tree']` (as 16 chaves de
-  `$.state`).
+- **Textos** (`text/rules.ts`, 371): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
+  `TOOLS`, `START`, `PROMPT`, `ASK`, `PLAN`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `SUBS`)
+  e `BRIEF` = 120.
+- **Tipos** (`types/index.d.ts`, 312): `TaskNode`, `Turn`, `Group`, `Idle`, `Past`, `Launch`, `Wait`,
+  `Panel`, `Published`, `Child`, `Send`, `LegacyNode` e o contrato `PluginState['task-tree']` (as 24
+  chaves de `$.state`).
 
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina; não versionar.
 
@@ -95,25 +114,27 @@ importa de todos e é o único lugar com `$.state.get/set` (chave literal em cad
 do kit"). Não há import circular entre `hooks/panel.ts` e `hooks/sessions.ts`: `sessions.ts` importa
 de `panel.ts`, e `panel.ts` não importa de `sessions.ts`.
 
-### Os 14 hooks
+### Os 18 hooks
 
 Na ordem de `register.tsx`:
 
 | Evento | Filtro | Função (arquivo) | O que faz |
 |---|---|---|---|
-| `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada), `restore` do store se o state está vazio, `restoreView`, `restoreWork`, `restoreLinks`; abre o pane; `refreshChildren` e `watchSessions` |
-| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends`, `work` e `collapsed` (as dobras), guardando as tarefas e os turnos do grupo principal em `past` (os 5 `/clear` mais recentes, o aberto como interrompido); `resume`: `restore` do store |
+| `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada); com o state vazio (processo novo), `restore` do store e, sem cópia no store, `restoreFromOwnFile` (o arquivo publicado); `restoreWork`, `restoreTurn` e, no processo novo, `parkDeadTurn` (o turno que o store dá em curso morreu com o processo anterior); `ensureLinks`; abre o pane uma vez por processo (`paneOpened`); `refreshChildren`, `watchSessions` e, no processo novo, `sweepPublished` |
+| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: `dropHeld`, esvazia `sends`, `receipts`, `work`, o fim do turno (`clearTurn`), as filhas (`forgetChildren`: os cartões somem e não voltam) e `collapsed` (as dobras), guardando as tarefas e os turnos do grupo principal em `past` (os 5 `/clear` mais recentes, o aberto como interrompido) e os intervalos parados, fechados; `resume`: `dropHeld`, `restore` do store (sem cópia, o painel fica vazio), `restoreWorkOf`, `restoreTurn` e `parkDeadTurn` |
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
-| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` (que aceita a subtarefa já com o prefixo do nível 1, como os lembretes a mostram) + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno), e, no loop principal, também um concluído desse pedido (reabre mantendo os ✓); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), passa ao nível 1 as ligações a uma subtarefa que o replano no lugar deixou de fora (`moveToLevelOne`), põe os níveis 1 no turno atual (que o `request` do primeiro plan do pedido renomeia, uma vez só: a marca `named` no turno), tira os `sends` do que foi replanejado, adota o que o pedido mandou, abriu ou lançou antes do primeiro plan (`adoptOrphans`), junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`), abre o pane |
+| `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | `build` (que aceita a subtarefa já com o prefixo do nível 1, como os lembretes a mostram) + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno), e, no loop principal, também um concluído desse pedido (reabre mantendo os ✓); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), passa ao nível 1 as ligações a uma subtarefa que o replano no lugar deixou de fora (`moveToLevelOne`), põe os níveis 1 no turno atual (que o `request` do primeiro plan do pedido renomeia, uma vez só: a marca `named` no turno), tira os `sends` do que foi replanejado, adota o que o pedido mandou, abriu ou lançou antes do primeiro plan (`adoptOrphans`), junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`); renomeia as dobras das tarefas renomeadas (`renameFolds`); avisos do plan (`PLAN`); não abre o pane (ele abre no processo novo, na mensagem da pessoa e com `/task-tree`) |
 | `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; `cancel` (ids que não serão feitos): o aberto abaixo de cada um fica `interrupted` (`interrupt`), o ✓ fica, `settle` fecha o pai, e a resposta diz "Canceladas: k.", sem os avisos de summary e de etapas juntas; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | `resolve` + `begin` (reabre pais; recusa pai concluído com filhos; num pai aberto, inicia a primeira folha aberta, `firstOpen`); `joinWork`; `keepTime` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão novo: o cartão dele volta a "trabalhando" (ou "em segundo plano"), sem fim, com a contagem de chamadas seguindo (`reviveSub`), e só depois a carta que esperava por ele é entregue (`takeSubSend` com o `prompt`); o cartão já podado (`dropSettledSubs`) não volta |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
-| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `reply` (recap do `wrap_up`, senão `answer`, até 600 caracteres) e o `brief` (só no turno não parado) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `recap` e `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
+| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`) |
+| `prompt.attachment` | `ultra_effort_enter` | `ultraAttachment` (turn.ts) | liga `ultracode` (só o do loop principal) |
+| `prompt.attachment` | `ultra_effort_exit` | `ultraAttachment` (turn.ts) | desliga `ultracode` |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `brief` (o `summary` do `done`; só no turno não parado, e o `reply` de versões anteriores sai na mesma gravação) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno, no state e no registro `turn` do store) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -153,13 +174,13 @@ mensagem pendente é retomado pelo `agent.spawn` com `resume`; o parado ou que f
 
 ### Fluxo de dados
 
-**Toda escrita do painel passa por `change($, fn)`** (`hooks/panel.ts`): `ensureGroups`, `ensureView`,
-`ensureWork` (volta do store se o módulo ainda não a fez), `adopt` (a lista legada `tasks` entra no
+**Toda escrita do painel passa por `change($, fn)`** (`hooks/panel.ts`): `ensureGroups`, `ensureWork`,
+`ensureLinks` (volta do store se o módulo ainda não a fez), `adopt` (a lista legada `tasks` entra no
 grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `persist`: `showStatus`
 (`$.ui.status` "Tarefas d/n", da mesma conta da "sessão inteira" do cabeçalho, `sessionTotal`;
 chamado só quando o texto muda: `lastStatus`, variável do módulo),
-`saveGroups` (store `session:<uuid>` e a lista `sessions`, as `KEEP` = 30 mais novas) e
-`publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
+`saveGroups` (store `session:<uuid>` e a lista `sessions`, as `KEEP` = 30 mais novas; a sessão que
+volta à lista regrava o trabalho e o fim do turno) e `publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
 
 **O `tool.call` genérico** (`hooks/tool-call.ts`), em torno de `Call = { agent, e, sentAt, r }`:
 
@@ -167,7 +188,7 @@ chamado só quando o texto muda: `lastStatus`, variável do módulo),
    laço que lançou, com a descrição; o grupo do subagente a reclama em `identify`); `asked` (uma
    `AskUserQuestion` do loop principal sem tarefa aberta é recusada com `deny`; senão a pergunta ou o
    `ExitPlanMode` vira um aviso enquanto `next(e)` roda, e a resposta volta com `ASK.answered` ou
-   `ASK.inChat`); `wrapUpRecap` (um `mcp__ccd_turn__wrap_up` grava o `recap` no state).
+   `ASK.inChat`); o `recap` do `wrap_up` não é guardado (só a escolha, depois da chamada).
 2. `sentAt` é lido antes de um `SendMessage`; a chamada roda (`inCall` conta as chamadas em curso por
    `<agente>:<tool>`); o aviso `<agente>:<tool>` sai quando a última delas termina. Depois, `wrapUpAsk`:
    só no `wrap_up` que deu certo (sem `isError` nem `deny`), tira a escolha anterior e, com `ask`, cria o
@@ -283,69 +304,45 @@ ao store quando muda (`lastLinks`). Ver "Arquivo publicado".
 Três camadas guardam dados, e cada uma morre num momento: `$.state` sobrevive à recarga a quente do
 mod (salvar um arquivo) e morre com o processo (crash do hooks worker, `/model`, reinício do app);
 `$.store` sobrevive a tudo, com chave por sessão (`<prefixo>:<uuid do $.session.id()>`); uma variável
-de módulo morre na recarga. Como a recarga não roda `session.start`, e um processo que reiniciou sem
-ele parte de state vazio, o que vive no store volta também no primeiro uso depois (`loaded`, em
-`state/durability.ts`; `ensureGroups`/`ensureView`/`ensureWork` e `saveLinks`→`restoreLinks` em
-`hooks/panel.ts`).
+de módulo morre na recarga.
 
-A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o prefixo do store
-(`store`; `field` quando é um campo do registro `links`), como a cópia do store encontra o state
-(`merge`), quantas entradas ficam (`keep`), quando volta (`restoredAt`). 
+A fonte única de cada chave é a `TABLE` de `state/durability.ts`: por chave do state, do store ou
+variável de módulo, onde vive (`lives`), o prefixo do store (`store`; `field` quando é um campo de um
+registro), a fusão (`merge`: `current`, `replace` ou `none`), quantas entradas ficam (`keep`), quando
+volta (`restoredAt`: start, resume, first-use) e uma nota do que é. A etapa `regras` do check confere
+as chaves do state que o código usa contra ela (chave sem linha na tabela falha). Este documento não
+repete a tabela.
 
-| Chave | Vive | Store | Fusão | Volta em | O que é |
-|---|---|---|---|---|---|
-| `groups` | state+store | `session` | current | start, resume, first-use | os grupos (tarefas, turnos, respostas); no resume o store substitui; subagentes voltam com o aberto interrompido |
-| `tasks` | state | | none | | legado: a lista única de antes dos grupos, movida para o grupo principal uma vez (`adopt`) |
-| `view` | state+store | `view` | current | start, first-use | a visão (`summary`, padrão de sessão nova, ou `full`); vai ao store só no clique (`setView`) |
-| `work` | state+store | `work` | current | start, first-use | os níveis 1 do trabalho atual (a visão resumida) |
-| `children` | state+store | `links` (campo) | fill | start, first-save | as sessões abertas por esta, como o host lista; o store guarda só as ligações (`Link`: id, name, title, anchor, lastAnchor, rounds), também de sessões que o host deixou de listar (`keptLinks`) |
-| `sends` | state+store | `links` (campo) | union | start, first-save | mensagens a outras sessões ainda não tomadas |
-| `received` | state+store | `links` (campo) | union, 20 | start, first-save | mensagens de outras sessões recebidas |
-| `names` | state | | none | | os nomes das sessões conhecidas por id (a lista ligada do host, inclusive a mãe e as irmãs quando ela as traz; a marca da mensagem recebida; o próprio, se o `get_session` o dá), os 200 mais recentes, gravados só quando mudam (`learnNames`); não vai ao store nem ao publicado: a releitura de 3 s o refaz |
-| `receipts` | state+store | `links` (campo) | current | start, first-use | por destino, o último recibo já casado com um envio desta (instante e quantos dele): `watchSends` não usa de novo um recibo antigo depois de recarga ou reinício; o `/clear` zera |
-| `launches` | state+store | `links` (campo) | union, 20 | start, first-save | chamadas `Agent` ainda não reclamadas por um grupo |
-| `waits` | state | | none | | o que espera a pessoa (pergunta, plano, permissão, `choice` do wrap_up) |
-| `engine` | state | | none | | modelo e esforço do loop principal, publicados |
-| `ended` | state | | none | | sessões cujo turno terminou, até o lembrete |
-| `childrenError` | state | | none | | por que a lista do host falhou |
-| `brief` | state | | none | | o `summary` do `done` até o fim do turno |
-| `recap` | state | | none | | o `recap` do `wrap_up` até o fim do turno |
-| `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`); o plan renomeia as chaves das tarefas que renomeia (`renameFolds`), e o `/clear` as zera |
-| `turnEnded` | state | | none | | a hora em que o turno desta sessão terminou, até o próximo prompt (então `null`): o que ela deixou em andamento é desenhado aguardando (◷), com o relógio parado; interrompido só se o turno foi parado (Esc) ou morreu por erro |
-| `turnFailed` | state+store | `turn` (campo) | current | start, resume, first-use | a última parada do loop principal foi um turno que morreu por erro (falha da API, limite de contexto, recusa), até o próximo pedido: o lembrete dele diz o erro (`PROMPT.failedByError`); falso em registro antigo e depois de `parkDeadTurn` |
-| `sessions` | store | `sessions` | none | | as sessões com painel guardado, a atual primeiro, `KEEP` = 30 |
+Os registros do store: `session` (os grupos), `work` (o trabalho atual), `links` (as ligações:
+`children` reduzidas a `Link`, `sends`, `received`, `receipts`, `launches` e a lista `left` das filhas
+deixadas no `/clear`), `turn` (o fim do turno: `ended`, `aborted`, `failed`, `replan`) e a lista
+`sessions`. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
+registro "em curso" que um processo novo acha é de um turno que morreu com o anterior e vira parada
+(`parkDeadTurn`). A fusão das ligações é `current` por chave: o store só entra na chave que o state não
+tem (um processo novo); o state que atravessou uma recarga fica como está. O store cheio não derruba a
+gravação: `saveStore` poda as sobras (`pruneStore`, os registros das sessões fora da lista) e tenta de
+novo, e a falha que resta fica em `storeFailure` para o diagnóstico do `/task-tree`. O painel fora do
+store (só as 30 sessões mais recentes ficam lá) volta do arquivo que a própria sessão publicou
+(`fromOwnFile`), que dura enquanto a sessão existe no app. O subagente terminado sem tarefas sai do
+estado quando o pedido dele sai do trabalho (`settledSubs`).
 
-Fusões: `current` (o state vence; o store só com state vazio), `fill` (cada sessão do state ganha
-do store o `anchor`, `lastAnchor` e `rounds` que não tem; state vazio pega o store inteiro), `union`
-(as entradas do store que o state não tem vêm primeiro, depois as do state, cortadas em `keep`),
-`replace` (o store substitui, usado no resume), `none`.
+A recarga e o `session.start`: medido em outubro de 2026, a recarga a quente não rodava
+`session.start`; o contrato do kit 2.1.321 diz que ele roda numa ativação, num respawn do worker ou
+numa recarga. Não foi medido de novo. O código funciona nos dois casos: o que vive no store volta também
+no primeiro uso (`loaded`), e o que o `session.start` faz uma vez por processo fica marcado no state
+(`paneOpened`), que atravessa a recarga.
 
-Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLinks`, `ownId`,
-`refreshedAt`, `reading`/`readAgain` (a leitura das filhas em curso, em `hooks/sessions.ts`), `drawSize`/`drawRows`/`renderError` (hoje os campos de `drawn` em `hooks/panel.ts`),
-`actions`, `ticker`, `poller`, `starting` (a marca do `keepTime`, em `hooks/sessions.ts`, sem linha na tabela), `fitted` (o corte por tamanho que coube, em `hooks/render.tsx`, sem linha na tabela), `engineSeen` (em `io/host.ts`), `unplanned, planned, answeredInChat, briefBeforePlan`
-(hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
-arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
-último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
-vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo),
-`pendingTools, toolsWrote, toolsTimer` (em `hooks/agents.ts`: as linhas de ferramenta dos cartões de
-subagente ainda não gravadas, a hora da última gravação e o temporizador; `subTool` grava no máximo uma
-vez por segundo para todos os subagentes juntos: passado 1 s, a chamada grava na hora, e só ela espera a
-gravação; dentro do segundo, só conta, e um `$.clock.after` grava o pendente quando o segundo fecha; o
-cartão que terminou nesse meio não ganha a ferramenta de volta) e `inCall` (as chamadas em curso por `<agente>:<tool>`, em
-`hooks/panel.ts`: o aviso de permissão sai com a última; uma recarga recomeça, e o fim da chamada então
-tira o aviso, como antes). Duas linhas
-sobraram da fase 2 e não têm mais variável no código: `drawNow` e `breaksMemo` (o `layout()` recebe
-`now` e cria um `BreaksMemo` por desenho).
-
-Quem traz do store e quando: `session.start` (`restore` se o state não tem grupos, `restoreView`,
-`restoreWork`, `restoreLinks`); `resume` (`restore`, que substitui); primeiro uso (`ensureGroups`,
-`ensureView`, `ensureWork`, chamados em `change`, `publishPanel`, `nothingOpen` e no `ui.render`, que
-não pode gravar e usa o valor devolvido); primeira gravação das ligações (`saveLinks` chama
-`restoreLinks` antes). O `ensure*` só marca `loaded` quando o state recebeu o valor.
-
+Quem traz do store e quando: `session.start` (com o state vazio, `restore` e, sem cópia, o arquivo
+publicado; `restoreWork`, `restoreTurn` e `ensureLinks`); `resume` (`restore`, que substitui,
+`restoreWorkOf` e `restoreTurn`); primeiro uso (`ensureGroups`, `ensureWork`, `ensureTurn` e
+`ensureLinks`, chamados antes da primeira escrita, publicação ou desenho do módulo: `change`, `persist`,
+`wake`, `publishPanel`, `nothingOpen`, `keepTime`, o `tool.call` e o `ui.render`, que não pode gravar e
+usa o valor devolvido). O `ensure*` só marca `loaded` quando o state recebeu o
+valor.
 
 Os intervalos parados (`Group.idle`) e a pausa própria (`TaskNode.pause`) vivem nos grupos: vão ao
 store e ao arquivo publicado com eles, sem chave nova de state.
+
 ### Arquivo publicado (versão 1)
 
 Cada sessão escreve `~/.claude/task-tree-waits/<id local_…>.json` (`waitFile`: `USERPROFILE`, senão
@@ -354,11 +351,15 @@ Cada sessão escreve `~/.claude/task-tree-waits/<id local_…>.json` (`waitFile`
 sessões, que podem rodar versões diferentes do mod.
 
 O que `publishWait($, id, publicação)` escreve, nesta ordem de chaves (`satisfies Published`):
-`version` (= `PUBLISHED_VERSION` = 1), `waiting` (há aviso), `at`, `tasks` (o grupo principal, para
-leitores antigos), `groups`, `waits`, `children`, `context` (`{ percent, at }` de `$.session.usage()`),
-`engine`, `panes` (`$.ui.panes()`: id, `isPlaced`, `isShown`), `renderError`, `drawSize`, `rows`,
-`work`, `received`, `sends` (só os não tomados). `JSON.stringify` omite o que está `undefined`.
-`publishPanel` junta tudo do state (sete `$.state.get`) e de `drawn`, e qualquer falha vai só ao log.
+`version` (= `PUBLISHED_VERSION` = 1), `waiting` (há aviso), `at`, `groups`, `waits`, `children`,
+`context` (`{ percent, at }` de `$.session.usage()`), `engine`, `ultracode`, `rate`, `git`, `aborted`
+(o último turno foi parado), `panes` (`$.ui.panes()`: id, `isPlaced`, `isShown`), `renderError`,
+`drawSize`, `rows`, `work`, `received`, `sends` (todos, tomados também) e `turn` (o fim do turno como o
+registro `turn` do store o guarda, para o painel voltar do arquivo). Não leva mais `tasks`.
+`JSON.stringify` omite o que está `undefined`. `publishPanel` junta tudo do state e de `drawn`, e
+qualquer falha vai só ao log. O arquivo é também a cópia de longo prazo do painel da própria sessão
+(ver "Estado e durabilidade"); um processo novo esvazia os arquivos de sessões que o app não lista
+mais (`sweepPublished`, `emptyPublished`: o kit não apaga arquivo).
 As filhas vão cortadas (`trimPublished`, `draw/layout.ts`) e só até `DEEP` níveis abaixo de quem publica
 (filhas, netas e bisnetas, com o painel de cada uma); o `children` das bisnetas vai vazio, porque a mãe
 de quem publica desenha as bisnetas só com o cabeçalho. O state desta sessão não é cortado.
@@ -390,12 +391,15 @@ o cartão da filha desconta dos tempos dela os intervalos dela. Ausente nos arqu
 `text/rules.ts` concentra tudo o que o modelo lê do mod;  `RULES` vai ao prompt de sistema (seção `task-tree:regras`, escopo
 `session`) em todo pedido que oferece a ferramenta `plan`; `COMMAND` e `TOOLS` são as descrições
 registradas no `session.start` (`TOOLS.cancel` é a do parâmetro `cancel` do `done`); `PROMPT` os contextos do `prompt.submit`; `ASK`, `DONE`, `WRAP_UP`,
-`SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas. O limite do resumo ↩ é um só,
+`SEND`, `UNPLANNED` e `SESSION` os avisos nos resultados das ferramentas; `START` a recusa do start
+(o pai concluído, dito igual nas regras, na descrição e na recusa: `REDO_PARENT`), `PLAN` os avisos do
+plan e `SUBS` a nota do fim dos subagentes. Cada texto tem um cenário no catálogo que diz quando ele
+sai; a primeira regra do pedido com tarefas abertas pede o `done` delas e só depois o `plan`
+(`PROMPT.request(open)`). O limite do resumo ↩ é um só,
 `BRIEF` = 120, interpolado em cada texto que o cita. O aviso da entrega de uma carta (`takenNote`) diz
 `SESSION.taken` ("o painel já concluiu a tarefa do envio") só quando a tarefa ficou ✓, e
 `SESSION.takenOpen` ("o painel não concluiu…") quando ela segue aberta, foi interrompida por um plano
-novo ou saiu do plano (`envios.aviso-da-entrega-diz-o-que-o-painel-fez`). Os resultados das ferramentas ("Plano exibido…",
-"Concluídas: d/n…", "Em andamento: …") e os textos do desenho (`alt`, rótulos) ficam fora dele.
+novo ou saiu do plano (`envios.aviso-da-entrega-diz-o-que-o-painel-fez`). Os textos do desenho (`alt`, rótulos) ficam fora dele.
 
 ### O tempo das linhas e do cabeçalho
 
@@ -410,6 +414,12 @@ Decisão do usuário, 2026-11-14 ("Só com turno em curso (Recomendado)"): o tem
 - A pausa própria da tarefa (`TaskNode.pause`): a tarefa aberta com fim marcado (Esc ou fim do turno,
   `rest`) que recebe start de novo soma o tempo entre esse fim e o start, menos os intervalos parados
   ali (`begin`); `carry` a leva no replano. A tarefa concluída e reaberta recomeça do zero.
+
+De onde conta: o tempo de uma tarefa, de um pai e de um pedido conta do primeiro start embaixo dele,
+em qualquer estado (decisão do usuário, 2026-11-14, "Do primeiro start (Recomendado)",
+`turnos.tempo-conta-do-primeiro-start`): a linha aguardando (◷, `stillSpan`) não conta mais do plano
+das pendentes e, sem nenhum start, fica sem tempo. O cabeçalho (`sessionTime`) segue contando do start
+ou, sem ele, do plano, e para no fim do turno (`headTime`, no render).
 
 O cálculo (`draw/layout.ts`): `idleIn` diz quanto dos intervalos cai num trecho; `span`, `stillSpan`,
 `timeSpan`, `timeOf` e `sessionTime` descontam os intervalos do trecho, e só a linha da folha
@@ -664,7 +674,7 @@ Pai de ✉ e linha ↩ (série de correções seguinte), em `draw/layout.ts`:
   dá `current` ao pedido nesse caso; sem envio pendente, nada muda.
 - Linha ↩: só aparece com resumo (`hasBrief(u)`, exportada: `brief` não vazio), no pedido
   (`turnRows`) e nos turnos do cartão; sem resumo, não há linha. A resposta nunca aparece cortada, e
-  o marcador "resposta" (`REPLY`) não é mais desenhado (a constante continua exportada). Regras do
+  o marcador "resposta" não é desenhado (a constante `REPLY` saiu em 2026-11-14). Regras do
   usuário: antes, "quero que seja um resumo da resposta, super curto"; agora, a linha ↩ só aparece
   com texto de verdade. No estado real, o pedido 71 (sem resumo) perdeu a linha "Resposta: resposta"
   e a camada de tooltip dela.
@@ -848,8 +858,8 @@ Confirmados no `claude plugin validate`; o código está escrito em volta deles:
    `on('x', hookOf())` é recusado.
 2. `$.state.get/set` exige a chave `{ plugin, key }` literal no arquivo que chama (ou numa `const`
    dele, que não pode ser exportada nem importada). Por isso cada arquivo de `hooks/` declara as
-   chaves que usa, `hooks/panel.ts` não as exporta e o `stateOf` de `state/durability.ts` não serve
-   para chamar `$.state` (a correspondência com a tabela de durabilidade é conferida à mão).
+   chaves que usa e `hooks/panel.ts` não as exporta (a correspondência com a tabela de durabilidade
+   é conferida pela etapa `regras` do check).
 3. Uma função que recebe `$` tem de estar declarada no topo do arquivo e não pode ter o nome de uma
    variável atribuída em outro lugar; `$` não vai para uma variável de laço (os handlers de
    `tool-call.ts` são chamados pelo nome).
@@ -2064,3 +2074,35 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   arquivada ficava com o painel inteiro no state e no arquivo publicado. Com o pedido fora do trabalho,
   ela fica com o resumo (`Child.summary`: feitas, total, interrompidas). Com o histórico aberto, as tarefas
   dela não somam ao cabeçalho (a linha mostra a contagem, e o x/y da tarefa de origem não muda).
+
+## Achados médios, triagem C (2026-11-14)
+
+Decisões do usuário de 2026-11-14 que mudaram o comportamento, cada uma guardada por um cenário do
+catálogo:
+- `/clear` numa sessão com filhas: os cartões delas somem na hora e não voltam ("Some na hora";
+  `durabilidade.clear-tira-os-cartoes-das-filhas`).
+- App fechado ou processo morto no meio do turno: o turno em curso fica ✕ interrompido no processo
+  novo ("✕ interrompida"; `durabilidade.turno-em-curso-no-reinicio-fica-interrompido`).
+- Subagentes terminados sem tarefas saem do estado com o pedido deles ("Apagar os sem tarefas
+  (Recomendado)"; `subagentes.terminado-sem-tarefas-sai-com-o-pedido`).
+- Arquivo publicado enxuto, e os de sessões que o app não lista são esvaziados ("Enxugar e esvaziar
+  (Recomendado)"; `sessoes.publicado-enxuto`).
+- O painel fechado pela pessoa só reabre na mensagem dela ("Só na sua mensagem (Recomendado)";
+  `durabilidade.painel-fechado-reabre-so-na-mensagem`).
+- O painel fora do store volta do arquivo publicado, enquanto a sessão existir ("Enquanto a sessão
+  existir (Recomendado)"; `durabilidade.painel-volta-do-arquivo-publicado`).
+- A resposta inteira do turno não é guardada; basta o ↩ ("Tirar, basta o ↩ (Recomendado)";
+  `turnos.resposta-inteira-nao-e-guardada`).
+- A pergunta sem tarefa em andamento fica sob a pendente ("Pendurar na pendente (Recomendado)";
+  `perguntas.espera-sob-a-pendente`).
+- Um passo ○ de pedido anterior não libera a pergunta de um pedido novo ("Não (Recomendado)";
+  `perguntas.sem-tarefa-recusada`).
+- Mensagem nova com tarefas abertas: primeiro o `done` delas, depois o `plan` ("Done, depois plan
+  (Recomendado)"; `lembretes.done-antes-do-plan`).
+- O tempo do pai e do pedido conta do primeiro start ("Do primeiro start (Recomendado)";
+  `turnos.tempo-conta-do-primeiro-start`).
+
+Sem mudar o painel: um cenário por texto ao modelo ("Cenário por texto (Recomendado)"), o golden com
+seis cenários ("Ampliar o golden (Recomendado)": `visual.desenho-cabecalho-largo` e
+`visual.desenho-filha-modelo-e-carta`) e este documento conferido de novo contra o código ("Atualizar
+agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a `TABLE`.

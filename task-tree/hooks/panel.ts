@@ -98,7 +98,7 @@ export async function saveTurn($: any) {
     if (await saveStore($, 'turnEnded', JSON.parse(text))) lastTurn = text
   } catch {}
 }
-// The turn's "first use" (the table's restoredAt), as ensureView: a restart without session.start
+// The turn's "first use" (the table's restoredAt), as ensureWork: a restart without session.start
 // brings the end back before the first drawing or write. Answers what it brought, for a drawing that
 // cannot write the state.
 export async function ensureTurn($: any): Promise<TurnRecord | undefined> {
