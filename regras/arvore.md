@@ -100,6 +100,49 @@ plan com ids repetidos é recusado.
 Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
+### arvore.plan-recusa-entrada-invalida
+plan sem tarefas, com quarto nível ou com id ou título inválido é recusado.
+
+- Dado um plano sem nenhuma tarefa; ou com uma tarefa sem id ou sem título; ou com ":" num id; ou com "/" no id de um nível 1; ou com tarefas abaixo do terceiro nível
+- Quando o modelo chama plan
+- Então a resposta é um erro que diz qual foi o problema e como corrigir, nada muda no painel, e o request desse plan não dá nome ao pedido; a subtarefa que já vem com o prefixo do nível 1 ("D/1.1") e os ids em caminho abaixo do nível 1 seguem aceitos (pedidos.replano-aceita-o-id-completo)
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o plano vazio respondia "Plano exibido" e gastava o título do pedido, o quarto nível sumia sem aviso, e o nível 1 com "/" ficava fora do trabalho à vista); estende arvore.plan-recusa-ids-repetidos, sem mudá-la.
+Código: text/rules.ts
+Estado: coberto
+
+### arvore.listas-de-ids-conferidas
+done e start recusam `ids` e `cancel` que não são lista.
+
+- Dado uma chamada de done ou de start com um texto no lugar da lista de ids
+- Quando a ferramenta responde
+- Então a resposta é um erro que pede uma lista, e nada muda no painel
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: um texto no lugar da lista seria lido letra a letra).
+Código: text/rules.ts
+Estado: coberto
+
+### arvore.agente-sem-grupo-recebe-os-avisos
+O agente que ainda não planejou recebe os mesmos avisos de id.
+
+- Dado um subagente sem nenhuma tarefa planejada
+- Quando ele chama done ou start com o id de uma tarefa de outro agente, ou com um id que não existe
+- Então a resposta avisa "é de outro agente" ou "não existe", como para quem já tem tarefas (arvore.ids-curtos-e-avisos); nada muda no painel e nenhum cartão é criado para ele
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: a resposta vinha "Concluídas: 0/0" ou "Nada marcado", sem aviso).
+Estado: coberto
+
+### arvore.falha-interna-das-ferramentas
+Uma falha interna de plan, start ou done vai ao log, e o modelo recebe um texto fixo.
+
+- Dado uma exceção dentro de plan, start ou done
+- Quando a ferramenta responde
+- Então a resposta é um erro que diz que foi uma falha interna do painel, que a chamada pode ter sido aplicada só em parte e que ela deve ser repetida com os mesmos argumentos, sem o texto da exceção; a exceção fica no log de depuração, com o nome da ferramenta
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o modelo recebia "erro: TypeError…" e nada ia ao log).
+Código: text/rules.ts, io/log.ts
+Estado: coberto
+
 ### arvore.pai-fecha-com-nada-aberto-embaixo
 Pai e pedido sem nada aberto embaixo ficam ✓.
 

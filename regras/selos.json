@@ -51,6 +51,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
     },
+    "task-tree/tests/arvore.test.ts::done e start de um subagente sem plano avisam o id de outro agente e o inexistente, sem criar cartão": {
+      "regras": [
+        "arvore.agente-sem-grupo-recebe-os-avisos"
+      ],
+      "hash": "9a42414531068915",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: agente sem grupo não recebia os avisos de id"
+    },
     "task-tree/tests/arvore.test.ts::id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve": {
       "regras": [
         "arvore.ids-curtos-e-avisos"
@@ -60,6 +70,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/arvore.test.ts::ids e cancel que não são lista são recusados no done e no start": {
+      "regras": [
+        "arvore.listas-de-ids-conferidas"
+      ],
+      "hash": "f5148f639f35f94e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: ids e cancel conferidos como lista"
     },
     "task-tree/tests/arvore.test.ts::o aviso de falta do summary diz que só vale para o último passo do turno": {
       "regras": [
@@ -112,6 +132,16 @@
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
     },
+    "task-tree/tests/arvore.test.ts::plan vazio, com quarto nível, com id ou título vazio, com dois-pontos ou com barra no nível 1 é recusado e nada muda no painel": {
+      "regras": [
+        "arvore.plan-recusa-entrada-invalida"
+      ],
+      "hash": "b9888b1899efd184",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: o plan não conferia a entrada além dos ids repetidos"
+    },
     "task-tree/tests/arvore.test.ts::start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta, de verdade": {
       "regras": [
         "arvore.start-no-pai-inicia-a-primeira-subtarefa"
@@ -133,6 +163,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/arvore.test.ts::um plano com ids em caminho segue aceito": {
+      "regras": [
+        "arvore.plan-recusa-entrada-invalida"
+      ],
+      "hash": "8e39a08dad4272b6",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "trava: ids em caminho abaixo do nível 1 seguem aceitos"
+    },
     "task-tree/tests/arvore.test.ts::um resumo dado antes de um plan não cala a cobrança do done final": {
       "regras": [
         "arvore.done-sem-summary-e-varias-sem-start"
@@ -142,6 +182,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "auditoria: falta o summary só no último passo"
+    },
+    "task-tree/tests/arvore.test.ts::uma falha interna de plan, start ou done vai ao log e o modelo recebe um texto fixo": {
+      "regras": [
+        "arvore.falha-interna-das-ferramentas"
+      ],
+      "hash": "dd7478573b8c626e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: erro interno com log e texto fixo"
     },
     "task-tree/tests/cabecalho.test.ts::\"+N pedidos anteriores\" abre com um clique, fechado por padrão, e fecha de novo": {
       "regras": [

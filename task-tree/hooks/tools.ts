@@ -4,7 +4,8 @@
 import { update } from 'claude-code'
 
 import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
-import { DONE, PLAN, START } from '../text/rules'
+import { DONE, NOT_A_LIST, PLAN, START, TOOL_ERROR } from '../text/rules'
+import { debug } from '../io/log'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
@@ -35,12 +36,16 @@ export const level = (inner?: object) => ({
 export async function planTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
+    if (agent === MAIN) await wake($)
+    const input = ((e as any).input ?? e) as { tasks?: InNode[]; request?: string }
+    // An input the panel cannot take is refused before anything changes: the request keeps its name
+    // and the plan does not count as using the panel.
+    const bad = planInputError(input.tasks)
+    if (bad !== undefined) return { result: bad, isError: true as const }
     // A summary given before this plan was a step's, not the turn's: it no longer silences the
     // reminder of the last done (a new summary clears the mark).
     if (agent === MAIN) reminders.briefBeforePlan = true
-    if (agent === MAIN) await wake($)
-    const input = ((e as any).input ?? e) as { tasks?: InNode[]; request?: string }
-    const fresh = build(input.tasks ?? [], 1, undefined, await stamp($))
+    const fresh = build(input.tasks as InNode[], 1, undefined, await stamp($))
     const request = typeof input.request === 'string' ? input.request.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
     const dup = duplicates(fresh)
     if (dup.length > 0) {
@@ -169,8 +174,50 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     })
     return { result: `Plano exibido no painel: ${sent} neste plano (${plural(gn - gd, 'aberta', 'abertas')} no seu grupo).` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true as const }
+    return failed($, 'plan', err)
   }
+}
+
+// What a plan's input must be (the first problem, said to the model, or undefined): a list of at
+// least one task, each with an id and a title in non-empty text, no ":" in any id (the panel's mark
+// of history), no "/" in a level-1 id (it splits the level 1 from the subtasks), at most 3 levels.
+function planInputError(tasks: unknown): string | undefined {
+  if (!Array.isArray(tasks) || tasks.length === 0) return PLAN.empty
+  const text = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
+  const walk = (list: unknown[], depth: number, parent?: string): string | undefined => {
+    for (const [i, t] of list.entries()) {
+      const at = parent === undefined ? `a ${i + 1}ª tarefa do plano` : `a ${i + 1}ª tarefa de "${parent}"`
+      if (typeof t !== 'object' || t === null) return PLAN.shape(at)
+      const { id, title, children } = t as { id?: unknown; title?: unknown; children?: unknown }
+      if (!text(id)) return PLAN.shape(at)
+      if (!text(title) || (children !== undefined && !Array.isArray(children))) return PLAN.shape(`"${id}"`)
+      if (id.includes(':')) return PLAN.colon(id)
+      if (depth === 1 && id.includes('/')) return PLAN.slash(id)
+      const kids = (children ?? []) as unknown[]
+      if (kids.length > 0 && depth >= 3) return PLAN.fourth(id)
+      const below = walk(kids, depth + 1, id)
+      if (below !== undefined) return below
+    }
+    return undefined
+  }
+  return walk(tasks, 1)
+}
+
+// `ids` or `cancel` given as something other than a list: refused (a text would be read letter by letter).
+const notList = (v: unknown) => v !== undefined && !Array.isArray(v)
+
+// An internal failure of plan, done or start: the exception to the debug log, a fixed text to the model.
+async function failed($: any, name: string, err: unknown) {
+  const said = err instanceof Error ? (err.stack ?? `${err.name}: ${err.message}`) : String(err)
+  await debug($, `task-tree: erro em ${name}: ${said.slice(0, 600)}`)
+  return { result: TOOL_ERROR(name), isError: true as const }
+}
+
+// The warnings for an agent that has no group yet (it never planned): each id is another agent's or
+// does not exist; nothing is created.
+function noGroupNotes(all: Group[], ids: string[]): string[] {
+  const others = tasksOf(all)
+  return ids.map(id => (resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`))
 }
 
 // The request's first plan adopts what the main loop sent, opened or launched in it before, with no
@@ -248,7 +295,12 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) await wake($)
-    const input = ((e as any).input ?? e) as { ids?: string[]; cancel?: string[]; summary?: unknown }
+    const input = ((e as any).input ?? e) as { ids?: unknown; cancel?: unknown; summary?: unknown }
+    // Checked before anything is written (the summary too): a text in place of the list is refused.
+    if (notList(input.ids)) return { result: NOT_A_LIST('ids'), isError: true as const }
+    if (notList(input.cancel)) return { result: NOT_A_LIST('cancel'), isError: true as const }
+    const ids = ((input.ids ?? []) as unknown[]).map(String)
+    const cancel = ((input.cancel ?? []) as unknown[]).map(String)
     // The panel draws its own ↩ before the summary: one the model wrote too is dropped ("↩ ↩").
     const brief = typeof input.summary === 'string' ? input.summary.replace(/^\s*↩\s*/, '') : ''
     if (agent === MAIN && brief.trim() !== '') {
@@ -268,10 +320,11 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       unstarted = []
       canceled = 0
       const others = tasksOf(all.filter(g => g.agent !== agent))
+      if (!all.some(g => g.agent === agent)) notes = noGroupNotes(all, [...ids, ...cancel])
       return all.map(g => {
         if (g.agent !== agent) return g
         let tasks = g.tasks
-        for (const id of input.ids ?? []) {
+        for (const id of ids) {
           const { node: hit, error } = resolve(tasks, id)
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
@@ -284,7 +337,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
         }
         // Tasks that will not be done (the person changed course): interrupted, out of x/y. What was
         // done below stays done; a parent with something done below closes by settle.
-        for (const id of Array.isArray(input.cancel) ? input.cancel : []) {
+        for (const id of cancel) {
           const { node: hit, error } = resolve(tasks, id)
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
@@ -334,7 +387,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
     if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
     return { result: `Concluídas: ${d}/${n} no seu grupo.` + (canceled > 0 ? ` Canceladas: ${canceled}.` : '') + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true as const }
+    return failed($, 'done', err)
   }
 }
 
@@ -343,7 +396,9 @@ export async function startTool($: EngineInterface, e: any, next: any) {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) reminders.planned = true
     if (agent === MAIN) await wake($)
-    const input = ((e as any).input ?? e) as { ids?: string[] }
+    const input = ((e as any).input ?? e) as { ids?: unknown }
+    if (notList(input.ids)) return { result: NOT_A_LIST('ids'), isError: true as const }
+    const ids = ((input.ids ?? []) as unknown[]).map(String)
     let notes: string[] = []
     let begun: string[] = []
     let roots: string[] = []
@@ -356,10 +411,11 @@ export async function startTool($: EngineInterface, e: any, next: any) {
       // Past every start so far, done ones too (startedSeq outlives the done), so the order holds.
       let seq = flat(tasksOf(all)).reduce((top, t) => Math.max(top, t.started ?? 0, t.startedSeq ?? 0), 0) + 1
       const others = tasksOf(all.filter(g => g.agent !== agent))
+      if (!all.some(g => g.agent === agent)) notes = noGroupNotes(all, ids)
       return all.map(g => {
         if (g.agent !== agent) return g
         let tasks = g.tasks
-        for (const id of input.ids ?? []) {
+        for (const id of ids) {
           const { node: hit, error } = resolve(tasks, id)
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
@@ -388,6 +444,6 @@ export async function startTool($: EngineInterface, e: any, next: any) {
         (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : ''),
     }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true as const }
+    return failed($, 'start', err)
   }
 }

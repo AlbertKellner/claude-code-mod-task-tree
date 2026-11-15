@@ -271,7 +271,22 @@ export const PLAN = {
   carried: (id: string, done: number, going: number) =>
     `"${id}" replanejada no lugar: ${done + going} ${done + going === 1 ? 'tarefa manteve' : 'tarefas mantiveram'} o estado ` +
     `(${done} ${done === 1 ? 'concluída' : 'concluídas'}, ${going} em andamento); as demais entraram pendentes`,
+  // The refusals of a plan whose input the panel cannot take (nothing changes in the panel).
+  empty: 'erro: o plano veio sem tarefas; passe em tasks pelo menos uma tarefa, com id e title.',
+  shape: (where: string) => `erro: toda tarefa precisa de id e title em texto, não vazios (problema em: ${where}); nada mudou no painel.`,
+  colon: (id: string) => `erro: o id "${id}" tem ":", que o painel reserva para o histórico; use ids sem ":".`,
+  slash: (id: string) => `erro: o id de nível 1 "${id}" tem "/", que separa o nível 1 das subtarefas; use um id sem "/" no nível 1.`,
+  fourth: (id: string) =>
+    `erro: o plano tem um quarto nível (abaixo de "${id}"); o painel aceita até 3: junte essas tarefas no terceiro nível ou divida o nível 1.`,
 }
+
+// The refusal of done and start when `ids` or `cancel` is not a list.
+export const NOT_A_LIST = (field: 'ids' | 'cancel') => `erro: ${field} deve ser uma lista de ids (ex.: ["1.2"]).`
+
+// What plan, done and start answer on an internal failure; the exception goes to the debug log.
+export const TOOL_ERROR = (name: string) =>
+  `erro: falha interna do painel de tarefas ao executar ${name}; a chamada pode ter sido aplicada só em parte. ` +
+  `Chame ${name} de novo com os mesmos argumentos; se o erro se repetir, siga o trabalho e diga ao usuário que o painel pode estar desatualizado.`
 
 // Warnings in done's result (joined after "Avisos:").
 export const DONE = {

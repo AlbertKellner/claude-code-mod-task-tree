@@ -134,6 +134,104 @@ test('plan com ids repetidos é recusado e nada muda no painel', async ($: any, 
   expect(cabecalho(p).vazio, noTexto(p)).toBe(true)
 })
 
+// Regra: arvore.plan-recusa-entrada-invalida
+test('plan vazio, com quarto nível, com id ou título vazio, com dois-pontos ou com barra no nível 1 é recusado e nada muda no painel', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  const quatro: No[] = [{ id: '1', title: 'N1', children: [{ id: '1.1', title: 'N2', children: [{ id: '1.1.1', title: 'N3', children: [{ id: '1.1.1.1', title: 'N4' }] }] }] }]
+  const ruins: [No[], string][] = [
+    [[], 'o plano veio sem tarefas'],
+    [quatro, 'quarto nível'],
+    [[{ id: '', title: 'X' }], 'id e title'],
+    [[{ id: '1', title: '  ' }], 'id e title'],
+    [[{ id: 'a:b', title: 'X' }], 'tem ":"'],
+    [[{ id: 'a/b', title: 'X' }], 'tem "/"'],
+  ]
+  for (const [tarefas, trecho] of ruins) {
+    const r = await plan($, tarefas, 'Título A')
+    expect(r.erro, r.texto).toBe(true)
+    expect(r.texto).toContain(trecho)
+  }
+  let p = await desenho($)
+  expect(cabecalho(p).vazio, noTexto(p)).toBe(true)
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }], 'Título B')
+  p = await painel($)
+  esperarEstado(p, 'Título B', 'pendente')
+  expect(p.some(l => l.titulo === 'Título A'), noTexto(p)).toBe(false)
+})
+
+// Regra: arvore.plan-recusa-entrada-invalida
+test('um plano com ids em caminho segue aceito', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  const r = await plan($, [{ id: '1', title: 'Um', children: [{ id: '1/1', title: 'Um.um', children: [{ id: '1/1/1', title: 'Um.um.um' }] }] }])
+  expect(r.erro, r.texto).toBe(false)
+  esperarEstado(await painel($), 'Um.um.um', 'pendente')
+  expect((await start($, ['1/1/1'])).texto).toContain('Em andamento: Um.um.um')
+})
+
+// Regra: arvore.listas-de-ids-conferidas
+test('ids e cancel que não são lista são recusados no done e no start', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '12', title: 'Doze' }, { id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  for (const args of [
+    { tool: 'mcp__task-tree__done', ids: '12' },
+    { tool: 'mcp__task-tree__start', ids: '12' },
+    { tool: 'mcp__task-tree__done', ids: [], cancel: '12' },
+  ]) {
+    const r = await $.tool.call(args)
+    expect(r?.isError, JSON.stringify(r)).toBe(true)
+    expect(String(r?.result ?? '')).toContain('deve ser uma lista')
+  }
+  const p = await painel($)
+  for (const t of ['Um', 'Dois', 'Doze']) esperarEstado(p, t, 'pendente')
+})
+
+// Regra: arvore.agente-sem-grupo-recebe-os-avisos
+test('done e start de um subagente sem plano avisam o id de outro agente e o inexistente, sem criar cartão', async ($: any, on: any) => {
+  fixar(on)
+  subagente(on, 'sub-1')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }])
+  expect((await done($, ['1'], undefined, 'sub-1')).texto).toContain('"1" é de outro agente')
+  const s = (await start($, ['1'], 'sub-1')).texto
+  expect(s).toContain('"1" é de outro agente')
+  expect(s).toContain('Nada marcado')
+  expect((await start($, ['zz'], 'sub-1')).texto).toContain('"zz" não existe')
+  expect((await cancelar($, ['1'], 'sub-1')).texto).toContain('"1" é de outro agente')
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'pendente')
+  expect(p.filter(l => l.texto.includes('sub-1')).map(l => l.titulo), noTexto(p)).toEqual([])
+})
+
+// Regra: arvore.falha-interna-das-ferramentas
+test('uma falha interna de plan, start ou done vai ao log e o modelo recebe um texto fixo', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  let quebrar: string | undefined
+  // O harness pula um stub que lança: a falha vem de um valor que o mod não espera (um número no lugar
+  // da lista), que faz o código da ferramenta lançar um TypeError.
+  on('state.get', async (_$: any, e: any, next: any) => (quebrar === e.key ? { value: { value: 42 } } : next(e)))
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }])
+  const casos: [string, string, () => Promise<{ texto: string; erro: boolean }>][] = [
+    ['plan', 'work', () => plan($, [{ id: '1', title: 'Um' }])],
+    ['done', 'groups', () => done($, ['1'])],
+    ['start', 'work', () => start($, ['1'])],
+  ]
+  for (const [nome, chave, chamada] of casos) {
+    quebrar = chave
+    const r = await chamada()
+    quebrar = undefined
+    expect(r.erro, `${nome}: ${r.texto}`).toBe(true)
+    expect(r.texto).toContain('falha interna do painel de tarefas')
+    expect(r.texto).toContain('de novo com os mesmos argumentos')
+    expect(r.texto).not.toContain('Error')
+    expect(log.some(l => l.includes(`erro em ${nome}`) && l.includes('TypeError')), log.join('\n')).toBe(true)
+  }
+  expect((await start($, ['1'])).texto).toContain('Em andamento')
+})
+
 // Regra: arvore.id-curto-nao-alcanca-o-historico
 test('o id curto não alcança as tarefas de histórico: start numa concluída não é ambíguo e o id que só existe no histórico não existe', async ($: any, on: any) => {
   const { relogio } = fixar(on)
