@@ -2141,6 +2141,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a tarefa concluída com a filha trabalhando embaixo mostra só o tempo próprio, que não corre nem regride": {
+      "regras": [
+        "sessoes.tempo-da-tarefa-concluida-com-filha"
+      ],
+      "hash": "000658fe6a14e9f2",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
+    },
     "task-tree/tests/sessoes.test.ts::cada mensagem à filha, em turnos diferentes, tem o seu cartão sob a tarefa da mensagem": {
       "regras": [
         "sessoes.um-cartao-por-mensagem"
@@ -2434,6 +2444,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: higiene do arquivo publicado"
+    },
+    "task-tree/tests/sessoes.test.ts::o pedido com tudo concluído e a filha trabalhando embaixo mostra o tempo das tarefas dele, parado": {
+      "regras": [
+        "sessoes.tempo-da-tarefa-concluida-com-filha"
+      ],
+      "hash": "dd8d22e26491f713",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
     },
     "task-tree/tests/sessoes.test.ts::o pedido que saiu do trabalho volta com o cartão da filha ao abrir \"+N pedidos anteriores\"": {
       "regras": [

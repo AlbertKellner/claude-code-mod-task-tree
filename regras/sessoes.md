@@ -376,3 +376,13 @@ As regras de cartão valem também para os cartões dentro do cartão de uma fil
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: "encerrada", cartão vivo solto e carta na fila só valiam para as filhas diretas); estende as três regras citadas, sem mudar nenhuma.
 Código: hooks/render.tsx, hooks/panel.ts
 Estado: coberto
+
+### sessoes.tempo-da-tarefa-concluida-com-filha
+A tarefa concluída com filha embaixo mostra só o tempo próprio.
+
+- Dado uma tarefa da mãe concluída com done, com uma sessão filha ainda trabalhando embaixo
+- Quando o painel é desenhado, com a filha trabalhando e depois de ela parar
+- Então a linha da tarefa mostra o tempo do início ao done dela, parado, nos dois momentos (o ícone segue ◉ enquanto a filha trabalha, e o x/y segue somando as tarefas da filha); o pedido com todas as tarefas concluídas mostra o tempo delas, parado; a tarefa aberta com filha trabalhando segue com o tempo correndo
+
+Origem: decisão do usuário, 2026-11-14 ("Só o próprio": "T mostra 0:03 também enquanto a filha trabalha; o relógio dessa linha não corre"), sobre o achado da auditoria de 2026-11-10 (o tempo corria com a filha trabalhando e regredia quando ela parava).
+Estado: coberto

@@ -1402,7 +1402,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (`active`); a sessão já conta no chip ⑂. Sem nível 1 aberto, o cabeçalho mostra o que tem sessão
   viva embaixo (`atWork(...).live`; o último nível 1 com sessão viva, não o primeiro). O tempo (`timeOf`) vai do primeiro início ao último fim da
   tarefa, das subtarefas e das tarefas dessas sessões (`allTasks`, até `DEEP`; só as de tarefa não
-  concluída), ou até agora enquanto alguma roda ou uma sessão embaixo de tarefa não concluída está viva; vale para linha, terminal e `alt`. O tempo do cabeçalho é o da sessão
+  concluída), ou até agora enquanto alguma roda ou uma sessão embaixo de tarefa não concluída está viva; a tarefa fechada com sessão viva embaixo
+  fica com o próprio tempo, parado, e o pedido com todas as de nível 1 fechadas também (decisão do usuário, 2026-11-14: "Só o
+  próprio"); vale para linha, terminal e `alt`. O tempo do cabeçalho é o da sessão
   inteira (`sessionTime`), nas duas visões: do primeiro início (ou `plannedAt`) de qualquer tarefa
   do painel (todos os turnos, níveis 1 soltos, subagentes e sessões, arquivadas inclusive, até `DEEP`) ao
   último fim, ou até agora enquanto houver tarefa aberta ou sessão viva. O "N de M" vem do `total`. O relógio de 1 s
@@ -1888,3 +1890,6 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   cartão por turno" de 2026-11-03): cada turno digitado era um cartão com o mesmo título; agora os do
   mesmo pedido vigente da mãe ficam juntos, uma linha de pedido por turno. Leitura do planejador: "o
   cartão que a sessão já tem ali" é o cartão de turnos digitados, não o de uma rodada da mãe.
+- Tempo da tarefa concluída com filha embaixo (2026-11-14, "Só o próprio"): com a filha trabalhando, o
+  tempo da tarefa fechada corria até agora e voltava ao próprio quando ela parava. `timeOf` só corre com a
+  tarefa aberta, e a linha do pedido só com alguma de nível 1 aberta; o tom (◉) e o x/y não mudam.

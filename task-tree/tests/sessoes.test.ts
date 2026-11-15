@@ -1190,3 +1190,50 @@ test('sem nome que case, a sessão aberta antes do plan vai à primeira pendente
   const p = await painel($)
   expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Escrever o código'])
 })
+
+// ---- Tempo da tarefa concluída com a filha trabalhando embaixo.
+
+// Regra: sessoes.tempo-da-tarefa-concluida-com-filha
+test('a tarefa concluída com a filha trabalhando embaixo mostra só o tempo próprio, que não corre nem regride', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(3000)
+  await done($, ['1'])
+  await relogio.advance(600_000)
+  await aviso($)
+  let p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0:03')
+  expect(linha(p, 'Um').texto, emTexto(p)).not.toContain('10:0')
+  h.filha(K1).rodando = false
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Tarefa da filha', 'feita')] }
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0:03')
+})
+
+// Regra: sessoes.tempo-da-tarefa-concluida-com-filha
+test('o pedido com tudo concluído e a filha trabalhando embaixo mostra o tempo das tarefas dele, parado', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(3000)
+  await done($, ['1'])
+  await relogio.advance(600_000)
+  await aviso($)
+  const p = await painel($)
+  for (const t of ['Plano A', 'Pedido um']) {
+    expect(linha(p, t).texto, emTexto(p)).toContain('0:03')
+    expect(linha(p, t).texto, emTexto(p)).not.toContain('10:0')
+  }
+})

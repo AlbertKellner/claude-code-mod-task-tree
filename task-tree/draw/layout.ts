@@ -646,9 +646,11 @@ export function stillSpan(list: TaskNode[]): number | undefined {
 }
 
 // A task's time: from the first start to the last close of it, its subtasks and its sessions'
-// tasks, or to now while any of them runs or a session below it is at work.
+// tasks, or to now while any of them runs or a session below it is at work. A closed task keeps
+// its own time, stopped, while a session below still works (the person, 2026-11-14: "Só o
+// próprio"): it ran on to the session's end and fell back when the session stopped.
 export function timeOf(t: TaskNode, w: Work, now?: number): number | undefined {
-  return timeSpan([t, ...w.tasks], w.busy, now)
+  return timeSpan([t, ...w.tasks], w.busy && t.status === 'open', now)
 }
 export function timeSpan(list: TaskNode[], busy: boolean, now?: number): number | undefined {
   if (!busy) return span(list, now)
@@ -1293,7 +1295,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       sub: n > 0 ? [d, n] : undefined,
       bar: true,
       time:
-        (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], busy, now)) ??
+        // A request whose level-1 tasks are all closed keeps their time, stopped (timeOf).
+        (tone === 'paused' ? stillSpan([...list, ...ws.flatMap(w => w.tasks)]) : timeSpan([...list, ...ws.flatMap(w => w.tasks)], ws.some((w, i) => w.busy && list[i]?.status === 'open'), now)) ??
         (tone === 'done'
           ? null
           : tone === 'current' && now !== undefined && list.some(t => t.plannedAt !== undefined)
