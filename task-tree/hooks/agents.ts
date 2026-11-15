@@ -308,8 +308,14 @@ export async function checkSubs($: any) {
       const end = Math.max(g.sub.at, g.sub.seen ?? g.sub.at)
       const { tool: _, ...rest } = g.sub
       const n = calls.get(g.agent)
-      return { ...g, sub: { ...rest, state, end, ...(n !== undefined ? { calls: n } : {}) }, tasks: g.tasks.map(interrupt(end)) }
+      return { ...g, sub: { ...rest, state, end, ...(n !== undefined ? { calls: n } : {}) } }
     }),
+  )
+  // As at its own end (turn.ts): first its tasks reflect the subagents they launched, then what is
+  // still open is interrupted, at the card's end.
+  for (const id of ends.keys()) await settleBySubs($, id)
+  await change($, all =>
+    all.map(g => (ends.has(g.agent) && g.sub?.end !== undefined && !subLive(g.sub) ? { ...g, tasks: g.tasks.map(interrupt(g.sub.end)) } : g)),
   )
   for (const id of ends.keys()) {
     gone.delete(id)
@@ -341,7 +347,10 @@ const ofLeaf = (s: Sub, leaf: TaskNode) =>
   s.adopted !== true &&
   !(leaf.plannedAt !== undefined && s.at < leaf.plannedAt) &&
   (leaf.reopenedAt === undefined || s.end === undefined || s.end >= leaf.reopenedAt)
-export async function settleBySubs($: any) {
+// With `only` (a subagent that just ended, the person, 2026-11-15: "✓, reflete o lançado
+// (Recomendado)"): the same rule for that subagent's own tasks alone, with the session's turn over or
+// not, before what it left open is interrupted (subagentes.tarefa-do-subagente-reflete-o-lancado).
+export async function settleBySubs($: any, only?: string) {
   const { value: groups = [] } = await $.state.get(groupsState)
   const { value: kids = [] } = await $.state.get(childrenState)
   const { value: sends = [] } = await $.state.get(sendsState)
@@ -352,6 +361,7 @@ export async function settleBySubs($: any) {
   const busy = (owner: string, id: string) => inFlight(groups as Group[], owner, id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })
   const ends = new Map<string, { state: 'done' | 'failed' | 'interrupted'; end: number; at: number }>()
   for (const owner of groups as Group[]) {
+    if (only !== undefined && owner.agent !== only) continue
     // A subagent still at work owns its tasks: only it closes them, with done, or its end does
     // (subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo). The main loop, and a subagent that
     // ended (or a group with no card, of an earlier version), are owners as always.

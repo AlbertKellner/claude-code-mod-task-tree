@@ -112,11 +112,12 @@ O subagente que termina deixa interrompido o que ficou aberto.
 
 - Dado um subagente com tarefas abertas no grupo dele
 - Quando ele termina
-- Então o que ele deixou aberto fica ✕, iniciado ou nunca iniciado (ninguém mais vai executá-lo), fora da contagem, e o grupo segue desenhado, mesmo lançado sem tarefa de origem
+- Então o que ele deixou aberto fica ✕, iniciado ou nunca iniciado (ninguém mais vai executá-lo), fora da contagem, e o grupo segue desenhado, mesmo lançado sem tarefa de origem; salvo a tarefa de onde ele lançou subagentes já terminados, que reflete o fim deles (subagentes.tarefa-do-subagente-reflete-o-lancado)
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o grupo sem origem sumia.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Como hoje, ✕ (Recomendado)"): a pendente do subagente que terminou fica ✕. Os testes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("✓, reflete o lançado (Recomendado)"): a tarefa de onde o subagente lançou outros, já terminados, reflete o fim deles; o resto segue ✕. Os testes não mudam.
 Código: hooks/tools.ts
 Estado: coberto
 

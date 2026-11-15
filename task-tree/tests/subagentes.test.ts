@@ -962,6 +962,64 @@ test('o fim do turno da sessão não fecha a tarefa de um subagente que ainda tr
   esperarEstado(p, 'Ler os testes', 'concluida')
 })
 
+// Um subagente com duas tarefas, "Ler os testes" iniciada e "Corrigir" pendente, que lança outro de
+// "Ler os testes".
+async function subComNeto($: any, on: any, segundoPlano = false) {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes', segundoPlano })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }, { id: 'Y', title: 'Corrigir' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+}
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o subagente termina com o turno da sessão em curso: a tarefa de onde ele lançou outro, já concluído, fica ✓; o resto, ✕', async ($: any, on: any) => {
+  await subComNeto($, on)
+  await fimDoSubagente($, 'neto-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('concluído')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o subagente termina com o turno da sessão já terminado: a tarefa de onde ele lançou outro, já concluído, fica ✓; o resto, ✕', async ($: any, on: any) => {
+  await subComNeto($, on, true)
+  await fimDoSubagente($, 'neto-1')
+  await fimDoTurno($)
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('concluído')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o lançado pelo subagente falhou: a tarefa de onde saiu fica ✕ "falhou" quando o subagente termina', async ($: any, on: any) => {
+  await subComNeto($, on)
+  await fimDoSubagenteCom($, 'neto-1', { erro: true })
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  expect(linha(p, 'Ler os testes').texto, emTexto(p)).toContain('falhou')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o lançado ainda roda quando o subagente termina: a tarefa de onde saiu fica ✕ com o resto', async ($: any, on: any) => {
+  await subComNeto($, on)
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  expect(linha(p, 'Ler os testes').texto, emTexto(p)).not.toContain('falhou')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
 // Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou, subagentes.na-filha
 test('numa filha, o subagente terminado que outro subagente lançou segue no cartão dele', async ($: any, on: any) => {
   fixar(on)

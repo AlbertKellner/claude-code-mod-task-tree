@@ -284,9 +284,10 @@ O cartão do subagente lançado por outro subagente fica no cartão de quem o la
 - Quando o subagente lançado termina; e, depois, quando o pedido de quem o lançou sai do trabalho
 - Então o cartão dele segue dentro do cartão de quem o lançou, com a palavra de estado ("concluído"…): sob a tarefa de onde foi lançado, ou no fim do cartão quando quem o lançou não tem tarefas; e sai junto com esse cartão, sem ficar solto no fim do painel nem ir para uma tarefa da sessão que tenha o mesmo id
 
-Fora deste cenário: a tarefa de quem o lançou fechar (ou não) pelo fim dele; o subagente lançado por um agente de um cartão de grupo, que só aparece com a linha desse agente aberta; o subagente ainda rodando depois que o cartão de quem o lançou saiu do trabalho.
+Fora deste cenário: o subagente lançado por um agente de um cartão de grupo, que só aparece com a linha desse agente aberta; o subagente ainda rodando depois que o cartão de quem o lançou saiu do trabalho.
 
 Origem: auditoria 2026-11-10 / rodada de correções (o cartão do subagente lançado por outro subagente some quando ele termina); decisão do usuário, 2026-11-12 ("Cartão do subagente neto": "Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes"); aplica subagentes.terminado-segue-cartao, subagentes.cartao-desde-o-lancamento ("o cartão aparece embaixo dessa tarefa") e subagentes.cartao-fica-com-a-origem-fechada ("sai junto com o pedido da tarefa") ao subagente de outro subagente, sem mudar nenhuma delas.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("✓, reflete o lançado (Recomendado)"): a tarefa de quem o lançou fechar pelo fim dele saiu do "Fora deste cenário" (subagentes.tarefa-do-subagente-reflete-o-lancado). Os testes não mudam.
 Estado: coberto
 
 ### subagentes.neto-no-app
@@ -294,7 +295,7 @@ No app, o cartão do subagente lançado por outro subagente segue depois que ele
 
 - Dado uma sessão real em que um subagente lança outro (uma vez com tarefas no painel, outra sem)
 - Quando o subagente lançado termina e, depois, quando quem o lançou termina
-- Então o cartão dele segue dentro do cartão de quem o lançou, "concluído", sob a tarefa de onde saiu (ou no fim do cartão); com um pedido novo, os dois cartões saem juntos
+- Então o cartão dele segue dentro do cartão de quem o lançou, "concluído", sob a tarefa de onde saiu (ou no fim do cartão); com um pedido novo, os dois cartões saem juntos; quem o lançou, se planejou e termina sem done, mostra ✓ a tarefa de onde o lançou
 
 Origem: decisão do usuário, 2026-11-12 ("Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes"); o teste simula o lançamento a partir de outro subagente, não um subagente real lançando outro.
 Estado: checklist (subagente real lançando outro no app)
@@ -409,4 +410,15 @@ O fim do turno da sessão não fecha a tarefa de um subagente que ainda trabalha
 - Então a tarefa dele segue como ele a deixou; só ele a fecha, com done, enquanto trabalha
 
 Origem: auditoria 2026-11-10 (a varredura do fim do turno tratava todo grupo como dono); aplica subagentes.pai-conclui-no-fim-do-turno ao loop que terminou, sem mudar nenhuma regra.
+Estado: coberto
+
+### subagentes.tarefa-do-subagente-reflete-o-lancado
+A tarefa de um subagente de onde ele lançou outros reflete o fim deles quando ele termina.
+
+- Dado um subagente que usa o painel, com uma tarefa aberta de onde lançou outro subagente, já terminado, e nada mais rodando nela
+- Quando ele termina, com o turno da sessão em curso ou já terminado
+- Então essa tarefa fica ✓ se os lançados dela concluíram, ou ✕ "falhou"/"interrompida" pelo pior fim; o resto que ele deixou aberto fica ✕; a tarefa cujo lançado ainda roda fica ✕ com o resto
+
+Origem: decisão do usuário, 2026-11-15 ("✓, reflete o lançado (Recomendado)"); estende às tarefas do subagente "o pai sempre deve refletir seu status" (2026-11-09).
+Código: hooks/turn.ts
 Estado: coberto

@@ -4735,6 +4735,26 @@
       "data": "2026-11-15",
       "motivo": "a varredura do fim do turno não trata como dono o subagente que ainda trabalha"
     },
+    "task-tree/tests/subagentes.test.ts::o lançado ainda roda quando o subagente termina: a tarefa de onde saiu fica ✕ com o resto": {
+      "regras": [
+        "subagentes.tarefa-do-subagente-reflete-o-lancado"
+      ],
+      "hash": "b871d934342be7be",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: a tarefa do subagente reflete o lançado"
+    },
+    "task-tree/tests/subagentes.test.ts::o lançado pelo subagente falhou: a tarefa de onde saiu fica ✕ \"falhou\" quando o subagente termina": {
+      "regras": [
+        "subagentes.tarefa-do-subagente-reflete-o-lancado"
+      ],
+      "hash": "d2dcf88ed866e6c4",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: a tarefa do subagente reflete o lançado"
+    },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
         "subagentes.id-reusado-nao-herda-cartao"
@@ -4854,6 +4874,26 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "o subagente retomado volta a trabalhando no mesmo cartão"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente termina com o turno da sessão em curso: a tarefa de onde ele lançou outro, já concluído, fica ✓; o resto, ✕": {
+      "regras": [
+        "subagentes.tarefa-do-subagente-reflete-o-lancado"
+      ],
+      "hash": "708889d7a46a4979",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: a tarefa do subagente reflete o lançado"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente termina com o turno da sessão já terminado: a tarefa de onde ele lançou outro, já concluído, fica ✓; o resto, ✕": {
+      "regras": [
+        "subagentes.tarefa-do-subagente-reflete-o-lancado"
+      ],
+      "hash": "c33b6f1e046e49c5",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: a tarefa do subagente reflete o lançado"
     },
     "task-tree/tests/subagentes.test.ts::o subagente terminado sem tarefas sai quando o pedido dele sai do trabalho": {
       "regras": [

@@ -178,6 +178,12 @@ fim dele (`subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo`); as entr
 (`watchSends`, `takeSubSend`) não, porque a sessão que acabou de tomar a carta está viva na rodada da
 tarefa e a entrega conclui a tarefa (2026-10-30, "Sim, conclusão automática como hoje"; o desenho mantém
 a linha ◉ enquanto ela trabalha). As entregas leem as cartas depois de marcar as desta passada.
+No fim de um subagente (`turn.complete` dele, ou o cartão encerrado pela lista do app em `checkSubs`),
+`settleBySubs($, agent)` roda primeiro só para as tarefas dele, com o turno da sessão em curso ou não: a
+folha dele de onde saíram subagentes, todos terminados e nada mais em execução nela, reflete o fim deles
+(✓, ou ✕ "falhou"/"interrompida"); só depois o que ficou aberto vira ✕ (2026-11-15, "✓, reflete o lançado
+(Recomendado)"; `subagentes.tarefa-do-subagente-reflete-o-lancado`). A folha cujo lançado ainda roda vira ✕
+com o resto e não reabre quando ele termina.
 O terceiro fechamento automático é o da sessão filha (`closeByEnded`, `hooks/sessions.ts`; 2026-11-15,
 "Fecha a tarefa sozinho (Recomendado)"): a filha que entra em `ended` sem Esc nem erro, com todas as
 folhas do trabalho atual dela concluídas, sem subagente com tarefa aberta e sem sessão dela trabalhando,
@@ -2288,3 +2294,10 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   lembrete, nenhuma tarefa fecha), e a marca `receipts` anda com ela. Os envios de versões anteriores,
   sem o campo, ficam fora. Risco aceito: se o destino nunca publicar o primeiro recebimento, a segunda
   carta segue azul (envios.entrega-imediata-gasta-o-seu-recebimento).
+
+## Achados baixos: a tarefa do subagente reflete o lançado (2026-11-15)
+
+- No fim de um subagente, o que ele deixava aberto virava ✕ sem olhar os subagentes que ele lançou; só com
+  o turno da sessão já terminado a folha dele fechava ✓ antes (o resultado dependia da ordem). `settleBySubs`
+  ganhou o parâmetro `only` (um dono só), chamado no fim do subagente (`hooks/turn.ts`) e no `checkSubs`
+  antes da interrupção do resto (subagentes.tarefa-do-subagente-reflete-o-lancado).

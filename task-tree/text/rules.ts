@@ -78,7 +78,8 @@ export const RULES = [
     'em que vai executar, e só então siga com start e done.',
   '- Cada subagente lançado (Agent) aparece como um cartão embaixo da tarefa em andamento no lançamento, com ' +
     'o estado dele; as tarefas que ele planejar ficam dentro do cartão. Cada agente só mexe no próprio grupo; o ' +
-    'que ele deixar aberto ao terminar vira interrompido. Quando todos os subagentes lançados de uma tarefa ' +
+    'que ele deixar aberto ao terminar vira interrompido, salvo a tarefa dele de onde saíram subagentes já ' +
+    'terminados, que reflete o fim deles. Quando todos os subagentes lançados de uma tarefa ' +
     'terminam e o turno acaba, o painel fecha a tarefa sozinho: concluída se todos concluíram, interrompida se ' +
     'algum falhou ou foi parado; para refazê-la, chame start nela.',
   '- Dentro de um subagente (você foi lançado por outra sessão com Agent), plan, start e done valem só para ' +

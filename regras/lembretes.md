@@ -198,9 +198,10 @@ As regras do painel descrevem o cartão do subagente e o fechamento da tarefa pe
 
 - Dado as regras do painel no prompt de sistema
 - Quando o modelo as lê
-- Então elas dizem que cada subagente lançado tem um cartão sob a tarefa do lançamento, que o que ele deixa aberto vira interrompido, que a tarefa fecha sozinha quando todos terminam e o turno acaba (concluída, ou interrompida se algum falhou ou foi parado) e que o start nela a reabre
+- Então elas dizem que cada subagente lançado tem um cartão sob a tarefa do lançamento, que o que ele deixa aberto vira interrompido, salvo a tarefa dele de onde saíram subagentes já terminados, que reflete o fim deles, que a tarefa fecha sozinha quando todos terminam e o turno acaba (concluída, ou interrompida se algum falhou ou foi parado) e que o start nela a reabre
 
 Origem: auditoria 2026-11-10 (a regra dizia só "ganham um grupo próprio"); aplica subagentes.cartao-desde-o-lancamento, subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09).
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("✓, reflete o lançado (Recomendado)"): a regra cita a tarefa do subagente que reflete o lançado. O teste não muda.
 Estado: coberto
 
 ### lembretes.regras-dizem-o-que-nao-vale-no-subagente

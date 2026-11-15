@@ -243,6 +243,8 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
     if (info?.type !== 'teammate' && info?.teammateId === undefined) {
       await guarded($, 'subEnd', () => subEnd($, agent, e))
       await guarded($, 'dropWaits', () => dropWaits($, w => w.agent !== agent))
+      // Its task whose launched subagents all ended reflects them first; the rest is interrupted.
+      await guarded($, 'settleBySubs', () => settleBySubs($, agent))
       await guarded($, 'interromper', async () => {
         const { value } = await $.state.get(groupsState)
         if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {
