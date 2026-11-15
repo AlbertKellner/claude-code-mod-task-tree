@@ -54,7 +54,7 @@ Quem recebe `$` (o engine) e quem não recebe:
   - `tool-call.ts` (299): o `tool.call` genérico em handlers por responsabilidade (`launch`, `asked`,
     `wrapUpAsk`, `askAnchor`, `sentMessage`, `sessionNotes`, `wrapUpOpen`, `reminder`) e o hook
     `toolCall`.
-  - `agents.ts` (479): os cartões de subagente: `agentSpawn` (com a retomada), `subStep`, `subTool`,
+  - `agents.ts` (479): os cartões de subagente: `agentSpawn` (com a retomada), `subStep`, `subTool` (a contagem segue a do cartão depois da recarga),
     `subEnd`, `checkSubs`, `settleBySubs`, `takeSubSend`, `agentReceive`, `strandedSends`, `subsNote`,
     `launchAnchor`, `SUB_CONFIRM`, `SUB_IDLE`.
   - `render.tsx` (444): `render` (o pane nas duas superfícies: `drawDesktop`, `drawTerminal`; o tempo
@@ -999,6 +999,12 @@ O primeiro confere o `marketplace.json` (e o README); o segundo, o mod.
 - `closedBySessions` (state): as tarefas de origem que uma filha fechou ao terminar o turno com tudo
   concluído (id e título da tarefa, nome e id da sessão), até o aviso ao modelo (`endedNote`); só no
   state, como `goneSessions`.
+- `calls`, `counted`, `wrote`, `gone` (módulo, `hooks/agents.ts`): a contagem de chamadas por subagente,
+  quando a taxa de cada um foi gravada e quando cada cartão foi visto sem agente. A recarga os esvazia;
+  `subTool`, na primeira chamada de um subagente que o módulo não conhece (`counted`), soma a contagem
+  do cartão (`Sub.calls`) à do módulo, e a linha "· N chamadas" segue de onde estava
+  (`subagentes.contagem-de-chamadas-segue-na-recarga`). A linha `samples` saiu da tabela: nenhum código
+  tinha essa variável.
 - Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
   no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
   chave continuam literais em `register.tsx`; a correspondência com a tabela é conferida à mão.

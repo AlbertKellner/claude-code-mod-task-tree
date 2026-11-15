@@ -37,6 +37,10 @@ const THROTTLE = 1000
 
 const wrote = new Map<string, number>()
 const calls = new Map<string, number>()
+// The agents whose card's count this module already took up (subTool, reviveSub): a reload empties
+// `calls` while the card keeps its count, so the first call after it counts on from the card's
+// (subagentes.contagem-de-chamadas-segue-na-recarga).
+const counted = new Set<string>()
 // The tool lines not written yet, by agent; when they were last written; the timer that writes them.
 const pendingTools = new Map<string, string>()
 let toolsWrote = -Infinity
@@ -130,6 +134,7 @@ async function reviveSub($: any, agent: string, background: boolean) {
   if (!s || subLive(s)) return
   const now = (await stamp($)) ?? 0
   calls.set(agent, Math.max(calls.get(agent) ?? 0, s.calls ?? 0))
+  counted.add(agent)
   gone.delete(agent)
   await setSub($, agent, x => {
     if (subLive(x)) return x
@@ -174,6 +179,14 @@ export async function subTool($: any, agent: string, e: any) {
   // The panel's own tools and the hand-back (the subagent's report, after its work) are not its work.
   if (String(e?.tool ?? '').startsWith('mcp__task-tree__') || e?.tool === 'SubagentHandback') return
   calls.set(agent, (calls.get(agent) ?? 0) + 1)
+  if (!counted.has(agent)) {
+    // First call this module sees: add the card's count (0 for a subagent just launched), once; the
+    // calls counted meanwhile are kept, so two first calls together lose none.
+    counted.add(agent)
+    const { value = [] } = await $.state.get(groupsState)
+    const card = (value as Group[]).find(g => g.agent === agent)?.sub?.calls ?? 0
+    calls.set(agent, (calls.get(agent) ?? 0) + card)
+  }
   pendingTools.set(agent, toolText(e))
   const now = (await stamp($)) ?? 0
   if (now - toolsWrote >= THROTTLE) return writeTools($, now)
@@ -209,6 +222,7 @@ export async function subEnd($: any, agent: string, e: any) {
   pendingTools.delete(agent)
   const n = calls.get(agent)
   calls.delete(agent)
+  counted.delete(agent)
   await setSub($, agent, x => {
     const { tool: _, ...rest } = x
     return { ...rest, state, end: now, ...(n !== undefined ? { calls: n } : {}) }
@@ -300,6 +314,7 @@ export async function checkSubs($: any) {
     gone.delete(id)
     wrote.delete(id)
     calls.delete(id)
+    counted.delete(id)
     pendingTools.delete(id)
   }
   await dropWaits($, w => !ends.has(w.agent))

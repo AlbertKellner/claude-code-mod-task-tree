@@ -1087,6 +1087,26 @@
       "data": "2026-11-14",
       "motivo": "o recibo usado fica no state e no store"
     },
+    "task-tree/tests/durabilidade.test.ts::recarga com subagente trabalhando, 1/2: três chamadas contadas": {
+      "regras": [
+        "subagentes.contagem-de-chamadas-segue-na-recarga"
+      ],
+      "hash": "b0a23c8bfa2fa467",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a contagem de chamadas parte da do cartão"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com subagente trabalhando, 2/2: a contagem segue de onde estava": {
+      "regras": [
+        "subagentes.contagem-de-chamadas-segue-na-recarga"
+      ],
+      "hash": "afd725e5ee32eb9b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "a contagem de chamadas parte da do cartão"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 1/2: o plan renomeia a tarefa antiga": {
       "regras": [
         "durabilidade.recarga-nao-funde-as-ligacoes"

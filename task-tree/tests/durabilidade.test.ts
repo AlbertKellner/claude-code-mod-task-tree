@@ -1,8 +1,8 @@
 import { expect, mock } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { PUBLISHED_FILES } from './fixtures/publicados'
-import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
-import { falha, fimDoSubagente, lancar } from './kit/cenario'
+import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
+import { chamadaDoSubagente, falha, fimDoSubagente, lancar } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, montar, painel, type Linha } from './kit/leitura'
 
@@ -270,6 +270,42 @@ test('recarga a quente, 2/2: módulo novo com o state mantido desenha o painel',
   esperarEstado(p, 'Um', 'concluida')
   esperarEstado(p, 'Plano A', 'andamento')
   esperarEstado(p, 'Dois.um', 'pendente')
+})
+
+// Um subagente que trabalha sem usar o painel faz três chamadas (o 1/2); o módulo novo, com o state
+// mantido, conta a quarta a partir do cartão (o 2/2).
+const CHAMADAS: Record<string, unknown> = {}
+const UMA: No[] = [{ id: '1', title: 'Investigar' }]
+
+// Regra: subagentes.contagem-de-chamadas-segue-na-recarga
+test('recarga com subagente trabalhando, 1/2: três chamadas contadas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, CHAMADAS, 'captura')
+  lancaveis(on, ['s1'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, UMA)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  for (const n of [1, 2, 3]) {
+    await chamadaDoSubagente($, 's1', 'Grep', { pattern: `p${n}` })
+    await relogio.advance(1000)
+  }
+  const p = await painel($)
+  expect(emTexto(p)).toContain('Grep "p3" · 3 chamadas')
+})
+
+// Regra: subagentes.contagem-de-chamadas-segue-na-recarga
+test('recarga com subagente trabalhando, 2/2: a contagem segue de onde estava', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, CHAMADAS, 'semear')
+  exigir(Object.keys(CHAMADAS).length > 0)
+  lancaveis(on, ['s1'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await chamadaDoSubagente($, 's1', 'Grep', { pattern: 'p4' })
+  await relogio.advance(1000)
+  const p = await painel($)
+  expect(emTexto(p)).toContain('Grep "p4" · 4 chamadas')
 })
 
 // Duas mensagens na fila da mesma filha, de duas tarefas; ela toma a primeira (o 1/2). O 2/2 é o módulo

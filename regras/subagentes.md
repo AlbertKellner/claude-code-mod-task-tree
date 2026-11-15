@@ -379,3 +379,14 @@ O modelo é avisado, uma vez, quando o fim dos subagentes fecha ou interrompe um
 Origem: auditoria 2026-11-10 (o fechamento automático não deixava nota); aplica subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09), sem mudá-las.
 Código: hooks/prompt-submit.ts, hooks/tool-call.ts, text/rules.ts
 Estado: coberto
+
+### subagentes.contagem-de-chamadas-segue-na-recarga
+A contagem de chamadas do cartão do subagente não recomeça com a recarga do mod.
+
+- Dado um subagente rodando sem usar o painel, com "ferramenta · N chamadas" no cartão
+- Quando o mod é recarregado (ou o processo recomeça) e o subagente chama outra ferramenta
+- Então a linha passa a "· N+1 chamadas"; a contagem só recomeça num subagente novo
+
+Origem: auditoria 2026-11-10 (a contagem era só do módulo); aplica subagentes.corpo-e-as-tarefas-ou-a-ferramenta, sem mudar nenhuma regra.
+Código: state/durability.ts
+Estado: coberto
