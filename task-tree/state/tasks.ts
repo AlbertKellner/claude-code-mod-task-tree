@@ -66,12 +66,13 @@ export const finish =
     const { stopped: _, ...kept } = t
     const { failed: __, ...open } = kept
     const rest = t.status === 'open' ? open : kept
+    const children = t.children.map(finish(now))
     return {
       ...rest,
       status: t.status === 'interrupted' ? 'interrupted' : 'done',
       started: undefined,
-      endedAt: t.status === 'open' ? stop(t, now) : t.endedAt,
-      children: t.children.map(finish(now)),
+      endedAt: t.status === 'open' ? closedAt(t, children, now) : t.endedAt,
+      children,
     }
   }
 // The person stopped the turn (Esc): a leaf the main loop had started and open is marked `stopped`,
@@ -104,30 +105,14 @@ export const rest =
     if (t.children.length === 0) return t.started !== undefined && t.stopped !== true ? { ...t, started: undefined, endedAt: stop(t, at) } : t
     return { ...t, started: undefined, endedAt: stop(t, at), children: t.children.map(rest(at)) }
   }
-// A task closed with no start (done without start) gets one, so its time shows: the end of the
-// closed sibling before it, else its parent's start, else when it was planned (never before it was
-// planned, never after now).
-// What it closes below it with no start starts the same way, from it.
-export function fillStarts(list: TaskNode[], id: string, now?: number, parentStart?: number): TaskNode[] {
-  return list.map((t, i) => {
-    if (t.id === id) return fill([t], list.slice(0, i), parentStart, now)[0] as TaskNode
-    if (!flat(t.children).some(c => c.id === id)) return t
-    return { ...t, children: fillStarts(t.children, id, now, t.startedAt ?? parentStart) }
-  })
-}
-export function fill(items: TaskNode[], before: TaskNode[], parentStart: number | undefined, now?: number): TaskNode[] {
-  let prev = before.filter(s => s.status !== 'open' && s.endedAt !== undefined).pop()?.endedAt
-  return items.map(t => {
-    if (t.status !== 'open') {
-      prev = t.endedAt ?? prev
-      return t
-    }
-    // Never before it was planned: the sibling before it may be of an earlier request.
-    const after = prev ?? parentStart
-    const from = t.startedAt ?? (after !== undefined && t.plannedAt !== undefined ? Math.max(after, t.plannedAt) : after ?? t.plannedAt)
-    const startedAt = from === undefined || now === undefined ? from : Math.min(from, now)
-    return { ...t, startedAt, children: fill(t.children, [], startedAt, now) }
-  })
+// When a task that closes now ends. A leaf never started ends now, with no time on its line (no start
+// is made up: the person, 2026-11-15: "Sem tempo, \"—\" (Recomendado)"); a started one where its clock
+// stopped (stop). A parent ends at the last end of what was started below it (closed already), the
+// tasks closed with no start not counting; nothing started below, where its own clock stopped, else now.
+function closedAt(t: TaskNode, children: TaskNode[], now?: number): number | undefined {
+  if (t.startedAt === undefined) return t.endedAt ?? now
+  const ends = flat(children).flatMap(c => (c.startedAt !== undefined && c.endedAt !== undefined ? [c.endedAt] : []))
+  return ends.length > 0 ? Math.max(...ends) : stop(t, now)
 }
 
 export function settle(list: TaskNode[], now?: number): TaskNode[] {
@@ -135,7 +120,7 @@ export function settle(list: TaskNode[], now?: number): TaskNode[] {
     const children = settle(t.children, now)
     const closed = t.status === 'open' && children.length > 0 && children.every(c => c.status !== 'open')
     return closed
-      ? { ...t, status: 'done' as Status, started: undefined, endedAt: stop(t, now), children }
+      ? { ...t, status: 'done' as Status, started: undefined, endedAt: closedAt(t, children, now), children }
       : { ...t, children }
   })
 }

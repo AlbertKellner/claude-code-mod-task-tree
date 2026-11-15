@@ -1380,6 +1380,17 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/envios.test.ts::a tarefa fechada pela entrega da carta sem ter recebido start não mostra tempo": {
+      "regras": [
+        "turnos.concluida-sem-start-sem-tempo",
+        "envios.fica-ate-entrega"
+      ],
+      "hash": "c1db5f21f0e4c71b",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sem tempo, \\\"—\\\" (Recomendado)\""
+    },
     "task-tree/tests/envios.test.ts::a tarefa iniciada antes do lote recente fica sem o envio": {
       "regras": [
         "envios.ancora-no-lote-recente"
@@ -4458,6 +4469,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: o tempo conta do primeiro start"
     },
+    "task-tree/tests/turnos.test.ts::com um passo iniciado e outro fechado sem start, o pai e o pedido contam só o iniciado": {
+      "regras": [
+        "turnos.concluida-sem-start-sem-tempo"
+      ],
+      "hash": "c7ab5569fc20307b",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sem tempo, \\\"—\\\" (Recomendado)\""
+    },
     "task-tree/tests/turnos.test.ts::depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado": {
       "regras": [
         "turnos.aguardando-segue-ate-o-start"
@@ -4790,6 +4811,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::tarefas concluídas sem start não mostram tempo, fechadas juntas ou pelo pai, e o pai e o pedido também não": {
+      "regras": [
+        "turnos.concluida-sem-start-sem-tempo"
+      ],
+      "hash": "a7d23b9d352858ba",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sem tempo, \\\"—\\\" (Recomendado)\""
     },
     "task-tree/tests/turnos.test.ts::um turno que não abre pedido não reacende a tarefa que aguardava": {
       "regras": [

@@ -37,8 +37,8 @@ export const RULES = [
     'O título do pedido é o do primeiro plan: um `request` em outro plan da mesma mensagem não o troca.',
   '- Etapa por etapa, no momento em que acontece: mcp__task-tree__start ao começar cada tarefa (várias ' +
     'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
-    'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
-    'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
+    'passar à próxima. Nunca feche várias de uma vez no fim: o painel não mostra o que está em andamento e ' +
+    'as tarefas ficam sem tempo. Um pai fecha sozinho quando todos os filhos fecham.',
   '- Tarefa que não será feita (o usuário mudou de rumo, o plano mudou) não é concluída: passe o id dela em ' +
     '`cancel`, no mcp__task-tree__done. Ela fica ✕ interrompida no painel, fora da contagem. `ids` é só para o ' +
     'que foi de fato concluído.',
@@ -298,8 +298,8 @@ export const DONE = {
     'fechar a tarefa de origem; se o trabalho delegado não acabou, retome a sessão',
   noSummary: `falta o summary: se este done foi o último passo do turno, chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩); se ainda vai planejar ou seguir trabalhando, ignore este aviso e passe o summary no último done`,
   unstarted: (ids: string[]) =>
-    `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
-    'parado na primeira e elas aparecem com 0:00. Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
+    `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel não ` +
+    'mostrou nenhuma em andamento e elas aparecem sem tempo (—). Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
     'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
   queued: (to: string, id: string) => `a mensagem para ${to} ("${id}") ainda está na fila, sem confirmação de recebimento`,
 }

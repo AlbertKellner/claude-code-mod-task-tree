@@ -1062,3 +1062,24 @@ test('o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta en
   await envio($, 'local_x')
   expect((await done($, ['2'])).texto).not.toContain('ainda está na fila')
 })
+
+// Regra: turnos.concluida-sem-start-sem-tempo, envios.fica-ate-entrega
+test('a tarefa fechada pela entrega da carta sem ter recebido start não mostra tempo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await envio($, 'local_x')
+  await done($, ['1'])
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  await relogio.advance(60_000)
+  h.recebeu('local_x', AGORA + 60_000)
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  const texto = linha(p, 'Um').texto
+  expect(/\d+:\d{2}\s*$/.test(texto), emTexto(p)).toBe(false)
+  expect(texto, emTexto(p)).toContain('—')
+})

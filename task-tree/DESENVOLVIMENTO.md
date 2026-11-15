@@ -75,7 +75,7 @@ Quem recebe `$` (o engine) e quem não recebe:
     (`loadStore`, `saveStore`, que não lança e diz se gravou, `guarded`, `pruneStore`, `storeFailure`,
     `saveGroups`, `KEEP`): os únicos helpers fora de `hooks/` e `io/` que recebem `$`.
   - `tasks.ts` (205): as edições puras da árvore: `build`, `duplicates`, `resolve`, `edit`, `finish`,
-    `park`, `rest`, `fillStarts`/`fill`, `settle`, `begin`, `carry`.
+    `park`, `rest`, `settle`, `begin`, `carry`.
 - **Desenho** (`draw/`), puro, sem `$`:
   - `layout.ts` (2125): `layout(model, choices, now, ownId): Row[]` e os auxiliares de modelo que os
     hooks também usam (`MAIN`, `flat`, `count`, `total`, `sessionTotal`, `atWork`, `split`/`cardsOf`/
@@ -126,7 +126,7 @@ Na ordem de `register.tsx`:
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
 | `tool.call` | `mcp__task-tree__plan` | `planTool` (tools.ts) | recusa, sem tocar o painel nem o nome do pedido, a entrada que não cabe (`planInputError`: lista vazia, tarefa sem `id` ou `title` em texto, `:` num id, `/` no id do nível 1, quarto nível); `build` (que aceita a subtarefa já com o prefixo do nível 1, como os lembretes a mostram) + `duplicates`; substitui no lugar (e no turno dele) um nível 1 aberto com o mesmo id só se for do pedido aberto agora (o último turno), e, no loop principal, também um concluído desse pedido (reabre mantendo os ✓); um aberto de pedido anterior é interrompido e renomeado (`<tag>:id`) e fica no pedido antigo como histórico, e o novo vai para o turno novo; renomeia um fechado que colide (`<tag>:id`) e, com eles, as ligações das sessões, dos `launches` e dos `sends` que apontavam para ele (`renameAnchors`), passa ao nível 1 as ligações a uma subtarefa que o replano no lugar deixou de fora (`moveToLevelOne`), põe os níveis 1 no turno atual (que o `request` do primeiro plan do pedido renomeia, uma vez só: a marca `named` no turno), tira os `sends` do que foi replanejado, adota o que o pedido mandou, abriu ou lançou antes do primeiro plan (`adoptOrphans`), junta ao trabalho atual, ou começa o trabalho novo numa mensagem nova, mantendo o trabalho anterior inteiro (concluídos inclusive) se ainda há algo aberto à vista, senão limpando (`startsWork`/`joinWork`/`openInSight`); renomeia as dobras das tarefas renomeadas (`renameFolds`); avisos do plan (`PLAN`); não abre o pane (ele abre no processo novo, na mensagem da pessoa e com `/task-tree`) |
-| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | recusa `ids` ou `cancel` que não são lista (antes de gravar o `summary`); grava `summary` em `brief`; `resolve` + `fillStarts` + `finish` + `settle` por id; avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; `cancel` (ids que não serão feitos): o aberto abaixo de cada um fica `interrupted` (`interrupt`), o ✓ fica, `settle` fecha o pai, e a resposta diz "Canceladas: k.", sem os avisos de summary e de etapas juntas; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
+| `tool.call` | `mcp__task-tree__done` | `doneTool` (tools.ts) | recusa `ids` ou `cancel` que não são lista (antes de gravar o `summary`); grava `summary` em `brief`; `resolve` + `finish` + `settle` por id (sem dar início a quem não teve `start`); avisos: inexistente, de outro agente, ambíguo, interrompida, mensagem na fila, falta o `summary`, etapas fechadas juntas sem `start`; `cancel` (ids que não serão feitos): o aberto abaixo de cada um fica `interrupted` (`interrupt`), o ✓ fica, `settle` fecha o pai, e a resposta diz "Canceladas: k.", sem os avisos de summary e de etapas juntas; NÃO tira mais os `sends` das tarefas fechadas: o ✉ fica até a entrega (`watchSends`), mesmo com `done` logo depois do `SendMessage` |
 | `tool.call` | `mcp__task-tree__start` | `startTool` (tools.ts) | recusa `ids` que não é lista; `resolve` + `begin` (reabre pais; recusa pai concluído com filhos; num pai aberto, inicia a primeira folha aberta, `firstOpen`); `joinWork`; `keepTime`. No done e no start, o agente sem grupo (nunca planejou) recebe os avisos de id (`noGroupNotes`: de outro agente, não existe) sem ganhar cartão; nas três ferramentas, uma exceção vai ao log de depuração (`failed`) e o modelo lê o texto fixo `TOOL_ERROR` |
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão novo: o cartão dele volta a "trabalhando" (ou "em segundo plano"), sem fim, com a contagem de chamadas seguindo (`reviveSub`), e só depois a carta que esperava por ele é entregue (`takeSubSend` com o `prompt`); o cartão já podado (`dropSettledSubs`) não volta |
@@ -911,7 +911,7 @@ armadilhas de cada mudança. Onde dizem "no `register.tsx`", a função está ho
 - `io/host.ts` (leitura das filhas em passos: `parseSessions`, `listSessions`, `mineOf`, `panelOf`, `readFiles`, `deriveChildren`, `engineText`; ver "Leitura das filhas").
 - `hooks/panel.ts`, `sessions.ts`, `session-start.ts`, `prompt-submit.ts`, `command.ts`, `tools.ts`, `permission.ts`, `turn.ts`, `tool-call.ts`, `render.tsx`: os hooks e o estado do painel (ver "Arquivos de hook").
 - `draw/svg.ts`: construtores puros de SVG e glifos do terminal (`GLYPH`, `prefix`, `ratioBar`, `contextRing`, `rowSvg`, `chips`, `headerSvg` etc.).
-- `state/tasks.ts`: edições puras da árvore (`build`, `resolve`, `edit`, `finish`, `fill`, `settle`, `begin` etc.).
+- `state/tasks.ts`: edições puras da árvore (`build`, `resolve`, `edit`, `finish`, `settle`, `begin` etc.).
 - `.claude-plugin/types/`: tipos gerados pelo engine em cada máquina. Não versionar.
 
 Fase 1 da rede de proteção concluída: contrato `Published`, limite de linhas e limpeza de resíduos
@@ -1622,9 +1622,12 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   slot menos o que fica à direita. Antes, o "…" era posto contra `W` (colunas × `COL_PX`), estimativa
   menor que o slot real, e o título parava antes do tempo pela diferença (no app, a 686 px, uns 60 px). No terminal: "◉ título  ⑂  d/n  tempo".
 - Concluídas com o mesmo layout: a linha fechada tem o mesmo ícone de progresso (✓/✕), ramo,
-  título, barra, d/n e tempo da aberta. `plan` grava `plannedAt`; `done` sem `start` dá início à
-  tarefa (`fillStarts`): o fim da irmã anterior fechada, senão o início do pai, senão `plannedAt`
-  (nunca depois de agora); o que ela fecha embaixo começa dela. Interrompida mantém o tempo até a
+  título, barra, d/n e tempo da aberta. `plan` grava `plannedAt`. A tarefa concluída sem `start` (por `done`, pela
+  entrega de uma carta ou pelo fim dos subagentes) não ganha início: mostra "—", e o pai, o pedido e o
+  cabeçalho contam só o que foi iniciado; `finish` e `settle` gravam o fim dela (a hora do fechamento),
+  e o do pai é o último fim entre as tarefas iniciadas abaixo dele (`closedAt`). Decisão do usuário,
+  2026-11-15: "Sem tempo, \"—\" (Recomendado)". Antes, `fillStarts`/`fill` davam um início inventado
+  (5:00, 0:00, 0:00 no done de vários ids). Interrompida mantém o tempo até a
   interrupção. Sem tempo conhecido (painéis antigos, ou sem relógio), a linha fechada
   mostra "—" (`Row.time === null`). No desktop as colunas são fixas (ver a posição do ícone); no
   terminal o resto vem depois do título, sem colunas.

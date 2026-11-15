@@ -748,7 +748,9 @@ export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === '
 export function stillSpan(list: TaskNode[], idle: Idle[] = []): number | undefined {
   const all = flat(list)
   const starts = all.flatMap(t => t.startedAt ?? [])
-  const ends = all.flatMap(t => t.endedAt ?? [])
+  // Only what was started ends a span: a task closed with no start has no time (the person, 2026-11-15:
+  // "Sem tempo, \"—\" (Recomendado)").
+  const ends = all.flatMap(t => (t.startedAt !== undefined ? (t.endedAt ?? []) : []))
   if (starts.length === 0 || ends.length === 0) return undefined
   const from = Math.min(...starts)
   const to = Math.max(...ends)
@@ -798,7 +800,9 @@ export function sessionTime(list: TaskNode[], running: boolean, now?: number, id
   const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
   if (starts.length === 0) return undefined
   const from = Math.min(...starts)
-  const ends = all.flatMap(t => t.endedAt ?? [])
+  // Only what was started ends a span: a task closed with no start has no time (the person, 2026-11-15:
+  // "Sem tempo, \"—\" (Recomendado)").
+  const ends = all.flatMap(t => (t.startedAt !== undefined ? (t.endedAt ?? []) : []))
   const to = running ? now : ends.length > 0 ? Math.max(...ends) : undefined
   return to === undefined || to < from ? undefined : to - from - idleIn(idle, from, to)
 }

@@ -845,3 +845,44 @@ test('com tudo fechado, o tempo segue contando do primeiro start', async ($: any
   p = await painel($)
   expect(tempoNoFim(p, 'Plano A'), emTexto(p)).toBe('0:10')
 })
+
+// Regra: turnos.concluida-sem-start-sem-tempo
+test('tarefas concluídas sem start não mostram tempo, fechadas juntas ou pelo pai, e o pai e o pedido também não', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [
+    { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] },
+    { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }, { id: 'b2', title: 'b2' }] },
+  ])
+  await relogio.advance(300_000)
+  const r = await done($, ['1', '2', '3'])
+  expect(r.texto).toContain('etapas fecharam juntas sem start')
+  await done($, ['B'])
+  const p = await painel($)
+  for (const quem of ['Um', 'Dois', 'Três', 'b1', 'b2', 'Plano A', 'Plano B', 'Pedido um']) {
+    esperarEstado(p, quem, 'concluida')
+    expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBeUndefined()
+    expect(umaLinha(p, quem).texto, `${quem}:\n${emTexto(p)}`).toContain('—')
+  }
+  expect(tempoDoTopo(p), emTexto(p)).toBeUndefined()
+})
+
+// Regra: turnos.concluida-sem-start-sem-tempo
+test('com um passo iniciado e outro fechado sem start, o pai e o pedido contam só o iniciado', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await relogio.advance(5000)
+  await done($, ['1'])
+  await relogio.advance(60_000)
+  await done($, ['2'])
+  const p = await painel($)
+  expect(tempoNoFim(p, 'Um'), emTexto(p)).toBe('0:05')
+  expect(tempoNoFim(p, 'Dois'), emTexto(p)).toBeUndefined()
+  expect(umaLinha(p, 'Dois').texto, emTexto(p)).toContain('—')
+  for (const quem of ['Plano A', 'Pedido um']) expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBe('0:05')
+  expect(tempoDoTopo(p), emTexto(p)).toBe('0:05')
+})

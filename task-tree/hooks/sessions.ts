@@ -11,7 +11,7 @@ import { MAIN, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAn
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
-import { edit, fillStarts, finish, settle } from '../state/tasks'
+import { edit, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
 import { learnNames, change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors, setIdle } from './panel'
 
@@ -295,7 +295,7 @@ export async function watchSends($: any, rows: any[]) {
       for (const id of anchors) {
         const t = flat(tasks).find(t => t.id === id)
         if (inFlight(all, MAIN, id, { sends: after, waits: waits as Wait[] })) continue
-        if (t && t.status === 'open' && !t.children.some(c => c.status === 'open')) tasks = settle(edit(fillStarts(tasks, id, now), id, finish(now)), now)
+        if (t && t.status === 'open' && !t.children.some(c => c.status === 'open')) tasks = settle(edit(tasks, id, finish(now)), now)
       }
       return { ...g, tasks }
     }),

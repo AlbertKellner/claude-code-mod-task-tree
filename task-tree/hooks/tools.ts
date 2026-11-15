@@ -8,7 +8,7 @@ import { DONE, NOT_A_LIST, PLAN, START, TOOL_ERROR } from '../text/rules'
 import { debug } from '../io/log'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
 import { plural } from '../draw/svg'
-import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
+import { begin, build, carry, duplicates, edit, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
 import { reminders, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime, settledBy } from './sessions'
@@ -328,7 +328,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
           else if (hit.status === 'interrupted') notes.push(DONE.interrupted(id))
           else {
             unstarted.push(...flat([hit]).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && t.startedAt === undefined).map(t => t.id))
-            tasks = settle(edit(fillStarts(tasks, hit.id, now), hit.id, finish(now)), now)
+            tasks = settle(edit(tasks, hit.id, finish(now)), now)
             closed.push(...flat([hit]).filter(t => t.status === 'open').map(t => t.id))
           }
         }
@@ -378,9 +378,9 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
         notes.push(DONE.noSummary)
     }
     const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
-    // Several steps never started and closed together: the panel showed the first one in progress
-    // all along, then jumped to the last, the steps between at 0:00 (the person's words: "ficou
-    // parada muito tempo na primeira tarefa, e derepente pulo para a ultima").
+    // Several steps never started and closed together: the panel showed none of them in progress,
+    // and they close with no time, "—" (the person's words: "ficou parada muito tempo na primeira
+    // tarefa, e derepente pulo para a ultima"; and 2026-11-15: "Sem tempo, \"—\" (Recomendado)").
     if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
     return { result: `Concluídas: ${d}/${n} no seu grupo.` + (canceled > 0 ? ` Canceladas: ${canceled}.` : '') + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {

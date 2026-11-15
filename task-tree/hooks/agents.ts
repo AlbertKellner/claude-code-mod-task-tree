@@ -14,7 +14,7 @@ import type { AgentInfo, EngineInterface } from 'claude-code'
 import type { Child, Group, Send, Sub, TaskNode, Wait } from '../types'
 import { MAIN, SUB_BATCH, flat, inFlight, interrupt, subLive } from '../draw/layout'
 import { SUBS } from '../text/rules'
-import { edit, fillStarts, finish, settle } from '../state/tasks'
+import { edit, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
 import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
@@ -361,7 +361,7 @@ export async function settleBySubs($: any) {
         const [owner, id] = key.split('|') as [string, string]
         if (owner !== g.agent) continue
         if (x.state === 'done') {
-          tasks = settle(edit(fillStarts(tasks, id, x.end), id, finish(x.end)), x.end)
+          tasks = settle(edit(tasks, id, finish(x.end)), x.end)
         } else {
           tasks = settle(
             edit(tasks, id, t => ({ ...t, status: 'interrupted', started: undefined, startedAt: t.startedAt ?? x.at, endedAt: x.end, ...(x.state === 'failed' ? { failed: true } : {}) })),
@@ -409,7 +409,7 @@ export async function takeSubSend($: any, agent: string, text: string, inOrder: 
         if (g.agent !== MAIN || live) return g
         const t = flat(g.tasks).find(t => t.id === id)
         if (!t || t.status !== 'open' || t.children.some(c => c.status === 'open')) return g
-        return { ...g, tasks: settle(edit(fillStarts(g.tasks, id, now), id, finish(now)), now) }
+        return { ...g, tasks: settle(edit(g.tasks, id, finish(now)), now) }
       })
     })
   }

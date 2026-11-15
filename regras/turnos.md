@@ -223,6 +223,17 @@ O tempo de uma tarefa, de um pai e de um pedido conta do primeiro start, em qual
 Origem: decisão do usuário, 2026-11-14 ("Do primeiro start (Recomendado)"), à pergunta "De onde ele deve contar?".
 Estado: coberto
 
+### turnos.concluida-sem-start-sem-tempo
+A tarefa concluída sem ter recebido start não mostra tempo.
+
+- Dado tarefas que nunca receberam start
+- Quando são concluídas: várias num done só, pelo done no pai, pela entrega de uma carta ou pelo fim dos subagentes lançados dela
+- Então cada linha fica ✓ com "—" no lugar do tempo, por qualquer um desses caminhos; o pai, o pedido e o cabeçalho contam só o que foi iniciado (do primeiro start ao último fim das tarefas iniciadas), e sem nada iniciado também mostram "—" ou nenhum tempo; o aviso do done sobre etapas fechadas juntas sem start continua (arvore.done-sem-summary-e-varias-sem-start)
+
+Origem: decisão do usuário, 2026-11-15 ("Sem tempo, \"—\" (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (5:00, 0:00, 0:00 no done de vários ids; 5:00 em cada uma no done do pai).
+Código: state/tasks.ts, draw/layout.ts, hooks/agents.ts, hooks/sessions.ts, text/rules.ts
+Estado: coberto
+
 ### turnos.tempo-so-com-o-turno-em-curso
 O tempo de uma tarefa que atravessa turnos conta só o tempo com o turno em curso.
 
