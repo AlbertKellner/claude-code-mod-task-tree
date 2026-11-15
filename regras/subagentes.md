@@ -93,11 +93,12 @@ Estado: checklist (subagente real no app)
 A tarefa de onde saíram subagentes, todos concluídos, fica ✓ quando nada mais está em execução.
 
 - Dado uma tarefa sem subtarefas, iniciada ou pendente, com um ou mais subagentes lançados dela, todos "concluído", e nada mais em execução nela (nenhum subagente rodando, nenhuma sessão filha viva nela, aberta ali ou com a rodada atual ali, trabalhando, abrindo ou esperando a pessoa, nenhuma carta na fila, nenhuma pergunta aberta do mesmo dono)
-- Quando o turno termina (ou o último subagente em segundo plano termina depois do turno)
+- Quando o turno termina (ou o último subagente em segundo plano termina depois do turno, mesmo parado com Esc: subagentes.fim-depois-do-esc-fecha-a-tarefa)
 - Então a tarefa fica ✓ sozinha, com o tempo parado no fim do último subagente; o pai e o pedido seguem a regra de sempre; o x/y conta a tarefa; o cartão segue "concluído" e fora da contagem; um `done` do modelo depois disso só acrescenta o resumo
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)"; para a pendente sem start: "Fecha também").
 Reescrito: 2026-11-14, texto: a sessão viva conta aberta ali ou com a rodada atual ali, também esperando a pessoa, e a pergunta aberta só conta a do mesmo dono (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-14, texto: o Quando remete ao fim do subagente depois do Esc (subagentes.fim-depois-do-esc-fecha-a-tarefa); os testes deste cenário não mudam.
 Código: hooks/turn.ts
 Estado: coberto
 
@@ -160,10 +161,11 @@ Reaberta com start, a tarefa não fecha de novo pelos subagentes que terminaram 
 
 Também: a tarefa (pendente ou iniciada) cujo subagente terminou antes do primeiro start dela não foi reaberta e segue fechando no fim do turno ("Fecha também").
 
-Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (lançados juntos, vale o pior; lançado depois do fim do outro, vale o último: subagentes.pai-reflete-falha-ou-interrupcao); o fim de um subagente depois do Esc.
+Fora deste cenário: um subagente que falha e outro que conclui, na mesma abertura da tarefa (lançados juntos, vale o pior; lançado depois do fim do outro, vale o último: subagentes.pai-reflete-falha-ou-interrupcao).
 
 Origem: auditoria 2026-11-10 (o fechamento automático olha subagentes de turnos anteriores); aplica turnos.iniciada-aguarda-no-fim ("salvo a tarefa cujo trabalho era só subagentes") e subagentes.pai-conclui-no-fim-do-turno ("Fecha de fato (Recomendado)", "Fecha também") ao fim que já foi refletido, sem mudar nenhuma delas nem subagentes.pai-reflete-falha-ou-interrupcao.
 Reescrito: 2026-11-14, texto: remete à decisão "✓, vale a última (Recomendado)"; os testes deste cenário não mudam.
+Reescrito: 2026-11-14, texto: o fim de um subagente depois do Esc sai do "Fora deste cenário" (passou a ter cenário: subagentes.fim-depois-do-esc-fecha-a-tarefa); os testes deste cenário não mudam.
 Código: state/tasks.ts
 Estado: coberto
 
@@ -291,4 +293,15 @@ O subagente lançado antes do plan do pedido termina a lista, e o plan do pedido
 
 Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)").
 Código: hooks/tools.ts, hooks/panel.ts
+Estado: coberto
+
+### subagentes.fim-depois-do-esc-fecha-a-tarefa
+Depois do Esc, o fim do último subagente da tarefa a fecha como no fim normal do turno.
+
+- Dado uma tarefa iniciada quando a pessoa para o turno (Esc), com um subagente em segundo plano lançado dela ainda rodando
+- Quando o subagente termina, com o turno já parado
+- Então a tarefa fecha sozinha como no fim normal: ✓ se ele concluiu, ✕ "falhou" se falhou, ✕ "interrompida" se foi parado, sem start nem done; antes disso ela não fecha e segue ◷ enquanto ele roda (turnos.esc-com-trabalho-delegado-vivo); o cartão segue embaixo dela com a palavra de estado; na mesma hora fecham também, pelos subagentes delas, as outras tarefas que o Esc deixou ✕ e cujos subagentes já tinham terminado antes do Esc, com nada mais em execução nelas
+
+Origem: decisão do usuário, 2026-11-14 ("Fecha como no fim normal"), à pergunta sobre o fim de um subagente em segundo plano depois do Esc; exceção a turnos.parada-segue-interrompida-ate-o-start ("Segue ✕ até novo start (Recomendado)", 2026-11-12) para a tarefa cujo subagente termina depois. Para as outras paradas com Esc cujos subagentes terminaram antes: decisão do usuário, 2026-11-14 ("Todas, como hoje").
+Código: hooks/turn.ts, hooks/agents.ts, state/tasks.ts
 Estado: coberto

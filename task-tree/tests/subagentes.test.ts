@@ -379,6 +379,65 @@ test('no Esc, a tarefa com subagente em segundo plano aguarda enquanto ele roda'
   expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(0)
 })
 
+// Regra: subagentes.fim-depois-do-esc-fecha-a-tarefa
+test('depois do Esc, o fim do subagente em segundo plano fecha a tarefa que ele deixou: ✓ se concluiu', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await esc($)
+  let p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(0)
+  await fimDoSubagente($, 'sub-1')
+  p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
+  expect(linha(p, 'Outra').estado, emTexto(p)).toBe('pendente')
+  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([1, 2])
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Explore: varrer o repo')
+  expect(linha(p, 'Explore: varrer o repo').texto).toContain('concluído')
+})
+
+// Regra: subagentes.fim-depois-do-esc-fecha-a-tarefa
+test("depois do Esc, o subagente em segundo plano que falha deixa a tarefa ✕ 'falhou'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await esc($)
+  let p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('interrompida')
+  expect(linha(p, 'Investigar').texto).toContain('falhou')
+})
+
+// Regra: subagentes.fim-depois-do-esc-fecha-a-tarefa
+test('depois do Esc, o fim do subagente em segundo plano fecha também a parada cujo subagente terminou antes do Esc', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-0', 'sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['2'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagente($, 'sub-0')
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await esc($)
+  let p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('aguardando')
+  expect(linha(p, 'Outra').estado, emTexto(p)).toBe('interrompida')
+  await fimDoSubagente($, 'sub-1')
+  p = await painel($)
+  expect(linha(p, 'Investigar').estado, emTexto(p)).toBe('concluida')
+  expect(linha(p, 'Outra').estado, emTexto(p)).toBe('concluida')
+})
+
 // Regra: subagentes.cartao-fica-com-a-origem-fechada
 test('com a tarefa fechada pelo done, o subagente em segundo plano segue no cartão e na pílula até terminar', async ($: any, on: any) => {
   fixar(on)

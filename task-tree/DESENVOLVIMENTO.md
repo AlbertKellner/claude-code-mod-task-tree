@@ -711,7 +711,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   da rodada atual de cada filha viva, `roundAt`, e a de onde saiu cada subagente do loop principal ainda
   rodando ou em segundo plano, `subLive`; vale no `layout()`, no `panelOf` do cartão de uma filha, no
   `showStatus` e na conta da sessão inteira). Com a filha trabalhando embaixo, `w.busy` a desenha ◉; com
-  o subagente, fica ◷; acabado o trabalho, a tarefa sai da lista e volta a ser lida pela marca. `trail` não acende o caminho de uma tarefa
+  o subagente, fica ◷; acabado o trabalho, a tarefa sai da lista e volta a ser lida pela marca. Exceção (2026-11-14, "Fecha como no fim normal"): quando o último subagente em segundo plano termina depois do Esc, `subEnd` chama `settleBySubs`, que fecha a folha parada como no fim normal (✓, ou ✕ "falhou"/"interrompida"; `finish` tira a marca); a mesma varredura fecha as outras paradas cujos subagentes já tinham terminado antes do Esc (2026-11-14, "Todas, como hoje"; `subagentes.fim-depois-do-esc-fecha-a-tarefa`). `trail` não acende o caminho de uma tarefa
   parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
   mesmo sem `aborted` no arquivo. A contagem da sessão inteira (texto alternativo e linha "+N pedidos anteriores") e a linha de status leem o grupo
   por `stayed`. O fim normal também espera o `start` (2026-11-14, "Seguir ◷ até o start (Recomendado)"):

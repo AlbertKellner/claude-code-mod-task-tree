@@ -3014,6 +3014,36 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
     },
+    "task-tree/tests/subagentes.test.ts::depois do Esc, o fim do subagente em segundo plano fecha a tarefa que ele deixou: ✓ se concluiu": {
+      "regras": [
+        "subagentes.fim-depois-do-esc-fecha-a-tarefa"
+      ],
+      "hash": "f9753ac817650e0d",
+      "assercoes": 15,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Fecha como no fim normal"
+    },
+    "task-tree/tests/subagentes.test.ts::depois do Esc, o fim do subagente em segundo plano fecha também a parada cujo subagente terminou antes do Esc": {
+      "regras": [
+        "subagentes.fim-depois-do-esc-fecha-a-tarefa"
+      ],
+      "hash": "0495a86c67469fe2",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Todas, como hoje"
+    },
+    "task-tree/tests/subagentes.test.ts::depois do Esc, o subagente em segundo plano que falha deixa a tarefa ✕ 'falhou'": {
+      "regras": [
+        "subagentes.fim-depois-do-esc-fecha-a-tarefa"
+      ],
+      "hash": "96abfa180bfdd874",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Fecha como no fim normal"
+    },
     "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
       "regras": [
         "subagentes.reaberta-nao-fecha-pelo-subagente-antigo"
