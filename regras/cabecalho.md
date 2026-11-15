@@ -216,3 +216,14 @@ Com o turno encerrado, o tempo do cabeçalho para no fim do turno.
 Origem: decisão do usuário, 2026-11-14 ("Parar no fim do turno (Recomendado)").
 Código: hooks/render.tsx, hooks/sessions.ts
 Estado: coberto
+
+### cabecalho.toks-e-ultracode-em-qualquer-largura
+O cabeçalho desenha o toks/s e 'ultracode' em qualquer largura.
+
+- Dado a própria sessão com o toks/s medido ou o interruptor de ultracode ligado
+- Quando o cabeçalho é desenhado no app desktop, num painel estreito (menos de 84 colunas) ou largo
+- Então o toks/s e "ultracode" aparecem desenhados no bloco de números, não só no texto alternativo: no largo, na linha do tempo; no estreito, em linhas próprias abaixo do tempo; sem eles, o cabeçalho estreito fica como antes
+
+Origem: decisão do usuário, 2026-11-14 ("Os dois sempre"); desfaz, para o toks/s, o cabeçalho estreito sem ele do desenho V4 ("gostei da V4", 2026-11-03).
+Código: hooks/render.tsx, draw/head.tsx
+Estado: coberto

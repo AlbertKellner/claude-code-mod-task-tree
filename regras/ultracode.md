@@ -32,10 +32,11 @@ O cabeçalho do painel diz "ultracode" quando o interruptor da própria sessão 
 
 - Dado o interruptor de ultracode desta sessão ligado
 - Quando o cabeçalho é desenhado
-- Então "ultracode" aparece na linha do tempo e do toks/s, depois deles (o cabeçalho não desenha o modelo)
+- Então "ultracode" aparece desenhado no bloco de números do cabeçalho, em qualquer largura: no painel largo (84 colunas ou mais), na linha do tempo e do toks/s, depois deles; no estreito, numa linha própria abaixo (o cabeçalho não desenha o modelo)
 
 Origem: decisão do usuário, 2026-11-10 ("Cabeçalho do painel, Cartão de subagente"); a posição, junto do toks/s, derivada (o cabeçalho não tem modelo).
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto do cabeçalho e da linha no app: o que mostram e o texto alternativo dos `Svg`, não mais o `alt` de uma imagem; a regra não muda.
+Reescrito: 2026-11-14, decisão do usuário ("Os dois sempre"): a palavra é desenhada também no cabeçalho estreito. O teste existente deste cenário não muda.
 Código: hooks/render.tsx
 Estado: coberto
 
@@ -44,9 +45,10 @@ A palavra tem a cor do rótulo "Ultracode on" do app e sai junto com o modelo.
 
 - Dado uma filha em ultracode
 - Quando o cartão é desenhado no app desktop, nos dois temas
-- Então "ultracode" fica em roxo sólido, #AF87FF no escuro e #8700FF no claro (o effortUltra do app), sem brilho animado; faltando espaço, sai junto com o modelo; nada no terminal
+- Então "ultracode" fica em roxo sólido, #AF87FF no escuro e #8700FF no claro (o effortUltra do app), sem brilho animado; faltando espaço, sai junto com o modelo; nada no terminal; no cabeçalho estreito, a mesma cor
 
 Origem: decisão do usuário, 2026-11-10 ("Roxo sólido (Recomendado)"; "Junto com o modelo (Recomendado)").
+Reescrito: 2026-11-14, decisão do usuário ("Os dois sempre").
 Estado: checklist (cor e tema, no app)
 
 

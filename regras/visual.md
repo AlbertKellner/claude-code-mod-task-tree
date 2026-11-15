@@ -86,13 +86,14 @@ O cabeçalho aparece em cartão, no desenho V4.
 
 - Dado o painel aberto
 - Quando o cabeçalho é desenhado
-- Então ele é um cartão com a faixa de estado à esquerda (fundo de `Box`), o título no tamanho de título do app, o repositório e a branch, a barra, as pílulas e o bloco de números à direita (o % grande, "d de n", o tempo e toks/s)
+- Então ele é um cartão com a faixa de estado à esquerda (fundo de `Box`), o título no tamanho de título do app, o repositório e a branch, a barra, as pílulas e o bloco de números à direita (o % grande, "d de n", o tempo e toks/s); no painel estreito, o toks/s e 'ultracode' em linhas próprias abaixo do tempo
 
 Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cabeçalho em componentes nativos, com só a barra e os ícones das pílulas em `Svg`; sem medidas em px.
 Reescrito: 2026-11-13, decisão do usuário ("Sim, junto do cartão (Recomendado)"): o cabeçalho usa o mesmo fundo e a mesma borda translúcidos do cartão.
+Reescrito: 2026-11-14, decisão do usuário ("Os dois sempre").
 Código: io/git.ts, draw/head.tsx
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 

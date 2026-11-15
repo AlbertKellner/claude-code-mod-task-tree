@@ -3710,6 +3710,17 @@
       "data": "2026-11-10",
       "motivo": "toks/s como o Savvy (decisões de 2026-11-10)"
     },
+    "task-tree/tests/taxa.test.ts::o toks/s do cabeçalho é desenhado a 60 e a 100 colunas": {
+      "regras": [
+        "taxa.velocidade-de-geracao",
+        "cabecalho.toks-e-ultracode-em-qualquer-largura"
+      ],
+      "hash": "37bf9ab237decb6e",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
+    },
     "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
       "regras": [
         "turnos.esc-interrompe-so-a-iniciada"
@@ -4113,6 +4124,17 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/ultracode.test.ts::com o interruptor ligado, 'ultracode' é desenhado no cabeçalho a 60 e a 100 colunas, não só no texto alternativo": {
+      "regras": [
+        "ultracode.cabecalho",
+        "cabecalho.toks-e-ultracode-em-qualquer-largura"
+      ],
+      "hash": "e98fcb85e475bb13",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
     },
     "task-tree/tests/ultracode.test.ts::o cartão da filha diz \"ultracode\" depois do modelo enquanto ela publica o interruptor ligado": {
       "regras": [
