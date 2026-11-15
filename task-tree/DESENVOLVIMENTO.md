@@ -2411,3 +2411,10 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   o plan vai junto com ela na primeira mensagem; done e summary antes do wrap_up), e o lembrete do pedido
   novo seguinte repete isso numa frase. Fora do app, nenhum dos dois (2026-11-15, "Sim, acrescentar
   (Recomendado)"; lembretes.ordem-com-a-lista-do-app).
+
+## Achados baixos: depois do Esc sem nada aberto, sem pedido de replanejar a outra sessão (2026-11-15)
+
+- Com o turno parado e nada aberto, a mensagem da pessoa seguia só com o lembrete de pedido novo, mas a
+  de outra sessão levava `PROMPT.interruptedEmpty` ("replaneje o painel"). O texto saiu: as duas origens
+  ficam iguais; com tarefas abertas, `PROMPT.interrupted` e `PROMPT.interruptedByYou` não mudam
+  (2026-11-15, "Tirar o texto extra (Recomendado)"; lembretes.esc-sem-abertas).

@@ -994,3 +994,16 @@ test('sem um pedido composto com a lista do app, o lembrete de pedido novo não 
   expect(depois).not.toContain('antes do wrap_up')
   expect(depois).not.toContain('não o substitui')
 })
+
+// Regra: lembretes.esc-sem-abertas
+test('depois do Esc sem nada aberto, a mensagem de outra sessão também não pede para replanejar', async ($: any, on: any) => {
+  await iniciar($, on)
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'])
+  await esc($)
+  const ctx = contexto(await mensagemDe($, 'local_x', 'oi'))
+  expect(ctx).not.toContain(REPLANEJAR)
+  expect(ctx).not.toContain('foi interrompido')
+  expect(ctx).toContain(PEDIDO_NOVO)
+})

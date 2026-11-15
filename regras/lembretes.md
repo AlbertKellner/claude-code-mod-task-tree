@@ -38,10 +38,11 @@ Estado: coberto
 Depois do Esc sem nada aberto, não há o que replanejar.
 
 - Dado um turno parado sem tarefas abertas
-- Quando chega a mensagem da pessoa
-- Então não há pedido de replanejar
+- Quando chega a mensagem seguinte, da pessoa ou de outra sessão
+- Então não há pedido de replanejar: as duas seguem só com o lembrete de pedido novo
 
 Origem: decisão do usuário, 2026-10-27; commit 4787aef.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Tirar o texto extra (Recomendado)"): a mensagem de outra sessão deixa de levar o pedido de replanejar quando nada ficou aberto; as duas origens ficam iguais. O teste existente deste cenário não muda.
 Estado: coberto
 
 ### lembretes.replanejar-vale-uma-vez

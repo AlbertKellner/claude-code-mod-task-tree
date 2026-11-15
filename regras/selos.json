@@ -2551,6 +2551,16 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: aviso automático depois do Esc apagava o pedido de replanejar"
     },
+    "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, a mensagem de outra sessão também não pede para replanejar": {
+      "regras": [
+        "lembretes.esc-sem-abertas"
+      ],
+      "hash": "c5f8836a54e04921",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Tirar o texto extra (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::depois do Esc sem nada aberto, não há o que replanejar": {
       "regras": [
         "lembretes.esc-sem-abertas"

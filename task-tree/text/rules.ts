@@ -241,10 +241,6 @@ export const PROMPT = {
     'O que ela pede de novo vai em mcp__task-tree__plan, com ids novos, na ordem em que vai executar: um ' +
     'plan com o id de um nível 1 da lista o deixaria como histórico, com as abertas interrompidas, e criaria ' +
     'uma cópia toda pendente. Depois siga etapa por etapa com start e done.',
-  interruptedEmpty:
-    PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
-    'chegou em seguida. Antes de seguir, replaneje o painel com o que esta mensagem pede: chame ' +
-    'mcp__task-tree__plan e siga etapa por etapa com start e done.',
   // The person stopped the last turn (Esc) and wrote next (the person: "precisa replanejar quando eu
   // interrompo e envio nova mensagem"): the model replans the panel before going on, keeping what the
   // stopped work left open only if this message continues it.

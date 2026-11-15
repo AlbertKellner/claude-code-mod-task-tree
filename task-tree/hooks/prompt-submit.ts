@@ -210,13 +210,14 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     await saveTurn($)
   }
   // After an interrupted turn, the message that comes next, the person's or another session's, asks
-  // for a replan of the panel instead of the list of what was left open (the replan covers it).
+  // for a replan of the panel instead of the list of what was left open (the replan covers it). With
+  // nothing left open, both get only the reminder of a new request (the person, 2026-11-15: "Tirar o
+  // texto extra (Recomendado)").
   // Only the person's message is the answer to a question dismissed for the chat: one of another
   // session neither says so nor spends the mark.
   const answered = !it.peer && (await marks($)).answeredInChat
   const left = aborted && hasOpen(tasks)
     ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), answered) : PROMPT.interruptedByYou(openList(tasks), answered)
-    : aborted && it.peer ? PROMPT.interruptedEmpty
     : hasOpen(tasks) ? PROMPT.open(openList(tasks), answered) : undefined
   if (!it.peer) await setMarks($, { answeredInChat: false })
   return next({
