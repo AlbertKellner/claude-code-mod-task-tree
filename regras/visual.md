@@ -383,3 +383,35 @@ A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizonta
 Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
 Código: draw/desktop.tsx
 Estado: checklist (pintura real)
+
+### visual.corte-de-texto-inteiro-e-limpo
+Os textos que o painel corta saem inteiros no último caractere e sem caracteres de controle.
+
+- Dado um pedido, uma carta ou uma linha de ferramenta com um emoji na posição do corte, ou com uma sequência de controle (ANSI) no texto
+- Quando o painel o desenha
+- Então o corte termina num caractere inteiro seguido de "…", e nenhum caractere de controle chega ao painel
+
+Origem: auditoria 2026-11-10 (cortes por unidade UTF-16; texto do prompt sem filtro); regra do painel, sem decisão nova.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, hooks/agents.ts, draw/layout.ts
+Estado: coberto
+
+### visual.tempo-nunca-negativo
+Nenhum tempo do painel é desenhado negativo.
+
+- Dado uma carta na fila, um subagente ou um grupo com a hora gravada à frente do relógio
+- Quando o painel é desenhado
+- Então o tempo aparece "0:00" até o relógio alcançar a hora gravada; um tempo inválido não é desenhado
+
+Origem: auditoria 2026-11-10 ("-1:-2" com o relógio do sistema voltando atrás); regra do painel, sem decisão nova.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.coluna-da-contagem-cabe-a-maior
+A coluna da contagem tem a largura da maior contagem desenhada.
+
+- Dado uma linha com contagem de seis caracteres ou mais ("112/340")
+- Quando o painel é desenhado no app
+- Então a coluna da contagem de todas as linhas tem a largura da maior (no mínimo 5), e as colunas da barra, da contagem e do tempo seguem alinhadas entre as linhas
+
+Origem: auditoria 2026-11-10 (a contagem larga passava sobre a barra); regra do painel, sem decisão nova.
+Estado: coberto

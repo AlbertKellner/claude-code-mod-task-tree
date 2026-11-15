@@ -1,5 +1,8 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
+import { responderEnvio } from './kit/ambiente'
+import { envio } from './kit/cenario'
+import { emTexto, painel } from './kit/leitura'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { alfa, alturaDaLinha, cabecalhoDoApp, centrada, respirosDoApp, tom, vaosEntreLinhas, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
@@ -421,4 +424,90 @@ test('no app, o cartão tem respiro nos quatro lados, e o conector da faixa desc
     expect(r.conector!.antes, quais).toBe(r.cima)
     expect(r.conector!.bloco, quais).toBe(altura)
   }
+})
+
+// Um pedido cujo corte de hoje (59 unidades) cai no meio do par do emoji.
+const COM_EMOJI = `${'a'.repeat(58)}😀 e mais um pouco de texto`
+
+// Regra: visual.corte-de-texto-inteiro-e-limpo
+test('o título do pedido e a carta são cortados sem partir um emoji e sem caractere de controle', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, COM_EMOJI)
+  await plan($, UM)
+  await start($, ['1'])
+  await envio($, 'local_x', 'antes\u001b[31mdepois')
+  const p = await painel($)
+  const doPedido = p.find(l => l.titulo.startsWith('aaaa'))
+  expect(doPedido?.titulo, emTexto(p)).toBe(`${'a'.repeat(58)}😀…`)
+  expect(/[\ud800-\udbff](?![\udc00-\udfff])/.test(doPedido?.titulo ?? ''), emTexto(p)).toBe(false)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toContain('antesdepois')
+  expect(carta?.titulo ?? '', emTexto(p)).not.toContain('\u001b')
+})
+
+// Regra: visual.tempo-nunca-negativo
+test('um tempo com a hora à frente do relógio é desenhado 0:00, nunca negativo', async ($: any, on: any) => {
+  fixar(on)
+  const futuro = AGORA + 60000
+  host(on, [
+    {
+      id: 'local_11111111-1111-1111-1111-111111111111',
+      nome: 'filha',
+      painel: {
+        tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }],
+        agentes: [{ agent: 'fs-1', label: 'Explore: lançado no futuro', parent: '', anchor: '1', tasks: [], sub: { at: futuro, state: 'running', calls: 1, batch: futuro, engine: 'Haiku 5.5' } }],
+      },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const sub = p.find(l => l.titulo.includes('lançado no futuro'))
+  expect(sub?.texto, emTexto(p)).toContain('0:00')
+  expect(sub?.texto ?? '', emTexto(p)).not.toMatch(/-\d/)
+})
+
+// As caixas da coluna da contagem (key "count") de um desenho do app, em qualquer profundidade.
+function colunasDaContagem(raiz: any): { width: unknown; texto: string }[] {
+  const achadas: { width: unknown; texto: string }[] = []
+  const texto = (x: any): string => (typeof x === 'string' ? x : typeof x !== 'object' || x === null ? '' : (x.children ?? []).map(texto).join(''))
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Box' && (x.key ?? x.props?.key) === 'count') achadas.push({ width: x.props?.width, texto: texto(x) })
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(raiz)
+  return achadas
+}
+
+// Regra: visual.coluna-da-contagem-cabe-a-maior
+test('a coluna da contagem tem a largura da maior contagem, igual em todas as linhas', async ($: any, on: any) => {
+  fixar(on)
+  const tarefas = Array.from({ length: 120 }, (_, k) => ({
+    id: String(k + 1),
+    short: String(k + 1),
+    title: `Tarefa ${k + 1}`,
+    status: k < 100 ? 'done' : 'open',
+    ...(k < 100 ? { startedAt: AGORA - 1000, endedAt: AGORA - 500 } : {}),
+    children: [],
+  }))
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: tarefas } }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const colunas = colunasDaContagem(d.raiz)
+  const quais = JSON.stringify(colunas)
+  expect(colunas.some(c => /^100\/\d{3}$/.test(c.texto)), quais).toBe(true)
+  const maior = Math.max(...colunas.map(c => c.texto.length))
+  const larguras = new Set(colunas.map(c => c.width))
+  expect(larguras.size, quais).toBe(1)
+  expect(Number(colunas[0]?.width), quais).toBeGreaterThanOrEqual(maior)
 })

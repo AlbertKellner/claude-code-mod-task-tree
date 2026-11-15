@@ -9,6 +9,7 @@
 // still queued reach the task lines as `pending`, from the panel that holds them.
 
 import type { Child, Group, Idle, Panel, Send, Sub, TaskNode, Turn, Wait } from '../types'
+import { cutText } from './svg'
 
 // The main loop's agent id in the groups.
 export const MAIN = ''
@@ -1919,7 +1920,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             leaf: true,
             depth,
             tone: 'sent' as Tone,
-            title: `Para ${nameOf(s.to)}${text ? `: ${text.length > 60 ? `${text.slice(0, 59)}…` : text}` : ''}`,
+            title: `Para ${nameOf(s.to)}${text ? `: ${cutText(text, 60)}` : ''}`,
             label: `Mensagem ${MSG_WORD[state]}`,
             meta: MSG_WORD[state],
             msg: state,

@@ -266,7 +266,10 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
 // than its text (1.4, the person's "1,4"), so what it shows is centered on its height by the boxes in
 // it (alignItems), the guides' arm in the middle meeting the icon; not on the `r<i>` itself, which
 // would stop the guides from stretching.
-export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number): any {
+// The narrowest count column ("12/34").
+const COUNT_COLS = 5
+// `countCols`: the width of the count column, the same on every line (see desktopTree).
+export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number, countCols = COUNT_COLS): any {
   if (r.session) return labelRow(ui, r, i, lead, acts, cols)
   const { Box, Text, Svg, Button } = ui
   const section = r.tone === 'section'
@@ -324,7 +327,7 @@ export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts,
           </Box>
         ) : null}
       </Box>,
-      <Box key="count" flexShrink={0} width={5} justifyContent="flex-end">
+      <Box key="count" flexShrink={0} width={countCols} justifyContent="flex-end">
         {sub ? (
           <Text {...small} dimColor={dim || undefined}>
             {`${sub[0]}/${sub[1]}`}
@@ -422,6 +425,9 @@ const CARD_COLS = 5
 // card's top to its foot, and the connector meets the header (the branch's bar goes on to the foot).
 export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): any[] {
   const { Box } = ui
+  // The count column: as wide as the longest "d/n" of the lines that draw it (5 at least), so a
+  // "112/340" does not run over the bar, and the columns stay lined up from line to line.
+  const countCols = Math.max(COUNT_COLS, ...lines.map(r => ((r.bar === true || r.card === true) && r.sub ? `${r.sub[0]}/${r.sub[1]}`.length : 0)))
   const lanes = guides(lines)
   const hides = labelCols(lines)
   const cut = (i: number, from: number, to: number) =>
@@ -436,7 +442,7 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
     for (let i = a; i < b; ) {
       const r = lines[i]!
       if (!r.card) {
-        out.push(desktopRow(ui, r, i, cut(i, base, Infinity), acts, room))
+        out.push(desktopRow(ui, r, i, cut(i, base, Infinity), acts, room, countCols))
         i++
         continue
       }
@@ -454,7 +460,7 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
           ) : null}
           <Box {...card(level)}>
             <Box height={PAD_Y} flexShrink={0} />
-            {desktopRow(ui, r, i, [], acts, inner)}
+            {desktopRow(ui, r, i, [], acts, inner, countCols)}
             {block(i + 1, j, r.depth, inner, level + 1)}
             <Box height={PAD_Y} flexShrink={0} />
           </Box>

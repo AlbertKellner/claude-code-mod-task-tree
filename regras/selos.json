@@ -5607,6 +5607,16 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::a coluna da contagem tem a largura da maior contagem, igual em todas as linhas": {
+      "regras": [
+        "visual.coluna-da-contagem-cabe-a-maior"
+      ],
+      "hash": "0f4eeeb82853a939",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "coluna da contagem pela maior contagem"
+    },
     "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
       "regras": [
         "visual.faixa-de-estado-geral"
@@ -5767,6 +5777,16 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: as linhas fora de cartão são Box e Text; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::o título do pedido e a carta são cortados sem partir um emoji e sem caractere de controle": {
+      "regras": [
+        "visual.corte-de-texto-inteiro-e-limpo"
+      ],
+      "hash": "fb0b6260252a0772",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "corte por pontos de código e limpeza de controle"
+    },
     "task-tree/tests/visual.test.ts::texto cortado não tem tooltip: nenhuma camada interativa e nenhum <title>": {
       "regras": [
         "visual.tooltip"
@@ -5776,6 +5796,16 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: as linhas fora de cartão são Box e Text; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/visual.test.ts::um tempo com a hora à frente do relógio é desenhado 0:00, nunca negativo": {
+      "regras": [
+        "visual.tempo-nunca-negativo"
+      ],
+      "hash": "83da7322d0609daf",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "piso zero no tempo desenhado"
     }
   },
   "kit": {

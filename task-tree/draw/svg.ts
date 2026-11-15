@@ -6,9 +6,11 @@
 
 import type { Tone, Row, Guide, SessionState, GitLabel, MsgState } from './layout'
 
-// "0:04", "6:12", "1:02:09".
+// "0:04", "6:12", "1:02:09". A time ahead of the clock (the system clock gone back, a file published
+// by another machine) is "0:00", never negative; one that is not a number is not drawn ("").
 export function clockText(ms: number): string {
-  const s = Math.floor(ms / 1000)
+  if (!Number.isFinite(ms)) return ''
+  const s = Math.floor(Math.max(0, ms) / 1000)
   const two = (k: number) => String(k).padStart(2, '0')
   return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`
 }
@@ -47,6 +49,21 @@ export const prefix = (r: Row, g: Guide, hide: number[] = []) =>
 export const ratioBar = (d: number, n: number, cells: number) => {
   const k = n > 0 ? Math.round((d / n) * cells) : 0
   return ['█'.repeat(k), '░'.repeat(cells - k)]
+}
+
+// A text the panel shows, clean: without ANSI sequences (whole), the other control characters (C0
+// but the spaces, DEL, C1) and half a surrogate pair left alone. Spaces are the caller's to join.
+export const cleanText = (t: string) =>
+  t
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|\u001b\[[0-?]*[ -\/]*[@-~]|\u009b[0-?]*[ -\/]*[@-~]/g, '')
+    .replace(/[\u0000-\u0008\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')
+// The clean text cut to at most `max` characters (code points, never half an emoji), its last "…"
+// when it is cut and `dots`.
+export function cutText(t: string, max: number, dots = true): string {
+  const chars = Array.from(cleanText(t))
+  if (chars.length <= max) return chars.join('')
+  return dots ? `${chars.slice(0, max - 1).join('')}…` : chars.slice(0, max).join('')
 }
 
 export const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
@@ -237,7 +254,7 @@ export const rowAlt = (r: Row) =>
   (r.hint ? ` (${r.hint})` : '') +
   (r.sub ? `, ${r.sub[0]} de ${r.sub[1]}` : '') +
   (r.meta ? `, ${r.meta}` : '') +
-  (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
+  (typeof r.time === 'number' && clockText(r.time) ? `, ${clockText(r.time)}` : '') +
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
   (r.ultracode ? `, ${ULTRA}` : '') +

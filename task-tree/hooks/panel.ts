@@ -16,6 +16,7 @@ import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
 import { hasBrief, rawPanel, sessionTotal, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
+import { cutText } from '../draw/svg'
 
 export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
@@ -267,7 +268,7 @@ const BRIEF_TURNS = 20
 export async function openTurn($: any, text: string, own = false, from?: { id: string; name?: string }) {
   // A message from another session comes wrapped in tags: its words are the title.
   const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
-  const title = line.length > 60 ? `${line.slice(0, 59)}…` : line
+  const title = cutText(line, 60)
   const at = await stamp($)
   await change($, all =>
     all.map(g => {

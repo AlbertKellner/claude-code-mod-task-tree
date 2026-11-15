@@ -224,6 +224,7 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   nova sem animação; nada pisca à toa;
 - desenho nativo: o toks/s e 'ultracode' no cabeçalho estreito, em linhas próprias, sem cortar o '%'; guias em caixas finas, contínuas entre as linhas, dentro e fora dos cartões e na
   faixa ao lado deles, alinhadas com os ícones e visíveis nos dois temas; corte do título no fim;
+  a contagem com três dígitos dos dois lados ("112/340") sem encostar na barra nem no tempo;
   alturas do título e do percentual do cabeçalho; o tempo do cabeçalho parado com o turno encerrado; o tempo das linhas e do cabeçalho ao retomar depois de horas; a faixa de 1 coluna do cabeçalho; pílulas com borda;
   o total da sessão inteira na linha "+N pedidos anteriores";
   cores cruas (`rgba(...)`) e as chaves de tema nos dois temas; o fundo e a borda do cartão e do

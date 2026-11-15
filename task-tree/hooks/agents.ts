@@ -16,6 +16,7 @@ import { MAIN, SUB_BATCH, flat, inFlight, interrupt, sameSend, subLive } from '.
 import { SUBS } from '../text/rules'
 import { edit, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
+import { cutText } from '../draw/svg'
 import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
@@ -173,7 +174,7 @@ export function toolText(e: any): string {
             ? e.command
             : ''
   const text = arg ? `${tool} ${arg}` : tool
-  return text.length > 60 ? `${text.slice(0, 59)}…` : text
+  return cutText(text, 60)
 }
 export async function subTool($: any, agent: string, e: any) {
   // The panel's own tools and the hand-back (the subagent's report, after its work) are not its work.

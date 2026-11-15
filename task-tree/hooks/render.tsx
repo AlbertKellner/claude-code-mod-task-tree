@@ -8,7 +8,7 @@ import { atom, read, update } from 'claude-code'
 import type { Child, Send } from '../types'
 import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel, workTasks } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
+import { GLYPH, MSG_TERM, ULTRA, chips, clockText, cutText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
 import { desktopHead } from '../draw/head'
 import type { Acts } from '../draw/desktop'
@@ -39,7 +39,7 @@ async function closeOpened($: any) {
 }
 // The most characters a text has in the shortened drawing (see closeOpened), "…" its last.
 const SHORT_TEXT = 200
-const clip = (t: string) => (t.length > SHORT_TEXT ? `${t.slice(0, SHORT_TEXT - 1)}…` : t)
+const clip = (t: string) => cutText(t, SHORT_TEXT)
 
 // The line limit the last drawing fitted in when its lines passed the size limit (see render), by
 // surface and width, with the lines the panel had then: the pane is drawn again every second while a

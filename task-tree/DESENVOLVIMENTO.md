@@ -83,11 +83,12 @@ Quem recebe `$` (o engine) e quem não recebe:
     `limitRows`, `firstOpen`, `hasBrief`, as funções de tempo `span`/`stillSpan`/`timeSpan`/`timeOf`/
     `sessionTime`/`idleIn`/`idleOf`, `guides`, `frames`, `labelCols`, `running` etc.) e as constantes
     `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400, `WAIT_ORIGIN` = 10 000 ms.
-  - `desktop.tsx` (468): a árvore do app desktop em componentes nativos (`desktopTree`,
+  - `desktop.tsx` (474): a árvore do app desktop em componentes nativos (`desktopTree`,
     `desktopRow`, `iconCell`, `cells`, `GUIDE_COLOR`/`GUIDE_W`/`GUIDE_H`): cada linha é um `Box` em
     linha com as guias em caixas nativas com fundo (uma célula por coluna, no `Box key="guides"` da
     linha e no `Box key="strip"` ao lado do cartão), o ícone de estado num `Svg` de 16 px com um `Button`
-    transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo;
+    transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo
+    (a coluna da contagem com a largura do maior "d/n" das linhas, no mínimo 5, igual em todas);
     os cartões de sessão são `Box` com borda e fundo translúcido por nível, com respiro nos quatro
     lados, o busto e o anel em `Svg`.
   - `head.tsx` (178): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
@@ -96,9 +97,13 @@ Quem recebe `$` (o engine) e quem não recebe:
     `ultra`).
   - `icons.ts` (58): as fontes dos `Svg` que restam, guardadas por estado (`stateIcon`, `msgIcon`,
     `bustIcon`, `ringIcon`, `headBar`, `ICON` = 16).
-  - `svg.ts` (249): os desenhos de cada ícone (`icon`, `envelope`, `sessionIcon`, `contextRing`),
+  - `svg.ts` (266): os desenhos de cada ícone (`icon`, `envelope`, `sessionIcon`, `contextRing`),
     `slim`, e os textos e glifos que as duas superfícies usam (`GLYPH`, `prefix`, `ratioBar`,
-    `clockText`, `chips`, `headerState`, `rowAlt`, `rightText`, `gitTerm`, `gitAlt`).
+    `clockText`, `chips`, `headerState`, `rowAlt`, `rightText`, `gitTerm`, `gitAlt`), `cleanText` e
+    `cutText`: todo corte de texto do painel (título do pedido, `request`, carta, linha da ferramenta do
+    subagente, `SHORT_TEXT`) conta por caractere inteiro, nunca meio emoji, e tira as sequências ANSI e
+    os outros caracteres de controle (visual.corte-de-texto-inteiro-e-limpo); `clockText` desenha "0:00"
+    para um tempo negativo e nada para um inválido (visual.tempo-nunca-negativo).
 - **Textos** (`text/rules.ts`, 371): tudo o que o mod escreve para o modelo (`RULES`, `COMMAND`,
   `TOOLS`, `START`, `PROMPT`, `ASK`, `PLAN`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `SUBS`)
   e `BRIEF` = 120.
@@ -2257,3 +2262,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   `Child.places` (sessoes.lugar-do-cartao-digitado-nao-muda). A chave do agrupamento ganhou o recuo ao
   pedido de origem: um turno digitado antes do primeiro plan, ou sem hora, e outro depois ficavam em dois
   cartões.
+
+## Achados baixos: corte de texto e números do desenho (2026-11-15)
+
+- Os cortes de texto eram por unidade UTF-16 (meio emoji virava "�") e o texto do prompt ia ao título do
+  pedido com as sequências ANSI (o app recusava o desenho). Passaram por `cutText`/`cleanText`
+  (`draw/svg.ts`). O resumo ↩ (`brief`, `hooks/turn.ts`), que corta em palavra, ficou como estava.
+- `clockText` sem piso desenhava "-1:00" com a hora gravada à frente do relógio; a coluna da contagem tinha
+  5 colunas fixas e "112/340" passava sobre a barra.
