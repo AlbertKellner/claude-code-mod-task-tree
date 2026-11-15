@@ -50,8 +50,10 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
     ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
     ...(f.ultracode === true ? { ultracode: true } : {}),
-    ...(rate && typeof rate === 'object' && typeof rate.toks === 'number' && typeof rate.at === 'number' && typeof rate.live === 'boolean'
-      ? { rate: { toks: rate.toks, at: rate.at, live: rate.live } }
+    // Every rate read is lit (the person, 2026-11-10: "Fica aceso"): `live` false, from a version
+    // before that, is read as the rest (the field is still written, true, for those versions).
+    ...(rate && typeof rate === 'object' && typeof rate.toks === 'number' && typeof rate.at === 'number'
+      ? { rate: { toks: rate.toks, at: rate.at, live: true } }
       : {}),
     // A repository with its branch, or a folder (`kind: 'folder'`) with none.
     ...(git && typeof git === 'object' && typeof git.repo === 'string' && git.repo !== '' && git.kind === 'folder'
@@ -154,7 +156,7 @@ export async function publishWait($: any, id: string | undefined, p: Publication
       sends: p.sends,
       turn: p.turn,
     }
-    const key = JSON.stringify({ ...body, percent, rate: p.rate ? [p.rate.toks, p.rate.live] : undefined, git: p.git ? [p.git.kind ?? 'git', p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
+    const key = JSON.stringify({ ...body, percent, rate: p.rate ? p.rate.toks : undefined, git: p.git ? [p.git.kind ?? 'git', p.git.repo, p.git.branch, p.git.detached ?? false] : undefined })
     if (lastPublished.get(path) === key) return
     // The panes as the app holds them for this session (placed, shown or a tab behind another).
     let panes: unknown

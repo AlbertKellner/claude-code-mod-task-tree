@@ -236,7 +236,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const aborted = heldEnded !== undefined ? heldAborted : turnBrought?.aborted
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
-  const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
+  const headRate = rate ? { toks: rate.toks } : undefined
   // Its ultracode switch (turn.ts, ultraAttachment), for the header beside the rate.
   const { value: ultracode } = await $.state.get(ultracodeState)
   // Its repository and branch (refreshGit keeps them), for the header's count line.
@@ -322,7 +322,7 @@ export async function render($: EngineInterface, e: any, next: any) {
         : [
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
-            ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
+            ...(headRate ? [rateText(headRate.toks)] : []),
             ...(ultracode === true ? [ULTRA] : []),
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),

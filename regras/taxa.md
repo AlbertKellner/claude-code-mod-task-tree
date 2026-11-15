@@ -29,10 +29,11 @@ No fim do turno, o último número fica aceso.
 
 - Dado um número medido no turno
 - Quando o turno termina (com ou sem passo válido nele)
-- Então o último número válido fica, aceso, sem esmaecer e sem "(último turno)"
+- Então o último número válido fica, aceso, sem esmaecer e sem "(último turno)"; o número de uma filha em versão anterior do mod, publicado como média do último turno, também aparece aceso
 
 Origem: decisão do usuário, 2026-11-10 ("Fica aceso"); turno sem passo válido: o número anterior fica (derivado de "Fica aceso").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto do cabeçalho e da linha no app: o que mostram e o texto alternativo dos `Svg`, não mais o `alt` de uma imagem; a regra não muda.
+Reescrito: 2026-11-15, texto: aplica "Fica aceso" (2026-11-10) à taxa lida de uma filha em versão anterior do mod; saem do desenho os restos da medida antiga. Os testes existentes não mudam.
 Código: draw/head.tsx
 Estado: coberto
 

@@ -225,7 +225,7 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
       <Box flexGrow={1} />
       {rate && r.rate ? (
         <Box flexShrink={0} paddingLeft={1} alignItems="center">
-          <Text size="caption" color="inactive" tabular dimColor={!r.rate.live || undefined}>
+          <Text size="caption" color="inactive" tabular>
             {rateText(r.rate.toks)}
           </Text>
         </Box>

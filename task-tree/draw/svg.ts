@@ -241,7 +241,7 @@ export const rowAlt = (r: Row) =>
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
   (r.ultracode ? `, ${ULTRA}` : '') +
-  (r.rate ? `, ${rateText(r.rate.toks)}${r.rate.live ? '' : ' (último turno)'}` : '') +
+  (r.rate ? `, ${rateText(r.rate.toks)}` : '') +
   (r.git ? `, ${gitAlt(r.git)}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
   (r.fold && !r.fold.open ? ', recolhida' : '')

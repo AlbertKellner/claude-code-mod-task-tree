@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
-import { fixar, lancaveis, passos } from './kit/ambiente'
-import { fimDoTurno, lancar, pedido, plan, start } from './kit/cenario'
-import { emTexto, noApp, painel } from './kit/leitura'
+import { AGORA, fixar, host, lancaveis, passos } from './kit/ambiente'
+import { abrirSessao, aviso, fimDoTurno, lancar, pedido, plan, start } from './kit/cenario'
+import { emTexto, emTextoDoApp, noApp, painel, primeiraDoApp } from './kit/leitura'
 
 const UM = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
 const topo = async ($: any) => (await painel($)).filter(l => l.cabecalho).map(l => l.texto).join('\n')
@@ -75,4 +75,30 @@ test('o toks/s do cabeçalho é desenhado a 60 e a 100 colunas', async ($: any, 
   await start($, ['1'])
   await passo($, { antes: 800, geracao: 2000, tokens: 200 })
   for (const colunas of [60, 100]) expect(await desenhadoNoTopo($, colunas), `${colunas} colunas`).toContain('100 toks/s')
+})
+
+// Regra: taxa.fim-do-turno-fica-aceso
+test("a taxa de uma filha em versão anterior do mod (publicada como do último turno) aparece acesa, sem '(último turno)'", async ($: any, on: any) => {
+  fixar(on)
+  const tarefa = { id: 'f1', short: 'f1', title: 'Tarefa da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }
+  host(on, [{ id: 'local_51515151-5151-5151-5151-515151515151', nome: 'filha-velha', rate: { toks: 42, live: false }, painel: { tasks: [tarefa] } }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  // Os nós de texto do desenho com "42 toks/s": nenhum esmaecido.
+  const achados: any[] = []
+  const buscar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Text' && JSON.stringify(x.children ?? []).includes('42 toks/s')) achados.push(x)
+    for (const c of x.children ?? []) buscar(c)
+  }
+  buscar(d.raiz)
+  expect(achados.length, emTextoDoApp(d)).toBeGreaterThan(0)
+  for (const x of achados) expect(x.props?.dimColor, emTextoDoApp(d)).toBeFalsy()
+  const cartao = primeiraDoApp(d, 'filha-velha')
+  expect(cartao?.texto, emTextoDoApp(d)).toContain('42 toks/s')
+  expect(cartao?.texto, emTextoDoApp(d)).not.toContain('último turno')
 })

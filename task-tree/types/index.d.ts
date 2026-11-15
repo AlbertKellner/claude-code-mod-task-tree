@@ -131,8 +131,9 @@ export type Wait = {
 // `sends`: its messages not yet taken up by the session they went to (its tasks show ✉ meanwhile).
 export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: string[]; received?: { from: string; at: number }[]; sends?: Send[] }
 
-// A session's output rate: `toks` tokens a second (rounded), measured `at`, `live` while the turn
-// it measures is in course (else the last turn's mean, drawn dim).
+// A session's output rate: `toks` tokens a second (rounded), the speed of its last valid model call
+// (from the first chunk to the 'stop'), measured `at`. `live` is always true: kept in the file for the
+// versions before 2026-11-10, which take a rate only with it ("Fica aceso": every rate read is lit).
 export type Rate = { toks: number; at: number; live: boolean }
 // Where a session's git is (io/git.ts): the repository's folder name and the branch (a detached
 // head's short hash, `detached`), read `at`.
@@ -158,9 +159,8 @@ export type Published = {
   engine?: string
   // Whether its ultracode switch is on (ultra_effort_enter/exit); absent when off, or from earlier versions.
   ultracode?: boolean
-  // Its output rate, "n toks/s": the mean over the model calls of the last ~10 s of the turn in
-  // course (`live`), or of the whole last turn once it ended; absent until its first model call,
-  // or from earlier versions.
+  // Its output rate, "n toks/s": the speed of its last valid model call, kept lit after the turn
+  // ends; absent until its first model call, or from earlier versions.
   rate?: Rate
   // Its repository and branch, as it reads them off its own .git; absent outside a repository, or
   // from earlier versions.

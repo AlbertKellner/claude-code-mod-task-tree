@@ -4346,6 +4346,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, ajustar a preparação (Recomendado)\": a preparação vem do 1/2, que passa a montar o subagente antigo"
     },
+    "task-tree/tests/taxa.test.ts::a taxa de uma filha em versão anterior do mod (publicada como do último turno) aparece acesa, sem '(último turno)'": {
+      "regras": [
+        "taxa.fim-do-turno-fica-aceso"
+      ],
+      "hash": "11bc783f6dadcc41",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "taxa de filha em versão anterior do mod aparece acesa"
+    },
     "task-tree/tests/taxa.test.ts::no fim do turno o último número fica aceso, sem \"(último turno)\"": {
       "regras": [
         "taxa.fim-do-turno-fica-aceso"
