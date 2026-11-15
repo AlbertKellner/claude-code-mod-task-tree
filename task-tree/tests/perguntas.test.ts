@@ -323,3 +323,28 @@ test('a pergunta sem tarefa é recusada mesmo com a falha de outro passo', async
   expect(r.erro, r.texto).toBe(true)
   expect(r.texto).toContain('plan')
 })
+
+// Regra: perguntas.mod-em-erro-abre-a-pergunta
+test('com a conferência da pergunta em erro, a pergunta abre e o log diz', async ($: any, on: any) => {
+  const { relogio, log } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  // Armado, toda leitura do painel falha, inclusive a que decide a recusa.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'groups' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  armado = true
+  const r = await ferramenta($, 'AskUserQuestion', PERGUNTA)
+  armado = false
+  expect(r.erro, r.texto).toBe(false)
+  expect(r.texto).toContain('Opção A')
+  expect(log.some(l => l.includes('a conferência da pergunta sem tarefa falhou')), log.join('\n')).toBe(true)
+})
+
+// Regra: perguntas.mod-em-erro-abre-a-pergunta
+test('com a conferência sem erro, a mesma pergunta sem tarefa segue recusada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  on('state.get', async (_$: any, e: any, next: any) => next(e))
+  await pedido($, 'Pedido um')
+  expect((await ferramenta($, 'AskUserQuestion', PERGUNTA)).erro).toBe(true)
+})

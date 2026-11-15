@@ -56,12 +56,18 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
   // in progress, of any request, is refused. A task only pending from an earlier request does not
   // let it through (the person, 2026-11-14: "Não (Recomendado)"). ExitPlanMode and the wrap_up's
   // choice are let through, as first designed: it is not that plan mode holds the panel's tools.
+  // A failure of the mod while checking opens the question, said in the debug log: a defect of the
+  // panel never holds the model (the person, 2026-11-15: "Abre, com erro no log (Recomendado)").
   if (kind === 'question' && agent === MAIN) {
-    const { value = [] } = await $.state.get(groupsState)
-    const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    if (!hasOpen(requestTasks(value as Group[])) && current(all).anchor === undefined) {
-      return { deny: ASK.refused }
+    let refuse = false
+    try {
+      const { value = [] } = await $.state.get(groupsState)
+      const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+      refuse = !hasOpen(requestTasks(value as Group[])) && current(all).anchor === undefined
+    } catch (err) {
+      await debugOnce($, `task-tree: a conferência da pergunta sem tarefa falhou (${String(err)}); a pergunta foi aberta`)
     }
+    if (refuse) return { deny: ASK.refused }
   }
   // The question always reaches the person and the answer always goes back: the panel's steps around
   // it (the wait, the reminder, dropping the wait) fail into the debug log.
@@ -272,7 +278,7 @@ async function reminder($: any, c: Call, r: any) {
 import type { EngineInterface } from 'claude-code'
 
 // A step of the hook that failed: said once per step and reason in the debug log; the hook goes on to
-// the next step. What decides (asked's refusal) and the tool itself (next) are not caught.
+// the next step. The tool itself (next) is not caught; asked's refusal opens the question when its check fails.
 async function stepFailed($: any, step: string, err: unknown) {
   await debugOnce($, `task-tree: tool.call, passo ${step}: ${String(err)}`)
 }

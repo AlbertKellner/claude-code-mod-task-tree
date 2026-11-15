@@ -2794,6 +2794,26 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: cada passo do tool.call protegido, com a falha no log"
     },
+    "task-tree/tests/perguntas.test.ts::com a conferência da pergunta em erro, a pergunta abre e o log diz": {
+      "regras": [
+        "perguntas.mod-em-erro-abre-a-pergunta"
+      ],
+      "hash": "4a42d9ccdfba5e73",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: Abre, com erro no log (Recomendado)"
+    },
+    "task-tree/tests/perguntas.test.ts::com a conferência sem erro, a mesma pergunta sem tarefa segue recusada": {
+      "regras": [
+        "perguntas.mod-em-erro-abre-a-pergunta"
+      ],
+      "hash": "5726c9017ef0b76b",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: Abre, com erro no log (Recomendado)"
+    },
     "task-tree/tests/perguntas.test.ts::com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamento": {
       "regras": [
         "perguntas.espera-sob-a-tarefa"

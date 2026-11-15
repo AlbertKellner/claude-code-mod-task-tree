@@ -130,3 +130,14 @@ A falha de um passo acessório do painel não deixa passar a pergunta sem tarefa
 Origem: auditoria 2026-11-10; aplica perguntas.sem-tarefa-recusada, sem mudar nenhuma regra.
 Código: hooks/tool-call.ts
 Estado: coberto
+
+### perguntas.mod-em-erro-abre-a-pergunta
+Se o mod falha por erro interno ao conferir a pergunta sem tarefa, a pergunta abre e o erro vai ao log.
+
+- Dado nenhuma tarefa aberta do pedido atual, e um erro interno do mod ao ler o painel naquele instante
+- Quando o modelo chama AskUserQuestion
+- Então a pergunta abre para a pessoa (não é recusada), e o log de depuração diz que a conferência falhou e por quê; sem erro interno, vale perguntas.sem-tarefa-recusada
+
+Origem: decisão do usuário, 2026-11-15 ("Abre, com erro no log (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a recusa falhava aberta, sem registro).
+Código: io/log.ts
+Estado: coberto
