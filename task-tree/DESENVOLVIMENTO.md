@@ -384,7 +384,9 @@ profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
 `running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
 `fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
 cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
-(`count` dos `nodes`, `sessionTime`, `chips`); o total da sessão inteira vai no `alt`.
+(`count` dos `nodes`, `sessionTime`, `chips`); o total da sessão inteira vai no `alt` e, desde a
+decisão de 2026-11-14 ("Na linha +N (Recomendado)"), também à direita da linha "+N pedidos anteriores"
+do painel principal (`meta` da linha `sec:turns`, posto pelo render), só quando difere do mostrado.
 
 O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do desenho:
 
@@ -703,7 +705,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   `showStatus` e na conta da sessão inteira). Com a filha trabalhando embaixo, `w.busy` a desenha ◉; com
   o subagente, fica ◷; acabado o trabalho, a tarefa sai da lista e volta a ser lida pela marca. `trail` não acende o caminho de uma tarefa
   parada. Na mãe, `discarded` segue valendo para a filha parada enquanto houver marca (`anyStopped`),
-  mesmo sem `aborted` no arquivo. A contagem da sessão inteira (tooltip) e a linha de status leem o grupo
+  mesmo sem `aborted` no arquivo. A contagem da sessão inteira (texto alternativo e linha "+N pedidos anteriores") e a linha de status leem o grupo
   por `stayed`. O fim normal também espera o `start` (2026-11-14, "Seguir ◷ até o start (Recomendado)"):
   `turnComplete` grava na própria tarefa o estado de espera (`rest`, em `state/tasks.ts`: a folha em
   andamento perde `started` e ganha `endedAt`, os pais abertos também), e só o `start` a reacende; `wake`
@@ -1248,7 +1250,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   mães dela (a linha anterior menos funda, até o nível 0) nunca saem: vêm logo depois de `+N linhas
   anteriores`, fora da contagem (decisão do usuário, 2026-11-13: "Preservar a linha (Recomendado)").
   O cabeçalho conta o que está desenhado ("sessão inteira: X de Y"
-  no tooltip). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
+  no tooltip; hoje: na linha do histórico e no texto alternativo). No desktop as duas linhas são `Svg` de tom `section`, sem geometria nova. O caso real (31
   linhas) não muda. O arquivo publicado ganha `drawRows` (`rows` em `Published`) e `drawSize`, informativos
   (telemetria para a orquestradora ver o tamanho das filhas; os leitores não os usam). 
 - Cabeçalho por visão (pedido do usuário: "na visao resumida, quero que a barra superior reflita o
@@ -1262,7 +1264,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   dois, consequência da regra, e se isso deve mudar ficou para decisão do usuário). Completa: só os pedidos
   desenhados pelo limite de 3, com a linha "+N pedidos anteriores". O total da sessão inteira vai
   discreto, só quando difere do mostrado: no terminal, "(sessão inteira: D de N)" depois do
-  cabeçalho; no desktop, no `alt` do cabeçalho. A barra e o % seguem a lista visível. Recolher uma
+  cabeçalho; no desktop, no `alt` do cabeçalho (hoje: na linha do histórico e no texto alternativo). A barra e o % seguem a lista visível. Recolher uma
   linha (cartão, tarefa ou pedido) não muda os números: o `Row.nodes` da linha recolhida leva o que está
   embaixo, cartões inclusive (`Work.cards`). Cada visão conta o que inclui, recolhido ou não; fora ficam
   os pedidos finalizados de turnos anteriores na resumida (e o que o corte do cartão tira) e, na
@@ -1761,7 +1763,8 @@ Saíram os botões ≡ e ▤, o estado e o store `view` e os argumentos de `/tas
 visões nas seções anteriores são histórico. O painel sempre desenha o corte de `trimToWork`. O que
 sai do trabalho não se perde ("Ficam em '+N pedidos anteriores' (Recomendado)"): `Group.whole`, só no
 desenho, guarda todos os níveis 1, e a linha "+N pedidos anteriores" os desenha quando aberta, com os
-cartões e, por último, os cartões antigos sem origem. "Sessão inteira" fica só no tooltip.
+cartões e, por último, os cartões antigos sem origem. "Sessão inteira" fica só no tooltip
+(hoje: na linha do histórico e no texto alternativo, decisão de 2026-11-14).
 
 ## Pai fecha sem nada aberto embaixo (2026-11-04)
 

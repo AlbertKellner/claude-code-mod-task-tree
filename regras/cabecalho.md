@@ -79,13 +79,14 @@ Os pedidos fora do trabalho viram "+N pedidos anteriores".
 
 - Dado pedidos fora do trabalho atual, sem nada aberto
 - Quando o painel é desenhado
-- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, só no texto alternativo da barra do cabeçalho); no máximo três pedidos sem nada aberto ficam desenhados; um pedido anterior com algo aberto fica desenhado inteiro, com os níveis 1 já concluídos, e não entra na conta de "+N pedidos anteriores"; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
+- Então eles viram uma linha "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista (a sessão inteira, na própria linha "+N pedidos anteriores" e no texto alternativo da barra: cabecalho.sessao-inteira-na-linha-do-historico); no máximo três pedidos sem nada aberto ficam desenhados; um pedido anterior com algo aberto fica desenhado inteiro, com os níveis 1 já concluídos, e não entra na conta de "+N pedidos anteriores"; um cartão vivo de um pedido cortado é desenhado solto no fim (sessoes.cartao-vivo-nunca-some)
 
 Origem: commit 4edb3f2, 2026-10-21 (o desenho de 1,6 MB que o app parou de mostrar).
 Reescrito: 2026-11-03, decisão do usuário ("Cartão vivo solto no fim (Recomendado)"): o cartão vivo de um pedido cortado não some.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o total da sessão inteira vai no texto alternativo da barra, não num tooltip.
 Reescrito: 2026-11-14, texto: o pedido anterior com algo aberto é desenhado inteiro e não é contado em "+N" (auditoria 2026-11-10); aplica a decisão de 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"), sem mudar a regra. Os testes deste cenário não mudam.
+Reescrito: 2026-11-14, decisão do usuário ("Na linha +N (Recomendado)"): o total da sessão inteira aparece na linha "+N pedidos anteriores". Os testes deste cenário não mudam.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos
@@ -180,4 +181,15 @@ O status "Tarefas d/n" embaixo da caixa de mensagem conta o mesmo que a sessão 
 
 Origem: auditoria 2026-11-10 (o status somava sem repartir as rodadas nem tirar a filha encerrada); aplica sessoes.filha-parada-com-origem-fechada-sai-da-contagem e sessoes.rodada-descartada-fora-da-contagem, sem mudar nenhuma regra.
 Código: hooks/panel.ts
+Estado: coberto
+
+### cabecalho.sessao-inteira-na-linha-do-historico
+Com pedidos escondidos, a linha "+N pedidos anteriores" diz o total da sessão inteira.
+
+- Dado pedidos em "+N pedidos anteriores", com o cabeçalho contando só o que está à vista
+- Quando o painel é desenhado, no app desktop e no terminal
+- Então a linha "+N pedidos anteriores" traz, à direita, "sessão inteira: a de b"; só quando esse total difere do mostrado no cabeçalho; a linha de dentro de um cartão de filha não o traz
+
+Origem: decisão do usuário, 2026-11-14 ("Na linha +N (Recomendado)"), à pergunta "Quer ver esse total no app?" (no app desktop o total só existia no texto alternativo da barra).
+Código: hooks/render.tsx, draw/desktop.tsx
 Estado: coberto

@@ -171,6 +171,7 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 - desenho nativo: guias em caixas finas, contínuas entre as linhas, dentro e fora dos cartões e na
   faixa ao lado deles, alinhadas com os ícones e visíveis nos dois temas; corte do título no fim;
   alturas do título e do percentual do cabeçalho; a faixa de 1 coluna do cabeçalho; pílulas com borda;
+  o total da sessão inteira na linha "+N pedidos anteriores";
   cores cruas (`rgba(...)`) e as chaves de tema nos dois temas; o fundo e a borda do cartão e do
   cabeçalho destacados do painel, e o cartão dentro de cartão um degrau igual além do de fora, a cada
   nível, nos dois temas; a altura das linhas com o texto no meio; o respiro dos cartões nos quatro

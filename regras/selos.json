@@ -122,6 +122,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::aberta a linha, com tudo desenhado, ela não repete o total": {
+      "regras": [
+        "cabecalho.sessao-inteira-na-linha-do-historico"
+      ],
+      "hash": "0adc05a44bf54d15",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Na linha +N (Recomendado)"
+    },
     "task-tree/tests/cabecalho.test.ts::com \"+N pedidos anteriores\" aberto, o corte das 400 linhas deixa a linha à vista, logo depois de \"+N linhas anteriores\"": {
       "regras": [
         "cabecalho.corte-preserva-historico-aberto"
@@ -161,6 +171,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/cabecalho.test.ts::com pedidos escondidos, a linha '+N pedidos anteriores' diz o total da sessão inteira": {
+      "regras": [
+        "cabecalho.sessao-inteira-na-linha-do-historico"
+      ],
+      "hash": "70679a6b8d3e22a3",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Na linha +N (Recomendado)"
     },
     "task-tree/tests/cabecalho.test.ts::dois starts no mesmo instante: o título é o do último da lista do start": {
       "regras": [

@@ -212,7 +212,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   const { value: sessionsError = '' } = await $.state.get(childrenErrorState)
   // Every send of this session, queued and taken up (see watchSends): their letters.
   const { value: sends = [] } = await $.state.get(sendsState)
-  // The whole session's count, for the header's tooltip; the header itself counts what the
+  // The whole session's count, for the bar's alt text and the "+N pedidos anteriores" line; the header itself counts what the
   // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
   // What the person stopped and was not started again is out of it too, as in the drawing, and so is
@@ -271,7 +271,8 @@ export async function render($: EngineInterface, e: any, next: any) {
   const head = short ? clip(headTask?.title ?? 'Tarefas') : (headTask?.title ?? 'Tarefas')
   // The header counts, times and chips what the view draws: the tasks the drawn lines stand
   // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
-  // group limit, the drawn groups'. The whole session's count stays in the tooltip.
+  // group limit, the drawn groups'. The whole session's count goes in the bar's alt text and the
+  // "+N pedidos anteriores" line.
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
   const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
@@ -286,6 +287,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   const resting = open.filter(leftWaiting).length
   const pending = open.length - active - resting
   const whole = ad !== d || an !== n ? `sessão inteira: ${ad} de ${an}` : ''
+  // The main panel's "+N pedidos anteriores" line says it too, on its right (the person, 2026-11-14:
+  // "Na linha +N (Recomendado)"): only there and only when it differs; a card's history line does not
+  // (the count is this session's). Its title stays as it is.
+  const rows = whole ? lines.map(r => (r.key === 'sec:turns' ? { ...r, meta: whole } : r)) : lines
   const waitingNow = tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting
   const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent' && r.msg === 'queued'), pending, lines.reduce((a, r) => a + (r.subs ?? 0), 0))
   // The header's general state, the color of its band (headerState).
@@ -306,7 +311,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ...list.map(c => c.text),
           ].join(', ')) + `, estado geral: ${state.word}` + (whole ? `; ${whole}` : '')
     const top = desktopHead(ui, { title: head, d, n, chips: list, time: headTime, rate: headRate, git: headGit, state, ultracode: ultracode === true, alt, whole, cols })
-    return drawDesktop($, ui, lines, cols, top, { errorLine })
+    return drawDesktop($, ui, rows, cols, top, { errorLine })
   }
 
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
@@ -337,7 +342,7 @@ export async function render($: EngineInterface, e: any, next: any) {
             ))}
           </Text>,
         ]
-  return drawTerminal($, ui, lines, header, errorLine)
+  return drawTerminal($, ui, rows, header, errorLine)
   }
   // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
   // long session's history, 1.3 MB). A drawing past it is made again with fewer lines, the oldest

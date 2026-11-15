@@ -4,7 +4,7 @@ import { aviso } from './kit/cenario'
 import { fixar, host, responderEnvio } from './kit/ambiente'
 import { done, envio, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { comHistorico, cabecalho, emTexto, esperarEstado, montar, noApp, painel } from './kit/leitura'
-import { linha, linhaDoApp, montarNoApp } from './kit/leitura'
+import { emTextoDoApp, linha, linhaDoApp, montarNoApp } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }, { id: 'b2', title: 'b2' }] }]
@@ -168,6 +168,43 @@ test('só os três últimos pedidos aparecem na completa; os outros viram "+N pe
   const c = cabecalho(p)
   expect([c.feitas, c.total], emTexto(p)).toEqual([1, 1])
   expect(c.inteira, emTexto(p)).toEqual({ feitas: 5, total: 5 })
+})
+
+// Cinco pedidos concluídos, um por turno: o painel mostra o último e "+4 pedidos anteriores".
+const cincoPedidos = async ($: any, relogio: any) => {
+  for (let i = 1; i <= 5; i++) {
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+    await relogio.advance(1000)
+  }
+}
+
+// Regra: cabecalho.sessao-inteira-na-linha-do-historico
+test("com pedidos escondidos, a linha '+N pedidos anteriores' diz o total da sessão inteira", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await cincoPedidos($, relogio)
+  const p = await painel($)
+  const l = linha(p, '+4 pedidos anteriores')
+  expect(l.titulo, emTexto(p)).toBe('+4 pedidos anteriores')
+  expect(l.texto, emTexto(p)).toContain('sessão inteira: 5 de 5')
+  const d = await noApp($)
+  expect(linhaDoApp(d, '+4 pedidos anteriores').texto, emTextoDoApp(d)).toContain('sessão inteira: 5 de 5')
+})
+
+// Regra: cabecalho.sessao-inteira-na-linha-do-historico
+test('aberta a linha, com tudo desenhado, ela não repete o total', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await cincoPedidos($, relogio)
+  const m = await montar($)
+  await m.recolher('+4 pedidos anteriores')
+  const p = await m.linhas()
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([5, 5])
+  expect(linha(p, '+4 pedidos anteriores').texto, emTexto(p)).not.toContain('sessão inteira')
+  await m.fim()
 })
 
 // Regra: cabecalho.limite-de-cartoes-antigos
