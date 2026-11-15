@@ -27,11 +27,12 @@ Estado: coberto
 ### arvore.start-recusa-pai-concluido
 start num pai concluído é recusado.
 
-- Dado um pai ✓ com filhas
+- Dado um pai ✓ com filhas (as filhas ✓ ou ✕)
 - Quando o modelo chama start nele
-- Então a resposta recusa e manda replanejar o nível 1, e nada muda no painel
+- Então a resposta recusa, diz que ela já foi concluída (o pai fechado é ✓ no painel, também com as filhas ✕) e os dois caminhos (start nas subtarefas a refazer, que reabre os pais, ou replanejar com ids novos), e nada muda no painel
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e); texto da recusa completado na auditoria de 2026-11-10.
+Código: text/rules.ts
 Estado: coberto
 
 ### arvore.start-no-pai-inicia-a-primeira-subtarefa

@@ -6,11 +6,13 @@
 // strings; the hooks module imports them. The tests read them by their effect (tests/lembretes.test.ts
 // and the others), not letter by letter.
 
-// The ↩ line says the answer in at most BRIEF characters (done's `summary`, else the first
-// sentence of the answer; see brief in the hooks).
+// The ↩ line says the answer in at most BRIEF characters: it is done's `summary`, and a request with
+// none has no ↩ line (see brief in the hooks).
 export const BRIEF = 120
 const LIMIT = `até ${BRIEF} caracteres`
 const EXAMPLE = '(ex.: "Commit 946f653 no PR #5; 151 testes ok")'
+// How to redo a closed parent, said the same in the rules, in start's description and in its refusal.
+const REDO_PARENT = 'para refazer um pai concluído, chame start nas subtarefas a refazer (isso reabre os pais), ou replaneje com ids novos'
 
 // The panel's rules, added to the system prompt of every request that offers its tools,
 // so the mod behaves the same on any machine with nothing in CLAUDE.md.
@@ -37,8 +39,8 @@ export const RULES = [
     '`cancel`, no mcp__task-tree__done. Ela fica ✕ interrompida no painel, fora da contagem. `ids` é só para o ' +
     'que foi de fato concluído.',
   `- No done do último passo do pedido, passe em \`summary\` um resumo da resposta em ${LIMIT} ` +
-    '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel, com a resposta ' +
-    'inteira no tooltip. Sem ele, o painel usa a primeira frase da resposta.',
+    '(ex.: "Cartões na raiz: causa na recarga; correção enviada"): é a linha ↩ do painel. ' +
+    'Sem ele, o pedido fica sem linha ↩.',
   '- Para replanejar dentro da mesma mensagem do usuário, chame plan de novo com o nível 1 inteiro. Um nível 1 ' +
     'aberto com o mesmo id é substituído no mesmo lugar da lista, e as tarefas que mantêm o id guardam o estado ' +
     '(concluída segue concluída, em andamento segue em andamento); só as novas entram pendentes. Isso vale só ' +
@@ -50,8 +52,8 @@ export const RULES = [
     'seguinte: não há pedido novo no painel, e o replano do nível 1 em curso guarda o estado. Um nível 1 já concluído, ' +
     'replanejado na mesma mensagem com o mesmo id, reabre: os passos que mantêm o id seguem concluídos e só os ' +
     'novos entram pendentes; para refazer um passo concluído, dê a ele um id novo. Numa mensagem seguinte, o ' +
-    'nível 1 concluído fica como histórico e o plano com o mesmo id entra todo pendente. start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta dela. start só reabre tarefas sem subtarefas; para refazer um pai concluído, ' +
-    'replaneje o nível 1 com ids novos para o que deve ser refeito.',
+    'nível 1 concluído fica como histórico e o plano com o mesmo id entra todo pendente. start numa tarefa aberta com subtarefas inicia a primeira subtarefa aberta dela. start só reabre tarefas sem subtarefas; ' +
+    `${REDO_PARENT}.`,
   '- Uma tarefa em andamento quando o usuário para o turno (Esc) fica interrompida no painel até um novo ' +
     'mcp__task-tree__start nela. Nada mais a reacende: nem a mensagem seguinte, nem o start em outra tarefa, ' +
     'nem um turno aberto por aviso automático, por retorno de subagente ou por tarefa em segundo plano que ' +
@@ -70,8 +72,11 @@ export const RULES = [
   '- Respondido um AskUserQuestion, além do done da tarefa da pergunta, planeje as próximas tarefas: chame ' +
     'mcp__task-tree__plan com o que a resposta definiu (o rumo escolhido, os itens confirmados), na ordem ' +
     'em que vai executar, e só então siga com start e done.',
-  '- Subagentes que usam o painel ganham um grupo próprio, mostrado embaixo da tarefa em que foram ' +
-    'lançados. Cada agente só mexe no próprio grupo; o que ele deixar aberto ao terminar vira interrompido.',
+  '- Cada subagente lançado (Agent) aparece como um cartão embaixo da tarefa em andamento no lançamento, com ' +
+    'o estado dele; as tarefas que ele planejar ficam dentro do cartão. Cada agente só mexe no próprio grupo; o ' +
+    'que ele deixar aberto ao terminar vira interrompido. Quando todos os subagentes lançados de uma tarefa ' +
+    'terminam e o turno acaba, o painel fecha a tarefa sozinho: concluída se todos concluíram, interrompida se ' +
+    'algum falhou ou foi parado; para refazê-la, chame start nela.',
   '- Planeje antes de delegar: num pedido novo, chame mcp__task-tree__plan e marque com start a tarefa antes ' +
     'de mandar mensagem a outra sessão (SendMessage), abrir sessão (start_session) ou lançar subagente (Agent). ' +
     'O que for criado antes do plan do pedido fica solto no fim do painel, e o primeiro plan do pedido o ' +
@@ -113,13 +118,19 @@ export const TOOLS = {
     'Ficam interrompidas (✕) no painel, fora da contagem, sem contar como concluídas. Não use ids para elas.',
   summary:
     `Resumo curto da resposta deste turno, em ${LIMIT} (o que mudou e o resultado), tipo manchete ` +
-    `${EXAMPLE}. Vira a linha ↩ do painel; a resposta inteira fica no tooltip.`,
+    `${EXAMPLE}. É a linha ↩ do painel; sem ele, o pedido fica sem linha ↩.`,
   start:
     'Marca tarefas do painel como em andamento (destacadas em amarelo) ao começar cada uma. ' +
     'Várias podem estar em andamento; sem nenhuma marcada, nenhuma tarefa aparece em andamento. ' +
     'Numa tarefa aberta com subtarefas, inicia a primeira subtarefa aberta dela; as seguintes não acendem sozinhas: dê start em cada uma. ' +
     'Em uma tarefa concluída sem subtarefas, reabre a tarefa e os pais dela; ' +
-    'para refazer um pai concluído, replaneje o nível 1 com plan. Ids como no done.',
+    `${REDO_PARENT}. Ids como no done.`,
+}
+
+// The refusal of a start on a parent no longer open, and how to redo it. A closed parent is ✓ in the
+// panel whatever its leaves are (✓ or ✕), so the refusal says it is done, as the panel shows.
+export const START = {
+  closedParent: (id: string) => `"${id}" já foi concluída e tem subtarefas: ${REDO_PARENT}`,
 }
 
 // Every reminder and warning opens with this.

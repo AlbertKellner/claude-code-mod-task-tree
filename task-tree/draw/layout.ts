@@ -1304,7 +1304,7 @@ export const hiddenOf = (all: Row[], shown: Row[] = []): Tally | undefined => {
   return h.waits || h.sends || h.live || h.subs ? h : undefined
 }
 
-// With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
+// The placeholder a ↩ line with no summary once said (it is no longer drawn, see hasBrief): the
 // answer cut to the line's width summed nothing up (the person's words: "voce esta imprimindo o
 // texto integral cortado").
 export const REPLY = 'resposta'

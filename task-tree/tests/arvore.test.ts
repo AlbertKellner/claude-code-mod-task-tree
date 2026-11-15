@@ -1,8 +1,8 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import { cabecalho, emTexto as noTexto, painel as desenho } from './kit/leitura'
 import { subagente } from './kit/ambiente'
-import { fixar, lancaveis } from './kit/ambiente'
-import { cancelar, done, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { AGORA, fixar, lancaveis } from './kit/ambiente'
+import { cancelar, done, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { esperarEstado, linha, painel } from './kit/leitura'
 
 const ARVORE: No[] = [
@@ -221,4 +221,67 @@ test('cancelar um pai interrompe só o que estava aberto embaixo, e avisa o id j
   await start($, ['1.2.2'])
   p = await painel($)
   esperarEstado(p, 'Validar', 'andamento')
+})
+
+// Regra: arvore.start-recusa-pai-concluido
+test('a recusa do start num pai fechado diz o que o painel mostra e os dois caminhos', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido de teste')
+  await plan($, ARVORE)
+  for (const id of ['1.2.1', '1.2.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  const concluida = (await start($, ['1.2'])).texto
+  expect(concluida).toContain('já foi concluída e tem subtarefas')
+  expect(concluida).toContain('start nas subtarefas')
+  expect(concluida).toContain('ids novos')
+  // Um subagente planeja um pai com filhas e termina: as filhas abertas viram ✕ e o pai fecha ✓ (o pai
+  // sem nada aberto embaixo é ✓ no painel); a recusa diz o mesmo que o painel.
+  await start($, ['1.1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await plan($, [{ id: 'S', title: 'Do subagente', children: [{ id: 'S1', title: 'Sub um' }, { id: 'S2', title: 'Sub dois' }] }], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Do subagente', 'concluida')
+  esperarEstado(p, 'Sub um', 'interrompida')
+  const fechado = (await start($, ['S'], 'sub-1')).texto
+  expect(fechado).toContain('já foi concluída e tem subtarefas')
+  expect(fechado).toContain('start nas subtarefas')
+  expect(fechado).toContain('ids novos')
+})
+
+// Regra: arvore.start-recusa-pai-concluido
+test('as regras, a descrição do start e a recusa dizem o mesmo para refazer um pai', async ($: any, on: any) => {
+  // Como fixar, mas com o tool.register que guarda a descrição (fixar já o ocupa).
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('prompt.submit', (_$: any, e: any) => e)
+  on('turn.complete', () => ({ text: '' }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
+  on('prompt.compose', () => ({ sections: [] }))
+  const descricoes: Record<string, string> = {}
+  on('tool.register', (_$: any, e: any) => {
+    descricoes[String(e.name)] = String(e.description ?? '')
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  await pedido($, 'Pedido de teste')
+  await plan($, ARVORE)
+  for (const id of ['1.2.1', '1.2.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  const recusa = (await start($, ['1.2'])).texto
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  for (const texto of [regras, descricoes['start'] ?? '', recusa]) {
+    expect(texto).toContain('chame start nas subtarefas a refazer')
+    expect(texto).toContain('ids novos')
+  }
 })

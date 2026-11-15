@@ -4,7 +4,7 @@
 import { update } from 'claude-code'
 
 import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
-import { DONE } from '../text/rules'
+import { DONE, START } from '../text/rules'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
@@ -286,7 +286,7 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       // The send stays with the closed task: its ✉ is drawn until the session takes the message up
       // (watchSends), whatever the model did with the task. An id used again by a new plan renames the
       // old task and its send with it (renameAnchors), or drops both (a replanned task).
-      // The last step closed with no summary: the ↩ line would say only "resposta".
+      // The last step closed with no summary: the request would have no ↩ line.
       if ((await lastBrief($)) === undefined && closed.length > 0 && !hasOpen(groups.find(g => g.agent === MAIN)?.tasks ?? []))
         notes.push(DONE.noSummary)
     }
@@ -327,7 +327,7 @@ export async function startTool($: EngineInterface, e: any, next: any) {
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
           else if (hit.status !== 'open' && hit.children.length > 0) {
-            notes.push(`"${id}" já foi concluída e tem subtarefas: replaneje o nível 1 com plan`)
+            notes.push(START.closedParent(id))
           } else {
             // An open parent starts its first open leaf, in plan order; the next ones wait for their own start.
             const path = hit.children.length > 0 ? firstOpen(hit.children) : []

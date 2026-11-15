@@ -1,5 +1,25 @@
 {
   "testes": {
+    "task-tree/tests/arvore.test.ts::a recusa do start num pai fechado diz o que o painel mostra e os dois caminhos": {
+      "regras": [
+        "arvore.start-recusa-pai-concluido"
+      ],
+      "hash": "dd135a27401ffa65",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
+    },
+    "task-tree/tests/arvore.test.ts::as regras, a descrição do start e a recusa dizem o mesmo para refazer um pai": {
+      "regras": [
+        "arvore.start-recusa-pai-concluido"
+      ],
+      "hash": "8dba0e72c7e7fc0c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
+    },
     "task-tree/tests/arvore.test.ts::cancelar um pai interrompe só o que estava aberto embaixo, e avisa o id já fechado ou inexistente": {
       "regras": [
         "arvore.cancelar-tarefa-abandonada"
@@ -1696,6 +1716,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12 (\"Entra no pedido em curso (Recomendado)\"): a mensagem entregue no meio do turno continua o pedido em curso"
     },
+    "task-tree/tests/lembretes.test.ts::as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha": {
+      "regras": [
+        "lembretes.regra-dos-subagentes"
+      ],
+      "hash": "bc37fe6d5993dc75",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
+    },
     "task-tree/tests/lembretes.test.ts::as regras do painel entram no prompt de sistema quando as ferramentas dele estão disponíveis": {
       "regras": [
         "lembretes.regras-no-prompt-de-sistema"
@@ -1715,6 +1745,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-13 ('Acrescentar (Recomendado)'): frase da tarefa parada com Esc nos avisos e nas regras"
+    },
+    "task-tree/tests/lembretes.test.ts::as regras e a descrição do summary dizem que sem summary o pedido fica sem linha ↩": {
+      "regras": [
+        "lembretes.resumo-e-a-linha-de-resposta"
+      ],
+      "hash": "4ae42c530a8ed72a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: textos ao modelo iguais ao painel"
     },
     "task-tree/tests/lembretes.test.ts::as regras e o lembrete da mensagem seguinte dizem que a tarefa que aguardava só volta com start nela": {
       "regras": [

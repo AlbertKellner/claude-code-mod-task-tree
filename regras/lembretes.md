@@ -169,3 +169,24 @@ As regras do painel pedem o plan antes de mandar mensagem, abrir sessão ou lan�
 
 Origem: decisão do usuário, 2026-11-14 ("Sim, o plan adota (Recomendado)": "as regras pedem planejar antes de abrir sessão ou lançar subagente").
 Estado: coberto
+
+### lembretes.resumo-e-a-linha-de-resposta
+Os textos ao modelo dizem que a linha ↩ é o summary do done, e que sem ele não há linha ↩.
+
+- Dado as regras do painel e a descrição do summary do done
+- Quando o modelo os lê
+- Então eles dizem que o summary é a linha ↩ do painel e que, sem ele, o pedido fica sem linha ↩; não prometem tooltip nem resumo tirado da resposta
+
+Origem: auditoria 2026-11-10 (os textos prometiam tooltip e a primeira frase da resposta); aplica visual.tooltip (2026-11-09) e turnos.resumo-sem-resposta-final.
+Código: hooks/session-start.ts
+Estado: coberto
+
+### lembretes.regra-dos-subagentes
+As regras do painel descrevem o cartão do subagente e o fechamento da tarefa pelos subagentes.
+
+- Dado as regras do painel no prompt de sistema
+- Quando o modelo as lê
+- Então elas dizem que cada subagente lançado tem um cartão sob a tarefa do lançamento, que o que ele deixa aberto vira interrompido, que a tarefa fecha sozinha quando todos terminam e o turno acaba (concluída, ou interrompida se algum falhou ou foi parado) e que o start nela a reabre
+
+Origem: auditoria 2026-11-10 (a regra dizia só "ganham um grupo próprio"); aplica subagentes.cartao-desde-o-lancamento, subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09).
+Estado: coberto

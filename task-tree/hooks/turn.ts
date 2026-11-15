@@ -28,8 +28,8 @@ const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 
 // The ↩ line says the answer in at most BRIEF characters (the text module's, cited in every text
-// that names the limit): the summary the session gave, else the first sentence of the answer;
-// longer, cut at a word with "…". The whole answer stays in the tooltip.
+// that names the limit): the summary the session gave (with none, the request has no ↩ line);
+// longer, cut at a word with "…".
 export function brief(text: string): string {
   const one = text.replace(/\s+/g, ' ').trim()
   if (one.length <= BRIEF) return one
@@ -154,7 +154,7 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
     const said = (recap ?? e.answer ?? '').replace(/\s+/g, ' ').trim().slice(0, 600)
     const short = given !== undefined ? brief(given) : undefined
     // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
-    // (the model stopped right after a tool), the answer in its tooltip only when there is one.
+    // (the model stopped right after a tool).
     if (said !== '' || short !== undefined) {
       await change($, all =>
         all.map(g => {

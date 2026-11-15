@@ -51,7 +51,7 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
   const kind = e.tool === 'AskUserQuestion' ? 'question' : e.tool === 'ExitPlanMode' ? 'plan' : undefined
   if (!kind) return undefined
   // A question belongs to the task in progress it asks about: the main loop asking with none open
-  // is refused (ExitPlanMode is let through: plan mode may hold the panel's tools).
+  // is refused (ExitPlanMode is let through, as first designed: it is not that plan mode holds the panel's tools).
   if (kind === 'question' && agent === MAIN) {
     const { value = [] } = await $.state.get(groupsState)
     if (!hasOpen(value.find((g: Group) => g.agent === MAIN)?.tasks ?? [])) {

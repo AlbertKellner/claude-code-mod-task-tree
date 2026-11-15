@@ -464,3 +464,43 @@ test('as regras pedem o plan antes de mandar mensagem, abrir sessão ou lançar 
   expect(regras).toContain('Planeje antes de delegar')
   expect(regras).toContain('o primeiro plan do pedido o adota')
 })
+
+// As regras do prompt de sistema e o que o tool.register recebeu (descrição e inputSchema de cada ferramenta).
+async function textosAoModelo($: any, on: any) {
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('prompt.compose', () => ({ sections: [] }))
+  const ferramentas: Record<string, any> = {}
+  on('tool.register', (_$: any, e: any) => {
+    ferramentas[String(e.name)] = e
+    return { value: {} }
+  })
+  await iniciarSessao($)
+  const COMPOR = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: [], outputStyle: null, traits: [] }
+  const com = await $.prompt.compose({ ...COMPOR, tools: ['mcp__task-tree__plan'] })
+  const regras = String((com?.sections ?? []).find((s: any) => s.id === 'task-tree:regras')?.text ?? '')
+  return { regras, ferramentas }
+}
+
+// Regra: lembretes.resumo-e-a-linha-de-resposta
+test('as regras e a descrição do summary dizem que sem summary o pedido fica sem linha ↩', async ($: any, on: any) => {
+  const { regras, ferramentas } = await textosAoModelo($, on)
+  const summary = String(ferramentas['done']?.inputSchema?.properties?.summary?.description ?? '')
+  for (const texto of [regras, summary]) {
+    expect(texto).toContain('sem linha ↩')
+    expect(texto).not.toContain('tooltip')
+    expect(texto).not.toContain('primeira frase')
+  }
+})
+
+// Regra: lembretes.regra-dos-subagentes
+test('as regras dizem que o subagente tem cartão desde o lançamento e que a tarefa fecha sozinha', async ($: any, on: any) => {
+  const { regras } = await textosAoModelo($, on)
+  expect(regras).toContain('aparece como um cartão')
+  expect(regras).toContain('fecha a tarefa sozinho')
+  expect(regras).toContain('chame start nela')
+  expect(regras).not.toContain('Subagentes que usam o painel')
+})
