@@ -2369,6 +2369,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: espera sob a tarefa pendente"
     },
+    "task-tree/tests/perguntas.test.ts::depois do plan do pedido novo, a pergunta passa": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "a4c26fda494d2dcf",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
+    },
     "task-tree/tests/perguntas.test.ts::mensagem entregue no meio do turno não tira a espera da pergunta nem a do plano ainda abertas": {
       "regras": [
         "perguntas.mensagem-no-meio-do-turno-mantem-espera"
@@ -2378,6 +2388,16 @@
       "tipo": "novo",
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10: a mensagem entregue no meio do turno derrubava a pergunta ou o plano ainda abertos"
+    },
+    "task-tree/tests/perguntas.test.ts::no pedido novo sem plano, um passo pendente do pedido anterior não libera a pergunta": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "af3473ed9dd3c862",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
     },
     "task-tree/tests/perguntas.test.ts::o fim do turno tira o aviso de permissão que sobrou": {
       "regras": [
@@ -2448,6 +2468,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/perguntas.test.ts::uma tarefa em andamento de um pedido anterior libera a pergunta": {
+      "regras": [
+        "perguntas.sem-tarefa-recusada"
+      ],
+      "hash": "72454bbb95f622b9",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
     },
     "task-tree/tests/sessoes.test.ts::a cadeia de irmãs fica na sequência, sob a tarefa da mãe, sem cartão dentro de cartão": {
       "regras": [

@@ -5,13 +5,15 @@ As esperas de pergunta, plano e escolha.
 Código da área: hooks/tool-call.ts, hooks/panel.ts, draw/layout.ts
 
 ### perguntas.sem-tarefa-recusada
-A pergunta sem tarefa aberta é recusada.
+A pergunta sem tarefa aberta do pedido atual, nem tarefa em andamento, é recusada.
 
-- Dado nenhuma tarefa aberta
+- Dado nenhuma tarefa aberta do pedido atual e nenhuma tarefa em andamento (uma tarefa só pendente de um pedido anterior não conta; uma dele reaberta com start conta)
 - Quando o modelo chama AskUserQuestion
-- Então a chamada é recusada e o painel não mostra espera
+- Então a chamada é recusada, com o pedido de planejar ou dar start antes, e o painel não mostra espera; o ExitPlanMode e a escolha do wrap_up não são recusados
 
 Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Código: text/rules.ts
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Não (Recomendado)"): um passo ○ de um pedido anterior não libera a pergunta de um pedido novo.
 Estado: coberto
 
 ### perguntas.espera-sob-a-tarefa

@@ -49,11 +49,15 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
   const { agent, e } = c
   const kind = e.tool === 'AskUserQuestion' ? 'question' : e.tool === 'ExitPlanMode' ? 'plan' : undefined
   if (!kind) return undefined
-  // A question belongs to the task in progress it asks about: the main loop asking with none open
-  // is refused (ExitPlanMode is let through, as first designed: it is not that plan mode holds the panel's tools).
+  // A question belongs to a task of the request it is asked in: the main loop asking with no open
+  // task of the current request (requestTasks; a panel with no turns kept, any open task) and none
+  // in progress, of any request, is refused. A task only pending from an earlier request does not
+  // let it through (the person, 2026-11-14: "Não (Recomendado)"). ExitPlanMode and the wrap_up's
+  // choice are let through, as first designed: it is not that plan mode holds the panel's tools.
   if (kind === 'question' && agent === MAIN) {
     const { value = [] } = await $.state.get(groupsState)
-    if (!hasOpen(value.find((g: Group) => g.agent === MAIN)?.tasks ?? [])) {
+    const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+    if (!hasOpen(requestTasks(value as Group[])) && current(all).anchor === undefined) {
       return { deny: ASK.refused }
     }
   }

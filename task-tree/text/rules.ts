@@ -65,7 +65,7 @@ export const RULES = [
   '- Não crie plano retroativo para trabalho já feito: se perceber que começou sem plano, planeje o que falta.',
   '- Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a tarefa a ' +
     'que a pergunta pertence e feche-a só depois da resposta; se a resposta vier pelo chat, feche-a no ' +
-    'início do turno seguinte. AskUserQuestion sem tarefa aberta é recusado.',
+    'início do turno seguinte. AskUserQuestion sem tarefa aberta do pedido atual, nem tarefa em andamento, é recusado.',
   '- Depois que o usuário responder uma pergunta ou aprovar um plano, atualize o painel (done, start ou ' +
     'plan) antes de seguir. Se ele responder por mensagem no chat em vez de escolher uma opção, a mensagem ' +
     'é a resposta.',
@@ -230,12 +230,12 @@ export const PROMPT = {
     'por etapa com start e done.',
 }
 
-// A question (AskUserQuestion) or a plan to approve: refused with no open task; answered, by an
+// A question (AskUserQuestion) or a plan to approve: refused with no open task of the request and none in progress; answered, by an
 // option or by a message still to come.
 export const ASK = {
   refused:
-    PANEL + 'não há tarefa aberta no painel, e uma pergunta sempre fica sob ' +
-    'uma tarefa em andamento. Abra (mcp__task-tree__plan) ou reabra (mcp__task-tree__start) a tarefa ' +
+    PANEL + 'não há tarefa aberta deste pedido no painel, nem tarefa em andamento, e uma pergunta ' +
+    'sempre fica sob uma tarefa do pedido. Abra (mcp__task-tree__plan) ou reabra (mcp__task-tree__start) a tarefa ' +
     'a que esta pergunta pertence e pergunte de novo; feche-a só depois da resposta.',
   inChat:
     PANEL + 'o usuário vai responder por mensagem no chat, e a mensagem ' +

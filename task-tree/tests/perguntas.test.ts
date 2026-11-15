@@ -19,6 +19,62 @@ test('sem tarefa aberta, a pergunta é recusada', async ($: any, on: any) => {
   expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
 })
 
+// Regra: perguntas.sem-tarefa-recusada
+test('no pedido novo sem plano, um passo pendente do pedido anterior não libera a pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  const r = await ferramenta($, 'AskUserQuestion', PERGUNTA)
+  expect(r.erro).toBe(true)
+  expect(r.texto).toContain('deste pedido')
+  const p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.sem-tarefa-recusada
+test('uma tarefa em andamento de um pedido anterior libera a pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  esperarEstado(p, 'Um', 'andamento')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Um')) + 1)
+  await relogio.advance(1000)
+  expect((await resp).erro).toBe(false)
+})
+
+// Regra: perguntas.sem-tarefa-recusada
+test('depois do plan do pedido novo, a pergunta passa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B' }])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  await relogio.advance(1000)
+  expect((await resp).erro).toBe(false)
+})
+
 // Regra: perguntas.espera-sob-a-tarefa
 test('com a pergunta aberta, aparece a espera sob a tarefa, que segue em andamento', async ($: any, on: any) => {
   const { relogio } = fixar(on)
