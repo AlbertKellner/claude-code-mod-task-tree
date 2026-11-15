@@ -1063,6 +1063,38 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
+    "task-tree/tests/envios.test.ts::a carta já entregue de uma tarefa que fechou ✕ pelo subagente que falhou segue verde": {
+      "regras": [
+        "envios.cor-por-estado"
+      ],
+      "hash": "366cae47a78c9bd3",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a carta entregue segue verde no cartão parado e na tarefa ✕ pelo subagente"
+    },
+    "task-tree/tests/envios.test.ts::a carta na fila cuja tarefa saiu num replano não pende de outro pedido quando o dela está em '+N pedidos anteriores'": {
+      "regras": [
+        "envios.carta-uma-vez-no-cartao-da-origem",
+        "pedidos.replano-mantem-envio-ate-entrega"
+      ],
+      "hash": "d3105f0464720cf8",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "cada carta uma vez, no cartão e no pedido da origem"
+    },
+    "task-tree/tests/envios.test.ts::a carta na fila cuja tarefa saiu num replano segue no pedido dela, que fica à vista com o pedido novo": {
+      "regras": [
+        "envios.carta-uma-vez-no-cartao-da-origem",
+        "pedidos.replano-mantem-envio-ate-entrega"
+      ],
+      "hash": "400e940fe5ca51e9",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "cada carta uma vez, no cartão e no pedido da origem"
+    },
     "task-tree/tests/envios.test.ts::a carta para um subagente parado com Esc antes de recebê-la fica cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez; a tarefa fica interrompida": {
       "regras": [
         "envios.subagente-parado-nao-entregue"
@@ -2153,6 +2185,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a carta da filha com dois cartões aparece uma vez, no cartão da tarefa de origem": {
+      "regras": [
+        "envios.carta-uma-vez-no-cartao-da-origem"
+      ],
+      "hash": "b1be18a137e0901d",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "cada carta uma vez, no cartão e no pedido da origem"
+    },
     "task-tree/tests/sessoes.test.ts::a filha arquivada cujo pedido saiu do trabalho vira uma linha com nome e contagem": {
       "regras": [
         "sessoes.arquivada-antiga-vira-linha"
@@ -2571,6 +2613,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::no cartão da filha parada com Esc, a carta já entregue segue verde": {
+      "regras": [
+        "envios.esc-apos-entrega-imediata"
+      ],
+      "hash": "460e71748b5ce689",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a carta entregue segue verde no cartão parado e na tarefa ✕ pelo subagente"
     },
     "task-tree/tests/sessoes.test.ts::no cartão da filha parada, a tarefa que aguardava mostra o tempo até o fim do turno dela": {
       "regras": [

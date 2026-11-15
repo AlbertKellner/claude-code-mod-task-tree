@@ -215,6 +215,75 @@ test('a tarefa de mensagem que o replano tira fica visível até a entrega', asy
   esperarCartaSob(p, 'Plano A', 'entregue')
 })
 
+// Regra: envios.carta-uma-vez-no-cartao-da-origem, pedidos.replano-mantem-envio-ate-entrega
+test('a carta na fila cuja tarefa saiu num replano segue no pedido dela, que fica à vista com o pedido novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await plan($, [{ ...A[0]!, children: [A[0]!.children![1]!] }])
+  await start($, ['2'])
+  await done($, ['2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(true)
+  esperarCartaSob(p, 'Plano A', 'fila')
+  expect(cartasDe(p, 'Plano B'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.carta-uma-vez-no-cartao-da-origem, pedidos.replano-mantem-envio-ate-entrega
+test("a carta na fila cuja tarefa saiu num replano não pende de outro pedido quando o dela está em '+N pedidos anteriores'", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_s')
+  await plan($, [{ ...A[0]!, children: [A[0]!.children![1]!] }])
+  await start($, ['2'])
+  await done($, ['2'])
+  await fimDoTurno($)
+  for (const n of ['B', 'C', 'D', 'E']) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${n}`)
+    await plan($, [{ id: n, title: `Plano ${n}`, children: [{ id: `${n}1`, title: `${n} um` }] }])
+    await start($, [`${n}1`])
+    await done($, [`${n}1`])
+    await fimDoTurno($)
+  }
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo.startsWith('+') && l.titulo.includes('pedidos anteriores')), emTexto(p)).toBe(true)
+  for (const n of ['C', 'D', 'E']) expect(cartasDe(p, `Plano ${n}`), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.cor-por-estado
+test('a carta já entregue de uma tarefa que fechou ✕ pelo subagente que falhou segue verde', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['f1'])
+  host(on, [{ id: 'local_x', rodando: false }])
+  const env = responderEnvio(on)
+  env.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await lancar($, { descricao: 'tentar' })
+  await fimDoSubagenteCom($, 'f1', { erro: true })
+  await fimDoTurno($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+  esperarCartaSob(p, 'Um', 'entregue')
+})
+
 // Regra: envios.entrega-imediata-fica-verde
 test('a entrega imediata aparece entregue na hora e a tarefa segue em andamento até o done', async ($: any, on: any) => {
   fixar(on)

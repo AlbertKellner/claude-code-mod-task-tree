@@ -319,6 +319,12 @@ export function resolveAnchor(owner: TaskNode[], anchor: string | undefined, at:
   return last?.id ?? anchor
 }
 
+// A task a new plan interrupted: the old copy the plan renamed (`tag:id`, see planTool), the only
+// interruption that renames. A letter of it was dropped before its delivery (gray); one of a task
+// closed ✕ otherwise (a subagent's end, a stopped or archived session's read) keeps its color.
+export const byPlan = (t: TaskNode) => t.status === 'interrupted' && t.id.includes(':')
+export const planCut = (groups: Group[]) => new Set(flat(withMain(groups).find(g => g.agent === MAIN)?.tasks ?? []).filter(byPlan).map(t => t.id))
+
 // Each session's breaks once per list of sisters (one drawing): the chain follows a sister's own
 // breaks for every message it sent, and sisters message each other in a ring (implementation →
 // docs → SVG → governance → implementation). Recomputed per message, with up to 20 kept each, that
@@ -558,6 +564,16 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
   const briefPart = new Map(
     turns.filter(u => hasBrief(u) && !main.tasks.some(t => t.turn === u.id)).map(u => [u.id, cardParts.includes(turnPart(u.id)) ? turnPart(u.id) : lead] as const),
   )
+  // Its messages, each to one card (they went to every card, and a letter came out once per round):
+  // the card of the task it went from; with none, the card of the turn it was sent in (the last turn
+  // begun by then); else the leading one.
+  const sendPart = (x: Send) => {
+    const k = x.anchor !== undefined ? partOfTask.get(x.anchor) : undefined
+    if (k !== undefined) return k
+    const sentIn = [...turns].filter(u => typeof u.at === 'number' && x.at !== undefined && u.at <= x.at).sort((a, b) => (a.at as number) - (b.at as number)).pop()
+    const t = sentIn === undefined ? undefined : turnPart(sentIn.id)
+    return t !== undefined && cardParts.includes(t) ? t : lead
+  }
   return cardParts.map(k => {
     const tasks = tasksIn(k)
     const ids = new Set(tasks.map(t => t.id))
@@ -591,6 +607,7 @@ function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: Ta
           .filter(g => g.agent === MAIN || ownerOf(g.agent) === k),
         waits: (p.waits ?? []).filter(w => ownerOf(w.agent) === k),
         children: (p.children ?? []).filter(s => holder(s.anchor) === k),
+        ...(p.sends ? { sends: p.sends.filter(x => sendPart(x) === k) } : {}),
         ...(p.work ? { work: p.work.filter(id => ids.has(id)) } : {}),
       },
     }
@@ -939,6 +956,12 @@ export function openInSight(p: Panel, ids: string[], sends: { to?: string; ancho
   if (hasOpen(seen)) return true
   const all = flat(seen).map(t => t.id)
   if (sends.some(s => !s.taken && !s.cut && s.anchor !== undefined && all.includes(s.anchor))) return true
+  // A letter still queued whose task left the plan (a replan) hangs from the request it was sent in
+  // (panel's levelOne): sent in one of these requests, it holds them in sight too, as one with its task.
+  const every = flat(tasks).map(t => t.id)
+  const sentIn = (at?: number) =>
+    at === undefined ? undefined : [...(main?.turns ?? [])].filter(u => typeof u.at === 'number' && u.at <= at).sort((a, b) => (a.at as number) - (b.at as number)).pop()?.id
+  if (sends.some(s => !s.taken && !s.cut && (s.anchor === undefined || !every.includes(s.anchor)) && turns.includes(sentIn((s as { at?: number }).at) ?? NaN))) return true
   const anchors = (c: Child) => tiesOf(c, tasks)
   // A discarded round holds nothing in sight, as it keeps no card alive (alive); nor does a settled one.
   const holds = (c: Child) =>
@@ -1224,7 +1247,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   const queued = model.sends.filter(s => !s.taken && !s.cut)
   // The tasks interrupted by the plan itself (a new request, before any halt): a letter of them was
   // dropped before its delivery, gray.
-  const cutAt = new Set(flat(withMain(model.groups).find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'interrupted').map(t => t.id))
+  const cutAt = planCut(model.groups)
   const chosen = choices
   const work = model.work
   // The breaks of the sessions' cards, computed once per drawing (see breaks).
@@ -1485,9 +1508,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       .map(u => ({ key: `${scope}${cid}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
     // Its turn goes on while it runs (or is starting): the trail lights in its card then.
     const going = !c.archived && (live(c) || c.starting === true) ? lastTurnAt(rawPanel(c).groups ?? []) : undefined
-    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id, going), ...replies] : []
+    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id, going, c.archived === true), ...replies] : []
     // Whether a closed one has anything to open: its panel, drawn as it would be.
-    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id, going).length > 0) header.fold = { key, open: inner.length > 0 }
+    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id, going, c.archived === true).length > 0) header.fold = { key, open: inner.length > 0 }
     // A discarded round's lines stand for nothing in the header's count (discarded), ✓ ones included.
     const out = discarded(c)
     header.nodes = out || inner.length > 0 ? [] : allTasks(inCount(c), level + 1, c.id)
@@ -1501,13 +1524,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // left out. Done tasks stay in their place in the plan, closed.
   // `turnAt`: when the panel's turn going on began (this session's own: no model.ended; a card:
   // alive); none once it ended.
-  const panel = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number): Row[] => {
+  // `archived`: the card is of an archived session (its letters not taken up stay gray).
+  const panel = (p: Panel, base: number, level: number, scope: string, me?: string, turnAt?: number, archived = false): Row[] => {
     // The sends of this panel's main group still waiting to be taken up: this session's at the top,
     // what each session publishes in its card (its task shows ✉ too).
     const pending = level > 0 ? (p.sends ?? []).filter(x => !x.taken && !x.cut) : queued
     // Every send of this panel (taken ones too, the last 20): its letters.
     const mail = level > 0 ? (p.sends ?? []) : model.sends
-    const cutHere = level > 0 ? new Set(flat(withMain(p.groups ?? []).find(g => g.agent === MAIN)?.tasks ?? []).filter(t => t.status === 'interrupted').map(t => t.id)) : cutAt
+    // Gray only for a task a new plan interrupted (byPlan), as the session published it: the read of a
+    // stopped or archived session (panelOf) and a subagent's ✕ do not gray a letter already delivered.
+    const cutHere = level > 0 ? planCut(p.groups ?? []) : cutAt
     const groups = withMain(p.groups ?? [])
     const waits = p.waits ?? []
     // Archived sessions stay, as history, drawn gray with "arquivada".
@@ -1532,12 +1558,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // (a replan) hangs from the level-1 task of the request it was sent in. One sent in a request with
     // no task (before its first plan) hangs from none: drawn loose at the end (`strayMail`, below) until
     // the plan adopts it (the person, 2026-11-14: "Sim, o plan adota (Recomendado)").
+    // Its request not drawn (out of the work, in "+N pedidos anteriores"): it is drawn under no other
+    // request (it hung from the last level-1 task of the request drawn last); '' names no task, and it
+    // is not loose either. Only a panel with no requests (earlier formats) takes the last level-1 task.
     const levelOne = (s: Send): string | undefined => {
       const turns = (main.turns ?? []).filter(u => typeof u.at === 'number' && s.at !== undefined && (u.at as number) <= s.at)
       const turn = turns[turns.length - 1]?.id
-      const list = turn === undefined ? main.tasks : main.tasks.filter(t => t.turn === turn)
-      if (turn !== undefined && list.length === 0 && !everyTask.some(t => t.turn === turn)) return undefined
-      return (list[list.length - 1] ?? main.tasks[main.tasks.length - 1])?.id
+      if (turn === undefined) return main.tasks[main.tasks.length - 1]?.id
+      const list = main.tasks.filter(t => t.turn === turn)
+      if (list.length > 0) return list[list.length - 1]!.id
+      return everyTask.some(t => t.turn === turn) ? '' : undefined
     }
     const hostOf = (s: Send) => (s.anchor !== undefined && allIds.includes(s.anchor) ? s.anchor : levelOne(s))
     const nameOf = (to: string) => {
@@ -1547,7 +1577,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       return named || (to.startsWith('local_') ? to.slice(6, 14) : to)
     }
     const letterRow = (s: Send, depth: number): Row => {
-          const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : 'queued'
+          const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : archived ? 'cut' : 'queued'
           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
           return {
             key: `${scope}m:${s.to}:${s.anchor ?? ''}`,

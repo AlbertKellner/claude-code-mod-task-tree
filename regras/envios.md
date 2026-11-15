@@ -36,13 +36,14 @@ Depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensag
 
 - Dado uma tarefa de mensagem em andamento cuja mensagem foi entregue na hora
 - Quando o turno em que ela está em andamento termina, normal ou com Esc
-- Então a carta segue verde; a tarefa iniciada fica ✕ no Esc, como qualquer outra (entregue a mensagem, ela é uma tarefa comum), salvo enquanto a sessão destino segue trabalhando sob ela (turnos.esc-com-trabalho-delegado-vivo)
+- Então a carta segue verde; a tarefa iniciada fica ✕ no Esc, como qualquer outra (entregue a mensagem, ela é uma tarefa comum), salvo enquanto a sessão destino segue trabalhando sob ela (turnos.esc-com-trabalho-delegado-vivo); no cartão que a sessão mãe desenha dessa filha, parada com Esc ou arquivada, a carta já entregue também segue verde
 
 Origem: decisão do usuário, 2026-10-28 ("a mensagem foi entregue; não é interrompida"; o ✉ verde igual com a tarefa aberta ou concluída está bom).
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); só a carta ficava verde no Esc; a tarefa passa a ser tratada como qualquer outra.
 Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-14, decisão do usuário ("Seguir ◷ até o start (Recomendado)"); a tarefa que um fim normal deixou ◷ não é interrompida por um Esc posterior sem start nela; o teste passa a dar start antes do Esc.
 Reescrito: 2026-11-14, decisão do usuário ("Segue ◉/◷ (Recomendado)"); com a sessão destino trabalhando sob a tarefa, o Esc não a interrompe; o destino do teste passa a parado.
+Reescrito: 2026-11-14, texto: o cartão da filha parada mostra a carta como o painel dela (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 
@@ -51,7 +52,7 @@ O ✉ mantém o ícone e muda só a cor.
 
 - Dado uma tarefa de mensagem
 - Quando a mensagem está na fila, é entregue, fica num plano interrompido ou não é entregue (a sessão destino arquivada antes de tomá-la, ou o subagente parado antes de recebê-la)
-- Então a carta muda só de cor (azul na fila, verde entregue, cinza quando a tarefa de onde saiu foi interrompida por um plano novo, desde o plan e também depois da entrega, ou quando não é entregue); a tarefa tem o ícone comum e conta
+- Então a carta muda só de cor (azul na fila, verde entregue, cinza quando a tarefa de onde saiu foi interrompida por um plano novo, desde o plan e também depois da entrega, ou quando não é entregue); a tarefa tem o ícone comum e conta; a tarefa que fecha ✕ pelo fim de um subagente não muda a cor da carta já entregue dela
 
 Origem: decisão do usuário, 2026-10-24 ("mantenha o ícone e troque somente a cor"); commit 8eb801c.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a cor é da carta, não da tarefa.
@@ -61,6 +62,7 @@ Reescrito: 2026-11-12, decisão do usuário ("Sim, fica à vista (Recomendado)")
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza "não entregue" vale também para o subagente parado antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); o cinza vale também para a carta não entregue, com a palavra "não entregue" no lugar de "interrompida" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-14, texto alinhado ao teste e à decisão de 2026-11-12 ("Cinza já no plan (Recomendado)"); nenhuma regra muda e os testes não mudam.
+Reescrito: 2026-11-14, texto: a tarefa ✕ pelo fim de um subagente não deixa cinza a carta já entregue (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts
 Estado: coberto
 
@@ -272,4 +274,15 @@ A entrega só conclui a tarefa quando nada mais está em execução nela.
 
 Origem: auditoria 2026-11-10 (os dois fechamentos automáticos usavam condições diferentes); aplica subagentes.um-rodando-mantem-o-pai ("até o último terminar (e a carta ser entregue)") e envios.tarefa-aguarda-a-sessao-enquanto-a-carta-esta-na-fila, sem mudar a decisão de 2026-10-30 ("Sim, conclusão automática como hoje").
 Código: hooks/agents.ts, draw/layout.ts
+Estado: coberto
+
+### envios.carta-uma-vez-no-cartao-da-origem
+Cada carta aparece uma vez: no cartão e no pedido da tarefa de onde saiu.
+
+- Dado uma filha com mais de um cartão que mandou uma mensagem, ou uma carta na fila cuja tarefa saiu do plano num replano
+- Quando o painel é desenhado
+- Então a carta da filha aparece só no cartão que tem a tarefa de origem (sem ela, no do turno em que foi enviada), e o chip "aguardando sessão" a conta uma vez; a carta cuja tarefa saiu do plano pende do nível 1 do pedido em que foi enviada, nunca de outro pedido, e esse pedido segue à vista enquanto ela está na fila; com o pedido dela em "+N pedidos anteriores", ela fica lá com ele
+
+Origem: auditoria 2026-11-10 (a carta se repetia em todos os cartões de rodada, e a carta órfã de replano passava ao pedido novo); aplica envios.carta-sob-a-tarefa, pedidos.replano-mantem-envio-ate-entrega e a decisão de 2026-11-12 ("Sim, fica à vista (Recomendado)"), sem mudar nenhuma regra.
+Código: draw/layout.ts
 Estado: coberto

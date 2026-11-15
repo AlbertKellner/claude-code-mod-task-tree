@@ -506,6 +506,43 @@ test('a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega
   esperarCartaSob(p, 'Avisar K2', 'fila')
 })
 
+// Regra: envios.carta-uma-vez-no-cartao-da-origem
+test('a carta da filha com dois cartões aparece uma vez, no cartão da tarefa de origem', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const f1 = [noTurno(1, '1', 'f1', 'feita')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: f1, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [...f1, noTurno(2, '2', 'f2', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  h.filha(K1).envios = [{ to: 'local_y', anchor: '2', at: AGORA + 1900 }]
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').length, emTexto(p)).toBe(2)
+  expect(p.filter(l => l.titulo.startsWith('Para y')).length, emTexto(p)).toBe(1)
+  esperarCartaSob(p, 'f2', 'fila')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
+})
+
+// Regra: envios.esc-apos-entrega-imediata
+test('no cartão da filha parada com Esc, a carta já entregue segue verde', async ($: any, on: any) => {
+  const h = await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] }, envios: [{ to: 'local_y', anchor: '1', at: AGORA + 20, taken: true }] })
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Tarefa da filha', 'interrompida')
+  esperarCartaSob(p, 'Tarefa da filha', 'entregue')
+})
+
 // Regra: sessoes.rodada-descartada-fora-da-contagem-do-pai
 test('com a rodada anterior abandonada sob Um, o x/y de Um não a conta, e a rodada nova segue em andamento', async ($: any, on: any) => {
   const p = await duasRodadas($, on, [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')])

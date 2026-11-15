@@ -509,6 +509,16 @@ das filhas de pedidos anteriores apareciam sob a tarefa do turno atual. Dois pon
   as ligações das sessões, dos `launches` e de `keptLinks`; os grupos dos subagentes lançados pelo loop
   que replanejou vão no `change` do próprio plan (`movedAnchor`). As cartas não mudam (pendem do nível 1
   do pedido até a entrega). Decisão do usuário, 2026-11-14: "Sob o nível 1 (Recomendado)".
+- Cartas (`envios.carta-uma-vez-no-cartao-da-origem`, auditoria 2026-11-10): o `split` reparte os `sends` da
+  filha entre os cartões de rodada (o da tarefa de origem; sem ela, o do turno em que a carta saiu; senão o
+  `lead`), e cada carta aparece uma vez. A carta cuja tarefa saiu do plano pende do último nível 1 do
+  pedido em que foi enviada (`levelOne`, procurado em `whole`); com esse pedido fora do desenho ("+N
+  pedidos anteriores"), ela não vai a outro pedido nem ao fim (`levelOne` devolve `''`); só o painel
+  sem pedidos cai no último nível 1. Na fila, ela segura à vista o pedido em que foi enviada
+  (`openInSight`). O cinza "interrompida" é só o da tarefa que um plano novo interrompeu, a cópia
+  renomeada (`byPlan`, `planCut`), como a sessão a publicou: a leitura da filha parada ou arquivada
+  (`panelOf`) e o ✕ pelo fim de um subagente não deixam cinza a carta já entregue; no cartão de sessão
+  arquivada, a carta não tomada segue cinza.
 - Dados antigos, `resolveAnchor(owner, anchor, at)` em `draw/layout.ts` (pura): para estados já
   publicados ou guardados antes da regra, uma âncora é resolvida pela tarefa que tinha aquele id no
   momento `at`: só quando a tarefa que hoje tem o id foi planejada depois do momento (`plannedAt > at`)
