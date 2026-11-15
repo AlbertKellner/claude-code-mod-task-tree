@@ -418,3 +418,62 @@ test('o done de uma tarefa só, nunca iniciada, avisa que ela fechou sem start',
   await start($, ['2'])
   expect((await done($, ['2'])).texto).not.toContain('fechou sem start')
 })
+
+// Regra: arvore.ids-curtos-e-avisos
+test('done com id curto ambíguo, inexistente ou de outro agente é avisado, e nada fecha', async ($: any, on: any) => {
+  fixar(on)
+  subagente(on, 'sub-1')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um de A' }] }, { id: 'B', title: 'Plano B', children: [{ id: '1', title: 'Um de B' }] }])
+  expect((await done($, ['1'])).texto).toContain('"1" é ambíguo')
+  expect((await done($, ['zz'])).texto).toContain('"zz" não existe')
+  // Um subagente com o seu plano chama done com o id do loop principal.
+  await plan($, [{ id: 'S', title: 'Plano do sub', children: [{ id: 's1', title: 'Passo do sub' }] }], undefined, 'sub-1')
+  expect((await done($, ['A/1'], undefined, 'sub-1')).texto).toContain('"A/1" é de outro agente')
+  let p = await desenho($)
+  esperarEstado(p, 'Um de A', 'pendente')
+  esperarEstado(p, 'Um de B', 'pendente')
+  await done($, ['A/1'])
+  p = await desenho($)
+  esperarEstado(p, 'Um de A', 'concluida')
+  esperarEstado(p, 'Um de B', 'pendente')
+})
+
+// Regra: arvore.plan-recusa-ids-repetidos
+test('plan com ids repetidos é recusado e o plano que já estava no painel não muda', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  const antes = await desenho($)
+  const r = await plan($, [{ id: 'A', title: 'Plano A trocado', children: [{ id: 'x', title: 'Xis' }, { id: 'x', title: 'Outro xis' }] }])
+  expect(r.erro).toBe(true)
+  expect(r.texto).toContain('ids repetidos')
+  const p = await desenho($)
+  esperarEstado(p, 'Plano A', 'andamento')
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(p.some(l => l.titulo === 'Plano A trocado' || l.titulo === 'Xis'), noTexto(p)).toBe(false)
+  const [c0, c] = [cabecalho(antes), cabecalho(p)]
+  expect([c.titulo, c.feitas, c.total], noTexto(p)).toEqual([c0.titulo, c0.feitas, c0.total])
+})
+
+// Regra: arvore.pai-em-andamento-no-caminho-da-ultima-iniciada
+test('com start e done numa filha, o pedido fica em andamento, o chip não conta o pai, e o plano parado do pedido anterior segue aguardando', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'P', title: 'Plano P', children: [{ id: 'p1', title: 'Pê um' }, { id: 'p2', title: 'Pê dois' }] }])
+  await start($, ['p1'])
+  await done($, ['p1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'Q', title: 'Plano Q', children: [{ id: 'q1', title: 'Quê um' }, { id: 'q2', title: 'Quê dois' }] }])
+  await start($, ['q1'])
+  await done($, ['q1'])
+  const p = await desenho($)
+  esperarEstado(p, 'Plano Q', 'andamento')
+  esperarEstado(p, 'Pedido dois', 'andamento')
+  expect(cabecalho(p).chips.andamento, noTexto(p)).toBe(0)
+  esperarEstado(p, 'Plano P', 'aguardando')
+})

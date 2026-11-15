@@ -41,6 +41,16 @@
       "data": "2026-11-14",
       "motivo": "correção direta: id curto fora do histórico"
     },
+    "task-tree/tests/arvore.test.ts::com start e done numa filha, o pedido fica em andamento, o chip não conta o pai, e o plano parado do pedido anterior segue aguardando": {
+      "regras": [
+        "arvore.pai-em-andamento-no-caminho-da-ultima-iniciada"
+      ],
+      "hash": "9078ae3c57b8ce27",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
+    },
     "task-tree/tests/arvore.test.ts::done com cancel deixa a tarefa abandonada interrompida, fora do x/y, e o pai fecha com o que sobrou": {
       "regras": [
         "arvore.cancelar-tarefa-abandonada"
@@ -50,6 +60,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"✕ fora do x/y (Recomendado)\""
+    },
+    "task-tree/tests/arvore.test.ts::done com id curto ambíguo, inexistente ou de outro agente é avisado, e nada fecha": {
+      "regras": [
+        "arvore.ids-curtos-e-avisos"
+      ],
+      "hash": "f11522e2f0a57636",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
     },
     "task-tree/tests/arvore.test.ts::done e start de um subagente sem plano avisam o id de outro agente e o inexistente, sem criar cartão": {
       "regras": [
@@ -141,6 +161,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "pendentes da árvore, lembretes e permissão"
+    },
+    "task-tree/tests/arvore.test.ts::plan com ids repetidos é recusado e o plano que já estava no painel não muda": {
+      "regras": [
+        "arvore.plan-recusa-ids-repetidos"
+      ],
+      "hash": "d4f6a01c454e63c1",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
     },
     "task-tree/tests/arvore.test.ts::plan vazio, com quarto nível, com id ou título vazio, com dois-pontos ou com barra no nível 1 é recusado e nada muda no painel": {
       "regras": [
@@ -347,11 +377,11 @@
       "regras": [
         "cabecalho.titulo-desempata-pela-ordem-do-start"
       ],
-      "hash": "e52851a6d5f8c107",
-      "assercoes": 3,
-      "tipo": "novo",
-      "data": "2026-10-28",
-      "motivo": "empate de starts"
+      "hash": "8602c643211a68e5",
+      "assercoes": 5,
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "afirma que o outro plano não fica em andamento"
     },
     "task-tree/tests/cabecalho.test.ts::num pedido grande demais, com a tarefa em andamento depois do corte, o painel mostra o trecho dela": {
       "regras": [
@@ -403,6 +433,26 @@
       "tipo": "refatoracao",
       "data": "2026-11-15",
       "motivo": "renome puro: o nome dizia a regra antiga (visões completa e resumida); o corpo não muda"
+    },
+    "task-tree/tests/cabecalho.test.ts::o plan sozinho do pedido novo já tira o pedido finalizado do painel": {
+      "regras": [
+        "cabecalho.resumida-exclui-pedido-finalizado"
+      ],
+      "hash": "12919dda09f0858c",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
+    },
+    "task-tree/tests/cabecalho.test.ts::o start sozinho, numa tarefa de pedido antigo, começa trabalho novo": {
+      "regras": [
+        "cabecalho.resumida-exclui-pedido-finalizado"
+      ],
+      "hash": "9f6c476d281fa460",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
     },
     "task-tree/tests/cabecalho.test.ts::o título é o nível 1 da tarefa iniciada por último": {
       "regras": [
@@ -3102,11 +3152,11 @@
         "pedidos.resumida-mantem-anteriores-com-algo-aberto",
         "cabecalho.limites-de-linhas"
       ],
-      "hash": "6d58241641715445",
-      "assercoes": 6,
-      "tipo": "novo",
-      "data": "2026-11-14",
-      "motivo": "o corte dos pedidos anteriores é por pedido, não por nível 1"
+      "hash": "7792e41caa3f9026",
+      "assercoes": 8,
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "afirma quais pedidos ficam à vista"
     },
     "task-tree/tests/pedidos.test.ts::mensagem entregue no meio do turno continua o pedido em curso: sem pedido novo, e o replano guarda o estado": {
       "regras": [
@@ -3217,6 +3267,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "auditoria: avisos na resposta do plan"
+    },
+    "task-tree/tests/pedidos.test.ts::o replano de um nível 1 entre outros mantém o lugar dele na lista": {
+      "regras": [
+        "pedidos.replano-no-lugar"
+      ],
+      "hash": "422d2aa9ce640f84",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
     },
     "task-tree/tests/pedidos.test.ts::o replano mantém o ✕ \"falhou\" da tarefa cujo subagente falhou": {
       "regras": [
@@ -4023,6 +4083,17 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::abrirSessao com nome abre a sessão como a chamada direta: o nome leva o cartão à tarefa": {
+      "regras": [
+        "envios.carta-pelo-nome-da-sessao",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "506168ca0ed05458",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
+    },
     "task-tree/tests/sessoes.test.ts::cada mensagem à filha, em turnos diferentes, tem o seu cartão sob a tarefa da mensagem": {
       "regras": [
         "sessoes.um-cartao-por-mensagem"
@@ -4032,6 +4103,17 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::com a carta entre irmãs já tomada, a carta fica verde e os cartões seguem na sequência": {
+      "regras": [
+        "sessoes.mensagem-entre-filhas-no-cartao-da-remetente",
+        "sessoes.cadeia-sem-cartao-dentro-de-cartao"
+      ],
+      "hash": "25554f5827b5fbc4",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
     },
     "task-tree/tests/sessoes.test.ts::com a filha fora do pedido vigente, a tarefa acesa por outra filha também não leva o cartão: ele fecha o pedido": {
       "regras": [
@@ -5362,6 +5444,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sob o nível 1 (Recomendado)\""
     },
+    "task-tree/tests/subagentes.test.ts::o cartão do subagente diz o esforço ao lado do modelo": {
+      "regras": [
+        "subagentes.cartao-mostra-modelo-e-estado"
+      ],
+      "hash": "65492c6481883046",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
+    },
     "task-tree/tests/subagentes.test.ts::o cartão do subagente lançado por outro não vai para uma tarefa da sessão que tem o mesmo id da tarefa de quem o lançou": {
       "regras": [
         "subagentes.neto-segue-o-cartao-de-quem-o-lancou"
@@ -6625,6 +6717,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: barra, contagem e teto"
     },
+    "task-tree/tests/visual.test.ts::na folha parada, a palavra de estado vem logo antes do tempo, sem nada entre os dois": {
+      "regras": [
+        "visual.titulo-sem-contagem-vai-ate-o-tempo"
+      ],
+      "hash": "9d23e20393617737",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "asserções que faltavam em cenários cobertos (auditoria, achados baixos)"
+    },
     "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
       "regras": [
         "visual.guias-na-faixa-do-cartao"
@@ -6784,16 +6886,16 @@
       "motivo": "arquivo de apoio dos testes, selado na migração do hash"
     },
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "d2942ac9bdef247f",
+      "hash": "fa68343da80696e7",
       "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "host: opção de worktree no git da sessão; nada do que os testes afirmam muda"
+      "motivo": "o passo do modelo aceita o esforço; sem ele, igual"
     },
     "task-tree/tests/kit/cenario.ts": {
-      "hash": "35279f1270f0562d",
+      "hash": "109745bec3633eb3",
       "tipo": "refatoracao",
-      "data": "2026-11-14",
-      "motivo": "roteiro novo: falha (turno que termina por erro); os outros roteiros não mudam"
+      "data": "2026-11-15",
+      "motivo": "abrirSessao aceita um nome opcional; sem ele, igual"
     },
     "task-tree/tests/kit/leitura.ts": {
       "hash": "44ea46b37116d9ac",

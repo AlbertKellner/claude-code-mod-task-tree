@@ -251,9 +251,9 @@ export function lancaveis(on: any, ids: string[], modelo = 'claude-haiku-5-5') {
 // Os passos do modelo (turn.step), com o stream: `antes` ms até o primeiro chunk, `geracao` ms até o
 // chunk 'stop', `tokens` no usage; o relógio parado avança entre os chunks. Chamar antes da primeira
 // chamada a $; devolve o roteiro que roda um passo.
-export type Passo = { antes?: number; geracao?: number; tokens?: number; agente?: string }
+export type Passo = { antes?: number; geracao?: number; tokens?: number; agente?: string; esforco?: string }
 export function passos(on: any, relogio: any) {
-  let atual: Required<Omit<Passo, 'agente'>> = { antes: 800, geracao: 2000, tokens: 200 }
+  let atual: Required<Omit<Passo, 'agente' | 'esforco'>> = { antes: 800, geracao: 2000, tokens: 200 }
   on('turn.step', async function* (_$: any, _e: any, _next: any) {
     const { antes, geracao, tokens } = atual
     await relogio.advance(antes)
@@ -264,7 +264,7 @@ export function passos(on: any, relogio: any) {
   })
   return async ($: any, p: Passo = {}) => {
     atual = { antes: p.antes ?? 800, geracao: p.geracao ?? 2000, tokens: p.tokens ?? 200 }
-    const s = $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', ...(p.agente !== undefined ? { agentId: p.agente } : {}) })
+    const s = $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', ...(p.agente !== undefined ? { agentId: p.agente } : {}), ...(p.esforco !== undefined ? { effort: p.esforco } : {}) })
     for await (const _ of s) void _
     return s.result
   }

@@ -1,6 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
+import { passos } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, ferramenta, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
 import { cabecalho, comHistorico, emTexto, esperarEstado, estadoGeral, linha, montar, noApp, painel } from './kit/leitura'
 
@@ -1974,4 +1975,19 @@ test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, o suba
   const p = await subNaPendenteDoPlanoAnterior($, on, a => fimDoSubagenteCom($, a, { erro: true }))
   expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('interrompida')
   esperarEstado(p, 'Dois', 'pendente')
+})
+
+// Regra: subagentes.cartao-mostra-modelo-e-estado
+test('o cartão do subagente diz o esforço ao lado do modelo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const passoDoModelo = passos(on, relogio)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'buscar usos de hover' })
+  await passoDoModelo($, { agente: 'sub-1', esforco: 'high' })
+  const p = await painel($)
+  const cartao = p.find(l => l.titulo === 'Explore: buscar usos de hover')
+  expect(cartao?.texto ?? '', emTexto(p)).toContain('Opus 5.5 · high')
 })

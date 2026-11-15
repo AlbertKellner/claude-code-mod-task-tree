@@ -646,6 +646,8 @@ test("com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e 
   expect(linha(p, 'Pedido 1').texto, emTexto(p)).toContain('1/2')
   expect(p.filter(l => l.texto.includes('+1 pedidos anteriores')).length, emTexto(p)).toBe(1)
   expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(false)
+  for (const titulo of ['Plano 3', 'Plano 4', 'Plano 5']) expect(p.some(l => l.titulo === titulo), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Plano 2'), emTexto(p)).toBe(false)
 })
 
 // Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
@@ -734,4 +736,21 @@ test('uma tarefa fechada por outra escrita no meio do plan vira histórico com o
   expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Passo')
   expect(p.some(l => l.titulo === 'Antiga'), emTexto(p)).toBe(true)
   expect(p.some(l => l.titulo === 'Nova'), emTexto(p)).toBe(true)
+})
+
+// Regra: pedidos.replano-no-lugar
+test('o replano de um nível 1 entre outros mantém o lugar dele na lista', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }, { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }])
+  await plan($, [{ id: 'A', title: 'Plano A revisto', children: [{ id: '1', title: 'Um' }] }])
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(false)
+  expect(indice(p, 'Plano A revisto'), emTexto(p)).toBeLessThan(indice(p, 'Plano B'))
+  expect(emTexto(p)).not.toContain('✕')
+  await plan($, [{ id: 'B', title: 'Plano B revisto', children: [{ id: 'b1', title: 'Bê um' }] }])
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano B'), emTexto(p)).toBe(false)
+  expect(indice(p, 'Plano A revisto'), emTexto(p)).toBeLessThan(indice(p, 'Plano B revisto'))
+  expect(emTexto(p)).not.toContain('✕')
 })

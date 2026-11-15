@@ -184,6 +184,7 @@ test('dois starts no mesmo instante: o título é o do último da lista do start
   const p = await painel($)
   expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
   esperarEstado(p, 'Plano A', 'andamento')
+  expect(linha(p, 'Plano B').estado, emTexto(p)).not.toBe('andamento')
 })
 
 // Regra: cabecalho.limites-de-linhas
@@ -799,4 +800,47 @@ test('num submódulo, segue o nome da pasta', async ($: any, on: any) => {
   expect(r.texto, r.texto).toContain('lib ⑂ fix/cabecalho')
   expect(r.texto, r.texto).not.toContain('meu-projeto ⑂')
   expect(r.repo).toBe('lib')
+})
+
+const SO_A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
+const SO_B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }]
+
+// Regra: cabecalho.resumida-exclui-pedido-finalizado
+test('o plan sozinho do pedido novo já tira o pedido finalizado do painel', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, SO_A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, SO_B)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Plano B', 'pendente')
+})
+
+// Regra: cabecalho.resumida-exclui-pedido-finalizado
+test('o start sozinho, numa tarefa de pedido antigo, começa trabalho novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, SO_A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, SO_B)
+  await start($, ['b1'])
+  await done($, ['b1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await start($, ['1'])
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.texto.includes('pedidos anteriores')), emTexto(p)).toBe(true)
 })

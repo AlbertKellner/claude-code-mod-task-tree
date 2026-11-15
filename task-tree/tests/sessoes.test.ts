@@ -2463,3 +2463,27 @@ test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, a filh
   expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
   expect(r, r).not.toContain('concluiu sozinho')
 })
+
+// Regra: sessoes.mensagem-entre-filhas-no-cartao-da-remetente, sessoes.cadeia-sem-cartao-dentro-de-cartao
+test('com a carta entre irmãs já tomada, a carta fica verde e os cartões seguem na sequência', async ($: any, on: any) => {
+  const { p } = await cadeia($, on, true)
+  esperarCartaSob(p, 'Avisar K2', 'entregue')
+  const um = cartoes(p, 'filha-um')
+  const d2 = cartoes(p, 'filha-dois').filter(c => c.tarefas.includes('d2'))
+  expect(d2.map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(d2[0]?.nivel, emTexto(p)).toBe(um[0]?.nivel)
+  expect(um.some(c => c.tarefas.includes('d2')), emTexto(p)).toBe(false)
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao, sessoes.cartao-sob-a-tarefa-de-origem
+test('abrirSessao com nome abre a sessão como a chamada direta: o nome leva o cartão à tarefa', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Pesquisa web: changelog' }, { id: '2', title: 'Implementação: ler o código' }] }])
+  await start($, ['1', '2'])
+  await abrirSessao($, 'revisao-codigo')
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Implementação: ler o código')
+})

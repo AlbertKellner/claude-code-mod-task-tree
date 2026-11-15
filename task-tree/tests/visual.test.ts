@@ -696,3 +696,18 @@ test('a contagem do cartão de sessão solto não alarga a coluna da contagem da
   expect(larguras.size, quais).toBe(1)
   expect(Number(colunas[0]?.width), quais).toBe(Math.max(5, ...colunas.map(c => c.texto.length)))
 })
+
+// Regra: visual.titulo-sem-contagem-vai-ate-o-tempo
+test('na folha parada, a palavra de estado vem logo antes do tempo, sem nada entre os dois', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Parada aqui' }, { id: '2', title: 'Outra' }] }])
+  await start($, ['1'])
+  await esc($)
+  const d = await noApp($)
+  const folha = linhaDoApp(d, 'Parada aqui')
+  const depois = pedacosDepois(folha, 'Parada aqui')
+  expect(depois.map(p => p.tipo), folha.texto).toEqual(['texto', 'texto'])
+  expect(depois[0]?.texto.trim(), folha.texto).toBe('interrompida')
+  expect(depois[1]?.texto ?? '', folha.texto).toMatch(/^\d+:\d\d/)
+})
