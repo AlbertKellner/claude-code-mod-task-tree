@@ -1101,7 +1101,8 @@ guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState
    `MISSES_KEPT`); da quarta em diante vale o arquivo vazio, como o app diz da sessão. `engineText`, `engineOf` e o cache `engineSeen` moraram
    no register e vieram para cá.
 3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
-   com a regra do `starting`, dos laços vindos do store (`kept`) e do painel mantido quando o arquivo some.
+   com a regra do `starting` (a marca da sessão sem tarefas publicadas dura o `STARTING_GRACE`), dos
+   laços vindos do store (`kept`) e do painel mantido quando o arquivo some.
 4. **Publicar:** `publishWait` de `io/publish.ts`, chamado por `publishPanel`.
 
 Ordem, idêntica à de antes: stamp → lista → erro/limpa erro → `watchSends` → vazio → mine → arquivos →
@@ -1594,6 +1595,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 - `list_sessions` sem sessão ligada responde texto puro ("No other sessions found."), não `[]`.
 - Logo depois do `start_session`, o host ainda lista a filha parada: o marcador `Child.starting`
   impede que ela conte como turno encerrado até o host a ver rodando, esperando ou arquivada.
+  Enquanto ela não publicou nenhuma tarefa (`published`, `draw/layout.ts`: um grupo, o `tasks` antigo
+  ou o `past`), a sessão abrindo conta como viva (`live`: cartão sem palavra, origem ◉, chip de ativas);
+  sem tarefas, a marca dura só o `STARTING_GRACE` (2 min do `openedAt`) e depois vale o que o app diz.
 - AskUserQuestion do loop principal sem tarefa aberta é recusado (`deny`), para a pergunta não
   ficar solta no painel. ExitPlanMode passa sem essa exigência (o desenho original; não é que o modo
   de plano bloqueie as ferramentas do painel: `plan`/`start`/`done` respondem antes do `tool.check`).

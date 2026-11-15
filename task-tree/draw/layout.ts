@@ -200,8 +200,13 @@ export function count(list: TaskNode[]): [number, number, number] {
 
 // How deep the sessions opened by opened sessions are followed (in the count and the drawing).
 export const DEEP = 3
-// A session still at work: running, or waiting on the person.
-export const live = (c: Child) => !c.archived && (c.running || c.waiting === true)
+// Whether a session has published any task: in a group, in an earlier version's `tasks`, or in the
+// work kept from before a /clear (`past`).
+export const published = (c: Child): boolean =>
+  (c.tasks ?? []).length > 0 || (c.panel?.groups ?? []).some(g => g.tasks.length > 0 || (g.past ?? []).some(e => (e.tasks ?? []).length > 0))
+// A session still at work: running, or waiting on the person, or just opened (`starting`, see
+// io/host deriveChildren) with no task published yet: the app may still list it idle.
+export const live = (c: Child) => !c.archived && (c.running || c.waiting === true || (c.starting === true && !published(c)))
 // A round of a session that was discarded (the person's words: "as tarefas dessa sessão foram
 // descartadas"): an earlier round's card (not the session's leading one, see split) left with a
 // task open when the next message began the round after it, or the leading round of a session whose

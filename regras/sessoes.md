@@ -32,6 +32,17 @@ Reescrito: 2026-11-14, decisão do usuário ("✕ \"falhou\" (Recomendado)": "o 
 Reescrito: 2026-11-14, decisão do usuário ("\"Substituída\", cinza (Recomendado)"): a palavra "substituída". Os testes existentes não mudam.
 Estado: coberto
 
+### sessoes.recem-aberta-sem-tarefas-trabalha
+A sessão recém-aberta que ainda não publicou tarefas é desenhada trabalhando, não "concluída".
+
+- Dado uma sessão filha que acabou de ser aberta, que o app ainda lista parada e que ainda não publicou nenhuma tarefa
+- Quando o painel é desenhado nos 2 minutos seguintes à abertura
+- Então o cartão aparece sem palavra, como sessão trabalhando, a tarefa de origem fica ◉ e a sessão conta entre as ativas; quando o app a mostra rodando, segue assim; passados os 2 minutos sem ela rodar nem publicar, vale o que o app diz (parada e sem tarefas: "concluída"); a sessão que já publicou tarefas é desenhada pelo que o app diz dela, como antes
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: logo depois de aberta, o cartão podia nascer "concluída" e a tarefa de origem apagada; se a sessão nunca rodasse, ficava assim para sempre); dedução, sem decisão do usuário: o resto do painel já trata a sessão abrindo como viva; a confirmar.
+Código: io/host.ts
+Estado: coberto
+
 ### sessoes.rodada-largada-diz-substituida
 O cartão da rodada que a filha largou diz "substituída", em cinza.
 

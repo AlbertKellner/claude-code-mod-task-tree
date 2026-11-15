@@ -3227,6 +3227,16 @@
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
     },
+    "task-tree/tests/sessoes.test.ts::a sessão recém-aberta que o app lista parada e ainda sem tarefas é desenhada trabalhando; passado o prazo, vale o que o app diz": {
+      "regras": [
+        "sessoes.recem-aberta-sem-tarefas-trabalha"
+      ],
+      "hash": "ee14803d11a6fb61",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: a sessão recém-aberta nascia concluída"
+    },
     "task-tree/tests/sessoes.test.ts::a tarefa concluída com a filha trabalhando embaixo mostra só o tempo próprio, que não corre nem regride": {
       "regras": [
         "sessoes.tempo-da-tarefa-concluida-com-filha"
