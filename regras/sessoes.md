@@ -82,7 +82,7 @@ A filha trabalhando mantém a tarefa e os pais em andamento.
 - Quando o modelo chama done nessa tarefa
 - Então a tarefa e os pais seguem ◉ enquanto a filha trabalha
 
-Origem: commit d956e11, 2026-10-24.
+Origem: decisão do usuário, 2026-10-24 ("as linhas pai anteriores somente deveriam ficar como concluídas, quando as filhas fossem concluídas"); commit 8637626. Desfaz "um done explícito da mãe deve valer como concluído" (2026-10-23, commit a818dae).
 Estado: coberto
 
 ### sessoes.filha-parada-com-origem-fechada-sai-da-contagem
@@ -101,11 +101,12 @@ Na filha parada, as pendentes seguem pendentes.
 
 - Dado uma filha que terminou o turno com pendentes, com a tarefa de origem aberta ou algo iniciado
 - Quando o cartão é desenhado
-- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
+- Então as pendentes seguem ○ e entram no chip "pendentes"; a iniciada aberta ◷ (✕ se o turno foi interrompido); com o turno interrompido (Esc), a rodada inteira sai da contagem da mãe: as pendentes seguem desenhadas ○, mas fora do cabeçalho, do chip e do x/y da tarefa de origem, até o start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem); um cartão publicado sem trabalho mostra o último pedido com tarefas, e sem pedidos, todas as tarefas de nível 1
 
 Origem: decisão do usuário, 2026-10-27 ("pendentes nunca ✕", desfaz "reaproveitar o interrompida"); commit d57807e.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o cartão sem `work` não pode mostrar uma tarefa só.
 Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"); com a origem fechada e só pendentes vale sessoes.filha-parada-com-origem-fechada-sai-da-contagem.
+Reescrito: 2026-11-14, decisão do usuário ("Rodada fora da conta (Recomendado)"); só o texto ganha a exceção que o código já fazia. Os testes não mudam.
 Estado: coberto
 
 ### sessoes.filha-arquivada-interrompe

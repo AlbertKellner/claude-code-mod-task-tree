@@ -283,7 +283,7 @@ A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o
 | `brief` | state | | none | | o `summary` do `done` até o fim do turno |
 | `recap` | state | | none | | o `recap` do `wrap_up` até o fim do turno |
 | `collapsed` | state | | none | | as linhas que a pessoa recolheu ou abriu (atom `folds`); o plan renomeia as chaves das tarefas que renomeia (`renameFolds`), e o `/clear` as zera |
-| `turnEnded` | state | | none | | a hora em que o turno desta sessão terminou, até o próximo prompt (então `null`): o que ela deixou aberto é desenhado interrompido, sem relógio |
+| `turnEnded` | state | | none | | a hora em que o turno desta sessão terminou, até o próximo prompt (então `null`): o que ela deixou em andamento é desenhado aguardando (◷), com o relógio parado; interrompido só se o turno foi parado (Esc) ou morreu por erro |
 | `turnFailed` | state+store | `turn` (campo) | current | start, resume, first-use | a última parada do loop principal foi um turno que morreu por erro (falha da API, limite de contexto, recusa), até o próximo pedido: o lembrete dele diz o erro (`PROMPT.failedByError`); falso em registro antigo e depois de `parkDeadTurn` |
 | `sessions` | store | `sessions` | none | | as sessões com painel guardado, a atual primeiro, `KEEP` = 30 |
 
@@ -436,8 +436,9 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   por turno.
 - `atWork` roda uma vez por tarefa e passada: dentro de `body`, um `WeakMap` por tarefa guarda o
   `Work` que `turnRows` (soma do pedido) e `rows` (a linha da tarefa) pedem.
-- Tarefa da mãe concluída com `done` (decisão do usuário: "um done explícito da mãe deve valer como
-  concluído; o progresso das filhas fica no cartão delas"): `atWork(t, sessions, level)` só soma ao d/n,
+- Tarefa da mãe concluída com `done` (texto da série que a introduziu; a regra de hoje vem no fim deste
+  item). Decisão do usuário de 2026-10-23 (commit a818dae): "um done explícito da mãe deve valer como
+  concluído; o progresso das filhas fica no cartão delas": `atWork(t, sessions, level)` só soma ao d/n,
   ao tempo e ao `busy` (que deixa a tarefa em andamento) as sessões abertas numa tarefa não concluída; a
   subárvore de uma tarefa `done` fica de fora (`open(k)` = `[]` se `k.status === 'done'`, senão `[k.id,
   ...filhos]`). Antes, uma tarefa concluída com uma filha ainda trabalhando aparecia ◉ "3/4", com o
@@ -451,7 +452,13 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   viva abaixo) e `cards` (todas as tarefas das sessões abaixo, inclusive as de baixo de tarefa
   concluída: é o que o `Row.nodes` de uma linha recolhida, tarefa ou pedido, soma, então recolher não
   muda o cabeçalho). `any` continua marcando o ⑂. O cabeçalho segue somando os nós das linhas
-  desenhadas, os cartões inclusive. 
+  desenhadas, os cartões inclusive.
+  Regra de hoje: a decisão de 2026-10-23 foi desfeita no dia seguinte (2026-10-24, commit 8637626: "as
+  linhas pai anteriores somente deveriam ficar como concluídas, quando as filhas fossem concluídas").
+  A tarefa com `done` e os pais dela seguem ◉ enquanto uma filha trabalha na rodada atual sob ela, e
+  voltam a ✓ quando a filha para; o x/y soma as tarefas da filha, com a tarefa aberta ou concluída. O
+  tempo dessa linha é só o próprio, até o `done`: não corre enquanto a filha trabalha (2026-11-14, "Só o
+  próprio"). Cenário: `sessoes.filha-trabalhando-mantem-pais-em-andamento`.
 - `fit` (`svg.ts`) é linear no título: acumula a largura do que fica com os mesmos termos e na
   mesma ordem de `textW` (mesma soma em ponto flutuante, mesmo corte) em vez de medir o prefixo
   inteiro a cada caractere; `em(ch)` lembra a largura de cada caractere num `Map` do módulo.
@@ -627,8 +634,15 @@ linhas herdavam isso.
 
 Tarefas abertas de uma sessão que terminou o turno (série 3; regra: o painel independe de quem o usa):
 quando a sessão termina o turno, o que estava em andamento (iniciado e não fechado) deixa de contar como
-em andamento: aparece interrompido (não concluído, sem fechamento), sem relógio correndo, e sai de "N em
-andamento". As tarefas pendentes (nunca iniciadas) continuam pendentes e contam, porque o plano continua
+em andamento. Regra de hoje (o catálogo, `regras/turnos.md`, é a referência): no fim normal, a tarefa
+iniciada e aberta fica ◷ "Aguardando", com o relógio parado, e segue assim até o `start` nela (a espera
+fica gravada na tarefa, `rest`); o pai aberto com algo feito ou aguardando embaixo fica ◷, e o pai sem
+nada aberto embaixo fica ✓, com qualquer mistura de ✓ e ✕. ✕ só com Esc (até o `start` na tarefa) ou com
+o turno que morre por erro (✕ "falhou"); a tarefa com carta na fila, ou com trabalho delegado vivo
+embaixo (filha trabalhando, subagente rodando), não fica ✕ com o Esc. A sessão arquivada, o subagente
+que termina e o plano substituído seguem deixando ✕ o que ficou aberto. O texto abaixo é o da série 3,
+quando o que estava em andamento aparecia interrompido (não concluído, sem fechamento), sem relógio
+correndo, e saía de "N em andamento"; os bullets seguintes contam como chegou à regra de hoje. As tarefas pendentes (nunca iniciadas) continuam pendentes e contam, porque o plano continua
 no próximo turno. Sintoma do usuário: o cartão docs-task-tree dizia "parada", mas a tarefa "Hunks do bug
 dos cliques" e a subtarefa "Ler o código e o doc" apareciam em andamento (◉) com o relógio correndo.
 Vale para qualquer sessão, a principal inclusive. Regressão corrigida em seguida (print do usuário): a
@@ -653,8 +667,10 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   passa o valor ao layout como `ended` (o título do cabeçalho com o turno terminado é o do grupo A, ver
   "Sem start, nada aceso"); `anyRunning` (`hooks/sessions.ts`) ignora as tarefas da própria sessão com o
   turno terminado, e o relógio de 1 s para.
-- Efeitos: uma filha parada com tarefa em andamento passa a ter essa tarefa fora do total (ex.: "3 de 4"
-  → "3 de 3 · 100%" ).
+- Efeitos (na série 3): uma filha parada com tarefa em andamento passava a ter essa tarefa fora do total
+  (ex.: "3 de 4" → "3 de 3 · 100%"). Hoje, no fim normal, a tarefa fica ◷ e conta; com Esc, a rodada
+  inteira da filha sai da contagem da mãe até o `start` na tarefa parada
+  (`sessoes.rodada-descartada-fora-da-contagem`).
 - A parada com Esc espera o `start` (2026-11-12, "Segue ✕ até novo start (Recomendado)"; antes, um aviso
   do app, um hand-back ou o `start` em outra tarefa a reacendia: ◉ no prompt, relógio correndo, ◷ no fim
   do turno). No fim do turno parado (`turnComplete` com `isAborted`), `park(at)` (`state/tasks.ts`) marca
@@ -1390,7 +1406,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   principal: mesmos ícones, o aviso de espera embaixo da tarefa em andamento dela, os subagentes e
   as netas (até `DEEP` níveis). Parada sem tarefa aberta: rótulo `⑂ nome  concluída`, com o cartão aberto como os demais.
   Parada, não arquivada, com tarefa aberta (ex.: "Aguardar sinal…"): ícone ◷, palavra `parada`, com as tarefas da filha como ela as planejou, cada uma no seu estado (regra substituída: hoje o que
-  estava em andamento aparece interrompido, sem relógio, e as pendentes seguem pendentes; o rótulo `parada` e o cartão ficam)
+  estava em andamento aparece aguardando (◷), com o relógio parado, e as pendentes seguem pendentes; ✕ só se o turno dela foi parado com Esc, e então a rodada sai da contagem da mãe; o rótulo `parada` e o cartão ficam)
   (pedido do usuário: "no painel da sessão filha, devem aparecer exatamente as tarefas de dentro
   dela"); o clique continua recolhendo. Não se usa `$.store` para isso: a chave
   dele é o `$.session.id()` (uuid do CLI), que a principal não conhece; o arquivo usa o id `local_…`,
@@ -1402,9 +1418,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   O `d/n` de cada tarefa da principal (`atWork`) soma, além das próprias folhas (a própria tarefa,
   se for folha com sessão), as tarefas das sessões ancoradas nela ou abaixo (arquivadas inclusive), só
   enquanto a tarefa não está concluída com `done`. Com uma dessas sessões viva, a tarefa aberta é
-  desenhada em andamento e o relógio corre; uma tarefa concluída com `done` fica concluída (regra
-  substituída: antes ela era desenhada em andamento "mesmo com `done` gravado"; o progresso das
-  filhas fica no cartão delas; ver o bullet "Tarefa da mãe concluída" em "Como é hoje"). O chip "● em andamento" conta só o andamento próprio
+  desenhada em andamento e o relógio corre; uma tarefa concluída com `done` também segue em andamento
+  (◉, com os pais) enquanto uma filha trabalha na rodada atual sob ela, e volta a ✓ quando a filha
+  para; o tempo dela é só o próprio, até o `done` (a regra passou por "fica concluída", 2026-10-23,
+  desfeita em 2026-10-24; ver o bullet "Tarefa da mãe concluída" em "Como é hoje"). O chip "● em andamento" conta só o andamento próprio
   (`active`); a sessão já conta no chip ⑂. Sem nível 1 aberto, o cabeçalho mostra o que tem sessão
   viva embaixo (`atWork(...).live`; o último nível 1 com sessão viva, não o primeiro). O tempo (`timeOf`) vai do primeiro início ao último fim da
   tarefa, das subtarefas e das tarefas dessas sessões (`allTasks`, até `DEEP`; só as de tarefa não
@@ -1893,6 +1910,23 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
   `parkDeadTurn` o deixa falso). A mensagem seguinte da pessoa recebe `PROMPT.failedByError`; os turnos que
   não abrem pedido listam as que falharam em `PROMPT.failedTasks`; o cartão da filha parada assim diz
   "falhou" (`anyFailed`).
+- Filha arquivada não é relida e o publicado corta a profundidade (correção direta, 2026-11-14): o
+  arquivo de uma filha arquivada já lida como arquivada não é aberto de novo a cada leitura de 3 s
+  (`readFiles` com `known`, `Read.skipped`; desarquivada, volta a ser lida); no nível `DEEP`,
+  `trimPublished` manda `children` vazio (a sessão de cima não desenha abaixo das bisnetas); a lista de
+  sessões no limite (`LIST_LIMIT` = 100) vai ao log de depuração uma vez (`debugOnce`).
+- Carta e cartão antes do plan (2026-11-14, "Sim, o plan adota (Recomendado)"): num pedido sem plano, a
+  mensagem a outra sessão, a sessão aberta e o subagente lançado iam a uma tarefa do pedido anterior, que
+  fechava sozinha na entrega. Agora `sendAnchor` devolve `undefined` sem nada em andamento e sem nível 1
+  do pedido aberto (`open`, de `openTurnOf`), e eles ficam soltos no fim do painel, mesmo concluídos
+  (`strayMail`, `letterRow`), até o primeiro plan do pedido, que os adota (`adoptOrphans`, antes do
+  `joinWork`) sob a tarefa pelo nome da sessão, senão a primeira pendente; a tarefa que adota não fecha
+  sozinha por eles (`Send.adopted`, `Sub.adopted`). As regras pedem planejar antes de delegar.
+- Cartão cuja tarefa de origem sai do plano (2026-11-14, "Sob o nível 1 (Recomendado)"): no replano do
+  mesmo pedido que deixa de fora a subtarefa de onde a sessão foi aberta (ou o subagente lançado), o
+  cartão ficava solto no fim e sumia ao concluir; o do subagente saía do painel ao terminar. Agora passa
+  para baixo do nível 1 que a continha (`moveToLevelOne`, depois do `renameAnchors`) e fica lá, vivo ou
+  concluído, com as tarefas da filha na contagem.
 - Esc com trabalho delegado vivo (2026-11-14, "Segue ◉/◷ (Recomendado)"): só a carta na fila poupava a
   tarefa do Esc; a filha trabalhando sob ela e o subagente em segundo plano lançado dela a deixavam ✕.
   `spared` estende a lista das tarefas poupadas por `halt` e `stay`; `park` segue marcando `stopped`. O

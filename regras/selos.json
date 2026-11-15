@@ -2050,6 +2050,17 @@
       "data": "2026-11-14",
       "motivo": "correção direta: regras de cartão dentro do cartão"
     },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc com concluídas, uma iniciada e pendentes: tudo desenhado, nada na conta da mãe": {
+      "regras": [
+        "sessoes.rodada-descartada-fora-da-contagem",
+        "sessoes.filha-parada-pendentes-seguem-pendentes"
+      ],
+      "hash": "37c6d958108f0aba",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Rodada fora da conta (Recomendado)\"; trava a contagem que os cenários passam a dizer"
+    },
     "task-tree/tests/sessoes.test.ts::a filha parada com Esc segue rodada descartada depois de outro turno, até dar start na tarefa parada": {
       "regras": [
         "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"

@@ -346,6 +346,33 @@ test('a filha parada com Esc sem pendente sai da contagem, ✓ inclusive, e o ca
   expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
 })
 
+// Regra: sessoes.rodada-descartada-fora-da-contagem, sessoes.filha-parada-pendentes-seguem-pendentes
+test('a filha parada com Esc com concluídas, uma iniciada e pendentes: tudo desenhado, nada na conta da mãe', async ($: any, on: any) => {
+  fixar(on)
+  const tarefas = [noTurno(1, '1', 'F1', 'feita'), noTurno(1, '2', 'F2', 'feita'), noTurno(1, '3', 'Começada', 'iniciada'), noTurno(1, '4', 'P1', 'aberta'), noTurno(1, '5', 'P2', 'aberta')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aborted = true
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'F1', 'concluida')
+  esperarEstado(p, 'Começada', 'interrompida')
+  esperarEstado(p, 'P1', 'pendente')
+  esperarEstado(p, 'P2', 'pendente')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([0, 3])
+  // Só "Dois" e "Três", da mãe: as pendentes da filha ficam fora do chip.
+  expect(c.chips.pendentes, emTexto(p)).toBe(2)
+  expect(c.chips.interrompidas, emTexto(p)).toBe(0)
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0/1')
+  esperarPalavra(p, 'filha-um', 'parada')
+})
+
 // A filha parou "Parada" com Esc, tratou um aviso e nele iniciou "Outra"; o último turno dela terminou
 // normalmente (o arquivo não diz `aborted`): a marca vai na tarefa.
 // Regra: sessoes.filha-parada-com-esc-segue-descartada-ate-o-start

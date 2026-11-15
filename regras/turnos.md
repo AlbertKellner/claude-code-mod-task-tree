@@ -20,9 +20,10 @@ As pendentes seguem pendentes no fim do turno, na principal e nas filhas.
 
 - Dado tarefas nunca iniciadas
 - Quando o turno termina, normal ou com Esc
-- Então elas seguem ○, nunca ✕, e o cabeçalho as conta
+- Então elas seguem ○, nunca ✕, e o cabeçalho as conta; salvo, no painel da mãe, a rodada de uma filha parada com Esc com tarefa aberta, que sai inteira da contagem até a filha dar start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem, sessoes.filha-parada-com-esc-segue-descartada-ate-o-start); no painel da própria filha elas contam
 
 Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24, edb959f); commit d57807e.
+Reescrito: 2026-11-14, decisão do usuário ("Rodada fora da conta (Recomendado)"); só o texto ganha a exceção que o código já fazia. Os testes não mudam.
 Estado: coberto
 
 ### turnos.pai-e-pedido-aguardam-no-fim
