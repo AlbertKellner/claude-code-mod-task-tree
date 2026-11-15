@@ -637,7 +637,7 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
           childrenState,
           (held as Child[]).map(c => {
             const f = c.anchor === undefined ? file.children.find(x => x.id === c.id) : undefined
-            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt, places: c.places ?? f.places } : c
+            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt, places: c.places ?? f.places, onlyPlace: c.onlyPlace ?? f.onlyPlace } : c
           }),
         )
       }

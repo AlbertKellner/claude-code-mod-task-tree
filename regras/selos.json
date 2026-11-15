@@ -4249,6 +4249,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Segue ◉/◷ (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::num pedido sem plano, com a pergunta aberta na tarefa em andamento, a filha aberta na pendente do plano anterior que conclui tudo não a fecha": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "da18ba70438ced05",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Também não fecha (Recomendado)\"): a sessão aberta"
+    },
     "task-tree/tests/sessoes.test.ts::o arquivo de uma filha arquivada não é relido a cada leitura, e o cartão segue igual": {
       "regras": [
         "sessoes.arquivada-nao-e-relida"
@@ -5147,6 +5157,26 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário de 2026-11-15 (\"Não fecha na entrega (Recomendado)\"): o destino do cartão numa tarefa fechada do plano anterior"
+    },
+    "task-tree/tests/subagentes.test.ts::num pedido sem plano, com a pergunta aberta na tarefa em andamento, o subagente concluído posto na pendente do plano anterior não a fecha no fim do turno": {
+      "regras": [
+        "subagentes.pai-conclui-no-fim-do-turno"
+      ],
+      "hash": "a0a5cd35093e1685",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Também não fecha (Recomendado)\")"
+    },
+    "task-tree/tests/subagentes.test.ts::num pedido sem plano, com a pergunta aberta na tarefa em andamento, o subagente que falha posto na pendente do plano anterior não a deixa interrompida": {
+      "regras": [
+        "subagentes.pai-reflete-falha-ou-interrupcao"
+      ],
+      "hash": "00293265f7bc6560",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Também não fecha (Recomendado)\"): também com o subagente que falha"
     },
     "task-tree/tests/subagentes.test.ts::numa filha, o subagente terminado que outro subagente lançou segue no cartão dele": {
       "regras": [

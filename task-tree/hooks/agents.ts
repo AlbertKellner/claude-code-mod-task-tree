@@ -18,7 +18,7 @@ import { edit, finish, settle } from '../state/tasks'
 import { engineText } from '../io/host'
 import { cutText, oneLine } from '../draw/svg'
 import { guardStep } from '../io/log'
-import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors } from './panel'
+import { askingAnchors, change, dropWaits, ensureLinks, openTurnOf, publishPanel, sendPlace, stamp, usedAnchors } from './panel'
 
 // The state's keys this file reads or writes, as literals (see ../state/durability).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -68,12 +68,14 @@ async function mainUses($: any): Promise<Uses> {
   const { value: waits = [] } = await $.state.get(waitsState)
   return { kids: kids as Child[], sends: sends as Send[], waits: waits as Wait[] }
 }
-function anchorIn(groups: Group[], parent: string, phrases: string[], uses: Uses): string | undefined {
+// With `place` (sendPlace): a task of an earlier plan, put there only as a place (Sub.onlyPlace).
+function placeIn(groups: Group[], parent: string, phrases: string[], uses: Uses): { anchor: string | undefined; place: boolean } {
   const tasks = groups.find(g => g.agent === parent)?.tasks ?? []
   const mine = groups.filter(g => (g.parent ?? MAIN) === parent)
-  if (parent !== MAIN) return sendAnchor(tasks, usedAnchors([], [], mine), [], [], undefined, phrases)
-  return sendAnchor(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), [], openTurnOf(groups)?.id, phrases)
+  if (parent !== MAIN) return sendPlace(tasks, usedAnchors([], [], mine), [], [], undefined, phrases)
+  return sendPlace(tasks, usedAnchors(uses.kids, uses.sends, mine), askingAnchors(uses.waits), [], openTurnOf(groups)?.id, phrases)
 }
+const anchorIn = (groups: Group[], parent: string, phrases: string[], uses: Uses) => placeIn(groups, parent, phrases, uses).anchor
 // The description and the type are free phrases, not session names (namedFor).
 export async function launchAnchor($: any, groups: Group[], parent: string, phrases: string[]): Promise<string | undefined> {
   return anchorIn(groups, parent, phrases, parent === MAIN ? await mainUses($) : NO_USES)
@@ -115,7 +117,10 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
     // its first agent of this launcher picks a task; the others take that one's, with a task or not
     // (subagentes.workflow-fica-junto-na-tarefa-do-primeiro). Lone launches go on as always.
     const first = run === undefined ? undefined : all.find(g => g.agent !== agent && g.sub?.run === run && (g.parent ?? MAIN) === parent)
-    const anchor = first !== undefined ? first.anchor : anchorIn(all, parent, phrases, uses)
+    // A task of an earlier plan with a question open in the task in progress: only a place (the
+    // person, 2026-11-15: "Também não fecha (Recomendado)"); a workflow's agent takes its first one's.
+    const at = first !== undefined ? { anchor: first.anchor, place: first.sub?.onlyPlace === true } : placeIn(all, parent, phrases, uses)
+    const anchor = at.anchor
     const mate = all.find(g => g.agent !== agent && g.sub && g.parent === parent && g.anchor === anchor && !g.sub.run && now - g.sub.at <= SUB_BATCH)
     const sub: Sub = {
       at: now,
@@ -124,6 +129,7 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
       batch: mate?.sub?.batch ?? now,
       ...(typeof r.model === 'string' && r.model !== '' ? { engine: engineText(r.model) } : {}),
       ...(run ? { run } : {}),
+      ...(at.place ? { onlyPlace: true } : {}),
     }
     return all.some(g => g.agent === agent)
       ? all.map(g => (g.agent === agent ? { ...g, sub } : g))
@@ -374,12 +380,14 @@ export async function checkSubs($: any) {
 // ended is a new try: the one that ended before that launch no longer counts, so the last try
 // decides (the person, 2026-11-14: "✓, vale a última (Recomendado)"); its card stays "falhou". Its parents close by the usual rule; the subagents' cards stay out of the count.
 // A subagent is the leaf's only while it is of this leaf (`ofLeaf`): not adopted by a later plan
-// (Sub.adopted, launched with no task), not launched before the leaf
+// (Sub.adopted, launched with no task), not put there only as a place with a question open in an
+// earlier plan's task (Sub.onlyPlace; the person, 2026-11-15: "Também não fecha (Recomendado)"), not launched before the leaf
 // was planned (an earlier task's with the same id, in a state written before the anchor was renamed
 // with it), and, once a start reopened the leaf after a close, still running or ended since: one
 // that ended before was reflected in that close.
 const ofLeaf = (s: Sub, leaf: TaskNode) =>
   s.adopted !== true &&
+  s.onlyPlace !== true &&
   !(leaf.plannedAt !== undefined && s.at < leaf.plannedAt) &&
   (leaf.reopenedAt === undefined || s.end === undefined || s.end >= leaf.reopenedAt)
 // With `only` (a subagent that just ended, the person, 2026-11-15: "✓, reflete o lançado

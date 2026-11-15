@@ -59,7 +59,7 @@ export const TABLE: readonly Row[] = [
     note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s; with no store copy, it comes back from the published file with the groups (fromOwnFile)' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt, places: where each card of turns typed there goes, decided once), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind); 20 rounds per session (keepRounds), those of a task in sight never go' },
+    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt, places: where each card of turns typed there goes, decided once; onlyPlace: its task of origin only as a place), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind); 20 rounds per session (keepRounds), those of a task in sight never go' },
   { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
     note: 'messages to other sessions and to subagents, one per message (its own number, seq): queued until taken up (a delivery at once spends its own receipt too, spent), then kept with the letter green (or gray, not delivered); over 20 (keepSends) only the oldest delivered or not delivered and already told go' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
@@ -144,8 +144,8 @@ export const KEEP = 30
 export const loaded = new Set<string>()
 
 // What the store keeps of a session this one linked to: its ties to the tasks, not its state.
-export type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds' | 'openedAt' | 'places'>
-export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds, openedAt: c.openedAt, places: c.places })
+export type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds' | 'openedAt' | 'places' | 'onlyPlace'>
+export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds, openedAt: c.openedAt, places: c.places, ...(c.onlyPlace === true ? { onlyPlace: true } : {}) })
 
 // The store's copy meeting the state's, by the row's `merge` (see Merge).
 export function merge<T>(key: string, cur: T[] | undefined, old: T[]): T[] {

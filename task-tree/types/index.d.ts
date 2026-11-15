@@ -108,6 +108,11 @@ export type Sub = {
   // Launched with no task, before the request's first plan, which gave it one (hooks/tools,
   // adoptOrphans): its end closes no task (ofLeaf, hooks/agents).
   adopted?: boolean
+  // Launched with a question open in the task in progress, of an earlier plan continued with a start
+  // only, the request open now with no task yet, under another task of that plan (hooks/panel,
+  // sendPlace): only its place, as `adopted`; its end closes no task (the person, 2026-11-15:
+  // "Também não fecha (Recomendado)"). Absent from earlier versions.
+  onlyPlace?: boolean
 }
 
 // An Agent call, recorded at launch until the subagent's group claims it.
@@ -258,6 +263,11 @@ export type Child = {
   // When this session opened it (start_session): its task of origin counts as used since then, as a
   // message sent from it does (sendAnchor); absent from earlier versions.
   openedAt?: number
+  // Opened with a question open in the task in progress, of an earlier plan continued with a start
+  // only, the request open now with no task yet, under another task of that plan (hooks/panel,
+  // sendPlace): `anchor` is only its place; its ending with all done closes no task (closeByEnded;
+  // the person, 2026-11-15: "Também não fecha (Recomendado)"). Kept with its ties; absent from earlier versions.
+  onlyPlace?: boolean
   panel?: Panel
   tasks?: TaskNode[]
   // An archived session whose ties are all out of the current work (its request went to "+N pedidos

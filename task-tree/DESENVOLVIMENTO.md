@@ -1664,6 +1664,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   A carta posta por pergunta aberta num pedido ainda sem plano numa tarefa do plano anterior tem a marca
   própria (`Send.onlyPlace`), com o mesmo efeito na entrega (2026-11-15, "Não fecha na entrega
   (Recomendado)").
+  O cartão do subagente e o da sessão postos ali do mesmo jeito também são só lugar (`Sub.onlyPlace`,
+  lido por `ofLeaf`; `Child.onlyPlace`, guardado com os laços da sessão e lido por `closeByEnded`, que
+  também pula a origem posta por uma carta `onlyPlace`): o fim do subagente e a filha que conclui tudo
+  não mudam essa tarefa (2026-11-15, "Também não fecha (Recomendado)").
 - O que a filha mostra: o host não expõe espera nem tarefas de outra sessão (`list_sessions`/
   `get_session` só têm `isRunning`). Cada sessão grava `~/.claude/task-tree-waits/<id local>.json`
   com `{ waiting, at, tasks, groups, waits, children }` (o painel inteiro dela; `tasks` é o grupo

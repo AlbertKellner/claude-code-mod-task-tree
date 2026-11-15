@@ -168,11 +168,12 @@ A tarefa de onde saíram subagentes, todos concluídos, fica ✓ quando nada mai
 
 - Dado uma tarefa sem subtarefas, iniciada ou pendente, com um ou mais subagentes lançados dela, todos "concluído", e nada mais em execução nela (nenhum subagente rodando, nenhuma sessão filha viva nela, aberta ali ou com a rodada atual ali, trabalhando, abrindo ou esperando a pessoa, nenhuma carta na fila, nenhuma pergunta aberta do mesmo dono)
 - Quando o turno termina (ou o último subagente em segundo plano termina depois do turno, mesmo parado com Esc: subagentes.fim-depois-do-esc-fecha-a-tarefa)
-- Então a tarefa fica ✓ sozinha, com o tempo parado no fim do último subagente; o pai e o pedido seguem a regra de sempre; o x/y conta a tarefa; o cartão segue "concluído" e fora da contagem; um `done` do modelo depois disso só acrescenta o resumo
+- Então a tarefa fica ✓ sozinha, com o tempo parado no fim do último subagente; o pai e o pedido seguem a regra de sempre; o x/y conta a tarefa; o cartão segue "concluído" e fora da contagem; um `done` do modelo depois disso só acrescenta o resumo. Fora disso: o subagente lançado num pedido ainda sem plano, com pergunta aberta na tarefa em andamento de um plano anterior, e posto noutra tarefa desse plano (envios.nunca-na-tarefa-da-pergunta) está nela só como lugar: o fim dele não muda essa tarefa, que segue como estava (a pendente segue pendente) até o modelo trabalhar nela
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "Fecha de fato (Recomendado)"; para a pendente sem start: "Fecha também").
 Reescrito: 2026-11-14, texto: a sessão viva conta aberta ali ou com a rodada atual ali, também esperando a pessoa, e a pergunta aberta só conta a do mesmo dono (auditoria 2026-11-10); nenhuma regra muda e os testes existentes não mudam.
 Reescrito: 2026-11-14, texto: o Quando remete ao fim do subagente depois do Esc (subagentes.fim-depois-do-esc-fecha-a-tarefa); os testes deste cenário não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Também não fecha (Recomendado)"): o subagente posto só como lugar numa tarefa do plano anterior, com pergunta aberta num pedido ainda sem plano, não a fecha. Os testes existentes não mudam.
 Código: hooks/turn.ts
 Estado: coberto
 
@@ -181,10 +182,11 @@ A tarefa de onde saiu um subagente que falhou ou foi interrompido reflete esse f
 
 - Dado uma tarefa cujos subagentes terminaram, algum deles "falhou" ou "interrompido", e nada mais em execução nela
 - Quando o turno termina
-- Então a tarefa fica ✕, com "falhou" se um falhou, senão "interrompida"; entre subagentes que rodaram juntos vale o pior (falhou, depois interrompido, depois concluído); quando um subagente é lançado depois do fim de outro da mesma tarefa (uma nova tentativa), conta o fim do último, e os que terminaram antes desse lançamento não contam: a nova tentativa concluída deixa a tarefa ✓, com o cartão do que falhou ainda "falhou" embaixo dela
+- Então a tarefa fica ✕, com "falhou" se um falhou, senão "interrompida"; entre subagentes que rodaram juntos vale o pior (falhou, depois interrompido, depois concluído); quando um subagente é lançado depois do fim de outro da mesma tarefa (uma nova tentativa), conta o fim do último, e os que terminaram antes desse lançamento não contam: a nova tentativa concluída deixa a tarefa ✓, com o cartão do que falhou ainda "falhou" embaixo dela. Fora disso: o subagente lançado num pedido ainda sem plano, com pergunta aberta na tarefa em andamento de um plano anterior, e posto noutra tarefa desse plano (envios.nunca-na-tarefa-da-pergunta) está nela só como lugar: o fim dele não muda essa tarefa, que segue como estava (a pendente segue pendente) até o modelo trabalhar nela; o cartão dele fica "falhou" ou "interrompido"
 
 Origem: decisão do usuário, 2026-11-09 ("falta só corrigir as tarefas pai, quando um agente é concluido com sucesso, o pai sempre deve refletir seu status, não ficar pendente se não tiver nada em execucao"; "interrompido se é interrompido, falha se ele falhou").
 Reescrito: 2026-11-14, decisão do usuário ("✓, vale a última (Recomendado)"); desfaz, para a nova tentativa lançada depois do fim da anterior, "com fins mistos vale o pior" (derivado das respostas de 2026-11-09). O teste do misto lançado junto não muda.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Também não fecha (Recomendado)"): o subagente posto só como lugar numa tarefa do plano anterior, com pergunta aberta num pedido ainda sem plano, não a deixa ✕. Os testes existentes não mudam.
 Código: draw/layout.ts
 Estado: coberto
 

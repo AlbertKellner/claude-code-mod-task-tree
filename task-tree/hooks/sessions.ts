@@ -13,7 +13,7 @@ import { debug, debugOnce } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { learnNames, change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendAnchor, showStatus, stamp, usedAnchors, setIdle } from './panel'
+import { learnNames, change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendPlace, showStatus, stamp, usedAnchors, setIdle } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -419,13 +419,16 @@ export async function recordStart($: any, resultText: string, names: string[] = 
   // with several in progress, the first with no message yet).
   const { value: waits0 = [] } = await $.state.get(waitsState)
   // Before the request's first plan: none (drawn loose until the plan adopts it).
-  const anchor = sendAnchor((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (value as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(value as Group[])?.id, phrases)
+  // With a question open in an earlier plan's task and the request with no task yet, another task of
+  // that plan, only as a place (Child.onlyPlace; the person, 2026-11-15: "Também não fecha (Recomendado)").
+  const { anchor, place } = sendPlace((value as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (value as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(value as Group[])?.id, phrases)
+  const mark = place && anchor !== undefined ? { onlyPlace: true } : {}
   // When it was opened: its task counts as used from then on (usedAnchors).
   const openedAt = await stamp($)
   await update($, childrenState, cur => {
     const list = cur ?? []
-    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, anchor: c.anchor ?? anchor, openedAt: c.openedAt ?? openedAt } : c))
-    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, anchor: anchor ?? keptLink(id)?.anchor, openedAt: openedAt ?? keptLink(id)?.openedAt }]
+    if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, ...(c.anchor === undefined ? mark : {}), anchor: c.anchor ?? anchor, openedAt: c.openedAt ?? openedAt } : c))
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, ...mark, anchor: anchor ?? keptLink(id)?.anchor, openedAt: openedAt ?? keptLink(id)?.openedAt }]
   })
   // The tie goes to the store before the first read: a session the list does not hold yet, dropped
   // after its grace, gets its task back from there once listed (keptLink).
@@ -488,6 +491,10 @@ function finishedAll(c: Child): boolean {
   if (groups.some(g => g.agent !== MAIN && hasOpen(g.tasks))) return false
   return !(p.children ?? []).some(k => !k.archived && (k.running || k.waiting === true || k.starting === true))
 }
+// Whether a session's task of origin `id` is only its place: it was opened there so (Child.onlyPlace),
+// or a message to it was put there so (Send.onlyPlace).
+const onlyPlaceOf = (c: Child, id: string, sends: Send[]) =>
+  (c.onlyPlace === true && c.anchor === id) || sends.some(s => s.onlyPlace === true && s.anchor === id && (s.to === c.id || (c.name !== '' && s.to === c.name)))
 // The sessions that ended their turn (`ended`, this read) with all of their work done close their task
 // of origin (originOf), the person, 2026-11-15: "Fecha a tarefa sozinho (Recomendado)": when it is open
 // with no open subtask, not left interrupted by an Esc, and nothing else is at work in it (inFlight, with the sends, the waits and the
@@ -510,6 +517,10 @@ async function closeByEnded($: any, ended: string[]) {
         const t = originOf(c, tasks, sends as Send[])
         // One the person's Esc left interrupted waits on its start (turnos.esc-com-trabalho-delegado-vivo).
         if (t === undefined || t.stopped === true || t.children.some(x => x.status === 'open')) continue
+        // Its task of origin only as a place (the session opened, or a message sent to it, with a question
+        // open in an earlier plan's task: Child.onlyPlace, Send.onlyPlace): the person, 2026-11-15,
+        // "Também não fecha (Recomendado)".
+        if (onlyPlaceOf(c, t.id, sends as Send[])) continue
         if (inFlight(all, MAIN, t.id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })) continue
         tasks = settle(edit(tasks, t.id, finish(now)), now)
         closed.push({ id: t.id, title: t.title, name: c.name || c.title, session: c.id })

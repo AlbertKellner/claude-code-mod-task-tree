@@ -205,6 +205,7 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       places: before?.places ?? kept(r.sessionId)?.places,
       anchor: before?.anchor ?? kept(r.sessionId)?.anchor,
       openedAt: before?.openedAt ?? kept(r.sessionId)?.openedAt,
+      onlyPlace: before?.onlyPlace ?? kept(r.sessionId)?.onlyPlace,
       panel: read.panels[r.sessionId] ?? before?.panel,
       tasks: read.panels[r.sessionId] ? undefined : before?.tasks,
       // Kept as one line (hooks/sessions, summarize) while archived and not read again.

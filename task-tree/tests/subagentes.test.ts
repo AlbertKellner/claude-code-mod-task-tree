@@ -1936,3 +1936,42 @@ test('na releitura que encerra o cartão, uma falha ao refletir os lançados nã
   esperarEstado(p, 'Corrigir', 'interrompida')
   expect(log.some(l => l.includes('releitura dos subagentes, passo') && l.includes('estouro de teste')), log.join('\n')).toBe(true)
 })
+
+// Pedido "continue" sem plano que retoma "Um" com start, com a pergunta aberta nela e "Dois" pendente do
+// plano anterior; um subagente é lançado (vai a "Dois", só como lugar) e termina como `fim` disser.
+const subNaPendenteDoPlanoAnterior = async ($: any, on: any, fim: (agente: string) => Promise<unknown>) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await lancar($, { descricao: 'conferir o diff' })
+  await fim('sub-1')
+  await relogio.advance(1000)
+  await resp
+  await fimDoTurno($)
+  return await painel($)
+}
+
+// Regra: subagentes.pai-conclui-no-fim-do-turno
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, o subagente concluído posto na pendente do plano anterior não a fecha no fim do turno', async ($: any, on: any) => {
+  const p = await subNaPendenteDoPlanoAnterior($, on, a => fimDoSubagente($, a))
+  const doCartao = (l: any) => l.titulo.includes('conferir o diff')
+  expect(abaixo(p, 'Dois').filter(doCartao).length, emTexto(p)).toBe(1)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  esperarEstado(p, 'Dois', 'pendente')
+})
+
+// Regra: subagentes.pai-reflete-falha-ou-interrupcao
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, o subagente que falha posto na pendente do plano anterior não a deixa interrompida', async ($: any, on: any) => {
+  const p = await subNaPendenteDoPlanoAnterior($, on, a => fimDoSubagenteCom($, a, { erro: true }))
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('interrompida')
+  esperarEstado(p, 'Dois', 'pendente')
+})

@@ -5,6 +5,7 @@ import { abrirSessao, aviso, done, esc, iniciarSessao, pedido, plan, start, type
 import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
+import { responderDepois } from './kit/ambiente'
 import { envio, ferramenta } from './kit/cenario'
 import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 
@@ -2430,4 +2431,35 @@ test('a filha aberta num pedido antigo que recebeu mensagem de uma tarefa do ped
   const p = await painel($)
   expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+const PERGUNTA_NA_CONTINUACAO = {
+  questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
+}
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, a filha aberta na pendente do plano anterior que conclui tudo não a fecha', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await resp
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(r, r).not.toContain('concluiu sozinho')
 })
