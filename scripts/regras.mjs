@@ -1,6 +1,6 @@
 // Confere o catálogo regras/ contra os testes de task-tree/tests/: cada id do catálogo, o seu estado
 // e os comentários "// Regra:" acima de cada test(. Uso: node scripts/regras.mjs [--raiz <pasta>]
-// (primeira etapa do npm run check). Sai com 1 e a lista dos problemas quando algo não bate.
+// (etapa regras do npm run check). Sai com 1 e a lista dos problemas quando algo não bate.
 //
 // O mapa de código (matriz de impacto, npm run impacto): cada arquivo do catálogo tem uma linha
 // "Código da área:" (os arquivos do mod, relativos a task-tree/), e um cenário pode ter "Código:" próprio,

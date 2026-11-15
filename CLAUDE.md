@@ -34,7 +34,12 @@ Como o trabalho é conduzido (papéis, perguntas, lotes, paralelismo): @PROCESSO
     npm install      # uma vez: typescript para o tsc e o hook de pré-commit
     npm run check
 
-Etapas, nessa ordem; a primeira que falha para:
+Etapas, na ordem do resumo final. As etapas 1 a 6 rodam em paralelo entre si e com o `plugin test`; a
+primeira que falha encerra as que ainda rodam, e o check sai com falha mostrando a saída dela. A
+`regressao` só começa depois de todas passarem. A saída de cada etapa aparece inteira quando ela
+termina (a da `regressao`, ao vivo), e o resumo final segue a ordem da lista (decisão do usuário,
+2026-11-15: "é possivel rodar as etapas do npm run check em paralello, e a primeira que quebrar, para
+as outras que ainda estiverem rodando?"; "sim"). As etapas e o grupo: `scripts/etapas.mjs`.
 1. `regras`: confere o catálogo `regras/` contra os testes (ids, estados, ligações).
 2. `travas`: testa as regras do selo num repositório temporário.
 3. `selos`: confere os testes e o kit contra `regras/selos.json`.
@@ -61,7 +66,7 @@ O que mudou é lido sem detecção de renome: um arquivo movido conta pelo camin
 onde entrou, e um nome com acento conta como é.
 
 `plugin test` e `regressao` rodam em série: em paralelo, com a máquina carregada, testes estouravam
-os 5 s do kit.
+os 5 s do kit. As etapas leves (1 a 6) rodam junto com o `plugin test`.
 
 `regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.

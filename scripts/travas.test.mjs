@@ -977,3 +977,128 @@ test('as refatorações de um commit são os selos de refatoração com hash nov
     rmSync(dir, { recursive: true, force: true })
   }
 })
+// Lote E-01: as etapas leves rodam em paralelo com o plugin test, e a primeira falha encerra as outras.
+const NODE = process.execPath
+const passo = (nome, codigo, extra = {}) => ({ nome, cmd: NODE, args: ['-e', codigo], bloqueia: true, roda: true, junto: true, depois: false, ...extra })
+const DORME = 'setTimeout(() => {}, 60000)'
+const vivo = pid => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+const morreu = async pid => {
+  for (let i = 0; i < 20 && vivo(pid); i++) await new Promise(r => setTimeout(r, 250))
+  return !vivo(pid)
+}
+
+test('as etapas leves e o plugin test vão juntos; a regressão fica para depois', async () => {
+  const { montarEtapas, dividir } = await import('./etapas.mjs')
+  const etapas = montarEtapas({ claude: 'claude', modulos: 'nm', repo: 'r', raiz: 'x', indice: true, comBase: ['--base', 'abc'] })
+  assert.deepEqual(etapas.map(e => e.nome), ['regras', 'travas', 'selos', 'validate do marketplace', 'validate do mod', 'tsc', 'plugin test', 'regressao'])
+  assert.deepEqual(etapas.map(e => e.junto), [true, true, true, true, true, true, true, false])
+  assert.ok(etapas.every(e => e.roda && e.bloqueia))
+  const args = nome => etapas.find(e => e.nome === nome).args
+  assert.deepEqual(args('selos').slice(-2), ['--base', 'abc'])
+  assert.deepEqual(args('regressao').slice(-5), ['--indice', '--raiz', 'x', '--base', 'abc'])
+  const { antes, grupo, depois } = dividir(etapas)
+  assert.deepEqual(antes, [])
+  assert.equal(grupo.length, 7)
+  assert.deepEqual(depois.map(e => e.nome), ['regressao'])
+})
+
+test('no hook, a etapa pulada fica fora do grupo', async () => {
+  const { montarEtapas, dividir } = await import('./etapas.mjs')
+  const etapas = montarEtapas({ claude: 'claude', modulos: 'nm', repo: 'r', raiz: 'r', hook: { travas: false, validate: false, tsc: false } })
+  assert.deepEqual(etapas.filter(e => !e.roda).map(e => e.nome), ['travas', 'validate do marketplace', 'validate do mod', 'tsc'])
+  assert.deepEqual(dividir(etapas).grupo.map(e => e.nome), ['regras', 'selos', 'plugin test'])
+})
+
+test('a primeira etapa que falha encerra as que ainda rodam', async () => {
+  const { rodarGrupo } = await import('./etapas.mjs')
+  const vistas = []
+  const inicio = Date.now()
+  const estados = await rodarGrupo([passo('longa', DORME), passo('quebra', "process.stderr.write('quebrou'); process.exit(3)")], {
+    aoTerminar: e => vistas.push(e.nome),
+  })
+  assert.ok(Date.now() - inicio < 20000)
+  const quebra = estados.get('quebra')
+  assert.equal(quebra.estado, 'falhou')
+  assert.equal(quebra.codigo, 3)
+  assert.match(quebra.saida, /quebrou/)
+  const longa = estados.get('longa')
+  assert.equal(longa.estado, 'encerrada')
+  assert.equal(longa.causa, 'quebra')
+  assert.deepEqual(vistas, ['quebra'])
+  assert.ok(await morreu(longa.pid))
+})
+
+test('encerrar leva junto os processos netos', async () => {
+  const { lancar, encerrar } = await import('./etapas.mjs')
+  const dir = mkdtempSync(join(tmpdir(), 'travas-etapas-'))
+  try {
+    const arq = join(dir, 'pai.js')
+    writeFileSync(arq, `const n = require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(DORME)}], { stdio: 'ignore' }); console.log('neto ' + n.pid); ${DORME}`)
+    for (const shell of [false, true]) {
+      const etapa = shell ? { nome: 'pai', cmd: `"${NODE}"`, args: [`"${arq}"`] } : { nome: 'pai', cmd: NODE, args: [arq] }
+      const { proc, fim, saida } = lancar(etapa, { shell })
+      let neto
+      for (let i = 0; i < 80 && !neto; i++) {
+        await new Promise(r => setTimeout(r, 100))
+        neto = Number(/neto (\d+)/.exec(saida())?.[1]) || undefined
+      }
+      assert.ok(neto, `o neto não apareceu (shell ${shell}): ${saida()}`)
+      encerrar(proc)
+      await fim
+      assert.ok(await morreu(proc.pid), `o filho ficou (shell ${shell})`)
+      assert.ok(await morreu(neto), `o neto ficou (shell ${shell})`)
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('todas passam: cada saída é entregue inteira, uma vez, quando a etapa termina', async () => {
+  const { rodarGrupo } = await import('./etapas.mjs')
+  const vistas = []
+  const fala = n => passo(n, `process.stdout.write('saída de ${n} ação'); process.stderr.write(' erro ${n}')`)
+  const estados = await rodarGrupo([fala('um'), fala('dois'), fala('tres')], { aoTerminar: (e, est) => vistas.push([e.nome, est.saida]) })
+  for (const n of ['um', 'dois', 'tres']) {
+    assert.equal(estados.get(n).estado, 'passou')
+    assert.match(estados.get(n).saida, new RegExp(`saída de ${n} ação`))
+    assert.match(estados.get(n).saida, new RegExp(`erro ${n}`))
+  }
+  assert.equal(vistas.length, 3)
+  assert.deepEqual(vistas.map(v => v[0]).sort(), ['dois', 'tres', 'um'])
+})
+
+test('a etapa regras ou selos sem a linha de resumo é falha também no grupo', async () => {
+  const { rodarGrupo } = await import('./etapas.mjs')
+  const estados = await rodarGrupo([passo('longa', DORME), passo('regras', '')])
+  assert.equal(estados.get('regras').estado, 'naoConferiu')
+  assert.equal(estados.get('longa').estado, 'encerrada')
+  assert.ok(await morreu(estados.get('longa').pid))
+  const ok = await rodarGrupo([passo('regras', "console.log('regras: 1 cobertas')")])
+  assert.equal(ok.get('regras').estado, 'passou')
+})
+
+test('o resumo sai na ordem da lista', async () => {
+  const { linhasDoResumo } = await import('./etapas.mjs')
+  const etapas = ['a', 'b', 'c', 'd', 'regras', 'regressao'].map(nome => ({ nome, roda: nome !== 'b' }))
+  const estados = new Map([
+    ['d', { estado: 'encerrada', causa: 'c' }],
+    ['c', { estado: 'falhou', codigo: 2 }],
+    ['regras', { estado: 'naoConferiu', codigo: 1 }],
+    ['a', { estado: 'passou', codigo: 0 }],
+  ])
+  assert.deepEqual(linhasDoResumo(etapas, estados), [
+    'ok    a',
+    '--    b (pulada no hook: os arquivos dela não mudaram)',
+    'FALHA c (exit 2)',
+    '--    d (encerrada: c falhou)',
+    'FALHA regras (a etapa não conferiu nada: o script saiu sem a linha de resumo)',
+    '--    regressao (não rodou)',
+  ])
+})

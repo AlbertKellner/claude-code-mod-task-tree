@@ -47,7 +47,7 @@ O teste cita a regra num comentário na linha logo acima do `test(...)`, com um 
 test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes', ...)
 ```
 
-`scripts/regras.mjs`, a primeira etapa do `npm run check`, falha quando: um id se repete ou tem
+`scripts/regras.mjs`, a etapa `regras` do `npm run check`, falha quando: um id se repete ou tem
 formato inválido; um cenário não tem `Estado:` válido; um cenário `coberto` não é citado por
 nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pendente` ou
 `checklist`; um `test(` não tem `// Regra:` acima; um cenário não tem `Origem:`; o id não começa pelo

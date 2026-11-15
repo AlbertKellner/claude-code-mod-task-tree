@@ -1,5 +1,5 @@
-// Comando único de validação do task-tree: catálogo, travas, selos, validate, tsc, plugin test e
-// regressão, nessa ordem. Uso: npm run check (ou node scripts/testes.mjs). CLAUDE_BIN escolhe o
+// Comando único de validação do task-tree: catálogo, travas, selos, validate, tsc e plugin test em
+// paralelo (a primeira que falha encerra as outras), e depois a regressão. Uso: npm run check (ou node scripts/testes.mjs). CLAUDE_BIN escolhe o
 // binário do Claude Code.
 // --indice (o hook de pré-commit): o check roda sobre o que vai no commit, o índice copiado para uma
 // pasta temporária com git checkout-index, não sobre a pasta de trabalho (onde outra sessão pode
@@ -8,13 +8,13 @@
 // conferiu nada e conta como falha (scripts/guarda.mjs).
 // Numa worktree sem node_modules ou sem os tipos gerados, o hook usa os do clone principal; sem
 // node_modules em nenhum dos dois, para pedindo o npm install.
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario, avisoDeVersao, lerVersaoFixada, versaoDoTexto } from './binario.mjs'
-import { etapaConferiu } from './guarda.mjs'
+import { dividir, encerrarTodas, linhasDoResumo, montarEtapas, rodarGrupo } from './etapas.mjs'
 import { alteradosNoIndice, clonePrincipal, etapasDoHook, lerBase } from './mudou.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -75,15 +75,14 @@ const hook = alterados === null ? { travas: true, validate: true, tsc: true } : 
 const claude = acharBinario()
 const opcoes = cmd => ({ cwd: raiz, shell: cmd === 'claude' })
 const rodar = (cmd, args) => spawnSync(cmd, args, { ...opcoes(cmd), stdio: 'inherit' })
-// Em paralelo (o plugin test e a regressão no hook): cada saída é mostrada inteira ao terminar.
-const rodarJunto = (cmd, args) =>
-  new Promise(fim => {
-    const p = spawn(cmd, args, { ...opcoes(cmd), stdio: ['ignore', 'pipe', 'pipe'] })
-    let saida = ''
-    p.stdout.on('data', d => (saida += d))
-    p.stderr.on('data', d => (saida += d))
-    p.on('close', status => fim({ status, saida }))
-    p.on('error', e => fim({ status: 1, saida: String(e) }))
+
+// Ctrl+C ou fim pedido: as etapas em curso (fora do Windows, em grupos de processos próprios, que não
+// recebem o Ctrl+C do terminal) são encerradas, e a cópia do índice sai.
+for (const sinal of ['SIGINT', 'SIGTERM'])
+  process.on(sinal, () => {
+    encerrarTodas()
+    limpar()
+    process.exit(130)
   })
 
 const versao = spawnSync(claude, ['--version'], { cwd: raiz, encoding: 'utf8', shell: claude === 'claude' })
@@ -102,74 +101,47 @@ if (avisoVersao) console.log(avisoVersao)
 // atualização do app); num clone novo, sem ela, o tsc falha.
 // O tsc bloqueia: strict + noUncheckedIndexedAccess do tsconfig gerado, e noUnusedLocals do
 // task-tree/tsconfig.json (decisão do usuário, 2026-10-28).
-// [nome, comando, argumentos, bloqueia, roda (no hook: os arquivos dela mudaram), junto (no hook: em
-// paralelo com as seguintes marcadas junto)]
-const etapas = [
-  // O catálogo regras/ contra os testes (ids, estados, ligações); node puro, em milissegundos.
-  ['regras', process.execPath, ['scripts/regras.mjs', '--repo', repo], true, true],
-  // As travas do selo (scripts/selos.mjs), testadas num repositório temporário.
-  ['travas', process.execPath, ['--test', 'scripts/travas.test.mjs'], true, hook.travas],
-  // Os testes e o kit contra regras/selos.json: teste existente só muda com selo novo.
-  ['selos', process.execPath, ['scripts/selos.mjs', '--repo', repo, ...comBase], true, true],
-  ['validate do marketplace', claude, ['plugin', 'validate', '.', '--strict'], true, hook.validate],
-  ['validate do mod', claude, ['plugin', 'validate', 'task-tree', '--strict'], true, hook.validate],
-  // O TypeScript instalado, pelo Node (o npx, sem ele, baixaria outro pacote de nome tsc).
-  ['tsc', process.execPath, [join(modulos, 'typescript', 'bin', 'tsc'), '--noEmit', '-p', 'task-tree'], true, hook.tsc],
-  // Em série: em paralelo com a regressão, na máquina carregada, testes estouravam os 5 s do kit
-  // (1 falha em 5 execuções do hook), e um hook que falha à toa empurra para o --no-verify.
-  ['plugin test', claude, ['plugin', 'test', 'task-tree'], true, true],
-  // Os testes de HEAD contra o código novo; só com diferença em task-tree/ (ela mesma decide).
-  ['regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : []), ...comBase], true, true],
-]
-
-const resumo = []
+// As etapas e a ordem do resumo: scripts/etapas.mjs. As leves rodam em paralelo com o plugin test, e a
+// primeira que falha encerra as que ainda rodam; a regressão só depois de todas passarem.
+const etapas = montarEtapas({ claude, modulos, repo, raiz, indice, comBase, hook })
+const { antes, grupo, depois } = dividir(etapas)
+const estados = new Map()
 let codigo = 0
-const marcar = (nome, status, bloqueia) => {
-  const marca = status === 0 ? 'ok   ' : bloqueia ? 'FALHA' : 'AVISO'
-  resumo.push(`${marca} ${nome}${status === 0 ? '' : ` (exit ${status}${bloqueia ? '' : ', não bloqueia'})`}`)
-  if (status !== 0 && bloqueia && codigo === 0) codigo = status
+const falhou = est => est.estado === 'falhou' || est.estado === 'naoConferiu'
+const mostrar = (etapa, est) => {
+  console.log(`\n== ${etapa.nome}`)
+  process.stdout.write(est.saida ?? '')
+  if (est.estado === 'naoConferiu') console.error('a etapa não conferiu nada: o script saiu sem a linha de resumo')
 }
-for (let i = 0; i < etapas.length && codigo === 0; i++) {
-  const [nome, cmd, args, bloqueia, roda, junto] = etapas[i]
-  if (!roda) {
-    resumo.push(`--    ${nome} (pulada no hook: os arquivos dela não mudaram)`)
-    continue
+const registrar = async lista => {
+  const rs = await rodarGrupo(lista, { opcoes, aoTerminar: mostrar })
+  for (const [nome, est] of rs) {
+    estados.set(nome, est)
+    if (est.naoFechou) console.error(`a etapa ${nome} não fechou depois de encerrada`)
+    if (falhou(est) && codigo === 0) codigo = est.codigo || 1
   }
-  if (junto) {
-    const grupo = etapas.slice(i).filter(e => e[5])
-    console.log(`\n== ${grupo.map(e => e[0]).join(' + ')} (em paralelo)`)
-    const rs = await Promise.all(grupo.map(([, c, a]) => rodarJunto(c, a)))
-    grupo.forEach(([n, , , b], k) => {
-      console.log(`\n== ${n}\n${rs[k].saida}`)
-      marcar(n, rs[k].status ?? 1, b)
-    })
-    i += grupo.length - 1
-    continue
-  }
-  console.log(`\n== ${nome}`)
-  if (nome === 'tsc' && !existsSync(join(raiz, TIPOS))) {
-    console.error(`faltam os tipos gerados do mod (${TIPOS}): o motor do Claude Code grava a pasta quando carrega o mod do clone`)
-    marcar(nome, 1, bloqueia)
-    continue
-  }
-  if (nome === 'regras' || nome === 'selos') {
-    // A saída é capturada para conferir a linha de resumo, e reimpressa.
-    const r = spawnSync(cmd, args, { ...opcoes(cmd), encoding: 'utf8' })
-    process.stderr.write(r.stderr ?? '')
-    process.stdout.write(r.stdout ?? '')
-    const status = r.status ?? 1
-    if (status === 0 && !etapaConferiu(nome, r.stdout ?? '')) {
-      console.error('a etapa não conferiu nada: o script saiu sem a linha de resumo')
-      resumo.push(`FALHA ${nome} (a etapa não conferiu nada: o script saiu sem a linha de resumo)`)
-      codigo = 1
-      continue
-    }
-    marcar(nome, status, bloqueia)
-    continue
-  }
-  marcar(nome, rodar(cmd, args).status ?? 1, bloqueia)
 }
-for (const [nome] of etapas.slice(resumo.length)) resumo.push(`--    ${nome} (não rodou)`)
+
+if (etapas.find(e => e.nome === 'tsc').roda && !existsSync(join(raiz, TIPOS))) {
+  // Sem os tipos, nada é lançado.
+  console.log('\n== tsc')
+  console.error(`faltam os tipos gerados do mod (${TIPOS}): o motor do Claude Code grava a pasta quando carrega o mod do clone`)
+  estados.set('tsc', { estado: 'falhou', codigo: 1 })
+  codigo = 1
+}
+for (const e of antes) if (codigo === 0) await registrar([e])
+if (codigo === 0 && grupo.length) {
+  console.log(`\n== ${grupo.map(e => e.nome).join(' + ')} (em paralelo)`)
+  await registrar(grupo)
+}
+for (const e of depois) {
+  if (codigo !== 0) break
+  console.log(`\n== ${e.nome}`)
+  const status = rodar(e.cmd, e.args).status ?? 1
+  estados.set(e.nome, status === 0 ? { estado: 'passou', codigo: 0 } : { estado: e.bloqueia ? 'falhou' : 'aviso', codigo: status })
+  if (status !== 0 && e.bloqueia) codigo = status
+}
+const resumo = linhasDoResumo(etapas, estados)
 if (avisoVersao) resumo.push(avisoVersao)
 console.log(`\n${resumo.join('\n')}`)
 limpar()
@@ -188,6 +160,7 @@ function limpar() {
   }
   if (existsSync(link)) return console.error(`a cópia do índice ficou em ${raiz} (não foi possível desfazer a ligação ao node_modules)`)
   try {
-    rmSync(raiz, { recursive: true, force: true })
+    rmSync(raiz, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
   } catch {}
+  if (existsSync(raiz)) console.error(`a cópia do índice ficou em ${raiz} (um processo ainda segura a pasta)`)
 }
