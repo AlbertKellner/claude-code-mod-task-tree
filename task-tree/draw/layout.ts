@@ -899,8 +899,29 @@ export const SHOWN_CARD_TURNS = 3
 // are never cut, so the person can close it (the person, 2026-11-13: "Preservar a linha
 // (Recomendado)"): they come right after "+N linhas anteriores", in their order, and are not counted
 // in it. With none open the cut is the same as before; kept lines alone past `max` stay all the same.
+// What comes at depth 0 after the last request's block (a notice with no task at work, a session's card
+// or a subagent's with no task to go under, "+N cartões antigos de sessões", a letter with no place) is
+// the tail: its room is held and the cut goes over the requests only, so a small block at the end never
+// takes the place of a request past the limit. A tail past half the limit, or one that leaves fewer than
+// 2 lines, gets the same cut as the rest.
 export const MAX_ROWS = 400
+// The depth-0 lines that open a request's block: a request, a loose task, the line of the requests left out
+// (the main group's, `main|T:1`, or with no scope).
+const requestKey = (key: string | undefined) => key !== undefined && /^([^|:]*\|)?(T:|t:|sec:turns$)/.test(key)
 export function limitRows(rows: Row[], max = MAX_ROWS): Row[] {
+  if (rows.length <= max) return rows
+  let lastRequest = -1
+  rows.forEach((r, i) => {
+    if (r.depth === 0 && requestKey(r.key)) lastRequest = i
+  })
+  const tailAt = lastRequest < 0 ? -1 : rows.findIndex((r, i) => i > lastRequest && r.depth === 0)
+  if (tailAt > 0) {
+    const tail = rows.slice(tailAt)
+    if (tail.length * 2 <= max && max - tail.length >= 2) return [...cutRows(rows.slice(0, tailAt), max - tail.length), ...tail]
+  }
+  return cutRows(rows, max)
+}
+function cutRows(rows: Row[], max: number): Row[] {
   if (rows.length <= max) return rows
   const room = max - 1
   const before = (n: number): Row => ({ key: 'sec:before', depth: 0, tone: 'section', title: `+${n} linhas anteriores`, label: 'Linhas anteriores, não desenhadas', cut: n })

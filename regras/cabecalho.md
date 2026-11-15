@@ -117,7 +117,7 @@ O desenho tem no máximo 400 linhas e 600 KB; o que passa vira uma linha de cont
 
 - Dado um painel com mais de 400 linhas, ou um desenho acima de 600 KB (no app desktop, também acima de 95.000 caracteres de texto), com ou sem algo aberto pela pessoa
 - Quando é desenhado
-- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB ou, no app desktop, de 95.000 caracteres de texto, ou só cabe nessas duas linhas (cabecalho.aviso-de-painel-grande-volta)
+- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores"; se o último pedido sozinho passa do limite, ele é desenhado até o limite e fecha com "+N linhas" no fim dele; o que vem depois do último pedido (aviso sem tarefa, cartão solto, subagente sem tarefa de origem) segue desenhado, com o espaço dele reservado; o desenho nunca passa de 400 linhas, e o aviso "Painel grande demais" não aparece: ele fica só para o desenho que, reduzido a duas linhas, ainda passa de 600 KB ou, no app desktop, de 95.000 caracteres de texto, ou só cabe nessas duas linhas (cabecalho.aviso-de-painel-grande-volta)
 
 Origem: decisão do usuário ("Sim, com o corte"), 2026-10-22; commit 1d55fa0 (o tamanho do desenho, 4edb3f2, 2026-10-21, levou a ele).
 Reescrito: 2026-10-28, texto corrigido para o desenho aprovado em 2026-10-22 (sem mudança de regra).
@@ -126,6 +126,7 @@ Reescrito: 2026-11-12, decisão do usuário ("Cortar os mais antigos (Recomendad
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto das linhas no lugar do `alt` de cada imagem e usa títulos mais longos, porque a linha nativa pesa menos; a regra não muda.
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG") com a mesma regra de corte ("Cortar os mais antigos (Recomendado)"): no app desktop o corte também conta os caracteres de texto desenhados (os textos, o `alt` e o rótulo), até 95.000, porque o app só desenha os primeiros 100.000 e a linha nativa leva o título no texto e no `alt`; o terminal não muda.
 Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): o aviso também sai quando o que não cabe é o texto, ou quando só as duas linhas do piso cabem.
+Reescrito: 2026-11-14, texto: o bloco pequeno depois do último pedido não entra no lugar dele (auditoria 2026-11-10); a regra não muda e os testes existentes não mudam.
 Código: hooks/render.tsx
 Estado: coberto
 

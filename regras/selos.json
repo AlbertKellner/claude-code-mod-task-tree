@@ -326,6 +326,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::um aviso sem tarefa depois de um pedido grande demais não esconde o pedido": {
+      "regras": [
+        "cabecalho.limite-de-linhas-do-desenho"
+      ],
+      "hash": "6b727c366f2a533f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o corte reserva o espaço do que vem depois do último pedido"
+    },
     "task-tree/tests/cabecalho.test.ts::um pedido grande demais é desenhado até o limite e fecha com \"+N linhas\"": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"

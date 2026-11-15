@@ -414,7 +414,7 @@ sessões, erro da lista, envios pendentes, `folds`), monta o `Model` e chama `la
 (`draw/layout.ts`, puro): `panel()` percorre os grupos, os turnos (`turnRows`), as tarefas (`rows`),
 os cartões das sessões (`session`, cada uma dividida por mensagem em `split`) e os grupos de
 subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `limitRows` corta em
-`MAX_ROWS` = 400, ou em menos linhas quando o limite de tamanho pede (abaixo). Daí `Row[]`:
+`MAX_ROWS` = 400, ou em menos linhas quando o limite de tamanho pede (abaixo); o que vem na profundidade 0 depois do último pedido (aviso sem tarefa, cartão solto, subagente sem tarefa de origem, "+N cartões antigos") é a cauda, com o espaço reservado: o corte vale só para os pedidos, salvo cauda acima da metade do limite. Daí `Row[]`:
 profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
 `running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
 `fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
@@ -785,7 +785,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   2026-11-12: "Cortar os mais antigos (Recomendado)"): o render lê o state uma vez e a função `paint`
   (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
   `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
-  último pedido sozinho, até o limite, com "+N linhas"). Cada tentativa mira 95% do limite pela média
+  último pedido sozinho, até o limite, com "+N linhas"; a cauda depois do último pedido fica inteira, com o espaço reservado). Cada tentativa mira 95% do limite pela média
   de bytes por linha; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
   (abaixo do anterior e das linhas desenhadas, que as linhas guardadas de um histórico aberto podem
   deixar acima dele). O mapa `fitted` (por

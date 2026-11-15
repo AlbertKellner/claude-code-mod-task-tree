@@ -252,6 +252,24 @@ test('um pedido grande demais é desenhado até o limite e fecha com "+N linhas"
 })
 
 // Regra: cabecalho.limite-de-linhas-do-desenho
+test('um aviso sem tarefa depois de um pedido grande demais não esconde o pedido', { timeoutMs: 15000 }, async ($: any, on: any) => {
+  fixar(on)
+  on('classic.PermissionRequest', () => ({}))
+  await pedido($, 'Pedido grande')
+  await plan($, grande('T', 8, 8, 7))
+  // Sem nada em andamento, o aviso vai ao fim do painel, depois do pedido.
+  await $.classic.PermissionRequest({ tool_name: 'Bash' })
+  const p = await painel($)
+  const desenho = p.filter(l => !l.cabecalho)
+  expect(desenho.length, emTexto(p).slice(-500)).toBeLessThanOrEqual(400)
+  expect(p.some(l => l.titulo === 'Pedido grande'), emTexto(p).slice(0, 300)).toBe(true)
+  expect(p.some(l => l.titulo === 'T0.0.0'), emTexto(p).slice(0, 500)).toBe(true)
+  expect(p.some(l => /\+\d+ linhas$/.test(l.texto.trim())), emTexto(p).slice(-500)).toBe(true)
+  expect(desenho[desenho.length - 1]?.texto, emTexto(p).slice(-500)).toContain('Aguardando permissão: Bash')
+  expect(p.some(l => l.texto.includes('linhas anteriores')), emTexto(p).slice(0, 500)).toBe(false)
+})
+
+// Regra: cabecalho.limite-de-linhas-do-desenho
 test('pedidos antigos saem inteiros do começo, contados em "+N linhas anteriores"', { timeoutMs: 15000 }, async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
