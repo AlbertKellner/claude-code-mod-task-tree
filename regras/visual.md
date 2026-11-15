@@ -328,11 +328,12 @@ A faixa à esquerda do cabeçalho diz o estado geral pela cor.
 
 - Dado o painel com tarefas, sessões filhas ou nada
 - Quando o cabeçalho é desenhado no app desktop
-- Então a faixa é âmbar com tarefa em andamento e também, com o turno em curso, enquanto há tarefas pendentes e alguma já foi iniciada no pedido (entre um done e o start seguinte); âmbar claro ("aguardando") com algo aguardando ou só tarefas pendentes, nada iniciado; azul com só uma sessão filha trabalhando; verde com tudo concluído; cinza com o que ficou interrompido; e o estado vai ao texto alternativo ("estado geral: …")
+- Então a faixa é âmbar com tarefa em andamento e também, com o turno em curso, enquanto há tarefas pendentes e alguma já foi iniciada no pedido (entre um done e o start seguinte); âmbar claro ("aguardando") com algo aguardando ou só tarefas pendentes, nada iniciado; azul com só uma sessão filha trabalhando sem tarefa iniciada dela à vista; com uma tarefa iniciada da filha à vista no cartão, âmbar, porque ela conta como "em andamento"; verde com tudo concluído; cinza com o que ficou interrompido; e o estado vai ao texto alternativo ("estado geral: …")
 
 Origem: decisão do usuário, 2026-11-03 ("gostei da V4, siga para análise e implementação"; para só pendentes, nada iniciado: "Âmbar claro, 'aguardando'", contra a recomendação de cinza).
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o estado no texto alternativo do cabeçalho ("estado geral: …"), não mais a classe da faixa no SVG; a regra não muda.
 Reescrito: 2026-11-14, decisão do usuário ("\"Em andamento\" (Recomendado)"; "Do primeiro start (Recomendado)"): com o turno em curso, a faixa não volta a âmbar claro entre um done e o start seguinte; "só pendentes, nada iniciado" segue âmbar claro (2026-11-03). Os testes existentes deste cenário não mudam.
+Reescrito: 2026-11-14, decisão do usuário ("Âmbar, como hoje"): a tarefa iniciada da filha conta como "em andamento" no cabeçalho; o azul fica para a filha sem tarefa iniciada à vista. Os testes existentes deste cenário não mudam.
 Código: draw/svg.ts, hooks/render.tsx
 Estado: coberto
 

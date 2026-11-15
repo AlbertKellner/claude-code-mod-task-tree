@@ -4113,6 +4113,16 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::com tudo desta sessão concluído e a filha trabalhando numa tarefa iniciada dela, a faixa é âmbar, em andamento": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "51c1f1bf60ca74bd",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Âmbar, como hoje"
+    },
     "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
       "regras": [
         "visual.guias-na-faixa-do-cartao"

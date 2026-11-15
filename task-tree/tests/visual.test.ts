@@ -66,6 +66,22 @@ test('a faixa segue em andamento entre o done de uma tarefa e o start da seguint
   expect(await faixa($)).toBe('aguardando')
 })
 
+// Regra: visual.faixa-de-estado-geral
+test('com tudo desta sessão concluído e a filha trabalhando numa tarefa iniciada dela, a faixa é âmbar, em andamento', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_22222222-2222-2222-2222-222222222222', nome: 'filha', painel: { tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['1'])
+  expect(await faixa($)).toBe('em andamento')
+  const texto = (await noApp($)).cabecalho.texto
+  expect(texto).toContain('1 em andamento')
+  expect(texto).toContain('1 sessão ativa')
+})
+
 // O título de uma linha do app desktop: o texto inteiro, que o app corta com "…" na largura real.
 const LONGO = 'Um título bem comprido que não cabe inteiro na linha do painel de tarefas, de jeito nenhum'
 
