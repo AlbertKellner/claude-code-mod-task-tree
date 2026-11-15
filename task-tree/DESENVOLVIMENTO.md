@@ -891,7 +891,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   nos avisos, hand-backs e notificações (`lembretes.parada-so-volta-com-start`).
 
 
-- **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa (só com a filha trabalhando sem tarefa iniciada dela à vista; a iniciada da filha conta "em andamento", 2026-11-14, "Âmbar, como hoje"), verde concluído, cinza interrompido; desde 2026-11-14, "\"Em andamento\" (Recomendado)" e "Do primeiro start (Recomendado)": com o turno em curso, tarefas pendentes e alguma já iniciada no pedido, segue âmbar entre um done e o start seguinte, pelo `started` que `hooks/render.tsx` calcula com `startedLast` e `lastTurnAt`), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. Abaixo de 84 colunas (`NARROW`), o toks/s e "ultracode" vão em linhas próprias abaixo do tempo, no bloco de números (decisão do usuário, 2026-11-14: "Os dois sempre"; antes, o cabeçalho estreito não os desenhava). A linha do terminal não muda.
+- **Cabeçalho V4** (2026-11-03, "gostei da V4, siga para análise e implementação"): `HEADER_H` = 125 (116 com 9 px de respiro embaixo das pílulas, 2026-11-03); um cartão com a faixa de estado à esquerda (`headerState`: âmbar em andamento, âmbar claro aguardando ou só pendentes, azul sessão ativa (só com a filha trabalhando sem tarefa iniciada dela à vista; a iniciada da filha conta "em andamento", 2026-11-14, "Âmbar, como hoje"), verde concluído, cinza interrompido (com tudo fechado, cinza vence o verde só com alguma tarefa parada com Esc ou que falhou: `halted`, `stopped` ou `failed`; a tirada com cancel e a sobra de um subagente não contam, 2026-11-15, "Cancelada não conta"); desde 2026-11-14, "\"Em andamento\" (Recomendado)" e "Do primeiro start (Recomendado)": com o turno em curso, tarefas pendentes e alguma já iniciada no pedido, segue âmbar entre um done e o start seguinte, pelo `started` que `hooks/render.tsx` calcula com `startedLast` e `lastTurnAt`), título em 16 px, repositório e branch, a barra, as pílulas (`ch-<tom>`) e o bloco de números à direita (`toRight`); a faixa de hover do título tem 40 px; o `alt` diz o estado geral. Abaixo de 84 colunas (`NARROW`), o toks/s e "ultracode" vão em linhas próprias abaixo do tempo, no bloco de números (decisão do usuário, 2026-11-14: "Os dois sempre"; antes, o cabeçalho estreito não os desenhava). A linha do terminal não muda.
 - **Desktop** (`e.surface === 'desktop'` e `Svg` no `ui`): `drawDesktop`: o cabeçalho (`headerSvg`) e
   cada linha (`rowSvg`/`labelSvg`) são um `Svg` com `alt`, com os `Box` que `overlays` manda por cima:
   o `Button` de recolher sobre o ícone (rótulo um espaço em), o de abrir a sessão sobre o anel
@@ -2335,3 +2335,12 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
 - O tempo do cartão do subagente com tarefas próprias contava do primeiro start delas; passou a contar
   sempre do lançamento ao fim, como a linha dele no cartão de grupo
   (subagentes.tempo-do-cartao-do-lancamento-ao-fim).
+
+## Achados baixos: a faixa cinza do pedido (2026-11-15)
+
+- Com tudo fechado, a faixa do cabeçalho ficava verde sempre que alguma tarefa tinha sido concluída, mesmo
+  com outra parada pelo Esc ou que falhou. `headerState` (`draw/svg.ts`) ganhou `stopped`, a contagem das
+  folhas ✕ paradas com Esc ou que falharam (`halted`, `stopped`, `failed`), que `hooks/render.tsx` conta
+  nas tarefas desenhadas: com alguma, a faixa é cinza "interrompido" (2026-11-15, "Cinza \"interrompido\"
+  (Recomendado)"). A tarefa tirada com cancel e a sobra ✕ de um subagente não contam (2026-11-15,
+  "Cancelada não conta"); os números não mudam (visual.faixa-de-estado-geral).

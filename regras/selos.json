@@ -5979,6 +5979,16 @@
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
     },
+    "task-tree/tests/visual.test.ts::a tarefa tirada com cancel não deixa a faixa cinza: com o resto concluído, verde 'concluído'": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "0e62fc4ed2644267",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Cinza \\\"interrompido\\\" (Recomendado)\"; \"Cancelada não conta\""
+    },
     "task-tree/tests/visual.test.ts::com tudo desta sessão concluído e a filha trabalhando numa tarefa iniciada dela, a faixa é âmbar, em andamento": {
       "regras": [
         "visual.faixa-de-estado-geral"
@@ -5988,6 +5998,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Âmbar, como hoje"
+    },
+    "task-tree/tests/visual.test.ts::com tudo fechado e a tarefa de um subagente que falhou, a faixa é cinza 'interrompido'": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "28f666979d9ddde4",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Cinza \\\"interrompido\\\" (Recomendado)\"; \"Cancelada não conta\""
+    },
+    "task-tree/tests/visual.test.ts::com tudo fechado e uma tarefa parada com Esc, a faixa é cinza 'interrompido'; os números não mudam": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "9f10bae46e0b3ce2",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Cinza \\\"interrompido\\\" (Recomendado)\"; \"Cancelada não conta\""
     },
     "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
       "regras": [

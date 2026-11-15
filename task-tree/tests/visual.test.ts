@@ -4,7 +4,7 @@ import { responderEnvio } from './kit/ambiente'
 import { envio } from './kit/cenario'
 import { emTexto, painel } from './kit/leitura'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, cancelar, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { alfa, alturaDaLinha, cabecalhoDoApp, centrada, respirosDoApp, tom, vaosEntreLinhas, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
@@ -84,6 +84,54 @@ test('com tudo desta sessão concluído e a filha trabalhando numa tarefa inicia
   const texto = (await noApp($)).cabecalho.texto
   expect(texto).toContain('1 em andamento')
   expect(texto).toContain('1 sessão ativa')
+})
+
+const DOIS_PASSOS: No[] = [
+  { id: 'A', title: 'Um' },
+  { id: 'B', title: 'Dois' },
+]
+
+// Regra: visual.faixa-de-estado-geral
+test("com tudo fechado e uma tarefa parada com Esc, a faixa é cinza 'interrompido'; os números não mudam", async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await start($, ['B'])
+  await esc($)
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
+  expect(d.cabecalho.texto).toContain('1 de 1')
+})
+
+// Regra: visual.faixa-de-estado-geral
+test("a tarefa tirada com cancel não deixa a faixa cinza: com o resto concluído, verde 'concluído'", async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await cancelar($, ['B'])
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('concluído')
+  expect(d.cabecalho.texto).toContain('1 de 1')
+})
+
+// Regra: visual.faixa-de-estado-geral
+test("com tudo fechado e a tarefa de um subagente que falhou, a faixa é cinza 'interrompido'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await start($, ['B'])
+  await lancar($, { descricao: 'revisar' })
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  await fimDoTurno($)
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
 })
 
 // O título de uma linha do app desktop: o texto inteiro, que o app corta com "…" na largura real.

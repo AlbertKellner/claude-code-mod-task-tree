@@ -237,13 +237,17 @@ export function chips(active: number, waiting: number, cut: number, live: number
 // "\"Em andamento\" (Recomendado)", "Do primeiro start (Recomendado)"); a session at work (blue) with
 // nothing running, of its own or drawn in a session's card; all done (green); interrupted (gray) with
 // nothing open and something cut; none (the track's gray) when empty.
+// With all closed, gray wins over green when something was stopped by the person (Esc) or failed
+// (`stopped`: the count of those, out of `x`); a task taken out with cancel and what a subagent that
+// ended well left open do not count, so a request that ended well is green (the person, 2026-11-15:
+// "Cinza \"interrompido\" (Recomendado)" and "Cancelada não conta").
 export type HeaderState = { tone: Tone; word: string }
-export function headerState(s: { active: number; waiting: number; live: number; pending: number; d: number; n: number; x: number; started?: boolean }): HeaderState {
+export function headerState(s: { active: number; waiting: number; live: number; pending: number; d: number; n: number; x: number; stopped?: number; started?: boolean }): HeaderState {
   if (s.active > 0) return { tone: 'current', word: 'em andamento' }
   if (s.waiting > 0) return { tone: 'paused', word: 'aguardando' }
   if (s.started === true && s.pending > 0) return { tone: 'current', word: 'em andamento' }
   if (s.live > 0) return { tone: 'running', word: 'sessão ativa' }
-  if (s.n > 0 && s.d === s.n && s.pending === 0) return { tone: 'done', word: 'concluído' }
+  if (s.n > 0 && s.d === s.n && s.pending === 0 && !((s.stopped ?? 0) > 0)) return { tone: 'done', word: 'concluído' }
   if (s.x > 0 && s.pending === 0) return { tone: 'interrupted', word: 'interrompido' }
   if (s.n + s.x === 0) return { tone: 'open', word: 'nenhuma tarefa' }
   return { tone: 'paused', word: 'aguardando' }
