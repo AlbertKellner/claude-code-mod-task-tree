@@ -22,9 +22,10 @@ export type { Published }
 export const PUBLISHED_VERSION = 1
 
 // The published file as read: `ok` the file checked and normalized (the lists are lists, the flags
-// flags; what is missing is left out or empty), else `error` says why it is ignored. Pure: the
-// readers log the error (once per session and reason, see readPublished).
-export function parsePublished(text: string): { ok: Published } | { error: string } {
+// flags; what is missing is left out or empty; an element out of shape left out, see the shape
+// functions below), with `dropped` saying what was left out, else `error` says why it is ignored.
+// Pure: the readers log the error and what was dropped (once per session and reason, see readPublished).
+export function parsePublished(text: string): { ok: Published; dropped?: string } | { error: string } {
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -39,14 +40,15 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
   const rate = f.rate as Record<string, unknown> | undefined
   const git = f.git as Record<string, unknown> | undefined
   const turn = f.turn as Record<string, unknown> | undefined
+  const drop = new Map<string, number>()
   const out: Published = {
     ...(typeof f.version === 'number' ? { version: f.version } : {}),
     waiting: f.waiting === true,
     ...(typeof f.at === 'number' ? { at: f.at } : {}),
-    ...(list<TaskNode>(f.tasks) ? { tasks: list<TaskNode>(f.tasks) } : {}),
-    ...(list<Group>(f.groups) ? { groups: list<Group>(f.groups) } : {}),
-    waits: list<Wait>(f.waits) ?? [],
-    children: list<Child>(f.children) ?? [],
+    ...(list<unknown>(f.tasks) ? { tasks: shapeTasks(f.tasks as unknown[], drop) } : {}),
+    ...(list<unknown>(f.groups) ? { groups: shapeGroups(f.groups as unknown[], drop) } : {}),
+    waits: shapeObjects<Wait>(list<unknown>(f.waits) ?? [], 'espera', drop),
+    children: shapeChildren(list<unknown>(f.children) ?? [], drop),
     ...(context && typeof context === 'object' && typeof context.percent === 'number' && typeof context.at === 'number' ? { context: { percent: context.percent, at: context.at } } : {}),
     ...(typeof f.engine === 'string' && f.engine !== '' ? { engine: f.engine } : {}),
     ...(f.ultracode === true ? { ultracode: true } : {}),
@@ -64,13 +66,96 @@ export function parsePublished(text: string): { ok: Published } | { error: strin
     ...(f.aborted === true ? { aborted: true } : {}),
     ...(typeof f.renderError === 'string' ? { renderError: f.renderError } : {}),
     ...(list<unknown>(f.work) ? { work: (f.work as unknown[]).map(String) } : {}),
-    ...(list<{ from: string; at: number }>(f.received) ? { received: list<{ from: string; at: number }>(f.received) } : {}),
-    ...(list<Send>(f.sends) ? { sends: list<Send>(f.sends) } : {}),
+    ...(list<unknown>(f.received) ? { received: shapeObjects<{ from: string; at: number }>(f.received as unknown[], 'recebimento', drop) } : {}),
+    ...(list<unknown>(f.sends) ? { sends: shapeSends(f.sends as unknown[], drop) } : {}),
     ...(turn && typeof turn === 'object' && (typeof turn.ended === 'number' || turn.ended === null)
       ? { turn: { ended: turn.ended as number | null, aborted: turn.aborted === true, replan: turn.replan === true, ...(turn.failed === true ? { failed: true } : {}) } }
       : {}),
   }
-  return { ok: out }
+  return drop.size === 0 ? { ok: out } : { ok: out, dropped: [...drop].map(([why, n]) => `${n} ${why}`).join(', ') }
+}
+
+// Each element of the file's lists is checked on its own, as far down as it goes (the tasks'
+// subtasks, the children's panels): one out of shape (not an object; a group with no list of tasks; a
+// task with no text id or no list of subtasks; a child with no text id; a send with no text `to`) is
+// left out alone and counted by reason in `drop`, and the rest of the file is used. A title or name
+// that is not text becomes text, a missing `short` the id. Nothing else is checked or changed: fields
+// of earlier versions pass as they are (tests/fixtures/publicados.ts).
+const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v)
+const asText = (v: unknown): string => (v === undefined || v === null ? '' : String(v))
+function dropOne(drop: Map<string, number>, why: string): false {
+  drop.set(why, (drop.get(why) ?? 0) + 1)
+  return false
+}
+function shapeObjects<T>(items: unknown[], what: string, drop: Map<string, number>): T[] {
+  return items.filter(v => isObject(v) || dropOne(drop, `${what} que não é objeto`)) as T[]
+}
+function shapeTasks(items: unknown[], drop: Map<string, number>): TaskNode[] {
+  const out: TaskNode[] = []
+  for (const v of items) {
+    if (!isObject(v)) dropOne(drop, 'tarefa que não é objeto')
+    else if (typeof v.id !== 'string') dropOne(drop, 'tarefa sem id')
+    else if (!Array.isArray(v.children)) dropOne(drop, 'tarefa sem children')
+    else
+      out.push({
+        ...v,
+        ...(typeof v.title === 'string' ? {} : { title: asText(v.title) }),
+        ...(v.short === undefined ? { short: v.id } : {}),
+        children: shapeTasks(v.children, drop),
+      } as TaskNode)
+  }
+  return out
+}
+function shapeGroups(items: unknown[], drop: Map<string, number>): Group[] {
+  const out: Group[] = []
+  for (const v of items) {
+    if (!isObject(v)) dropOne(drop, 'grupo que não é objeto')
+    else if (!Array.isArray(v.tasks)) dropOne(drop, 'grupo sem tasks')
+    else {
+      const past = Array.isArray(v.past)
+        ? shapeObjects<Record<string, unknown>>(v.past, 'histórico', drop)
+            .filter(h => Array.isArray(h.tasks) || dropOne(drop, 'histórico sem tasks'))
+            .map(h => ({ ...h, tasks: shapeTasks(h.tasks as unknown[], drop) }))
+        : undefined
+      out.push({
+        ...v,
+        tasks: shapeTasks(v.tasks, drop),
+        ...(Array.isArray(v.whole) ? { whole: shapeTasks(v.whole, drop) } : {}),
+        ...(past ? { past } : {}),
+      } as Group)
+    }
+  }
+  return out
+}
+function shapeSends(items: unknown[], drop: Map<string, number>): Send[] {
+  return shapeObjects<Record<string, unknown>>(items, 'envio', drop).filter(v => typeof v.to === 'string' || dropOne(drop, 'envio sem to')) as Send[]
+}
+function shapePanel(p: Record<string, unknown>, drop: Map<string, number>): Record<string, unknown> {
+  return {
+    ...p,
+    ...(Array.isArray(p.tasks) ? { tasks: shapeTasks(p.tasks, drop) } : {}),
+    groups: Array.isArray(p.groups) ? shapeGroups(p.groups, drop) : [],
+    waits: Array.isArray(p.waits) ? shapeObjects<Wait>(p.waits, 'espera', drop) : [],
+    children: Array.isArray(p.children) ? shapeChildren(p.children, drop) : [],
+    ...(Array.isArray(p.received) ? { received: shapeObjects(p.received, 'recebimento', drop) } : {}),
+    ...(Array.isArray(p.sends) ? { sends: shapeSends(p.sends, drop) } : {}),
+  }
+}
+function shapeChildren(items: unknown[], drop: Map<string, number>): Child[] {
+  const out: Child[] = []
+  for (const v of items) {
+    if (!isObject(v)) dropOne(drop, 'sessão que não é objeto')
+    else if (typeof v.id !== 'string') dropOne(drop, 'sessão sem id')
+    else
+      out.push({
+        ...v,
+        ...(typeof v.name === 'string' ? {} : { name: asText(v.name) }),
+        ...(typeof v.title === 'string' ? {} : { title: asText(v.title) }),
+        ...(isObject(v.panel) ? { panel: shapePanel(v.panel, drop) } : {}),
+        ...(Array.isArray(v.tasks) ? { tasks: shapeTasks(v.tasks, drop) } : {}),
+      } as Child)
+  }
+  return out
 }
 
 // Where a session says whether it waits on the person, read by the session that opened it. The
@@ -97,7 +182,14 @@ export async function readPublished($: any, id: string): Promise<Published | und
   }
   const parsed = parsePublished(text)
   if ('ok' in parsed) {
-    for (const k of badPublished) if (k.startsWith(`${id}|`)) badPublished.delete(k)
+    // A file read whole forgets what was said of this session; one read in part says what was left
+    // out, once per session and reason, like the file ignored.
+    const part = parsed.dropped === undefined ? undefined : `${id}|parte|${parsed.dropped}`
+    for (const k of badPublished) if (k.startsWith(`${id}|`) && k !== part) badPublished.delete(k)
+    if (part !== undefined && !badPublished.has(part)) {
+      badPublished.add(part)
+      await debug($, `task-tree: arquivo publicado de ${id} lido em parte: ${parsed.dropped}`)
+    }
     return parsed.ok
   }
   const key = `${id}|${parsed.error}`

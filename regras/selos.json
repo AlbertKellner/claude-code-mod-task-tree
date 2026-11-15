@@ -527,6 +527,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
     },
+    "task-tree/tests/durabilidade.test.ts::a filha que publica um grupo sem tarefas, uma tarefa sem filhos e um envio sem destino segue com o cartão, e o painel, as ferramentas e a publicação seguem": {
+      "regras": [
+        "durabilidade.publicado-fora-do-formato-nao-derruba"
+      ],
+      "hash": "ea49281e3ceecfc1",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: o arquivo publicado só tinha o envelope conferido"
+    },
     "task-tree/tests/durabilidade.test.ts::a filha recém-aberta que a lista do host ainda não traz segue sob a tarefa de origem quando passa a ser listada": {
       "regras": [
         "durabilidade.filha-recem-aberta-ainda-nao-listada"

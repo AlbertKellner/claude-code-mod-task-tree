@@ -71,6 +71,17 @@ Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tare
 Código: io/publish.ts, io/host.ts
 Estado: coberto
 
+### durabilidade.publicado-fora-do-formato-nao-derruba
+Um elemento fora do formato no arquivo de uma filha sai só ele: o cartão e o painel seguem.
+
+- Dado o arquivo publicado de uma sessão filha (ou o painel de uma neta dentro dele) com um grupo sem lista de tarefas, uma tarefa sem lista de subtarefas ou sem id, ou um envio sem destino
+- Quando o painel lê a filha, desenha, conta, publica e responde plan, start e done
+- Então o elemento ruim fica de fora e o resto do arquivo é usado: o cartão da filha aparece com as tarefas boas, o painel não vira a linha de erro, as ferramentas respondem e esta sessão segue publicando; o log de depuração diz uma vez, por sessão, o que ficou de fora
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: só o envelope do arquivo era conferido, e um elemento ruim derrubava o painel inteiro, as ferramentas e a publicação); estende durabilidade.formatos-antigos-do-publicado, sem mudá-la.
+Código: io/publish.ts, io/host.ts
+Estado: coberto
+
 ### durabilidade.recarga-mantem-painel-ligacoes-e-resumo
 A recarga a quente mantém o painel e as ligações.
 

@@ -390,6 +390,11 @@ de quem publica desenha as bisnetas só com o cabeçalho. O state desta sessão 
 O grupo principal pode levar `past` (o que a sessão tinha feito antes de cada `/clear`), dentro de
 `groups`, sem campo novo no arquivo nem versão nova: o painel dela não o desenha, e a mãe desenha cada
 entrada como um cartão de histórico (`cleared`, chamado por `split`).
+A leitura (`parsePublished`) confere, além do envelope, cada elemento das listas, até o fim (as subtarefas,
+o painel de cada filha): fica de fora só o que não é objeto, o grupo sem `tasks` em lista, a tarefa sem
+`id` em texto ou sem `children` em lista, a sessão sem `id` em texto e o envio sem `to` em texto; título e
+nome viram texto, e `short` ausente vira o `id`. O que saiu volta em `dropped` (a contagem por motivo), e
+`readPublished` o diz no log uma vez por sessão e motivo ("lido em parte").
 
 Gravado só quando muda (fase 6): `publishWait` monta o corpo sem `at`, `context.at` e `panes`, compara
 o JSON dele mais o `percent` do contexto com o último publicado para o caminho (`lastPublished`,
@@ -1086,7 +1091,7 @@ guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState
    cortado em 200) e `mineOf(rows)` (pura: as linhas abertas por quem a lista não traz; `undefined` se não há).
 2. **Arquivos publicados:** `panelOf(file)` (pura: `groups` e o resto, ou `tasks` antigas como grupo
    principal, ou nada) e `readFiles($, mine)` → `{ waiting, panels, contexts, engines }` (usa `readPublished`
-   e `engineOf` quando o arquivo não traz o modelo). `engineText`, `engineOf` e o cache `engineSeen` moraram
+   e `engineOf` quando o arquivo não traz o modelo). Um elemento fora do formato no arquivo sai só ele (ver "Arquivo publicado"). `engineText`, `engineOf` e o cache `engineSeen` moraram
    no register e vieram para cá.
 3. **Filhas e as que terminaram:** `deriveChildren(mine, known, read, kept)` (pura) → `{ children, ended }`,
    com a regra do `starting`, dos laços vindos do store (`kept`) e do painel mantido quando o arquivo some.

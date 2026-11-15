@@ -421,6 +421,43 @@ test('os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do 
   })
 })
 
+// Um arquivo de filha com elementos fora do formato: um grupo sem tarefas, uma tarefa sem filhos, um
+// nulo, uma neta com tarefa sem filhos e um envio sem destino.
+const RUIM = {
+  version: 1,
+  waiting: false,
+  waits: [null],
+  groups: [
+    { agent: '', label: '', tasks: [{ id: 'b', short: 'b', title: 'Boa', status: 'open', started: 1, startedAt: 1, children: [] }, { id: 'x', short: 'x', title: 'Sem filhos', status: 'open' }, null] },
+    { agent: 'sub', label: 'L' },
+  ],
+  children: [{ id: 'n1', name: 'neta', title: 'neta', running: false, archived: false, panel: { groups: [{ agent: '', label: '', tasks: [{ id: 'q', title: 'Neta ruim', status: 'open' }] }], waits: [], children: [] } }],
+  sends: [{ anchor: '1', at: 1 }, { to: 'alguem', at: 2, text: 'oi' }],
+}
+
+// Regra: durabilidade.publicado-fora-do-formato-nao-derruba
+test('a filha que publica um grupo sem tarefas, uma tarefa sem filhos e um envio sem destino segue com o cartão, e o painel, as ferramentas e a publicação seguem', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-ruim', publicado: JSON.stringify(RUIM) }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await aviso($)
+  await aviso($)
+  const p = await painel($)
+  expect(p.filter(l => /erro ao desenhar|indispon/i.test(l.texto)).map(l => l.texto), emTexto(p)).toEqual([])
+  expect(linha(p, 'filha-ruim').sessao, emTexto(p)).toBe(true)
+  expect(tem(p, 'Boa'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Sem filhos'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Neta ruim'), emTexto(p)).toBe(false)
+  expect((await done($, ['1'])).erro).toBe(false)
+  expect((await plan($, B)).erro).toBe(false)
+  expect(h.proprio()?.children?.[0]?.id).toBe(K1)
+  expect(log.filter(l => l.includes(K1) && l.includes('lido em parte')).length, log.join('\n')).toBe(1)
+})
+
 // O fim do turno nos três casos: reinício com session.start, respawn sem ele, e o turno parado com Esc.
 const FIM: Record<string, unknown> = {}
 const FIM_RESPAWN: Record<string, unknown> = {}
