@@ -1127,3 +1127,89 @@ test('com o `test` do kit no repositório, o arquivo de teste que importa `test`
 test('sem o `test` do kit no repositório, a importação direta segue valendo', comMontagem(dir => {
   assert.equal(conferir(dir).status, 0)
 }))
+
+test('a regressão não repete o arquivo de teste igual ao da base', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const t = n => `task-tree/tests/${n}.test.ts`
+  const r = arquivosDaRegressao([t('a'), t('b'), t('c')], [t('b'), 'task-tree/hooks/turn.ts'])
+  assert.deepEqual(r.repete, [t('b')])
+  assert.deepEqual(r.iguais, [t('a'), t('c')])
+  assert.equal(r.motivo, undefined)
+})
+
+test('qualquer mudança no kit, num apoio ou no golden faz a regressão repetir tudo', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const base = ['a', 'b', 'c'].map(n => `task-tree/tests/${n}.test.ts`)
+  for (const p of ['task-tree/tests/kit/leitura.ts', 'task-tree/tests/fixtures/publicados.ts', 'task-tree/tests/golden/desenho.ts', 'task-tree/tests/kit/novo.ts']) {
+    const r = arquivosDaRegressao(base, [p])
+    assert.deepEqual(r.repete, base)
+    assert.deepEqual(r.iguais, [])
+    assert.match(r.motivo, new RegExp(p.replace(/[.\/]/g, '\\$&')))
+  }
+})
+
+test('o arquivo de teste removido ou renomeado roda da base', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const t = n => `task-tree/tests/${n}.test.ts`
+  const r = arquivosDaRegressao([t('a'), t('b')], [t('b'), t('d')])
+  assert.deepEqual(r.repete, [t('b')])
+  assert.deepEqual(r.iguais, [t('a')])
+  assert.ok(![...r.repete, ...r.iguais].includes(t('d')))
+})
+
+test('sem a passada principal, ou sem resposta do git, repete tudo', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const base = ['task-tree/tests/a.test.ts', 'task-tree/tests/b.test.ts']
+  const sem = arquivosDaRegressao(base, [], false)
+  assert.deepEqual([sem.repete, sem.iguais, sem.motivo], [base, [], 'sem a passada principal'])
+  const nulo = arquivosDaRegressao(base, null)
+  assert.deepEqual([nulo.repete, nulo.iguais, nulo.motivo], [base, [], 'o git não respondeu'])
+})
+
+test('o que mudou em task-tree/tests é lido do índice contra a base, sem renome', async () => {
+  const { alteradosEmTestes } = await import('./mudou.mjs')
+  const dir = montar()
+  try {
+    const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+    const outro = 'task-tree/tests/outro.test.ts'
+    writeFileSync(join(dir, outro), TESTES)
+    git('add', outro)
+    git('commit', '-q', '-m', 'outro')
+    assert.deepEqual(alteradosEmTestes(dir, 'HEAD', true, env), [])
+    trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(3)')
+    git('add', ARQ)
+    git('mv', outro, 'task-tree/tests/movido.test.ts')
+    assert.deepEqual(alteradosEmTestes(dir, 'HEAD', true, env).sort(), [ARQ, 'task-tree/tests/movido.test.ts', outro].sort())
+    writeFileSync(join(dir, 'task-tree', 'tests', 'kit', 'novo.ts'), 'export const y = 1\n')
+    assert.ok(!alteradosEmTestes(dir, 'HEAD', true, env).includes('task-tree/tests/kit/novo.ts'))
+    assert.ok(alteradosEmTestes(dir, 'HEAD', false, env).includes('task-tree/tests/kit/novo.ts'))
+    assert.equal(alteradosEmTestes(dir, 'naoexiste', true, env), null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('o teste selado de um arquivo não repetido tem de estar aprovado na passada principal', async () => {
+  const { naoConferidos } = await import('./selos.mjs')
+  const chaves = ['a::um', 'a::dois']
+  assert.deepEqual(naoConferidos(chaves, [{ chave: 'a::um', ok: true }, { chave: 'a::dois', ok: true }]), [])
+  assert.deepEqual(naoConferidos(chaves, [{ chave: 'a::um', ok: true }]), ['a::dois'])
+  assert.deepEqual(naoConferidos(chaves, [{ chave: 'a::um', ok: false }, { chave: 'a::dois', ok: true }]), ['a::um'])
+})
+
+test('a passada principal entrega a lista dos resultados na pasta do check', async () => {
+  const { gravarResultados, lerResultadosGravados } = await import('./selos.mjs')
+  const pasta = mkdtempSync(join(tmpdir(), 'travas-principal-'))
+  try {
+    assert.equal(lerResultadosGravados(pasta), null)
+    const saida = 'tests\\a.test.ts:\n(pass) um [1.00ms]\n(fail) dois [2.00ms]\n\ntests\\b.test.ts:\n(pass) tres [3ms]\n'
+    gravarResultados(pasta, saida)
+    assert.deepEqual(lerResultadosGravados(pasta), [
+      { chave: 'task-tree/tests/a.test.ts::um', ok: true },
+      { chave: 'task-tree/tests/a.test.ts::dois', ok: false },
+      { chave: 'task-tree/tests/b.test.ts::tres', ok: true },
+    ])
+  } finally {
+    rmSync(pasta, { recursive: true, force: true })
+  }
+})

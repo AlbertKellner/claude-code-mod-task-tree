@@ -56,7 +56,9 @@ as outras que ainda estiverem rodando?"; "sim"). As etapas e o grupo: `scripts/e
    `($, e, next)` na assinatura).
 6. `claude plugin test task-tree`: todos os testes.
 7. `regressao`: os testes de `HEAD` contra o código novo, numa pasta temporária; só com diferença em
-   `task-tree/`.
+   `task-tree/`. Não repete o arquivo de teste igual ao de `HEAD` quando o kit, os apoios e o golden
+   também são iguais: a execução seria a mesma da passada principal, e os testes selados dele têm de
+   constar aprovados nela, no mesmo check.
 
 O hook de pré-commit roda o mesmo check sobre o índice, mas pula o que não pode mudar o resultado
 (decisão do usuário, 2026-10-28: "Sim, pular (Recomendado)"), pelo que o índice muda contra `HEAD`
@@ -73,12 +75,19 @@ onde entrou, e um nome com acento conta como é.
 os 5 s que cada teste tinha. As etapas leves (1 a 6) rodam junto com o `plugin test`.
 
 `regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
-mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
+mudança em `task-tree/`), e nenhum resultado de teste é guardado de uma execução para outra. Dentro
+da `regressao`, só são repetidos os arquivos de teste que mudaram contra `HEAD` (decisão do usuário,
+2026-11-15: "Autorizo", sobre a regressão só do que mudou): o modificado, e o removido ou renomeado,
+que roda de `HEAD`; com qualquer mudança no kit, nos apoios (`tests/fixtures/`) ou no golden, todos.
+Os testes selados dos arquivos não repetidos têm de estar aprovados na passada principal do mesmo
+check ("NÃO CONFERIDO NA PASSADA PRINCIPAL" se não). Rodada sozinha, a `regressao` repete todos.
+O `npm run check` manual roda tudo.
 No check manual, a `regressao` compara com `HEAD` só o que ainda não está em commit (com a árvore
 limpa, "nada a comparar"); para conferir commits já feitos (depois de rebase, cherry-pick, merge ou de
 um commit sem o hook), `npm run check -- --base <ref>`. Um `--base` sem valor ou que não é commit
 deste repositório é erro. Os testes de uma base anterior ao teto de 60 s rodam, na `regressao`, com
-os 5 s que ela tinha.
+os 5 s que ela tinha. Com `--base <ref>`, vale o mesmo contra a base: repete os arquivos de teste que
+o PR mudou, ou todos se ele mudou o kit, os apoios ou o golden.
 A etapa `regras` ou `selos` que termina sem a linha de resumo dela (`regras: …`, `selos: …`) é falha.
 
 Numa worktree, o hook usa o `node_modules` e os tipos gerados do clone principal quando ela não os tem;
@@ -127,7 +136,8 @@ a regra que ele protege.
   asserções; um arquivo do kit ou de apoio dos testes (fixtures) mudou sem selo; ou um teste de `HEAD` falha contra o código novo
   sem decisão registrada ("testes antigos, código novo"); um teste selado como refatoração falha
   contra o código de `HEAD`; um teste selado de `HEAD` que não rodou
-  (não aparece na saída do `plugin test`) conta como falha; um selo do kit é `novo` para arquivo que já
+  (não aparece na saída do `plugin test`) conta como falha, e o de um arquivo não repetido tem de
+  estar aprovado na passada principal; um selo do kit é `novo` para arquivo que já
   existia, ou sem motivo; um teste tem menos asserções sem mudar (helper do kit que deixou de afirmar,
   sem o kit selado como decisão); ou um `test(` é aninhado, sem nome literal ou repetido no arquivo; ou um arquivo de
   teste importa `test` direto de `claude-code/testing`.
@@ -151,7 +161,8 @@ a regra que ele protege.
 `.github/workflows/test.yml` roda o mesmo `npm run check`, todas as etapas, no Ubuntu, com o Claude
 Code do npm fixado na versão do app (`scripts/versao-do-claude-code.txt`; subir junto com o app; o check
 local avisa quando roda em outra versão) e
-`--base <merge-base com o main>`: a regressão roda os testes da base do PR contra o código dele, e uma
+`--base <merge-base com o main>`: a regressão roda os testes da base do PR contra o código dele (os dos arquivos de
+teste que o PR mudou; todos, se mudou o kit, os apoios ou o golden), e uma
 falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de segredo nem de login.
 - Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro";
   o runner "ainda não está funcional"): só roda à mão (`workflow_dispatch`). Para ativar em cada PR

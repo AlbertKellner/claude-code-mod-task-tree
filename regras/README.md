@@ -111,7 +111,10 @@ tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos
 exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
 `removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada. Um teste
 selado de `HEAD` que não aparece na saída do `plugin test` ("TESTE DE <ref> NÃO RODOU") conta como
-falha, com as mesmas liberações; um `--base` que não é commit do repositório é erro. Num commit com
+falha, com as mesmas liberações. A `regressao` do check só repete os arquivos de teste que mudaram
+contra a base (todos, se mudou o kit, um apoio ou o golden); o selado de um arquivo não repetido tem
+de constar aprovado na passada principal do mesmo check ("NÃO CONFERIDO NA PASSADA PRINCIPAL", sem
+liberação). Um `--base` que não é commit do repositório é erro. Num commit com
 selo `refatoracao` de hash novo, a `regressao` faz uma segunda passada: o código do mod de `HEAD` (ou
 `--base`) com os testes de agora, só dos arquivos refatorados (mais o kit e os apoios); cada teste
 refatorado tem de passar ("REFATORAÇÃO NÃO PROVADA" se não), e o resumo diz "refatorações provadas

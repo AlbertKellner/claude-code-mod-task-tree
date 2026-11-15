@@ -8,7 +8,7 @@ import { etapaConferiu } from './guarda.mjs'
 
 // As oito etapas, na ordem do resumo. junto: no grupo paralelo. depois: só depois de todas as outras
 // passarem, sozinha e com a saída ao vivo. roda: no hook, os arquivos dela mudaram.
-export function montarEtapas({ claude, modulos, repo, raiz, indice = false, comBase = [], hook = { travas: true, validate: true, tsc: true } }) {
+export function montarEtapas({ claude, modulos, repo, raiz, indice = false, comBase = [], tmp, hook = { travas: true, validate: true, tsc: true } }) {
   const etapa = (nome, cmd, args, roda = true, extra = { junto: true }) => ({ nome, cmd, args, bloqueia: true, roda, junto: false, depois: false, ...extra })
   return [
     // O catálogo regras/ contra os testes (ids, estados, ligações); node puro, em milissegundos.
@@ -25,7 +25,9 @@ export function montarEtapas({ claude, modulos, repo, raiz, indice = false, comB
     // Os testes de HEAD contra o código novo; só com diferença em task-tree/ (ela mesma decide). Em
     // série com o plugin test: em paralelo, na máquina carregada, testes estouravam os 5 s do kit
     // (1 falha em 5 execuções do hook), e um hook que falha à toa empurra para o --no-verify.
-    etapa('regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : []), ...comBase], true, { depois: true }),
+    // Com a pasta do check (--tmp), lê dela os resultados da passada principal e não repete os arquivos
+    // de teste iguais aos da base.
+    etapa('regressao', process.execPath, ['scripts/regressao.mjs', '--repo', repo, ...(indice ? ['--indice', '--raiz', raiz] : []), ...(tmp ? ['--tmp', tmp] : []), ...comBase], true, { depois: true }),
   ]
 }
 

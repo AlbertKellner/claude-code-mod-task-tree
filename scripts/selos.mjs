@@ -16,7 +16,7 @@
 // (padrão: a própria raiz); --base <ref>: compara com esse commit em vez de HEAD (a CI, a base do PR).
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
@@ -266,6 +266,25 @@ export function lerResultados(saida) {
     if (t && arquivo) resultados.push({ chave: `${arquivo}::${t[2]}`, ok: t[1] === 'pass' })
   }
   return resultados
+}
+// Os resultados da passada principal (o plugin test do check), gravados na pasta temporária do check
+// para a regressão conferir os arquivos de teste que ela não repete. Nada sobrevive ao check: a pasta
+// sai no fim dele.
+export const RESULTADOS_DA_PRINCIPAL = join('principal', 'resultados.json')
+export function gravarResultados(pasta, saida) {
+  const arquivo = join(pasta, RESULTADOS_DA_PRINCIPAL)
+  mkdirSync(dirname(arquivo), { recursive: true })
+  writeFileSync(arquivo, JSON.stringify(lerResultados(saida)))
+  return arquivo
+}
+export function lerResultadosGravados(pasta) {
+  const arquivo = join(pasta, RESULTADOS_DA_PRINCIPAL)
+  return existsSync(arquivo) ? JSON.parse(readFileSync(arquivo, 'utf8')) : null
+}
+// As chaves seladas que não constam aprovadas nos resultados (de um arquivo não repetido na regressão).
+export function naoConferidos(chaves, resultados) {
+  const aprovadas = new Set(resultados.filter(r => r.ok).map(r => r.chave))
+  return chaves.filter(c => !aprovadas.has(c))
 }
 // As chaves seladas que não aparecem nos resultados (o teste não rodou).
 export function naoRodaram(chaves, resultados) {

@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { acharBinario, avisoDeVersao, lerVersaoFixada, versaoDoTexto } from './binario.mjs'
 import { dividir, encerrarTodas, linhasDoResumo, montarEtapas, rodarGrupo } from './etapas.mjs'
 import { alteradosNoIndice, clonePrincipal, etapasDoHook, lerBase } from './mudou.mjs'
+import { gravarResultados } from './selos.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const indice = process.argv.includes('--indice')
@@ -67,6 +68,10 @@ if (indice) {
   console.log(`Verificando o índice (o que vai no commit), copiado em ${raiz}`)
 }
 
+// A pasta temporária do check: os resultados da passada principal, que a regressão lê para não
+// repetir os arquivos de teste iguais aos da base. Sai no fim do check, como a cópia do índice.
+const tmp = mkdtempSync(join(tmpdir(), 'task-tree-check-'))
+
 // No hook, as etapas cujos arquivos não mudaram no índice ficam de fora (scripts/mudou.mjs); o check
 // manual roda tudo. Sem como saber o que mudou, roda tudo.
 const alterados = indice ? alteradosNoIndice(repo) : null
@@ -103,7 +108,7 @@ if (avisoVersao) console.log(avisoVersao)
 // task-tree/tsconfig.json (decisão do usuário, 2026-10-28).
 // As etapas e a ordem do resumo: scripts/etapas.mjs. As leves rodam em paralelo com o plugin test, e a
 // primeira que falha encerra as que ainda rodam; a regressão só depois de todas passarem.
-const etapas = montarEtapas({ claude, modulos, repo, raiz, indice, comBase, hook })
+const etapas = montarEtapas({ claude, modulos, repo, raiz, indice, comBase, tmp, hook })
 const { antes, grupo, depois } = dividir(etapas)
 const estados = new Map()
 let codigo = 0
@@ -134,6 +139,8 @@ if (codigo === 0 && grupo.length) {
   console.log(`\n== ${grupo.map(e => e.nome).join(' + ')} (em paralelo)`)
   await registrar(grupo)
 }
+const passadaPrincipal = estados.get('plugin test')
+if (passadaPrincipal?.saida !== undefined) gravarResultados(tmp, passadaPrincipal.saida)
 for (const e of depois) {
   if (codigo !== 0) break
   console.log(`\n== ${e.nome}`)
@@ -149,6 +156,9 @@ process.exit(codigo)
 
 // A cópia do índice sai; a ligação ao node_modules é desfeita antes, sem tocar no que ela aponta.
 function limpar() {
+  try {
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+  } catch {}
   if (!indice) return
   const link = join(raiz, 'node_modules')
   try {

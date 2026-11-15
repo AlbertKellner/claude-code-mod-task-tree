@@ -1,7 +1,8 @@
 // O que o hook de pré-commit pode pular: as etapas cujos arquivos não mudaram no que vai no commit
 // (o índice contra HEAD). O `npm run check` manual roda tudo. Nunca pula `regras`, `selos`, `plugin
 // test` nem `regressao` (esta decide sozinha, pela mudança em task-tree/), e não guarda resultado de
-// teste. Decisão do usuário, 2026-10-28: "Sim, pular (Recomendado)".
+// teste. Decisão do usuário, 2026-10-28: "Sim, pular (Recomendado)". Dentro da regressão, o arquivo de
+// teste igual ao da base não é repetido (arquivosDaRegressao, abaixo).
 // O que mudou é lido sem detecção de renome e sem aspas (um arquivo movido conta pelos dois caminhos;
 // um nome com acento, como é), e o package.json e o package-lock.json (o TypeScript que o tsc e a
 // etapa selos usam) contam para as travas e o tsc.
@@ -61,4 +62,33 @@ export function lerBase(args) {
   const v = args[i + 1]
   if (v === undefined || v.trim() === '' || v.startsWith('--')) return { erro: '--base sem valor: diga a ref (ex.: o merge-base com o main)' }
   return { base: v }
+}
+
+// A regressão só do que mudou (decisão do usuário, 2026-11-15: "Autorizo"): dos arquivos de teste da
+// base, repete os que mudaram contra ela (modificado, removido ou renomeado: o caminho antigo roda da
+// base); o igual vale pela passada principal do mesmo check, que roda os mesmos arquivos contra o mesmo
+// código. Com qualquer mudança em task-tree/tests fora dos arquivos de teste (kit, apoios, golden), sem
+// a passada principal ou sem resposta do git, repete todos, e o motivo diz por quê.
+export const ehArquivoDeTeste = p => p.startsWith('task-tree/tests/') && /\.test\.tsx?$/.test(p)
+export function arquivosDaRegressao(daBase, alterados, comPrincipal = true) {
+  const todos = { repete: [...daBase], iguais: [] }
+  if (!comPrincipal) return { ...todos, motivo: 'sem a passada principal' }
+  if (alterados === null) return { ...todos, motivo: 'o git não respondeu' }
+  const apoio = alterados.find(p => p.startsWith('task-tree/tests/') && !ehArquivoDeTeste(p))
+  if (apoio) return { ...todos, motivo: `o kit, um apoio ou o golden mudou: ${apoio}` }
+  const mudou = new Set(alterados)
+  return { repete: daBase.filter(p => mudou.has(p)), iguais: daBase.filter(p => !mudou.has(p)) }
+}
+
+// Os caminhos de task-tree/tests que mudaram contra ref, pelo git (o blob, não o disco), sem renome: no
+// hook, o índice; senão, a pasta de trabalho, mais os não rastreados. Sem resposta do git, null.
+export function alteradosEmTestes(repo, ref, indice, env = process.env) {
+  const git = (...a) => spawnSync('git', ['-C', repo, ...a], { encoding: 'utf8', env })
+  const diff = git('diff', ...(indice ? ['--cached'] : []), '--name-only', '--no-renames', '-z', ref, '--', 'task-tree/tests')
+  if (diff.status !== 0) return null
+  const lista = diff.stdout.split('\0').filter(Boolean)
+  if (indice) return lista
+  const novos = git('ls-files', '--others', '--exclude-standard', '-z', '--', 'task-tree/tests')
+  if (novos.status !== 0) return null
+  return [...lista, ...novos.stdout.split('\0').filter(Boolean)]
 }
