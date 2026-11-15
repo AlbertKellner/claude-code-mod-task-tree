@@ -262,9 +262,21 @@ Subagentes lançados juntos, na mesma mensagem, ficam como se tivessem sido lan�
 - Quando o modelo lança vários subagentes na mesma mensagem e os lançamentos correm juntos (cada um lê o painel antes de outro gravar), com o relógio andando entre eles
 - Então o resultado é o de lançá-los em série: mais de três da mesma tarefa ficam num cartão de grupo "N subagentes"; com várias em andamento, cada lançamento vai à tarefa que receberia depois do anterior (dois lançados juntos, dois em andamento: um cartão em cada); e um painel gravado ou um cartão de filha publicado por versão anterior, com um lote por lançamento, também junta no cartão de grupo os lançados a até 3 s um do outro
 
-Fora deste cenário: o lote com mais lançamentos que tarefas em andamento, e o workflow com várias tarefas em andamento (segue a regra de hoje, a de lançá-los em série; ficarem todos num cartão de grupo só é pergunta em aberto da auditoria).
+Fora deste cenário: o lote de avulsos com mais lançamentos que tarefas em andamento. O workflow com várias tarefas em andamento tem regra própria (subagentes.workflow-fica-junto-na-tarefa-do-primeiro).
 
 Origem: auditoria 2026-11-10 (subagentes lançados em paralelo não se enxergam, e o cartão de grupo não se forma); aplica subagentes.varios-juntos-num-cartao-de-grupo ("Cartão + grupo (Recomendado)") e subagentes.cartao-desde-o-lancamento ("Vai à pendente (Recomendado)") aos lançamentos simultâneos, sem mudar nenhuma delas.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Workflow junto (Recomendado)"): o workflow com várias tarefas em andamento saiu do "Fora deste cenário" (subagentes.workflow-fica-junto-na-tarefa-do-primeiro); fica fora só o lote de avulsos com mais lançamentos que tarefas. Os testes deste cenário não mudam.
+Estado: coberto
+
+### subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+Os agentes do mesmo workflow ficam na tarefa do primeiro, num cartão só.
+
+- Dado duas ou mais tarefas em andamento (ou nenhuma tarefa ainda, com o plan vindo depois dos lançamentos)
+- Quando um workflow lança vários agentes
+- Então todos ficam sob a tarefa que recebeu o primeiro (ou que o plan deu ao primeiro, ao adotá-los), num cartão "Workflow · N agentes"; a outra tarefa não recebe agente dele; subagentes avulsos seguem um por tarefa (subagentes.lancados-juntos-se-veem)
+
+Origem: decisão do usuário, 2026-11-15 ("Workflow junto (Recomendado)"); para os agentes de um workflow, limita "Vai à pendente (Recomendado)" (2026-11-09, um lançamento por tarefa).
+Código: hooks/tools.ts
 Estado: coberto
 
 ### subagentes.lancados-juntos-no-app

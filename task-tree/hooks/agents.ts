@@ -106,7 +106,11 @@ export async function agentSpawn($: EngineInterface, e: any, next: any) {
   const run = typeof e.workflow?.runId === 'string' && e.workflow.runId !== '' ? e.workflow.runId : undefined
   const label = `${String(e.subagentType ?? 'Subagente')}: ${description}`
   await change($, all => {
-    const anchor = anchorIn(all, parent, phrases, uses)
+    // A workflow's agents stay together (the person, 2026-11-15: "Workflow junto (Recomendado)"): only
+    // its first agent of this launcher picks a task; the others take that one's, with a task or not
+    // (subagentes.workflow-fica-junto-na-tarefa-do-primeiro). Lone launches go on as always.
+    const first = run === undefined ? undefined : all.find(g => g.agent !== agent && g.sub?.run === run && (g.parent ?? MAIN) === parent)
+    const anchor = first !== undefined ? first.anchor : anchorIn(all, parent, phrases, uses)
     const mate = all.find(g => g.agent !== agent && g.sub && g.parent === parent && g.anchor === anchor && !g.sub.run && now - g.sub.at <= SUB_BATCH)
     const sub: Sub = {
       at: now,

@@ -253,7 +253,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 - tempos através de turnos reais (a tarefa retoma de onde parou, o cabeçalho para no fim do turno, a
   linha ◷ conta do primeiro start) e o cabeçalho estreito e largo (toks/s, "ultracode", repositório);
 - workflows reais com muitos subagentes (cartão de grupo com espera, retomada, cliques com o freio das
-  gravações, um agente que falha: "… trabalhando · 1 falhou" sem cortar o título do cartão) e o turno
+  gravações, um agente que falha: "… trabalhando · 1 falhou" sem cortar o título do cartão; com duas tarefas em andamento, o workflow
+  inteiro num cartão só) e o turno
   que morre por erro real (✕ "falhou" no painel e no cartão);
 - a nota da versão no merge do PR (workflow "Release").
 

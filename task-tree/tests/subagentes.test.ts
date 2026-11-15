@@ -274,6 +274,35 @@ test('os agentes de um workflow ficam num cartão "Workflow · N agentes"', asyn
   expect(abaixo(p, 'Workflow · 2 agentes').map(l => l.titulo), emTexto(p)).toEqual(['Explore: ler o diff', 'Explore: ler os testes'])
 })
 
+const DUAS: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Revisar' }] }]
+
+// Regra: subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+test('com duas tarefas em andamento, os agentes de um workflow ficam todos na tarefa do primeiro, num cartão só', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1', '2'])
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_1' })
+  const p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Workflow · 3 agentes')
+  expect(abaixo(p, 'Workflow · 3 agentes').map(l => l.titulo)).toEqual(['Explore: ler o diff', 'Explore: ler os testes', 'Explore: ler o kit'])
+  expect(abaixo(p, 'Revisar')).toEqual([])
+})
+
+// Regra: subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+test('os agentes de um workflow lançados antes do plan são adotados juntos, pela tarefa do primeiro', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await pedido($, 'Pedido um')
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_1' })
+  await plan($, DUAS)
+  const p = await painel($)
+  const cartao = p.filter(l => l.titulo === 'Workflow · 3 agentes')
+  expect(cartao.length, emTexto(p)).toBe(1)
+  expect(p.filter(l => l.titulo.startsWith('Workflow ·')).length).toBe(1)
+})
+
 // Regra: subagentes.fora-da-contagem
 test('o subagente não entra no "d de n" e ganha a pílula de subagentes', async ($: any, on: any) => {
   fixar(on)

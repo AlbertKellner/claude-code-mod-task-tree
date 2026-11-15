@@ -249,7 +249,7 @@ async function adoptOrphans($: any, groups: Group[]) {
   const sends = sends0 as Send[]
   const kids = kids0 as Child[]
   const named = (list: string[]) => list.filter(n => n !== '' && !/^local_/.test(n) && !n.endsWith('…'))
-  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[]; phrases: string[] }
+  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[]; phrases: string[]; run?: string }
   const sendKey = (x: Send) => (x.seq !== undefined ? `#${x.seq}` : `${x.to}|${x.at}`)
   const orphans: Orphan[] = [
     ...sends.flatMap(x =>
@@ -260,7 +260,7 @@ async function adoptOrphans($: any, groups: Group[]) {
     ...kids.flatMap(c => (c.anchor === undefined && typeof c.openedAt === 'number' && c.openedAt >= since ? [{ at: c.openedAt, kind: 'open' as const, key: c.id, names: named([c.name]), phrases: named([c.title]) }] : [])),
     ...groups.flatMap(g =>
       g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && g.sub && g.anchor === undefined && g.sub.at >= since
-        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: [], phrases: named(g.label.split(': ')) }]
+        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: [], phrases: named(g.label.split(': ')), ...(g.sub.run !== undefined ? { run: g.sub.run } : {}) }]
         : [],
     ),
   ].sort((a, b) => a.at - b.at)
@@ -268,10 +268,15 @@ async function adoptOrphans($: any, groups: Group[]) {
   const used = usedAnchors(kids, sends, groups.filter(g => (g.parent ?? MAIN) === MAIN))
   const asking = askingAnchors(waits0 as Wait[])
   const got = new Map<string, string>()
+  // A workflow's agents are adopted together, by the task given to its first one
+  // (subagentes.workflow-fica-junto-na-tarefa-do-primeiro).
+  const runs = new Map<string, string>()
   for (const o of orphans) {
-    const anchor = sendAnchor(main.tasks, used, asking, o.names, turn.id, o.phrases)
+    const together = o.run !== undefined ? runs.get(o.run) : undefined
+    const anchor = together ?? sendAnchor(main.tasks, used, asking, o.names, turn.id, o.phrases)
     if (anchor === undefined) continue
-    used.push({ anchor, at: o.at })
+    if (o.run !== undefined) runs.set(o.run, anchor)
+    if (together === undefined) used.push({ anchor, at: o.at })
     got.set(`${o.kind}:${o.key}`, anchor)
   }
   if (got.size === 0) return

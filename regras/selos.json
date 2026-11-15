@@ -4435,6 +4435,16 @@
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
     },
+    "task-tree/tests/subagentes.test.ts::com duas tarefas em andamento, os agentes de um workflow ficam todos na tarefa do primeiro, num cartão só": {
+      "regras": [
+        "subagentes.workflow-fica-junto-na-tarefa-do-primeiro"
+      ],
+      "hash": "b92d460a33fe03fe",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: workflow junto"
+    },
     "task-tree/tests/subagentes.test.ts::com o subagente retomado rodando, a tarefa de origem aberta não fecha no fim do turno; a já fechada não reabre": {
       "regras": [
         "subagentes.retomado-volta-a-trabalhando",
@@ -4935,6 +4945,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
+    },
+    "task-tree/tests/subagentes.test.ts::os agentes de um workflow lançados antes do plan são adotados juntos, pela tarefa do primeiro": {
+      "regras": [
+        "subagentes.workflow-fica-junto-na-tarefa-do-primeiro"
+      ],
+      "hash": "50333cd89f8c12a7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: workflow junto"
     },
     "task-tree/tests/subagentes.test.ts::plan de um pedido novo que reusa o id não herda o cartão do subagente antigo, e o fim do turno não fecha a tarefa nova": {
       "regras": [
