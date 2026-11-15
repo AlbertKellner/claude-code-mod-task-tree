@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
 import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
-import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead } from './selos.mjs'
+import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead, testesDe } from './selos.mjs'
 import { impacto } from './impacto.mjs'
 import { versaoNova } from './versao.mjs'
 import assert from 'node:assert/strict'
@@ -475,6 +475,115 @@ test('renomear com o corpo mudado não é refatoração', comMontagem(dir => {
   const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'refatoracao', '--motivo', 'x')
   assert.equal(r.status, 1)
   assert.match(r.stderr, /renome puro/)
+}))
+
+// O selo cobre o que o teste alcança por tabela, os arquivos de apoio (fixtures) e a migração do hash.
+const gitEm = dir => (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+// Os selos da montagem regravados como os do algoritmo 1 (sem o campo, hash antigo) e postos em commit.
+const paraAlgoritmo1 = dir => {
+  const s = lerSelosJson(dir)
+  delete s.algoritmo
+  const antigos = new Map(testesDe(ARQ, readFileSync(join(dir, ARQ), 'utf8'), ['expect'], 1).map(t => [t.nome, t.hash]))
+  for (const [chave, selo] of Object.entries(s.testes)) selo.hash = antigos.get(chave.slice(chave.indexOf('::') + 2))
+  gravarSelosJson(dir, s)
+  gitEm(dir)('commit', '-q', '-am', 'algoritmo 1')
+  return s
+}
+
+test('mudar uma constante usada só por outra declaração do teste falha', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nconst C = 3\nfunction usaC() {\n  return C\n}')
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  usaC()\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(conferir(dir).status, 0)
+  trocar(dir, ARQ, 'const C = 3', 'const C = 30')
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /o teste mudou sem selo novo: .*::um/)
+}))
+
+test('mudar uma fixture sem selar falha', comMontagem(dir => {
+  const FIX = 'task-tree/tests/fixtures/x.ts'
+  mkdirSync(join(dir, 'task-tree', 'tests', 'fixtures'))
+  writeFileSync(join(dir, FIX), 'export const FORMATOS = [1, 2]\n')
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /arquivo de apoio dos testes sem selo: task-tree\/tests\/fixtures\/x\.ts/)
+  assert.equal(selos(dir, '--kit', FIX, '--tipo', 'novo', '--motivo', 'x').status, 0)
+  assert.equal(conferir(dir).status, 0)
+  writeFileSync(join(dir, FIX), 'export const FORMATOS = [1]\n')
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /o arquivo de apoio dos testes mudou sem selo novo: task-tree\/tests\/fixtures\/x\.ts/)
+  assert.equal(selos(dir, '--kit', FIX, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('--migrar regrava o hash e mantém tipo, data e motivo', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nconst C = 3\nfunction usaC() {\n  return C\n}')
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  usaC()\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'motivo um').status, 0)
+  gitEm(dir)('commit', '-q', '-am', 'um com usaC')
+  const antes = paraAlgoritmo1(dir)
+  mkdirSync(join(dir, 'task-tree', 'tests', 'fixtures'))
+  writeFileSync(join(dir, 'task-tree/tests/fixtures/x.ts'), 'export const X = 1\n')
+  let r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /selos do algoritmo 1/)
+  assert.match(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').stderr, /rode --migrar antes/)
+  // Um teste mudado antes da migração: recusa tudo, e o selos.json fica como estava.
+  trocar(dir, ARQ, 'expect(3).toBe(3)', 'expect(3).toBe(4)')
+  r = selos(dir, '--migrar')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /selar antes de migrar\): .*::dois/)
+  assert.deepEqual(lerSelosJson(dir), antes)
+  trocar(dir, ARQ, 'expect(3).toBe(4)', 'expect(3).toBe(3)')
+  r = selos(dir, '--migrar')
+  assert.equal(r.status, 0, r.stderr)
+  const depois = lerSelosJson(dir)
+  assert.equal(depois.algoritmo, 2)
+  const novos = new Map(testesDe(ARQ, readFileSync(join(dir, ARQ), 'utf8')).map(t => [t.nome, t.hash]))
+  assert.notEqual(depois.testes[UM].hash, antes.testes[UM].hash)
+  for (const [chave, s] of Object.entries(depois.testes)) {
+    const { hash, ...resto } = s
+    const { hash: _velho, ...restoAntes } = antes.testes[chave]
+    assert.deepEqual(resto, restoAntes)
+    assert.equal(hash, novos.get(chave.slice(chave.indexOf('::') + 2)))
+  }
+  assert.equal(depois.testes[UM].tipo, 'refatoracao')
+  assert.equal(depois.testes[UM].motivo, 'motivo um')
+  assert.equal(depois.kit['task-tree/tests/fixtures/x.ts'].tipo, 'novo')
+  assert.deepEqual(depois.kit[KIT_ARQ], antes.kit[KIT_ARQ])
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('com o algoritmo da base diferente, a conferência não acusa os hashes migrados e segue comparando com a base', comMontagem(dir => {
+  trocar(dir, ARQ, 'const B = 2', 'const B = 2\nconst C = 3\nfunction usaC() {\n  return C\n}')
+  trocar(dir, ARQ, '  expect(2).toBe(2)\n', '  expect(2).toBe(2)\n  usaC()\n')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  gitEm(dir)('commit', '-q', '-am', 'um com usaC')
+  paraAlgoritmo1(dir)
+  assert.equal(selos(dir, '--migrar').status, 0)
+  let r = conferir(dir)
+  assert.equal(r.status, 0, r.stderr)
+  // A base (algoritmo 1) é recalculada pelo algoritmo 2: o teste mudado e selado como "novo" é acusado.
+  trocar(dir, ARQ, 'const C = 3', 'const C = 30')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.testes[UM].tipo = 'novo'
+  gravarSelosJson(dir, s)
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /tipo `novo` em teste que já existia: .*::um/)
+  // Com a base do mesmo algoritmo (a migração em commit), acusa igual.
+  gitEm(dir)('commit', '-q', '-am', 'migrado')
+  trocar(dir, ARQ, 'const C = 30', 'const C = 300')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s2 = lerSelosJson(dir)
+  s2.testes[UM].tipo = 'novo'
+  gravarSelosJson(dir, s2)
+  r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /tipo `novo` em teste que já existia: .*::um/)
 }))
 
 // A tabela de durabilidade (state/durability.ts) contra as chaves do state do mod (types/index.d.ts).

@@ -98,7 +98,7 @@ a regra que ele protege.
 - Regressão se corrige no código, nunca no teste. Se a mudança precisa alterar um comportamento
   protegido e não há decisão do usuário, pare e pergunte.
 - O `npm run check` falha quando: um teste selado mudou sem selo novo; um teste coberto perdeu
-  asserções; um arquivo do kit mudou sem selo; ou um teste de `HEAD` falha contra o código novo
+  asserções; um arquivo do kit ou de apoio dos testes (fixtures) mudou sem selo; ou um teste de `HEAD` falha contra o código novo
   sem decisão registrada ("testes antigos, código novo").
 - O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
   commit. Não use `--no-verify`.

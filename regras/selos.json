@@ -1,4 +1,5 @@
 {
+  "algoritmo": 2,
   "testes": {
     "task-tree/tests/arvore.test.ts::a recusa do start num pai fechado diz o que o painel mostra e os dois caminhos": {
       "regras": [
@@ -186,7 +187,7 @@
       "regras": [
         "cabecalho.corte-preserva-historico-aberto"
       ],
-      "hash": "ffad998d5bba308f",
+      "hash": "6c2abbee6553683f",
       "assercoes": 10,
       "tipo": "refatoracao",
       "data": "2026-11-15",
@@ -196,7 +197,7 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "5ef6a6a7de58920f",
+      "hash": "6b87cb9f835a2179",
       "assercoes": 7,
       "tipo": "refatoracao",
       "data": "2026-11-15",
@@ -370,7 +371,7 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "9a4161dfe6ffe2d0",
+      "hash": "e1692d304b873bec",
       "assercoes": 7,
       "tipo": "refatoracao",
       "data": "2026-11-15",
@@ -410,7 +411,7 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "9e7d9b1f6375264b",
+      "hash": "77a381977dce2a75",
       "assercoes": 6,
       "tipo": "decisao",
       "data": "2026-11-15",
@@ -420,7 +421,7 @@
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
       ],
-      "hash": "4c62342e7cb9e91a",
+      "hash": "0ad7ea1340ba9b81",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -470,7 +471,7 @@
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
       ],
-      "hash": "0dc5031dd09478a8",
+      "hash": "d97c8ceab33fc6ea",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -540,7 +541,7 @@
       "regras": [
         "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
       ],
-      "hash": "a5755c090ec3770a",
+      "hash": "adbd6fe5b87164df",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -550,7 +551,7 @@
       "regras": [
         "durabilidade.painel-volta-do-arquivo-publicado"
       ],
-      "hash": "3ad142435dc72b2a",
+      "hash": "bf4b15dfe3f4f58b",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -560,7 +561,7 @@
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
       ],
-      "hash": "28eb0a9ef8bb714d",
+      "hash": "f9144a1f9c833620",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -570,7 +571,7 @@
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
       ],
-      "hash": "f3ecd7710acbad1c",
+      "hash": "e9ac7c45d3e0700a",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -590,7 +591,7 @@
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
-      "hash": "ef1c12dd22f51a16",
+      "hash": "652b490a7be0fa63",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -610,7 +611,7 @@
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
-      "hash": "dc18d783f4c01fca",
+      "hash": "183a8d616e9d2166",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -630,7 +631,7 @@
       "regras": [
         "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
       ],
-      "hash": "7a49d26f0933370c",
+      "hash": "7fe8ec2f4cd254ce",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -700,17 +701,17 @@
       "regras": [
         "durabilidade.formatos-antigos-do-publicado"
       ],
-      "hash": "249c0312aefc58f2",
-      "assercoes": 4,
-      "tipo": "decisao",
-      "data": "2026-11-04",
-      "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+      "hash": "b3be7e192f0bf282",
+      "assercoes": 5,
+      "tipo": "refatoracao",
+      "data": "2026-11-15",
+      "motivo": "afirma o número de formatos da fixture"
     },
     "task-tree/tests/durabilidade.test.ts::painel fora do store, 1/2: a sessão publica o painel": {
       "regras": [
         "durabilidade.painel-volta-do-arquivo-publicado"
       ],
-      "hash": "14fd2ef3bdf1f06f",
+      "hash": "5c151894c3755906",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -720,7 +721,7 @@
       "regras": [
         "durabilidade.painel-volta-do-arquivo-publicado"
       ],
-      "hash": "3857918229e0c6c2",
+      "hash": "9481043441669891",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -730,7 +731,7 @@
       "regras": [
         "durabilidade.painel-volta-do-arquivo-publicado"
       ],
-      "hash": "84397dfe1d9f6b98",
+      "hash": "46edd4499be83f1b",
       "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-14",
@@ -760,7 +761,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "34f7d2d436aa0325",
+      "hash": "6aa6cfc2cf5d4a20",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -770,7 +771,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "e9331e4712f46285",
+      "hash": "48bd81cca558fd21",
       "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -780,7 +781,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "f44bbc9216d83966",
+      "hash": "7bd75918f17d53b3",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -790,7 +791,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "7af718d5324780a8",
+      "hash": "f7d1e24921ea4ad3",
       "assercoes": 12,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -800,7 +801,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "8e9c40ff8e047f2f",
+      "hash": "464d2906fc9b2299",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -810,7 +811,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "26e7489ae0ef30de",
+      "hash": "f00f141238f6253b",
       "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -920,7 +921,7 @@
       "regras": [
         "durabilidade.recibo-usado-sobrevive-a-recarga"
       ],
-      "hash": "3848425e326bde5e",
+      "hash": "c25e4ca45ef34408",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -960,7 +961,7 @@
       "regras": [
         "durabilidade.recibo-usado-sobrevive-a-recarga"
       ],
-      "hash": "0355f7e7bc61fc17",
+      "hash": "848d06e9217ff178",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1000,7 +1001,7 @@
       "regras": [
         "durabilidade.turno-em-curso-no-reinicio-fica-interrompido"
       ],
-      "hash": "e67dfc384de931f3",
+      "hash": "59864ba5bcacac99",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1140,7 +1141,7 @@
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
       ],
-      "hash": "22b0103b44f10edb",
+      "hash": "bfa933d53cb7c7b1",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1150,7 +1151,7 @@
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
       ],
-      "hash": "aa922e89da2861db",
+      "hash": "625c56b6e9bcf4c3",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1212,7 +1213,7 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "d2c9f5c6a2b88968",
+      "hash": "64717036cbe12949",
       "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1373,7 +1374,7 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "651b6fc9176a612a",
+      "hash": "8c866cfdd19226b1",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1616,7 +1617,7 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "ff170d2a3a231f7e",
+      "hash": "6449b48c2b34dd29",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1626,7 +1627,7 @@
       "regras": [
         "envios.subagente-recebe-fica-verde"
       ],
-      "hash": "3ac31e0b49b1ee17",
+      "hash": "69c4e80f09438aa3",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1636,7 +1637,7 @@
       "regras": [
         "envios.subagente-parado-nao-entregue"
       ],
-      "hash": "2c2c0aec597c482a",
+      "hash": "a40acb2d78e241f8",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1667,7 +1668,7 @@
         "visual.golden-gera-desenho",
         "visual.desenho-envios"
       ],
-      "hash": "47a64c4d4d52d62e",
+      "hash": "e702f5e5a298ad5d",
       "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
@@ -1678,7 +1679,7 @@
         "visual.golden-gera-desenho",
         "visual.desenho-cartao-filha"
       ],
-      "hash": "3d2e07586316bd36",
+      "hash": "bf48d0d9efbca54f",
       "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
@@ -1689,7 +1690,7 @@
         "visual.golden-gera-desenho",
         "visual.desenho-filha-modelo-e-carta"
       ],
-      "hash": "4fb672ebc6e162de",
+      "hash": "4165ea1f8a5351d5",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -1700,7 +1701,7 @@
         "visual.golden-gera-desenho",
         "visual.desenho-cabecalho-largo"
       ],
-      "hash": "835341b48f8c70f6",
+      "hash": "7e5f63137e80af81",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -1711,7 +1712,7 @@
         "visual.golden-gera-desenho",
         "visual.desenho-principal"
       ],
-      "hash": "cb55842b2a59e403",
+      "hash": "8eceb83b4f09ea63",
       "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
@@ -1722,7 +1723,7 @@
         "visual.golden-gera-desenho",
         "visual.desenho-subagente"
       ],
-      "hash": "4e328e88b87186dd",
+      "hash": "ca51c69713f8eccd",
       "assercoes": 1,
       "tipo": "decisao",
       "data": "2026-11-13",
@@ -1742,7 +1743,7 @@
       "regras": [
         "lembretes.parada-so-volta-com-start"
       ],
-      "hash": "f86065bdbff0694c",
+      "hash": "3d819974810c39cd",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1752,7 +1753,7 @@
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
       ],
-      "hash": "acb74b8c7ba8fcc2",
+      "hash": "56e662bf7c9644a7",
       "assercoes": 17,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -1762,7 +1763,7 @@
       "regras": [
         "lembretes.tarefa-em-segundo-plano"
       ],
-      "hash": "dff57cc1bfc02578",
+      "hash": "b7eb0db349de4d39",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -1772,7 +1773,7 @@
       "regras": [
         "lembretes.resposta-pelo-chat"
       ],
-      "hash": "11569cdbf5949ccc",
+      "hash": "a69240fa596ec599",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -1782,7 +1783,7 @@
       "regras": [
         "lembretes.resposta-por-opcao"
       ],
-      "hash": "9504c13b587e4280",
+      "hash": "3204fb4129b1a853",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -1802,7 +1803,7 @@
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
       ],
-      "hash": "5e111f36fe949261",
+      "hash": "c902f267db97a611",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -1872,7 +1873,7 @@
       "regras": [
         "lembretes.estado-guardado-so-no-mesmo-pedido"
       ],
-      "hash": "6b6a8dcd51d5bb2e",
+      "hash": "d746fd22aaaed64f",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-10",
@@ -1892,7 +1893,7 @@
       "regras": [
         "lembretes.filha-terminou-o-turno"
       ],
-      "hash": "2533145bf7f0844e",
+      "hash": "e541c888ae8a8615",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1902,7 +1903,7 @@
       "regras": [
         "lembretes.filha-terminou-o-turno"
       ],
-      "hash": "b45cbf36ef29d2be",
+      "hash": "38f5514d30a56bce",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1912,7 +1913,7 @@
       "regras": [
         "lembretes.done-antes-do-plan"
       ],
-      "hash": "5cbb1e0959be3293",
+      "hash": "48238d1ad682b3ce",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -1922,7 +1923,7 @@
       "regras": [
         "lembretes.replanejar-apos-turno-que-falhou"
       ],
-      "hash": "b23668aff8e816d1",
+      "hash": "fff0a8ceecdb6bad",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1932,7 +1933,7 @@
       "regras": [
         "lembretes.replanejar-apos-turno-que-falhou"
       ],
-      "hash": "76a1e69b5b1ad0bd",
+      "hash": "9e6e08eb5c971bdc",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -1942,7 +1943,7 @@
       "regras": [
         "lembretes.replanejar-apos-esc-com-aviso-no-meio"
       ],
-      "hash": "abed49138f309bc5",
+      "hash": "ab94f0105369f591",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -1952,7 +1953,7 @@
       "regras": [
         "lembretes.esc-sem-abertas"
       ],
-      "hash": "994d2a02b82e6754",
+      "hash": "9a293d41b3d1cd7f",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -1962,7 +1963,7 @@
       "regras": [
         "lembretes.replanejar-apos-esc-pessoa"
       ],
-      "hash": "09fc3997a94c1db1",
+      "hash": "d4c78e56940aae22",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -1972,7 +1973,7 @@
       "regras": [
         "lembretes.outra-sessao-apos-esc"
       ],
-      "hash": "93274a1ffdc71636",
+      "hash": "56fb6278bb62d0e3",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -1982,7 +1983,7 @@
       "regras": [
         "lembretes.mensagem-no-meio-do-turno"
       ],
-      "hash": "9fc078d575a94fb4",
+      "hash": "8ccb193c0b7157e7",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -1992,7 +1993,7 @@
       "regras": [
         "lembretes.replanejar-apos-esc-com-aviso-no-meio"
       ],
-      "hash": "2788a08468f0bdcc",
+      "hash": "e3ae7d50d67260d2",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -2002,7 +2003,7 @@
       "regras": [
         "lembretes.parada-so-volta-com-start"
       ],
-      "hash": "49f9b3a72b5be9d3",
+      "hash": "84d5a0d69d0b3664",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2012,7 +2013,7 @@
       "regras": [
         "lembretes.fim-normal-lista-abertas"
       ],
-      "hash": "c3e3bd63b20e4a38",
+      "hash": "9fc9e5a103f324d7",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -2022,7 +2023,7 @@
       "regras": [
         "lembretes.primeira-chamada-sem-plano"
       ],
-      "hash": "93d9509effda6c85",
+      "hash": "902c95f7bef16d82",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2032,7 +2033,7 @@
       "regras": [
         "lembretes.aviso-do-app"
       ],
-      "hash": "5305edd7ea0c8bd4",
+      "hash": "ee0b11c39ea18ae5",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2043,7 +2044,7 @@
         "lembretes.primeira-chamada-sem-plano",
         "arvore.done-sem-summary-e-varias-sem-start"
       ],
-      "hash": "1158a8efc50e663b",
+      "hash": "4851b118e6e40e1c",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2053,7 +2054,7 @@
       "regras": [
         "lembretes.replanejar-vale-uma-vez"
       ],
-      "hash": "daa5708ffe7cb9bb",
+      "hash": "551d6b282b2a0902",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -2073,7 +2074,7 @@
       "regras": [
         "lembretes.retorno-de-subagente"
       ],
-      "hash": "a409ff78bdc4d1b6",
+      "hash": "159d192b17c9380f",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2083,7 +2084,7 @@
       "regras": [
         "lembretes.wrap-up-com-abertas"
       ],
-      "hash": "3cb7e2bcd5a72347",
+      "hash": "21b4549273057fbb",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2093,7 +2094,7 @@
       "regras": [
         "lembretes.wrap-up-sem-resumo"
       ],
-      "hash": "72135621b8658961",
+      "hash": "9a2a756e75b029c3",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2113,7 +2114,7 @@
       "regras": [
         "lembretes.primeira-chamada-sem-plano"
       ],
-      "hash": "79b5208a03295037",
+      "hash": "49653ef93717b9fa",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2123,7 +2124,7 @@
       "regras": [
         "lembretes.filha-terminou-o-turno"
       ],
-      "hash": "d662637d26498250",
+      "hash": "383b5ad57c70bec5",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2133,7 +2134,7 @@
       "regras": [
         "lembretes.primeira-chamada-sem-plano"
       ],
-      "hash": "a4313e10bea48af3",
+      "hash": "f3d7699840516902",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2153,7 +2154,7 @@
       "regras": [
         "lembretes.parada-so-volta-com-start"
       ],
-      "hash": "321a3d8006e7bf88",
+      "hash": "a3529ffe3d1c0b08",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2645,7 +2646,7 @@
       "regras": [
         "sessoes.cadeia-sem-cartao-dentro-de-cartao"
       ],
-      "hash": "7fd16f80721065c0",
+      "hash": "8633e845dd3f7640",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -2655,7 +2656,7 @@
       "regras": [
         "envios.carta-uma-vez-no-cartao-da-origem"
       ],
-      "hash": "b1be18a137e0901d",
+      "hash": "955e05934e50aeeb",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2665,7 +2666,7 @@
       "regras": [
         "sessoes.arquivada-antiga-vira-linha"
       ],
-      "hash": "db04e6de224f8a92",
+      "hash": "751d7ee848d90a70",
       "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2675,7 +2676,7 @@
       "regras": [
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "f540b0c535d0f1ae",
+      "hash": "42b68840e6894fdd",
       "assercoes": 9,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2685,7 +2686,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "b59f9c09c6c595c0",
+      "hash": "2733b67feeecb9ab",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2695,7 +2696,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "2d7d17ea3ec6e3e2",
+      "hash": "465ffde7278eb665",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -2705,7 +2706,7 @@
       "regras": [
         "sessoes.regras-de-cartao-valem-para-netas"
       ],
-      "hash": "ec2919204436987b",
+      "hash": "00399d7a6fec722e",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2716,7 +2717,7 @@
         "sessoes.rodada-descartada-fora-da-contagem",
         "sessoes.filha-parada-pendentes-seguem-pendentes"
       ],
-      "hash": "37c6d958108f0aba",
+      "hash": "964566d82a43d740",
       "assercoes": 11,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2726,7 +2727,7 @@
       "regras": [
         "sessoes.filha-parada-com-esc-segue-descartada-ate-o-start"
       ],
-      "hash": "daa9d0de7629daa2",
+      "hash": "11552da62591f104",
       "assercoes": 16,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -2736,7 +2737,7 @@
       "regras": [
         "sessoes.filha-parada-com-esc-sem-pendente"
       ],
-      "hash": "5192b3c7aaab1f70",
+      "hash": "72aeb2ff63bdf730",
       "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -2746,7 +2747,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "803c4b988f2d33ce",
+      "hash": "d8bf1d640a388802",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2757,7 +2758,7 @@
         "sessoes.filha-trabalhando-mantem-pais-em-andamento",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "66466e5ea24a6212",
+      "hash": "f0f8ef11fa853761",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -2767,7 +2768,7 @@
       "regras": [
         "sessoes.publicado-enxuto"
       ],
-      "hash": "35ea734bd44b6cbd",
+      "hash": "ad287e2a3a06e2c4",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2777,7 +2778,7 @@
       "regras": [
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
       ],
-      "hash": "f7682742a3205841",
+      "hash": "174cb48299d91b39",
       "assercoes": 2,
       "tipo": "decisao",
       "data": "2026-11-04",
@@ -2787,7 +2788,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "1d6f682b5e334137",
+      "hash": "eab3718d41f9ed3b",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2797,7 +2798,7 @@
       "regras": [
         "sessoes.regras-de-cartao-valem-para-netas"
       ],
-      "hash": "48853ce62e08cf52",
+      "hash": "fdc0c4878a2419fb",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2807,7 +2808,7 @@
       "regras": [
         "sessoes.regras-de-cartao-valem-para-netas"
       ],
-      "hash": "78bfa11e71809b00",
+      "hash": "81a0748368d8c619",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2817,7 +2818,7 @@
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
-      "hash": "16c24433fac7332c",
+      "hash": "c973a369df0fe98c",
       "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
@@ -2827,7 +2828,7 @@
       "regras": [
         "pedidos.rodada-descartada-nao-segura-a-visao"
       ],
-      "hash": "f94c71923380ffd5",
+      "hash": "6c8289b852a6f321",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2837,7 +2838,7 @@
       "regras": [
         "sessoes.aberta-antes-do-plan-e-adotada"
       ],
-      "hash": "55acebc2bf396d98",
+      "hash": "647d100aa3b8c1fc",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2847,7 +2848,7 @@
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
       ],
-      "hash": "f85f9c636dd02b2a",
+      "hash": "249a2b80b9b1e625",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -2867,7 +2868,7 @@
       "regras": [
         "sessoes.um-cartao-por-mensagem"
       ],
-      "hash": "17ebedb172da51d8",
+      "hash": "47665c0fac883230",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -2877,7 +2878,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "62b3999dd25a1a2e",
+      "hash": "10c18bdfdf7256ff",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2888,7 +2889,7 @@
         "cabecalho.status-igual-a-sessao-inteira",
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "9cd7a1145621392d",
+      "hash": "58e4413380d4854c",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2898,7 +2899,7 @@
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem-do-pai"
       ],
-      "hash": "b2311e892e2c3b19",
+      "hash": "d4855cc3e16dade5",
       "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
@@ -2908,7 +2909,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "644d317efe2777f7",
+      "hash": "7c4b676083fe2e61",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2938,7 +2939,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "069e4029f77995e8",
+      "hash": "62219fc5d7d7810e",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -2949,7 +2950,7 @@
         "sessoes.turno-proprio-da-filha-no-pedido-vigente",
         "cabecalho.limites-de-linhas"
       ],
-      "hash": "55ff4d54724ac0b2",
+      "hash": "d60a4709cfbdf6af",
       "assercoes": 5,
       "tipo": "decisao",
       "data": "2026-11-04",
@@ -2970,7 +2971,7 @@
       "regras": [
         "sessoes.clear-na-filha-mantem-o-historico"
       ],
-      "hash": "9309a893f4a0cb87",
+      "hash": "dac5662f7cb04003",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -2990,7 +2991,7 @@
       "regras": [
         "sessoes.arquivada-antiga-vira-linha"
       ],
-      "hash": "30f3557290ef3d26",
+      "hash": "81021c7558a65948",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3000,7 +3001,7 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "061bbf5c50671fc9",
+      "hash": "a4787e673dab4aa8",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3011,7 +3012,7 @@
         "sessoes.filha-arquivada-interrompe",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "6aa91734264e0fba",
+      "hash": "30c37a6b9f06e813",
       "assercoes": 3,
       "tipo": "decisao",
       "data": "2026-11-04",
@@ -3022,7 +3023,7 @@
         "cabecalho.status-igual-a-sessao-inteira",
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "17d02c28e9e3dea2",
+      "hash": "b5fe38f2a1ed55c8",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3033,7 +3034,7 @@
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "62b398fcdb2907f3",
+      "hash": "efedeeb9b71b5e59",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -3044,7 +3045,7 @@
         "sessoes.filha-parada-pendentes-seguem-pendentes",
         "sessoes.palavra-de-estado-do-cartao"
       ],
-      "hash": "a6daa2ae418d2a4a",
+      "hash": "fa7afe08c529eaed",
       "assercoes": 6,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -3064,7 +3065,7 @@
       "regras": [
         "sessoes.mensagens-juntas-vao-a-ultima"
       ],
-      "hash": "492c8a3f8fdd1674",
+      "hash": "fa2e2d81385c5759",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -3074,7 +3075,7 @@
       "regras": [
         "sessoes.publicado-enxuto"
       ],
-      "hash": "e67d0f19603f2bb4",
+      "hash": "4a1caebf11d99a23",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3084,7 +3085,7 @@
       "regras": [
         "turnos.esc-com-trabalho-delegado-vivo"
       ],
-      "hash": "b6a0791874d22219",
+      "hash": "3c4de712b36ae09e",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3094,7 +3095,7 @@
       "regras": [
         "envios.esc-apos-entrega-imediata"
       ],
-      "hash": "460e71748b5ce689",
+      "hash": "ee3e7cb768a5d9c2",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3104,7 +3105,7 @@
       "regras": [
         "sessoes.cartao-parado-mostra-o-tempo-do-turno"
       ],
-      "hash": "35ab618ee6779ee3",
+      "hash": "a791336752691bc1",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3124,7 +3125,7 @@
       "regras": [
         "sessoes.pedido-recebido-aparece-no-cartao"
       ],
-      "hash": "9a11879901c97f8e",
+      "hash": "3649edc9c0ddd8e5",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-30",
@@ -3134,7 +3135,7 @@
       "regras": [
         "turnos.esc-com-trabalho-delegado-vivo"
       ],
-      "hash": "c7da19452dc80e59",
+      "hash": "8a26a953903299d9",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3144,7 +3145,7 @@
       "regras": [
         "sessoes.arquivada-nao-e-relida"
       ],
-      "hash": "540f3ae15791d4cb",
+      "hash": "a307982df42eea38",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3164,7 +3165,7 @@
       "regras": [
         "sessoes.busto-so-no-pai"
       ],
-      "hash": "8cffdff8a700e8ce",
+      "hash": "c1fef239d44dafe9",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -3174,7 +3175,7 @@
       "regras": [
         "sessoes.cartao-sob-a-tarefa-de-origem"
       ],
-      "hash": "93c76a1cb0134009",
+      "hash": "c14c7beacaba3e92",
       "assercoes": 11,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -3194,7 +3195,7 @@
       "regras": [
         "sessoes.rodada-largada-diz-substituida"
       ],
-      "hash": "51beebe35a74141e",
+      "hash": "315987b5baca1e76",
       "assercoes": 12,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3204,7 +3205,7 @@
       "regras": [
         "sessoes.toks-e-repo-branch-no-cartao"
       ],
-      "hash": "12b4ee175c622db6",
+      "hash": "f38c46849f6ecd92",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -3214,7 +3215,7 @@
       "regras": [
         "sessoes.cartao-vivo-nunca-some"
       ],
-      "hash": "26cca34227b2e087",
+      "hash": "48c272d33538af68",
       "assercoes": 7,
       "tipo": "decisao",
       "data": "2026-11-04",
@@ -3224,7 +3225,7 @@
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
       ],
-      "hash": "27931101d74bc2a0",
+      "hash": "ea4d045b2f0749cd",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-15",
@@ -3235,7 +3236,7 @@
         "envios.carta-pelo-nome-da-sessao",
         "sessoes.cartao-sob-a-tarefa-de-origem"
       ],
-      "hash": "ef5bd15e762d84b7",
+      "hash": "f4133bcded3fe3ad",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3265,7 +3266,7 @@
       "regras": [
         "cabecalho.historico-guarda-o-que-saiu"
       ],
-      "hash": "7fbfbc4b2d668668",
+      "hash": "6992adc8ea16af82",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-04",
@@ -3275,7 +3276,7 @@
       "regras": [
         "sessoes.clear-na-filha-mantem-o-historico"
       ],
-      "hash": "e7fdee5358e8fea0",
+      "hash": "c9edd1ead1dbe6cb",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3286,7 +3287,7 @@
         "sessoes.turno-de-abertura-da-filha-sob-a-origem",
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "3290535052127c86",
+      "hash": "99bcba8f92a88861",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-10",
@@ -3296,7 +3297,7 @@
       "regras": [
         "sessoes.turno-de-abertura-da-filha-sob-a-origem"
       ],
-      "hash": "37a5e7c4dca9d8d2",
+      "hash": "f77e8e2ddbb1564e",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-10",
@@ -3306,7 +3307,7 @@
       "regras": [
         "sessoes.rodada-da-frente-e-a-mais-recente"
       ],
-      "hash": "0dcb83312470d372",
+      "hash": "3ba2737565fb2bd7",
       "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3316,7 +3317,7 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "d80a949186d6b638",
+      "hash": "9044c8018dd10c9c",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-03",
@@ -3327,7 +3328,7 @@
         "envios.carta-pelo-nome-da-sessao",
         "sessoes.cartao-sob-a-tarefa-de-origem"
       ],
-      "hash": "66c8aa810740c2a4",
+      "hash": "93369f27d717f67b",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3337,7 +3338,7 @@
       "regras": [
         "pedidos.id-reusado-segura-pedido-com-cartao-aberto"
       ],
-      "hash": "a78432d6e6279145",
+      "hash": "d36c307393f56390",
       "assercoes": 9,
       "tipo": "novo",
       "data": "2026-11-10",
@@ -3347,7 +3348,7 @@
       "regras": [
         "pedidos.id-reusado-segura-pedido-com-sessao-viva"
       ],
-      "hash": "631a84cfad55fcab",
+      "hash": "dea486b1b3dc7f12",
       "assercoes": 8,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -3357,7 +3358,7 @@
       "regras": [
         "sessoes.aberta-antes-do-plan-e-adotada"
       ],
-      "hash": "cd82b01f0936be39",
+      "hash": "13a0f67823d544f8",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3367,7 +3368,7 @@
       "regras": [
         "sessoes.pasta-sem-git"
       ],
-      "hash": "f56b7836e2f1d360",
+      "hash": "2b6b4c6ea9d587cc",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-10-28",
@@ -3387,7 +3388,7 @@
       "regras": [
         "sessoes.turno-proprio-da-filha-no-pedido-vigente"
       ],
-      "hash": "aa88652f2653bd2f",
+      "hash": "ce7368d766ca80e6",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3397,7 +3398,7 @@
       "regras": [
         "sessoes.publicado-enxuto"
       ],
-      "hash": "1396028141e96e62",
+      "hash": "c9cba1556ead36f2",
       "assercoes": 2,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3407,7 +3408,7 @@
       "regras": [
         "sessoes.sessao-conta-uma-vez-no-chip"
       ],
-      "hash": "88ab034a21832a6d",
+      "hash": "f0a662ff0fe7cdc6",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -3511,7 +3512,7 @@
       "regras": [
         "subagentes.workflow-sem-sinal-vira-interrompido"
       ],
-      "hash": "7256ee402ee4767c",
+      "hash": "43a89ca9e2f47491",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -3522,7 +3523,7 @@
         "subagentes.workflow-sem-sinal-vira-interrompido",
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "0359fc4117ac74a8",
+      "hash": "4e009883899627b2",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -3532,7 +3533,7 @@
       "regras": [
         "subagentes.workflow-sem-sinal-vira-interrompido"
       ],
-      "hash": "58319f7ebb6d846a",
+      "hash": "c43d386c241905ae",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -3593,7 +3594,7 @@
         "subagentes.lancados-juntos-se-veem",
         "subagentes.cartao-desde-o-lancamento"
       ],
-      "hash": "5a3b24ac7a65efa1",
+      "hash": "e5931cb007256be8",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -3626,7 +3627,7 @@
         "subagentes.pai-reflete-falha-ou-interrupcao",
         "subagentes.pai-conclui-no-fim-do-turno"
       ],
-      "hash": "84b14e55521ab203",
+      "hash": "ab2d12ad13df9300",
       "assercoes": 15,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -3873,7 +3874,7 @@
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "9a21bf761e2f3c70",
+      "hash": "685ea090ea462bf4",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -3913,7 +3914,7 @@
       "regras": [
         "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
       ],
-      "hash": "9f6fd754a6e7bb0f",
+      "hash": "765637cd55155948",
       "assercoes": 1,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -4013,7 +4014,7 @@
       "regras": [
         "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
       ],
-      "hash": "a679071a67405d61",
+      "hash": "212f75f24e9e54d8",
       "assercoes": 3,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -4034,7 +4035,7 @@
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "b37843e67db976b2",
+      "hash": "950afa0ea3b49dd7",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -4075,7 +4076,7 @@
         "subagentes.lancados-juntos-se-veem",
         "subagentes.varios-juntos-num-cartao-de-grupo"
       ],
-      "hash": "fd2fe6b546f2f744",
+      "hash": "a2cdd3dc4568f3ec",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-11",
@@ -4126,7 +4127,7 @@
       "regras": [
         "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
       ],
-      "hash": "589ef493e7c9b56e",
+      "hash": "ee4bbaf34d708987",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -4136,7 +4137,7 @@
       "regras": [
         "subagentes.sem-fim-vira-interrompido"
       ],
-      "hash": "551f7b4cc75f4a96",
+      "hash": "d90edf61d0da9790",
       "assercoes": 5,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -4146,7 +4147,7 @@
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
       ],
-      "hash": "92f3787112d51a39",
+      "hash": "a7a6fc25273e5a97",
       "assercoes": 7,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -4156,7 +4157,7 @@
       "regras": [
         "subagentes.sem-fim-vira-interrompido"
       ],
-      "hash": "4fc95bc4364ef71e",
+      "hash": "39487e08f42fdf79",
       "assercoes": 15,
       "tipo": "novo",
       "data": "2026-11-12",
@@ -4513,7 +4514,7 @@
       "regras": [
         "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
       ],
-      "hash": "bc66a82d3f7a5a75",
+      "hash": "07edfafea88abbdd",
       "assercoes": 4,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -4543,7 +4544,7 @@
       "regras": [
         "turnos.pedido-sem-tarefa-tem-o-seu-resumo"
       ],
-      "hash": "65f94d3418abc0af",
+      "hash": "3d07f6d75851959d",
       "assercoes": 10,
       "tipo": "novo",
       "data": "2026-11-14",
@@ -4903,6 +4904,12 @@
     }
   },
   "kit": {
+    "task-tree/tests/fixtures/publicados.ts": {
+      "hash": "6c8266a8f3390187",
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "arquivo de apoio dos testes, selado na migração do hash"
+    },
     "task-tree/tests/kit/ambiente.ts": {
       "hash": "f63470a36073079a",
       "tipo": "refatoracao",

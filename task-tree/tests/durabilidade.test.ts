@@ -404,6 +404,7 @@ test('a lista do host deixa uma filha de fora e depois a lista de novo: o cartã
 // Regra: durabilidade.formatos-antigos-do-publicado
 test('os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato', async ($: any, on: any) => {
   fixar(on)
+  expect(PUBLISHED_FILES.length).toBe(8)
   const id = (i: number) => `local_0000000${i}-0000-0000-0000-000000000000`
   host(on, PUBLISHED_FILES.map((f, i) => ({ id: id(i), nome: `formato-${i}`, publicado: f.file })))
   await pedido($, 'Pedido um')

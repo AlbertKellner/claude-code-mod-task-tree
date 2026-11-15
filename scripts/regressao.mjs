@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
-import { hoje, liberaGolden, liberaRemovido, liberaTeste, selosDeHead } from './selos.mjs'
+import { hoje, liberaGolden, liberaRemovido, liberaTeste, selosDaBase } from './selos.mjs'
 
 const args = process.argv.slice(2)
 const valor = nome => {
@@ -79,7 +79,8 @@ try {
     codigo = 1
   } else {
     const agora = existsSync(join(raiz, 'regras', 'selos.json')) ? JSON.parse(readFileSync(join(raiz, 'regras', 'selos.json'), 'utf8')) : { testes: {}, removidos: {} }
-    const head = selosDeHead(repo, ref)
+    // A base selada por outro algoritmo do hash é recalculada pelo de agora (selos.mjs, selosDaBase).
+    const head = selosDaBase(repo, ref, agora.algoritmo ?? 1)
     for (const { chave } of falhas) {
       const s = agora.testes[chave]
       const h = head.testes[chave]

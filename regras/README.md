@@ -54,9 +54,16 @@ tabela de durabilidade (e vice-versa).
 ## Selo dos testes e do kit
 
 `regras/selos.json` guarda, para cada teste que cita uma regra `coberto`, o hash do corpo (sem
-comentários nem espaços, com as declarações de topo que ele usa) e o número de asserções (`expect`,
-os helpers de `tests/kit/leitura.ts` que afirmam e as funções do próprio arquivo que o teste chama).
-Cada arquivo de `tests/kit/` tem o seu hash. Quando a contagem muda sem o teste mudar (um helper do kit
+comentários nem espaços, com tudo o que ele alcança no arquivo: as declarações de topo que ele cita, as
+que essas citam, e assim por diante) e o número de asserções (`expect`, os helpers de
+`tests/kit/leitura.ts` que afirmam e as funções do próprio arquivo que o teste chama).
+Cada arquivo de `tests/kit/` tem o seu hash, e também cada arquivo de apoio dos testes (o que está em
+`tests/` sem ser teste, kit nem golden; hoje, `tests/fixtures/`): fica na mesma seção `kit` e se sela
+pelo mesmo `--kit <arquivo>`. O campo `algoritmo` diz a versão do cálculo do hash (2 desde o alcance por
+tabela); quando ele muda, `node scripts/selos.mjs --migrar` regrava os hashes dos selos que conferem pelo
+algoritmo anterior, sem mexer em tipo, data, motivo, regras e asserções (com algum teste mudado sem selo,
+recusa tudo). Contra uma base selada por outro algoritmo, a etapa `selos` e a `regressao` recalculam o
+hash dos testes da base pelo algoritmo atual, e a comparação com a base segue valendo. Quando a contagem muda sem o teste mudar (um helper do kit
 passou a afirmar), `node scripts/selos.mjs --recontar` regrava só o campo `assercoes` dos selos que
 conferem com o teste; com algum teste mudado sem selo, ele recusa.
 
