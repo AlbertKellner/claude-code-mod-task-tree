@@ -1651,6 +1651,26 @@
       "data": "2026-11-15",
       "motivo": "a exceção da tarefa única"
     },
+    "task-tree/tests/envios.test.ts::com a pergunta na tarefa em andamento e as outras do pedido concluídas, o envio vai à iniciada por último delas": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "3594842d9fd6ff48",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
+    "task-tree/tests/envios.test.ts::com a pergunta na tarefa em andamento e as outras do pedido fechadas sem start, o envio vai ao último nível 1 que não pergunta": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "772b1896ca62998d",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
     "task-tree/tests/envios.test.ts::com duas em andamento, a carta vai à tarefa com uma palavra do nome da sessão; palavra das duas, pela ordem": {
       "regras": [
         "envios.carta-pelo-nome-da-sessao"
@@ -1660,6 +1680,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/envios.test.ts::com três em andamento, as duas primeiras já com carta e a pergunta na iniciada por último, o envio vai à segunda": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "be9329265e46eb6e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
     },
     "task-tree/tests/envios.test.ts::com um subagente da tarefa ainda rodando, a entrega da carta não conclui a tarefa; o fim dele, sim": {
       "regras": [
@@ -1732,6 +1762,36 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: uma carta por mensagem"
+    },
+    "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, a carta vai à pendente desse plano e não fica solta": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "8071ec6ffa763908",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
+    "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, o cartão da sessão aberta vai à pendente desse plano": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "caf90cce88adad77",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
+    },
+    "task-tree/tests/envios.test.ts::num pedido que continua só com start a única tarefa do plano anterior, com a pergunta nela, a carta fica nela e não fica solta": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "39c86ac65f358963",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
     },
     "task-tree/tests/envios.test.ts::o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não": {
       "regras": [
@@ -1883,6 +1943,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "desempate do envio sem nada em andamento, sem teste até a auditoria de 2026-11-10"
+    },
+    "task-tree/tests/envios.test.ts::sem relógio, com a pergunta na iniciada por último e as outras já com carta, o envio vai à última na ordem dos starts": {
+      "regras": [
+        "envios.nunca-na-tarefa-da-pergunta"
+      ],
+      "hash": "fbbeb5dae617fe4a",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "com pergunta aberta a carta nunca fica solta, e os passos do cenário têm teste"
     },
     "task-tree/tests/envios.test.ts::sem tarefa em andamento nem pendente, o envio vai à última iniciada": {
       "regras": [

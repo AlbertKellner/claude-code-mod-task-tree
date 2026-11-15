@@ -366,7 +366,7 @@ export const requestTasks = (groups: Group[]): TaskNode[] => {
 export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): string | undefined {
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in this order (the person's decisions): with the request open now and no
-  // level-1 task of it yet, none (above); else the current request is the largest `turn` among the
+  // level-1 task of it yet and nothing in progress, none (above); else the current request is the largest `turn` among the
   // level-1 tasks; among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
   // title matches the receiving session's name (or holds the free phrase whole), if only one does (byName); else the batch planned
   // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
@@ -393,12 +393,19 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
   // The task chosen holds a question: the one in progress started last that does not ask, else as with
-  // nothing in progress, the asking tasks left out (envios.nunca-na-tarefa-da-pergunta).
+  // nothing in progress, the asking tasks left out (envios.nunca-na-tarefa-da-pergunta). With no clock
+  // (no `startedAt`), the last in the order of the starts.
   if (anchor !== undefined && !asking.includes(anchor)) return anchor
-  if (anchor !== undefined && going.length > 0) return startedLast(going.map(t => ({ ...t, children: [] })))!.id
-  if (open !== undefined && !list.some(t => t.turn === open)) return undefined
+  if (anchor !== undefined && going.length > 0)
+    return (startedLast(going.map(t => ({ ...t, children: [] }))) ?? going.reduce((a, t) => ((t.started ?? -1) >= (a.started ?? -1) ? t : a))).id
+  // The request open now with no task of it: loose only with nothing in progress. With the task in
+  // progress asking (a plan of an earlier request, continued with a start only), the request of the
+  // order is the asking task's: the card or letter never goes loose with a task in progress.
+  const fresh = open !== undefined && !list.some(t => t.turn === open)
+  if (fresh && anchor === undefined) return undefined
+  const askTurn = fresh && anchor !== undefined ? list.find(t => flat([t]).some(x => x.id === anchor))?.turn : undefined
   const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
-  const last = turns.length > 0 ? Math.max(...turns) : undefined
+  const last = askTurn ?? (turns.length > 0 ? Math.max(...turns) : undefined)
   const mine = list.filter(t => last === undefined || t.turn === last)
   const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && !asking.includes(t.id))
   const named = byName(pending, names, phrases)

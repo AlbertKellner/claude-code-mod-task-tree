@@ -256,7 +256,9 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    todas usadas, a última; sem pendente, a iniciada por último, mesmo concluída; sem nenhuma iniciada, o
    último nível 1 do pedido. A tarefa com pergunta aberta (`askingAnchors`: pergunta, plano a aprovar,
    escolha do fim do turno) só recebe quando o pedido não tem outra: se a em andamento escolhida pergunta,
-   vale a em andamento iniciada por último que não pergunta, senão a ordem acima sem as que perguntam;
+   vale a em andamento iniciada por último que não pergunta (sem relógio, a última na ordem dos starts),
+   senão a ordem acima sem as que perguntam, no pedido da tarefa da pergunta (também quando o pedido
+   aberto ainda não tem tarefas: a saída "nenhuma" só vale com nada em andamento);
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
