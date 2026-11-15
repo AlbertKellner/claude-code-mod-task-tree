@@ -66,7 +66,11 @@ export type TaskNode = {
 // derive from that message: they show the ✉ of a message received, in their own state's color.
 // `named`: a plan's `request` already titled it; a later plan's request leaves the title. Absent until
 // then, and in turns of earlier versions (whose first plan with a request after the update still names it).
-export type Turn = { id: number; title: string; at?: number; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string }; named?: boolean }
+// `back`: when the session went back to work in this request after its turn had ended with no new
+// request (a notice of the app, a subagent's hand-back, a background task's notification; hooks/panel,
+// wake): what was started before it no longer lights the path (draw/layout, lastTurnAt; the person,
+// 2026-11-15: "◷ até o start (Recomendado)"). Absent: it never went back so.
+export type Turn = { id: number; title: string; at?: number; back?: number; brief?: string; own?: boolean; msg?: boolean; from?: { id: string; name?: string }; named?: boolean }
 
 // The tasks of one loop: the main one (agent '') or a subagent's (its agentId), whose
 // header shows `label` ("Explore: <description>"). A subagent's group is drawn under

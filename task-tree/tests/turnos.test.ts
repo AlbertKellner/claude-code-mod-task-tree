@@ -10,6 +10,7 @@ import { aviso, falha, ferramenta, iniciarSessao } from './kit/cenario'
 import { cabecalho, type Linha } from './kit/leitura'
 import { AGORA, armazem, SESSAO } from './kit/ambiente'
 import { comHistorico } from './kit/leitura'
+import { estadoGeral, noApp } from './kit/leitura'
 
 // Pai aberto no meio e no fim do turno. Origem: decisão do usuário de 2026-10-27 (◉ só no caminho
 // da última tarefa iniciada no turno atual) sobre a regra "Pai aguardando" de 2026-10-20.
@@ -886,4 +887,61 @@ test('com um passo iniciado e outro fechado sem start, o pai e o pedido contam s
   expect(umaLinha(p, 'Dois').texto, emTexto(p)).toContain('—')
   for (const quem of ['Plano A', 'Pedido um']) expect(tempoNoFim(p, quem), `${quem}:\n${emTexto(p)}`).toBe('0:05')
   expect(tempoDoTopo(p), emTexto(p)).toBe('0:05')
+})
+
+// O aviso do app depois do fim do turno: o pai e o pedido aguardam até o start.
+const RETORNO_DO_SUB = '<agent-message from="sub-1">[Subagent hand-back] pronto</agent-message>'
+const semAndamento = (p: Linha[]) => p.filter(l => l.estado === 'andamento').map(l => l.titulo)
+
+// Regra: turnos.aviso-sem-start-aguarda
+test('depois do fim do turno, um aviso do app não reacende o pai nem o pedido; o start, sim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  let p = await painel($)
+  esperarEstado(p, 'Plano A', 'aguardando')
+  esperarEstado(p, 'Pedido um', 'aguardando')
+  expect(semAndamento(p), emTexto(p)).toEqual([])
+  expect(estadoGeral(await noApp($))).toBe('aguardando')
+  await relogio.advance(1000)
+  await start($, ['2.1'])
+  p = await painel($)
+  esperarEstado(p, 'Dois.um', 'andamento')
+  esperarEstado(p, 'Plano A', 'andamento')
+  esperarEstado(p, 'Pedido um', 'andamento')
+  // O mesmo com o retorno de um subagente no lugar do aviso.
+  await done($, ['2.1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await $.prompt.submit({ text: RETORNO_DO_SUB })
+  p = await painel($)
+  esperarEstado(p, 'Plano A', 'aguardando')
+  esperarEstado(p, 'Pedido um', 'aguardando')
+  expect(semAndamento(p), emTexto(p)).toEqual([])
+  await relogio.advance(1000)
+  await start($, ['2.2'])
+  p = await painel($)
+  esperarEstado(p, 'Plano A', 'andamento')
+  esperarEstado(p, 'Pedido um', 'andamento')
+})
+
+// Regra: turnos.aviso-sem-start-aguarda
+test('um aviso no meio do turno não apaga o caminho aceso', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await relogio.advance(1000)
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Plano A', 'andamento')
+  esperarEstado(p, 'Pedido um', 'andamento')
 })

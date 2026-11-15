@@ -253,7 +253,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 - `/clear` real nesta sessão com filhas e numa filha (os cartões e o histórico na mãe);
 - Esc no meio de uma resposta (a resposta para, a tarefa fica ✕, o toks/s fica no último valor);
 - tempos através de turnos reais (a tarefa retoma de onde parou, o cabeçalho para no fim do turno, a
-  linha ◷ conta do primeiro start) e o cabeçalho estreito e largo (toks/s, "ultracode", repositório);
+  linha ◷ conta do primeiro start; com uma filha real que termina depois do turno da mãe, o aviso
+  automático não acende o pai nem o pedido, e o start seguinte acende) e o cabeçalho estreito e largo (toks/s, "ultracode", repositório);
 - workflows reais com muitos subagentes (cartão de grupo com espera, retomada, cliques com o freio das
   gravações, um agente que falha: "… trabalhando · 1 falhou" sem cortar o título do cartão; com duas tarefas em andamento, o workflow
   inteiro num cartão só) e o turno

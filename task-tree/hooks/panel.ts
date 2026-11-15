@@ -39,8 +39,24 @@ export async function wake($: any) {
     await $.state.set(turnEndedState, null)
     await saveTurn($)
     // The session is going again: its idle span, if one is open, closes here.
-    await setIdle($, false, await stamp($))
+    const at = await stamp($)
+    await setIdle($, false, at)
+    // The last request is going again with no new one (a notice, a hand-back, a notification): what was
+    // started before its end no longer lights the path until a start (Turn.back; the person,
+    // 2026-11-15: "◷ até o start (Recomendado)"). A prompt of the person opens a request right after,
+    // which is newer: the mark on the one before has no effect.
+    if (at !== undefined) await markBack($, at)
   }
+}
+async function markBack($: any, at: number) {
+  await change($, all =>
+    all.map(g => {
+      if (g.agent !== MAIN || (g.turns ?? []).length === 0) return g
+      const list = g.turns as Turn[]
+      const last = list[list.length - 1] as Turn
+      return { ...g, turns: [...list.slice(0, -1), { ...last, back: at }] }
+    }),
+  )
 }
 
 // The session's idle spans (Group.idle, main group): one opens when the session stands stopped (the

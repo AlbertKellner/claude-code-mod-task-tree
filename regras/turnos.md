@@ -258,3 +258,14 @@ Do que o turno respondeu, o painel guarda só o resumo ↩.
 Origem: decisão do usuário, 2026-11-14 ("Tirar, basta o ↩ (Recomendado)"), à pergunta sobre a resposta inteira guardada e sem uso desde que o tooltip saiu (visual.tooltip, 2026-11-09).
 Código: hooks/tool-call.ts, io/publish.ts
 Estado: coberto
+
+### turnos.aviso-sem-start-aguarda
+Um aviso do app, antes do start, deixa o pai e o pedido aguardando.
+
+- Dado um turno terminado com algo feito no plano e algo pendente
+- Quando chega um aviso do app, um retorno de subagente ou uma notificação de tarefa em segundo plano, e ainda não houve start
+- Então o pai e o pedido seguem ◷ e a faixa do cabeçalho segue "aguardando", até o start, que os acende; com o turno ainda em curso, o aviso não muda nada
+
+Origem: decisão do usuário, 2026-11-15 ("◷ até o start (Recomendado)"); iguala o aviso do app à mensagem da pessoa (turnos.continuacao-sem-start-aguarda, 2026-10-27) e limita "pai aberto deve mostrar ◉ em andamento" (2026-10-27) ao turno em que houve start.
+Código: hooks/panel.ts, draw/layout.ts
+Estado: coberto

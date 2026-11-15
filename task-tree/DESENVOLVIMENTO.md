@@ -884,7 +884,7 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   por `stayed`. O fim normal também espera o `start` (2026-11-14, "Seguir ◷ até o start (Recomendado)"):
   `turnComplete` grava na própria tarefa o estado de espera (`rest`, em `state/tasks.ts`: a folha em
   andamento perde `started` e ganha `endedAt`, os pais abertos também), e só o `start` a reacende; `wake`
-  segue igual, porque o estado já não depende de `turnEnded`. O `park` só marca o que está em andamento
+  segue igual, porque o estado já não depende de `turnEnded`, salvo a marca `back` do pedido (abaixo, 2026-11-15). O `park` só marca o que está em andamento
   (`started`), o `halt` deixa como está a folha que já aguarda, o `current` não conta a folha parada com
   Esc, e o aviso de etapas sem start do `done` ignora a que tem `startedAt`. A hora do fim vai no arquivo
   publicado dentro de `groups`: o cartão da filha parada mostra o tempo até o fim do turno dela. Os textos ao modelo dizem a regra: um item das `RULES` e `PROMPT.parked`
@@ -2344,3 +2344,13 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   nas tarefas desenhadas: com alguma, a faixa é cinza "interrompido" (2026-11-15, "Cinza \"interrompido\"
   (Recomendado)"). A tarefa tirada com cancel e a sobra ✕ de um subagente não contam (2026-11-15,
   "Cancelada não conta"); os números não mudam (visual.faixa-de-estado-geral).
+
+## Achados baixos: o pai e o pedido ◷ depois de um aviso (2026-11-15)
+
+- Depois do fim do turno, um aviso do app, um retorno de subagente ou uma notificação reabria o turno sem
+  pedido novo, e o caminho da última tarefa iniciada no pedido (`trail`, o `started` do cabeçalho) voltava
+  a ◉ sem start, porque "iniciada neste turno" era medido pela hora do pedido (`lastTurnAt`). Agora `wake`,
+  ao reabrir o turno terminado, grava a hora no último pedido (`Turn.back`), e `lastTurnAt` devolve a maior
+  entre ela e a do pedido: o pai e o pedido seguem ◷ e a faixa "aguardando" até o start (2026-11-15, "◷ até
+  o start (Recomendado)"; turnos.aviso-sem-start-aguarda). O campo vai nos `turns` publicados, e o cartão
+  desta sessão na mãe lê a mesma conta.

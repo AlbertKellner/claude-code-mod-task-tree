@@ -5555,6 +5555,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Segue ✕ até novo start (Recomendado)\"; achado alto 9 da auditoria de 2026-11-10"
     },
+    "task-tree/tests/turnos.test.ts::depois do fim do turno, um aviso do app não reacende o pai nem o pedido; o start, sim": {
+      "regras": [
+        "turnos.aviso-sem-start-aguarda"
+      ],
+      "hash": "d3c1cd647d192db9",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: ◷ até o start depois do aviso"
+    },
     "task-tree/tests/turnos.test.ts::fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes": {
       "regras": [
         "turnos.iniciada-aguarda-no-fim",
@@ -5866,6 +5876,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Sem tempo, \\\"—\\\" (Recomendado)\""
+    },
+    "task-tree/tests/turnos.test.ts::um aviso no meio do turno não apaga o caminho aceso": {
+      "regras": [
+        "turnos.aviso-sem-start-aguarda"
+      ],
+      "hash": "18a214ed85fa490e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: ◷ até o start depois do aviso"
     },
     "task-tree/tests/turnos.test.ts::um turno que não abre pedido não reacende a tarefa que aguardava": {
       "regras": [

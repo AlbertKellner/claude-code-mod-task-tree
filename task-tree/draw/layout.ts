@@ -1022,7 +1022,14 @@ export function trail(list: TaskNode[], since?: number): string[] {
 }
 // When the main group's last turn began (the turn going on), from all its turns: the drawn ones
 // leave out a turn with no task yet (a prompt that continues a plan).
-export const lastTurnAt = (groups: Group[]) => [...(groups.find(g => g.agent === MAIN)?.turns ?? [])].reverse().find(u => typeof u.at === 'number')?.at
+// When the turn going on began: the last request's time, or later, when the session went back to work
+// in it after its turn ended with no new request (`back`, hooks/panel wake): a start before that end
+// does not light the path in the turn of a notice (the person, 2026-11-15: "◷ até o start (Recomendado)").
+export const lastTurnAt = (groups: Group[]): number | undefined => {
+  const u = [...(groups.find(g => g.agent === MAIN)?.turns ?? [])].reverse().find(u => typeof u.at === 'number')
+  if (u === undefined) return undefined
+  return typeof u.back === 'number' && u.back > (u.at as number) ? u.back : u.at
+}
 export function pathTo(items: TaskNode[], id: string): string[] {
   for (const t of items) {
     if (t.id === id) return [t.id]
