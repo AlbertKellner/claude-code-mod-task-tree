@@ -84,12 +84,15 @@ Quem recebe `$` (o engine) e quem não recebe:
     `limitRows`, `firstOpen`, `hasBrief`, as funções de tempo `span`/`stillSpan`/`timeSpan`/`timeOf`/
     `sessionTime`/`idleIn`/`idleOf`, `guides`, `frames`, `labelCols`, `running` etc.) e as constantes
     `DEEP` = 3, `SHOWN_TURNS` = 3, `SHOWN_CARD_TURNS` = 3, `MAX_ROWS` = 400, `WAIT_ORIGIN` = 10 000 ms.
-  - `desktop.tsx` (474): a árvore do app desktop em componentes nativos (`desktopTree`,
+  - `desktop.tsx` (498): a árvore do app desktop em componentes nativos (`desktopTree`,
     `desktopRow`, `iconCell`, `cells`, `GUIDE_COLOR`/`GUIDE_W`/`GUIDE_H`): cada linha é um `Box` em
     linha com as guias em caixas nativas com fundo (uma célula por coluna, no `Box key="guides"` da
     linha e no `Box key="strip"` ao lado do cartão), o ícone de estado num `Svg` de 16 px com um `Button`
     transparente por cima quando é clicável, o título num `Text` cortado no fim, a contagem e o tempo
-    (a coluna da contagem com a largura do maior "d/n" das linhas, no mínimo 5, igual em todas);
+    (a coluna da contagem com a largura do maior "d/n" das linhas, no mínimo 5, igual em todas;
+    com menos de `TITLE_MIN` colunas estimadas para o título, a linha sai sem a caixa da barra e,
+    se ainda faltar, sem a da contagem); as guias de uma linha, com as faixas dos cartões em volta,
+    param em `INDENT_CAP` (8) células: as primeiras e o conector;
     os cartões de sessão são `Box` com borda e fundo translúcido por nível, com respiro nos quatro
     lados, o busto e o anel em `Svg`.
   - `head.tsx` (178): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
@@ -2363,3 +2366,14 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   repositório principal e a branch segue a da worktree (2026-11-15, "O do repositório principal
   (Recomendado)"; sessoes.worktree-mostra-o-repositorio-principal). Submódulo e gitdir em outro lugar
   seguem com o nome da pasta.
+
+## Achados baixos: o painel estreito (2026-11-15)
+
+- No app, as caixas da direita de uma linha com colunas (palavra, busto, barra, contagem, tempo) nunca
+  encolhiam e o título ficava com poucas letras num cartão de filha em painel estreito; e cada nível
+  somava uma célula de guia, sem teto. Agora `desktopRow` estima em colunas o que sobra ao título e, com
+  menos de 12 (`TITLE_MIN`), tira a caixa da barra e depois a da contagem; e `desktopTree` para as guias
+  de uma linha, contadas as faixas dos cartões em volta, em 8 células (`INDENT_CAP`): as primeiras e o
+  conector (2026-11-15, "Barra, contagem e teto (Recomendado)"; visual.titulo-legivel-no-painel-estreito).
+  O recuo próprio de cada cartão (borda e respiro) não entra no teto. O terminal não muda. No golden, o
+  cabeçalho do cartão de grupo "4 subagentes" (cenário `subagente`, 60 colunas) perdeu a caixa da barra.

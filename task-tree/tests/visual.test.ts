@@ -559,3 +559,69 @@ test('a coluna da contagem tem a largura da maior contagem, igual em todas as li
   expect(larguras.size, quais).toBe(1)
   expect(Number(colunas[0]?.width), quais).toBeGreaterThanOrEqual(maior)
 })
+
+// Uma tarefa publicada por uma sessão filha, com as subtarefas dadas.
+const estreitoTarefa = (id: string, title: string, children: any[] = []) => ({ id, short: id, title, status: 'open', ...(children.length === 0 ? { started: 1, startedAt: AGORA - 1000 } : {}), children })
+// Um Box de key `k` em qualquer profundidade de um elemento do desenho do app.
+function estreitoCaixa(el: any, k: string): boolean {
+  if (typeof el !== 'object' || el === null) return false
+  if (el.type === 'Box' && (el.key ?? el.props?.key) === k) return true
+  return ((el.children ?? []) as any[]).some(c => estreitoCaixa(c, k))
+}
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('em painel estreito, a linha com colunas perde a barra e depois a contagem; em painel largo, tem as duas', async ($: any, on: any) => {
+  fixar(on)
+  const pai = estreitoTarefa('P', 'Pai da filha', [estreitoTarefa('P1', 'Primeira da filha'), estreitoTarefa('P2', 'Segunda da filha')])
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: [pai] } }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const caixas = async (colunas: number) => {
+    const d = await noApp($, { colunas })
+    const l = linhaDoApp(d, 'Pai da filha')
+    return { bar: estreitoCaixa(l.el, 'bar'), count: estreitoCaixa(l.el, 'count'), time: estreitoCaixa(l.el, 'time'), titulo: l.texto.includes('Pai da filha') }
+  }
+  expect(await caixas(100)).toEqual({ bar: true, count: true, time: true, titulo: true })
+  expect(await caixas(50)).toEqual({ bar: false, count: true, time: true, titulo: true })
+  expect(await caixas(40)).toEqual({ bar: false, count: false, time: true, titulo: true })
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('do 8º nível em diante a linha tem as guias do 8º nível', async ($: any, on: any) => {
+  fixar(on)
+  const tres = (p: string) => [estreitoTarefa(`${p}a`, `${p} nível um`, [estreitoTarefa(`${p}b`, `${p} nível dois`, [estreitoTarefa(`${p}c`, `${p} nível três`), estreitoTarefa(`${p}d`, `${p} nível três bis`)])])]
+  const neta = { id: 'local_22222222-2222-2222-2222-222222222222', name: 'neta', title: 'neta', running: true, archived: false, anchor: 'Fc', panel: { groups: [{ agent: '', label: '', tasks: tres('N') }], waits: [], children: [] } }
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: tres('F'), filhas: [neta] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }] }] }])
+  await start($, ['1.1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($, { colunas: 100 })
+  // Cada linha com as células das faixas dos cartões em volta dela somadas às guias dela.
+  const somas: { texto: string; celulas: number }[] = []
+  const linhas = new Map(d.linhas.map(l => [l.el, l]))
+  const andar = (x: any, antes: number) => {
+    if (typeof x !== 'object' || x === null) return
+    const l = linhas.get(x)
+    if (l) return void somas.push({ texto: l.texto, celulas: antes + guiasDe(l).length })
+    const k = x.key ?? x.props?.key
+    let soma = antes
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const strip = ((x.children ?? []) as any[]).find(c => c?.type === 'Box' && (c.key ?? c.props?.key) === 'strip')
+      soma += ((strip?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null).length
+    }
+    for (const c of x.children ?? []) andar(c, soma)
+  }
+  andar(d.raiz, 0)
+  const quais = JSON.stringify(somas)
+  const de = (titulo: string) => somas.find(s => s.texto.includes(titulo))?.celulas
+  // A neta começa no 7º; o 8º e o 9º nível dela ficam na mesma coluna.
+  expect(de('N nível um'), quais).toBe(7)
+  expect(de('N nível dois'), quais).toBe(8)
+  expect(de('N nível três'), quais).toBe(8)
+  expect(Math.max(...somas.map(s => s.celulas)), quais).toBe(8)
+})

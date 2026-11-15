@@ -6059,6 +6059,26 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Cinza \\\"interrompido\\\" (Recomendado)\"; \"Cancelada não conta\""
     },
+    "task-tree/tests/visual.test.ts::do 8º nível em diante a linha tem as guias do 8º nível": {
+      "regras": [
+        "visual.titulo-legivel-no-painel-estreito"
+      ],
+      "hash": "a24e835f080078a5",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: barra, contagem e teto"
+    },
+    "task-tree/tests/visual.test.ts::em painel estreito, a linha com colunas perde a barra e depois a contagem; em painel largo, tem as duas": {
+      "regras": [
+        "visual.titulo-legivel-no-painel-estreito"
+      ],
+      "hash": "2f5deecd30dd226a",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: barra, contagem e teto"
+    },
     "task-tree/tests/visual.test.ts::no app, a faixa à esquerda do cartão tem uma célula de guia por coluna, com ramo ou fim": {
       "regras": [
         "visual.guias-na-faixa-do-cartao"
@@ -6259,9 +6279,9 @@
       "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-14"
     },
     "subagente": {
-      "hash": "1447facdd5440f85",
-      "data": "2026-11-13",
-      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-13"
+      "hash": "821f9588e3b33da1",
+      "data": "2026-11-15",
+      "motivo": "\"Validar só no fim (Recomendado)\", 2026-11-15"
     }
   },
   "removidos": {

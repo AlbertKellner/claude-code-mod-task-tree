@@ -416,3 +416,24 @@ A coluna da contagem tem a largura da maior contagem desenhada.
 
 Origem: auditoria 2026-11-10 (a contagem larga passava sobre a barra); regra do painel, sem decisão nova.
 Estado: coberto
+
+### visual.titulo-legivel-no-painel-estreito
+Em painel estreito, a barra e depois a contagem cedem para o título, e a indentação para no 8º nível.
+
+- Dado uma linha com barra e contagem cujo título ficaria com menos de 12 caracteres, ou uma linha além do 8º nível
+- Quando o painel é desenhado no app
+- Então a linha sai sem a barra; se ainda faltar espaço, sem a contagem; a palavra, o busto e o tempo ficam; do 8º nível em diante as linhas têm as guias do 8º (as faixas dos cartões em volta contadas; o recuo próprio de cada cartão segue)
+
+Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)").
+Estado: coberto
+
+### visual.painel-estreito-no-app
+No app, o painel estreito mantém o título legível.
+
+- Dado o painel na menor largura do app, com um cartão de filha e um de neta
+- Quando se olha as linhas com contagem
+- Então o título tem uns 12 caracteres ou mais, sem texto sobre texto; as colunas que ficam seguem alinhadas pelo tempo; o cartão dentro de cartão segue legível
+
+Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)"); o que o harness não alcança (a medida é estimada em colunas).
+Código: draw/desktop.tsx
+Estado: checklist (largura real e fonte do app)
