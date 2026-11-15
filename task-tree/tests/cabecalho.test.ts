@@ -1,10 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 import { AGORA } from './kit/ambiente'
-import { aviso } from './kit/cenario'
-import { fixar, host, responderEnvio } from './kit/ambiente'
+import { abrirSessao, aviso, ferramenta, lancar } from './kit/cenario'
+import { fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
 import { done, envio, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
 import { comHistorico, cabecalho, emTexto, esperarEstado, montar, noApp, painel } from './kit/leitura'
-import { emTextoDoApp, linha, linhaDoApp, montarNoApp } from './kit/leitura'
+import { emTextoDoApp, estadoGeral, linha, linhaDoApp, montarNoApp } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }, { id: '2.2', title: 'Dois.dois' }] }] }]
 const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }, { id: 'b2', title: 'b2' }] }]
@@ -483,4 +483,96 @@ test('um título que passa do limite de texto também leva ao aviso, e "Voltar" 
   expect(d.aviso, kb(d)).toBe(false)
   expect(d.textos.some(t => t.includes('Folha um')), d.textos.join('\n')).toBe(true)
   await m.fim()
+})
+
+// Lote 12: o que a linha recolhida esconde conta nos chips e na faixa.
+const FILHA = 'local_12121212-1212-1212-1212-121212121212'
+const TRES: No[] = [
+  { id: '1', title: 'Um' },
+  { id: '2', title: 'Dois' },
+  { id: '3', title: 'Três' },
+]
+const pilula = (linhas: { cabecalho?: true; texto: string }[]) => /▸ (\d+)/.exec(linhas.filter(l => l.cabecalho).map(l => l.texto).join('\n'))?.[1]
+
+// Regra: cabecalho.recolher-nao-muda-chips-nem-faixa, cabecalho.numeros-somam-o-desenhado
+test('recolher a tarefa de origem ou o pedido não tira a sessão ativa, a carta na fila nem os subagentes dos chips', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: FILHA, nome: 'filha-um' }, { id: 'local_x', nome: 'outra', listada: false }])
+  lancaveis(on, ['sub-1', 'sub-2'])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, TRES)
+  await start($, ['1'])
+  await abrirSessao($)
+  await start($, ['2'])
+  await envio($, 'local_x')
+  await start($, ['3'])
+  await lancar($, { descricao: 'alfa' })
+  await lancar($, { descricao: 'beta' })
+  await aviso($)
+  const m = await montar($)
+  let p = await m.linhas()
+  const antes = cabecalho(p)
+  expect([antes.chips.ativas, antes.chips.sessao], emTexto(p)).toEqual([1, 1])
+  expect(pilula(p), emTexto(p)).toBe('2')
+  for (const titulo of ['Um', 'Dois', 'Três', 'Pedido um']) {
+    await m.recolher(titulo)
+    p = await m.linhas()
+    const c = cabecalho(p)
+    expect(c.chips, `recolhido ${titulo}:\n${emTexto(p)}`).toEqual(antes.chips)
+    expect([c.feitas, c.total], `recolhido ${titulo}:\n${emTexto(p)}`).toEqual([antes.feitas, antes.total])
+    expect(pilula(p), `recolhido ${titulo}:\n${emTexto(p)}`).toBe('2')
+  }
+  await m.fim()
+})
+
+// Regra: cabecalho.recolher-nao-muda-chips-nem-faixa, cabecalho.numeros-somam-o-desenhado
+test("recolher o cartão da filha que espera, a tarefa de origem ou o pedido não tira o 'aguardando' nem muda a faixa", async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: FILHA, nome: 'filha-um', painel: { tasks: [{ id: 'f1', title: 'Da filha', status: 'open', children: [] }] } }])
+  await pedido($, 'Pedido um')
+  await plan($, TRES)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(FILHA).rodando = false
+  h.filha(FILHA).aguardando = true
+  await aviso($)
+  // Sem nada em andamento, a faixa é a da espera.
+  await done($, ['1'])
+  const m = await montar($)
+  let p = await m.linhas()
+  const antes = cabecalho(p).chips.aguardando
+  const faixa = estadoGeral(await noApp($))
+  expect(antes, emTexto(p)).toBe(1)
+  expect(faixa, emTexto(p)).toBe('aguardando')
+  for (const titulo of ['filha-um', 'Um', 'Pedido um']) {
+    await m.recolher(titulo)
+    p = await m.linhas()
+    expect(cabecalho(p).chips.aguardando, `recolhido ${titulo}:\n${emTexto(p)}`).toBe(antes)
+    expect(estadoGeral(await noApp($)), `recolhido ${titulo}:\n${emTexto(p)}`).toBe(faixa)
+  }
+  await m.fim()
+})
+
+// Regra: cabecalho.recolher-nao-muda-chips-nem-faixa, cabecalho.numeros-somam-o-desenhado
+test("recolher a tarefa com a pergunta aberta não tira o 'aguardando'", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, TRES)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', {
+    questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
+  })
+  await relogio.settle()
+  const m = await montar($)
+  let p = await m.linhas()
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
+  await m.recolher('Um')
+  p = await m.linhas()
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(1)
+  await m.fim()
+  await relogio.advance(1000)
+  await resp
 })

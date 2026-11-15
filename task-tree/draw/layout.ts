@@ -1165,6 +1165,31 @@ export type Row = {
   git?: GitLabel
   // A line that counts the lines a limit left out (limitRows): how many.
   cut?: number
+  // A folded line only: what the lines it hides would count in the header's chips and band (tallyOf),
+  // so folding a line changes none of them (cabecalho.recolher-nao-muda-chips-nem-faixa).
+  hidden?: Tally
+}
+
+// What lines count in the header's chips besides their tasks: the waits (a notice, or a session waiting
+// with no notice of its own drawn), the letters queued, the sessions at work and the subagents at
+// work. Each line counts for itself and for what it hides when folded (Row.hidden).
+export type Tally = { waits: number; sends: number; live: number; subs: number }
+export const noTally: Tally = { waits: 0, sends: 0, live: 0, subs: 0 }
+export const tallyOf = (rows: Row[]): Tally =>
+  rows.reduce<Tally>(
+    (a, r) => ({
+      waits: a.waits + ((r.tone === 'wait' && r.label === '') || r.pending ? 1 : 0) + (r.hidden?.waits ?? 0),
+      sends: a.sends + (r.tone === 'sent' && r.msg === 'queued' ? 1 : 0) + (r.hidden?.sends ?? 0),
+      live: a.live + (r.live ? 1 : 0) + (r.hidden?.live ?? 0),
+      subs: a.subs + (r.subs ?? 0) + (r.hidden?.subs ?? 0),
+    }),
+    noTally,
+  )
+// What `all` counts past what `shown` (the part of it still drawn) does; undefined when nothing.
+export const hiddenOf = (all: Row[], shown: Row[] = []): Tally | undefined => {
+  const [a, b] = [tallyOf(all), tallyOf(shown)]
+  const h = { waits: a.waits - b.waits, sends: a.sends - b.sends, live: a.live - b.live, subs: a.subs - b.subs }
+  return h.waits || h.sends || h.live || h.subs ? h : undefined
 }
 
 // With no summary from the session, the ↩ line says only this, the whole answer in its tooltip: the
@@ -1348,9 +1373,12 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const key = `${scope}t:${t.id}`
       // Nothing closes by itself when it is done: only the person folds a line (▾/▸).
       const kids = t.children
-      const rest = opened(key, true) ? [...under, ...rows(kids, depth + 1, top, lit, trailIds, below, scope, work, pending)] : []
+      // Built folded too: the folded line counts what it hides in the header's chips (Row.hidden).
+      const all = [...under, ...rows(kids, depth + 1, top, lit, trailIds, below, scope, work, pending)]
+      const rest = opened(key, true) ? all : []
       row.fold = { key, open: rest.length > 0 }
       row.nodes = rest.length > 0 ? (t.children.length === 0 ? [t] : []) : [t, ...w.cards]
+      if (rest.length === 0) row.hidden = hiddenOf(all)
       return [row, ...rest]
     })
 
@@ -1418,8 +1446,10 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       row.whole = row.hint
     }
     // The ring goes on the turn, the highest line above the sessions, not on its level-1 tasks.
-    const inner = open ? rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending) : []
+    const all = rows(list, top + 1, top + 1, lit, trailIds, below, scope, work, pending)
+    const inner = open ? all : []
     row.nodes = open ? [] : [...list, ...ws.flatMap(w => w.cards)]
+    if (!open) row.hidden = hiddenOf(all)
     // The turn's answer closes the message's group, after all its level-1 tasks, as on a card;
     // not when a session's card hangs in the group: the answers that count are in the cards, and
     // one after a card still at work would read as the group being over.
@@ -1508,9 +1538,12 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       .map(u => ({ key: `${scope}${cid}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
     // Its turn goes on while it runs (or is starting): the trail lights in its card then.
     const going = !c.archived && (live(c) || c.starting === true) ? lastTurnAt(rawPanel(c).groups ?? []) : undefined
-    const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id, going, c.archived === true), ...replies] : []
-    // Whether a closed one has anything to open: its panel, drawn as it would be.
-    if (inner.length > 0 || panel(p, depth + 1, level + 1, inside, c.id, going, c.archived === true).length > 0) header.fold = { key, open: inner.length > 0 }
+    // Its panel, drawn once: inside the open card; folded, for whether it has anything to open and for
+    // what it hides in the header's chips (Row.hidden).
+    const full = panel(p, depth + 1, level + 1, inside, c.id, going, c.archived === true)
+    const inner = opened(key, true) ? [...full, ...replies] : []
+    if (inner.length > 0 || full.length > 0) header.fold = { key, open: inner.length > 0 }
+    if (inner.length === 0) header.hidden = hiddenOf(full)
     // A discarded round's lines stand for nothing in the header's count (discarded), ✓ ones included.
     const out = discarded(c)
     header.nodes = out || inner.length > 0 ? [] : allTasks(inCount(c), level + 1, c.id)
@@ -1695,6 +1728,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           title: `+${left} pedidos anteriores`,
           label: history ? 'Pedidos anteriores, desenhados' : 'Pedidos anteriores, não desenhados',
           fold: { key: historyKey, open: history },
+          // A letter still queued under a request left out is not drawn, closed: the line counts it in the
+          // chip of what waits on a session (and one whose request is in no drawn line, never drawn).
+          hidden: g.agent === MAIN ? hiddenOf(mail.filter(s => hostOf(s) === '' || (!history && out.some(t => flat([t]).some(k => k.id === hostOf(s))))).map(s => letterRow(s, top))) : undefined,
         })
       if (cut && !history && g.agent === MAIN) {
         const away = flat(out).map(t => t.id)
@@ -1800,14 +1836,12 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
         fold: { key, open },
         nodes: [],
       }
-      if (!open) return [header]
-      return [
-        header,
-        ...mates.flatMap(k => {
+      const lines = mates.flatMap(k => {
           const s = k.sub as Sub
           const lineKey = `${scope}gl:${k.agent}`
-          // Opened, the line is that subagent's own card.
-          if (opened(lineKey, false)) return draw(k, d + 1).map((r, i) => (i === 0 ? { ...r, fold: { key: lineKey, open: true }, subs: 0 } : r))
+          // Opened, the line is that subagent's own card (its count of subagents at work is the header's).
+          const card = draw(k, d + 1).map((r, i) => (i === 0 ? { ...r, fold: { key: lineKey, open: true }, subs: 0 } : r))
+          if (opened(lineKey, false)) return card
           const row: Row = {
             key: lineKey,
             depth: d + 1,
@@ -1818,10 +1852,12 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
             time: now !== undefined ? (s.end ?? now) - s.at : undefined,
             fold: { key: lineKey, open: false },
             nodes: [],
+            hidden: hiddenOf(card),
           }
           return [row]
-        }),
-      ]
+        })
+      if (!open) return [{ ...header, hidden: hiddenOf(lines) }]
+      return [header, ...lines]
     }
 
     // One group's lines from `b`: a subagent's header there and its tasks below, opened and
@@ -1870,7 +1906,9 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const open = opened(key, true)
       header.fold = { key, open }
       header.nodes = open ? [] : g.tasks
-      return [header, ...(open ? inner : closed ? mine.map(w => notice(w, b + 1)) : [])]
+      const shown = open ? inner : closed ? mine.map(w => notice(w, b + 1)) : []
+      if (!open) header.hidden = hiddenOf(inner, shown)
+      return [header, ...shown]
     }
 
     // A card with no task to go under (opened before this session kept origins, or its origin

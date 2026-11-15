@@ -253,6 +253,39 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/cabecalho.test.ts::recolher a tarefa com a pergunta aberta não tira o 'aguardando'": {
+      "regras": [
+        "cabecalho.recolher-nao-muda-chips-nem-faixa",
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "6ceb57afeec7fb1f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a linha recolhida leva os chips e a faixa"
+    },
+    "task-tree/tests/cabecalho.test.ts::recolher a tarefa de origem ou o pedido não tira a sessão ativa, a carta na fila nem os subagentes dos chips": {
+      "regras": [
+        "cabecalho.recolher-nao-muda-chips-nem-faixa",
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "a302d91dd5397b42",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a linha recolhida leva os chips e a faixa"
+    },
+    "task-tree/tests/cabecalho.test.ts::recolher o cartão da filha que espera, a tarefa de origem ou o pedido não tira o 'aguardando' nem muda a faixa": {
+      "regras": [
+        "cabecalho.recolher-nao-muda-chips-nem-faixa",
+        "cabecalho.numeros-somam-o-desenhado"
+      ],
+      "hash": "f2b29ec5ad2e7ff2",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "a linha recolhida leva os chips e a faixa"
+    },
     "task-tree/tests/cabecalho.test.ts::sem nada aberto, um desenho acima de 600 KB perde os pedidos mais antigos até caber, sem aviso": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"

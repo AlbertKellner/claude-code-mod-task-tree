@@ -391,8 +391,11 @@ subagente (`draw`), nas duas visões (a resumida é `trimToWork` do painel). `li
 profundidade, tom (`open`, `current`, `done`, `interrupted`, `wait`,
 `running`, `archived`, `agent`, `section`, `sent`, `paused`, `reply`), título, contagem, tempo,
 `fold`, `card`, `session`, `ring`, `engine`, `nodes` (as tarefas que a linha representa, para o
-cabeçalho somar só o que está desenhado). O cabeçalho é calculado no render a partir das linhas
-(`count` dos `nodes`, `sessionTime`, `chips`); o total da sessão inteira vai no `alt` e, desde a
+cabeçalho somar só o que está desenhado), `hidden` (só na linha recolhida: o que as linhas que ela
+esconde contariam nos chips "aguardando", "aguardando sessão", "sessões ativas" e "subagentes"). O
+cabeçalho é calculado no render a partir das linhas (`count` dos `nodes`, `sessionTime`, `chips`; os
+outros chips e a faixa por `tallyOf`, que soma cada linha e o `hidden` dela, de modo que recolher
+uma linha não muda nenhum chip nem a faixa); o total da sessão inteira vai no `alt` e, desde a
 decisão de 2026-11-14 ("Na linha +N (Recomendado)"), também à direita da linha "+N pedidos anteriores"
 do painel principal (`meta` da linha `sec:turns`, posto pelo render), só quando difere do mostrado.
 

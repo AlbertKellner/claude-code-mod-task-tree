@@ -15,7 +15,7 @@ import type { Acts } from '../draw/desktop'
 import { debug } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
-import { sessionTotal } from '../draw/layout'
+import { sessionTotal, tallyOf } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -275,8 +275,9 @@ export async function render($: EngineInterface, e: any, next: any) {
   // "+N pedidos anteriores" line.
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
-  const tally = (pick: (r: Row) => boolean | undefined) => lines.filter(pick).length
-  const headTime = sessionTime(shown, tally(r => r.live) > 0 || hasOpen(shown), now)
+  // The chips' other numbers: the drawn lines and what the folded ones hide (tallyOf).
+  const tally = tallyOf(lines)
+  const headTime = sessionTime(shown, tally.live > 0 || hasOpen(shown), now)
   // A notice is a wait; a session waiting counts only when it published no notice of its own.
   // Open leaves only, a parent never: started ones (◉) are in progress, the rest (○) pending.
   // Message tasks are not work (they count in no x/y), and are left out of these chips too.
@@ -291,10 +292,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   // "Na linha +N (Recomendado)"): only there and only when it differs; a card's history line does not
   // (the count is this session's). Its title stays as it is.
   const rows = whole ? lines.map(r => (r.key === 'sec:turns' ? { ...r, meta: whole } : r)) : lines
-  const waitingNow = tally(r => (r.tone === 'wait' && r.label === '') || r.pending) + resting
-  const list = chips(active, waitingNow, x, tally(r => r.live), tally(r => r.tone === 'sent' && r.msg === 'queued'), pending, lines.reduce((a, r) => a + (r.subs ?? 0), 0))
+  const waitingNow = tally.waits + resting
+  const list = chips(active, waitingNow, x, tally.live, tally.sends, pending, tally.subs)
   // The header's general state, the color of its band (headerState).
-  const state = headerState({ active, waiting: waitingNow, live: tally(r => r.live), pending, d, n, x })
+  const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   if (e.surface === 'desktop' && 'Svg' in ui) {

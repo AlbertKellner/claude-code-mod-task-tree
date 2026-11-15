@@ -9,10 +9,22 @@ Os números do cabeçalho somam o que está desenhado.
 
 - Dado linhas recolhidas no painel
 - Quando o cabeçalho é desenhado
-- Então os números somam o que o painel mostra, e recolher não muda nada
+- Então os números somam o que o painel mostra, e recolher não muda nada, nos números, nos chips e na faixa (cabecalho.recolher-nao-muda-chips-nem-faixa)
 
 Origem: decisão do usuário, 2026-10-23 ("deve somar as tarefas que estão sendo mostradas na listagem. a visão resumida mostra somente informacoes dessa visao"; "as colapsada, mas que estao nessa visao, tambem entram"); commit 3e79cb8.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); não há mais visões.
+Reescrito: 2026-11-14, texto: a regra vale também para os chips e a faixa (auditoria 2026-11-10); o teste deste cenário não muda.
+Estado: coberto
+
+### cabecalho.recolher-nao-muda-chips-nem-faixa
+Recolher uma linha não muda os chips nem a faixa do cabeçalho.
+
+- Dado um aviso de espera, uma carta na fila, uma sessão filha viva ou subagentes vivos embaixo de uma tarefa, de um pedido ou dentro de um cartão
+- Quando a pessoa recolhe essa linha
+- Então os chips "aguardando", "aguardando sessão", "sessões ativas" e "subagentes" e a cor da faixa ficam como estavam: a linha recolhida conta o que esconde
+
+Origem: auditoria 2026-11-10 (os chips e a faixa eram contados por linha desenhada); aplica cabecalho.numeros-somam-o-desenhado (decisão do usuário, 2026-10-23: "as colapsada, mas que estao nessa visao, tambem entram") aos chips e à faixa, sem mudar a regra.
+Código: hooks/render.tsx
 Estado: coberto
 
 ### cabecalho.resumida-exclui-pedido-finalizado
