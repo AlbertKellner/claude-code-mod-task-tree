@@ -92,7 +92,9 @@ export const RULES = [
     'chamar done. Com "queued", não chame done nela: quando o recebimento é confirmado, o painel a ' +
     'conclui sozinho (mesmo com esta sessão parada) e avisa.',
   '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
-    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
+    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence. ' +
+    'Quando a sessão termina o turno com todas as tarefas concluídas e nada mais está em execução na tarefa ' +
+    'de origem, o painel conclui essa tarefa sozinho e avisa; para seguir nela, reabra com start.',
 ].join('\n')
 
 // The /task-tree command and the three tools, as the model sees them.
@@ -368,6 +370,11 @@ export const SESSION = {
         'delegado não acabou, retome a sessão em vez de fechar. '
       : '') +
     `Tarefas abertas no painel: ${open}.`,
+  // A session that ended its turn with all of its work done, its task of origin closed by the panel
+  // (hooks/sessions, closeByEnded; the person, 2026-11-15: "Fecha a tarefa sozinho (Recomendado)").
+  closedBy: (sessions: string[]) =>
+    PANEL + `terminou o turno com todas as tarefas concluídas a sessão ${sessions.join(', a sessão ')}, e o painel ` +
+    'concluiu sozinho a tarefa de origem. Confira o relato dela; se a tarefa ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
   stopped: (sessions: string[]) =>
     PANEL + `parou com a tarefa de origem já fechada a sessão ${sessions.join(', a sessão ')}: essas pendentes ` +
     'saíram da contagem do painel. Se o trabalho delegado não acabou, retome a sessão.',

@@ -3125,6 +3125,16 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 10"
     },
+    "task-tree/tests/sessoes.test.ts::a filha parada com Esc, mesmo com tudo concluído, não fecha a tarefa de origem": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "791e99f804b5927f",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a filha que espera a pessoa só com pendentes e a origem fechada segue \"aguardando\", contando": {
       "regras": [
         "sessoes.palavra-de-estado-do-cartao",
@@ -3146,6 +3156,26 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: a palavra \"aguardando\" do cartão não tinha teste"
     },
+    "task-tree/tests/sessoes.test.ts::a filha que para com uma tarefa aberta não fecha a tarefa de origem, e vale o lembrete": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "6a7a995f9413d43e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::a filha que para sem tarefas publicadas não fecha a tarefa de origem": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "9b5ac09cf81461b1",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::a filha que some da lista sai também da linha de status": {
       "regras": [
         "sessoes.lista-vazia-refaz-o-status"
@@ -3155,6 +3185,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: status antigo com a lista vazia"
+    },
+    "task-tree/tests/sessoes.test.ts::a filha que termina o turno com tudo concluído fecha a tarefa de origem, com a mãe parada, e o modelo é avisado uma vez": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "530830e7ad9f886d",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::a filha que volta a trabalhar volta a contar": {
       "regras": [
@@ -3297,6 +3337,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
     },
+    "task-tree/tests/sessoes.test.ts::a tarefa de origem com subtarefa aberta não é fechada pela filha que conclui tudo": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "8745659fede800ed",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::cada mensagem à filha, em turnos diferentes, tem o seu cartão sob a tarefa da mensagem": {
       "regras": [
         "sessoes.um-cartao-por-mensagem"
@@ -3388,6 +3438,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
+    },
+    "task-tree/tests/sessoes.test.ts::com uma carta saída da tarefa de origem ainda na fila, a filha que conclui tudo não a fecha": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "494fdc8582285fda",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Fecha a tarefa sozinho (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::com uma tarefa em andamento e um passo planejado depois, a sessão aberta fica sob a tarefa em andamento": {
       "regras": [

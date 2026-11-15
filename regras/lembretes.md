@@ -154,9 +154,10 @@ Quando uma sessão filha termina o turno, o modelo é lembrado da tarefa de orig
 
 - Dado uma filha aberta de uma tarefa, que depois recebeu mensagens enviadas de outras tarefas
 - Quando ela termina um turno
-- Então, uma vez, o modelo recebe o lembrete de conferir o relato e fechar o que o trabalho delegado concluiu, citando a tarefa da última mensagem que a filha já tratou, se ela segue aberta, senão a tarefa em que a filha foi aberta; a mensagem ainda na fila não muda a tarefa citada; sem nenhuma das duas aberta, não há lembrete
+- Então, uma vez, o modelo recebe o lembrete de conferir o relato e fechar o que o trabalho delegado concluiu, citando a tarefa da última mensagem que a filha já tratou, se ela segue aberta, senão a tarefa em que a filha foi aberta; a mensagem ainda na fila não muda a tarefa citada; sem nenhuma das duas aberta, não há lembrete; quando a filha concluiu tudo e o painel fechou a tarefa de origem, o aviso diz isso no lugar do lembrete (sessoes.filha-que-conclui-tudo-fecha-a-origem)
 
 Origem: regra do painel desde a entrada do mod (o lembrete, sem cenário até aqui); auditoria 2026-11-10 (triagem de 2026-11-13: o lembrete olhava só a tarefa de abertura, enquanto o painel já tratava a tarefa da última rodada como a origem). Aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Fecha a tarefa sozinho (Recomendado)"). Os testes existentes não mudam.
 Código: hooks/sessions.ts, hooks/tool-call.ts
 Estado: coberto
 

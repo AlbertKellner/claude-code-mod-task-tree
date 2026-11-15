@@ -276,6 +276,9 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // `ended`: the sessions whose turn ended, until the main loop is reminded of their task.
 // `goneSessions`: the sessions archived or deleted in the app with their task of origin open (its id
 // and title), until the main loop is told once (hooks/sessions, noteGone and endedNote).
+// `closedBySessions`: the main loop's tasks of origin closed by a session that ended its turn with all
+// of its work done (its id and title, the session's name and id), until the model is told once
+// (hooks/sessions, closeByEnded and endedNote).
 // `closedBySubs`: the main loop's tasks the end of their subagents closed or marked ✕ (settleBySubs),
 // with how they ended, until the model is told (subsNote).
 // `sends`: messages to other sessions still queued, until taken up and the main loop reminded.
@@ -312,6 +315,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; goneSessions: { id: string; name: string; how: 'archived' | 'deleted'; task: string; title: string }[];closedBySubs: { id: string; title: string; how: 'done' | 'failed' | 'interrupted' }[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; marks: { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean }; selfId: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; goneSessions: { id: string; name: string; how: 'archived' | 'deleted'; task: string; title: string }[]; closedBySessions: { id: string; title: string; name: string; session: string }[]; closedBySubs: { id: string; title: string; how: 'done' | 'failed' | 'interrupted' }[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; names: Record<string, string>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; marks: { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean }; selfId: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

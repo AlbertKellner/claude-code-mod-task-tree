@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
+import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, hasOpen, inFlight, inSight, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug, debugOnce } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -22,6 +22,7 @@ const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
 const goneState = { plugin: 'task-tree', key: 'goneSessions' } as const
+const closedBySessionsState = { plugin: 'task-tree', key: 'closedBySessions' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const receiptsState = { plugin: 'task-tree', key: 'receipts' } as const
@@ -186,6 +187,8 @@ async function readChildren($: any) {
     })
   }
   if (ended.length > 0) await update($, endedState, cur => [...(cur ?? []).filter(id => !ended.includes(id)), ...ended])
+  // One that ended with everything done closes its task of origin (closeByEnded).
+  if (ended.length > 0) await closeByEnded($, ended)
   // 4. The sessions' tasks are in this session's count, and in what it publishes to the one that
   // opened it (also when the children changed to none: the mother's card loses them).
   const { value: groups = [] } = await $.state.get(groupsState)
@@ -451,6 +454,61 @@ function originOf(c: Child, tasks: TaskNode[], sends: Send[]): TaskNode | undefi
   return undefined
 }
 
+// Whether a session that ended its turn finished all of its current work: not stopped (Esc, an error),
+// not waiting on the person nor archived; its current work (the level-1 tasks of `work` in its panel;
+// with none, all of its main group) has a task and every leaf of it done (none open, none ✕); its
+// subagents hold nothing open and no session it opened is at work.
+function finishedAll(c: Child): boolean {
+  if (c.aborted === true || c.waiting === true || c.archived === true || c.running) return false
+  const p = rawPanel(c)
+  const groups = p.groups ?? []
+  const main = groups.find(g => g.agent === MAIN)?.tasks ?? []
+  const work = Array.isArray(p.work) && p.work.length > 0 ? main.filter(t => p.work!.includes(t.id)) : main
+  const leaves = flat(work).filter(t => t.children.length === 0)
+  if (leaves.length === 0 || leaves.some(t => t.status !== 'done' || t.stopped === true)) return false
+  if (groups.some(g => g.agent !== MAIN && hasOpen(g.tasks))) return false
+  return !(p.children ?? []).some(k => !k.archived && (k.running || k.waiting === true || k.starting === true))
+}
+// The sessions that ended their turn (`ended`, this read) with all of their work done close their task
+// of origin (originOf), the person, 2026-11-15: "Fecha a tarefa sozinho (Recomendado)": when it is open
+// with no open subtask, not left interrupted by an Esc, and nothing else is at work in it (inFlight, with the sends, the waits and the
+// children). Closed as a delivery closes it (settle; with no start, no time), this session stopped
+// too, and kept for one note (closedBySessions, endedNote).
+async function closeByEnded($: any, ended: string[]) {
+  const { value: kids = [] } = await $.state.get(childrenState)
+  const done = (kids as Child[]).filter(c => ended.includes(c.id) && finishedAll(c))
+  if (done.length === 0) return
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const { value: waits = [] } = await $.state.get(waitsState)
+  const now = await stamp($)
+  let closed: { id: string; title: string; name: string; session: string }[] = []
+  await change($, all => {
+    closed = []
+    return all.map(g => {
+      if (g.agent !== MAIN) return g
+      let tasks = g.tasks
+      for (const c of done) {
+        const t = originOf(c, tasks, sends as Send[])
+        // One the person's Esc left interrupted waits on its start (turnos.esc-com-trabalho-delegado-vivo).
+        if (t === undefined || t.stopped === true || t.children.some(x => x.status === 'open')) continue
+        if (inFlight(all, MAIN, t.id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })) continue
+        tasks = settle(edit(tasks, t.id, finish(now)), now)
+        closed.push({ id: t.id, title: t.title, name: c.name || c.title, session: c.id })
+      }
+      return { ...g, tasks }
+    })
+  })
+  if (closed.length > 0) await update($, closedBySessionsState, cur => [...(cur ?? []).filter(x => !closed.some(y => y.id === x.id)), ...closed])
+}
+// The note about the tasks closedByEnded closed, once; with the sessions it names.
+async function closedNote($: any): Promise<{ notes: string[]; sessions: string[] }> {
+  const { value: held = [] } = await $.state.get(closedBySessionsState)
+  const list = held as { id: string; title: string; name: string; session: string }[]
+  if (list.length === 0) return { notes: [], sessions: [] }
+  await update($, closedBySessionsState, cur => (cur ?? []).filter(x => !list.some(y => y.id === x.id && y.session === x.session)))
+  return { notes: [SESSION.closedBy(list.map(x => `"${x.name}" (tarefa de origem "${x.id}" ${x.title})`))], sessions: list.map(x => x.session) }
+}
+
 // The sessions archived or deleted in the app since the last read (`before` the children known then,
 // `after` as derived now), with their task of origin open: kept for one reminder (endedNote). Only those
 // read in this process (`archived` known: one back from the store after a restart has none) and not
@@ -495,8 +553,9 @@ async function goneNote($: any, tasks: TaskNode[]): Promise<string[]> {
 export async function endedNote($: any): Promise<string | undefined> {
   const { value: groups0 = [] } = await $.state.get(groupsState)
   const gone = await goneNote($, (groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
+  const shut = await closedNote($)
   const { value: ids = [] } = await $.state.get(endedState)
-  if (ids.length === 0) return gone.length > 0 ? gone.join(' ') : undefined
+  if (ids.length === 0) return [...gone, ...shut.notes].join(' ') || undefined
   // Only the ids read here go: one added in the meantime waits for the next reminder.
   await update($, endedState, cur => (cur ?? []).filter(id => !(ids as string[]).includes(id)))
   const { value: kids = [] } = await $.state.get(childrenState)
@@ -515,8 +574,9 @@ export async function endedNote($: any): Promise<string | undefined> {
     })
   const pending = lines.some(l => l.endsWith(' pendentes)'))
   // One that stopped with its task closed here: its pending tasks left the count (settle), said once.
-  const left = settledCards(kids as Child[], tasks, sends as Send[], ids)
-  const notes = [...gone, ...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks), pending)] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
+  // One whose task the panel closed (closedNote) says so there, not here.
+  const left = settledCards(kids as Child[], tasks, sends as Send[], (ids as string[]).filter(id => !shut.sessions.includes(id)))
+  const notes = [...gone, ...shut.notes, ...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks), pending)] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
   return notes.length > 0 ? notes.join(' ') : undefined
 }
 

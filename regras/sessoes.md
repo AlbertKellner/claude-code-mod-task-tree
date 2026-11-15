@@ -475,3 +475,14 @@ Uma leitura do arquivo da filha que falha não apaga "aguardando", "ultracode" n
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o arquivo ilegível era lido como vazio, e a filha que esperava era dada como parada por uma volta).
 Estado: coberto
+
+### sessoes.filha-que-conclui-tudo-fecha-a-origem
+A sessão filha que termina o turno com tudo concluído fecha a tarefa de origem.
+
+- Dado uma sessão filha aberta (ou com a última mensagem tratada) a partir de uma tarefa ainda aberta, sem subtarefa aberta
+- Quando a filha termina o turno com todas as tarefas do trabalho atual dela concluídas, e não há mais nada em execução na tarefa de origem (outra sessão trabalhando ali, carta na fila, subagente vivo, pergunta aberta)
+- Então o painel conclui a tarefa de origem sozinho, mesmo com esta sessão parada (o pai fecha se era a última), e o modelo é avisado uma vez, com o nome da sessão e a tarefa; a filha parada com Esc, com tarefa aberta ou ✕, ou sem tarefas não fecha nada, e vale o lembrete de fim de turno (lembretes.filha-terminou-o-turno); a tarefa de origem que o Esc desta sessão deixou interrompida segue ✕ até o start (turnos.esc-com-trabalho-delegado-vivo); o start na tarefa a reabre
+
+Origem: decisão do usuário, 2026-11-15 ("Fecha a tarefa sozinho (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a carta fechava na entrega, o subagente no fim do turno, e a sessão filha nunca); segue "o pai sempre deve refletir seu status" (2026-11-09) e "Sim, conclusão automática como hoje" (2026-10-30).
+Código: hooks/sessions.ts, text/rules.ts
+Estado: coberto

@@ -1709,3 +1709,108 @@ test('no cartão da filha que trocou de modelo, o toks/s antigo some', async ($:
   await aviso($)
   esperarPalavra(await painel($), 'filha-um', '40 toks/s')
 })
+
+// A filha aberta de "Um" (plano de duas tarefas), o turno da mãe encerrado; a filha passa a publicar
+// `painel` e, com `parar`, para.
+const DUAS: No[] = [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }]
+async function filhaQueTermina($: any, on: any, filha: Omit<Filha, 'id'> = {}) {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] }, ...filha }])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  return h
+}
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha que termina o turno com tudo concluído fecha a tarefa de origem, com a mãe parada, e o modelo é avisado uma vez', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  esperarEstado(await painel($), 'Um', 'andamento')
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  for (const t of ['concluiu sozinho a tarefa de origem', 'filha-um', 'Um']) expect(r, r).toContain(t)
+  expect(r).not.toContain('continua aberta')
+  expect(JSON.stringify(await aviso($))).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha que para com uma tarefa aberta não fecha a tarefa de origem, e vale o lembrete', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita'), tarefa('2', 'Outra da filha')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  esperarEstado(await painel($), 'Um', 'aguardando')
+  for (const t of ['terminou o turno', 'continua aberta']) expect(r, r).toContain(t)
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha parada com Esc, mesmo com tudo concluído, não fecha a tarefa de origem', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).aborted = true
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  esperarEstado(await painel($), 'Um', 'aguardando')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha que para sem tarefas publicadas não fecha a tarefa de origem', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  h.filha(K1).painel = { tasks: [] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  esperarEstado(await painel($), 'Um', 'aguardando')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('com uma carta saída da tarefa de origem ainda na fila, a filha que conclui tudo não a fecha', async ($: any, on: any) => {
+  fixar(on)
+  responderEnvio(on)
+  const K2 = 'local_22222222-2222-2222-2222-222222222222'
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } },
+    { id: K2, nome: 'outra', iniciadaPor: 'local_99999999-9999-9999-9999-999999999999' },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await envio($, K2)
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a tarefa de origem com subtarefa aberta não é fechada pela filha que conclui tudo', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  // A tarefa de onde a filha foi aberta ganha uma subtarefa, aberta.
+  await plan($, [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }] }, { id: '2', title: 'Dois' }])
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  expect(r).not.toContain('concluiu sozinho')
+})

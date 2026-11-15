@@ -77,6 +77,7 @@ export const TABLE: readonly Row[] = [
   { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
   { key: 'goneSessions', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions archived or deleted in the app with their task of origin open, until the main loop is told once' },
+  { key: 'closedBySessions', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of origin of the main loop a session that ended its turn with all of its work done closed (closeByEnded), until the model is told once (endedNote)' },
   { key: 'closedBySubs', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of the main loop the end of their subagents closed or marked ✕ (settleBySubs), until the model is told once (subsNote)' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },

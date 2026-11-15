@@ -170,6 +170,12 @@ pessoa, aberta nela ou com a rodada atual nela). `settleBySubs` passa as sessõe
 (`watchSends`, `takeSubSend`) não, porque a sessão que acabou de tomar a carta está viva na rodada da
 tarefa e a entrega conclui a tarefa (2026-10-30, "Sim, conclusão automática como hoje"; o desenho mantém
 a linha ◉ enquanto ela trabalha). As entregas leem as cartas depois de marcar as desta passada.
+O terceiro fechamento automático é o da sessão filha (`closeByEnded`, `hooks/sessions.ts`; 2026-11-15,
+"Fecha a tarefa sozinho (Recomendado)"): a filha que entra em `ended` sem Esc nem erro, com todas as
+folhas do trabalho atual dela concluídas, sem subagente com tarefa aberta e sem sessão dela trabalhando,
+fecha a tarefa de origem (`originOf`) quando ela está aberta, sem subtarefa aberta, sem a marca de parada
+do Esc desta sessão e sem nada mais em execução (`inFlight` com as sessões). O aviso sai uma vez pelo
+`endedNote` (`SESSION.closedBy`, chave `closedBySessions`), no lugar do lembrete de fim de turno.
 As marcas vão pela identidade do envio (`sameSend`: destino, tarefa, hora e subagente), nunca pela
 posição na lista: `watchSends` aplica dentro do `update` só no envio que ainda está lá, e as tarefas a
 fechar e o `inFlight` saem da lista gravada; `takeSubSend` marca o mesmo envio ainda não tomado. As notas
@@ -976,6 +982,9 @@ O primeiro confere o `marketplace.json` (e o README); o segundo, o mod.
 - `goneSessions` (state): as filhas arquivadas ou apagadas com a tarefa de origem aberta (id, nome,
   como, id e título da tarefa), até o aviso ao modelo (`endedNote`); só no state: depois de um
   reinício o aviso não se repete.
+- `closedBySessions` (state): as tarefas de origem que uma filha fechou ao terminar o turno com tudo
+  concluído (id e título da tarefa, nome e id da sessão), até o aviso ao modelo (`endedNote`); só no
+  state, como `goneSessions`.
 - Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
   no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
   chave continuam literais em `register.tsx`; a correspondência com a tabela é conferida à mão.
@@ -1446,7 +1455,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `get_session` confirma que não existe (`sessionGone`), com a tarefa de origem aberta (`noteGone` grava
   em `goneSessions`): uma vez, pelo mesmo `endedNote`, `SESSION.archived` ou `SESSION.deleted`; a que só
   saiu da lista, a que voltou do store sem `archived` e a deixada por um `/clear` não contam (decisão do
-  usuário, 2026-11-15: "Avisar o modelo uma vez"). Fora do app desktop (sem wrap_up nem sessões) nada
+  usuário, 2026-11-15: "Avisar o modelo uma vez"). (4) Quando a filha terminou o turno com tudo
+  concluído e o painel fechou a tarefa de origem (`closeByEnded`), uma vez, pelo mesmo `endedNote`,
+  `SESSION.closedBy`, no lugar do (2) (decisão do usuário, 2026-11-15: "Fecha a tarefa sozinho
+  (Recomendado)"). Fora do app desktop (sem wrap_up nem sessões) nada
   disso dispara.
 - O `$.ui.status` fica embaixo da caixa de mensagem, que some enquanto uma pergunta está aberta:
   avisos de espera vão no painel.
