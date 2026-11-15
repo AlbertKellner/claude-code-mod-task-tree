@@ -46,3 +46,34 @@ O cartão de subagente mede igual.
 
 Origem: decisão do usuário, 2026-11-10 ("Sim, todos (Recomendado)").
 Estado: coberto
+
+### taxa.passo-nao-cai-com-o-painel
+Uma falha do painel antes ou depois do stream não derruba o passo do modelo.
+
+- Dado uma falha ao ler ou gravar o modelo, a taxa ou o cartão do subagente
+- Quando o passo do modelo roda
+- Então a resposta passa inteira, a falha fica no log de depuração, e o passo seguinte volta a medir
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: as leituras e escritas em volta do stream não tinham proteção).
+Estado: coberto
+
+### taxa.fluxo-encerrado-quando-o-consumo-para
+Quando a resposta é interrompida no meio, o painel encerra o fluxo que ele repassava.
+
+- Dado um passo do modelo com o stream pela metade
+- Quando quem consome o stream para (Esc no meio da resposta)
+- Então o fluxo de baixo é encerrado por este hook, e o último toks/s válido fica como estava
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o laço não tinha `finally`).
+Estado: coberto
+
+### taxa.esc-no-meio-da-resposta
+No app, o Esc no meio de uma resposta para a resposta e não deixa o painel preso.
+
+- Dado uma resposta longa em curso, no app desktop
+- Quando a pessoa aperta Esc
+- Então a resposta para, o painel mostra o turno parado (a tarefa em andamento ✕) e o toks/s fica no último valor válido
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15); o harness não para um stream real.
+Código: hooks/turn.ts
+Estado: checklist (o harness não simula o Esc no meio de um stream real)

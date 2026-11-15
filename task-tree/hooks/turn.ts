@@ -7,6 +7,7 @@ import { BRIEF } from '../text/rules'
 import type { Group, Turn } from '../types'
 import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
+import { debug } from '../io/log'
 import { change, dropAsked, dropPermissions, dropWaits, lastBrief, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { syncIdle } from './sessions'
@@ -74,37 +75,52 @@ export async function ultraAttachment($: EngineInterface, e: any, next: any) {
 // The model and effort of the main loop's requests, published for the card in the session that
 // opened this one (the person's words: "mostre o nome do modelo e o esforco de cada sessao"); and
 // the call's output rate (above), published when it changes.
+// The panel's reads and writes around the stream never bring the step down: a failure goes to the
+// debug log and the answer passes whole. A consumer that stops in the middle (Esc) closes the stream
+// below too (finally); an error of the stream below goes up as it came.
 export async function* turnStep($: EngineInterface, e: any, next: any) {
   const main = !e.agentId
-  if (main && typeof e.model === 'string') {
-    const text = engineText(e.model, e.effort)
-    if ((await $.state.get(engineState)).value !== text) {
-      await $.state.set(engineState, text)
-      void publishPanel($).catch(() => {})
+  try {
+    if (main && typeof e.model === 'string') {
+      const text = engineText(e.model, e.effort)
+      if ((await $.state.get(engineState)).value !== text) {
+        await $.state.set(engineState, text)
+        void publishPanel($).catch(() => {})
+      }
     }
+  } catch (err) {
+    await debug($, `task-tree: passo do modelo, antes do stream: ${String(err)}`)
   }
   // The chunks pass through as they come; the clock is read at the first one and at the 'stop'.
   const it = next(e)
   let first: number | undefined
   let stop: { tokens: number; at: number } | undefined
-  let step = await it.next()
-  while (!step.done) {
-    const chunk = step.value
-    if (first === undefined) first = await stamp($)
-    if (chunk?.kind === 'stop' && typeof chunk.usage?.output_tokens === 'number') stop = { tokens: chunk.usage.output_tokens, at: (await stamp($)) ?? 0 }
-    yield chunk
+  let over = false
+  let step: IteratorResult<any, any>
+  try {
     step = await it.next()
+    while (!step.done) {
+      const chunk = step.value
+      if (first === undefined) first = await stamp($)
+      if (chunk?.kind === 'stop' && typeof chunk.usage?.output_tokens === 'number') stop = { tokens: chunk.usage.output_tokens, at: (await stamp($)) ?? 0 }
+      yield chunk
+      step = await it.next()
+    }
+    over = true
+  } finally {
+    if (!over && typeof it?.return === 'function') await Promise.resolve(it.return(undefined)).catch(() => {})
   }
   const r = step.value
-  const toks = first !== undefined && stop ? speedOf(stop.tokens, stop.at - first) : undefined
-  // A subagent's step: its card's model, effort and rate (hooks/agents).
-  if (!main) {
-    await subStep($, String(e.agentId), e, toks)
-    return r
-  }
-  if (toks !== undefined && (await $.state.get(rateState)).value?.toks !== toks) {
-    await $.state.set(rateState, { toks, at: stop!.at, live: true })
-    void publishPanel($).catch(() => {})
+  try {
+    const toks = first !== undefined && stop ? speedOf(stop.tokens, stop.at - first) : undefined
+    // A subagent's step: its card's model, effort and rate (hooks/agents).
+    if (!main) await subStep($, String(e.agentId), e, toks)
+    else if (toks !== undefined && (await $.state.get(rateState)).value?.toks !== toks) {
+      await $.state.set(rateState, { toks, at: stop!.at, live: true })
+      void publishPanel($).catch(() => {})
+    }
+  } catch (err) {
+    await debug($, `task-tree: passo do modelo, depois do stream: ${String(err)}`)
   }
   return r
 }
@@ -125,6 +141,14 @@ function answeredTurn(g: Group, summary: boolean): Turn | undefined {
   const touched = since === undefined || flat(g.tasks).some(t => [t.startedAt, t.endedAt, t.plannedAt].some(x => typeof x === 'number' && x >= since))
   if (touched) return last
   return summary ? cur : undefined
+}
+// One step of the turn's end, its failure said in the debug log ("fim do turno, passo <nome>").
+async function guarded($: any, name: string, run: () => Promise<unknown>) {
+  try {
+    await run()
+  } catch (err) {
+    await debug($, `task-tree: fim do turno, passo ${name}: ${String(err)}`)
+  }
 }
 export async function turnComplete($: EngineInterface, e: any, next: any) {
   const r = await next(e)
@@ -202,16 +226,23 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   if (!agent) await syncIdle($, endedAt)
   // The turn's answer grew the context: publish its share for the session that opened this one.
   if (!agent) await publishPanel($)
+  // A subagent's end: each step on its own (a failure goes to the debug log and the next one runs); a
+  // list of agents that fails reads as "not a teammate", so the end goes on.
   if (agent) {
-    const info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
+    let info: AgentInfo | undefined
+    await guarded($, 'lista de agentes', async () => {
+      info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
+    })
     if (info?.type !== 'teammate' && info?.teammateId === undefined) {
-      await subEnd($, agent, e)
-      await dropWaits($, w => w.agent !== agent)
-      const { value } = await $.state.get(groupsState)
-      if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {
-        const now = await stamp($)
-        await change($, all => all.map(g => (g.agent === agent ? { ...g, tasks: g.tasks.map(interrupt(now)) } : g)))
-      }
+      await guarded($, 'subEnd', () => subEnd($, agent, e))
+      await guarded($, 'dropWaits', () => dropWaits($, w => w.agent !== agent))
+      await guarded($, 'interromper', async () => {
+        const { value } = await $.state.get(groupsState)
+        if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {
+          const now = await stamp($)
+          await change($, all => all.map(g => (g.agent === agent ? { ...g, tasks: g.tasks.map(interrupt(now)) } : g)))
+        }
+      })
     }
     // The subagent that ends the last thing alive past the turn leaves the session stopped (syncIdle).
     await syncIdle($)

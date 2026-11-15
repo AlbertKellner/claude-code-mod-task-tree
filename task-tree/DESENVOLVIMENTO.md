@@ -131,10 +131,10 @@ Na ordem de `register.tsx`:
 | `classic.PermissionRequest` | | `permissionRequest` (permission.ts) | um aviso `permission` por ferramenta, exceto `AskUserQuestion` e `ExitPlanMode` |
 | `agent.spawn` | | `agentSpawn` (agents.ts) | o cartão do subagente (grupo com `sub`); a retomada (`resume`) não abre cartão novo: o cartão dele volta a "trabalhando" (ou "em segundo plano"), sem fim, com a contagem de chamadas seguindo (`reviveSub`), e só depois a carta que esperava por ele é entregue (`takeSubSend` com o `prompt`); o cartão já podado (`dropSettledSubs`) não volta |
 | `session.receive` | | `agentReceive` (agents.ts) | depois de `next`: entrega com `agentId` (não `consumed`) é a mensagem que o subagente recebe na rodada seguinte; `takeSubSend` deixa a carta dele verde |
-| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`) |
+| `turn.step` | | `turnStep` (turn.ts) | publica `engine` (`engineText(model, effort)`) quando muda e mede o toks/s (`rate`); o passo de um subagente vai ao cartão dele (`subStep`); o que vem antes e depois do stream fica protegido (a falha vai ao log e a resposta passa), e o `finally` do laço encerra o fluxo de baixo quando o consumo para no meio |
 | `prompt.attachment` | `ultra_effort_enter` | `ultraAttachment` (turn.ts) | liga `ultracode` (só o do loop principal) |
 | `prompt.attachment` | `ultra_effort_exit` | `ultraAttachment` (turn.ts) | desliga `ultracode` |
-| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `brief` (o `summary` do `done`; só no turno não parado, e o `reply` de versões anteriores sai na mesma gravação) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido; no loop principal grava `turnEnded` (a hora do fim do turno, no state e no registro `turn` do store) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
+| `turn.complete` | | `turnComplete` (turn.ts) | tira pergunta/plano do agente; no loop principal tira as esperas de permissão que sobraram (e zera `inCall` dele), grava o `brief` (o `summary` do `done`; só no turno não parado, e o `reply` de versões anteriores sai na mesma gravação) no pedido da última mensagem quando ele tem tarefa; sem tarefa, no último pedido com tarefas se o turno mexeu numa tarefa dele, senão no próprio pedido quando há resumo, senão em nenhum (`answeredTurn`), zera `brief` em todo fim de turno, parado também, publica; um subagente que não é teammate tem o que deixou aberto interrompido (cada passo do fim dele isolado, a falha no log "fim do turno, passo <nome>"; a lista de agentes que falha conta como "não é teammate"); no loop principal grava `turnEnded` (a hora do fim do turno, no state e no registro `turn` do store) e, no fim normal, deixa ◷ na própria tarefa o que estava em andamento (`rest`); o turno que morre por erro ou recusa (`reason` `error`/`refusal`, sem `isAborted`) é tratado como o Esc (`park` com `failed`, `turnAborted`, `replanDue`) e grava `turnFailed` |
 | `tool.call` | (genérico) | `toolCall` (tool-call.ts) | ver "Fluxo de dados" |
 | `ui.press` | | `press` (render.tsx) | responde pela chave do botão com a ação mais recente (`actions`) |
 | `ui.render` | `Pane`, `task-tree` | `render` (render.tsx) | religa os relógios (`keepTime`, `watchSessions`) e desenha; ver "Desenho" |
@@ -176,11 +176,12 @@ mensagem pendente é retomado pelo `agent.spawn` com `resume`; o parado ou que f
 
 **Toda escrita do painel passa por `change($, fn)`** (`hooks/panel.ts`): `ensureGroups`, `ensureWork`,
 `ensureLinks` (volta do store se o módulo ainda não a fez), `adopt` (a lista legada `tasks` entra no
-grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `persist`: `showStatus`
-(`$.ui.status` "Tarefas d/n", da mesma conta da "sessão inteira" do cabeçalho, `sessionTotal`;
-chamado só quando o texto muda: `lastStatus`, variável do módulo),
+grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `persist`, nesta ordem:
 `saveGroups` (store `session:<uuid>` e a lista `sessions`, as `KEEP` = 30 mais novas; a sessão que
-volta à lista regrava o trabalho e o fim do turno) e `publishPanel`. `replace` grava direto e persiste (resume, `/clear`).
+volta à lista regrava o trabalho e o fim do turno), `publishPanel` e, por último, `showStatus`
+(`$.ui.status` "Tarefas d/n", da mesma conta da "sessão inteira" do cabeçalho, `sessionTotal`;
+chamado só quando o texto muda: `lastStatus`, variável do módulo, gravado só depois de o app
+aceitar; `showStatus` nunca lança: a falha vai ao log de depuração, uma vez por motivo). `replace` grava direto e persiste (resume, `/clear`).
 
 **O `tool.call` genérico** (`hooks/tool-call.ts`), em torno de `Call = { agent, e, sentAt, r }`:
 

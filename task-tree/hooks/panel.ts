@@ -442,22 +442,28 @@ export async function ensureGroup($: any, agent: string) {
 // only when its text changes (the poll calls this every few seconds); `lastStatus` is a variable of
 // the module, so a reload sets it once more.
 let lastStatus: string | undefined | null = null
+// It never throws: a failure is said once in the debug log, and the next write tries again (lastStatus
+// is set only once the app took the text).
 export async function showStatus($: any, groups: Group[]) {
-  const { value: children = [] } = await $.state.get(childrenState)
-  const { value: sends = [] } = await $.state.get(sendsState)
-  // The whole session's count, the header's "sessão inteira" (sessionTotal): the rounds cut into
-  // cards, a discarded round and a stopped session's pending tasks out, what was stopped interrupted.
-  const [d, n] = sessionTotal(groups, children as Child[], sends as Send[], knownId())
-  const text = d === n ? undefined : `Tarefas ${d}/${n}`
-  if (lastStatus !== null && lastStatus === text) return
-  lastStatus = text
-  $.ui.status(text)
+  try {
+    const { value: children = [] } = await $.state.get(childrenState)
+    const { value: sends = [] } = await $.state.get(sendsState)
+    // The whole session's count, the header's "sessão inteira" (sessionTotal): the rounds cut into
+    // cards, a discarded round and a stopped session's pending tasks out, what was stopped interrupted.
+    const [d, n] = sessionTotal(groups, children as Child[], sends as Send[], knownId())
+    const text = d === n ? undefined : `Tarefas ${d}/${n}`
+    if (lastStatus !== null && lastStatus === text) return
+    await $.ui.status(text)
+    lastStatus = text
+  } catch (err) {
+    await debugOnce($, `task-tree: status não atualizado: ${String(err)}`)
+  }
 }
 
 // A session out of the store's list (new, or pruned by another session) writes its work, turn end
 // and links again with the panel: the module's copies of what was already written are forgotten.
+// Saved first, then published, the status line last (it never holds the panel back).
 export async function persist($: any, groups: Group[]) {
-  await showStatus($, groups)
   try {
     const { back } = await saveGroups($, groups)
     if (back) {
@@ -469,7 +475,11 @@ export async function persist($: any, groups: Group[]) {
       if (Array.isArray(work)) await saveStore($, 'work', work)
     }
   } catch {}
-  await publishPanel($)
+  try {
+    await publishPanel($)
+  } finally {
+    await showStatus($, groups)
+  }
 }
 // A read of the store that failed, said once per record and reason; what the caller does is unchanged.
 async function unread($: any, what: string, err: unknown) {

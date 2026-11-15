@@ -587,6 +587,26 @@
       "data": "2026-11-14",
       "motivo": "auditoria: store cheio"
     },
+    "task-tree/tests/durabilidade.test.ts::com a linha de status falhando, o plan responde, o painel vai ao store e é publicado": {
+      "regras": [
+        "durabilidade.status-nao-segura-a-gravacao"
+      ],
+      "hash": "97810edced380fca",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: a linha de status calculada antes de salvar e publicar, sem proteção"
+    },
+    "task-tree/tests/durabilidade.test.ts::com a lista de agentes falhando, o fim do subagente ainda interrompe o que ele deixou aberto": {
+      "regras": [
+        "durabilidade.fim-do-turno-registrado-mesmo-com-falha"
+      ],
+      "hash": "4792de7588fcf93e",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: o fim do subagente sem isolamento dos passos"
+    },
     "task-tree/tests/durabilidade.test.ts::com a lista do app em erro, nada é esvaziado": {
       "regras": [
         "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
@@ -4407,6 +4427,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
+    },
+    "task-tree/tests/taxa.test.ts::quem consome o stream para no meio: o fluxo de baixo é encerrado": {
+      "regras": [
+        "taxa.fluxo-encerrado-quando-o-consumo-para"
+      ],
+      "hash": "2658f341751b77f1",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: o laço do turn.step sem finally"
+    },
+    "task-tree/tests/taxa.test.ts::uma falha de estado antes do stream não derruba o passo do modelo, e o passo seguinte mede": {
+      "regras": [
+        "taxa.passo-nao-cai-com-o-painel"
+      ],
+      "hash": "eaca2af3cbb252dc",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "achado baixo da auditoria de 2026-11-10: turn.step sem proteção em volta do stream"
     },
     "task-tree/tests/turnos.test.ts::Esc interrompe só a tarefa iniciada; as pendentes seguem pendentes": {
       "regras": [

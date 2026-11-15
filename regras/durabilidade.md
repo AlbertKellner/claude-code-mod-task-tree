@@ -224,3 +224,24 @@ Depois de uma recarga do mod ou de um reinício, o recibo já usado não confirm
 Origem: auditoria 2026-11-10 (os recibos usados eram variável do módulo); aplica envios.fica-ate-entrega ("a carta fica azul até a entrega"), sem mudar nenhuma regra.
 Código: hooks/sessions.ts
 Estado: coberto
+
+### durabilidade.status-nao-segura-a-gravacao
+A linha de status embaixo da caixa de mensagem nunca impede o painel de ser salvo e publicado.
+
+- Dado uma falha ao calcular ou ao mostrar a linha "Tarefas d/n"
+- Quando plan, start, done ou qualquer outra mudança grava o painel
+- Então o painel é salvo no store e publicado antes; a falha do status fica no log de depuração e a ferramenta responde normalmente; o status é tentado de novo na mudança seguinte
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o status era calculado antes de salvar e publicar, sem proteção); sem mudar nenhuma regra.
+Estado: coberto
+
+### durabilidade.fim-do-turno-registrado-mesmo-com-falha
+O fim do turno é registrado mesmo quando um passo acessório dele falha.
+
+- Dado, no fim de um subagente, uma falha na lista de agentes do app ou num passo do fim dele (o cartão, as esperas, as tarefas abertas)
+- Quando o turno do subagente termina
+- Então a falha fica no log de depuração e os outros passos rodam: o subagente que termina deixa interrompido o que deixou aberto e o cartão dele sai de "trabalhando"
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: uma falha no começo do fim do turno deixava o painel em andamento e a sessão de cima sem o fim); sem mudar nenhuma regra (turnos.subagente-que-termina-interrompe).
+Código: hooks/turn.ts, hooks/agents.ts
+Estado: coberto

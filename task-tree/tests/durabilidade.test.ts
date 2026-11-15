@@ -1,7 +1,7 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
 import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
-import { falha } from './kit/cenario'
+import { falha, fimDoSubagente, lancar } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, montar, painel, type Linha } from './kit/leitura'
 
@@ -1159,4 +1159,51 @@ test('a filha recém-aberta que a lista do host ainda não traz segue sob a tare
   p = await painel($)
   expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
   expect(cartoes(p, 'filha-dois').map(c => c.sob), emTexto(p)).toEqual(['Dois.um'])
+})
+
+// Regra: durabilidade.status-nao-segura-a-gravacao
+test('com a linha de status falhando, o plan responde, o painel vai ao store e é publicado', async ($: any, on: any) => {
+  // Como fixar, mas o app recusa a linha de status (o motor engole essa falha: "$.ui.status dropped").
+  // A conta que lança não tem dado real que a reproduza; o teste trava a ordem e a proteção.
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ deny: 'status quebrado' }))
+  on('ui.log', () => ({ value: undefined }))
+  on('prompt.submit', (_$: any, e: any) => e)
+  on('turn.complete', () => ({ text: '' }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('tool.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
+  const dados: Record<string, unknown> = {}
+  armazem(on, dados)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  const p = await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  expect(p.erro, p.texto).toBe(false)
+  expect(p.texto).toContain('Plano exibido')
+  const s = await start($, ['1'])
+  expect(s.texto).toContain('Em andamento: Um')
+  expect(JSON.stringify(dados[`session:${SESSAO}`] ?? null)).toContain('Um')
+  expect(JSON.stringify(h.proprio()?.groups ?? null)).toContain('Um')
+})
+
+// Regra: durabilidade.fim-do-turno-registrado-mesmo-com-falha
+test('com a lista de agentes falhando, o fim do subagente ainda interrompe o que ele deixou aberto', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  let quebrar = false
+  on('agent.spawn', () => ({ model: 'claude-haiku-5-5', agentId: 'sub-1' }))
+  on('agent.list', () => (quebrar ? { deny: 'lista quebrada' } : { value: [{ id: 'sub-1', type: 'general-purpose', description: 'subagente sub-1' }] }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await plan($, [{ id: 'S', title: 'Do subagente' }], undefined, 'sub-1')
+  await start($, ['S'], 'sub-1')
+  quebrar = true
+  await fimDoSubagente($, 'sub-1')
+  quebrar = false
+  const p = await painel($)
+  esperarEstado(p, 'Do subagente', 'interrompida')
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).not.toContain('trabalhando')
+  expect(log.some(l => l.includes('fim do turno')), log.join('\n')).toBe(true)
 })

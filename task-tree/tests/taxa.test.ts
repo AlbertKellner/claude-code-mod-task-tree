@@ -102,3 +102,41 @@ test("a taxa de uma filha em versão anterior do mod (publicada como do último 
   expect(cartao?.texto, emTextoDoApp(d)).toContain('42 toks/s')
   expect(cartao?.texto, emTextoDoApp(d)).not.toContain('último turno')
 })
+
+// Regra: taxa.passo-nao-cai-com-o-painel
+test('uma falha de estado antes do stream não derruba o passo do modelo, e o passo seguinte mede', async ($: any, on: any) => {
+  const { relogio, log } = fixar(on)
+  const passo = passos(on, relogio)
+  let quebrar = false
+  on('state.get', async (_$: any, e: any, next: any) => (quebrar && e?.key === 'engine' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  quebrar = true
+  await passo($, { geracao: 2000, tokens: 200 })
+  quebrar = false
+  expect(log.some(l => l.includes('estouro')), log.join('\n')).toBe(true)
+  await passo($, { geracao: 1000, tokens: 50 })
+  expect(await topo($), emTexto(await painel($))).toContain('50 toks/s')
+})
+
+// Regra: taxa.fluxo-encerrado-quando-o-consumo-para
+test('quem consome o stream para no meio: o fluxo de baixo é encerrado', async ($: any, on: any) => {
+  fixar(on)
+  let fechado = false
+  on('turn.step', async function* () {
+    try {
+      yield { kind: 'text', index: 0, text: 'a' }
+      yield { kind: 'text', index: 0, text: 'b' }
+    } finally {
+      fechado = true
+    }
+    return { turnId: 't', index: 0, answer: '', toolUses: [], stopReason: 'end_turn' }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  const s = $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5' })
+  for await (const _ of s) break
+  expect(fechado).toBe(true)
+})
