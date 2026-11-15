@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # A mesma versão do app; subir junto com o app (CLAUDE.md, "CI").
-      CLAUDE_CODE_VERSION: 2.1.321
       DISABLE_AUTOUPDATER: 1
     steps:
       # O histórico inteiro: a regressão roda os testes da base do PR contra o código dele.
@@ -38,8 +36,14 @@ jobs:
       - run: npm ci
 
       - name: Claude Code
+        # A versão fixada mora em scripts/versao-do-claude-code.txt (CLAUDE.md, "CI").
         run: |
-          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          versao=$(tr -d '[:space:]' < scripts/versao-do-claude-code.txt)
+          if ! printf '%s' "$versao" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::scripts/versao-do-claude-code.txt vazio ou fora do formato X.Y.Z: '$versao'"
+            exit 1
+          fi
+          npm install -g "@anthropic-ai/claude-code@${versao}"
           echo "CLAUDE_BIN=$(command -v claude)" >> "$GITHUB_ENV"
           claude --version
 

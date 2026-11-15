@@ -884,3 +884,54 @@ test('origem sem data e decisão sem aspas só avisam', () => comMapa('Código d
   assert.match(r.stdout, /aviso: decisões sem as palavras \(1\): turnos\.dois/)
   assert.match(r.stdout, /mapa: 1 cobertos com código, 1 avisos/)
 }))
+
+// Lote C-04: a versão do Claude Code num arquivo só; a pasta nova do app que não responde não bloqueia.
+test('o binário é o da versão mais nova que responde', async () => {
+  const { acharBinario } = await import('./binario.mjs')
+  const appdata = mkdtempSync(join(tmpdir(), 'bin-'))
+  try {
+    const exe = v => join(appdata, 'Claude', 'claude-code', v, 'x', 'claude.exe')
+    for (const v of ['2.1.9', '2.1.10']) {
+      mkdirSync(dirname(exe(v)), { recursive: true })
+      writeFileSync(exe(v), '')
+    }
+    const amb = { APPDATA: appdata }
+    assert.equal(acharBinario(amb, () => true), exe('2.1.10'))
+    assert.equal(acharBinario(amb, b => b !== exe('2.1.10')), exe('2.1.9'))
+    assert.equal(acharBinario(amb, () => false), exe('2.1.10'))
+  } finally {
+    rmSync(appdata, { recursive: true, force: true })
+  }
+})
+
+test('CLAUDE_BIN vale sem tentativa', async () => {
+  const { acharBinario } = await import('./binario.mjs')
+  let perguntou = false
+  assert.equal(acharBinario({ CLAUDE_BIN: 'meu-claude' }, () => ((perguntou = true), false)), 'meu-claude')
+  assert.equal(perguntou, false)
+})
+
+test('a versão fixada é lida do arquivo e comparada', async () => {
+  const { avisoDeVersao, lerVersaoFixada, versaoDoTexto } = await import('./binario.mjs')
+  assert.equal(versaoDoTexto('2.1.325 (Claude Code)\n'), '2.1.325')
+  assert.equal(versaoDoTexto('2.1.325'), '2.1.325')
+  assert.equal(versaoDoTexto('sem versão'), null)
+  const dir = mkdtempSync(join(tmpdir(), 'ver-'))
+  try {
+    const arq = join(dir, 'versao.txt')
+    assert.equal(lerVersaoFixada(arq), null)
+    writeFileSync(arq, '2.1.325\n')
+    assert.equal(lerVersaoFixada(arq), '2.1.325')
+    assert.equal(avisoDeVersao('2.1.325', '2.1.325'), null)
+    assert.match(avisoDeVersao('2.1.326', '2.1.325'), /roda no Claude Code 2\.1\.326, a versão fixada é 2\.1\.325/)
+    assert.equal(avisoDeVersao('2.1.326', null), null)
+    assert.equal(avisoDeVersao(null, '2.1.325'), null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('o arquivo da versão fixada existe e tem o formato X.Y.Z', () => {
+  const arq = join(dirname(fileURLToPath(import.meta.url)), 'versao-do-claude-code.txt')
+  assert.match(readFileSync(arq, 'utf8'), /^\d+\.\d+\.\d+\r?\n?$/)
+})

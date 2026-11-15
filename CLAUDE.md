@@ -78,8 +78,9 @@ Outros comandos: `npm run regras:selar -- "<arquivo>::<nome>" --tipo … --motiv
 teste), `npm run testes:alterados` (os testes existentes que mudaram, para o relato; depois do
 commit local, compara o último commit; `-- --pr` contra a base do PR) e `npm run impacto` (a matriz de impacto, abaixo).
 
-O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude-code\<versão>\`;
-`CLAUDE_BIN` escolhe outro. Use a mesma versão que roda a sessão.
+O binário é o do app desktop, na versão mais nova em `%APPDATA%\Claude\claude-code\<versão>\` que
+responde ao `--version` (se a pasta mais nova não responder, a anterior); `CLAUDE_BIN` escolhe outro.
+Use a mesma versão que roda a sessão.
 
 ## BDD: o catálogo de regras
 
@@ -133,7 +134,8 @@ a regra que ele protege.
 ## CI
 
 `.github/workflows/test.yml` roda o mesmo `npm run check`, todas as etapas, no Ubuntu, com o Claude
-Code do npm fixado na versão do app (`CLAUDE_CODE_VERSION`, hoje 2.1.321; subir junto com o app) e
+Code do npm fixado na versão do app (`scripts/versao-do-claude-code.txt`; subir junto com o app; o check
+local avisa quando roda em outra versão) e
 `--base <merge-base com o main>`: a regressão roda os testes da base do PR contra o código dele, e uma
 falha só passa com o selo de decisão ou golden que o PR traz. Não precisa de segredo nem de login.
 - Desligada por escolha do usuário (2026-10-29: "não roda por enquanto, deixe pronto para o futuro";

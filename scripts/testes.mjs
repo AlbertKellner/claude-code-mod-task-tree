@@ -13,7 +13,7 @@ import { cpSync, existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlink
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { acharBinario } from './binario.mjs'
+import { acharBinario, avisoDeVersao, lerVersaoFixada, versaoDoTexto } from './binario.mjs'
 import { etapaConferiu } from './guarda.mjs'
 import { alteradosNoIndice, clonePrincipal, etapasDoHook, lerBase } from './mudou.mjs'
 
@@ -93,6 +93,9 @@ if (versao.status !== 0) {
   process.exit(1)
 }
 console.log(`Claude Code: ${claude} (${versao.stdout.trim()})`)
+// A versão fixada (a da CI) contra a que o check usa: só avisa, e o aviso volta no resumo final.
+const avisoVersao = avisoDeVersao(versaoDoTexto(versao.stdout), lerVersaoFixada())
+if (avisoVersao) console.log(avisoVersao)
 
 // O tsc depende de .claude-plugin/types/ do mod (ignorado pelo git), que o validate não gera: quem
 // grava a pasta é o motor do Claude Code quando carrega o mod de uma pasta (e a regrava a cada
@@ -167,7 +170,7 @@ for (let i = 0; i < etapas.length && codigo === 0; i++) {
   marcar(nome, rodar(cmd, args).status ?? 1, bloqueia)
 }
 for (const [nome] of etapas.slice(resumo.length)) resumo.push(`--    ${nome} (não rodou)`)
-
+if (avisoVersao) resumo.push(avisoVersao)
 console.log(`\n${resumo.join('\n')}`)
 limpar()
 process.exit(codigo)
