@@ -136,11 +136,12 @@ A filha arquivada deixa interrompido o que ficou aberto.
 
 - Dado uma filha arquivada com tarefas abertas, com o pedido dela no trabalho atual
 - Quando o cartão é desenhado
-- Então o que ficou aberto fica ✕, e o pai fica ✓
+- Então o que ficou aberto, iniciado ou nunca iniciado, fica ✕, e o pai fica ✓
 
 Origem: regra do painel desde a entrada do mod ("Arquivada fica, como histórico", DESENVOLVIMENTO); o pai ◷: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"), commit af4a524, 2026-10-27.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Reescrito: 2026-11-14, decisão do usuário ("Vira linha resumida (Recomendado)"); desfaz "Arquivada fica, como histórico" para o pedido que saiu do trabalho, onde ela vira uma linha (sessoes.arquivada-antiga-vira-linha). O teste não muda.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Como hoje, ✕ (Recomendado)"): a pendente da filha arquivada fica ✕. O teste não muda.
 Estado: coberto
 
 ### sessoes.arquivada-nao-e-relida

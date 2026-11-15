@@ -21,10 +21,11 @@ As pendentes seguem pendentes no fim do turno, na principal e nas filhas.
 
 - Dado tarefas nunca iniciadas
 - Quando o turno termina, normal ou com Esc
-- Então elas seguem ○, nunca ✕, e o cabeçalho as conta; salvo, no painel da mãe, a rodada de uma filha parada com Esc com tarefa aberta, que sai inteira da contagem até a filha dar start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem, sessoes.filha-parada-com-esc-segue-descartada-ate-o-start); no painel da própria filha elas contam
+- Então elas seguem ○, nunca ✕, e o cabeçalho as conta; salvo, no painel da mãe, a rodada de uma filha parada com Esc com tarefa aberta, que sai inteira da contagem até a filha dar start na tarefa parada (sessoes.rodada-descartada-fora-da-contagem, sessoes.filha-parada-com-esc-segue-descartada-ate-o-start); no painel da própria filha elas contam; a tarefa nunca iniciada de quem não volta mais (o subagente que terminou, a sessão filha arquivada) fica ✕, fora da contagem (turnos.subagente-que-termina-interrompe, sessoes.filha-arquivada-interrompe)
 
 Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24); commit cd96021.
 Reescrito: 2026-11-14, decisão do usuário ("Rodada fora da conta (Recomendado)"); só o texto ganha a exceção que o código já fazia. Os testes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Como hoje, ✕ (Recomendado)"): a exceção a "pendentes nunca ✕" para o subagente que terminou e a filha arquivada, que o código já fazia, passa a ser decisão dele. Os testes não mudam.
 Estado: coberto
 
 ### turnos.pai-e-pedido-aguardam-no-fim
@@ -111,10 +112,11 @@ O subagente que termina deixa interrompido o que ficou aberto.
 
 - Dado um subagente com tarefas abertas no grupo dele
 - Quando ele termina
-- Então o que ele deixou aberto fica ✕, e o grupo segue desenhado, mesmo lançado sem tarefa de origem
+- Então o que ele deixou aberto fica ✕, iniciado ou nunca iniciado (ninguém mais vai executá-lo), fora da contagem, e o grupo segue desenhado, mesmo lançado sem tarefa de origem
 
 Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o grupo sem origem sumia.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Como hoje, ✕ (Recomendado)"): a pendente do subagente que terminou fica ✕. Os testes não mudam.
 Código: hooks/tools.ts
 Estado: coberto
 
