@@ -21,6 +21,7 @@ const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as const
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
+const goneState = { plugin: 'task-tree', key: 'goneSessions' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const receiptsState = { plugin: 'task-tree', key: 'receipts' } as const
@@ -128,6 +129,7 @@ async function readChildren($: any) {
     const { value: cur } = await $.state.get(childrenState)
     const keep = (c: Child[] | undefined) => (c ?? []).filter(k => justOpened(k, now))
     if (keep(cur).length !== (cur ?? []).length) {
+      await noteGone($, cur ?? [], keep(cur))
       await update($, childrenState, keep)
       await publishPanel($)
       // The status and the clock are made again too, as below: the count loses the cards gone.
@@ -175,6 +177,8 @@ async function readChildren($: any) {
   let ended = first.ended
   const changed = JSON.stringify(first.children) !== JSON.stringify(cur ?? [])
   if (changed) {
+    // Archived or deleted in the app with the task of origin open: the model is told once (endedNote).
+    await noteGone($, cur ?? [], first.children)
     await update($, childrenState, c => {
       const d = derive(c ?? [])
       ended = d.ended
@@ -431,33 +435,77 @@ export async function settledBy($: any, before: TaskNode[], after: TaskNode[]): 
 
 // Once per session whose turn ended: a reminder for the main loop, while the task it opened
 // that session on is still open, to read its report and close what the delegated work finished.
+// The task a reminder about a session names: that of the last message the session already took up
+// (its newest round with no send to it still queued from that task), if still open; else the one it
+// was opened from. A message still queued does not move it: the turn that ended was not on it.
+function originOf(c: Child, tasks: TaskNode[], sends: Send[]): TaskNode | undefined {
+  const open = flat(tasks).filter(t => t.status === 'open')
+  const queued = (anchor: string | undefined) =>
+    sends.some(s => (s.to === c.id || (c.name !== '' && s.to === c.name)) && s.anchor === anchor && !s.taken && !s.cut)
+  const round = [...(c.rounds ?? [])].sort((a, b) => b.at - a.at).find(r => !queued(r.anchor))
+  const cands = [resolveAnchor(tasks, round?.anchor, round?.at), c.anchor]
+  for (const id of cands) {
+    const t = id === undefined ? undefined : open.find(t => t.id === id)
+    if (t !== undefined) return t
+  }
+  return undefined
+}
+
+// The sessions archived or deleted in the app since the last read (`before` the children known then,
+// `after` as derived now), with their task of origin open: kept for one reminder (endedNote). Only those
+// read in this process (`archived` known: one back from the store after a restart has none) and not
+// left behind by a /clear; a deleted one only when the app confirms it does not exist (sessionGone): a
+// session merely missing from the list (a partial list, an error) says nothing.
+async function noteGone($: any, before: Child[], after: Child[]) {
+  const found: { c: Child; how: 'archived' | 'deleted' }[] = []
+  for (const c of before) {
+    if (c.archived === undefined || isLeftBehind(c.id)) continue
+    const now = after.find(k => k.id === c.id)
+    if (now !== undefined) {
+      if (c.archived === false && now.archived === true) found.push({ c: now, how: 'archived' })
+    } else if (await sessionGone($, c.id)) found.push({ c, how: 'deleted' })
+  }
+  if (found.length === 0) return
+  const { value: groups = [] } = await $.state.get(groupsState)
+  const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+  const { value: sends = [] } = await $.state.get(sendsState)
+  const gone = found.flatMap(({ c, how }) => {
+    const t = originOf(c, tasks, sends as Send[])
+    return t === undefined ? [] : [{ id: c.id, name: c.name || c.title, how, task: t.id, title: t.title }]
+  })
+  if (gone.length === 0) return
+  await update($, goneState, cur => [...(cur ?? []).filter(g => !gone.some(n => n.id === g.id)), ...gone])
+}
+
+// The reminder about the sessions archived or deleted (noteGone), once: one whose task of origin closed
+// meanwhile goes with no word.
+async function goneNote($: any, tasks: TaskNode[]): Promise<string[]> {
+  const { value: held = [] } = await $.state.get(goneState)
+  const gone = held as { id: string; name: string; how: 'archived' | 'deleted'; task: string; title: string }[]
+  if (gone.length === 0) return []
+  await update($, goneState, cur => (cur ?? []).filter(g => !gone.some(n => n.id === g.id)))
+  const open = flat(tasks).filter(t => t.status === 'open')
+  const say = (how: 'archived' | 'deleted') =>
+    gone.filter(g => g.how === how && open.some(t => t.id === g.task)).map(g => `"${g.name}" (tarefa de origem "${g.task}" ${g.title})`)
+  const deleted = say('deleted')
+  const archived = say('archived')
+  return [...(deleted.length > 0 ? [SESSION.deleted(deleted)] : []), ...(archived.length > 0 ? [SESSION.archived(archived)] : [])]
+}
+
 export async function endedNote($: any): Promise<string | undefined> {
+  const { value: groups0 = [] } = await $.state.get(groupsState)
+  const gone = await goneNote($, (groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
   const { value: ids = [] } = await $.state.get(endedState)
-  if (ids.length === 0) return undefined
+  if (ids.length === 0) return gone.length > 0 ? gone.join(' ') : undefined
   // Only the ids read here go: one added in the meantime waits for the next reminder.
   await update($, endedState, cur => (cur ?? []).filter(id => !(ids as string[]).includes(id)))
   const { value: kids = [] } = await $.state.get(childrenState)
   const { value: groups = [] } = await $.state.get(groupsState)
   const tasks = (groups as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-  const open = flat(tasks).filter(t => t.status === 'open')
   const { value: sends = [] } = await $.state.get(sendsState)
-  // The task the reminder names: that of the last message the session already took up (its newest
-  // round with no send to it still queued from that task), if still open; else the one it was opened
-  // from. A message still queued does not move it: the turn that ended was not on it.
-  const queued = (c: Child, anchor: string | undefined) =>
-    (sends as Send[]).some(s => (s.to === c.id || (c.name !== '' && s.to === c.name)) && s.anchor === anchor && !s.taken && !s.cut)
-  const originOf = (c: Child) => {
-    const round = [...(c.rounds ?? [])].sort((a, b) => b.at - a.at).find(r => !queued(c, r.anchor))
-    const cands = [resolveAnchor(tasks, round?.anchor, round?.at), c.anchor]
-    for (const id of cands) {
-      const t = id === undefined ? undefined : open.find(t => t.id === id)
-      if (t !== undefined) return t
-    }
-    return undefined
-  }
   const lines = (kids as Child[])
     .filter(c => ids.includes(c.id))
-    .map(c => ({ c, t: originOf(c) }))
+    .map(c => ({ c, t: originOf(c, tasks, sends as Send[]) }))
     .filter(x => x.t !== undefined)
     .map(x => {
       // The pending tasks it left, said with the task still open too: closing it takes them out of
@@ -468,7 +516,7 @@ export async function endedNote($: any): Promise<string | undefined> {
   const pending = lines.some(l => l.endsWith(' pendentes)'))
   // One that stopped with its task closed here: its pending tasks left the count (settle), said once.
   const left = settledCards(kids as Child[], tasks, sends as Send[], ids)
-  const notes = [...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks), pending)] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
+  const notes = [...gone, ...(lines.length > 0 ? [SESSION.ended(lines, openList(tasks), pending)] : []), ...(left.length > 0 ? [SESSION.stopped(left)] : [])]
   return notes.length > 0 ? notes.join(' ') : undefined
 }
 

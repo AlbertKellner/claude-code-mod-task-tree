@@ -160,6 +160,17 @@ Origem: regra do painel desde a entrada do mod (o lembrete, sem cenário até aq
 Código: hooks/sessions.ts, hooks/tool-call.ts
 Estado: coberto
 
+### lembretes.filha-arquivada-ou-apagada
+Quando uma sessão filha é arquivada ou apagada com a tarefa de origem aberta, o modelo é avisado uma vez.
+
+- Dado uma sessão filha aberta de uma tarefa que segue aberta
+- Quando a pessoa a arquiva ou a apaga no app
+- Então, uma vez, na mensagem ou chamada seguinte, o modelo lê que a sessão foi arquivada (o que ela deixou aberto ficou ✕) ou que não existe mais (o cartão saiu do painel), com o nome dela e a tarefa de origem, para concluir, refazer ou cancelar essa tarefa; o painel segue como antes (o cartão da arquivada fica, o da apagada some); a sessão que só saiu da lista do app, sem confirmação de que não existe, não gera aviso; com a tarefa de origem fechada, não há aviso; depois de um reinício, o aviso não se repete
+
+Origem: decisão do usuário, 2026-11-15 ("Avisar o modelo uma vez (Recomendado)"), sobre dois achados da auditoria de 2026-11-10 (a filha apagada sumia sem aviso; a arquivada não gerava lembrete).
+Código: hooks/sessions.ts, io/host.ts
+Estado: coberto
+
 ### lembretes.planejar-antes-de-delegar
 As regras do painel pedem o plan antes de mandar mensagem, abrir sessão ou lançar subagente.
 

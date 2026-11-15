@@ -762,3 +762,54 @@ test('a mensagem de outra sessão entre a pergunta dispensada e a resposta não 
   await fimDoTurno($)
   expect(contexto(await pedido($, 'outra coisa'))).not.toContain('resposta do usuário')
 })
+
+// A filha aberta de "Um", com uma tarefa iniciada, e o painel relido.
+async function filhaAberta($: any, on: any) {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [{ id: 'f1', short: 'f1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA, children: [] }] } }])
+  await pedido($, 'Primeiro pedido')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  return h
+}
+
+// Regra: lembretes.filha-arquivada-ou-apagada
+test('a filha apagada com a tarefa de origem aberta: o modelo é avisado uma vez, e o cartão some', async ($: any, on: any) => {
+  const h = await filhaAberta($, on)
+  h.filha(K1).apagada = true
+  const ctx = contexto(await aviso($))
+  for (const t of ['não existe mais no app a sessão', 'filha-um', 'tarefa de origem "A/1" Um', 'continua aberta']) expect(ctx).toContain(t)
+  const p = await desenho($)
+  expect(p.some(l => l.texto.includes('filha-um'))).toBe(false)
+  expect(contexto(await aviso($))).not.toContain('não existe mais')
+})
+
+// Regra: lembretes.filha-arquivada-ou-apagada
+test('a filha fora da lista mas existente não gera aviso', async ($: any, on: any) => {
+  const h = await filhaAberta($, on)
+  h.filha(K1).listada = false
+  expect(contexto(await aviso($))).not.toContain('não existe mais')
+  expect(contexto(await aviso($))).not.toContain('não existe mais')
+})
+
+// Regra: lembretes.filha-arquivada-ou-apagada
+test('com a tarefa de origem fechada, a filha apagada não gera aviso', async ($: any, on: any) => {
+  const h = await filhaAberta($, on)
+  await done($, ['1'])
+  h.filha(K1).apagada = true
+  expect(contexto(await aviso($))).not.toContain('não existe mais')
+})
+
+// Regra: lembretes.filha-arquivada-ou-apagada
+test('a filha arquivada com a tarefa de origem aberta: o modelo é avisado uma vez', async ($: any, on: any) => {
+  const h = await filhaAberta($, on)
+  h.filha(K1).rodando = false
+  h.filha(K1).arquivada = true
+  const ctx = contexto(await aviso($))
+  for (const t of ['foi arquivada no app a sessão', 'filha-um', 'tarefa de origem "A/1" Um']) expect(ctx).toContain(t)
+  const p = await desenho($)
+  expect(p.find(l => l.texto.includes('filha-um'))?.texto ?? '').toContain('arquivada')
+  expect(contexto(await aviso($))).not.toContain('foi arquivada')
+})

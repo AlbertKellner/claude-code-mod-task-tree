@@ -1940,6 +1940,36 @@
       "data": "2026-11-10",
       "motivo": "auditoria 2026-11-10, achado alto 1"
     },
+    "task-tree/tests/lembretes.test.ts::a filha apagada com a tarefa de origem aberta: o modelo é avisado uma vez, e o cartão some": {
+      "regras": [
+        "lembretes.filha-arquivada-ou-apagada"
+      ],
+      "hash": "3c9f834dc556e88f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Avisar o modelo uma vez (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::a filha arquivada com a tarefa de origem aberta: o modelo é avisado uma vez": {
+      "regras": [
+        "lembretes.filha-arquivada-ou-apagada"
+      ],
+      "hash": "ddbac685b4c7465a",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Avisar o modelo uma vez (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::a filha fora da lista mas existente não gera aviso": {
+      "regras": [
+        "lembretes.filha-arquivada-ou-apagada"
+      ],
+      "hash": "f3ffc476008f5240",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Avisar o modelo uma vez (Recomendado)\""
+    },
     "task-tree/tests/lembretes.test.ts::a frase da tarefa parada com Esc segue nos avisos depois de outro pedido e some com o start nela": {
       "regras": [
         "lembretes.parada-so-volta-com-start"
@@ -2119,6 +2149,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: lembrete pela tarefa da rodada"
+    },
+    "task-tree/tests/lembretes.test.ts::com a tarefa de origem fechada, a filha apagada não gera aviso": {
+      "regras": [
+        "lembretes.filha-arquivada-ou-apagada"
+      ],
+      "hash": "ef51d0e21aee54e7",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Avisar o modelo uma vez (Recomendado)\""
     },
     "task-tree/tests/lembretes.test.ts::com tarefas abertas, o lembrete de pedido novo manda fechar com done antes do plan": {
       "regras": [
@@ -5384,10 +5424,10 @@
       "motivo": "arquivo de apoio dos testes, selado na migração do hash"
     },
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "15e987df5a1e4ee5",
+      "hash": "4e4aa8004b8b35c7",
       "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "host com a opção idFalha: o get_session da própria sessão responde erro"
+      "motivo": "host com a filha apagada: fora da lista e get_session not found"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",

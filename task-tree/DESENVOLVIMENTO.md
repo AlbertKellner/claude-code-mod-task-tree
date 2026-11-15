@@ -428,7 +428,9 @@ sai; a primeira regra do pedido com tarefas abertas pede o `done` delas e só de
 `BRIEF` = 120, interpolado em cada texto que o cita. O aviso da entrega de uma carta (`takenNote`) diz
 `SESSION.taken` ("o painel já concluiu a tarefa do envio") só quando a tarefa ficou ✓, e
 `SESSION.takenOpen` ("o painel não concluiu…") quando ela segue aberta, foi interrompida por um plano
-novo ou saiu do plano (`envios.aviso-da-entrega-diz-o-que-o-painel-fez`). Os textos do desenho (`alt`, rótulos) ficam fora dele.
+novo ou saiu do plano (`envios.aviso-da-entrega-diz-o-que-o-painel-fez`). `SESSION.deleted` e
+`SESSION.archived` avisam, uma vez, da filha apagada ou arquivada com a tarefa de origem aberta
+(`lembretes.filha-arquivada-ou-apagada`). Os textos do desenho (`alt`, rótulos) ficam fora dele.
 
 ### O tempo das linhas e do cabeçalho
 
@@ -971,6 +973,9 @@ O primeiro confere o `marketplace.json` (e o README); o segundo, o mod.
   depois de uma recarga, sem esperar o app, e o desenho o lê quando `knownId()` ainda não tem. Sem o id,
   com a lista lida, por mais de 10 s seguidos, o painel mostra "Sessões indisponíveis: id da sessão não
   lido" (`ID_ERROR`, `hooks/sessions.ts`).
+- `goneSessions` (state): as filhas arquivadas ou apagadas com a tarefa de origem aberta (id, nome,
+  como, id e título da tarefa), até o aviso ao modelo (`endedNote`); só no state: depois de um
+  reinício o aviso não se repete.
 - Limite do kit: o validador exige que a referência `{ plugin, key }` de `$.state.get/set` seja literal
   no próprio arquivo (ou const dele); um `stateOf('x')` importado é recusado. Por isso as 15 consts de
   chave continuam literais em `register.tsx`; a correspondência com a tabela é conferida à mão.
@@ -1435,7 +1440,12 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   abertas, para marcar `done` antes da mensagem final. (2) Quando uma sessão filha passa de rodando
   ou à espera para parada (`refreshChildren` grava o id em `ended`), uma vez, no próximo
   `prompt.submit` ou na próxima chamada de ferramenta do loop principal, se a tarefa de origem dela
-  ainda estiver aberta. Fora do app desktop (sem wrap_up nem sessões) nada disso dispara.
+  ainda estiver aberta. (3) Quando uma filha lida neste processo é arquivada, ou some da lista e o
+  `get_session` confirma que não existe (`sessionGone`), com a tarefa de origem aberta (`noteGone` grava
+  em `goneSessions`): uma vez, pelo mesmo `endedNote`, `SESSION.archived` ou `SESSION.deleted`; a que só
+  saiu da lista, a que voltou do store sem `archived` e a deixada por um `/clear` não contam (decisão do
+  usuário, 2026-11-15: "Avisar o modelo uma vez"). Fora do app desktop (sem wrap_up nem sessões) nada
+  disso dispara.
 - O `$.ui.status` fica embaixo da caixa de mensagem, que some enquanto uma pergunta está aberta:
   avisos de espera vão no painel.
 

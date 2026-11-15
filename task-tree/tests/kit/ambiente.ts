@@ -121,6 +121,7 @@ export type Filha = {
   envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
+  apagada?: boolean // a sessão foi apagada: fora da lista, e o get_session dela responde "Session <id> not found."
   iniciadaPor?: string // quem a iniciou, na lista do host; padrão esta sessão (EU): outro id faz dela uma sessão ligada que não é filha (a mãe, uma irmã)
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
@@ -135,14 +136,14 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     if (e.tool === 'get_session') {
       const id = String(e.args?.session_id ?? 'self')
       if (id === 'self' && opcoes.idFalha) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
-      if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
+      if (id === 'self' || id === EU || sessoes.some(s => s.id === id && !s.apagada)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
       return { value: { content: [{ type: 'text', text: `Session ${id} not found.` }], isError: true } }
     }
     if (e.tool === 'list_sessions' && opcoes.listaFalha && e.args?.linked !== true) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
     if (e.tool === 'list_sessions')
       return texto(
         JSON.stringify(
-          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: s.iniciadaPor ?? EU })),
+          sessoes.filter(s => s.listada !== false && !s.apagada).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: s.iniciadaPor ?? EU })),
         ),
       )
     return texto('')

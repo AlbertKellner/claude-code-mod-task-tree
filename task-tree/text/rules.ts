@@ -371,6 +371,16 @@ export const SESSION = {
   stopped: (sessions: string[]) =>
     PANEL + `parou com a tarefa de origem já fechada a sessão ${sessions.join(', a sessão ')}: essas pendentes ` +
     'saíram da contagem do painel. Se o trabalho delegado não acabou, retome a sessão.',
+  // A session deleted, or archived, in the app with its task of origin open here: said once
+  // (hooks/sessions, noteGone and endedNote; the person, 2026-11-15: "Avisar o modelo uma vez").
+  deleted: (sessions: string[]) =>
+    PANEL + `não existe mais no app a sessão ${sessions.join(', a sessão ')}, e a tarefa de origem continua aberta: ` +
+    'o cartão dela saiu do painel, com as tarefas que ela tinha. Se o trabalho delegado já bastava, conclua a ' +
+    'tarefa com mcp__task-tree__done; se não, refaça-o por outro caminho ou cancele a tarefa (mcp__task-tree__done com cancel).',
+  archived: (sessions: string[]) =>
+    PANEL + `foi arquivada no app a sessão ${sessions.join(', a sessão ')}, e a tarefa de origem continua aberta: ` +
+    'o que ela deixou aberto ficou ✕ no cartão e não será feito por ela. Confira o que ela concluiu e feche a ' +
+    'tarefa com mcp__task-tree__done, ou cancele-a (cancel) se não será feita.',
 }
 
 // The tasks of the main loop the end of their subagents closed (✓) or marked ✕ (one failed or was
