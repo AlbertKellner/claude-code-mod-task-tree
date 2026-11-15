@@ -254,7 +254,19 @@ O cartão mostra toks/s, repositório e branch.
 - Então mostra "n toks/s", o repositório e a branch (a posição no app desktop: visual.cartao-posicao-de-toks-e-repo)
 
 Origem: commits 1a3dc9f e 2cd2beb, 2026-10-24; dividida em conteúdo e posição por decisão do usuário, 2026-10-28.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("O do repositório principal (Recomendado)"): numa worktree, "o repositório" é o principal (sessoes.worktree-mostra-o-repositorio-principal). Os testes deste cenário não mudam.
 Código: draw/svg.ts, io/git.ts, draw/desktop.tsx, draw/icons.ts
+Estado: coberto
+
+### sessoes.worktree-mostra-o-repositorio-principal
+Numa worktree, o cartão e o cabeçalho mostram o repositório principal.
+
+- Dado uma sessão cuja pasta é uma worktree de um repositório
+- Quando o cabeçalho dela e o cartão dela na sessão mãe são desenhados
+- Então mostram o nome do repositório principal e a branch da worktree ("meu-projeto ⑂ fix/cabecalho"); num submódulo, ou com o `.git` apontando para outro lugar, o nome da pasta
+
+Origem: decisão do usuário, 2026-11-15 ("O do repositório principal (Recomendado)").
+Código: io/git.ts
 Estado: coberto
 
 ### sessoes.mensagens-juntas-vao-a-ultima

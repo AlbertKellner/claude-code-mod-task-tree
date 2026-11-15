@@ -139,7 +139,8 @@ export type Panel = { groups: Group[]; waits: Wait[]; children: Child[]; work?: 
 // (from the first chunk to the 'stop'), measured `at`. `live` is always true: kept in the file for the
 // versions before 2026-11-10, which take a rate only with it ("Fica aceso": every rate read is lit).
 export type Rate = { toks: number; at: number; live: boolean }
-// Where a session's git is (io/git.ts): the repository's folder name and the branch (a detached
+// Where a session's git is (io/git.ts): the repository's folder name (in a worktree, the main
+// repository's) and the branch (a detached
 // head's short hash, `detached`), read `at`.
 // `kind: 'folder'`: no repository there, `repo` is the session's folder (its path shortened) and
 // there is no branch; absent, a repository (files published before it carry none).

@@ -774,3 +774,29 @@ test("com a linha '+N pedidos anteriores' aberta, o título é o da iniciada por
   expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
   expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
 })
+
+// Uma sessão aberta numa pasta com `.git` arquivo apontando para o gitdir dado, com a branch do HEAD dele.
+async function naPastaGit($: any, on: any, raiz: string, gitdir: string): Promise<{ texto: string; repo: unknown }> {
+  fixar(on)
+  const h = host(on, [], { git: { raiz, gitdir, head: 'ref: refs/heads/fix/cabecalho\n' } })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  return { texto: emTextoDoApp(await noApp($, { colunas: 100 })), repo: h.proprio()?.git?.repo }
+}
+
+// Regra: sessoes.worktree-mostra-o-repositorio-principal
+test('numa worktree, o cabeçalho mostra o repositório principal e a branch da worktree', async ($: any, on: any) => {
+  const r = await naPastaGit($, on, 'C:/src/ajuste-cabecalho', 'C:/src/meu-projeto/.git/worktrees/ajuste-cabecalho')
+  expect(r.texto, r.texto).toContain('meu-projeto ⑂ fix/cabecalho')
+  expect(r.texto, r.texto).not.toContain('ajuste-cabecalho')
+  expect(r.repo).toBe('meu-projeto')
+})
+
+// Regra: sessoes.worktree-mostra-o-repositorio-principal
+test('num submódulo, segue o nome da pasta', async ($: any, on: any) => {
+  const r = await naPastaGit($, on, 'C:/src/meu-projeto/lib', 'C:/src/meu-projeto/.git/modules/lib')
+  expect(r.texto, r.texto).toContain('lib ⑂ fix/cabecalho')
+  expect(r.texto, r.texto).not.toContain('meu-projeto ⑂')
+  expect(r.repo).toBe('lib')
+})

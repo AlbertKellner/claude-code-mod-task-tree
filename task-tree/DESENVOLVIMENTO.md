@@ -66,8 +66,9 @@ Quem recebe `$` (o engine) e quem não recebe:
     `deducedOwn` (puras), `panelOf` (pura), `readFiles`, `engineText` (pura), `engineOf` (com o cache
     `engineSeen`), `deriveChildren` (pura), `justOpened`, `STARTING_GRACE`, `allSessionIds`,
     `sessionGone`, `staleFiles`.
-  - `git.ts` (93): `readGit` (repositório e branch pelos arquivos, sem processo), `parseHead`,
-    `shortPath`, `basename`, `parent`.
+  - `git.ts` (108): `readGit` (repositório e branch pelos arquivos, sem processo; numa worktree, cujo
+    `.git` é um arquivo "gitdir: <principal>/.git/worktrees/<nome>", o nome é o do repositório
+    principal, por `mainOf`), `parseHead`, `shortPath`, `basename`, `parent`.
   - `log.ts` (14): `debug($, texto)` e `debugOnce`, uma linha no log de depuração que nunca falha.
 - **Estado** (`state/`):
   - `durability.ts` (235): a tabela de durabilidade `TABLE` e o que a lê (`rowOf`, `restoredAt`,
@@ -2354,3 +2355,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   entre ela e a do pedido: o pai e o pedido seguem ◷ e a faixa "aguardando" até o start (2026-11-15, "◷ até
   o start (Recomendado)"; turnos.aviso-sem-start-aguarda). O campo vai nos `turns` publicados, e o cartão
   desta sessão na mãe lê a mesma conta.
+
+## Achados baixos: o repositório numa worktree (2026-11-15)
+
+- Numa worktree, o cabeçalho e o cartão mostravam o nome da pasta da worktree como repositório. Agora,
+  quando o `.git` é um arquivo que aponta para `<principal>/.git/worktrees/<nome>`, o nome é o do
+  repositório principal e a branch segue a da worktree (2026-11-15, "O do repositório principal
+  (Recomendado)"; sessoes.worktree-mostra-o-repositorio-principal). Submódulo e gitdir em outro lugar
+  seguem com o nome da pasta.

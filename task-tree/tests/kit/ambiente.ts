@@ -100,9 +100,10 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // `arquivoProprio`: o texto do arquivo que esta sessão publicou antes (o host o serve na leitura dele).
 // `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
 // `git`: a raiz desta sessão ($.session.root) e o texto do `.git/HEAD` dela; sem ele, a sessão não
-// tem raiz (o cabeçalho fica sem repositório).
+// tem raiz (o cabeçalho fica sem repositório). Com `gitdir`, a raiz é uma worktree (ou um submódulo):
+// `<raiz>/.git` é um arquivo "gitdir: <gitdir>", e o `head` é o de `<gitdir>/HEAD`.
 // `idFalha`: o get_session desta sessão ('self') responde erro, lido a cada chamada (o teste a troca no meio).
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string }; idFalha?: boolean }
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string; gitdir?: string }; idFalha?: boolean }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -160,7 +161,9 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
     if (m) lidas[m[1]!] = (lidas[m[1]!] ?? 0) + 1
     if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
-    if (git && naRaiz(e.path, '.git/HEAD')) return { value: git.head }
+    if (git?.gitdir === undefined && naRaiz(e.path, '.git/HEAD')) return { value: git!.head }
+    if (git?.gitdir !== undefined && naRaiz(e.path, '.git')) return { value: `gitdir: ${git.gitdir}\n` }
+    if (git?.gitdir !== undefined && String(e.path).replace(/\\/g, '/') === `${git.gitdir}/HEAD`) return { value: git.head }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
     if (s.publicado !== undefined) return { value: s.publicado }

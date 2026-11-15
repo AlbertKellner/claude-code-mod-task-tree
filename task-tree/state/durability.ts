@@ -74,7 +74,7 @@ export const TABLE: readonly Row[] = [
   { key: 'engine', lives: 'state', merge: 'none', restoredAt: [], note: 'the model and effort of the main loop, published for the card' },
   { key: 'ultracode', lives: 'state', merge: 'none', restoredAt: [], note: 'whether the main loop\'s ultracode switch is on (ultra_effort_enter/exit), published for the card and drawn in the header' },
   { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last valid model call, published for the card' },
-  { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
+  { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name; in a worktree, the main repository\'s) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
   { key: 'goneSessions', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions archived or deleted in the app with their task of origin open, until the main loop is told once' },
   { key: 'closedBySessions', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of origin of the main loop a session that ended its turn with all of its work done closed (closeByEnded), until the model is told once (endedNote)' },

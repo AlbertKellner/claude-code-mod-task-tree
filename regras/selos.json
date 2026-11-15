@@ -353,6 +353,26 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-14: Trecho da em andamento (Recomendado)"
     },
+    "task-tree/tests/cabecalho.test.ts::num submódulo, segue o nome da pasta": {
+      "regras": [
+        "sessoes.worktree-mostra-o-repositorio-principal"
+      ],
+      "hash": "1224d890b1db9525",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: o nome do repositório principal"
+    },
+    "task-tree/tests/cabecalho.test.ts::numa worktree, o cabeçalho mostra o repositório principal e a branch da worktree": {
+      "regras": [
+        "sessoes.worktree-mostra-o-repositorio-principal"
+      ],
+      "hash": "f8641eee0b3ebc73",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: o nome do repositório principal"
+    },
     "task-tree/tests/cabecalho.test.ts::o cartão parado, sem tarefa de origem e de antes dos três últimos pedidos vira \"+1 cartões antigos de sessões\"": {
       "regras": [
         "cabecalho.limite-de-cartoes-antigos"
@@ -6188,10 +6208,10 @@
       "motivo": "arquivo de apoio dos testes, selado na migração do hash"
     },
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "4e4aa8004b8b35c7",
+      "hash": "d2942ac9bdef247f",
       "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "host com a filha apagada: fora da lista e get_session not found"
+      "motivo": "host: opção de worktree no git da sessão; nada do que os testes afirmam muda"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "35279f1270f0562d",
