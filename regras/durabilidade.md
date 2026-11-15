@@ -56,7 +56,7 @@ O /clear esvazia o painel.
 - Quando a pessoa usa /clear
 - Então o painel fica "Nenhuma tarefa planejada."; as linhas recolhidas pela pessoa são esquecidas: o plano seguinte nasce aberto
 
-Origem: regra do painel desde a entrada do mod (commit 85744cb).
+Origem: regra do painel desde a entrada do mod (commit 85744cb, 2026-10-20).
 Estado: coberto
 
 ### durabilidade.formatos-antigos-do-publicado

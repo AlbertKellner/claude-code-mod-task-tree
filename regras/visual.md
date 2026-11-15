@@ -106,6 +106,7 @@ O status aparece embaixo da caixa de mensagem.
 
 Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-14, texto: o número é o da sessão inteira; a regra do que o app mostra não muda.
+Código: hooks/panel.ts
 Estado: checklist (status do app)
 
 ### visual.cartao-modelo-e-esforco
@@ -115,8 +116,9 @@ O cartão da filha mostra o modelo e o esforço dela.
 - Quando o cartão é desenhado no app desktop
 - Então mostra o modelo e o esforço ("Opus 5.5 · high") à esquerda do anel
 
-Origem: regra do painel.
+Origem: regra do painel, no repositório desde 2026-10-21.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-filha-modelo-e-carta.
+Código: draw/layout.ts, io/host.ts
 Estado: checklist (o terminal não desenha o modelo; o desenho fica travado por visual.desenho-filha-modelo-e-carta; a pintura real, no app)
 
 ### visual.cartao-posicao-de-toks-e-repo
@@ -128,6 +130,7 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 
 Origem: commits 1a3dc9f e 2cd2beb, 2026-10-24.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-cartao-filha.
+Código: draw/layout.ts, io/host.ts
 Estado: checklist (posição na linha; o desenho fica travado por visual.desenho-cartao-filha; a pintura real, no app)
 
 ### visual.cartoes-ordem-e-espera
@@ -139,6 +142,7 @@ Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
 
 Origem: commits bd0b1b3 e 11e4044, 2026-10-23.
 Reescrito: 2026-11-15, texto: o anel fica em todo cartão, por pedido do usuário ("mesmo depois que a sessao termina, o icone se contexto precisa continuar aparecendo"); só a espera fica no cartão da frente. A regra não muda.
+Código: draw/layout.ts
 Estado: checklist (sessões e tempos reais)
 
 ### visual.recarga-real-e-respawn
@@ -149,6 +153,7 @@ A recarga real e o respawn do worker não perdem nada.
 - Então nada some, os relógios voltam a correr e o primeiro clique funciona
 
 Origem: tabela de durabilidade, commit fe8354e, 2026-10-22.
+Código: hooks/sessions.ts, hooks/panel.ts, state/durability.ts
 Estado: checklist (recarga e processo reais)
 
 ### visual.cabecalho-barra-e-chips-desenhados

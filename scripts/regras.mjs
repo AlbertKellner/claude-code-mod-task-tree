@@ -8,6 +8,11 @@
 // mapa, só avisa (decisão do usuário, 2026-10-29: "Só avisar (Recomendado)"). Um commit citado nas
 // linhas "Origem:" e "Reescrito:" que não existe no repositório (--repo, padrão a raiz) também só avisa;
 // sem git na pasta, nada a avisar.
+//
+// Cada cenário tem "Origem:"; o id começa pelo nome do arquivo (turnos.md → turnos.…); "Código da
+// área:" só no topo, antes do primeiro cenário; "Estado: pendente" diz entre parênteses o arquivo de
+// teste que vai cobri-lo (existente em task-tree/tests/). Origem sem data (AAAA-MM-DD) e "decisão do
+// usuário" sem as palavras dele entre aspas só avisam, numa linha cada, com a contagem e os ids.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
@@ -16,7 +21,10 @@ import { ehPrincipal } from './guarda.mjs'
 
 const ID = /^### ([a-z0-9]+(?:\.[a-z0-9-]+)+)\s*$/
 const TITULO = /^### /
-const ESTADO = /^Estado: (coberto|pendente|checklist)\b/
+const ESTADO = /^Estado: (coberto|pendente|checklist)\b(.*)$/
+const ORIGEM = /^Origem: (.+)$/
+const DATA = /\b\d{4}-\d{2}-\d{2}\b/
+const ASPAS = /["“][^"”]+["”]/
 const AREA = /^Código da área: (.+)$/
 const CODIGO = /^Código: (.+)$/
 const REGRA = /^\s*\/\/ Regra: (.+)$/
@@ -50,6 +58,8 @@ export function arquivosDoMod(raiz) {
 export function lerCatalogo(raiz) {
   const problemas = []
   const avisos = []
+  const semData = []
+  const semAspas = []
   const regras = new Map()
   const pastaRegras = join(raiz, 'regras')
   const existe = c => existsSync(join(raiz, 'task-tree', ...c.split('/')))
@@ -57,11 +67,13 @@ export function lerCatalogo(raiz) {
     const linhas = readFileSync(join(pastaRegras, arquivo), 'utf8').split(/\r?\n/)
     let area
     let atual
+    let vistoCenario = false
     const conferirCaminhos = (lista, onde) => {
       for (const c of lista) if (!existe(c)) problemas.push(`${arquivo}: ${onde}: caminho inexistente em task-tree/: ${c}`)
     }
     for (const linha of linhas) {
       if (TITULO.test(linha)) {
+        vistoCenario = true
         const m = ID.exec(linha)
         if (!m) {
           problemas.push(`${arquivo}: id inválido: "${linha}"`)
@@ -69,11 +81,23 @@ export function lerCatalogo(raiz) {
           continue
         }
         if (regras.has(m[1])) problemas.push(`${arquivo}: id repetido: ${m[1]}`)
-        atual = { id: m[1], arquivo, estado: undefined, area: area ?? [], proprio: undefined }
+        const prefixo = arquivo.replace(/\.md$/, '')
+        if (m[1].split('.')[0] !== prefixo) problemas.push(`${arquivo}: ${m[1]}: o id não começa por "${prefixo}."`)
+        atual = { id: m[1], arquivo, estado: undefined, area: area ?? [], proprio: undefined, origem: undefined }
         regras.set(m[1], atual)
+        vistoCenario = true
+        continue
+      }
+      const o = ORIGEM.exec(linha)
+      if (o && atual && atual.origem === undefined) {
+        atual.origem = o[1]
         continue
       }
       const a = AREA.exec(linha)
+      if (a && vistoCenario) {
+        problemas.push(`${arquivo}: "Código da área:" fora do topo (depois do primeiro cenário)`)
+        continue
+      }
       if (a && !atual) {
         if (area) problemas.push(`${arquivo}: "Código da área:" repetido`)
         area = caminhos(a[1])
@@ -88,17 +112,32 @@ export function lerCatalogo(raiz) {
         continue
       }
       const e = ESTADO.exec(linha)
-      if (e && atual && atual.estado === undefined) atual.estado = e[1]
+      if (e && atual && atual.estado === undefined) {
+        atual.estado = e[1]
+        if (e[1] === 'pendente') {
+          const t = /\(([^)]*?([\w.-]+\.test\.tsx?)[^)]*)\)/.exec(e[2])
+          if (!t) problemas.push(`${arquivo}: ${atual.id} está "pendente" sem o arquivo de teste entre parênteses`)
+          else if (!existsSync(join(raiz, 'task-tree', 'tests', t[2]))) problemas.push(`${arquivo}: ${atual.id} está "pendente" com um arquivo de teste que não existe: ${t[2]}`)
+        }
+      }
     }
   }
   for (const r of regras.values()) {
     r.codigo = [...new Set([...r.area, ...(r.proprio ?? [])])]
     if (r.estado === undefined) problemas.push(`${r.arquivo}: ${r.id} sem "Estado:" válido`)
+    if (r.origem === undefined) problemas.push(`${r.arquivo}: ${r.id} sem "Origem:"`)
+    else {
+      if (!DATA.test(r.origem)) semData.push(r.id)
+      if (/decisão do usuário/.test(r.origem) && !ASPAS.test(r.origem)) semAspas.push(r.id)
+    }
     if (r.estado === 'coberto' && r.codigo.length === 0) avisos.push(`${r.arquivo}: ${r.id} está "coberto" sem código no mapa`)
   }
   const mapeados = new Set([...regras.values()].flatMap(r => r.codigo))
   for (const f of arquivosDoMod(raiz)) if (!mapeados.has(f) && !NUCLEO.includes(f)) avisos.push(`fora do mapa: task-tree/${f} (nenhum cenário o cita)`)
-  return { regras, problemas, avisos }
+  const avisosOrigem = []
+  if (semData.length) avisosOrigem.push(`origens sem data (${semData.length}): ${semData.join(', ')}`)
+  if (semAspas.length) avisosOrigem.push(`decisões sem as palavras (${semAspas.length}): ${semAspas.join(', ')}`)
+  return { regras, problemas, avisos, avisosOrigem }
 }
 
 // Os commits citados nas linhas "Origem:" e "Reescrito:": [{ arquivo, id, hash }].
@@ -221,6 +260,7 @@ if (ehPrincipal(import.meta.url)) {
   const conta = estado => regras.filter(r => r.estado === estado).length
   for (const p of problemas) console.error(`- ${p}`)
   for (const a of cat.avisos) console.log(`  aviso: ${a}`)
+  for (const a of cat.avisosOrigem) console.log(`  aviso: ${a}`)
   console.log(`regras: ${conta('coberto')} cobertas, ${conta('pendente')} pendentes, ${conta('checklist')} checklist (${regras.length} no total)`)
   console.log(`mapa: ${regras.filter(r => r.estado === 'coberto' && r.codigo.length > 0).length} cobertos com código, ${cat.avisos.length} avisos`)
   process.exit(problemas.length > 0 ? 1 : 0)

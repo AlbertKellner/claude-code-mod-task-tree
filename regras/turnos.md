@@ -102,7 +102,7 @@ Pai com filha concluída nunca fica interrompido.
 - Quando o resto embaixo fica ✕ (Esc ou subagente que termina)
 - Então o pai fica ✓, nunca ✕; ◷ só enquanto algo embaixo segue aberto
 
-Origem: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"); commit af4a524.
+Origem: decisão do usuário ("se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido"); commit af4a524, 2026-10-27.
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓").
 Estado: coberto
 

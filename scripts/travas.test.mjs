@@ -324,7 +324,7 @@ function mapa(area, cenario) {
   writeFileSync(join(dir, 'task-tree', 'hooks', 'turn.ts'), 'export const x = 1\n')
   writeFileSync(join(dir, 'task-tree', 'draw', 'layout.ts'), 'export const y = 1\n')
   writeFileSync(join(dir, 'task-tree', 'hooks', 'render.tsx'), 'export const z = 1\n')
-  const md = ['# Turnos', '', area, '', '### turnos.um', 'Um.', '', cenario, 'Estado: coberto', '', '### turnos.dois', 'Dois.', '', 'Estado: checklist (só no app)', '']
+  const md = ['# Turnos', '', area, '', '### turnos.um', 'Um.', '', 'Origem: teste das travas, 2026-10-29.', cenario, 'Estado: coberto', '', '### turnos.dois', 'Dois.', '', 'Origem: teste das travas, 2026-10-29.', 'Estado: checklist (só no app)', '']
   writeFileSync(join(dir, 'regras', 'turnos.md'), md.join('\n'))
   writeFileSync(join(dir, 'task-tree', 'tests', 'turnos.test.ts'), "// Regra: turnos.um\ntest('um', async () => {})\n")
   return dir
@@ -828,4 +828,59 @@ test('hash de origem que não existe só avisa', comMontagem(dir => {
   r = regrasEm(dir)
   assert.equal(r.status, 0, r.stderr)
   assert.doesNotMatch(r.stdout, /commit citado não existe/)
+}))
+
+// O catálogo conferido: a origem, o prefixo do id, o lugar do mapa de código e o "pendente".
+const comMapa = (area, cenario, corpo) => {
+  const dir = mapa(area, cenario)
+  try {
+    corpo(dir)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+test('cenário sem Origem falha o check', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', 'Dois.\n\nOrigem: teste das travas, 2026-10-29.\n', 'Dois.\n\n')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.md: turnos\.dois sem "Origem:"/)
+}))
+
+test('id com prefixo de outra área falha', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', '### turnos.dois', '### pedidos.dois')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.md: pedidos\.dois: o id não começa por "turnos\."/)
+}))
+
+test('Código da área: depois do primeiro cenário falha', () => comMapa('', '', dir => {
+  trocar(dir, 'regras/turnos.md', '### turnos.dois', 'Código da área: hooks/turn.ts\n\n### turnos.dois')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.md: "Código da área:" fora do topo/)
+}))
+
+test('pendente sem arquivo de teste falha; com o arquivo, passa', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', 'Estado: checklist (só no app)', 'Estado: pendente')
+  let r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.dois está "pendente" sem o arquivo de teste entre parênteses/)
+  trocar(dir, 'regras/turnos.md', 'Estado: pendente', 'Estado: pendente (sumiu.test.ts)')
+  r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /arquivo de teste que não existe: sumiu\.test\.ts/)
+  trocar(dir, 'regras/turnos.md', 'pendente (sumiu.test.ts)', 'pendente (turnos.test.ts)')
+  r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+}))
+
+test('origem sem data e decisão sem aspas só avisam', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', 'Um.\n\nOrigem: teste das travas, 2026-10-29.', 'Um.\n\nOrigem: regra do painel.')
+  trocar(dir, 'regras/turnos.md', 'Dois.\n\nOrigem: teste das travas, 2026-10-29.', 'Dois.\n\nOrigem: decisão do usuário, 2026-10-29.')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stdout, /aviso: origens sem data \(1\): turnos\.um/)
+  assert.match(r.stdout, /aviso: decisões sem as palavras \(1\): turnos\.dois/)
+  assert.match(r.stdout, /mapa: 1 cobertos com código, 1 avisos/)
 }))

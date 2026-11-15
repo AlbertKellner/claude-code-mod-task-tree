@@ -21,7 +21,8 @@ Estado: coberto
 - **Título**: uma frase com a regra.
 - **Dado/Quando/Então**: em português, no que se vê no painel ou nos textos ao modelo, sem nomes de função.
 - **Origem**: "decisão do usuário, AAAA-MM-DD", com as palavras dele entre aspas quando houver, ou
-  "regra do painel", mais o commit que a implementou. Sem confirmação, "a confirmar". Origem nova cita
+  "regra do painel", mais o commit que a implementou; a data (AAAA-MM-DD) é esperada também em "regra
+  do painel". Sem confirmação, "a confirmar". Origem nova cita
   o PR (`#NN`); o hash do commit é opcional e tem de existir no `main`.
 - **Estado**:
   - `coberto`: há teste que cita o id;
@@ -49,8 +50,11 @@ test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pende
 `scripts/regras.mjs`, a primeira etapa do `npm run check`, falha quando: um id se repete ou tem
 formato inválido; um cenário não tem `Estado:` válido; um cenário `coberto` não é citado por
 nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pendente` ou
-`checklist`; um `test(` não tem `// Regra:` acima; ou uma chave do state do mod não tem linha na
-tabela de durabilidade (e vice-versa).
+`checklist`; um `test(` não tem `// Regra:` acima; um cenário não tem `Origem:`; o id não começa pelo
+nome do arquivo (`turnos.md` → `turnos.…`); um `Código da área:` vem depois do primeiro cenário; um
+`pendente` não diz entre parênteses um arquivo de teste que existe em `task-tree/tests/`; ou uma chave
+do state do mod não tem linha na tabela de durabilidade (e vice-versa). Origem sem data e "decisão do
+usuário" sem as palavras dele entre aspas só avisam, numa linha cada, com a contagem e os ids.
 
 Todo `test(` é uma instrução de topo, com nome literal e único no arquivo.
 

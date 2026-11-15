@@ -46,7 +46,7 @@ O trabalho só é limpo quando tudo à vista está concluído.
 - Quando um pedido novo começa trabalho
 - Então o painel mostra só o pedido novo, com os anteriores em "+N pedidos anteriores" (o par de pedidos.resumida-mantem-anteriores-com-algo-aberto)
 
-Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit a544d0d.
+Origem: decisão do usuário ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"); commit a544d0d, 2026-10-23.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Código: hooks/panel.ts
 Estado: coberto
