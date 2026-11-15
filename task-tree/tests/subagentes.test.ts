@@ -171,6 +171,22 @@ test('com duas em andamento, o subagente vai à primeira e a carta seguinte à s
   expect(abaixo(p, 'Primeira').some(l => l.titulo.startsWith('Para '))).toBe(false)
 })
 
+// Regra: envios.com-andamento-fica-sob-a-tarefa-em-andamento, subagentes.cartao-desde-o-lancamento
+test('com uma tarefa em andamento e um passo planejado depois, o subagente lançado fica sob a tarefa em andamento', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'n', title: 'Novo' }] }])
+  await lancar($, { descricao: 'buscar usos de hover' })
+  const p = await painel($)
+  const titulo = 'Explore: buscar usos de hover'
+  expect(abaixo(p, 'Um').some(l => l.titulo === titulo), emTexto(p)).toBe(true)
+  expect(abaixo(p, 'Novo').some(l => l.titulo === titulo), emTexto(p)).toBe(false)
+})
+
 // Regra: subagentes.cartao-desde-o-lancamento
 test('sem nada em andamento, o cartão vai à pendente do pedido atual', async ($: any, on: any) => {
   fixar(on)

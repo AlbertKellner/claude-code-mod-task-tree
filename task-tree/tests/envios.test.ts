@@ -151,6 +151,31 @@ test('sem tarefa em andamento nem pendente, o envio vai à última iniciada', as
   esperarCartaSob(await painel($), 'Um', 'fila')
 })
 
+// Regra: envios.com-andamento-fica-sob-a-tarefa-em-andamento
+test('com uma tarefa em andamento e um passo planejado depois, a carta fica sob a tarefa em andamento, e a entrega conclui essa tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  // A sessão destino parada: uma filha trabalhando manteria a tarefa ◉.
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'n', title: 'Novo' }] }])
+  await envio($, 'local_x', 'mandada de Um')
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cartasDe(p, 'Novo'), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Novo', 'pendente')
+  // Recebida depois do envio (o relógio andou 1 s).
+  h.recebeu('local_x', AGORA + 2000)
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Novo', 'pendente')
+})
+
 // Regra: envios.pedido-recebido-mostra-carta
 test('o nível 1 aberto por mensagem recebida mostra a carta, na cor do seu estado', async ($: any, on: any) => {
   fixar(on)

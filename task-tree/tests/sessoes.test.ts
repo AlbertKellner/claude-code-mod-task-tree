@@ -184,6 +184,22 @@ test('com duas tarefas em andamento, cada sessão aberta vai a uma tarefa difere
   expect(p.indexOf(linha(p, 'filha-dois')), emTexto(p)).toBe(p.indexOf(linha(p, 'Dois.um')) + 1)
 })
 
+// Regra: envios.com-andamento-fica-sob-a-tarefa-em-andamento, sessoes.cartao-sob-a-tarefa-de-origem
+test('com uma tarefa em andamento e um passo planejado depois, a sessão aberta fica sob a tarefa em andamento', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'n', title: 'Novo' }] }])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Um')
+  esperarEstado(p, 'Novo', 'pendente')
+})
+
 // ---- Rodadas: um cartão por mensagem, mensagens juntas, rodada descartada, cadeia de irmãs.
 
 const IRMA = 'local_22222222-2222-2222-2222-222222222222'

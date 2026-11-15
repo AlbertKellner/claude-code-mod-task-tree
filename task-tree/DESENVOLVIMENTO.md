@@ -166,9 +166,10 @@ grupo principal uma vez), `update(groupsState, fn)` sobre `withMain(grupos)` e `
    nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
    `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
    `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
-   host listar a sessão; a tarefa do envio é a de `sendAnchor`: com tarefa em andamento, ela, salvo uma
-   folha aberta planejada depois do início dela e sem `start` (a mais nova), e, com várias em andamento,
-   o lote recente de starts sem envio; sem nada em andamento, num pedido ainda sem plano, nenhuma (solta
+   host listar a sessão; a tarefa do envio é a de `sendAnchor`: com tarefa em andamento, ela, mesmo com
+   um passo planejado depois do início dela e ainda sem `start` (2026-11-14, "Sob a em andamento
+   (Recomendado)"), e, com várias em andamento, o lote recente de starts sem envio (pela ordem, o nome
+   da sessão antes); sem nada em andamento, num pedido ainda sem plano, nenhuma (solta
    no fim até o plan adotar); senão, no pedido atual (o maior `turn` entre os níveis 1), a pendente cujo
    título casa com o nome da sessão, se só uma casa; senão, entre as pendentes do plan mais recente (o
    mesmo `plannedAt` da mais nova), a primeira na ordem do plano sem carta, rodada, sessão ou subagente, e,
@@ -631,7 +632,8 @@ linhas herdavam isso.
   depois na árvore, a filha.
 - `hooks/panel.ts`, `sendAnchor(list)`: sem tarefa em andamento, devolve `startedLast` das tarefas do
   pedido atual (o último turno com tarefas, `t.turn` máximo), senão o último nível 1 desse pedido; a
-  regra "planejada depois da em andamento e sem `start`" continua quando há tarefa em andamento.
+  regra "planejada depois da em andamento e sem `start`" continua quando há tarefa em andamento (essa
+  regra saiu em 2026-11-14, "Sob a em andamento (Recomendado)": o envio fica na tarefa em andamento).
   `recordStart` (`hooks/sessions.ts`) usa `sendAnchor` para a âncora da sessão aberta (era
   `current().anchor`) (regra de hoje: a ordem completa em Como é hoje).
 - `hooks/render.tsx`, título: ver o bullet do cabeçalho acima. O texto da ferramenta `start`
@@ -1395,7 +1397,9 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem
   de solicitação"): é a tarefa em andamento, salvo se, depois do início dela, foi planejada uma
   tarefa folha aberta sem `start`; aí é a mais nova dessas. Tarefas planejadas junto, antes do
-  início, não mudam nada. Vale para o lugar do cartão (`rounds`), para o `lastAnchor` (que a visão
+  início, não mudam nada. (Desfeito em 2026-11-14, decisão do usuário "Sob a em andamento
+  (Recomendado)": a carta, o cartão da sessão e o do subagente ficam sob a tarefa em andamento, e o
+  passo planejado depois segue ○ até o start nele; `envios.com-andamento-fica-sob-a-tarefa-em-andamento`.) Vale para o lugar do cartão (`rounds`), para o `lastAnchor` (que a visão
   resumida usava para posicionar o cartão; hoje só é gravado e publicado) e para o ✉ (`sends`). Sem
   tarefa em andamento (decisão do usuário depois do teste visual), é a iniciada por último no pedido
   atual, mesmo concluída, senão a última do pedido (ver "Sem start, nada aceso" em "Como é hoje")

@@ -101,6 +101,17 @@ Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"):
 Reescrito: 2026-11-14, texto completado com a ordem que o código já segue (auditoria 2026-11-10: o corpo dizia só "a pendente planejada por último"); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
+### envios.com-andamento-fica-sob-a-tarefa-em-andamento
+Com uma tarefa em andamento, a carta e o cartão ficam sob ela, não sob o passo planejado depois.
+
+- Dado uma tarefa em andamento (◉) e um passo novo pendente (○) planejado depois do start dela, no mesmo pedido
+- Quando sai uma mensagem, abre uma sessão ou é lançado um subagente
+- Então a carta e o cartão ficam sob a tarefa em andamento; o passo novo segue ○ até o start nele e não fecha sozinho na entrega (quem fecha é a tarefa do envio)
+
+Origem: decisão do usuário, 2026-11-14 ("Sob a em andamento (Recomendado)"); desfaz o pedido registrado no DESENVOLVIMENTO.md ("o segundo painel de implementacao deveria estar abaixo da tarefa de tooltip completo, foi ele quem enviou a mensagem de solicitação"), que mandava a carta para o passo planejado depois do start.
+Código: hooks/agents.ts
+Estado: coberto
+
 ### envios.carta-pelo-nome-da-sessao
 A carta vai à tarefa cujo título casa com o nome da sessão destino.
 

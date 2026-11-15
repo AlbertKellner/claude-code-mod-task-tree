@@ -1184,6 +1184,16 @@
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
     },
+    "task-tree/tests/envios.test.ts::com uma tarefa em andamento e um passo planejado depois, a carta fica sob a tarefa em andamento, e a entrega conclui essa tarefa": {
+      "regras": [
+        "envios.com-andamento-fica-sob-a-tarefa-em-andamento"
+      ],
+      "hash": "cbd10b4fe3f53070",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
+    },
     "task-tree/tests/envios.test.ts::depois de uma entrega imediata, o fim do turno e o Esc não interrompem a mensagem": {
       "regras": [
         "envios.esc-apos-entrega-imediata"
@@ -2323,6 +2333,17 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/sessoes.test.ts::com uma tarefa em andamento e um passo planejado depois, a sessão aberta fica sob a tarefa em andamento": {
+      "regras": [
+        "envios.com-andamento-fica-sob-a-tarefa-em-andamento",
+        "sessoes.cartao-sob-a-tarefa-de-origem"
+      ],
+      "hash": "44575394c9b5160b",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
+    },
     "task-tree/tests/sessoes.test.ts::depois do /clear na filha, o cartão dela na mãe mantém as tarefas feitas e a contagem": {
       "regras": [
         "sessoes.clear-na-filha-mantem-o-historico"
@@ -2822,6 +2843,17 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::com uma tarefa em andamento e um passo planejado depois, o subagente lançado fica sob a tarefa em andamento": {
+      "regras": [
+        "envios.com-andamento-fica-sob-a-tarefa-em-andamento",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "2547bead59928bfe",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: Sob a em andamento (Recomendado)"
     },
     "task-tree/tests/subagentes.test.ts::fechada pelo done e reaberta com start no mesmo pedido, mesmo replanejada, a tarefa não fecha pelo subagente que terminou antes": {
       "regras": [

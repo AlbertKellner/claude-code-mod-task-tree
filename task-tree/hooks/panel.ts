@@ -238,8 +238,9 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
 }
 
 
-// The task a message is sent from: the task in progress, unless an open task was planned after
-// it was started (planned to send, sent with no start): that newest one. With nothing in progress
+// The task a message is sent from: the task in progress, even with a step planned after it was
+// started and not started yet (the person, 2026-11-14: "Sob a em andamento (Recomendado)"; the letter
+// and the card went to that newest step, which then closed on the delivery). With nothing in progress
 // (the person's decision: "envio feito sem tarefa em andamento ancora na última iniciada do pedido
 // atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
 // current request (the last turn with tasks), else that request's last level-1 task. It was the first
@@ -334,19 +335,7 @@ export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[]
     }
     return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
   }
-  const leaves = flat(list).filter(t => t.status === 'open' && t.children.length === 0)
-  const since = (t?: TaskNode) => (t === undefined ? undefined : t.started !== undefined ? t.startedAt : t.plannedAt)
-  const base = since(flat(list).find(t => t.id === anchor))
-  let pick = anchor
-  let top = base ?? -Infinity
-  for (const t of leaves) {
-    const at = t.plannedAt
-    if (t.started === undefined && at !== undefined && at > top) {
-      pick = t.id
-      top = at
-    }
-  }
-  return pick
+  return anchor
 }
 
 // The tasks of the main loop with a question still open under them (sendAnchor's `asking`): the
