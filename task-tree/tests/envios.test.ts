@@ -1211,3 +1211,51 @@ test('a falha de um passo do hook não perde a carta do envio', async ($: any, o
   expect(JSON.stringify(r?.context ?? []), JSON.stringify(r)).toContain('ficou na fila')
   expect(log.some(l => l.includes('tool.call, passo') && l.includes('estouro de teste')), log.join('\n')).toBe(true)
 })
+
+// As cartas a "revisor" no painel: o texto depois de "Para revisor: " e o estado de cada uma.
+const cartasAoRevisor = (p: Awaited<ReturnType<typeof painel>>) => p.filter(l => l.titulo.startsWith('Para revisor')).map(l => [l.titulo.replace('Para revisor: ', ''), l.carta])
+
+// Duas mensagens de "Um" a "revisor", a segunda `depois` ms depois da primeira; os recebimentos em `ats`.
+async function duasCartas($: any, on: any, depois: number, ats: [number, number]) {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'revisor', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'primeira')
+  if (depois > 0) relogio.advance(depois)
+  await envio($, 'local_x', 'segunda')
+  let p = await painel($)
+  expect(cartasAoRevisor(p), emTexto(p)).toEqual([
+    ['primeira', 'fila'],
+    ['segunda', 'fila'],
+  ])
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(2)
+  h.recebeu('local_x', ats[0])
+  await aviso($)
+  p = await painel($)
+  expect(cartasAoRevisor(p), emTexto(p)).toEqual([
+    ['primeira', 'entregue'],
+    ['segunda', 'fila'],
+  ])
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_x', ats[1])
+  await aviso($)
+  p = await painel($)
+  expect(cartasAoRevisor(p), emTexto(p)).toEqual([
+    ['primeira', 'entregue'],
+    ['segunda', 'entregue'],
+  ])
+  esperarEstado(p, 'Um', 'concluida')
+}
+
+// Regra: envios.uma-carta-por-mensagem
+test('duas mensagens da mesma tarefa à mesma sessão: duas cartas, cada uma verde na sua entrega, e a tarefa fecha na última', async ($: any, on: any) => {
+  await duasCartas($, on, 1000, [AGORA, AGORA + 1000])
+})
+
+// Regra: envios.uma-carta-por-mensagem
+test('duas mensagens no mesmo instante: cada carta recebe a sua marca', async ($: any, on: any) => {
+  await duasCartas($, on, 0, [AGORA, AGORA])
+})

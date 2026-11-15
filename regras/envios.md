@@ -176,6 +176,7 @@ A carta de envio é uma linha sob a tarefa de onde a mensagem saiu.
 Origem: decisão do usuário, 2026-10-30 ("A: linha própria sob a tarefa (Recomendado)"; "a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria").
 Reescrito: 2026-11-12, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); a linha ganha a palavra "não entregue", sem tempo e fora do chip "aguardando sessão" (envios.destino-arquivado-nao-entregue). Os testes deste cenário não mudam.
 Reescrito: 2026-11-13, decisão do usuário ("Cinza \"não entregue\" (Recomendado)"); "não entregue" também quando o subagente destino para antes de recebê-la (envios.subagente-parado-nao-entregue). Os testes deste cenário não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Uma carta por mensagem (Recomendado)"): a linha é uma por mensagem (envios.uma-carta-por-mensagem). Os testes deste cenário não mudam.
 Código: draw/layout.ts, draw/svg.ts, draw/icons.ts, hooks/render.tsx
 Estado: coberto
 
@@ -361,4 +362,15 @@ A carta e o cartão não vão para a tarefa com pergunta aberta enquanto houver 
 
 Origem: auditoria 2026-11-10 (a regra só valia com duas em andamento); aplica envios.ancora-no-lote-recente ("nunca à que tem pergunta aberta", decisão do usuário, 2026-10-24), sem mudar nenhuma regra.
 Código: hooks/agents.ts, hooks/tools.ts
+Estado: coberto
+
+### envios.uma-carta-por-mensagem
+Cada mensagem tem a sua carta, mesmo da mesma tarefa à mesma sessão.
+
+- Dado uma tarefa de onde saem duas mensagens à mesma sessão ocupada
+- Quando a sessão toma a primeira, e depois a segunda
+- Então há duas linhas ✉ sob a tarefa, cada uma com o seu texto; cada uma fica verde na sua entrega; a tarefa só fecha na entrega da última (envios.entrega-espera-o-que-ainda-roda-na-tarefa)
+
+Origem: decisão do usuário, 2026-11-15 ("Uma carta por mensagem (Recomendado)"); completa "A: linha própria sob a tarefa (Recomendado)" (2026-10-30), que não dizia se a linha era por mensagem.
+Código: draw/layout.ts, hooks/agents.ts, hooks/tools.ts
 Estado: coberto

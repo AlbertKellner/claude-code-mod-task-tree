@@ -326,9 +326,13 @@ export function unsent(c: Child, me: string | undefined, owner: TaskNode[]): Bre
 // id was planned after the moment and a renamed one (`*:id`) planned before it exists, the anchor
 // is the last of those planned before the moment (the one that held the id then). Everything else
 // (the id's task planned before the moment, no plan times, no renamed holder) stays as it is.
-// A send is known by where it went, the task it was sent from and when (and the subagent, for one): a
-// mark found on a list read earlier goes to the same send in the list written, never by its place.
-export const sameSend = (a: Send, b: Send) => a.to === b.to && a.anchor === b.anchor && a.at === b.at && a.agent === b.agent
+// A send is known by its own number (`seq`); one of an earlier version, with none, by where it went, the
+// task it was sent from and when (and the subagent, for one): a mark found on a list read earlier goes
+// to the same send in the list written, never by its place.
+export const sameSend = (a: Send, b: Send) =>
+  a.seq !== undefined || b.seq !== undefined ? a.seq === b.seq : a.to === b.to && a.anchor === b.anchor && a.at === b.at && a.agent === b.agent
+// The number of the next send of a list (one more than the greatest).
+export const nextSeq = (list: Send[]) => Math.max(0, ...list.map(s => s.seq ?? 0)) + 1
 // The sends kept (SENDS_KEPT): over it, the oldest delivered and already told to the model go first, then
 // the oldest not delivered and already told. A letter still queued, or one the model was not told of yet,
 // never goes: the list is longer than SENDS_KEPT only with more than that of those.
@@ -1916,7 +1920,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
           const state: MsgState = s.lost ? 'lost' : s.cut || cutHere.has(hostOf(s) ?? '') ? 'cut' : s.taken ? 'delivered' : archived ? 'cut' : 'queued'
           const text = (s.text ?? '').replace(/\s+/g, ' ').trim()
           return {
-            key: `${scope}m:${s.to}:${s.anchor ?? ''}`,
+            key: `${scope}m:${s.to}:${s.anchor ?? ''}:${s.seq ?? s.at ?? ''}`,
             leaf: true,
             depth,
             tone: 'sent' as Tone,

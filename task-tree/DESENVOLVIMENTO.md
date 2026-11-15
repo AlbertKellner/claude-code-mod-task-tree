@@ -233,7 +233,7 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    host de novo, se tem mais de `POLL` ms); um `mcp__ccd_session__start_session` passa por
    `recordStart` (o id `local_…` do resultado entra em `children` com a tarefa em andamento como
    `anchor`); então, por nome e nesta ordem, `sentMessage` (grava a rodada em `Child.rounds` e
-   `lastAnchor`, o envio em `sends`, e avisa se ficou na fila; se o destino não está em `children`, por id
+   `lastAnchor`, o envio em `sends`, um registro por mensagem com o seu número `seq`, e avisa se ficou na fila; se o destino não está em `children`, por id
    nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
    `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
    `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
@@ -2270,3 +2270,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   (`draw/svg.ts`). O resumo ↩ (`brief`, `hooks/turn.ts`), que corta em palavra, ficou como estava.
 - `clockText` sem piso desenhava "-1:00" com a hora gravada à frente do relógio; a coluna da contagem tinha
   5 colunas fixas e "112/340" passava sobre a barra.
+
+## Achados baixos: uma carta por mensagem (2026-11-15)
+
+- `sentMessage` trocava o envio de mesmo destino e mesma tarefa pelo novo: duas mensagens da mesma tarefa à
+  mesma sessão eram uma carta só, e a primeira entrega pintava de verde o texto da segunda e fechava a
+  tarefa. Cada mensagem passou a ter o seu registro em `sends`, com um número próprio (`Send.seq`,
+  `nextSeq`); `sameSend` reconhece o envio pelo número (os de versões anteriores, sem número, por
+  destino, tarefa e hora), e a chave da linha da carta leva o número (envios.uma-carta-por-mensagem).

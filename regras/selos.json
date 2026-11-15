@@ -1713,6 +1713,26 @@
       "data": "2026-11-14",
       "motivo": "uma noção só de nada em execução na tarefa"
     },
+    "task-tree/tests/envios.test.ts::duas mensagens da mesma tarefa à mesma sessão: duas cartas, cada uma verde na sua entrega, e a tarefa fecha na última": {
+      "regras": [
+        "envios.uma-carta-por-mensagem"
+      ],
+      "hash": "61cedef423bcfb8b",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: uma carta por mensagem"
+    },
+    "task-tree/tests/envios.test.ts::duas mensagens no mesmo instante: cada carta recebe a sua marca": {
+      "regras": [
+        "envios.uma-carta-por-mensagem"
+      ],
+      "hash": "376117cb9071147b",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: uma carta por mensagem"
+    },
     "task-tree/tests/envios.test.ts::o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta entregue, não": {
       "regras": [
         "envios.done-com-carta-na-fila"

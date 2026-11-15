@@ -277,7 +277,9 @@ export type Child = {
 // `agent`: the id of this session's subagent it went to (SendMessage to a subagent, not a session):
 // taken when that subagent receives it (its session.receive) or is resumed with it (agent.spawn with
 // `resume`); `lost` (with `cut`) when it ended without receiving it (hooks/agents, strandedSends).
-export type Send = { to: string; anchor?: string; at?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
+// `seq`: the send's own number, growing in the list (one per message, also two from the same task to
+// the same session in the same instant); absent on the sends of earlier versions.
+export type Send = { to: string; anchor?: string; at?: number; seq?: number; idle?: boolean; taken?: boolean; delivered?: boolean; text?: string; noted?: boolean; cut?: boolean; lost?: boolean; agent?: string; adopted?: boolean }
 
 // The shape of `tasks` before groups: migrated into the main group once.
 export type LegacyNode = { id: string; title: string; done: boolean; children: LegacyNode[] }

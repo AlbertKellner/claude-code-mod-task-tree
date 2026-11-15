@@ -12,7 +12,7 @@ import { debugOnce } from '../io/log'
 
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
-import { MAIN, flat, hasOpen, current, keepRounds, keepSends } from '../draw/layout'
+import { MAIN, flat, hasOpen, current, keepRounds, keepSends, nextSeq } from '../draw/layout'
 import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
@@ -201,11 +201,13 @@ const sentMessage: Notes = async ($, c, notes) => {
   const agent = to !== '' && !failed && !to.startsWith('local_') ? await subagentOf($, to) : undefined
   if (to !== '' && !failed) {
     const at = sentAt ?? (await stamp($))
-    // Over 20, only the letters delivered (or not) and already told go (keepSends).
+    // One letter per message, also a second one from the same task to the same session (the person,
+    // 2026-11-15: "Uma carta por mensagem (Recomendado)"), each with its own number. Over 20, only the
+    // letters delivered (or not) and already told go (keepSends).
     await update($, sendsState, cur =>
       keepSends([
-        ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
-        { to, anchor, at, text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
+        ...(cur ?? []),
+        { to, anchor, at, seq: nextSeq(cur ?? []), text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
       ]),
     )
     // The task it went from stays a task like any other: the message is its letter, drawn below it.

@@ -250,7 +250,7 @@ async function adoptOrphans($: any, groups: Group[]) {
   const kids = kids0 as Child[]
   const named = (list: string[]) => list.filter(n => n !== '' && !/^local_/.test(n) && !n.endsWith('…'))
   type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[]; phrases: string[] }
-  const sendKey = (x: Send) => `${x.to}|${x.at}`
+  const sendKey = (x: Send) => (x.seq !== undefined ? `#${x.seq}` : `${x.to}|${x.at}`)
   const orphans: Orphan[] = [
     ...sends.flatMap(x =>
       x.anchor === undefined && typeof x.at === 'number' && x.at >= since
