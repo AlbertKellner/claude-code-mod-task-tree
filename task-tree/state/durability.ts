@@ -102,6 +102,8 @@ export const TABLE: readonly Row[] = [
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
   { key: 'reading', lives: 'module', merge: 'none', restoredAt: [], note: 'the read of the sessions in progress (refreshChildren): one at a time; a reload starts it over' },
   { key: 'readAgain', lives: 'module', merge: 'none', restoredAt: [], note: 'a read asked while one ran: the one in progress runs once more; a reload starts it over' },
+  { key: 'publishing', lives: 'module', merge: 'none', restoredAt: [], note: 'the publication of the panel in progress (publishPanel): one at a time; a reload starts it over' },
+  { key: 'publishAgain', lives: 'module', merge: 'none', restoredAt: [], note: 'the publication waiting for the one in progress, which the ones asked meanwhile join: it reads the state after that one wrote; a reload starts it over' },
   { key: 'drawSize', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s size, published' },
   { key: 'drawRows', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s lines, published' },
   { key: 'renderError', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s error, published' },

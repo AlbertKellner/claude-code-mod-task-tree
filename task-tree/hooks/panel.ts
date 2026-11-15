@@ -478,8 +478,10 @@ export async function showStatus($: any, groups: Group[]) {
 
 // A session out of the store's list (new, or pruned by another session) writes its work, turn end
 // and links again with the panel: the module's copies of what was already written are forgotten.
-// Saved first, then published, the status line last (it never holds the panel back).
-export async function persist($: any, groups: Group[]) {
+// Saved first, then published, the status line last (it never holds the panel back). `publish`
+// false: the caller publishes itself once its other writes are done (the plan and the start of the
+// main loop, after the ties and the work).
+export async function persist($: any, groups: Group[], publish = true) {
   try {
     const { back } = await saveGroups($, groups)
     if (back) {
@@ -492,7 +494,7 @@ export async function persist($: any, groups: Group[]) {
     }
   } catch {}
   try {
-    await publishPanel($)
+    if (publish) await publishPanel($)
   } finally {
     await showStatus($, groups)
   }
@@ -513,13 +515,13 @@ export async function adopt($: any) {
   await $.state.set(legacyTasks, [])
 }
 
-export async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
+export async function change($: any, fn: (groups: Group[]) => Group[], opts: { publish?: boolean } = {}): Promise<Group[]> {
   await ensureGroups($)
   await ensureWork($)
   await ensureLinks($)
   await adopt($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
-  await persist($, groups)
+  await persist($, groups, opts.publish !== false)
   return groups
 }
 
@@ -752,7 +754,33 @@ export async function refreshGit($: any): Promise<GitInfo | undefined> {
 // Publishes this session's panel (io/publish.ts): gathers it from the state here, where the kit
 // wants the state keys literal, and what the last drawing left. The children go cut to their current
 // work (trimPublished): the state keeps them whole, so this panel does not change.
-export async function publishPanel($: any) {
+// One publication at a time (audit, 2026-11-10: two in progress wrote out of order, an older one
+// last): one asked while another runs waits for it and then reads the state again, and the ones
+// asked meanwhile join that waiting round (only one waits at a time), so the file ends with the
+// newest panel. Variables of the module, as the reread of the sessions (reading, readAgain): a
+// reload starts them over.
+let publishing: Promise<void> | undefined
+let publishAgain: Promise<void> | undefined
+export async function publishPanel($: any): Promise<void> {
+  if (publishAgain) return publishAgain
+  const before = publishing
+  const mine = publishRound($, before)
+  if (before) publishAgain = mine
+  publishing = mine
+  try {
+    await mine
+  } finally {
+    if (publishing === mine) publishing = undefined
+  }
+}
+async function publishRound($: any, before: Promise<void> | undefined) {
+  if (before) {
+    await before.catch(() => {})
+    publishAgain = undefined
+  }
+  await publishOnce($)
+}
+async function publishOnce($: any) {
   await ensureGroups($)
   await ensureWork($)
   await ensureLinks($)

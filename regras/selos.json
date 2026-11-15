@@ -727,6 +727,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
     },
+    "task-tree/tests/durabilidade.test.ts::numa sessão sem filhas, o que ela publica logo depois do plan já traz o trabalho novo": {
+      "regras": [
+        "durabilidade.plan-publica-o-trabalho-novo"
+      ],
+      "hash": "4f06ac17a846376d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: publicação do painel em ordem e o plan publica no fim"
+    },
     "task-tree/tests/durabilidade.test.ts::o /clear guarda no painel publicado o que a sessão tinha feito, e o painel dela fica vazio": {
       "regras": [
         "sessoes.clear-na-filha-mantem-o-historico"
@@ -757,6 +767,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
     },
+    "task-tree/tests/durabilidade.test.ts::o plan que reusa o id de uma tarefa com sessão aberta publica a sessão sob a tarefa antiga": {
+      "regras": [
+        "durabilidade.plan-publica-o-trabalho-novo"
+      ],
+      "hash": "877f6467018cf917",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: publicação do painel em ordem e o plan publica no fim"
+    },
     "task-tree/tests/durabilidade.test.ts::o processo novo abre o painel": {
       "regras": [
         "durabilidade.painel-fechado-reabre-so-na-mensagem"
@@ -766,6 +786,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
+    },
+    "task-tree/tests/durabilidade.test.ts::o start numa tarefa antiga, em pedido novo, publica o trabalho com ela": {
+      "regras": [
+        "durabilidade.plan-publica-o-trabalho-novo"
+      ],
+      "hash": "73d69e7eae7639e4",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: publicação do painel em ordem e o plan publica no fim"
     },
     "task-tree/tests/durabilidade.test.ts::os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do formato": {
       "regras": [
@@ -1216,6 +1246,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::uma publicação atrasada não grava por cima da mais nova": {
+      "regras": [
+        "durabilidade.publicacoes-em-ordem"
+      ],
+      "hash": "c966437f137f1a8e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: publicação do painel em ordem e o plan publica no fim"
     },
     "task-tree/tests/durabilidade.test.ts::uma sessão aberta depois do /clear aparece sob a tarefa dela": {
       "regras": [

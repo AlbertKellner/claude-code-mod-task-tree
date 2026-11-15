@@ -245,3 +245,25 @@ O fim do turno é registrado mesmo quando um passo acessório dele falha.
 Origem: auditoria 2026-11-10 (triagem de 2026-11-15: uma falha no começo do fim do turno deixava o painel em andamento e a sessão de cima sem o fim); sem mudar nenhuma regra (turnos.subagente-que-termina-interrompe).
 Código: hooks/turn.ts, hooks/agents.ts
 Estado: coberto
+
+### durabilidade.plan-publica-o-trabalho-novo
+O que a sessão publica depois de um plan ou de um start já traz o trabalho e as ligações novas.
+
+- Dado uma sessão com um pedido anterior concluído (com ou sem sessão aberta de uma tarefa dele)
+- Quando o modelo planeja o pedido novo, reusando ou não o id da tarefa antiga, ou inicia uma tarefa de um pedido antigo com tudo fechado
+- Então o arquivo que a sessão publica nesse mesmo passo traz o trabalho novo e as sessões ligadas à tarefa antiga renomeada: na sessão que a abriu, o cartão mostra o pedido novo sem esperar o próximo done
+
+Origem: auditoria 2026-11-10 (o plan publicava antes de renomear as ligações e de gravar o trabalho); aplica sessoes.publicado-enxuto e pedidos.plano-anterior-vira-historico, sem mudar nenhuma regra.
+Código: hooks/tools.ts, io/publish.ts
+Estado: coberto
+
+### durabilidade.publicacoes-em-ordem
+Uma publicação do painel por vez: a mais velha não grava por último.
+
+- Dado uma publicação do painel ainda em curso (disparada pelo ultracode, pela troca de modelo, pela taxa ou pelo comando)
+- Quando o painel muda e é publicado de novo antes de ela terminar
+- Então o arquivo publicado termina com o estado mais novo
+
+Origem: auditoria 2026-11-10 (duas publicações em curso gravavam fora de ordem).
+Código: io/publish.ts, hooks/turn.ts
+Estado: coberto

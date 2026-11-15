@@ -1207,3 +1207,98 @@ test('com a lista de agentes falhando, o fim do subagente ainda interrompe o que
   expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).not.toContain('trabalhando')
   expect(log.some(l => l.includes('fim do turno')), log.join('\n')).toBe(true)
 })
+
+// O arquivo que esta sessão publica (o cartão dela na sessão que a abriu), logo depois de um plan ou
+// de um start: já com o trabalho e as ligações novas.
+const tarefaPublicada = (h: { proprio(): any }, titulo: string): any => {
+  const achar = (l: any[]): any => {
+    for (const t of l) {
+      if (t.title === titulo) return t
+      const x = achar(t.children ?? [])
+      if (x) return x
+    }
+  }
+  return achar(((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.tasks ?? []))
+}
+
+// Regra: durabilidade.plan-publica-o-trabalho-novo
+test('numa sessão sem filhas, o que ela publica logo depois do plan já traz o trabalho novo', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1', '2'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  expect(h.proprio()?.work).toEqual(['B'])
+  expect(JSON.stringify(h.proprio()?.groups ?? [])).toContain('Plano B')
+})
+
+// Regra: durabilidade.plan-publica-o-trabalho-novo
+test('o plan que reusa o id de uma tarefa com sessão aberta publica a sessão sob a tarefa antiga', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um' }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await done($, ['1', '2'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  const publicado = JSON.stringify(h.proprio()?.children ?? [])
+  expect(publicado).toContain(':A/1"')
+  expect(publicado).not.toContain('"A/1"')
+})
+
+// Regra: durabilidade.plan-publica-o-trabalho-novo
+test('o start numa tarefa antiga, em pedido novo, publica o trabalho com ela', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  await start($, ['b1'])
+  await done($, ['b1', 'b2'], 'Feito')
+  await fimDoTurno($)
+  // Pedido três: retoma a tarefa do pedido um, já concluída (com tudo fechado, é trabalho novo).
+  await pedido($, 'Pedido três')
+  await start($, ['A/1'])
+  expect(h.proprio()?.work ?? []).toEqual(['A'])
+})
+
+// Regra: durabilidade.publicacoes-em-ordem
+test('uma publicação atrasada não grava por cima da mais nova', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  on('prompt.attachment', (_$: any, e: any) => ({ text: e.text }))
+  // Armado uma vez: a leitura do uso do contexto fica presa até o relógio andar 1 s.
+  let armado = false
+  let alcancado = false
+  on('session.usage', async (_$: any, e: any, next: any) => {
+    if (armado) {
+      armado = false
+      alcancado = true
+      await relogio.sleep(1000)
+    }
+    return next(e)
+  })
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  armado = true
+  await $.prompt.attachment({ type: 'ultra_effort_enter', text: 'x', origin: { kind: 'engine' } })
+  await painel($)
+  expect(alcancado, 'a publicação do ultracode não chegou à leitura do uso').toBe(true)
+  const fechou = done($, ['1'])
+  await relogio.advance(1000)
+  await fechou
+  expect(tarefaPublicada(h, 'Um')?.status).toBe('done')
+  expect(h.proprio()?.ultracode).toBe(true)
+})

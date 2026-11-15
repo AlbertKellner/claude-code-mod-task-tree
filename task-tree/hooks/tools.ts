@@ -10,7 +10,7 @@ import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } fro
 import { plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { marks, setMarks, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { marks, setMarks, publishPanel, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime, settledBy } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -87,6 +87,9 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     let gone = new Map<string, string>()
     let warned: { t: TaskNode; again: boolean }[] = []
     const now = await stamp($)
+    // The main loop's plan publishes once, after its last write (the ties, the letters, the work), so
+    // the file the session that opened this one reads already has the new work (audit, 2026-11-10);
+    // a subagent's plan touches neither and publishes in the change.
     const groups = await change($, all => {
       // The subagents this loop launched from a task the plan renames go with the old copy (their
       // card, and the task the end of the turn closes by them), or they would hang from the new task
@@ -140,22 +143,26 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         })
         return { ...g, turns, tasks: inPlace(placed) }
       })
-    })
-    await renameFolds($, agent, renamedHere, tag)
-    if (agent === MAIN) {
-      // The sessions' ties to a renamed task go with it (see renameAnchors).
-      await renameAnchors($, renamed, tag)
-      await moveToLevelOne($, gone)
-      // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
-      // hanging from the request's level-1 task until the delivery (the panel's letters).
-      const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
-      await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
-      // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
-      // task of the current work stays in it, and in new work the old copy is checked with the rest
-      // of the work before for what still holds the view.
-      // Adopted first: a subagent that ended with no task before the plan is not one to drop (joinWork).
-      await adoptOrphans($, groups)
-      await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
+    }, { publish: agent !== MAIN })
+    try {
+      await renameFolds($, agent, renamedHere, tag)
+      if (agent === MAIN) {
+        // The sessions' ties to a renamed task go with it (see renameAnchors).
+        await renameAnchors($, renamed, tag)
+        await moveToLevelOne($, gone)
+        // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
+        // hanging from the request's level-1 task until the delivery (the panel's letters).
+        const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
+        await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
+        // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
+        // task of the current work stays in it, and in new work the old copy is checked with the rest
+        // of the work before for what still holds the view.
+        // Adopted first: a subagent that ended with no task before the plan is not one to drop (joinWork).
+        await adoptOrphans($, groups)
+        await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
+      }
+    } finally {
+      if (agent === MAIN) await publishPanel($)
     }
     // The plan does not open the panel: one the person closed stays closed until their next message
     // (the person, 2026-11-14: "Só na sua mensagem (Recomendado)").
@@ -438,8 +445,13 @@ export async function startTool($: EngineInterface, e: any, next: any) {
         }
         return { ...g, tasks }
       })
-    })
-    if (agent === MAIN) await joinWork($, roots, fresh0)
+    }, { publish: agent !== MAIN })
+    // Published after the work it joins (as the plan).
+    try {
+      if (agent === MAIN) await joinWork($, roots, fresh0)
+    } finally {
+      if (agent === MAIN) await publishPanel($)
+    }
     await keepTime($)
     return {
       result:
