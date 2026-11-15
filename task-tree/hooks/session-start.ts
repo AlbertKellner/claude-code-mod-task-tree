@@ -1,8 +1,9 @@
 // session.start: registers the command and the tools, brings the panel back from the store, opens
-// the pane and starts reading the linked sessions. classic.SessionStart: /clear empties the panel,
+// the pane and starts reading the linked sessions. classic.SessionStart: /clear empties the panel (its
+// main group keeps what it had done in `past`, for the card of the session above),
 // a resume brings the session's panel back; a resume empties what the store does not hold.
 
-import { MAIN } from '../draw/layout'
+import { MAIN, PAST_KEEP, interrupt } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
 import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFromOwnFile, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
@@ -13,6 +14,7 @@ import { level } from './tools'
 // file that calls $.state (../state/durability has a row for every one).
 
 import type { EngineInterface } from 'claude-code'
+import type { Group, Past } from '../types'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const paneOpenedState = { plugin: 'task-tree', key: 'paneOpened' } as const
@@ -84,12 +86,18 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
 export async function classicSessionStart($: EngineInterface, e: any, next: any) {
   // Everything emptied before the one publication (the replace), so it goes out clean.
   if (e.source === 'clear') {
+    // What the session had done stays in its main group, as history its own panel does not draw: the
+    // session above keeps its card (the person, 2026-11-14: "Mantém o histórico (Recomendado)").
+    const at = await $.clock.now()
+    const main = (((await $.state.get(groupsState)).value ?? []) as Group[]).find(g => g.agent === MAIN)
+    const before: Past[] = main && main.tasks.length > 0 ? [{ at, tasks: main.tasks.map(interrupt(at)), ...(main.turns ? { turns: main.turns } : {}) }] : []
+    const past = [...(main?.past ?? []), ...before].slice(-PAST_KEEP)
     await dropHeld($)
     await $.state.set(sendsState, [])
     await setWork($, [])
     await clearTurn($)
     await forgetChildren($)
-    await replace($, [{ agent: MAIN, label: '', tasks: [] }])
+    await replace($, [{ agent: MAIN, label: '', tasks: [], ...(past.length > 0 ? { past } : {}) }])
   }
   if (e.source === 'resume') {
     await dropHeld($)

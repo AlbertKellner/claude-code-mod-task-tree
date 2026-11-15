@@ -386,3 +386,14 @@ A tarefa concluída com filha embaixo mostra só o tempo próprio.
 
 Origem: decisão do usuário, 2026-11-14 ("Só o próprio": "T mostra 0:03 também enquanto a filha trabalha; o relógio dessa linha não corre"), sobre o achado da auditoria de 2026-11-10 (o tempo corria com a filha trabalhando e regredia quando ela parava).
 Estado: coberto
+
+### sessoes.clear-na-filha-mantem-o-historico
+Depois de um /clear numa filha, o cartão dela na mãe mantém o que ela tinha feito.
+
+- Dado uma sessão filha com tarefas feitas
+- Quando a pessoa dá /clear nela, e depois ela trabalha de novo
+- Então o painel da filha fica vazio (durabilidade.clear-esvazia), e o que ela tinha feito segue no painel publicado como histórico: na mãe, o cartão mantém as tarefas (as abertas ficam ✕), o x/y da tarefa de origem e o cabeçalho não encolhem; o trabalho de depois aparece num cartão novo; ficam os 5 /clear mais recentes
+
+Origem: decisão do usuário, 2026-11-14 ("Mantém o histórico (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o /clear na filha apagava da mãe o trabalho dela).
+Código: hooks/session-start.ts, draw/layout.ts
+Estado: coberto

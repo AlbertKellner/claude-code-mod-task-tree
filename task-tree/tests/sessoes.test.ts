@@ -1237,3 +1237,60 @@ test('o pedido com tudo concluído e a filha trabalhando embaixo mostra o tempo 
     expect(linha(p, t).texto, emTexto(p)).not.toContain('10:0')
   }
 })
+
+// O arquivo de uma filha depois de um /clear: o grupo principal vazio (ou com o que veio depois) e,
+// em `past`, as cinco tarefas que ela tinha feito antes.
+const limpa = (depois: { tasks: any[]; turns?: any[] } = { tasks: [] }) =>
+  JSON.stringify({
+    version: 1,
+    waiting: false,
+    waits: [],
+    children: [],
+    groups: [
+      {
+        agent: '',
+        label: '',
+        ...depois,
+        past: [{ at: AGORA + 5000, tasks: ['p1', 'p2', 'p3', 'p4', 'p5'].map(id => noTurno(1, id, id, 'feita')), turns: [turno(1, AGORA + 10)] }],
+      },
+    ],
+  })
+
+// Regra: sessoes.clear-na-filha-mantem-o-historico
+test('depois do /clear na filha, o cartão dela na mãe mantém as tarefas feitas e a contagem', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false, publicado: limpa() }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(k => ({ sob: k.sob, tarefas: k.tarefas.filter(t => t !== 'turno 1') })), emTexto(p)).toEqual([{ sob: 'Um', tarefas: ['p1', 'p2', 'p3', 'p4', 'p5'] }])
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('5/6')
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([5, 8])
+})
+
+// Regra: sessoes.clear-na-filha-mantem-o-historico
+test('o trabalho da filha depois do /clear aparece num cartão novo, e o histórico segue no dele', async ($: any, on: any) => {
+  fixar(on)
+  const depois = { tasks: [noTurno(1, 'n1', 'n1', 'iniciada')], turns: [{ id: 1, title: 'pedido novo', at: AGORA + 20 * 60_000, own: true }] }
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false, publicado: limpa(depois) }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const nomes = p.filter(l => l.sessao).map(l => l.titulo)
+  const meus = nomes.filter(n => n.startsWith('filha-um'))
+  expect(meus.length, emTexto(p)).toBe(2)
+  const todos = meus.flatMap(n => cartoes(p, n))
+  const sem = (l: string[]) => l.filter(t => t !== 'turno 1' && t !== 'pedido novo').join()
+  expect(todos.some(k => k.sob === 'Um' && sem(k.tarefas) === 'p1,p2,p3,p4,p5'), emTexto(p)).toBe(true)
+  const novo = p.find(l => l.sessao && l.titulo.startsWith('filha-um') && l.titulo !== 'filha-um')
+  expect(novo !== undefined && p[p.indexOf(novo) + 1]?.titulo === 'n1', emTexto(p)).toBe(true)
+  const c = cabecalho(p)
+  expect([c.feitas, c.total], emTexto(p)).toEqual([5, 9])
+})

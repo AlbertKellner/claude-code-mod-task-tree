@@ -133,6 +133,29 @@ test('/clear esvazia o painel', async ($: any, on: any) => {
   expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
 })
 
+// O que a sessão tinha feito, no grupo principal publicado (o histórico de antes de cada /clear).
+const passado = (h: { proprio(): any }) => ((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.past ?? []) as any[]
+const achatar = (l: any[]): any[] => l.flatMap(t => [t, ...achatar(t.children ?? [])])
+
+// Regra: sessoes.clear-na-filha-mantem-o-historico
+test('o /clear guarda no painel publicado o que a sessão tinha feito, e o painel dela fica vazio', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await limpar($)
+  const p = await painel($)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
+  const main = (h.proprio()?.groups ?? []).find((g: any) => g.agent === '')
+  expect(main?.tasks ?? null, JSON.stringify(h.proprio())).toEqual([])
+  expect(passado(h).length, JSON.stringify(h.proprio())).toBe(1)
+  const tarefas = achatar(passado(h)[0].tasks)
+  expect(tarefas.find(t => t.title === 'Um')?.status, JSON.stringify(tarefas)).toBe('done')
+  expect(tarefas.find(t => t.title === 'Dois')?.status, JSON.stringify(tarefas)).toBe('interrupted')
+})
+
 // Regra: durabilidade.clear-publica-limpo
 test('/clear com espera e carta: o arquivo publicado sai sem espera e sem cartas', async ($: any, on: any) => {
   const { relogio } = fixar(on)

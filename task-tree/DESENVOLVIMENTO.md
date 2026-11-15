@@ -102,7 +102,7 @@ Na ordem de `register.tsx`:
 | Evento | Filtro | Função (arquivo) | O que faz |
 |---|---|---|---|
 | `session.start` | | `sessionStart` (session-start.ts) | registra `/task-tree` e as ferramentas `plan`, `done`, `start`; `adopt` (lista legada), `restore` do store se o state está vazio, `restoreView`, `restoreWork`, `restoreLinks`; abre o pane; `refreshChildren` e `watchSessions` |
-| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`; `resume`: `restore` do store |
+| `classic.SessionStart` | | `classicSessionStart` (session-start.ts) | `clear`: esvazia grupos, `waits`, `sends` e `work`, guardando as tarefas e os turnos do grupo principal em `past` (os 5 `/clear` mais recentes, o aberto como interrompido); `resume`: `restore` do store |
 | `prompt.submit` | | `promptSubmit` (prompt-submit.ts) | guarda `received`; reabre o pane num prompt da pessoa; prompt que continua o pedido (`NO_TURN`, aviso do app, hand-back) só ganha os lembretes curtos; os outros abrem turno, tiram a pergunta aberta, zeram `reminders` e levam os lembretes (sessão que terminou, mensagem tomada, tarefas abertas, pedido); no pedido da pessoa e no de outra sessão, zera `turnEnded` (`wake`: o que o turno anterior deixou em andamento volta a estar em andamento) |
 | `prompt.compose` | | `promptCompose` (prompt-submit.ts) | com `mcp__task-tree__plan` entre as ferramentas, acrescenta a seção `task-tree:regras` (`RULES`) ao prompt de sistema |
 | `command.run` | `task-tree` | `commandRun` (command.ts) | abre o pane com pedido, publica e responde o diagnóstico (painéis e tamanho do desenho) |
@@ -328,6 +328,9 @@ leitores antigos), `groups`, `waits`, `children`, `context` (`{ percent, at }` d
 As filhas vão cortadas (`trimPublished`, `draw/layout.ts`) e só até `DEEP` níveis abaixo de quem publica
 (filhas, netas e bisnetas, com o painel de cada uma); o `children` das bisnetas vai vazio, porque a mãe
 de quem publica desenha as bisnetas só com o cabeçalho. O state desta sessão não é cortado.
+O grupo principal pode levar `past` (o que a sessão tinha feito antes de cada `/clear`), dentro de
+`groups`, sem campo novo no arquivo nem versão nova: o painel dela não o desenha, e a mãe desenha cada
+entrada como um cartão de histórico (`cleared`, chamado por `split`).
 
 Gravado só quando muda (fase 6): `publishWait` monta o corpo sem `at`, `context.at` e `panes`, compara
 o JSON dele mais o `percent` do contexto com o último publicado para o caminho (`lastPublished`,
@@ -1893,3 +1896,9 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
 - Tempo da tarefa concluída com filha embaixo (2026-11-14, "Só o próprio"): com a filha trabalhando, o
   tempo da tarefa fechada corria até agora e voltava ao próprio quando ela parava. `timeOf` só corre com a
   tarefa aberta, e a linha do pedido só com alguma de nível 1 aberta; o tom (◉) e o x/y não mudam.
+- `/clear` numa filha mantém o histórico (2026-11-14, "Mantém o histórico (Recomendado)"): o painel vazio
+  publicado depois do `/clear` substituía na mãe o trabalho feito, e o cartão virava "concluída" vazio.
+  O `/clear` guarda as tarefas e os turnos do grupo principal em `past` (os 5 mais recentes); `cleared`, em
+  `split`, faz de cada entrada um cartão parado (chave com `@<hora do /clear>`, campo `Child.history`) e
+  só desenha o cartão de depois quando há algo nele; enquanto não há, o histórico mais recente responde
+  pela sessão.

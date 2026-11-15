@@ -73,7 +73,12 @@ export type Turn = { id: number; title: string; at?: number; reply?: string; bri
 // last heard from it (a call, a step); where its time stops when its end never comes (hooks/agents,
 // checkSubs); absent until its first call, and from earlier versions. Absent from the
 // main group, from a subagent's group made before its launch was heard, and from earlier versions.
-export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub }
+// `past`: the main group's only: what the session had done before each /clear (its tasks, what was open
+// read as interrupted, and its turns), the 5 most recent, oldest first. Its own panel does not draw it;
+// published inside the group, it keeps the card of the session above (split in draw/layout): the person,
+// 2026-11-14, "Mantém o histórico (Recomendado)". Absent with no /clear and from earlier versions.
+export type Group = { agent: string; label: string; parent?: string; anchor?: string; turns?: Turn[]; tasks: TaskNode[]; whole?: TaskNode[]; sub?: Sub; past?: Past[] }
+export type Past = { at: number; tasks: TaskNode[]; turns?: Turn[] }
 export type Sub = {
   at: number
   end?: number
@@ -210,6 +215,9 @@ export type Child = {
   rounds?: { at: number; anchor?: string }[]
   // Drawn only: which of those cards this is (0 the opening message's).
   part?: number
+  // Drawn only: a card of the work the session had done before a /clear (its main group's `past`), when
+  // that /clear came: never at work but for the latest while nothing came after it; its rows keyed by it.
+  history?: number
   // Drawn only: a card of a turn the person opened by typing in that session, its text.
   ownTurn?: string
   // Drawn only: how many turns the person typed in that session share this card (same request in force).

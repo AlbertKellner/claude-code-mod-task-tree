@@ -493,6 +493,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: painel guardado enquanto a sessão existir"
     },
+    "task-tree/tests/durabilidade.test.ts::o /clear guarda no painel publicado o que a sessão tinha feito, e o painel dela fica vazio": {
+      "regras": [
+        "sessoes.clear-na-filha-mantem-o-historico"
+      ],
+      "hash": "466c0ace7fbc36f3",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Mantém o histórico (Recomendado)\""
+    },
     "task-tree/tests/durabilidade.test.ts::o arquivo de uma sessão que o app não lista mais é esvaziado, e o de uma listada não": {
       "regras": [
         "durabilidade.publicado-de-sessao-que-nao-existe-e-esvaziado"
@@ -2232,6 +2242,16 @@
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"remova os icones de reesumo e tarefas completas, deixe somente a visão resumida\""
     },
+    "task-tree/tests/sessoes.test.ts::depois do /clear na filha, o cartão dela na mãe mantém as tarefas feitas e a contagem": {
+      "regras": [
+        "sessoes.clear-na-filha-mantem-o-historico"
+      ],
+      "hash": "9309a893f4a0cb87",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Mantém o histórico (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::depois que a sessão para e a carta é entregue, o pedido seguinte leva o pedido de id reusado para \"+N pedidos anteriores\"": {
       "regras": [
         "pedidos.id-reusado-segura-pedido-com-sessao-viva"
@@ -2464,6 +2484,16 @@
       "tipo": "novo",
       "data": "2026-11-04",
       "motivo": "só a visão resumida, 2026-11-04"
+    },
+    "task-tree/tests/sessoes.test.ts::o trabalho da filha depois do /clear aparece num cartão novo, e o histórico segue no dele": {
+      "regras": [
+        "sessoes.clear-na-filha-mantem-o-historico"
+      ],
+      "hash": "e7fdee5358e8fea0",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"Mantém o histórico (Recomendado)\""
     },
     "task-tree/tests/sessoes.test.ts::o turno 1 próprio que começa bem depois da abertura (a filha limpa com /clear) segue como pedido do usuário na filha": {
       "regras": [

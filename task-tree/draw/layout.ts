@@ -366,11 +366,44 @@ export const WAIT_ORIGIN = 10000
 // session opened it (its `openedAt`; seen up to 97 s with many sessions opened at once). A turn 1
 // begun long after it is one the person typed there after a /clear (the ids start over).
 const OPENING = 10 * 60_000
+// How many /clear a session keeps the work of (its main group's `past`).
+export const PAST_KEEP = 5
+// A session that took a /clear, as the cards of what it had done before each one (its main group's
+// `past`, oldest first) and of what it did after (the session as it is). The person, 2026-11-14:
+// "Mantém o histórico (Recomendado)": the cards keep their tasks, the x/y of the task of origin and the
+// header do not shrink, and the work after the /clear goes to a card of its own. A history card is the
+// session stopped with only that work (its open tasks were read as interrupted at the /clear), split by
+// round as any other (the messages from before the /clear match its turns by time), keyed by when the
+// /clear came (`history`). While nothing came after the last /clear (no task, wait or session), that
+// card is not drawn, and the latest history card speaks for the session (its state, ring and word).
+export function cleared(c: Child): Child[] {
+  const p = c.panel
+  const groups = withMain(p?.groups ?? [])
+  const main = groups.find(g => g.agent === MAIN) as Group
+  if (p === undefined || (main.past ?? []).length === 0) return [c]
+  const { past = [], ...rest } = main
+  const now: Child = { ...c, panel: { ...p, groups: groups.map(g => (g === main ? rest : g)) } }
+  const empty = tasksOf(now.panel!.groups).length === 0 && (p.waits ?? []).length === 0 && (p.children ?? []).length === 0
+  const old = past.map((e, i): Child => {
+    const speaks = empty && i === past.length - 1
+    return {
+      ...c,
+      history: e.at,
+      ...(speaks ? {} : { running: false, waiting: false, starting: undefined, aborted: undefined }),
+      panel: { ...p, groups: [{ agent: MAIN, label: '', tasks: e.tasks, ...(e.turns ? { turns: e.turns } : {}) }], waits: speaks ? (p.waits ?? []) : [], children: [], sends: [], ...(p.work ? { work: [] } : {}) },
+    }
+  })
+  return empty ? old : [...old, now]
+}
 // `now`: the drawing's clock (undefined where it cannot be read); `memo`: the drawing's cache of breaks.
 export function split(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
   // A card already cut to one round (the summary view's cut() splits the sessions before the pass
   // that draws them) is kept as it is, with no breaks computed for it.
-  if (c0.part !== undefined) return [c0]
+  if (c0.part !== undefined || c0.history !== undefined) return [c0]
+  const all = cleared(c0)
+  return all.flatMap(k => roundsOf(k, sisters, me, owner, now, memo))
+}
+function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
   // The session's ties, as of when they were made: where it was opened (by when its work began)
   // and where its last message came from (by that message), see resolveAnchor.
   const lastRound = [...(c0.rounds ?? [])].sort((a, b) => a.at - b.at).pop()
@@ -548,7 +581,7 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
 export function total(p: Panel, level = 0, splitter?: (c: Child) => Child[], me?: string): [number, number, number] {
   let [d, n, x] = count(tasksOf(p.groups ?? []))
   if (level >= DEEP) return [d, n, x]
-  for (const c of splitter ? (p.children ?? []).flatMap(splitter) : level > 0 ? cardsOf(p, me) : (p.children ?? [])) {
+  for (const c of splitter ? (p.children ?? []).flatMap(splitter) : level > 0 ? cardsOf(p, me) : (p.children ?? []).flatMap(cleared)) {
     if (discarded(c)) continue
     const [cd, cn, cx] = total(inCount(c), level + 1, undefined, c.id)
     d += cd
@@ -1346,6 +1379,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const p = panelOf(c)
     // A round the session left for a later one (split): "substituída", gray, never at work.
     const gone = c.replaced === true
+    // A card of the work before a /clear has keys of its own (its fold apart from the card after it).
+    const cid = c.history === undefined ? c.id : `${c.id}@${c.history}`
     const pending = !gone && c.waiting === true && (p.waits ?? []).length === 0
     // Stopped with tasks still open (it waits for a signal, or the next message): not done; its
     // tasks stay in sight, as it planned them.
@@ -1356,7 +1391,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     const state = gone ? 'substituída' : c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? (anyFailed(tasksOf(rawPanel(c).groups ?? [])) ? 'falhou' : 'parada') : c.part !== undefined ? undefined : 'concluída'
     const [cd, cn] = total(p, level + 1, undefined, c.id)
     const header: Row = {
-      key: `${scope}s:${c.id}#${c.partAt ?? c.part ?? 0}`,
+      key: `${scope}s:${cid}#${c.partAt ?? c.part ?? 0}`,
       depth,
       tone,
       // The card's first line is the session alone (its name); its tasks start on the line below.
@@ -1388,13 +1423,13 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
     // rounds: at the cap of 20 rounds a new message shifts every index, and the person's fold moved to
     // another card (an open card came back folded).
     const part = c.part ? `#${c.partAt ?? c.part}` : ''
-    const key = `${scope}s:${c.id}${part}`
-    const inside = `${scope}${c.id}${part}>`
+    const key = `${scope}s:${cid}${part}`
+    const inside = `${scope}${cid}${part}>`
     // Under the card's tasks, what the session answered at the end of each of its turns there, in
     // turn order: a ↩ line, dim, with no count or time (not a task).
     const replies: Row[] = (withMain(p.groups ?? []).find(g => g.agent === MAIN)?.turns ?? [])
       .filter(hasBrief)
-      .map(u => ({ key: `${scope}${c.id}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
+      .map(u => ({ key: `${scope}${cid}>r:${u.id}`, depth: depth + 1, tone: 'reply' as Tone, title: u.brief as string, whole: u.reply ?? u.brief, label: 'Resposta' }))
     // Its turn goes on while it runs (or is starting): the trail lights in its card then.
     const going = !c.archived && (live(c) || c.starting === true) ? lastTurnAt(rawPanel(c).groups ?? []) : undefined
     const inner = opened(key, true) ? [...panel(p, depth + 1, level + 1, inside, c.id, going), ...replies] : []
