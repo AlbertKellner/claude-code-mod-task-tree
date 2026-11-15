@@ -4304,6 +4304,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Só com turno em curso (Recomendado)"
     },
+    "task-tree/tests/turnos.test.ts::com tudo fechado, o tempo segue contando do primeiro start": {
+      "regras": [
+        "turnos.tempo-conta-do-primeiro-start"
+      ],
+      "hash": "4a7d71cafce11311",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: o tempo conta do primeiro start"
+    },
     "task-tree/tests/turnos.test.ts::depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado": {
       "regras": [
         "turnos.aguardando-segue-ate-o-start"
@@ -4556,6 +4566,16 @@
       "tipo": "decisao",
       "data": "2026-11-04",
       "motivo": "decisão do usuário, 2026-11-04: \"todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem\"; \"Fica ✓\""
+    },
+    "task-tree/tests/turnos.test.ts::o tempo do pai e do pedido não pula no fim do turno com passos pendentes": {
+      "regras": [
+        "turnos.tempo-conta-do-primeiro-start"
+      ],
+      "hash": "1032feeb4e7a0701",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-14: o tempo conta do primeiro start"
     },
     "task-tree/tests/turnos.test.ts::o turno que morre por erro deixa a tarefa em andamento ✕ \"falhou\", fora da contagem, até o start nela": {
       "regras": [

@@ -742,9 +742,12 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
 // An open parent with something done (or left waiting, see leftWaiting) below it and nothing in progress:
 // drawn waiting (◷), its time stopped at the last close below it.
 export const resting = (list: TaskNode[]) => flat(list).some(k => k.status === 'done' || leftWaiting(k))
+// Counted from the first start below it, as the line in progress is: the pending ones, with no start, do
+// not count, so the number does not jump when the turn ends; no start below, no time (the person,
+// 2026-11-14: "Do primeiro start (Recomendado)").
 export function stillSpan(list: TaskNode[], idle: Idle[] = []): number | undefined {
   const all = flat(list)
-  const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])
+  const starts = all.flatMap(t => t.startedAt ?? [])
   const ends = all.flatMap(t => t.endedAt ?? [])
   if (starts.length === 0 || ends.length === 0) return undefined
   const from = Math.min(...starts)
@@ -787,7 +790,9 @@ export function activeLeaves(p: Panel, level: number, sent: string[] = []): numb
   return k
 }
 
-// A whole session's time: starts are a task's start, else its plan.
+// A whole session's time: starts are a task's start, else its plan (the header keeps this base: its
+// time is the decision of 2026-11-14, "Parar no fim do turno (Recomendado)"; the lines of a task, a parent and a
+// request count from the first start, stillSpan and timeSpan).
 export function sessionTime(list: TaskNode[], running: boolean, now?: number, idle: Idle[] = []): number | undefined {
   const all = flat(list)
   const starts = all.flatMap(t => (t.startedAt ?? t.plannedAt) ?? [])

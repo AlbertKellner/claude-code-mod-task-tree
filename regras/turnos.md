@@ -213,6 +213,16 @@ Origem: decisão do usuário, 2026-11-14 ("Segue ◉/◷ (Recomendado)": "o Esc 
 Código: hooks/render.tsx, hooks/agents.ts
 Estado: coberto
 
+### turnos.tempo-conta-do-primeiro-start
+O tempo de uma tarefa, de um pai e de um pedido conta do primeiro start, em qualquer estado.
+
+- Dado um pai (ou um pedido) com passos iniciados e passos ainda pendentes, planejados antes do primeiro start
+- Quando a linha dele passa de em andamento a aguardando (o fim do turno) e depois a concluída
+- Então o tempo mostrado conta sempre do primeiro start embaixo dele: não inclui a espera entre o plano e esse start, e não muda de base de um estado para outro; aguardando, fica parado no último fechamento embaixo dele; sem nenhum start, a linha não mostra tempo
+
+Origem: decisão do usuário, 2026-11-14 ("Do primeiro start (Recomendado)"), à pergunta "De onde ele deve contar?".
+Estado: coberto
+
 ### turnos.tempo-so-com-o-turno-em-curso
 O tempo de uma tarefa que atravessa turnos conta só o tempo com o turno em curso.
 
