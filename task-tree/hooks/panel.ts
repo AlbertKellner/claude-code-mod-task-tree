@@ -96,7 +96,9 @@ export async function saveTurn($: any) {
     const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true, failed: failed === true })
     if (text === lastTurn) return
     if (await saveStore($, 'turnEnded', JSON.parse(text))) lastTurn = text
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: fim do turno não guardado: ${String(err)}`)
+  }
 }
 // The turn's "first use" (the table's restoredAt), as ensureWork: a restart without session.start
 // brings the end back before the first drawing or write. Answers what it brought, for a drawing that
@@ -176,7 +178,9 @@ export async function parkDeadTurn($: any) {
     await saveTurn($)
     // Stopped since the process died: the time from then on is idle (setIdle).
     await setIdle($, true, at)
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: turno do processo morto não guardado: ${String(err)}`)
+  }
 }
 // /clear: no turn end, in the state and in the store.
 export async function clearTurn($: any) {
@@ -492,7 +496,9 @@ export async function persist($: any, groups: Group[], publish = true) {
       const { value: work } = await $.state.get(workState)
       if (Array.isArray(work)) await saveStore($, 'work', work)
     }
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: painel não guardado: ${String(err)}`)
+  }
   try {
     if (publish) await publishPanel($)
   } finally {
@@ -1082,7 +1088,9 @@ export async function saveLinks($: any) {
     const key = JSON.stringify(record)
     if (key !== lastLinks && (await saveStore($, 'children', record))) lastLinks = key
     keptLinks = new Map(links.map(l => [l.id, l]))
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: ligações não guardadas: ${String(err)}`)
+  }
 }
 // The links' "first use" (the table's restoredAt), as ensureGroups: once per module, before any write
 // of the links (and at session.start), the store's record is read: keptLinks is refilled from it, and
@@ -1123,7 +1131,9 @@ export async function forgetChildren($: any) {
     await $.state.set(endedState, [])
     keptLinks = new Map()
     await saveLinks($)
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: sessões do /clear não esquecidas: ${String(err)}`)
+  }
 }
 // A resume replaces the groups with the resumed session's (restore): its work comes with them, kept
 // under the new session too. With the old work's ids gone from the groups the panel drew nothing.

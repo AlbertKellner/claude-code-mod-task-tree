@@ -236,14 +236,14 @@ Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o status era calculado ante
 Estado: coberto
 
 ### durabilidade.fim-do-turno-registrado-mesmo-com-falha
-O fim do turno é registrado mesmo quando um passo acessório dele falha.
+O fim do turno é registrado, e o pedido abre, mesmo quando um passo acessório falha.
 
-- Dado, no fim de um subagente, uma falha na lista de agentes do app ou num passo do fim dele (o cartão, as esperas, as tarefas abertas)
-- Quando o turno do subagente termina
-- Então a falha fica no log de depuração e os outros passos rodam: o subagente que termina deixa interrompido o que deixou aberto e o cartão dele sai de "trabalhando"
+- Dado, no fim de um subagente, uma falha na lista de agentes do app ou num passo do fim dele (o cartão, as esperas, as tarefas abertas); no fim do turno do loop principal, uma falha num passo acessório (limpar o resumo, tirar as esperas, fechar pelos subagentes, pôr em espera, publicar); ou, numa mensagem que chega, uma falha num passo acessório (guardar o nome da sessão que a mandou, as mensagens recebidas, os lembretes)
+- Quando o turno do subagente ou do loop principal termina, ou a mensagem chega
+- Então a falha fica no log de depuração (uma vez por passo e motivo) e os outros passos rodam: o subagente que termina deixa interrompido o que deixou aberto e o cartão dele sai de "trabalhando"; o fim do turno do loop principal é gravado (a tarefa iniciada fica ◷ e o arquivo publicado traz o fim e o ↩); a mensagem abre o pedido
 
-Origem: auditoria 2026-11-10 (triagem de 2026-11-15: uma falha no começo do fim do turno deixava o painel em andamento e a sessão de cima sem o fim); sem mudar nenhuma regra (turnos.subagente-que-termina-interrompe).
-Código: hooks/turn.ts, hooks/agents.ts
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: uma falha no começo do fim do turno deixava o painel em andamento e a sessão de cima sem o fim); sem mudar nenhuma regra (turnos.subagente-que-termina-interrompe). Estendido no mesmo dia ao fim do turno do loop principal e à mensagem que abre o pedido (auditoria 2026-11-10: nos hooks do prompt e do fim do turno, um passo acessório que lançava cancelava os essenciais seguintes, sem registro), sem mudar nenhuma regra.
+Código: hooks/turn.ts, hooks/agents.ts, hooks/prompt-submit.ts, io/log.ts
 Estado: coberto
 
 ### durabilidade.plan-publica-o-trabalho-novo

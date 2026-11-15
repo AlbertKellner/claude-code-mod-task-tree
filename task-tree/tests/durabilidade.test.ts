@@ -1302,3 +1302,41 @@ test('uma publicação atrasada não grava por cima da mais nova', async ($: any
   expect(tarefaPublicada(h, 'Um')?.status).toBe('done')
   expect(h.proprio()?.ultracode).toBe(true)
 })
+
+// Uma gravação do state que o host recusa (o stub devolve deny: a chamada do mod rejeita), enquanto
+// `quebrar` disser que sim para a chave.
+const recusarGravacao = (on: any, quebrar: (chave: string) => boolean) =>
+  on('state.set', (_$: any, e: any, next: any) => (quebrar(String(e.key)) ? { deny: 'gravação recusada' } : next(e)))
+
+// Regra: durabilidade.fim-do-turno-registrado-mesmo-com-falha
+test('a mensagem de outra sessão cujo nome não pôde ser guardado ainda abre o pedido', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  recusarGravacao(on, k => k === 'names')
+  const ctx = ((await mensagemDe($, 'local_x', 'Faça o relatório'))?.context ?? []).join(' | ')
+  expect(ctx).toContain('A PRIMEIRA chamada')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(emTexto(p)).toContain('Faça o relatório')
+  expect(log.some(l => l.includes('passo learnNames')), log.join('\n')).toBe(true)
+})
+
+// Regra: durabilidade.fim-do-turno-registrado-mesmo-com-falha
+test('o fim do turno do loop principal é gravado mesmo se limpar o resumo falhar', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [])
+  let quebrar = false
+  recusarGravacao(on, k => quebrar && k === 'brief')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['2'], 'Feito')
+  quebrar = true
+  await fimDoTurno($)
+  quebrar = false
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  expect(typeof h.proprio()?.turn?.ended, JSON.stringify(h.proprio()?.turn)).toBe('number')
+  expect(resposta(h, 'Feito'), JSON.stringify(h.proprio())).toBe(true)
+  expect(log.some(l => l.includes('fim do turno, passo limpar o resumo')), log.join('\n')).toBe(true)
+})

@@ -8,6 +8,7 @@
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
 import { PROMPT, RULES } from '../text/rules'
+import { guardStep } from '../io/log'
 import { learnNames, marks, reminders, setMarks, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { subsNote } from './agents'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
@@ -102,9 +103,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   const it = said(text)
   // Another session's messages are kept (from, when) and published, whatever this prompt turns out
   // to be: the sender confirms its queued SendMessage by them (watchSends).
-  await ensureLinks($)
-  await noteReceived($, it.froms)
-  await learnNames($, it.names)
+  // The accessory steps each on their own (guardStep: the failure goes to the debug log once): one
+  // that fails does not keep the request from opening.
+  await guardStep($, 'prompt', 'ensureLinks', () => ensureLinks($))
+  await guardStep($, 'prompt', 'noteReceived', () => noteReceived($, it.froms))
+  await guardStep($, 'prompt', 'learnNames', () => learnNames($, it.names))
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)
   // A turn of this session was interrupted (stopped) and no request came since: the next request, the
@@ -120,10 +123,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // their text: they do not come as `unclassified` or `task-notification`.
   if (!it.peer && (NO_TURN.includes(kind) || it.notice || it.handback)) {
     // The app's notice says a session ended its turn: read the list now, for its reminders.
-    if (it.notice) await refreshChildren($).catch(() => {})
-    const note = await endedNote($)
-    const taken = await takenNote($)
-    const subs = await subsNote($)
+    if (it.notice) await guardStep($, 'prompt', 'refreshChildren', () => refreshChildren($))
+    const note = await guardStep($, 'prompt', 'endedNote', () => endedNote($))
+    const taken = await guardStep($, 'prompt', 'takenNote', () => takenNote($))
+    const subs = await guardStep($, 'prompt', 'subsNote', () => subsNote($))
     // Tasks the person stopped (Esc) and no start took up since: only a start brings them back
     // (lembretes.parada-so-volta-com-start).
     await ensureGroups($)
@@ -166,10 +169,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     await ensureGroups($)
     const { value: held = [] } = await $.state.get(groupsState)
     if ((held.find(g => g.agent === MAIN)?.turns ?? []).length > 0) {
-      await refreshStale($).catch(() => {})
-      const note = await endedNote($)
-      const taken = await takenNote($)
-      const subs = await subsNote($)
+      await guardStep($, 'prompt', 'refreshStale', () => refreshStale($))
+      const note = await guardStep($, 'prompt', 'endedNote', () => endedNote($))
+      const taken = await guardStep($, 'prompt', 'takenNote', () => takenNote($))
+      const subs = await guardStep($, 'prompt', 'subsNote', () => subsNote($))
       const { value: groups = [] } = await $.state.get(groupsState)
       const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
       // The person's message may be the answer to a question dismissed for the chat (see asked).
@@ -188,10 +191,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // is a request of its own, and the current work follows turns (startsWork).
   await openTurn($, it.title, !it.peer, it.from)
   // A stale list first: a session that ended its turn is reminded of now, not later.
-  await refreshStale($).catch(() => {})
-  const note = await endedNote($)
-  const taken = await takenNote($)
-  const subs = await subsNote($)
+  await guardStep($, 'prompt', 'refreshStale', () => refreshStale($))
+  const note = await guardStep($, 'prompt', 'endedNote', () => endedNote($))
+  const taken = await guardStep($, 'prompt', 'takenNote', () => takenNote($))
+  const subs = await guardStep($, 'prompt', 'subsNote', () => subsNote($))
   // What the last request left open (a question answered here, work this message replaces)
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)

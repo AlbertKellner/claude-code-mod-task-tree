@@ -547,6 +547,16 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::a mensagem de outra sessão cujo nome não pôde ser guardado ainda abre o pedido": {
+      "regras": [
+        "durabilidade.fim-do-turno-registrado-mesmo-com-falha"
+      ],
+      "hash": "87675eed47089689",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: passo acessório que falha não cancela o essencial"
+    },
     "task-tree/tests/durabilidade.test.ts::a mensagem de outra sessão e o aviso do app não reabrem": {
       "regras": [
         "durabilidade.painel-fechado-reabre-so-na-mensagem"
@@ -756,6 +766,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
+    },
+    "task-tree/tests/durabilidade.test.ts::o fim do turno do loop principal é gravado mesmo se limpar o resumo falhar": {
+      "regras": [
+        "durabilidade.fim-do-turno-registrado-mesmo-com-falha"
+      ],
+      "hash": "d698e904787b401d",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: passo acessório que falha não cancela o essencial"
     },
     "task-tree/tests/durabilidade.test.ts::o plan não reabre o painel que a pessoa fechou; a mensagem seguinte dela reabre": {
       "regras": [

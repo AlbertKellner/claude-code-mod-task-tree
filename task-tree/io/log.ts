@@ -12,3 +12,13 @@ export async function debugOnce($: any, text: string): Promise<void> {
   said.add(text)
   await debug($, text)
 }
+// One accessory step of a hook: run on its own, its failure said once per step and reason
+// ("<where>, passo <name>: <error>"), and undefined answered, so the steps after it still run.
+export async function guardStep<T>($: any, where: string, name: string, run: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await run()
+  } catch (err) {
+    await debugOnce($, `task-tree: ${where}, passo ${name}: ${String(err)}`)
+    return undefined
+  }
+}

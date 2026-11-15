@@ -7,7 +7,7 @@ import { BRIEF } from '../text/rules'
 import type { Group, Turn } from '../types'
 import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
-import { debug } from '../io/log'
+import { debug, guardStep } from '../io/log'
 import { change, dropAsked, dropPermissions, dropWaits, lastBrief, publishPanel, saveTurn, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { syncIdle } from './sessions'
@@ -159,18 +159,21 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   const halted = e.isAborted === true || failed
   // A question or plan dialog never outlives the turn that opened it (one answered by a chat
   // message may end without the call returning here).
-  await dropAsked($, agent ?? MAIN)
+  // The main loop's accessory steps each on their own (guardStep, the failure in the debug log once):
+  // the turn's end, its marks and its copy in the store are written whatever fails around them. The
+  // order does not change.
+  await guardStep($, 'fim do turno', 'dropAsked', () => dropAsked($, agent ?? MAIN))
   // A permission wait the main loop left over (its call never ended here) does not outlive the turn.
-  if (!agent) await dropPermissions($, MAIN)
+  if (!agent) await guardStep($, 'fim do turno', 'dropPermissions', () => dropPermissions($, MAIN))
   // What the turn answered, kept on its turn (the last one of the main group) and published: only its
   // summary (done's, the ↩ line), drawn under the turn's tasks and in this session's card in the one
   // that opened it. The whole answer is not kept (the person, 2026-11-14: "Tirar, basta o ↩
   // (Recomendado)"), and the `reply` earlier versions wrote goes in the same write.
   // The summary goes at the end of every turn, stopped too: a stopped turn records no ↩, and what it
   // left must not become the next request's.
-  const given = agent ? undefined : await lastBrief($)
-  if (given !== undefined) await $.state.set(briefState, '')
-  if (!agent && !halted && given !== undefined) {
+  const given = agent ? undefined : await guardStep($, 'fim do turno', 'lastBrief', () => lastBrief($))
+  if (given !== undefined) await guardStep($, 'fim do turno', 'limpar o resumo', () => $.state.set(briefState, ''))
+  if (!agent && !halted && given !== undefined) await guardStep($, 'fim do turno', 'resumo do turno', async () => {
     const short = brief(given)
     // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
     // (the model stopped right after a tool).
@@ -186,20 +189,20 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
         return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, brief: short } : u)) } : g
       }),
     )
-  }
+  })
   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
   const endedAt = agent ? undefined : await stamp($)
   if (!agent) await $.state.set(turnEndedState, endedAt ?? 0)
   // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
-  if (!agent && !e.isAborted) await settleBySubs($)
+  if (!agent && !e.isAborted) await guardStep($, 'fim do turno', 'settleBySubs', () => settleBySubs($))
   // What it left in progress waits on the task itself until its start (rest, state/tasks).
-  if (!agent && !halted) {
+  if (!agent && !halted) await guardStep($, 'fim do turno', 'rest', async () => {
     await ensureGroups($)
     const { value: now = [] } = await $.state.get(groupsState)
     if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
       await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(rest(endedAt)) } : g)))
-  }
+  })
   // The turn's output rate stays as it is, lit (the person, 2026-11-10: "Fica aceso").
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.
@@ -214,18 +217,18 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // store: it reads as interrupted until its next start, through the turns that open no request and
   // those that start another task (the person, 2026-11-12: "Segue ✕ até novo start (Recomendado)").
   // The groups come back from the store first (a respawn with no session.start).
-  if (!agent && halted) {
+  if (!agent && halted) await guardStep($, 'fim do turno', 'park', async () => {
     await ensureGroups($)
     const { value: now = [] } = await $.state.get(groupsState)
     if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
       await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(endedAt, failed)) } : g)))
-  }
+  })
   // The end in the store too: a new process draws it as stopped (see saveTurn).
   if (!agent) await saveTurn($)
   // Nothing alive past the turn: the session stands stopped from its end on (syncIdle).
-  if (!agent) await syncIdle($, endedAt)
+  if (!agent) await guardStep($, 'fim do turno', 'syncIdle', () => syncIdle($, endedAt))
   // The turn's answer grew the context: publish its share for the session that opened this one.
-  if (!agent) await publishPanel($)
+  if (!agent) await guardStep($, 'fim do turno', 'publishPanel', () => publishPanel($))
   // A subagent's end: each step on its own (a failure goes to the debug log and the next one runs); a
   // list of agents that fails reads as "not a teammate", so the end goes on.
   if (agent) {

@@ -142,6 +142,13 @@ Na ordem de `register.tsx`:
 Os três `tool.call` das ferramentas do painel respondem sem chamar `next`: o genérico não roda para
 elas (por isso cada uma marca `planned`, nas marcas do pedido do state, por conta própria).
 
+Nos hooks do prompt, da chamada e do fim do turno, cada passo acessório roda por si (`guardStep` de
+`io/log.ts`, `stepFailed` em `tool-call.ts`, `guarded` no fim do subagente): a falha vai ao log de
+depuração uma vez por passo e motivo, e os essenciais seguintes rodam (o pedido abre, a ferramenta
+devolve o resultado, o fim do turno, as marcas dele e a cópia no store são gravados), sem mudar a
+ordem dos passos. Os `catch` de `saveTurn`, `parkDeadTurn`, `persist`, `saveLinks` e `forgetChildren`
+também dizem a falha no log.
+
 O nome do destino na carta (auditoria 2026-11-10): `nameOf`, dentro de `panel` (`draw/layout.ts`), procura
 o destino entre as filhas do painel desenhado e as de quem desenha (a entrada sem nome, "Sessão…", não
 conta); depois no mapa `names` do state, que o render passa no `Model` (`names`): a mãe, uma irmã e, no
