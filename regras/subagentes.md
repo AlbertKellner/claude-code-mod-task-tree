@@ -446,3 +446,14 @@ A tarefa de um subagente de onde ele lançou outros reflete o fim deles quando e
 Origem: decisão do usuário, 2026-11-15 ("✓, reflete o lançado (Recomendado)"); estende às tarefas do subagente "o pai sempre deve refletir seu status" (2026-11-09).
 Código: hooks/turn.ts
 Estado: coberto
+
+### subagentes.terminado-com-sobras-segue-concluido
+O subagente que termina sem erro deixando tarefas abertas segue 'concluído'.
+
+- Dado um subagente que usa o painel, com tarefas dele ainda abertas
+- Quando ele termina sem erro e sem ser parado, e o turno acaba
+- Então o cartão diz "concluído" (como o subagente terminou); as tarefas que ele largou ficam ✕ dentro do cartão (salvo a que reflete um subagente lançado dela, subagentes.tarefa-do-subagente-reflete-o-lancado); a tarefa da sessão de onde ele saiu fecha ✓; e as sobras ✕ não deixam a faixa do cabeçalho cinza: o pedido que terminou bem fica verde "concluído" (visual.faixa-de-estado-geral)
+
+Origem: decisão do usuário, 2026-11-15 ("Como hoje (Recomendado)"), à pergunta da auditoria sobre o cartão "concluído" com linhas ✕ dentro; a faixa, decisão do usuário, 2026-11-15 ("Cancelada não conta"): a sobra do subagente concluído não conta para o cinza.
+Código: hooks/turn.ts
+Estado: coberto

@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
 import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
-import { cabecalho, comHistorico, emTexto, esperarEstado, linha, montar, painel } from './kit/leitura'
+import { cabecalho, comHistorico, emTexto, esperarEstado, estadoGeral, linha, montar, noApp, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
 
@@ -214,6 +214,32 @@ test('terminado, o cartão segue com "concluído"; com erro, "falhou"; parado, "
   expect(linha(p, 'Explore: tres').texto).toContain('interrompido')
   // Sem linha de resultado: o cartão terminado não tem nada abaixo dele.
   expect(abaixo(p, 'Explore: um').length).toBe(0)
+})
+
+// Regra: subagentes.terminado-com-sobras-segue-concluido
+test("o subagente que termina sem erro deixando tarefas abertas: cartão 'concluído', sobras ✕ dentro e a tarefa de origem ✓", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }, { id: 'Y', title: 'Escrever o relato' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await done($, ['X'], undefined, 'sub-1')
+  await start($, ['Y'], 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('concluído')
+  const dentro = abaixo(p, 'general-purpose: revisar testes').map(l => l.titulo)
+  expect(dentro, emTexto(p)).toContain('Ler os testes')
+  expect(dentro).toContain('Escrever o relato')
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Escrever o relato', 'interrompida')
+  esperarEstado(p, 'Investigar', 'concluida')
+  // A sobra do subagente concluído não deixa a faixa cinza: o pedido terminou bem (decisão 45).
+  expect(estadoGeral(await noApp($)), emTexto(p)).toBe('concluído')
 })
 
 // Regra: subagentes.varios-juntos-num-cartao-de-grupo

@@ -5056,6 +5056,16 @@
       "data": "2026-11-09",
       "motivo": "tarefa pai reflete o subagente (decisões de 2026-11-09)"
     },
+    "task-tree/tests/subagentes.test.ts::o subagente que termina sem erro deixando tarefas abertas: cartão 'concluído', sobras ✕ dentro e a tarefa de origem ✓": {
+      "regras": [
+        "subagentes.terminado-com-sobras-segue-concluido"
+      ],
+      "hash": "ee4d74358813475e",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão 2026-11-15: como hoje; a faixa, \"Cancelada não conta\""
+    },
     "task-tree/tests/subagentes.test.ts::o subagente que usa o painel mostra as tarefas dele no cartão": {
       "regras": [
         "subagentes.corpo-e-as-tarefas-ou-a-ferramenta"
