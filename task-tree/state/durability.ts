@@ -40,7 +40,7 @@ export type Row = {
   lives: Lives
   // The store's key prefix (`<store>:<session uuid>`); `field`: this key is one field of that
   // store record (the links record holds four, and the sessions left behind by a /clear).
-  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn'
+  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn' | 'folds'
   field?: boolean
   merge: Merge
   // How many entries each write keeps (the last ones).
@@ -84,7 +84,8 @@ export const TABLE: readonly Row[] = [
   { key: 'selfId', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s local_ id as the app answered it; in the state so a reload of the mod has it at once (the render and the reading of the sessions)' },
   { key: 'marks', lives: 'state', merge: 'none', restoredAt: [], note: 'the request\'s marks (whether it used the panel, whether a question waits for the person\'s message as its answer, whether the summary kept came before a plan; the calls in a row with a plan open and nothing started, and whether this plan already took the reminder to start); in the state so a reload keeps them; a /clear or a resume drops them' },
   { key: 'paneOpened', lives: 'state', merge: 'none', restoredAt: [], note: 'session.start opened the panel in this process: a reload keeps it, so it does not open again a panel the person closed; a new process opens it once' },
-  { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
+  { key: 'collapsed', lives: 'state+store', store: 'folds', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'the lines the person folded or opened (the folds atom, and the mark of the shortened texts); in the store too (one record per session, `folds`), so /model, a respawn or reopening the app draws them as she left them (the person, 2026-11-15: "Sim, guardado por sessão (Recomendado)"; saveFolds, ensureFolds, restoreFolds); a resume brings the resumed session\'s (none: all by default); a /clear writes the empty one; a session back from the published file (out of the store) comes back with none' },
   // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a
   // restart) does not draw as in progress what had already stopped.
   { key: 'turnEnded', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
@@ -170,7 +171,7 @@ export async function loadStore($: any, key: string, id?: string): Promise<unkno
 // The last write of the store that failed (what, the error, when), until that write works again.
 export const storeFailure: { what?: string; error?: string; at?: number } = {}
 // What each store record is, in the log's words.
-const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações' }
+const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações', collapsed: 'dobras' }
 // A write of the store (`key` names the record): tried; on a failure, said in the log, the store pruned
 // and tried once more; a failure that stays is said and kept, never thrown (the hook goes on).
 export async function guarded($: any, key: string, write: () => Promise<void>): Promise<boolean> {
@@ -196,8 +197,8 @@ export async function guarded($: any, key: string, write: () => Promise<void>): 
 }
 // The prefixes of earlier versions, which nothing writes any more.
 const GONE = ['asks', 'view']
-// The records kept per session (the panel's and the three beside it).
-const PER_SESSION = ['session', 'work', 'turn', 'links']
+// The records kept per session (the panel's and the ones beside it).
+const PER_SESSION = ['session', 'work', 'turn', 'links', 'folds']
 // Deletes what no session needs: the keys of earlier versions, and the records of the sessions out
 // of the list (`sessions`), but never this one's. Run once per module by itself (the first save of the
 // panel) and whenever a write fails. A failure of its own is said in the log and breaks nothing.

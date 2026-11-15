@@ -59,6 +59,17 @@ O /clear esvazia o painel.
 Origem: regra do painel desde a entrada do mod (commit 85744cb, 2026-10-20).
 Estado: coberto
 
+### durabilidade.dobras-voltam-no-processo-novo
+As linhas que a pessoa recolheu ou abriu voltam como ela deixou num processo novo.
+
+- Dado tarefas, pedidos ou cartões recolhidos pela pessoa e um "+N pedidos anteriores" aberto por ela
+- Quando o processo da sessão é refeito (/model, respawn do worker, reabrir o app) ou a sessão é retomada
+- Então o painel volta com as mesmas linhas recolhidas e abertas (na retomada, as da sessão retomada, ou nenhuma); o /clear segue limpando tudo (durabilidade.clear-esvazia); a sessão que volta do arquivo publicado (fora das 30 do store) volta no padrão
+
+Origem: decisão do usuário, 2026-11-15 ("Sim, guardado por sessão (Recomendado)").
+Código: hooks/render.tsx
+Estado: coberto
+
 ### durabilidade.formatos-antigos-do-publicado
 Os formatos antigos do arquivo publicado são lidos.
 

@@ -6,7 +6,7 @@
 import { MAIN, PAST_KEEP, interrupt } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFromOwnFile, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFolds, restoreFromOwnFile, restoreTurn, restoreWork, restoreWorkOf, saveFolds, setWork } from './panel'
 import { refreshChildren, sweepPublished, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -65,6 +65,7 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   loaded.add('groups')
   await restoreWork($)
   await restoreTurn($)
+  await restoreFolds($)
   // A turn the store holds as going on died with the process before this one: stopped (parkDeadTurn).
   if (fresh) await parkDeadTurn($)
   await ensureLinks($)
@@ -102,7 +103,10 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     await forgetChildren($)
     // The person's folds go with the panel: no plan after the /clear is born folded (the lines folded,
     // the histories opened and the mark of the shortened texts).
+    // In the store too (saveFolds): a new process after the /clear does not bring back the ones before.
+    loaded.add('folds')
     await $.state.set(collapsedState, {})
+    await saveFolds($)
     // The idle spans stay (closed at the /clear): the history's cards leave them out of their times too.
     const idle = (main?.idle ?? []).map(x => (x.to === undefined ? { ...x, to: Math.max(at, x.from) } : x))
     await replace($, [{ agent: MAIN, label: '', tasks: [], ...(past.length > 0 ? { past } : {}), ...(idle.length > 0 ? { idle } : {}) }])
@@ -112,6 +116,8 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     if (!(await restore($, e.session_id))) await replace($, [{ agent: MAIN, label: '', tasks: [] }])
     await restoreWorkOf($, e.session_id)
     await restoreTurn($, e.session_id, true)
+    // The resumed session's folds, or none (restoreFolds).
+    await restoreFolds($, e.session_id, true)
     await parkDeadTurn($)
   }
   return next(e)

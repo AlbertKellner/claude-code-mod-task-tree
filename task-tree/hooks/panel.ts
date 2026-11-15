@@ -547,6 +547,7 @@ export async function persist($: any, groups: Group[], publish = true) {
       await saveTurn($)
       const { value: work } = await $.state.get(workState)
       if (Array.isArray(work)) await saveStore($, 'work', work)
+      await saveFolds($)
     }
   } catch (err) {
     await debugOnce($, `task-tree: painel não guardado: ${String(err)}`)
@@ -1090,6 +1091,7 @@ export async function renameAnchors($: any, ids: string[], tag: string) {
 // session's to rename.
 export async function renameFolds($: any, agent: string, ids: string[], tag: string) {
   if (ids.length === 0) return
+  await ensureFolds($)
   const head = `${agent}|t:`
   const fix = (k: string) => {
     if (!k.startsWith(head)) return k
@@ -1102,6 +1104,7 @@ export async function renameFolds($: any, agent: string, ids: string[], tag: str
     if (!Object.keys(all).some(k => fix(k) !== k)) return all
     return Object.fromEntries(Object.entries(all).map(([k, v]) => [fix(k), v]))
   })
+  await saveFolds($)
 }
 // A replan in place that leaves a subtask out (the level-1 task kept, carry): the ties to it (and to
 // any task below it) go to that level-1 task, so the card of a session opened from it stays under the
@@ -1221,6 +1224,62 @@ export async function restoreWork($: any) {
     if (Array.isArray(saved)) await $.state.set(workState, keepCurrent(cur, saved.map(String)))
   } catch (err) {
     await unread($, 'trabalho', err)
+  }
+}
+
+// The person's folds (the lines folded or opened, `collapsed`) are kept per session in the store too
+// (`folds`), so a new process (/model, a respawn of the worker, reopening the app) draws them as she
+// left them (the person, 2026-11-15: "Sim, guardado por sessão (Recomendado)"). Written after each
+// change of the state (a press, a plan that renames, the /clear's empty one); brought back as the work
+// is (session.start, a resume, the first use).
+const foldsOf = (v: unknown): Record<string, boolean> | undefined =>
+  v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, b]) => typeof b === 'boolean')) as Record<string, boolean>
+    : undefined
+export async function saveFolds($: any) {
+  try {
+    const { value } = await $.state.get(collapsedState)
+    if (value !== undefined) await saveStore($, 'collapsed', value)
+  } catch (err) {
+    await debugOnce($, `task-tree: dobras não guardadas: ${String(err)}`)
+  }
+}
+// The first use (a drawing or a press after a restart without session.start): with no folds in the
+// state, the store's come back. Answers what it brought, for a drawing that cannot write the state.
+export async function ensureFolds($: any): Promise<Record<string, boolean> | undefined> {
+  if (loaded.has('folds') || !restoredAt('collapsed', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(collapsedState)).value !== undefined) {
+      loaded.add('folds')
+      return undefined
+    }
+    const saved = foldsOf(await loadStore($, 'collapsed'))
+    if (saved === undefined) {
+      loaded.add('folds')
+      return undefined
+    }
+    try {
+      await $.state.set(collapsedState, saved)
+      loaded.add('folds')
+    } catch {}
+    return saved
+  } catch (err) {
+    await unread($, 'dobras', err)
+    return undefined
+  }
+}
+// At session.start (only into an empty state) and at a resume (`id`, which replaces: the resumed
+// session's, or none), written under this session too.
+export async function restoreFolds($: any, id?: string, replaceHeld = false) {
+  loaded.add('folds')
+  try {
+    if (!replaceHeld && (await $.state.get(collapsedState)).value !== undefined) return
+    const saved = foldsOf(await loadStore($, 'collapsed', id))
+    if (saved === undefined && !replaceHeld) return
+    await $.state.set(collapsedState, saved ?? {})
+    if (replaceHeld) await saveFolds($)
+  } catch (err) {
+    await unread($, 'dobras', err)
   }
 }
 

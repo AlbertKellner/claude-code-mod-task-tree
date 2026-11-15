@@ -13,15 +13,18 @@ import { desktopTree } from '../draw/desktop'
 import { desktopHead } from '../draw/head'
 import type { Acts } from '../draw/desktop'
 import { debug, debugOnce } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureFolds, ensureGroups, ensureTurn, ensureWork, knownId, saveFolds, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
 import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
 const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
+// Kept in the store too, per session (saveFolds): a new process draws them as the person left them.
 async function setFold($: any, key: string, closed: boolean) {
+  await ensureFolds($)
   await update($, folds, cur => ({ ...cur, [key]: closed }))
+  await saveFolds($)
 }
 // The way back from the emergency drawing, which has none of the lines that fold (the person,
 // 2026-11-04: "coloque um botão para voltar a visualização anterior"): the histories opened close;
@@ -31,11 +34,13 @@ async function setFold($: any, key: string, closed: boolean) {
 // shorten; with the mark, a drawing that does not fit whole is drawn with its long texts cut in "…".
 const SHORT = 'sec:short'
 async function closeOpened($: any) {
+  await ensureFolds($)
   await update($, folds, cur => {
     const open = Object.keys(cur).filter(k => cur[k] === false)
     const history = open.filter(k => k.endsWith('sec:turns'))
     return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])), [SHORT]: true }
   })
+  await saveFolds($)
 }
 // The most characters a text has in the shortened drawing (see closeOpened), "…" its last.
 const SHORT_TEXT = 200
@@ -227,8 +232,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   const [ad, an] = sessionTotal(held ?? [], sessions as Child[], sends as Send[], me)
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
   const now = await stamp($)
-  // What the person opened or closed.
-  const chosen = await read($, folds)
+  // What the person opened or closed; after a restart without session.start, the store's (ensureFolds),
+  // which a drawing cannot write to the state.
+  const foldsBrought = await ensureFolds($)
+  const chosen = foldsBrought ?? (await read($, folds))
   const { value: heldWork } = await $.state.get(workState)
   const work = heldWork ?? workBrought ?? []
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing

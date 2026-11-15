@@ -383,8 +383,11 @@ repete a tabela.
 
 Os registros do store: `session` (os grupos), `work` (o trabalho atual), `links` (as ligações:
 `children` reduzidas a `Link`, `sends`, `received`, `receipts`, `launches` e a lista `left` das filhas
-deixadas no `/clear`), `turn` (o fim do turno: `ended`, `aborted`, `failed`, `replan`) e a lista
-`sessions`. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
+deixadas no `/clear`), `turn` (o fim do turno: `ended`, `aborted`, `failed`, `replan`), `folds` (as linhas que a pessoa
+recolheu ou abriu, a chave `collapsed`: gravadas depois de cada clique, do plan que as renomeia e do
+`/clear`, que grava o vazio; voltam no `session.start` e no primeiro uso, `ensureFolds`, e a retomada
+traz as da sessão retomada, ou nenhuma; decisão do usuário, 2026-11-15: "Sim, guardado por sessão
+(Recomendado)") e a lista `sessions`. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
 registro "em curso" que um processo novo acha é de um turno que morreu com o anterior e vira parada
 (`parkDeadTurn`). A fusão das ligações é `current` por chave: o store só entra na chave que o state não
 tem (um processo novo); o state que atravessou uma recarga fica como está. O store cheio não derruba a

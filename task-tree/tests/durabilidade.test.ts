@@ -1439,3 +1439,111 @@ test('o fim do turno do loop principal é gravado mesmo se limpar o resumo falha
   expect(resposta(h, 'Feito'), JSON.stringify(h.proprio())).toBe(true)
   expect(log.some(l => l.includes('fim do turno, passo limpar o resumo')), log.join('\n')).toBe(true)
 })
+
+// As dobras da pessoa num processo novo: um store por par, e o da retomada.
+const DOBRAS: Record<string, unknown> = {}
+const DOBRAS_CLEAR: Record<string, unknown> = {}
+const DOBRAS_RETOMADA: Record<string, unknown> = {}
+const temDobras = (store: Record<string, unknown>) => Object.keys(store).some(k => k.startsWith('folds:'))
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras no reinício, 1/2: a pessoa recolhe uma tarefa e abre o histórico', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, DOBRAS)
+  await pedido($, 'Pedido um')
+  await plan($, B)
+  await start($, ['b1', 'b2'])
+  await done($, ['b1', 'b2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  await start($, ['1'])
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.recolher('+1 pedidos anteriores')
+  await m.fim()
+  const p = await painel($)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(temPainel(DOBRAS) && temDobras(DOBRAS), JSON.stringify(Object.keys(DOBRAS))).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras no reinício, 2/2: o processo novo desenha como ela deixou', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS)
+  exigir(temPainel(DOBRAS))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras no respawn sem session.start, 2/2: o primeiro desenho já vem como ela deixou', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS)
+  exigir(temPainel(DOBRAS))
+  let p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  // A primeira escrita guarda as dobras trazidas, não as perde.
+  await start($, ['2.1'])
+  p = await painel($)
+  expect(tem(p, 'Dois.um'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo, durabilidade.clear-esvazia
+test('/clear e reinício, 1/2: recolhe, limpa e planeja de novo', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLEAR)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  await limpar($)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  const p = await painel($)
+  expect(tem(p, 'Um') && tem(p, 'Dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo, durabilidade.clear-esvazia
+test('/clear e reinício, 2/2: o processo novo não traz a dobra de antes do /clear', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLEAR)
+  exigir(temPainel(DOBRAS_CLEAR))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Um') && tem(p, 'Dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('a retomada traz as dobras da sessão retomada', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_RETOMADA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  const dobra = DOBRAS_RETOMADA[`folds:${SESSAO}`]
+  expect(dobra, JSON.stringify(Object.keys(DOBRAS_RETOMADA))).toBeDefined()
+  // Uma sessão sem dobras guardadas: a retomada vem toda aberta, sem a dobra de antes.
+  DOBRAS_RETOMADA['session:uuid-aberta'] = DOBRAS_RETOMADA[`session:${SESSAO}`]
+  await retomar($, 'uuid-aberta')
+  let p = await painel($)
+  expect(tem(p, 'Plano A') && tem(p, 'Um'), emTexto(p)).toBe(true)
+  // Uma sessão que a pessoa deixou com o plano recolhido: volta recolhido.
+  DOBRAS_RETOMADA['session:uuid-recolhida'] = DOBRAS_RETOMADA['session:uuid-aberta']
+  DOBRAS_RETOMADA['folds:uuid-recolhida'] = dobra
+  await retomar($, 'uuid-recolhida')
+  p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um'), emTexto(p)).toBe(false)
+})

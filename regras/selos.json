@@ -577,6 +577,28 @@
       "data": "2026-11-14",
       "motivo": "auditoria: /clear e retomada limpos"
     },
+    "task-tree/tests/durabilidade.test.ts::/clear e reinício, 1/2: recolhe, limpa e planeja de novo": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo",
+        "durabilidade.clear-esvazia"
+      ],
+      "hash": "5dbd0960d5b509c7",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, guardado por sessão (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::/clear e reinício, 2/2: o processo novo não traz a dobra de antes do /clear": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo",
+        "durabilidade.clear-esvazia"
+      ],
+      "hash": "ba09e937b5b03609",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, guardado por sessão (Recomendado)\""
+    },
     "task-tree/tests/durabilidade.test.ts::/clear esvazia o painel": {
       "regras": [
         "durabilidade.clear-esvazia"
@@ -667,6 +689,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: painel fechado reabre só na mensagem da pessoa"
     },
+    "task-tree/tests/durabilidade.test.ts::a retomada traz as dobras da sessão retomada": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "f6ddfa7fe7cf0e52",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, guardado por sessão (Recomendado)\""
+    },
     "task-tree/tests/durabilidade.test.ts::a sessão que volta à lista regrava trabalho, fim do turno e ligações": {
       "regras": [
         "durabilidade.store-cheio-nao-perde-em-silencio"
@@ -746,6 +778,36 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: o /clear limpa as dobras"
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras no reinício, 1/2: a pessoa recolhe uma tarefa e abre o histórico": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "c953cb7bad229b1f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, guardado por sessão (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras no reinício, 2/2: o processo novo desenha como ela deixou": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "d7b6ccd647119d49",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, guardado por sessão (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras no respawn sem session.start, 2/2: o primeiro desenho já vem como ela deixou": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "3f33ceeda9132599",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Sim, guardado por sessão (Recomendado)\""
     },
     "task-tree/tests/durabilidade.test.ts::fim do turno com Esc no reinício, 1/2: o turno é parado com uma tarefa iniciada": {
       "regras": [
