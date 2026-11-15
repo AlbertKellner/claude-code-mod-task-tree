@@ -23,6 +23,7 @@ const childrenErrorState = { plugin: 'task-tree', key: 'childrenError' } as cons
 const endedState = { plugin: 'task-tree', key: 'ended' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const receiptsState = { plugin: 'task-tree', key: 'receipts' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
@@ -184,11 +185,12 @@ export async function noteReceived($: any, senders: string[]) {
 // are matched each to its own message received from this one at or after the send (the oldest one
 // not matched yet), so the first delivery of two messages queued to a busy session closes only the
 // first task, and the second keeps its ✉ (one delivery closed both, and the second task vanished
-// from the panel while its message was still waiting). A message received is matched once
-// (`usedReceipts`, a variable of the module; a reload starts it over). Sessions without `received`
+// from the panel while its message was still waiting). A message received is matched once: how far
+// each session's receipts were used (the instant of the last one and how many at it) is kept in the
+// state and the links record (`receipts`), so a reload or a new process does not confirm the second
+// message with the first one's receipt. Sessions without `received`
 // (earlier versions): a turn of it opened after the send; else seen stopped after the send and
 // running again.
-const usedReceipts = new Set<string>()
 export async function watchSends($: any, rows: any[]) {
   const { value: sends = [] } = await $.state.get(sendsState)
   if ((sends as Send[]).every(s => s.taken)) return
@@ -199,6 +201,8 @@ export async function watchSends($: any, rows: any[]) {
     return files[id]!
   }
   const marks: Record<number, Partial<Send>> = {}
+  const { value: used = {} } = await $.state.get(receiptsState)
+  const usedNow: Record<string, { at: number; n: number }> = { ...used }
   // The sends still waiting, by the session they went to.
   const waiting = new Map<string, { i: number; s: Send; r: any }[]>()
   for (const [i, s] of (sends as Send[]).entries()) {
@@ -212,17 +216,28 @@ export async function watchSends($: any, rows: any[]) {
   for (const [id, list] of waiting) {
     const file = await fileOf(id)
     if (Array.isArray(file.received)) {
+      // Its receipts from this one, oldest first, less those already used (before the mark, and the
+      // first n at the mark's instant).
+      const mark = usedNow[id]
+      let skip = mark?.n ?? 0
       const got = file.received
-        .filter((x: any) => x?.from === me && typeof x?.at === 'number' && !usedReceipts.has(`${id}|${x.at}`))
+        .filter((x: any) => x?.from === me && typeof x?.at === 'number')
         .map((x: any) => x.at as number)
         .sort((a: number, b: number) => a - b)
+        .filter((at: number) => {
+          if (mark === undefined || at > mark.at) return true
+          if (at < mark.at) return false
+          return skip-- <= 0
+        })
       let j = 0
       for (const { i, s } of [...list].sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0))) {
         const since = s.at ?? 0
         while (j < got.length && got[j]! < since) j++
         if (j >= got.length) break
         marks[i] = { taken: true }
-        usedReceipts.add(`${id}|${got[j]}`)
+        const at = got[j]!
+        const last = usedNow[id]
+        usedNow[id] = { at, n: last && last.at === at ? last.n + 1 : 1 }
         j++
       }
       continue
@@ -257,6 +272,7 @@ export async function watchSends($: any, rows: any[]) {
   }
   if (Object.keys(marks).length === 0) return
   await update($, sendsState, cur => (cur ?? []).map((s, i) => (marks[i] ? { ...s, ...marks[i] } : s)))
+  if (JSON.stringify(usedNow) !== JSON.stringify(used)) await $.state.set(receiptsState, usedNow)
   // Taken up: the task it was sent from is done, closed here with no turn of this session (it may
   // have stopped waiting for it), so its card in the mother's pane is not left parked.
   // An adopted one (given its task by a later plan, Send.adopted) closes none. Nor one with something

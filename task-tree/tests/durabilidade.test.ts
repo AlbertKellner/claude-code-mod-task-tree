@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { PUBLISHED_FILES } from './fixtures/publicados'
-import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente } from './kit/ambiente'
+import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
 import { falha } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, montar, painel, type Linha } from './kit/leitura'
@@ -293,6 +293,82 @@ test('recarga a quente, 2/2: o fim do turno mostra o recap gravado antes da reca
   exigir(Object.keys(RECAP).length > 0)
   await fimDoTurno($)
   expect(resposta(h, 'Recap Y'), JSON.stringify(h.proprio())).toBe(true)
+})
+
+// Duas mensagens na fila da mesma filha, de duas tarefas; ela toma a primeira (o 1/2). O 2/2 é o módulo
+// novo (recarga, o state mantido) ou o processo novo (reinício, tudo do store). A filha segue rodando
+// sob a tarefa: o desenho a mostra ◉ mesmo concluída, então o que se lê é a contagem e a carta.
+const FILA2: Record<string, unknown> = {}
+const FILA2_STORE: Record<string, unknown> = {}
+const duasNaFila = async ($: any, on: any) => {
+  const h = host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await start($, ['2.1'])
+  await envio($, 'local_x')
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe('entregue')
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(1)
+  expect(cartaSob(p, 'Dois.um'), emTexto(p)).toBe('fila')
+}
+// A filha segue publicando só o primeiro recibo.
+const soOPrimeiro = (on: any) => {
+  const h = host(on, [{ id: 'local_x', recebidas: [{ from: EU, at: AGORA }] }])
+  responderEnvio(on)
+  return h
+}
+const segundaSegue = async ($: any, h: Host) => {
+  const texto = JSON.stringify((await aviso($))?.context ?? [])
+  let p = await painel($)
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(1)
+  expect(cartaSob(p, 'Dois.um'), emTexto(p)).toBe('fila')
+  // O processo novo ainda pode repetir o recebimento da primeira (o lembrete já dado não vai ao store);
+  // o da segunda, não.
+  expect(texto, 'o aviso ao modelo').not.toMatch(/recebimento confirmado[^"]*Dois.um/)
+  h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  p = await painel($)
+  expect(cabecalho(p).feitas, emTexto(p)).toBe(2)
+  expect(cartaSob(p, 'Dois.um'), emTexto(p)).toBe('entregue')
+}
+
+// Regra: durabilidade.recibo-usado-sobrevive-a-recarga
+test('recarga com duas mensagens na fila, 1/2: a filha toma a primeira', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, FILA2, 'captura')
+  await duasNaFila($, on)
+})
+
+// Regra: durabilidade.recibo-usado-sobrevive-a-recarga
+test('recarga com duas mensagens na fila, 2/2: o módulo novo não confirma a segunda com o recibo da primeira', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, FILA2, 'semear')
+  exigir(Object.keys(FILA2).length > 0)
+  const h = soOPrimeiro(on)
+  await segundaSegue($, h)
+})
+
+// Regra: durabilidade.recibo-usado-sobrevive-a-recarga
+test('reinício com duas mensagens na fila, 1/2: a filha toma a primeira', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FILA2_STORE)
+  await duasNaFila($, on)
+})
+
+// Regra: durabilidade.recibo-usado-sobrevive-a-recarga
+test('reinício com duas mensagens na fila, 2/2: o processo novo não confirma a segunda com o recibo da primeira', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FILA2_STORE)
+  exigir(temPainel(FILA2_STORE))
+  const h = soOPrimeiro(on)
+  await iniciarSessao($)
+  await segundaSegue($, h)
 })
 
 // Regra: durabilidade.recarga-mantem-painel-ligacoes-e-resumo

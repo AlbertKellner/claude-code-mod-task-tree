@@ -803,6 +803,26 @@
       "data": "2026-11-14",
       "motivo": "auditoria: ligações na recarga"
     },
+    "task-tree/tests/durabilidade.test.ts::recarga com duas mensagens na fila, 1/2: a filha toma a primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "3848425e326bde5e",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com duas mensagens na fila, 2/2: o módulo novo não confirma a segunda com o recibo da primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "3a3ddd65e3e28334",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 1/2: o plan renomeia a tarefa antiga": {
       "regras": [
         "durabilidade.recarga-nao-funde-as-ligacoes"
@@ -822,6 +842,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::reinício com duas mensagens na fila, 1/2: a filha toma a primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "0355f7e7bc61fc17",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
+    },
+    "task-tree/tests/durabilidade.test.ts::reinício com duas mensagens na fila, 2/2: o processo novo não confirma a segunda com o recibo da primeira": {
+      "regras": [
+        "durabilidade.recibo-usado-sobrevive-a-recarga"
+      ],
+      "hash": "ca71eddaea24c2e9",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "o recibo usado fica no state e no store"
     },
     "task-tree/tests/durabilidade.test.ts::reinício com session.start, 1/2: o painel vai ao store": {
       "regras": [

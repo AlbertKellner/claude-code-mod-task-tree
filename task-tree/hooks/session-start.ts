@@ -17,6 +17,7 @@ import type { EngineInterface } from 'claude-code'
 import type { Group, Past } from '../types'
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
+const receiptsState = { plugin: 'task-tree', key: 'receipts' } as const
 const paneOpenedState = { plugin: 'task-tree', key: 'paneOpened' } as const
 const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 
@@ -95,6 +96,7 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     const past = [...(main?.past ?? []), ...before].slice(-PAST_KEEP)
     await dropHeld($)
     await $.state.set(sendsState, [])
+    await $.state.set(receiptsState, {})
     await setWork($, [])
     await clearTurn($)
     await forgetChildren($)

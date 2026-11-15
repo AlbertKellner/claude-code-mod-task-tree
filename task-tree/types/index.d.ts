@@ -264,6 +264,10 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // `sends`: messages to other sessions still queued, until taken up and the main loop reminded.
 // `received`: the messages of other sessions this one got (from, when), published for their senders
 // to confirm a queued SendMessage.
+// `receipts`: per session a message went to (its id), how far its `received` was already matched to
+// the sends of this one (watchSends): the instant of the last receipt used and how many of that same
+// instant were used (a batch delivery writes several at once). In the state and the links record, so a
+// reload or a new process does not match an old receipt again.
 // `work`: the main group's level-1 tasks of the current work, drawn by the panel until new
 // work starts (a plan or start with no open task left).
 // `brief`: the turn's answer in a few words (done's `summary`), until the turn ends (then ''); in
@@ -288,6 +292,6 @@ export type LegacyNode = { id: string; title: string; done: boolean; children: L
 // published for its card; null outside a repository.
 declare module 'claude-code' {
   interface PluginState {
-    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
+    'task-tree': { tasks: LegacyNode[]; groups: Group[]; waits: Wait[]; launches: Launch[]; children: Child[]; childrenError: string; ended: string[]; collapsed: Record<string, boolean>; sends: Send[]; work: string[]; received: { from: string; at: number }[]; receipts: Record<string, { at: number; n: number }>; engine: string; ultracode: boolean; rate: Rate | null; git: GitInfo | null; brief: string; recap: string; turnEnded: number | null; turnAborted: boolean; turnFailed: boolean; replanDue: boolean; paneOpened: boolean }
   }
 }

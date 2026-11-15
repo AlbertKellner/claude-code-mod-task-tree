@@ -157,6 +157,7 @@ const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const workState = { plugin: 'task-tree', key: 'work' } as const
 const receivedState = { plugin: 'task-tree', key: 'received' } as const
+const receiptsState = { plugin: 'task-tree', key: 'receipts' } as const
 const engineState = { plugin: 'task-tree', key: 'engine' } as const
 const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const rateState = { plugin: 'task-tree', key: 'rate' } as const
@@ -962,9 +963,10 @@ export async function saveLinks($: any) {
     const { value: sends } = await $.state.get(sendsState)
     const { value: received } = await $.state.get(receivedState)
     const { value: launches } = await $.state.get(launchesState)
+    const { value: receipts } = await $.state.get(receiptsState)
     const listed = ((children as Child[] | undefined) ?? []).map(linkOf)
     const links = [...listed, ...[...keptLinks.values()].filter(k => !listed.some(c => c.id === k.id))]
-    const record = { children: links, sends, received, launches, left: [...leftBehind].slice(-LEFT_KEEP) }
+    const record = { children: links, sends, received, receipts, launches, left: [...leftBehind].slice(-LEFT_KEEP) }
     const key = JSON.stringify(record)
     if (key !== lastLinks && (await saveStore($, 'children', record))) lastLinks = key
     keptLinks = new Map(links.map(l => [l.id, l]))
@@ -972,7 +974,7 @@ export async function saveLinks($: any) {
 }
 // The links' "first use" (the table's restoredAt), as ensureGroups: once per module, before any write
 // of the links (and at session.start), the store's record is read: keptLinks is refilled from it, and
-// each of the four keys is taken from it only when the state has none (a new process); a state kept
+// each of the five keys is taken from it only when the state has none (a new process); a state kept
 // through a reload stays as it is. Counted as brought only once the store answered.
 export async function ensureLinks($: any) {
   if (loaded.has('links') || !restoredAt('children', 'first-use')) return
@@ -986,6 +988,8 @@ export async function ensureLinks($: any) {
       if ((await $.state.get(sendsState)).value === undefined && list('sends').length > 0) await $.state.set(sendsState, list('sends'))
       if ((await $.state.get(receivedState)).value === undefined && list('received').length > 0) await $.state.set(receivedState, list('received'))
       if ((await $.state.get(launchesState)).value === undefined && list('launches').length > 0) await $.state.set(launchesState, list('launches'))
+      const marks = saved.receipts
+      if ((await $.state.get(receiptsState)).value === undefined && marks !== null && typeof marks === 'object' && !Array.isArray(marks)) await $.state.set(receiptsState, marks as Record<string, { at: number; n: number }>)
     }
     loaded.add('links')
   } catch (err) {

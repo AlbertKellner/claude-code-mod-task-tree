@@ -229,7 +229,8 @@ mais vai ao log de depuração uma vez por módulo, porque pode haver sessões f
 desktop, `inDesktopApp`, e gravada só quando o texto muda); `watchSends` antes de qualquer retorno
 (destino que publica `received`: cada envio pendente, do mais antigo ao mais novo, casa com a SUA
 mensagem recebida desta sessão, a mais antiga ainda não casada com `at` ≥ envio, uma vez só
-(`usedReceipts`); destino sem `received`: um turno dele depois do envio, senão
+(`receipts`: por destino, o instante do último recibo usado e quantos daquele instante, no state e no
+registro das ligações; recarga e reinício não confirmam a segunda mensagem com o recibo da primeira); destino sem `received`: um turno dele depois do envio, senão
 parada-depois-rodando; um envio confirmado fecha a tarefa de origem se ela está aberta
 sem subtarefa aberta); lista vazia zera `children` (uma vez, não a cada poll, e publica), salvo a
 recém-aberta ainda no prazo (`justOpened`); `mineOf` (as linhas
@@ -295,6 +296,7 @@ A tabela `TABLE` de `state/durability.ts` diz, por chave: onde vive (`lives`), o
 | `children` | state+store | `links` (campo) | fill | start, first-save | as sessões abertas por esta, como o host lista; o store guarda só as ligações (`Link`: id, name, title, anchor, lastAnchor, rounds), também de sessões que o host deixou de listar (`keptLinks`) |
 | `sends` | state+store | `links` (campo) | union | start, first-save | mensagens a outras sessões ainda não tomadas |
 | `received` | state+store | `links` (campo) | union, 20 | start, first-save | mensagens de outras sessões recebidas |
+| `receipts` | state+store | `links` (campo) | current | start, first-use | por destino, o último recibo já casado com um envio desta (instante e quantos dele): `watchSends` não usa de novo um recibo antigo depois de recarga ou reinício; o `/clear` zera |
 | `launches` | state+store | `links` (campo) | union, 20 | start, first-save | chamadas `Agent` ainda não reclamadas por um grupo |
 | `waits` | state | | none | | o que espera a pessoa (pergunta, plano, permissão, `choice` do wrap_up) |
 | `engine` | state | | none | | modelo e esforço do loop principal, publicados |
@@ -318,9 +320,7 @@ Variáveis de módulo com linha na tabela (recarga as zera): `loaded`, `keptLink
 (hoje `reminders` em `hooks/panel.ts`) e, da fase 6, `lastPublished, lastLinks, lastStatus` (o último
 arquivo publicado por caminho, sem relógios nem `panes`; o último registro de ligações gravado; o
 último texto do status: cada um só é escrito de novo quando muda, e uma recarga escreve cada um uma
-vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo) e
-`usedReceipts` (as mensagens recebidas por outras sessões que já casaram com um envio desta, chave
-`<id da sessão>|<at>`; uma recarga recomeça) e `inCall` (as chamadas em curso por `<agente>:<tool>`, em
+vez a mais, sem dano), `home` (a pasta do usuário, pedida ao host uma vez por módulo) e `inCall` (as chamadas em curso por `<agente>:<tool>`, em
 `hooks/panel.ts`: o aviso de permissão sai com a última; uma recarga recomeça, e o fim da chamada então
 tira o aviso, como antes). Duas linhas
 sobraram da fase 2 e não têm mais variável no código: `drawNow` e `breaksMemo` (o `layout()` recebe
@@ -1743,7 +1743,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   `watchSends` (antes dos retornos do `refreshChildren`, então também numa sessão sem filhas, para a
   mãe ou as irmãs), lê o arquivo do destino. Destino que publica `received`: os envios pendentes para
   ele, do mais antigo ao mais novo, casam cada um com a SUA mensagem recebida do próprio id (`selfId`),
-  a mais antiga ainda não casada com `at` ≥ o envio, cada mensagem uma vez só (`usedReceipts`); envio
+  a mais antiga ainda não casada com `at` ≥ o envio, cada mensagem uma vez só (a marca `receipts` por destino, no state e no store, sobrevive à recarga e
+  ao reinício; `durabilidade.recibo-usado-sobrevive-a-recarga`); envio
   sem mensagem própria continua pendente (✉) e a tarefa continua aberta. Antes, qualquer mensagem
   recebida com `at` ≥ o envio, ou qualquer turno depois dele, confirmava todos: com duas mensagens
   na fila para a mesma sessão ocupada, a primeira entrega fechava as duas tarefas e a segunda, ainda

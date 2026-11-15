@@ -212,3 +212,14 @@ A filha recém-aberta que a lista do host ainda não traz mantém a tarefa de or
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a primeira leitura descartava a filha recém-registrada e a ligação dela); estende durabilidade.ligacoes-com-lista-parcial-do-host à filha que ainda não foi listada nenhuma vez.
 Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
+
+### durabilidade.recibo-usado-sobrevive-a-recarga
+Depois de uma recarga do mod ou de um reinício, o recibo já usado não confirma outra mensagem.
+
+- Dado duas mensagens na fila da mesma sessão, de duas tarefas, e a sessão já tomou a primeira (tarefa 1 ✓, carta 1 verde, carta 2 azul)
+- Quando o mod é recarregado (um arquivo salvo) ou o processo reinicia, e a lista é lida de novo
+- Então a carta 2 segue azul e a tarefa 2 segue aberta até a sessão tomar a segunda mensagem; o modelo não recebe "recebimento confirmado" por ela
+
+Origem: auditoria 2026-11-10 (os recibos usados eram variável do módulo); aplica envios.fica-ate-entrega ("a carta fica azul até a entrega"), sem mudar nenhuma regra.
+Código: hooks/sessions.ts
+Estado: coberto

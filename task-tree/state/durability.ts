@@ -64,6 +64,8 @@ export const TABLE: readonly Row[] = [
     note: 'messages to other sessions not yet taken up' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'messages of other sessions this one got (the last 20)' },
+  { key: 'receipts', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
+    note: 'per session a message went to, the last of its receipts already matched to a send of this one (instant and count at it, watchSends): an old receipt does not confirm a later message after a reload or a new process; a /clear empties it' },
   { key: 'launches', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'Agent calls not yet claimed by a subagent\'s group (the last 20)' },
   // The turn's own: they survive a reload, not the process.
@@ -110,7 +112,6 @@ export const TABLE: readonly Row[] = [
   { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
   { key: 'inCall', lives: 'module', merge: 'none', restoredAt: [], note: 'the calls in progress by agent and tool: a permission wait goes when the last one ends; a reload starts it over, and the end of a call then drops the wait, as before' },
-  { key: 'usedReceipts', lives: 'module', merge: 'none', restoredAt: [], note: 'the messages received by other sessions already matched to a send of this one (watchSends): each closes one task; a reload starts it over' },
 ]
 
 // The keys of `$.state`: every key of PluginState['task-tree'] (types/index.d.ts) has a row living in
