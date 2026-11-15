@@ -405,6 +405,12 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   mais antiga e caía em rodada descartada (`discarded`). A linha do cartão só leva `live` quando ele é
   o da frente (ou a sessão não foi dividida): uma sessão conta uma vez no chip de sessões ativas e no
   estado do cabeçalho; o cartão de uma rodada antiga segue desenhado como antes.
+- O cartão de uma parte que veio antes da da frente (pelo começo, `byTime`) e ficou com tarefa aberta,
+  de sessão não arquivada, é a rodada largada: `split` o marca `replaced` (campo só de desenho em
+  `Child`), e `session` lhe dá a palavra "substituída", o tom `paused` (busto cinza, também com a
+  sessão rodando), sem negrito, sem `live` e sem `pending` (decisão do usuário, 2026-11-14:
+  "\"Substituída\", cinza (Recomendado)"). A parte mais nova que espera a vez não é marcada; as
+  linhas de dentro seguem como antes (fora da contagem por `discarded`).
 - `cardsOf(p, me, sends?, now?, memo?)` (`draw/layout.ts`) dá os cartões das sessões de um painel como
   se desenham e contam: cada uma dividida por rodada (`split`, com as irmãs e as tarefas principais do
   painel; `me` é a sessão dona do painel) e com o `settle` ("encerrada") pelas cartas desse painel (no
@@ -1116,7 +1122,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   uma tarefa, o ⑂, que é o botão de recolher o cartão (pedido do usuário: "coloque o icone se sessao
   filha do lado esquerdo do nome da sessao, e ele tera a funcao de colapsar o painel"; mesmo `Box`
   e centragem do ícone de progresso). À direita do nome, o estado em palavra ("aguardando" em âmbar, já que não há ícone para colorir;
-  "parada", "concluída" e "arquivada" apagadas); o anel de contexto fica solto na ponta direita da
+  "parada", "falhou", "encerrada", "substituída", "concluída" e "arquivada" apagadas); o anel de contexto fica solto na ponta direita da
   linha. Contador e tempo da sessão vão só no `alt`
   ("Sessão: <nome> (<título>), d de n, estado, tempo"). As tarefas do cartão são raízes, a partir
   da linha de baixo, sem guia até o rótulo (no terminal alinhadas com ele; no desktop recuadas

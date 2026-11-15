@@ -198,6 +198,9 @@ export type Child = {
   // Drawn only: this card is the session's leading round (the one its state and last message
   // belong to); an earlier round's card left with open tasks is a discarded round.
   lead?: boolean
+  // Drawn only: an earlier round (before the leading one) the session left with a task open when it
+  // went on to the next: its card says "substituída", gray, and is not a session at work.
+  replaced?: boolean
   // The task the main loop was on when it last sent this session a message (SendMessage): where the
   // panel draws it when that task is in the current work.
   lastAnchor?: string

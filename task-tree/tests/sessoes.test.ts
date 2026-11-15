@@ -229,6 +229,42 @@ test('uma sessão rodando com uma rodada antiga deixada aberta conta uma vez em 
   expect(cartoes(p, 'filha-um').length, emTexto(p)).toBe(2)
 })
 
+// Regra: sessoes.rodada-largada-diz-substituida
+test('o cartão da rodada largada diz "substituída", com a filha rodando e parada; o da rodada atual segue como o que vale', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const f1 = [noTurno(1, '1', 'f1', 'feita'), noTurno(1, '1b', 'f1b', 'iniciada')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: f1, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [...f1, noTurno(2, '2', 'f2', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  let p = await painel($)
+  let cs = p.filter(l => l.sessao && l.titulo === 'filha-um')
+  expect(cs.length, emTexto(p)).toBe(2)
+  expect(cs[0]!.texto, emTexto(p)).toContain('substituída')
+  expect(cs[1]!.texto, emTexto(p)).not.toContain('substituída')
+  expect(cs[1]!.texto, emTexto(p)).not.toContain('parada')
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+  expect(cartoes(p, 'filha-um')[0]?.tarefas, emTexto(p)).toEqual(expect.arrayContaining(['f1', 'f1b']))
+  h.filha(K1).rodando = false
+  await aviso($)
+  p = await painel($)
+  cs = p.filter(l => l.sessao && l.titulo === 'filha-um')
+  expect(cs[0]!.texto, emTexto(p)).toContain('substituída')
+  expect(cs[0]!.texto, emTexto(p)).not.toContain('parada')
+  expect(cs[1]!.texto, emTexto(p)).toContain('parada')
+  expect(cabecalho(p).total, emTexto(p)).toBe(4)
+})
+
 // Regra: sessoes.mensagens-juntas-vao-a-ultima
 test('mensagens entregues juntas: o cartão do turno vai à tarefa da última', async ($: any, on: any) => {
   const { relogio } = fixar(on)

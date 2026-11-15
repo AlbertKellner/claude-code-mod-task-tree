@@ -23,12 +23,24 @@ O cartão diz em uma palavra o estado da filha, quando ela não está só trabal
 
 - Dado uma filha
 - Quando ela trabalha, espera a pessoa, para com tarefas abertas, para porque o turno dela morreu por erro, para com a origem fechada e só pendentes, termina ou é arquivada
-- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "falhou", "encerrada", "concluída" ou "arquivada"
+- Então o cartão não mostra palavra, ou mostra "aguardando", "parada", "falhou", "encerrada", "concluída", "arquivada" ou, no cartão da rodada largada, "substituída"
 
 Origem: regra do painel ("Parada, não arquivada, com tarefa aberta", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); o teste da filha arquivada, que cobre também esta regra, passa a ver o pai ✓.
 Reescrito: 2026-11-04, decisão do usuário ("Origem fechada (Recomendado)"): a palavra "encerrada".
 Reescrito: 2026-11-14, decisão do usuário ("✕ \"falhou\" (Recomendado)": "o cartão desta sessão na mãe indica a falha"): a palavra "falhou". Os testes existentes não mudam.
+Reescrito: 2026-11-14, decisão do usuário ("\"Substituída\", cinza (Recomendado)"): a palavra "substituída". Os testes existentes não mudam.
+Estado: coberto
+
+### sessoes.rodada-largada-diz-substituida
+O cartão da rodada que a filha largou diz "substituída", em cinza.
+
+- Dado duas mensagens à mesma filha, de tarefas diferentes, e a filha larga uma tarefa aberta da primeira ao passar à segunda
+- Quando o painel é desenhado, com a filha rodando ou parada
+- Então o cartão da primeira mostra a palavra "substituída" e o busto cinza, sem contar como sessão ativa; as tarefas dele seguem desenhadas e fora da contagem (sessoes.rodada-descartada-fora-da-contagem); o cartão da rodada atual segue com o estado da filha; a rodada mais nova que ainda espera a vez não é "substituída"
+
+Origem: decisão do usuário, 2026-11-14 ("\"Substituída\", cinza (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (dois cartões com o mesmo nome, sem dizer qual vale).
+Código: draw/desktop.tsx, draw/svg.ts
 Estado: coberto
 
 ### sessoes.um-cartao-por-mensagem

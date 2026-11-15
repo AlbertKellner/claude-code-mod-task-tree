@@ -496,6 +496,10 @@ export function split(c0: Child, sisters: Child[], me: string | undefined, owner
       ...c,
       part: k,
       lead: at,
+      // A round the session left with a task open when it went on to a later one (before the leading
+      // card, by when each part began): the person, 2026-11-14, "\"Substituída\", cinza (Recomendado)".
+      // A later round still waiting its turn is not one.
+      ...(!at && !c.archived && lead !== undefined && byTime.indexOf(k) < byTime.indexOf(lead) && leftOpen(tasks) ? { replaced: true } : {}),
       ...(k > 0 && rounds[k - 1] !== undefined ? { partAt: rounds[k - 1]!.at } : k < 0 && ownTurns[-1 - k]?.at !== undefined ? { partAt: ownTurns[-1 - k]!.at } : {}),
       anchor: k < 0 ? inForce(ownTurns[-1 - k]) : k === 0 ? c.anchor : rounds[k - 1]?.orphan || rounds[k - 1]?.peer ? rounds[k - 1]?.anchor : (rounds[k - 1]?.anchor ?? c.anchor),
       // At work on a turn the person opened, the session is at work under that card (its request is
@@ -1323,14 +1327,16 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
   // show (earlier versions); the check once it stopped.
   const session = (c: Child, depth: number, level: number, scope: string): Row[] => {
     const p = panelOf(c)
-    const pending = c.waiting === true && (p.waits ?? []).length === 0
+    // A round the session left for a later one (split): "substituída", gray, never at work.
+    const gone = c.replaced === true
+    const pending = !gone && c.waiting === true && (p.waits ?? []).length === 0
     // Stopped with tasks still open (it waits for a signal, or the next message): not done; its
     // tasks stay in sight, as it planned them.
     const parked = !live(c) && !c.archived && leftOpen(tasksOf(rawPanel(c).groups ?? []))
-    const tone: Tone = pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
+    const tone: Tone = gone ? 'paused' : pending ? 'wait' : live(c) ? 'running' : c.archived ? 'archived' : parked ? 'paused' : 'done'
     // A card of one round (split) speaks for its group only: done, it shows the check, with no
     // word that would say the whole session ended.
-    const state = c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? (anyFailed(tasksOf(rawPanel(c).groups ?? [])) ? 'falhou' : 'parada') : c.part !== undefined ? undefined : 'concluída'
+    const state = gone ? 'substituída' : c.waiting ? 'aguardando' : live(c) ? undefined : c.archived ? 'arquivada' : c.settled ? 'encerrada' : parked ? (anyFailed(tasksOf(rawPanel(c).groups ?? [])) ? 'falhou' : 'parada') : c.part !== undefined ? undefined : 'concluída'
     const [cd, cn] = total(p, level + 1, undefined, c.id)
     const header: Row = {
       key: `${scope}s:${c.id}#${c.partAt ?? c.part ?? 0}`,
@@ -1342,7 +1348,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       title: `${c.name || c.title}${c.ownTurn !== undefined ? ' · pedido do usuário na filha' : ''}${c.loose ? ` · do pedido "${c.loose}"` : ''}`,
       label: 'Sessão',
       hint: c.ownTurn !== undefined ? `Pedido do usuário na filha: ${c.ownTurn}` : c.name && c.name !== c.title ? c.title : undefined,
-      strong: live(c),
+      strong: !gone && live(c),
       sub: cn > 0 ? [cd, cn] : undefined,
       meta: state,
       time: span(tasksOf(p.groups ?? []), now) ?? (live(c) ? undefined : null),
@@ -1356,7 +1362,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       ring: ringOf(c),
       // A session counts once among those at work, by its leading card (or its only one); an older
       // round's card is drawn as it is but is not one more session at work.
-      live: live(c) && (c.part === undefined || c.lead === true),
+      live: !gone && live(c) && (c.part === undefined || c.lead === true),
       pending,
     }
     if (level >= DEEP) return [header]

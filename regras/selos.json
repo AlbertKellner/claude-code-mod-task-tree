@@ -2385,6 +2385,16 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 11"
     },
+    "task-tree/tests/sessoes.test.ts::o cartão da rodada largada diz \"substituída\", com a filha rodando e parada; o da rodada atual segue como o que vale": {
+      "regras": [
+        "sessoes.rodada-largada-diz-substituida"
+      ],
+      "hash": "51beebe35a74141e",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-14",
+      "motivo": "decisão do usuário, 2026-11-14: \"\\\"Substituída\\\", cinza (Recomendado)\""
+    },
     "task-tree/tests/sessoes.test.ts::o cartão mostra toks/s e repositório com branch": {
       "regras": [
         "sessoes.toks-e-repo-branch-no-cartao"
