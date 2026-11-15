@@ -182,8 +182,10 @@ fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden
 - O mod costuma ser carregado deste clone e recarrega a cada arquivo salvo, em todas as sessões. Um
   estado intermediário que não compila aparece ao usuário como "reload failed" (a versão anterior
   segue carregada).
-- Mudança em vários arquivos vai de uma vez: escreva numa cópia no scratchpad e copie tudo junto;
-  rode `npm run check` antes do passo seguinte.
+- Mudança em vários arquivos vai de uma vez: trabalhe numa cópia no scratchpad e traga tudo junto. No
+  fluxo dos lotes, o commit é feito na cópia, onde o hook roda o check, e entra no clone por avanço
+  direto da branch (`PROCESSO.md`, seção 4); fora dele, copie tudo junto e rode `npm run check` antes
+  do passo seguinte.
 - Limites do validate que o código respeita (chave de `$.state` literal no arquivo que chama, `$`
   só em função de topo etc.): DESENVOLVIMENTO.md, "Limites do kit".
 
