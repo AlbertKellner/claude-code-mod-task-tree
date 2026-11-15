@@ -1,4 +1,5 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { AGORA, fixar, host, lancaveis, passos } from './kit/ambiente'
 import { abrirSessao, aviso, fimDoTurno, lancar, pedido, plan, start } from './kit/cenario'
 import { emTexto, emTextoDoApp, noApp, painel, primeiraDoApp } from './kit/leitura'

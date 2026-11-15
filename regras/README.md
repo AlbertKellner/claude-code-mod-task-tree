@@ -128,7 +128,8 @@ no repositório, e os de `HEAD`) sumiu do desenho ou do selo; um selo do kit mud
 arquivo que já existia, ou não tem motivo (o selo do kit sempre leva `--motivo`); um teste com o mesmo
 hash da base tem menos asserções que ela (um helper do kit deixou de afirmar), salvo com o kit
 `tests/kit/leitura.ts` selado como `decisao`; ou um arquivo de teste tem `test(` aninhado, em laço,
-com nome em template ou com nome repetido. A etapa `travas` testa essas regras num
+com nome em template ou com nome repetido; ou, com `tests/kit/teste.ts` no repositório (o `test` com
+o teto de 60 s por teste), um arquivo de teste importa `test` direto de `claude-code/testing`. A etapa `travas` testa essas regras num
 repositório temporário.
 
 ## Mapa de código (matriz de impacto)

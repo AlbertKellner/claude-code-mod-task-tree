@@ -1,4 +1,5 @@
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { cabecalho, emTexto as noTexto, painel as desenho } from './kit/leitura'
 import { subagente } from './kit/ambiente'
 import { AGORA, fixar, lancaveis } from './kit/ambiente'

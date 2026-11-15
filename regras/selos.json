@@ -5380,6 +5380,12 @@
       "tipo": "refatoracao",
       "data": "2026-11-15",
       "motivo": "desenhoDoApp aceita a largura; a marca sorteada do plan vira ~ nas keys do golden"
+    },
+    "task-tree/tests/kit/teste.ts": {
+      "hash": "52039e29e4d2fc5d",
+      "tipo": "decisao",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Autorizo\"): sai o limite de 5 s por teste; o test do kit dá o teto de 60 s, só para o teste travado"
     }
   },
   "golden": {

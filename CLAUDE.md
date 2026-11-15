@@ -23,8 +23,12 @@ Como o trabalho é conduzido (papéis, perguntas, lotes, paralelismo): @PROCESSO
   verdade no harness oficial (`claude plugin test`, kit `claude-code/testing`).
 - `task-tree/tests/kit/` concentra o roteiro (`plan`, `start`, `done`, `pedido`, `fimDoTurno`, `esc`…),
   o ambiente fixo (relógio parado) e a leitura do painel em comportamento (título e estado de cada
-  linha, pela superfície terminal). Os testes falam de títulos e estados, nunca de funções internas.
-- Limites do harness: 5 s por teste; um processo por arquivo; sem fs, rede ou processo dentro do
+  linha, pela superfície terminal) e o `test` que todo arquivo de teste importa (`kit/teste.ts`), que
+  dá o teto por teste. Os testes falam de títulos e estados, nunca de funções internas.
+- Limites do harness: 60 s por teste, teto só para o teste travado (o kit do Claude Code dá 5 s; o
+  `test` de `task-tree/tests/kit/teste.ts` passa `timeoutMs`, e a etapa `selos` recusa o arquivo de
+  teste que importa `test` direto de `claude-code/testing`; decisão do usuário, 2026-11-15:
+  "Autorizo"); um processo por arquivo; sem fs, rede ou processo dentro do
   teste; não verifica a pintura (cores, largura, cliques); não simula a recarga a quente (cada teste
   é um módulo novo com o estado vazio). Stubs `on(...)` vão antes da primeira chamada a `$`.
 - O que o harness não alcança vai ao checklist do app (abaixo) e fica marcado `checklist` no catálogo.
@@ -66,14 +70,15 @@ O que mudou é lido sem detecção de renome: um arquivo movido conta pelo camin
 onde entrou, e um nome com acento conta como é.
 
 `plugin test` e `regressao` rodam em série: em paralelo, com a máquina carregada, testes estouravam
-os 5 s do kit. As etapas leves (1 a 6) rodam junto com o `plugin test`.
+os 5 s que cada teste tinha. As etapas leves (1 a 6) rodam junto com o `plugin test`.
 
 `regras`, `selos`, `plugin test` e `regressao` nunca são pulados (a `regressao` roda sempre que há
 mudança em `task-tree/`), e nenhum resultado de teste é guardado. O `npm run check` manual roda tudo.
 No check manual, a `regressao` compara com `HEAD` só o que ainda não está em commit (com a árvore
 limpa, "nada a comparar"); para conferir commits já feitos (depois de rebase, cherry-pick, merge ou de
 um commit sem o hook), `npm run check -- --base <ref>`. Um `--base` sem valor ou que não é commit
-deste repositório é erro.
+deste repositório é erro. Os testes de uma base anterior ao teto de 60 s rodam, na `regressao`, com
+os 5 s que ela tinha.
 A etapa `regras` ou `selos` que termina sem a linha de resumo dela (`regras: …`, `selos: …`) é falha.
 
 Numa worktree, o hook usa o `node_modules` e os tipos gerados do clone principal quando ela não os tem;
@@ -124,7 +129,8 @@ a regra que ele protege.
   contra o código de `HEAD`; um teste selado de `HEAD` que não rodou
   (não aparece na saída do `plugin test`) conta como falha; um selo do kit é `novo` para arquivo que já
   existia, ou sem motivo; um teste tem menos asserções sem mudar (helper do kit que deixou de afirmar,
-  sem o kit selado como decisão); ou um `test(` é aninhado, sem nome literal ou repetido no arquivo.
+  sem o kit selado como decisão); ou um `test(` é aninhado, sem nome literal ou repetido no arquivo; ou um arquivo de
+  teste importa `test` direto de `claude-code/testing`.
 - O hook de pré-commit (`.githooks/`, ativado pelo `npm install`) roda o check sobre o que vai no
   commit. Não use `--no-verify`.
 - Matriz de impacto: cada arquivo do catálogo diz o código da área (`Código da área:`) e um cenário

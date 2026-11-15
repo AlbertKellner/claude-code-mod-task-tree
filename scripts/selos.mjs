@@ -210,7 +210,7 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
     const rel = barra(relative(raiz, p))
     const texto = readFileSync(p, 'utf8')
     const todos = testesDe(p, texto, nomes, algoritmo)
-    porArquivo.push({ rel, linhas: texto.split(/\r?\n/).filter(l => TESTE.test(l)).length, nomes: todos.map(t => t.nome) })
+    porArquivo.push({ rel, linhas: texto.split(/\r?\n/).filter(l => TESTE.test(l)).length, nomes: todos.map(t => t.nome), testDireto: importaTestDireto(p, texto) })
     for (const t of todos) {
       if (!t.regras.some(id => regras.get(id)?.estado === 'coberto')) continue
       testes[`${rel}::${t.nome}`] = t
@@ -223,6 +223,16 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
     if (ehApoio(rel)) kit[rel] = hashDoKit(p, readFileSync(p, 'utf8'))
   }
   return { testes, kit, regras, porArquivo }
+}
+
+// O `test` com o teto por teste (decisão do usuário, 2026-11-15: "Autorizo"): com ele no repositório,
+// o arquivo de teste não importa `test` direto do kit do Claude Code, que daria os 5 s de antes.
+export const KIT_TESTE = 'task-tree/tests/kit/teste.ts'
+export function importaTestDireto(caminho, texto) {
+  const fonte = ts.createSourceFile(caminho, texto, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  return fonte.statements.some(s => ts.isImportDeclaration(s) && ts.isStringLiteral(s.moduleSpecifier) && s.moduleSpecifier.text === 'claude-code/testing' &&
+    s.importClause?.namedBindings && ts.isNamedImports(s.importClause.namedBindings) &&
+    s.importClause.namedBindings.elements.some(e => (e.propertyName ?? e.name).text === 'test'))
 }
 
 const vazio = () => ({ algoritmo: 1, testes: {}, kit: {}, golden: {}, removidos: {} })
@@ -352,7 +362,9 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
   const head = selosDaBase(repo, base, selos.algoritmo, lerAssercoes(raiz))
   const problemas = []
   // Todo test( é uma instrução de topo, com nome literal e único no arquivo: o resto não seria selado.
-  for (const { rel, linhas, nomes } of porArquivo) {
+  const temKitTeste = existsSync(join(raiz, KIT_TESTE))
+  for (const { rel, linhas, nomes, testDireto } of porArquivo) {
+    if (temKitTeste && testDireto) problemas.push(`${rel}: importa \`test\` de 'claude-code/testing'; o teto por teste vem de './kit/teste'`)
     if (linhas !== nomes.length) problemas.push(`${rel}: ${linhas} \`test(\` no arquivo, ${nomes.length} testes de topo com nome literal (teste aninhado, em laço ou com nome em template não é selado)`)
     for (const n of new Set(nomes.filter((n, i) => nomes.indexOf(n) !== i))) problemas.push(`nome de teste repetido em ${rel}: ${n}`)
   }

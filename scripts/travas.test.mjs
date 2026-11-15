@@ -1102,3 +1102,28 @@ test('o resumo sai na ordem da lista', async () => {
     '--    regressao (não rodou)',
   ])
 })
+
+test('trocar de onde vem o `test` não muda o selo de nenhum teste', () => {
+  const doKit = TESTES.replace("import { expect, test } from 'claude-code/testing'", "import { expect } from 'claude-code/testing'\nimport { test } from './kit/teste'")
+  assert.notEqual(doKit, TESTES)
+  const resumo = texto => testesDe(ARQ, texto).map(t => [t.nome, t.hash, t.assercoes])
+  assert.deepEqual(resumo(doKit), resumo(TESTES))
+  const comTeto = texto => texto.replace("test('dois', async", "test('dois', { timeoutMs: 15000 }, async")
+  assert.deepEqual(resumo(comTeto(doKit)), resumo(comTeto(TESTES)))
+  assert.deepEqual(resumo(comTeto(TESTES)), resumo(TESTES))
+})
+
+test('com o `test` do kit no repositório, o arquivo de teste que importa `test` do kit do Claude Code falha a etapa selos', comMontagem(dir => {
+  const kitTeste = 'task-tree/tests/kit/teste.ts'
+  writeFileSync(join(dir, kitTeste), "export { test } from 'claude-code/testing'\n")
+  assert.equal(selos(dir, '--kit', kitTeste, '--tipo', 'novo', '--motivo', 'x').status, 0)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /task-tree\/tests\/exemplo\.test\.ts: importa `test` de 'claude-code\/testing'; o teto por teste vem de '\.\/kit\/teste'/)
+  trocar(dir, ARQ, "import { expect, test } from 'claude-code/testing'", "import { expect } from 'claude-code/testing'\nimport { test } from './kit/teste'")
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('sem o `test` do kit no repositório, a importação direta segue valendo', comMontagem(dir => {
+  assert.equal(conferir(dir).status, 0)
+}))

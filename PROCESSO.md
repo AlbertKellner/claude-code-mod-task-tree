@@ -74,7 +74,7 @@ tiver bloqueio, ele para nesse lote, guarda o patch parcial e relata.
   os mesmos arquivos de `task-tree/hooks/`.
 - Lotes que só tocam `scripts/`, `.github/` e documentação podem ir numa trilha paralela, sempre pela
   cópia; o clone só recebe o commit pronto. Antes do commit, a cópia tem de estar na ponta do clone.
-- Dois agentes nunca rodam testes ao mesmo tempo (os testes têm 5 s cada). Antes de qualquer comando que
+- Dois agentes nunca rodam testes ao mesmo tempo (a máquina carregada atrasa os testes; o teto de 60 s por teste é só para o teste travado). Antes de qualquer comando que
   rode testes, inclusive o commit, pega-se uma trava (uma pasta criada com `mkdir`), solta no mesmo
   comando de shell. A entrega ao clone vai no mesmo comando do commit, com a trava.
 - Worktrees só a pedido do usuário.

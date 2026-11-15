@@ -1,4 +1,5 @@
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { PUBLISHED_FILES } from './fixtures/publicados'
 import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
 import { falha, fimDoSubagente, lancar } from './kit/cenario'

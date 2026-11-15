@@ -1,4 +1,5 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { host, subagente } from './kit/ambiente'
 import { fimDoSubagente } from './kit/cenario'
 import { linha as umaLinha } from './kit/leitura'
