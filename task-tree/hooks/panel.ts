@@ -1183,15 +1183,23 @@ export async function renameFolds($: any, agent: string, ids: string[], tag: str
 // moveToLevelOne), counted (a variable of the module: the plan and the read of the sessions share it).
 // While one is there, the read of the sessions leaves the kept places alone (hooks/sessions): it would
 // see the new tasks with the old ties, drop the place on a subtask the replan left out, and the card
-// would not go to the level-1 task (the person, 2026-11-15: "Corrida no replano").
+// would not go to the level-1 task (the person, 2026-11-15: "Corrida no replano"). `planEpoch` goes up
+// at each entry and each exit: a read that read the tasks before a plan and derives after it (held by
+// the app meanwhile, the get_session of a session gone) sees it changed and leaves the places alone too
+// (planTiesEpoch; the person, 2026-11-15: "Corrigir os dois"): the write of `update` is synchronous, so
+// the tasks cannot be read again there.
 let planning = 0
+let planEpoch = 0
 export function enterPlanTies() {
   planning++
+  planEpoch++
 }
 export function leavePlanTies() {
   planning = Math.max(0, planning - 1)
+  planEpoch++
 }
 export const planTiesPending = () => planning > 0
+export const planTiesEpoch = () => planEpoch
 export const movedAnchor = (gone: Map<string, string>) => (a?: string) => (a !== undefined && gone.has(a) ? gone.get(a) : a)
 export async function moveToLevelOne($: any, gone: Map<string, string>) {
   if (gone.size === 0) return

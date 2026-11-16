@@ -262,7 +262,9 @@ export type Child = {
   // `anchor`, the task of this session it hangs from; `tail`, it closes the request (after that task's
   // subtasks). One per card, with no cap; absent from earlier versions (the card's place is then
   // worked out at each drawing).
-  places?: { at: number; anchor: string; tail?: boolean }[]
+  // `drew`: that card has been drawn (a level-1 task of one of its turns); a card whose first turn is
+  // gone takes it, and the place gets the time of the turn now first (placeTypedTurns).
+  places?: { at: number; anchor: string; tail?: boolean; drew?: true }[]
   // Drawn only: a card at work drawn loose at the end, its request cut from sight: that request's title.
   loose?: string
   // Drawn only: when the message of that card was sent (its round's `at`), what its fold is kept by:

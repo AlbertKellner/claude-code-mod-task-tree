@@ -594,14 +594,24 @@ export function placeTyped(c: Child, owner: TaskNode[], u: Turn | undefined): { 
 type Place = NonNullable<Child['places']>[number]
 const isPlace = (x: unknown): x is Place => typeof x === 'object' && x !== null && typeof (x as Place).at === 'number' && typeof (x as Place).anchor === 'string'
 // The first turn of each card of typed turns a session shows (in each stretch between two of its
-// /clear), with the stretch's ties as made (tied).
-function typedCards(c0: Child, owner: TaskNode[]): { c: Child; u: Turn }[] {
+// /clear), with the stretch's ties as made (tied); the stretch's bounds (`after`, the time of the /clear
+// before it, `until`, the one that closes it; the current stretch has no end), and whether the card has
+// a level-1 task of one of its turns (`drew`: it is drawn).
+function typedCards(c0: Child, owner: TaskNode[]): { c: Child; u: Turn; after: number; until: number; drew: boolean }[] {
+  const clears = (withMain(c0.panel?.groups ?? []).find(g => g.agent === MAIN)?.past ?? []).map(e => e.at)
   return cleared(c0).flatMap(k => {
     const c = tied(k, owner)
     const main = withMain(c.panel?.groups ?? []).find(g => g.agent === MAIN)
     if (main === undefined) return []
+    const until = k.history ?? Infinity
+    const after = clears.filter(t => t < until).reduce((m, t) => Math.max(m, t), -Infinity)
     const { ownTurns, ownPart } = typedParts(c, main, owner)
-    return ownTurns.filter((u, i) => ownPart.get(u.id) === -1 - i).map(u => ({ c, u }))
+    return ownTurns.flatMap((u, i) => {
+      if (ownPart.get(u.id) !== -1 - i) return []
+      const turns = new Set(ownTurns.filter(x => ownPart.get(x.id) === -1 - i).map(x => x.id))
+      const drew = main.tasks.some(t => t.turn !== undefined && turns.has(t.turn))
+      return [{ c, u, after, until, drew }]
+    })
   })
 }
 // The kept place of the card whose first turn shown is `u`, for the drawing (placeTypedTurns looks
@@ -630,21 +640,41 @@ function keptPlace(c: Child, owner: TaskNode[], places: Place[], u: Turn | undef
 // grandchild published without its first turn; here it gave a card the place of a typed turn its
 // session dropped with no card (no task, no summary), and the card never got its own (the person,
 // 2026-11-15: "Lugar herdado de pedido apagado"). That dropped turn's place stays in the list, unused.
+// A place whose card has been drawn (a level-1 task of one of its turns) is marked (`drew`, once, kept
+// for good). A card with no place of its first turn's time takes the marked place that was its own:
+// the latest before that turn, in the same request in force (inForceOf's key, by the place's time) and
+// in the same stretch between two /clear of the session; the place then gets the time of the turn now
+// first (same task, same `tail`, the list does not grow). So the card drawn does not move when its
+// session drops its first request (20 answers with only a summary, hooks/panel openTurn; the person,
+// 2026-11-15: "Corrigir os dois"); a place never marked (a request dropped with no card) is not taken.
 // A kept place whose task is gone from this session's tasks no longer counts: it leaves the list and
 // its card is decided again, with the tasks of now. The session unchanged when nothing new.
 export function placeTypedTurns(c0: Child, owner: TaskNode[]): Child {
   if (c0.panel === undefined) return c0
   const ids = new Set(flat(owner).map(t => t.id))
   const all = (c0.places ?? []).filter(isPlace)
-  const kept = all.filter(x => ids.has(x.anchor))
-  const add: Place[] = []
-  for (const { c, u } of typedCards(c0, owner)) {
+  const list = all.filter(x => ids.has(x.anchor))
+  let moved = list.length !== all.length
+  for (const { c, u, after, until, drew } of typedCards(c0, owner)) {
     const at = u.at
-    if (typeof at !== 'number' || [...kept, ...add].some(x => x.at === at)) continue
+    if (typeof at !== 'number') continue
+    const i = list.findIndex(x => x.at === at)
+    if (i >= 0) {
+      if (drew && list[i]!.drew !== true) (list[i] = { ...list[i]!, drew: true }), (moved = true)
+      continue
+    }
+    const { key } = inForceOf(c, owner)
+    const k = key(u)
+    const heir = list.reduce<number>((m, x, j) => (x.drew === true && x.at < at && x.at > after && x.at <= until && key({ ...u, at: x.at }) === k && (m < 0 || x.at > list[m]!.at) ? j : m), -1)
+    if (heir >= 0) {
+      list[heir] = { ...list[heir]!, at }
+      moved = true
+      continue
+    }
     const place = placeTyped(c, owner, u)
-    if (place.anchor !== undefined) add.push({ at, anchor: place.anchor, ...(place.tail ? { tail: true } : {}) })
+    if (place.anchor !== undefined) list.push({ at, anchor: place.anchor, ...(place.tail ? { tail: true } : {}), ...(drew ? { drew: true as const } : {}) }), (moved = true)
   }
-  return add.length === 0 && kept.length === all.length ? c0 : { ...c0, places: [...kept, ...add] }
+  return moved ? { ...c0, places: list } : c0
 }
 function roundsOf(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo, firsts: number[]): Child[] {
   const c = tied(c0, owner)

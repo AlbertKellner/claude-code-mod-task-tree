@@ -637,7 +637,11 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   da tarefa que aguardava apaga o `endedAt`; a reabertura troca o `startedAt`), e o cartão saltava
   (sessoes.lugar-do-cartao-digitado-nao-muda). Um lugar por cartão, sem teto: a leitura sem novidade
   não regrava a lista. O `placeTypedTurns` só dá por decidido o cartão com lugar de hora igual à do
-  primeiro turno dele. O desenho acha o lugar por `keptPlace`: o de hora igual; senão o mais recente
+  primeiro turno dele. Sem ele, o cartão herda o lugar marcado (`drew`: o cartão dele já teve tarefa
+  desenhada) mais recente anterior, do mesmo pedido vigente e do mesmo trecho entre dois /clear da
+  filha, e o lugar passa a ter a hora do turno que ficou em primeiro: o cartão não salta quando a filha
+  apaga o primeiro pedido dele (20 respostas só com resumo, `openTurn`); o lugar sem a marca (pedido
+  apagado sem cartão) não é herdado. O desenho acha o lugar por `keptPlace`: o de hora igual; senão o mais recente
   anterior no mesmo pedido vigente (a neta publicada pela filha só com os turnos do trabalho atual,
   `trimPublished`, chega sem o primeiro), fora dos lugares dos outros cartões à vista, os de antes de
   um /clear incluídos (`firsts`: o cartão feito depois do /clear não herda o lugar do de antes). O
@@ -645,7 +649,12 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   ao pedido digitado depois. O plan da sessão principal marca o intervalo entre a gravação das tarefas
   e o `moveToLevelOne` (`enterPlanTies`/`leavePlanTies`, `hooks/panel.ts`); nele a leitura das sessões
   não chama o `placeTypedTurns` (`planTiesPending`): lendo as tarefas novas com os laços velhos, ela
-  descartava o lugar que o replano ia levar ao nível 1. A tarefa do lugar é lida como foi guardada, sem `resolveAnchor` (o lugar é decidido na
+  descartava o lugar que o replano ia levar ao nível 1. Também não chama quando um plan entrou ou saiu
+  do intervalo desde que ela leu as tarefas (`planTiesEpoch`, o número que as duas pontas dividem, lido
+  sem espera antes da leitura das tarefas): presa esperando o app (o `get_session` de uma filha que
+  sumiu, `noteGone`) durante um plan inteiro, ela decidia com as tarefas velhas e os laços novos e
+  punha o cartão do pedido antigo sob a tarefa de mesmo id do pedido novo. A função do `update` é
+  síncrona: as tarefas não podem ser relidas na gravação. A tarefa do lugar é lida como foi guardada, sem `resolveAnchor` (o lugar é decidido na
   leitura, depois da hora do turno). Lugar cuja tarefa não existe mais não vale: sai da lista e o
   cartão é decidido de novo na leitura; no desenho, vai ao lugar derivado. Em `readChildren`, as
   tarefas com que o lugar é decidido são lidas depois dos arquivos das filhas: todo turno digitado que
@@ -2386,6 +2395,12 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   A leitura das sessões no meio de um replano descartava o lugar na subtarefa tirada antes de o plan o
   levar ao nível 1; o plan marca esse intervalo, e a leitura não mexe nos lugares nele. Entraram os
   testes do lugar em tarefa que sumiu (neta e filha direta) e do cartão depois de um /clear da filha.
+- Quinta correção (2026-11-15, "Corrigir os dois"): o cartão já desenhado saltava de tarefa quando a
+  filha apagava o primeiro pedido dele (respostas só com resumo além das 20 guardadas), e cada salto
+  deixava um lugar sem uso; agora o lugar guarda a marca `drew` e passa à hora do pedido que ficou em
+  primeiro. A leitura das sessões presa esperando o app durante um plan inteiro levava o cartão do
+  pedido antigo para a tarefa de mesmo id do pedido novo; agora ela não mexe nos lugares quando um plan
+  entrou ou saiu do intervalo desde que leu as tarefas (`planTiesEpoch`).
 
 ## Achados baixos: corte de texto e números do desenho (2026-11-15)
 
