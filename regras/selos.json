@@ -6761,6 +6761,17 @@
       "data": "2026-11-15",
       "motivo": "revisão de 2026-11-15 da coluna da contagem: a linha de sessão entrava na largura sem desenhar a coluna"
     },
+    "task-tree/tests/visual.test.ts::a faixa de um cartão cortada pelo teto leva a barra até o pé quando há linha depois dele": {
+      "regras": [
+        "visual.titulo-legivel-no-painel-estreito",
+        "visual.guias-na-faixa-do-cartao"
+      ],
+      "hash": "f86d5aa7f3c4a55c",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do teto de indentação: a faixa cortada perdia a barra até o pé do cartão"
+    },
     "task-tree/tests/visual.test.ts::a faixa do cabeçalho: em andamento, aguardando, concluído e interrompido": {
       "regras": [
         "visual.faixa-de-estado-geral"
@@ -6871,6 +6882,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: barra, contagem e teto"
     },
+    "task-tree/tests/visual.test.ts::do 8º nível em diante, a guia da 8ª coluna não tem falha: ramo enquanto a linha seguinte desenha nela, fim na última": {
+      "regras": [
+        "visual.titulo-legivel-no-painel-estreito"
+      ],
+      "hash": "365c6c67492258e4",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do teto de indentação: o conector cortado deixava meia linha de falha na guia do ancestral"
+    },
     "task-tree/tests/visual.test.ts::em painel estreito, a linha com colunas perde a barra e depois a contagem; em painel largo, tem as duas": {
       "regras": [
         "visual.titulo-legivel-no-painel-estreito"
@@ -6880,6 +6901,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: barra, contagem e teto"
+    },
+    "task-tree/tests/visual.test.ts::na 8ª coluna, a última irmã com filhas além do teto sai ramo, e a última filha, fim": {
+      "regras": [
+        "visual.titulo-legivel-no-painel-estreito"
+      ],
+      "hash": "1f6f53c738433767",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do teto de indentação: a guia da 8ª coluna contínua até a última linha que desenha nela"
     },
     "task-tree/tests/visual.test.ts::na folha parada, a palavra de estado vem logo antes do tempo, sem nada entre os dois": {
       "regras": [

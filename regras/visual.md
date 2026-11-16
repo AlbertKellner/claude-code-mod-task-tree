@@ -197,9 +197,10 @@ No app desktop, as guias da árvore são caixas nativas finas com fundo.
 
 - Dado uma árvore com pai, filhas e netas
 - Quando o painel é desenhado no app desktop
-- Então cada linha tem uma célula de guia por nível: barra onde o ancestral ainda tem irmã abaixo, vazio onde não tem, e no fim o ramo (a linha tem irmã depois) ou o fim (é a última); cada traço é uma caixa com fundo, todas da mesma cor; nenhum texto tem caractere de caixa e nenhuma guia é `Svg`. O terminal segue com os caracteres
+- Então cada linha tem uma célula de guia por nível, até o teto de 8 células contadas com as faixas dos cartões em volta (visual.titulo-legivel-no-painel-estreito): barra onde o ancestral ainda tem irmã abaixo, vazio onde não tem, e no fim o ramo (a linha tem irmã depois) ou o fim (é a última); cada traço é uma caixa com fundo, todas da mesma cor; nenhum texto tem caractere de caixa e nenhuma guia é `Svg`. O terminal segue com os caracteres
 
 Origem: decisão do usuário, 2026-11-13 ("Caixas finas nativas (Recomendado)"), à pergunta se queria guias contínuas; desfaz "Caracteres (Recomendado)", do mesmo dia (guias em caracteres de caixa, mono).
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Barra, contagem e teto (Recomendado)"): do 8º nível em diante a linha não ganha mais células de guia. Os testes deste cenário não mudam.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -208,9 +209,10 @@ Estado: coberto
 
 - Dado um cartão de sessão filha ou de subagente sob uma tarefa
 - Quando o painel é desenhado no app desktop
-- Então a faixa à esquerda do cartão tem uma célula por coluna de fora, não uma linha de texto por linha do cartão: barra onde o ancestral continua e, na última, o ramo (há irmã depois do cartão; a barra segue até o pé) ou o fim (o cartão é o último); dentro do cartão as linhas têm as guias das colunas do cartão, e as tarefas de uma sessão começam sem guia até o rótulo
+- Então a faixa à esquerda do cartão tem uma célula por coluna de fora, até o mesmo teto de 8 células, não uma linha de texto por linha do cartão: barra onde o ancestral continua e, na última, o ramo (há irmã depois do cartão; a barra segue até o pé) ou o fim (o cartão é o último); dentro do cartão as linhas têm as guias das colunas do cartão enquanto o teto deixar (visual.titulo-legivel-no-painel-estreito), e as tarefas de uma sessão começam sem guia até o rótulo
 
 Origem: a mesma decisão, 2026-11-13 ("Caixas finas nativas (Recomendado)"), que desfaz "Caracteres (Recomendado)", do mesmo dia.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Barra, contagem e teto (Recomendado)"): a faixa do cartão e as linhas de dentro dele contam para o teto de 8 células. Os testes deste cenário não mudam.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -415,10 +417,11 @@ A coluna da contagem tem a largura da maior contagem desenhada.
 
 - Dado uma linha com contagem de seis caracteres ou mais ("112/340")
 - Quando o painel é desenhado no app
-- Então a coluna da contagem de todas as linhas tem a largura da maior (no mínimo 5), e as colunas da barra, da contagem e do tempo seguem alinhadas entre as linhas; a contagem de um cartão de sessão, que não é desenhada nessa coluna, não entra na largura
+- Então a coluna da contagem de todas as linhas que a desenham tem a largura da maior (no mínimo 5), e as colunas da barra, da contagem e do tempo seguem alinhadas entre as linhas; a contagem de um cartão de sessão, que não é desenhada nessa coluna, não entra na largura; a linha que cede a barra ou a contagem no painel estreito (visual.titulo-legivel-no-painel-estreito) sai sem essa coluna, e as que ficam seguem alinhadas
 
 Origem: auditoria 2026-11-10 (a contagem larga passava sobre a barra); regra do painel, sem decisão nova.
 Reescrito: 2026-11-15, texto: só as linhas que desenham a coluna contam (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Barra, contagem e teto (Recomendado)"): em painel estreito uma linha pode sair sem a barra ou sem a contagem. Os testes deste cenário não mudam.
 Estado: coberto
 
 ### visual.titulo-legivel-no-painel-estreito
@@ -426,9 +429,10 @@ Em painel estreito, a barra e depois a contagem cedem para o título, e a indent
 
 - Dado uma linha com barra e contagem cujo título ficaria com menos de 12 caracteres, ou uma linha além do 8º nível
 - Quando o painel é desenhado no app
-- Então a linha sai sem a barra; se ainda faltar espaço, sem a contagem; a palavra, o busto e o tempo ficam; do 8º nível em diante as linhas têm as guias do 8º (as faixas dos cartões em volta contadas; o recuo próprio de cada cartão segue)
+- Então a linha sai sem a barra; se ainda faltar espaço, sem a contagem; a palavra, o busto e o tempo ficam; do 8º nível em diante as linhas têm as guias do 8º (as faixas dos cartões em volta contadas; o recuo próprio de cada cartão segue); na 8ª coluna fica o conector da linha ou da faixa do cartão: ramo enquanto a linha seguinte também desenha nela, fim na última, sem falha na guia
 
 Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)").
+Reescrito: 2026-11-15, texto: o conector da 8ª coluna sai ramo enquanto houver linha depois na mesma coluna (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### visual.painel-estreito-no-app

@@ -94,7 +94,10 @@ Quem recebe `$` (o engine) e quem não recebe:
     em todas; a linha do cartão de sessão não conta;
     com menos de `TITLE_MIN` colunas estimadas para o título, a linha sai sem a caixa da barra e,
     se ainda faltar, sem a da contagem); as guias de uma linha, com as faixas dos cartões em volta,
-    param em `INDENT_CAP` (8) células: as primeiras e o conector;
+    param em `INDENT_CAP` (8) células: as primeiras e o conector; o conector que cai na coluna do
+    teto (cortado ali, ou com as células que sobram) é ramo enquanto a linha seguinte do mesmo
+    container também desenha nela (para um cartão, a linha depois das dele), e fim na última; vale
+    para a faixa do cartão;
     os cartões de sessão são `Box` com borda e fundo translúcido por nível, com respiro nos quatro
     lados, o busto e o anel em `Svg`.
   - `head.tsx` (178): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
@@ -2480,6 +2483,11 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   conector (2026-11-15, "Barra, contagem e teto (Recomendado)"; visual.titulo-legivel-no-painel-estreito).
   O recuo próprio de cada cartão (borda e respiro) não entra no teto. O terminal não muda. No golden, o
   cabeçalho do cartão de grupo "4 subagentes" (cenário `subagente`, 60 colunas) perdeu a caixa da barra.
+- Revisão do lote: na linha cortada pelo teto o conector ia à coluna da barra de um ancestral sem mudar
+  de tipo; um fim ali, com o ancestral ainda com irmã abaixo, deixava meia linha de falha na guia (na
+  faixa de um cartão, a altura do cartão inteiro). Agora o conector da coluna do teto é ramo enquanto a
+  linha seguinte do container desenha nela, e fim na última. Também a última irmã com filhas além do
+  teto passa a ramo, porque as filhas dela seguem na mesma coluna.
 
 ## Achados baixos: o wrap_up e a lista do app sem o lembrete de planejar (2026-11-15)
 

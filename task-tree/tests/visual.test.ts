@@ -728,3 +728,72 @@ test("com tudo fechado e a tarefa de um subagente parado depois do turno, a faix
   expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
   expect(d.cabecalho.texto).toContain('1 de 1')
 })
+
+// A mãe com plano de 3 níveis e start no nível 3, a filha de três níveis aberta ali e a neta ancorada
+// no nível 3 da filha (as faixas em volta das linhas da neta somam 7 células), com as tarefas dadas à
+// neta e as sessões publicadas por ela; o desenho no app a 100 colunas.
+async function netaNoTeto($: any, on: any, tarefasDaNeta: any[], sessoesDaNeta: any[] = []) {
+  fixar(on)
+  const tresDoTeto = (p: string) => [estreitoTarefa(`${p}a`, `${p} nível um`, [estreitoTarefa(`${p}b`, `${p} nível dois`, [estreitoTarefa(`${p}c`, `${p} nível três`), estreitoTarefa(`${p}d`, `${p} nível três bis`)])])]
+  const netaDoTeto = { id: 'local_22222222-2222-2222-2222-222222222222', name: 'neta', title: 'neta', running: true, archived: false, anchor: 'Fc', panel: { groups: [{ agent: '', label: '', tasks: tarefasDaNeta }], waits: [], children: sessoesDaNeta } }
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: tresDoTeto('F'), filhas: [netaDoTeto] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }] }] }])
+  await start($, ['1.1'])
+  await abrirSessao($)
+  await aviso($)
+  return await noApp($, { colunas: 100 })
+}
+// As células de guia próprias da linha do app cujo título é exatamente `titulo`.
+const guiasDoTitulo = (d: DesenhoDoApp, titulo: string) => {
+  const l = d.linhas.find(x => x.pedacos.some(p => p.tipo === 'texto' && p.texto === titulo))
+  return l === undefined ? undefined : guiasDe(l)
+}
+// A última célula (o conector) das guias da linha de título `titulo`.
+const conectorDoTitulo = (d: DesenhoDoApp, titulo: string) => {
+  const g = guiasDoTitulo(d, titulo)
+  return g === undefined ? undefined : g[g.length - 1]
+}
+const NETA_COM_IRMA = [
+  estreitoTarefa('Na', 'N um', [
+    estreitoTarefa('Nb', 'N dois', [estreitoTarefa('Nc', 'N tres a'), estreitoTarefa('Nd', 'N tres b')]),
+    estreitoTarefa('Ne', 'N outro'),
+  ]),
+]
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('do 8º nível em diante, a guia da 8ª coluna não tem falha: ramo enquanto a linha seguinte desenha nela, fim na última', async ($: any, on: any) => {
+  const d = await netaNoTeto($, on, NETA_COM_IRMA)
+  const todas = JSON.stringify(d.linhas.map(l => [l.texto, guiasDe(l)]))
+  // As quatro na mesma coluna, a do teto.
+  const tamanhos = ['N dois', 'N tres a', 'N tres b', 'N outro'].map(t => guiasDoTitulo(d, t)?.length)
+  expect(tamanhos.every(n => n !== undefined && n > 0), todas).toBe(true)
+  expect(new Set(tamanhos).size, todas).toBe(1)
+  expect(conectorDoTitulo(d, 'N dois'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N tres a'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N tres b'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N outro'), todas).toBe('fim')
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('na 8ª coluna, a última irmã com filhas além do teto sai ramo, e a última filha, fim', async ($: any, on: any) => {
+  const tresDaNeta = [estreitoTarefa('Na', 'N nível um', [estreitoTarefa('Nb', 'N nível dois', [estreitoTarefa('Nc', 'N nível três'), estreitoTarefa('Nd', 'N nível três bis')])])]
+  const d = await netaNoTeto($, on, tresDaNeta)
+  const todas = JSON.stringify(d.linhas.map(l => [l.texto, guiasDe(l)]))
+  expect(conectorDoTitulo(d, 'N nível dois'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N nível três'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N nível três bis'), todas).toBe('fim')
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito, visual.guias-na-faixa-do-cartao
+test('a faixa de um cartão cortada pelo teto leva a barra até o pé quando há linha depois dele', async ($: any, on: any) => {
+  const bisneta = { id: 'local_33333333-3333-3333-3333-333333333333', name: 'bisneta', title: 'bisneta', running: true, archived: false, anchor: 'Nc', panel: { groups: [{ agent: '', label: '', tasks: [estreitoTarefa('Ba', 'B única')] }], waits: [], children: [] } }
+  const d = await netaNoTeto($, on, NETA_COM_IRMA, [bisneta])
+  const faixas = faixasDoApp(d)
+  const todas = JSON.stringify({ faixas, linhas: d.linhas.map(l => [l.texto, guiasDe(l)]) })
+  const daBisneta = faixas.find(f => f.primeira.includes('bisneta'))
+  expect(daBisneta?.celulas, todas).toEqual(['ramo'])
+  expect(conectorDoTitulo(d, 'N tres a'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N tres b'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N outro'), todas).toBe('fim')
+})
