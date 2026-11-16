@@ -2899,6 +2899,16 @@
       "data": "2026-11-15",
       "motivo": "a exceção da tarefa única"
     },
+    "task-tree/tests/envios.test.ts::com a pergunta do meio fechada sem start e sem volta ao plano anterior, a carta fica sob a tarefa da pergunta": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "082cfeedbbb41380",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o plano retomado pede um start depois do plan do pedido mais novo (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Pendente do plano retomado (Recomendado)\")"
+    },
     "task-tree/tests/envios.test.ts::com a pergunta na tarefa em andamento e as outras do pedido concluídas, o envio vai à iniciada por último delas": {
       "regras": [
         "envios.nunca-na-tarefa-da-pergunta"
@@ -6455,6 +6465,36 @@
       "data": "2026-11-16",
       "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
     },
+    "task-tree/tests/subagentes.test.ts::com a pergunta do meio fechada por done direto, sem start, e sem volta ao plano anterior, o subagente fica sob a tarefa da pergunta": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "325dc5ad64c73d35",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o plano retomado pede um start depois do plan do pedido mais novo (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Pendente do plano retomado (Recomendado)\")"
+    },
+    "task-tree/tests/subagentes.test.ts::com a pergunta do meio fechada sem start e o plano anterior retomado depois, o subagente vai à pendente do plano": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "f8f32bbfe5a6b6fb",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o plano retomado pede um start depois do plan do pedido mais novo (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Pendente do plano retomado (Recomendado)\")"
+    },
+    "task-tree/tests/subagentes.test.ts::com a pergunta do meio tirada com cancel e sem volta ao plano anterior, o subagente fica sob a tarefa da pergunta": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "226aeab96ad42489",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o plano retomado pede um start depois do plan do pedido mais novo (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Pendente do plano retomado (Recomendado)\")"
+    },
     "task-tree/tests/subagentes.test.ts::com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -8309,6 +8349,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Em andamento (Recomendado)"
+    },
+    "task-tree/tests/visual.test.ts::a linha '+N pedidos anteriores' de dentro do cartão de uma filha, conferida pelo elemento dela, não tem traço nem na linha nem em volta": {
+      "regras": [
+        "visual.secao-sem-traco"
+      ],
+      "hash": "b121ca7bc4e3872d",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "a seção de dentro do cartão conferida pelo elemento (revisão de 2026-11-16: o teste anterior conferia a linha da raiz)"
     },
     "task-tree/tests/visual.test.ts::a linha '+N pedidos anteriores' é só o ▸ e o texto: sem borda, sem fundo e sem traço": {
       "regras": [

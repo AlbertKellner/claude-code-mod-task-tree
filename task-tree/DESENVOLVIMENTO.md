@@ -266,7 +266,8 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    (Recomendado)"), e, com várias em andamento, o lote recente de starts sem envio (pela ordem, o nome
    da sessão antes); sem nada em andamento, num pedido ainda sem plano, nenhuma (solta
    no fim até o plan adotar); senão, no pedido atual (o maior `turn` entre os níveis 1; com esse pedido todo fechado e a tarefa
-   de start mais recente, `lastStarted`, num pedido anterior que ainda tem algo aberto, esse anterior:
+   de start mais recente, `lastStarted`, num pedido anterior que ainda tem algo aberto, com esse start
+   igual ou posterior ao último plan do pedido mais novo (a maior `plannedAt` dele), esse anterior:
    o plano que o modelo retomou depois de uma pergunta respondida no meio, 2026-11-15, "Pendente do
    plano retomado (Recomendado)"), a pendente cujo
    título casa com o nome da sessão, se só uma casa (o nome da sessão casa por trecho, pelo começo do
@@ -924,9 +925,13 @@ linhas herdavam isso.
 - `draw/layout.ts`: `current(list)`, com nenhuma iniciada, devolve `{ lit: [], anchor: undefined }`
   (antes, o caminho de `firstOpen`). `startedLast(list)` (nova, exportada) devolve a tarefa com
   `startedAt` mais recente, concluída ou não; num empate (pai e filha começam juntos) vence a que vem
-  depois na árvore, a filha.
+  depois na árvore, a filha. (`startedLast` saiu em 2026-11-16, pela decisão de 2026-11-15, "Pelo
+  start mais recente (Recomendado)": quem escolhe é `lastStarted`, pelo último start, `lastStartAt`, e
+  no empate pelo `startedSeq`.)
 - `hooks/panel.ts`, `sendAnchor(list)`: sem tarefa em andamento, devolve `startedLast` das tarefas do
-  pedido atual (o último turno com tarefas, `t.turn` máximo), senão o último nível 1 desse pedido; a
+  pedido atual (o último turno com tarefas, `t.turn` máximo), senão o último nível 1 desse pedido
+  (regra de 2026-10-23; hoje a escolha é de `lastStarted`, contado o start de novo, e o pedido atual
+  tem a exceção do plano retomado: a ordem completa está no item da tarefa do envio); a
   regra "planejada depois da em andamento e sem `start`" continua quando há tarefa em andamento (essa
   regra saiu em 2026-11-14, "Sob a em andamento (Recomendado)": o envio fica na tarefa em andamento).
   `recordStart` (`hooks/sessions.ts`) usa `sendAnchor` para a âncora da sessão aberta (era

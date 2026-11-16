@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
 import { passos } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, ferramenta, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, cancelar, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, ferramenta, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
 import { cabecalho, comHistorico, emTexto, esperarEstado, estadoGeral, linha, montar, noApp, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
@@ -2401,4 +2401,66 @@ test('o avulso já terminado ao lado de outro vivo, sob um pedido que saiu do tr
   expect(p.some(l => l.titulo.startsWith('Explore: ler o diff')), emTexto(p)).toBe(false)
   expect(publicados(h)).toContain('a2')
   expect(publicados(h)).not.toContain('a1')
+})
+
+// A pergunta do meio fechada sem start (`fechar`: done direto ou cancel), com o relógio andando 1 s entre
+// os passos: o start em "Primeiro passo" é de antes do plan da pergunta.
+async function perguntaFechadaSemStartR7($: any, relogio: any, fechar: () => Promise<unknown>) {
+  const anda = () => relogio.advance(1000)
+  await pedido($, 'Pedido um')
+  await anda()
+  await plan($, PLANO_LONGO_U2)
+  await anda()
+  await start($, ['r1'])
+  await anda()
+  await fimDoTurno($)
+  await anda()
+  await pedido($, 'Quanto falta?')
+  await anda()
+  await plan($, NO_MEIO_U2)
+  await anda()
+  await fechar()
+  await anda()
+}
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio fechada por done direto, sem start, e sem volta ao plano anterior, o subagente fica sob a tarefa da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaFechadaSemStartR7($, relogio, () => done($, ['Q'], 'Falta pouco'))
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Primeiro passo'), emTexto(p)).toEqual([])
+  expect(abaixo(p, 'Segundo passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio tirada com cancel e sem volta ao plano anterior, o subagente fica sob a tarefa da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaFechadaSemStartR7($, relogio, () => cancelar($, ['Q']))
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Primeiro passo'), emTexto(p)).toEqual([])
+  expect(abaixo(p, 'Segundo passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio fechada sem start e o plano anterior retomado depois, o subagente vai à pendente do plano', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaFechadaSemStartR7($, relogio, () => done($, ['Q'], 'Falta pouco'))
+  await start($, ['r1'])
+  await relogio.advance(1000)
+  await done($, ['r1'])
+  await relogio.advance(1000)
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Segundo passo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Estimar o tempo'), emTexto(p)).toEqual([])
 })

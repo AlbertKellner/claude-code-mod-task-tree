@@ -962,3 +962,66 @@ test("a seção de dentro do cartão de uma filha e '+N cartões antigos' não t
   expect(tracosEmVoltaDaSecao(d, /cartões antigos/), d.textos.join('\n')).toEqual(SEM_TRACO_R501)
   await m.fim()
 })
+
+// Como tracosEmVoltaDaSecao, a partir da própria linha (o elemento dela), e não da primeira que casa um texto.
+const tracosEmVoltaDaLinhaR7 = (d: DesenhoDoApp, l: DesenhoDoApp['linhas'][number]) => {
+  let pai: any
+  const achar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    for (const c of x.children ?? []) {
+      if (c === l.el) pai = x
+      achar(c)
+    }
+  }
+  achar(d.raiz)
+  const irmas = ((pai?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+  const i = irmas.indexOf(l.el)
+  const separador = (x: any) =>
+    x !== undefined && x.type === 'Box' && !(x.children ?? []).length && (x.props?.backgroundColor !== undefined || x.props?.borderColor !== undefined || x.props?.borderStyle !== undefined)
+  let tracos = 0
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if ((x.key ?? x.props?.key) === 'guides') return
+    if (x.type === 'Box' && x.props?.backgroundColor !== undefined && !(x.children ?? []).length) tracos++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(l.el)
+  const p = l.el?.props ?? {}
+  return { achada: i >= 0, borda: p.borderColor ?? p.borderStyle, fundo: p.backgroundColor, tracos, antes: separador(irmas[i - 1]), depois: separador(irmas[i + 1]) }
+}
+
+// Regra: visual.secao-sem-traco
+test("a linha '+N pedidos anteriores' de dentro do cartão de uma filha, conferida pelo elemento dela, não tem traço nem na linha nem em volta", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const turnosR7 = [1, 2, 3, 4, 5, 6].map(i => ({ id: i, title: `Pedido da filha ${i}`, at: AGORA - 9000 + i * 100 }))
+  host(on, [{ id: 'local_44444444-4444-4444-4444-444444444444', nome: 'filha-longa', painel: { tasks: [1, 2, 3, 4, 5, 6].map(feitaDaFilhaR501), turns: turnosR7 } }])
+  for (let i = 1; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await relogio.advance(1000)
+  await pedido($, 'Pedido 5')
+  await plan($, [{ id: 'P5', title: 'Plano 5', children: [{ id: 'f5', title: 'Folha 5' }] }])
+  await start($, ['f5'])
+  await abrirSessao($, 'filha-longa')
+  await aviso($)
+  const m = await montarNoApp($)
+  const d = await m.desenho()
+  const conta = d.textos.join('\n')
+  const doCartao = d.linhas.filter(x => x.texto.includes('+5 pedidos anteriores'))
+  const daRaiz = d.linhas.filter(x => x.texto.includes('+4 pedidos anteriores'))
+  expect(doCartao.length, conta).toBe(1)
+  expect(daRaiz.length, conta).toBe(1)
+  const cartao = d.linhas.findIndex(x => x.texto.includes('filha-longa'))
+  expect(cartao, conta).toBeGreaterThanOrEqual(0)
+  expect(d.linhas.indexOf(doCartao[0]!), conta).toBeGreaterThan(cartao)
+  expect(d.linhas.indexOf(daRaiz[0]!), conta).toBeLessThan(cartao)
+  expect(doCartao[0]!.el === daRaiz[0]!.el, conta).toBe(false)
+  expect(tracosEmVoltaDaLinhaR7(d, doCartao[0]!), doCartao[0]!.texto).toEqual(SEM_TRACO_R501)
+  expect(tracosEmVoltaDaLinhaR7(d, daRaiz[0]!), daRaiz[0]!.texto).toEqual(SEM_TRACO_R501)
+  await m.fim()
+})

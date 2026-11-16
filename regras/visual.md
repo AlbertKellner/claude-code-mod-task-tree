@@ -389,6 +389,7 @@ A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizonta
 Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
 Reescrito: 2026-11-15, texto: passa a coberto; a linha de seção é desenhada em elementos nativos, que o harness lê. A pintura real segue no checklist do app. A regra não muda.
 Reescrito: 2026-11-16, texto: o teste passa a cobrir a seção de dentro de um cartão e "+N cartões antigos", e as linhas vizinhas; a da raiz é travada também pelo golden do cabeçalho largo. A regra não muda.
+Reescrito: 2026-11-16, texto: o teste de 2026-11-16 da seção de dentro do cartão achava a linha pelo texto e conferia a da raiz, de mesmo começo; um teste novo confere a linha do cartão pelo elemento dela. A regra não muda.
 Código: draw/desktop.tsx
 Estado: coberto
 

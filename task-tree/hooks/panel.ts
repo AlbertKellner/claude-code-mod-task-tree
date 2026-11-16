@@ -419,8 +419,9 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in this order (the person's decisions): with the request open now and no
   // level-1 task of it yet and nothing in progress, none (above); else the current request is the largest `turn` among the
-  // level-1 tasks (unless it is all closed and the task started last is in an earlier request with
-  // something open: then that one, the plan the model went back to; the person, 2026-11-15); among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
+  // level-1 tasks (unless it is all closed and the task started last, started again after the newest
+  // request's plan, is in an earlier request with something open: then that one, the plan the model
+  // went back to; the person, 2026-11-15); among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
   // title matches the receiving session's name (or holds the free phrase whole), if only one does (byName); else the batch planned
   // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
   // yet (`used`: a letter, a session's round, a session opened, a subagent launched), all of them used,
@@ -461,12 +462,19 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
   const newestTurn = turns.length > 0 ? Math.max(...turns) : undefined
   // The newest request all closed (a question answered in the middle of a plan) and the task started
-  // last, a start again included (lastStarted), in an earlier request with something still open: the
+  // last, a start again included (lastStarted), started again after the newest request's plan, in an
+  // earlier request with something still open: the
   // model went back to that plan, which is the current request (the person, 2026-11-15: "Pendente do
   // plano retomado (Recomendado)"; the workflow's card had gone under the question's closed task, kept
   // in "+N pedidos anteriores").
+  // The model went back only with that start made at or after the newest request's last plan (the
+  // largest `plannedAt` of its tasks): with the newest request closed with no start (a done straight
+  // away, a cancel), the start before the question proved nothing, and the card went to a task of the
+  // earlier plan the model never went back to. With no `plannedAt` in it (an older panel), as before.
   const openIn = (turn: number) => list.some(t => t.turn === turn && t.status === 'open')
-  const back = anchor === undefined && askTurn === undefined && newestTurn !== undefined && !openIn(newestTurn) ? lastStarted(list)?.task : undefined
+  const lastBack = anchor === undefined && askTurn === undefined && newestTurn !== undefined && !openIn(newestTurn) ? lastStarted(list) : undefined
+  const plannedNewest = flat(list.filter(t => t.turn === newestTurn)).flatMap(t => (typeof t.plannedAt === 'number' ? [t.plannedAt] : []))
+  const back = lastBack !== undefined && (plannedNewest.length === 0 || lastBack.at >= Math.max(...plannedNewest)) ? lastBack.task : undefined
   const backTurn = back === undefined ? undefined : list.find(t => flat([t]).some(x => x.id === back.id))?.turn
   const resumed = backTurn !== undefined && backTurn !== newestTurn && openIn(backTurn) ? backTurn : undefined
   const last = askTurn ?? resumed ?? newestTurn
