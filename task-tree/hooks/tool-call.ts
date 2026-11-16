@@ -263,7 +263,9 @@ const wrapUpOpen: Notes = async ($, c, notes) => {
 // In this order, after the call (the kit wants each one called by name, so no list is walked).
 
 // The reminder to plan, in the result of the first call of the main loop with no open plan and of
-// every 10th after it; a call of the panel's own tools, or a request that planned, starts the count over.
+// every 10th after it. The count starts over with a new request and stays at zero while the request
+// has a plan (the mark `planned`), an open task or a task in progress; a call of the panel's own tools
+// would zero it only through the defense below, which this hook does not reach today.
 // The app's wrap_up and its task list neither take it nor count (the person, 2026-11-15: "Não levar
 // (Recomendado)", "Não leva (Recomendado)"): a request answered with text alone gets no plan made
 // after the fact, and the list called beside the plan does not ask for it again.

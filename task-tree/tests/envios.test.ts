@@ -1986,3 +1986,43 @@ test('a carta mandada antes do plan e adotada por ele, ainda na fila, não segur
   expect(cartasDe(quadro, 'Um').length, emTexto(quadro)).toBe(2)
   esperarCartaSob(quadro, 'Um', 'fila')
 })
+
+// Regra: envios.lembrete-nao-desfaz-marca-da-releitura
+test('a sessão que a releitura anota enquanto o lembrete de outra é gravado é lembrada no aviso seguinte, e a primeira não se repete', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const idUm = 'local_11111111-1111-1111-1111-111111111111'
+  const idDois = 'local_22222222-2222-2222-2222-222222222222'
+  const hostDasDuas = host(on, [
+    { id: idUm, nome: 'filha-um', painel: { tasks: [], turns: [] } },
+    { id: idDois, nome: 'filha-dois', painel: { tasks: [], turns: [] } },
+  ])
+  // Armado, a gravação que tira a primeira filha da lista do fim de turno cruza com a da releitura,
+  // que anota a segunda: entra a lista com as duas, sem o app dizer que a segunda parou.
+  let pronto = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!pronto || e?.key !== 'ended' || (e.value ?? []).includes(idUm)) return next(e)
+    pronto = false
+    const r = await next({ ...e, value: [idUm, idDois] })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await abrirSessao($)
+  await aviso($)
+  hostDasDuas.filha(idUm).rodando = false
+  await relogio.advance(3000)
+  pronto = true
+  const avisoUm = await contexto(aviso($))
+  expect(pronto, 'a gravação do lembrete passou pelo stub').toBe(false)
+  const avisoDois = await contexto(aviso($))
+  expect(avisoUm, 'o aviso em curso').toContain('terminou o turno')
+  expect(avisoUm, 'o aviso em curso').toContain('filha-um')
+  expect(avisoUm, 'o aviso em curso').not.toContain('filha-dois')
+  expect(avisoDois, 'o aviso seguinte').toContain('terminou o turno')
+  expect(avisoDois, 'o aviso seguinte').toContain('filha-dois')
+  expect(avisoDois, 'o aviso seguinte').not.toContain('filha-um')
+})

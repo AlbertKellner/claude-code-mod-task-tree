@@ -2214,6 +2214,16 @@
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
     },
+    "task-tree/tests/envios.test.ts::a sessão que a releitura anota enquanto o lembrete de outra é gravado é lembrada no aviso seguinte, e a primeira não se repete": {
+      "regras": [
+        "envios.lembrete-nao-desfaz-marca-da-releitura"
+      ],
+      "hash": "6ced59009f7b98ed",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-16 do lote dos lembretes: o teste do fim de turno passava com endedNote quebrado; este falha com as duas formas quebradas"
+    },
     "task-tree/tests/envios.test.ts::a sessão que não publica o que recebeu confirma a carta por um turno aberto depois do envio": {
       "regras": [
         "envios.entrega-sem-recibo-pelo-turno-da-sessao"

@@ -453,5 +453,6 @@ O lembrete ao modelo não desfaz o que a releitura das sessões acabou de marcar
 - Quando a releitura das sessões marca a segunda carta como recebida (ou anota o fim do turno da segunda sessão) enquanto o lembrete da primeira é montado
 - Então a segunda carta segue entregue, o modelo é avisado dela uma vez, e o fim do turno da segunda sessão é lembrado; nada volta a "na fila" nem some sem aviso
 
-Origem: auditoria 2026-11-10 (os dois lembretes liam a lista e gravavam a lista lida, por cima de uma escrita feita no meio); aplica envios.fica-ate-entrega e lembretes.filha-terminou-o-turno, sem mudar nenhuma regra. No harness, a corrida do fim de turno não fica provada: a releitura seguinte anota de novo a sessão que parou.
+Origem: auditoria 2026-11-10 (os dois lembretes liam a lista e gravavam a lista lida, por cima de uma escrita feita no meio); aplica envios.fica-ate-entrega e lembretes.filha-terminou-o-turno, sem mudar nenhuma regra.
+Reescrito: 2026-11-16, texto: a corrida do fim de turno passa a ter teste que a prova (a lista da releitura entra no meio da gravação sem o app dizer que a sessão parou; revisão do lote, 2026-11-16); o teste de 2026-11-15 não a provava por causa do stub dele, não do harness. Nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
