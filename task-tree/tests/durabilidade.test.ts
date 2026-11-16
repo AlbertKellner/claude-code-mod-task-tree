@@ -1896,3 +1896,58 @@ test('os formatos que entraram depois (taxa do último turno, pasta, parada com 
   expect(hoje, emTexto(p)).toContain('Texto 108')
   expect(hoje.filter(t => linha(p, t).estado === 'andamento'), emTexto(p)).toEqual([])
 })
+
+// ---- A versão do painel do state: gravada antes dos grupos, e conferida no /clear.
+
+const FUTURA = [{ agent: '', label: '', tasks: [{ id: 'F', short: 'F', title: 'Futura', status: 'done', children: [] }] }]
+const RECARGA_VERSAO: Record<string, unknown> = {}
+const RECARGA_CLEAR: Record<string, unknown> = {}
+const STATE_VISTO: Record<string, unknown> = {}
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('recarga com o painel do state numa versão desconhecida: o painel volta do store', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  armazem(on, lojaCom(VELHA))
+  RECARGA_VERSAO.groups = FUTURA
+  RECARGA_VERSAO.groupsVersion = 99
+  estado(on, RECARGA_VERSAO, 'semear')
+  let p = await painel($)
+  expect(tem(p, 'Velha'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Futura'), emTexto(p)).toBe(false)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(tem(p, 'Futura'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('/clear logo depois de uma recarga com o painel do state numa versão desconhecida: as tarefas ignoradas não vão ao histórico', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [])
+  armazem(on, lojaCom(VELHA))
+  RECARGA_CLEAR.groups = FUTURA
+  RECARGA_CLEAR.groupsVersion = 99
+  estado(on, RECARGA_CLEAR, 'semear')
+  await limpar($)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  const publicado = JSON.stringify(h.proprio() ?? {})
+  expect(publicado, publicado).not.toContain('Futura')
+  expect(passado(h).flatMap((x: any) => x.tasks.map((t: any) => t.title)), publicado).toContain('Velha')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const p = await painel($)
+  expect(tem(p, 'Futura'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o primeiro uso sem session.start guarda a versão junto com o painel trazido do store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, lojaCom(VELHA))
+  estado(on, STATE_VISTO, 'captura')
+  await fimDoTurno($)
+  expect(Array.isArray(STATE_VISTO.groups), JSON.stringify(STATE_VISTO)).toBe(true)
+  expect(STATE_VISTO.groupsVersion, JSON.stringify(STATE_VISTO)).toBe(1)
+})

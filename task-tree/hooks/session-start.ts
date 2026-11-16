@@ -95,7 +95,10 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     // What the session had done stays in its main group, as history its own panel does not draw: the
     // session above keeps its card (the person, 2026-11-14: "Mantém o histórico (Recomendado)").
     const at = await $.clock.now()
-    const main = (((await $.state.get(groupsState)).value ?? []) as Group[]).find(g => g.agent === MAIN)
+    // The panel checked first (ensureGroups): as the first use after a reload, groups of an unknown
+    // version or out of the shape do not go to the history (the store's valid copy, or nothing, does).
+    const brought = await ensureGroups($)
+    const main = ((brought ?? (await $.state.get(groupsState)).value ?? []) as Group[]).find(g => g.agent === MAIN)
     const before: Past[] = main && main.tasks.length > 0 ? [{ at, tasks: main.tasks.map(interrupt(at)), ...(main.turns ? { turns: main.turns } : {}) }] : []
     const past = [...(main?.past ?? []), ...before].slice(-PAST_KEEP)
     await dropHeld($)

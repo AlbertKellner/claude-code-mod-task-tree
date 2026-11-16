@@ -212,6 +212,10 @@ fica travado em `task-tree/tests/golden/desenho.ts`, conferido por `tests/golden
   e é lido com conferência: campo novo é opcional; mudar a forma de um dado guardado (grupos, tarefas)
   exige subir a versão, escrever a conversão do dado antigo (`CONVERSIONS`) e um teste com o dado da
   versão anterior (decisão do usuário, 2026-11-15: "Versão e leitura conferida (Recomendado)").
+- Voltar o mod a uma versão anterior à forma `{ version, groups }` do painel guardado (o clone num
+  commit antes de `4ea0562`, ou o plugin instalado 0.15.2) perde o painel guardado das sessões gravadas
+  pela versão nova: ao trocar o modelo ou reabrir o app, o início da sessão falha, o painel abre vazio
+  e a primeira gravação escreve por cima (decisão do usuário, 2026-11-15: "Como hoje").
 - Limites do validate que o código respeita (chave de `$.state` literal no arquivo que chama, `$`
   só em função de topo etc.): DESENVOLVIMENTO.md, "Limites do kit".
 

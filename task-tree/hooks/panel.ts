@@ -602,12 +602,14 @@ export async function change($: any, fn: (groups: Group[]) => Group[], opts: { p
   await ensureWork($)
   await ensureLinks($)
   await adopt($)
+  await markVersion($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
   await persist($, groups, opts.publish !== false)
   return groups
 }
 
 export async function replace($: any, groups: Group[]) {
+  await markVersion($)
   await $.state.set(groupsState, groups)
   await persist($, groups)
 }
@@ -632,8 +634,17 @@ export async function keptGroups($: any, id: string): Promise<Group[] | undefine
 async function ignoredGroups($: any, reason: string) {
   await debugOnce($, `task-tree: painel guardado ignorado: ${reason}`)
 }
-// The state's groups carry their version (groupsVersion), written once per module with the first save.
+// The state's groups carry their version (groupsVersion), written once per module, before the groups:
+// every write that brings or converts them (ensureGroups, fromOwnFile) and the first one that saves them
+// (change, replace) writes the version first. Interrupted between the two, the state holds the current
+// version with older groups (or none), which the checked read ignores, instead of converted groups
+// with an older version, which a later read would convert again.
 let versionWritten = false
+// The groups brought or converted into the state, the version first.
+async function setGroups($: any, groups: Group[]) {
+  await $.state.set(groupsVersionState, GROUPS_VERSION)
+  await $.state.set(groupsState, groups)
+}
 async function markVersion($: any) {
   if (versionWritten) return
   try {
@@ -662,9 +673,9 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
     if (!file || !groups || !groups.some(g => g.tasks.length > 0)) return undefined
     const back = groups.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) }))
     try {
-      // The groups first: a caller that cannot write the state (a drawing) leaves the whole try to
-      // the next one.
-      if ((await $.state.get(groupsState)).value === undefined) await $.state.set(groupsState, back)
+      // The groups first (their version before them): a caller that cannot write the state (a drawing)
+      // leaves the whole try to the next one.
+      if ((await $.state.get(groupsState)).value === undefined) await setGroups($, back)
       if (file.work && (await $.state.get(workState)).value === undefined) await $.state.set(workState, file.work)
       // The children's ties (anchor, lastAnchor, rounds, openedAt, places): into the module's copy of the links
       // (a reread of the host's list gives them back), and into the children the state already has
@@ -745,11 +756,15 @@ export async function ensureGroups($: any): Promise<Group[] | undefined> {
       if (read.reason === undefined) {
         if (read.groups !== held) {
           try {
-            await $.state.set(groupsState, read.groups)
-            await $.state.set(groupsVersionState, GROUPS_VERSION)
+            await setGroups($, read.groups as Group[])
           } catch {
             return read.groups
           }
+        } else if (version === undefined) {
+          // Read as version 1 with the key absent: the key is written, the groups stay.
+          try {
+            await $.state.set(groupsVersionState, GROUPS_VERSION)
+          } catch {}
         }
         loaded.add('groups')
         return undefined
@@ -757,8 +772,7 @@ export async function ensureGroups($: any): Promise<Group[] | undefined> {
       await ignoredGroups($, `${read.reason} (no state)`)
       const instead = (await keptGroups($, await $.session.id())) ?? []
       try {
-        await $.state.set(groupsState, instead)
-        await $.state.set(groupsVersionState, GROUPS_VERSION)
+        await setGroups($, instead)
         loaded.add('groups')
       } catch {}
       return instead
@@ -769,7 +783,7 @@ export async function ensureGroups($: any): Promise<Group[] | undefined> {
       return undefined
     }
     try {
-      await $.state.set(groupsState, groups)
+      await setGroups($, groups)
       loaded.add('groups')
     } catch {}
     return groups

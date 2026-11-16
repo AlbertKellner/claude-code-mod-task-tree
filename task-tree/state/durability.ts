@@ -54,7 +54,7 @@ export const TABLE: readonly Row[] = [
   { key: 'groups', lives: 'state+store', store: 'session', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'the groups (tasks, turns, answers); a resume replaces the state with the store\'s; subagents\' open tasks come back interrupted; out of the store (only KEEP sessions), a new process in the desktop app brings it back from the file this session published, its long-term copy while the session exists in the app (fromOwnFile), with the work, the links\' four keys and the turn\'s end' },
   { key: 'groupsVersion', lives: 'state', merge: 'none', restoredAt: [],
-    note: 'the version of the groups the state holds (GROUPS_VERSION when this code wrote them; absent: 1, an earlier code): the first use after a hot reload reads the state\'s groups through readGroups once, and groups of an unknown version or out of the shape are ignored with a line in the log, the store\'s valid copy (or nothing) in their place' },
+    note: 'the version of the groups the state holds (GROUPS_VERSION when this code wrote them, written before the groups in every write that brings or converts them; absent: 1, an earlier code): the first use after a hot reload reads the state\'s groups through readGroups once, and groups of an unknown version or out of the shape are ignored with a line in the log, the store\'s valid copy (or nothing) in their place' },
   { key: 'tasks', lives: 'state', merge: 'none', restoredAt: [],
     note: 'legacy: the one list before groups, moved into the main group once (adopt) at session.start or the first write' },
   { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
@@ -230,7 +230,8 @@ export async function pruneStore($: any): Promise<void> {
 // know, or out of the shape, is ignored with its reason, never handed to the drawing or the tools.
 // A new optional field needs nothing. A change of shape of what is kept (groups, tasks) raises
 // GROUPS_VERSION and writes, in CONVERSIONS, the step from the version before (the key is the version
-// it converts from), with a test that reads a record of that version.
+// it converts from), with a test that reads a record of that version. In the state the version
+// (groupsVersion) is written before the groups.
 export const GROUPS_VERSION = 1
 export const CONVERSIONS: Record<number, (groups: unknown[]) => unknown[]> = {}
 const STATUSES = ['open', 'done', 'interrupted']

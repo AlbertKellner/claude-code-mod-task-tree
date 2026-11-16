@@ -739,6 +739,16 @@
       "data": "2026-10-28",
       "motivo": "durabilidade (tarefa 7)"
     },
+    "task-tree/tests/durabilidade.test.ts::/clear logo depois de uma recarga com o painel do state numa versão desconhecida: as tarefas ignoradas não vão ao histórico": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "14352acfc288d2b6",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o /clear lia o painel do state sem conferir (decisão do usuário de 2026-11-15, \"Versão e leitura conferida (Recomendado)\")"
+    },
     "task-tree/tests/durabilidade.test.ts::/clear numa sessão com filha: o cartão some e não volta sob a tarefa nova de mesmo id": {
       "regras": [
         "durabilidade.clear-tira-os-cartoes-das-filhas"
@@ -1189,6 +1199,16 @@
       "data": "2026-11-15",
       "motivo": "auditoria: publicação do painel em ordem e o plan publica no fim"
     },
+    "task-tree/tests/durabilidade.test.ts::o primeiro uso sem session.start guarda a versão junto com o painel trazido do store": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "2e12c9202b06d8cd",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: a versão do state era gravada à parte do painel, só na primeira gravação dele"
+    },
     "task-tree/tests/durabilidade.test.ts::o processo novo abre o painel": {
       "regras": [
         "durabilidade.painel-fechado-reabre-so-na-mensagem"
@@ -1498,6 +1518,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Versão e leitura conferida (Recomendado)\""
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com o painel do state numa versão desconhecida: o painel volta do store": {
+      "regras": [
+        "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
+      ],
+      "hash": "8649fe2f8f0ab204",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote da versão do painel guardado: nenhum teste lia a versão do state (decisão do usuário de 2026-11-15, \"Versão e leitura conferida (Recomendado)\")"
     },
     "task-tree/tests/durabilidade.test.ts::recarga com subagente trabalhando, 1/2: três chamadas contadas": {
       "regras": [

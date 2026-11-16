@@ -407,10 +407,17 @@ código, coisa que não é lista nem registro, grupo sem `agent` ou sem `tasks` 
 `id`, `title`, `status` conhecido ou `children` em lista fazem o registro ser ignorado, com uma linha no
 log ("painel guardado ignorado"), e o painel vem do arquivo publicado ou começa vazio. Os grupos do
 state que atravessaram uma recarga são lidos do mesmo jeito uma vez (`ensureGroups`, com a versão na
-chave `groupsVersion`; ausente vale 1), e no lugar dos inválidos vem a cópia válida do store, ou nada.
+chave `groupsVersion`; ausente vale 1; a chave é gravada antes dos grupos em toda gravação que os traz
+ou converte, e o `/clear` confere o painel (`ensureGroups`) antes de guardá-lo no histórico), e no lugar
+dos inválidos vem a cópia válida do store, ou nada.
 Mudança de forma sobe a versão e escreve a conversão em `CONVERSIONS` (decisão do usuário, 2026-11-15:
-"Versão e leitura conferida (Recomendado)"). Limite: uma versão anterior do mod que retome uma sessão
-gravada na forma nova não acha a lista crua e começa com o painel vazio. O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
+"Versão e leitura conferida (Recomendado)"). Limite: o código anterior a esta forma (a versão 0.15.2
+e qualquer commit antes de `4ea0562`) não lê o registro novo. Num processo novo de uma sessão
+gravada na forma nova (trocar o modelo, reabrir o app, retomar), o início da sessão falha ao ler o
+painel, antes de trazer o trabalho, o fim do turno e as ligações; o painel abre vazio, e a primeira
+gravação sobrescreve o registro e o arquivo publicado: o painel guardado dessa sessão se perde. Vale
+para o clone levado a um commit anterior e para o plugin instalado mais antigo. A forma fica assim
+(decisão do usuário, 2026-11-15: "Como hoje"). O fim do turno vai ao store porque um processo novo não pode desenhar ◉ o que já parou: o
 registro "em curso" que um processo novo acha é de um turno que morreu com o anterior e vira parada
 (`parkDeadTurn`). A fusão das ligações é `current` por chave: o store só entra na chave que o state não
 tem (um processo novo); o state que atravessou uma recarga fica como está. O store cheio não derruba a

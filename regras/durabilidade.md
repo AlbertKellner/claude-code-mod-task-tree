@@ -74,11 +74,12 @@ Estado: coberto
 O painel guardado tem versão, e um dado de forma desconhecida é ignorado em vez de derrubar o painel.
 
 - Dado o painel guardado de uma sessão (o do store, ou o do state que atravessou uma recarga) numa versão que este código não conhece, ou fora do formato
-- Quando o painel é trazido de volta (processo novo, retomada, primeiro uso depois de uma recarga)
-- Então o dado é ignorado, o log de depuração diz o motivo uma vez, e o painel vem da outra cópia válida ou começa vazio; as ferramentas e o desenho seguem funcionando; o painel guardado da forma anterior, sem versão, segue lido
+- Quando o painel é trazido de volta (processo novo, retomada, primeiro uso depois de uma recarga, também quando esse primeiro uso é um /clear)
+- Então o dado é ignorado, o log de depuração diz o motivo uma vez, e o painel vem da outra cópia válida ou começa vazio; as ferramentas e o desenho seguem funcionando; o painel guardado da forma anterior, sem versão, segue lido; o que o /clear guarda no histórico é o painel conferido
 
 Origem: decisão do usuário, 2026-11-15 ("Versão e leitura conferida (Recomendado)").
 Código: hooks/session-start.ts, io/log.ts
+Reescrito: 2026-11-15, texto: a versão do painel do state é gravada junto com ele, e o /clear confere o painel antes de guardá-lo no histórico (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### durabilidade.formatos-antigos-do-publicado
