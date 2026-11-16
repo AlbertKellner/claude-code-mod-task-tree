@@ -18,7 +18,9 @@ import { debug } from './log'
 export type { Published }
 
 // The shape of the published file this version writes (`Published.version`). Files from before it
-// carry none and are read as they are; a file of another version is ignored.
+// carry none and are read as they are; a file of another version is ignored. So a new optional field
+// does not raise it: only a change that breaks the reading of a session on the version before does,
+// because that session ignores the whole file.
 export const PUBLISHED_VERSION = 1
 
 // The published file as read: `ok` the file checked and normalized (the lists are lists, the flags

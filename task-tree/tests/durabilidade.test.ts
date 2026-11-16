@@ -1,10 +1,10 @@
 import { expect, mock } from 'claude-code/testing'
 import { test } from './kit/teste'
-import { PUBLISHED_FILES } from './fixtures/publicados'
+import { LATER_PUBLISHED_FILES, PUBLISHED_FILES } from './fixtures/publicados'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
 import { chamadaDoSubagente, falha, fimDoSubagente, lancar } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
-import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, montar, painel, type Linha } from './kit/leitura'
+import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, emTextoDoApp, esperarEstado, linha, linhaDoApp, montar, noApp, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
 // o 1/2 grava nos objetos abaixo e o 2/2 (módulo novo, state vazio) lê deles.
@@ -1857,4 +1857,42 @@ test('trabalho sem tarefa presente, 2/2: o trabalho que aponta para tarefas que 
   await start($, ['b1'])
   p = await painel($)
   esperarEstado(p, 'b1', 'andamento')
+})
+
+// Regra: durabilidade.formatos-antigos-do-publicado
+test('os formatos que entraram depois (taxa do último turno, pasta, parada com Esc, ultracode com subagente e o de hoje): cada filha aparece com o que o formato traz', async ($: any, on: any) => {
+  fixar(on)
+  expect(LATER_PUBLISHED_FILES.length).toBe(5)
+  const id = (i: number) => `local_1000000${i}-0000-0000-0000-000000000000`
+  // A do formato de hoje parou: o turno dela terminou (`turn`).
+  host(on, LATER_PUBLISHED_FILES.map((f, i) => ({ id: id(i), nome: `depois-${i}`, publicado: f.file, ...(i === 4 ? { rodando: false } : {}) })))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await aviso($)
+  const p = await painel($)
+  const app = emTextoDoApp(await noApp($, { colunas: 100 }))
+  expect(p.filter(l => /indispon|\berro\b/i.test(l.texto)).map(l => l.texto), emTexto(p)).toEqual([])
+  LATER_PUBLISHED_FILES.forEach((f, i) => {
+    expect(linha(p, `depois-${i}`).sessao, `${f.label}:\n${emTexto(p)}`).toBe(true)
+    const doc = JSON.parse(f.file)
+    expect(doc.tasks, f.label).toBeUndefined()
+    const tarefas: any[] = doc.groups.find((g: any) => g.agent === '').tasks
+    expect(tarefas.some(t => tem(p, t.title)), `${f.label}:\n${emTexto(p)}`).toBe(true)
+  })
+  // 1: a taxa do arquivo, acesa, sem "(último turno)".
+  expect(linhaDoApp(await noApp($, { colunas: 100 }), 'depois-0').texto, app).toContain('87 toks/s')
+  expect(app).not.toContain('último turno')
+  // 2: o caminho da pasta, sem branch.
+  const pasta = linha(p, 'depois-1').texto
+  expect(pasta, emTexto(p)).toContain('pasta-sem-git')
+  expect(pasta, emTexto(p)).not.toContain('⑂')
+  // 3: a tarefa parada com Esc aparece ✕.
+  esperarEstado(p, 'Texto 104', 'interrompida')
+  // 4: no app, o cartão diz "ultracode", e a linha do subagente aparece dentro dele.
+  expect(linhaDoApp(await noApp($, { colunas: 100 }), 'depois-3').texto, app).toContain('ultracode')
+  expect(cartoes(p, 'depois-3')[0]?.tarefas ?? [], emTexto(p)).toContain('Explore: Texto 106')
+  // 5: as tarefas vêm de groups, e com o turno terminado nada no cartão está em andamento.
+  const hoje = cartoes(p, 'depois-4')[0]?.tarefas ?? []
+  expect(hoje, emTexto(p)).toContain('Texto 108')
+  expect(hoje.filter(t => linha(p, t).estado === 'andamento'), emTexto(p)).toEqual([])
 })

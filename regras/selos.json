@@ -1219,6 +1219,16 @@
       "data": "2026-11-15",
       "motivo": "afirma o número de formatos da fixture"
     },
+    "task-tree/tests/durabilidade.test.ts::os formatos que entraram depois (taxa do último turno, pasta, parada com Esc, ultracode com subagente e o de hoje): cada filha aparece com o que o formato traz": {
+      "regras": [
+        "durabilidade.formatos-antigos-do-publicado"
+      ],
+      "hash": "e2dd9f2ae499f322",
+      "assercoes": 19,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "formatos do arquivo publicado que entraram depois dos 8 primeiros"
+    },
     "task-tree/tests/durabilidade.test.ts::painel fora do store, 1/2: a sessão publica o painel": {
       "regras": [
         "durabilidade.painel-volta-do-arquivo-publicado"
@@ -7455,10 +7465,10 @@
   },
   "kit": {
     "task-tree/tests/fixtures/publicados.ts": {
-      "hash": "6c8266a8f3390187",
-      "tipo": "novo",
+      "hash": "bc6025bf091c9c68",
+      "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "arquivo de apoio dos testes, selado na migração do hash"
+      "motivo": "segunda lista, com os formatos que entraram depois; a lista dos 8 não muda"
     },
     "task-tree/tests/kit/ambiente.ts": {
       "hash": "1c54fdc6cdf427c0",

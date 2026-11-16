@@ -84,12 +84,13 @@ Estado: coberto
 ### durabilidade.formatos-antigos-do-publicado
 Os formatos antigos do arquivo publicado são lidos.
 
-- Dado um arquivo publicado por uma versão antiga do mod (os 8 formatos que já existiram)
+- Dado um arquivo publicado por outra versão do mod (os formatos de referência guardados com os testes: os 8 primeiros, de antes da versão do arquivo até a primeira com ela, e os que entraram depois, com taxa, pasta sem git, parada com Esc, ultracode, subagente e o fim do turno)
 - Quando o painel lê a sessão filha
 - Então o cartão aparece, sem erro, com as tarefas que o formato traz
 
 Origem: contrato do arquivo publicado, commit 7905b37, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Reescrito: 2026-11-15, texto: a lista de referência ganha os formatos que entraram depois dos 8 primeiros. A regra e o teste dos 8 não mudam.
 Código: io/publish.ts, io/host.ts
 Estado: coberto
 

@@ -1,7 +1,9 @@
-// One published file of each shape the mod ever wrote, from before `version` to the current one,
-// taken from real files on this machine with every free text replaced (ids, kinds, statuses and
-// times kept) and each list cut to its first entries. The readers of this version must read all of
-// them: a child may run an earlier mod. The last one is the shape this version writes.
+// One published file of each shape the mod ever wrote. PUBLISHED_FILES goes from before `version` to
+// the first shape with it, taken from real files with every free text replaced (ids, kinds, statuses
+// and times kept) and each list cut to its first entries. LATER_PUBLISHED_FILES brings the fields that
+// came in after it (all still `version: 1`: a new optional field does not raise the version), written
+// from the `Published` type with the same neutral texts; the last one is the shape this version
+// writes. The readers of this version must read all of them: a child may run an earlier mod.
 export const PUBLISHED_FILES: { label: string; file: string }[] = [
   { label: "sem version · waiting, at", file: "{\"waiting\": true, \"at\": 1792262378187}" },
   { label: "sem version · waiting, at, tasks", file: "{\"waiting\": false, \"at\": 1792436319938, \"tasks\": [{\"id\": \"1\", \"short\": \"1\", \"title\": \"Texto 1\", \"status\": \"done\", \"children\": [{\"id\": \"1/1.1\", \"short\": \"1.1\", \"title\": \"Texto 2\", \"status\": \"done\", \"children\": []}, {\"id\": \"1/1.2\", \"short\": \"1.2\", \"title\": \"Texto 3\", \"status\": \"done\", \"children\": []}, {\"id\": \"1/1.3\", \"short\": \"1.3\", \"title\": \"Texto 4\", \"status\": \"done\", \"children\": []}]}]}" },
@@ -11,4 +13,63 @@ export const PUBLISHED_FILES: { label: string; file: string }[] = [
   { label: "sem version · waiting, at, tasks, groups, waits, children, context, work, received", file: "{\"waiting\": false, \"at\": 1792532759667, \"tasks\": [{\"id\": \"1\", \"short\": \"1\", \"title\": \"Texto 20\", \"status\": \"open\", \"plannedAt\": 1792532735819, \"children\": [], \"turn\": 1}], \"groups\": [{\"agent\": \"\", \"label\": \"Texto 21\", \"tasks\": [{\"id\": \"1\", \"short\": \"1\", \"title\": \"Texto 22\", \"status\": \"open\", \"plannedAt\": 1792532735819, \"children\": [], \"turn\": 1}], \"turns\": [{\"id\": 1, \"title\": \"Texto 23\", \"at\": 1792532656354}, {\"id\": 2, \"title\": \"Texto 24\", \"at\": 1792532729936}]}], \"waits\": [], \"children\": [], \"context\": {\"percent\": 10, \"at\": 1792532759666}, \"work\": [\"Texto 25\"], \"received\": []}" },
   { label: "sem version · waiting, at, tasks, groups, waits, children, context, engine, panes, work, received, sends", file: "{\"waiting\": false, \"at\": 1792640178193, \"tasks\": [{\"id\": \"u87c:1\", \"short\": \"1\", \"title\": \"Texto 26\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [{\"id\": \"u87c:1/1.1\", \"short\": \"1.1\", \"title\": \"Texto 27\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792636966123, \"endedAt\": 1792637031276}, {\"id\": \"u87c:1/1.2\", \"short\": \"1.2\", \"title\": \"Texto 28\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792637031358, \"endedAt\": 1792637240599}], \"turn\": 2, \"startedAt\": 1792636966123, \"endedAt\": 1792637240599}, {\"id\": \"u87c:2\", \"short\": \"2\", \"title\": \"Texto 29\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [{\"id\": \"u87c:2/2.1\", \"short\": \"2.1\", \"title\": \"Texto 30\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792637240685, \"endedAt\": 1792637463030}, {\"id\": \"u87c:2/2.2\", \"short\": \"2.2\", \"title\": \"Texto 31\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792637240685, \"endedAt\": 1792637282890}], \"turn\": 2, \"startedAt\": 1792637240685, \"endedAt\": 1792637463030}, {\"id\": \"u87c:3\", \"short\": \"3\", \"title\": \"Texto 32\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"turn\": 2, \"startedAt\": 1792637240685, \"endedAt\": 1792637279838}], \"groups\": [{\"agent\": \"\", \"label\": \"Texto 33\", \"tasks\": [{\"id\": \"u87c:1\", \"short\": \"1\", \"title\": \"Texto 34\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [{\"id\": \"u87c:1/1.1\", \"short\": \"1.1\", \"title\": \"Texto 35\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792636966123, \"endedAt\": 1792637031276}, {\"id\": \"u87c:1/1.2\", \"short\": \"1.2\", \"title\": \"Texto 36\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792637031358, \"endedAt\": 1792637240599}], \"turn\": 2, \"startedAt\": 1792636966123, \"endedAt\": 1792637240599}, {\"id\": \"u87c:2\", \"short\": \"2\", \"title\": \"Texto 37\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [{\"id\": \"u87c:2/2.1\", \"short\": \"2.1\", \"title\": \"Texto 38\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792637240685, \"endedAt\": 1792637463030}, {\"id\": \"u87c:2/2.2\", \"short\": \"2.2\", \"title\": \"Texto 39\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"startedAt\": 1792637240685, \"endedAt\": 1792637282890}], \"turn\": 2, \"startedAt\": 1792637240685, \"endedAt\": 1792637463030}, {\"id\": \"u87c:3\", \"short\": \"3\", \"title\": \"Texto 40\", \"status\": \"done\", \"plannedAt\": 1792636964509, \"children\": [], \"turn\": 2, \"startedAt\": 1792637240685, \"endedAt\": 1792637279838}], \"turns\": [{\"id\": 2, \"title\": \"Texto 41\", \"at\": 1792636951465, \"reply\": \"Texto 42\", \"brief\": \"Texto 43\"}, {\"id\": 3, \"title\": \"Texto 44\", \"at\": 1792637956968, \"reply\": \"Texto 45\", \"brief\": \"Texto 46\"}, {\"id\": 8, \"title\": \"Texto 47\", \"at\": 1792638223231, \"reply\": \"Texto 48\", \"brief\": \"Texto 49\"}]}], \"waits\": [], \"children\": [], \"context\": {\"percent\": 54, \"at\": 1792640178193}, \"engine\": \"Fable 5.1 · high\", \"panes\": [{\"id\": \"task-tree\", \"isPlaced\": false, \"isShown\": false}], \"work\": [\"Texto 50\", \"Texto 51\", \"Texto 52\"], \"received\": [{\"from\": \"lo00l_00000000-0000-0000-0000-000000000000\", \"at\": 1792636951440}, {\"from\": \"lo00l_00000000-0000-0000-0000-000000000000\", \"at\": 1792637956941}, {\"from\": \"lo00l_00000000-0000-0000-0000-000000000000\", \"at\": 1792637981693}], \"sends\": []}" },
   { label: "version 1 · version, waiting, at, tasks, groups, waits, children, context, engine, panes, drawSize, rows, work, received, sends", file: "{\"version\": 1, \"waiting\": false, \"at\": 1792691997450, \"tasks\": [{\"id\": \"S\", \"short\": \"S\", \"title\": \"Texto 53\", \"status\": \"done\", \"plannedAt\": 1792603521835, \"children\": [], \"turn\": 1, \"startedAt\": 1792603521835, \"endedAt\": 1792604346726}, {\"id\": \"V\", \"short\": \"V\", \"title\": \"Texto 54\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [{\"id\": \"V/1\", \"short\": \"1\", \"title\": \"Texto 55\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [], \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}, {\"id\": \"V/2\", \"short\": \"2\", \"title\": \"Texto 56\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [], \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}, {\"id\": \"V/3\", \"short\": \"3\", \"title\": \"Texto 57\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [], \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}], \"turn\": 2, \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}, {\"id\": \"P\", \"short\": \"P\", \"title\": \"Texto 58\", \"status\": \"done\", \"plannedAt\": 1792604458253, \"children\": [], \"turn\": 3, \"startedAt\": 1792604392578, \"endedAt\": 1792604472832}], \"groups\": [{\"agent\": \"\", \"label\": \"Texto 59\", \"tasks\": [{\"id\": \"S\", \"short\": \"S\", \"title\": \"Texto 60\", \"status\": \"done\", \"plannedAt\": 1792603521835, \"children\": [], \"turn\": 1, \"startedAt\": 1792603521835, \"endedAt\": 1792604346726}, {\"id\": \"V\", \"short\": \"V\", \"title\": \"Texto 61\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [{\"id\": \"V/1\", \"short\": \"1\", \"title\": \"Texto 62\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [], \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}, {\"id\": \"V/2\", \"short\": \"2\", \"title\": \"Texto 63\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [], \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}, {\"id\": \"V/3\", \"short\": \"3\", \"title\": \"Texto 64\", \"status\": \"done\", \"plannedAt\": 1792604348142, \"children\": [], \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}], \"turn\": 2, \"startedAt\": 1792604346726, \"endedAt\": 1792604392578}, {\"id\": \"P\", \"short\": \"P\", \"title\": \"Texto 65\", \"status\": \"done\", \"plannedAt\": 1792604458253, \"children\": [], \"turn\": 3, \"startedAt\": 1792604392578, \"endedAt\": 1792604472832}], \"turns\": [{\"id\": 1, \"title\": \"Texto 66\", \"at\": 1792603517141}, {\"id\": 2, \"title\": \"Texto 67\", \"at\": 1792604344333}, {\"id\": 3, \"title\": \"Texto 68\", \"at\": 1792604452361}]}], \"waits\": [], \"children\": [], \"context\": {\"percent\": 13, \"at\": 1792691997450}, \"engine\": \"Sonnet 5.5 · low\", \"panes\": [{\"id\": \"task-tree\", \"isPlaced\": false, \"isShown\": false}], \"drawSize\": 0, \"rows\": 0, \"work\": [\"Texto 69\"], \"received\": [{\"from\": \"lo00l_00000000-0000-0000-0000-000000000000\", \"at\": 1792674511567}, {\"from\": \"lo00l_00000000-0000-0000-0000-000000000000\", \"at\": 1792675916877}, {\"from\": \"lo00l_00000000-0000-0000-0000-000000000000\", \"at\": 1792676846660}], \"sends\": []}" },
+]
+
+// The shapes that came in after the first eight, one field (or a few that came together) each.
+const tarefa = (id: string, title: string, status: string, extra: Record<string, unknown> = {}) => ({ id, short: id, title, status, plannedAt: 900_000, children: [], turn: 1, ...extra })
+const principal = (tasks: unknown[], extra: Record<string, unknown> = {}) => ({ agent: '', label: 'Texto 100', tasks, turns: [{ id: 1, title: 'Texto 101', at: 899_000 }], ...extra })
+export const LATER_PUBLISHED_FILES: { label: string; file: string }[] = [
+  {
+    label: 'version 1 · rate com live: false (a taxa do último turno, antes de 2026-11-10)',
+    file: JSON.stringify({ version: 1, waiting: false, at: 990_000, groups: [principal([tarefa('1', 'Texto 102', 'done', { startedAt: 950_000, endedAt: 980_000 })])], waits: [], children: [], engine: 'Sonnet 5.5 · low', rate: { toks: 87, at: 980_000, live: false }, work: [], received: [], sends: [] }),
+  },
+  {
+    label: 'version 1 · git de pasta sem repositório (kind folder, sem branch)',
+    file: JSON.stringify({ version: 1, waiting: false, at: 990_000, groups: [principal([tarefa('1', 'Texto 103', 'open', { started: 1, startedAt: 950_000 })])], waits: [], children: [], git: { kind: 'folder', repo: 'pasta-sem-git', at: 980_000 }, work: ['1'], received: [], sends: [] }),
+  },
+  {
+    label: 'version 1 · aborted, com a tarefa aberta parada (stopped)',
+    file: JSON.stringify({ version: 1, waiting: false, at: 990_000, groups: [principal([tarefa('1', 'Texto 104', 'open', { started: 1, startedAt: 950_000, stopped: true })])], waits: [], children: [], aborted: true, work: [], received: [], sends: [] }),
+  },
+  {
+    label: 'version 1 · ultracode e um grupo de subagente com sub (estado, chamadas, modelo)',
+    file: JSON.stringify({
+      version: 1,
+      waiting: false,
+      at: 990_000,
+      groups: [
+        principal([tarefa('1', 'Texto 105', 'open', { started: 1, startedAt: 950_000 })]),
+        { agent: 'a0000000000000001', label: 'Explore: Texto 106', parent: '', anchor: '1', tasks: [], sub: { at: 960_000, seen: 985_000, state: 'running', engine: 'Haiku 5.5', calls: 3, batch: 960_000 } },
+      ],
+      waits: [],
+      children: [],
+      engine: 'Opus 5.5 · xhigh',
+      ultracode: true,
+      work: ['1'],
+      received: [],
+      sends: [],
+    }),
+  },
+  {
+    label: 'version 1 · o que esta versão escreve: sem tasks, groups com turns, turn, rate aceso, git de repositório, work, received, sends',
+    file: JSON.stringify({
+      version: 1,
+      waiting: false,
+      at: 990_000,
+      groups: [principal([tarefa('1', 'Texto 107', 'done', { startedAt: 950_000, endedAt: 970_000 }), tarefa('2', 'Texto 108', 'open', { started: 2, startedAt: 970_000 })])],
+      waits: [],
+      children: [],
+      context: { percent: 21, at: 990_000 },
+      engine: 'Sonnet 5.5 · low',
+      rate: { toks: 64, at: 985_000, live: true },
+      git: { kind: 'git', repo: 'repositorio', branch: 'ramo-de-teste', at: 980_000 },
+      panes: [{ id: 'task-tree', isPlaced: false, isShown: false }],
+      drawSize: 0,
+      rows: 0,
+      work: [],
+      received: [{ from: 'local_00000000-0000-0000-0000-000000000000', at: 900_000 }],
+      sends: [],
+      turn: { ended: 988_000, aborted: false, replan: false },
+    }),
+  },
 ]
