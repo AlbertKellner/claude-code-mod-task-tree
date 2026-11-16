@@ -694,7 +694,9 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   com ele, sem a rodada descartada e sem as ○ da "encerrada"; o x/y do cartão sai da mesma conta. No
   principal, o `total` segue usando o `splitter` de quem chama (`render.tsx`; o `showStatus` não divide
   o primeiro nível). O cartão vivo de pedido cortado (`strays`) e o solto vivo (`ends`, com `loosen`)
-  são desenhados também dentro de um cartão, no fim da lista dele. O `panelOf` de uma filha parada
+  são desenhados também dentro de um cartão, no fim da lista dele. O cartão de subagente ou de grupo
+  que ainda trabalha sob tarefa fora de vista sai por `lost`, no fim do `body`, com o mesmo sufixo do
+  pedido (`requestTitle`, a busca comum com `loosen`). O `panelOf` de uma filha parada
   passa ao `halt` as tarefas com carta dela ainda na fila: a tarefa fica ◷ também no cartão dela.
 - Os pedidos (turnos) com tarefa de nível 1 são achados por um `Set` dos turnos das tarefas (no
   `panel()`, para os cartões antigos, e em `openTurn`): uma passada por lista, não uma pelas tarefas
@@ -783,7 +785,9 @@ mantida), em `draw/layout.ts`:
   puxa de volta. Cada cartão fica sob a tarefa de onde a sessão foi aberta ou de onde saiu a mensagem
   da rodada (sessoes.cartao-sob-a-tarefa-de-origem, sessoes.um-cartao-por-mensagem). Exceções: o
   cartão vivo de um pedido fora de vista vai solto ao fim, com o pedido de origem no título (`loosen`;
-  sessoes.cartao-vivo-nunca-some); o da tarefa que saiu do plano vai ao nível 1 que a continha
+  sessoes.cartao-vivo-nunca-some), e o do subagente ou do workflow que ainda trabalha também
+  (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim; usuário, 2026-11-15), sem segurar o
+  pedido (só a sessão trabalhando segura, `going`); o da tarefa que saiu do plano vai ao nível 1 que a continha
   (`moveToLevelOne`, no plan; pedidos.replano-leva-o-cartao-ao-nivel-1); o do turno digitado na filha
   vai à tarefa que a mãe tinha em andamento quando ele digitou, senão à tarefa da própria filha no
   pedido vigente, senão ao fim do pedido vigente

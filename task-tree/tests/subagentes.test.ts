@@ -2029,3 +2029,143 @@ test('o fim do turno de um teammate não interrompe as tarefas dele; o de um sub
   esperarEstado(p, 'Tarefa do colega', 'andamento')
   esperarEstado(p, 'Tarefa do sub', 'interrompida')
 })
+
+// O subagente e o workflow que ainda trabalham sob um pedido que saiu de vista.
+const PLANO_LONGO_U3: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }, { id: 'r2', title: 'Segundo passo' }] }]
+const PERGUNTA_U3: No[] = [{ id: 'Q', title: 'Estimar o tempo' }]
+const SO_INVESTIGAR_U3: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }]
+const PLANO_DOIS_U3: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Depois' }] }]
+// O caso real: o plano longo aberto segura o trabalho; a pergunta "Quanto falta?" lança o que cada teste
+// pede e fecha; três pedidos depois, ela está em "+1 pedidos anteriores".
+async function perguntaNoHistoricoU3($: any, relogio: any, lancamentos: () => Promise<void>) {
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_LONGO_U3)
+  await start($, ['r1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Quanto falta?')
+  await plan($, PERGUNTA_U3)
+  await start($, ['Q'])
+  await lancamentos()
+  await done($, ['Q'], 'Falta pouco')
+  await fimDoTurno($)
+  for (const i of [3, 4, 5]) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+}
+async function workflowU3($: any) {
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_u3', segundoPlano: true })
+  await fimDoSubagente($, 'w1')
+  await fimDoSubagente($, 'w2')
+}
+const WORKFLOW_SOLTO_U3 = 'Workflow · 3 agentes · do pedido "Quanto falta?"'
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.varios-juntos-num-cartao-de-grupo
+test('o workflow com um agente ainda trabalhando sob um pedido recolhido em "+N pedidos anteriores" aparece solto no fim, com o pedido no título, e sai dali quando o último agente termina', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await perguntaNoHistoricoU3($, relogio, () => workflowU3($))
+  let p = await painel($)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Estimar o tempo'), emTexto(p)).toBe(false)
+  const cartoes = p.filter(l => l.titulo.startsWith('Workflow ·'))
+  expect(cartoes.map(l => l.titulo), emTexto(p)).toEqual([WORKFLOW_SOLTO_U3])
+  const cartao = cartoes[0]!
+  expect(cartao.texto, emTexto(p)).toContain('1 trabalhando')
+  expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Folha 5')))
+  expect(cartao.nivel, emTexto(p)).toBe(linha(p, 'Pedido 5').nivel)
+  expect(abaixo(p, WORKFLOW_SOLTO_U3).map(l => l.titulo), emTexto(p)).toEqual(['Explore: ler o diff', 'Explore: ler os testes', 'Explore: ler o kit'])
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  await fimDoSubagente($, 'w3')
+  p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('Workflow ·')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+  const h = await comHistorico($, 1)
+  expect(abaixo(h, 'Estimar o tempo').map(l => l.titulo), emTexto(h)).toContain('Workflow · 3 agentes')
+  expect(h.filter(l => l.titulo.startsWith('Workflow ·')).length, emTexto(h)).toBe(1)
+  expect(linha(h, 'Workflow · 3 agentes').texto, emTexto(h)).toContain('concluído')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('com "+N pedidos anteriores" aberta, o workflow que ainda trabalha fica sob a tarefa dele, uma vez só e sem o pedido no título', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await perguntaNoHistoricoU3($, relogio, () => workflowU3($))
+  const h = await comHistorico($, 1)
+  expect(h.filter(l => l.titulo.startsWith('Workflow ·')).map(l => l.titulo), emTexto(h)).toEqual(['Workflow · 3 agentes'])
+  expect(abaixo(h, 'Estimar o tempo').map(l => l.titulo), emTexto(h)).toContain('Workflow · 3 agentes')
+  expect(linha(h, 'Workflow · 3 agentes').texto, emTexto(h)).toContain('1 trabalhando')
+  expect(pilula(h), emTexto(h)).toContain('▸ 1')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('o subagente avulso ainda em segundo plano sob um pedido que saiu do trabalho aparece solto no fim, e sai quando termina', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, SO_INVESTIGAR_U3)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await done($, ['1'], 'Lançado')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DOIS_U3)
+  await start($, ['b1'])
+  let p = await painel($)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Investigar'), emTexto(p)).toBe(false)
+  const cartao = linha(p, 'Explore: varrer o repo · do pedido "Pedido um"')
+  expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Depois')))
+  expect(cartao.texto, emTexto(p)).toContain('em segundo plano')
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  await fimDoSubagente($, 'sub-1')
+  p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('Explore: varrer o repo')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('do cartão de grupo vai o grupo inteiro; o avulso já terminado ao lado de outro vivo fica no histórico', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['a1', 'a2'])
+  await perguntaNoHistoricoU3($, relogio, async () => {
+    await lancar($, { descricao: 'ler o diff' })
+    await fimDoSubagente($, 'a1')
+    await lancar($, { descricao: 'ler o kit', segundoPlano: true })
+  })
+  const p = await painel($)
+  linha(p, 'Explore: ler o kit · do pedido "Quanto falta?"')
+  expect(p.some(l => l.titulo.startsWith('Explore: ler o diff')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.tarefas-do-subagente-contam-acima
+test('o subagente com tarefa própria aberta sob um pedido que saiu do trabalho leva o pedido no título, e a tarefa dele conta no cabeçalho', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, SO_INVESTIGAR_U3)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await plan($, [{ id: 's', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await done($, ['1'], 'Lançado')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DOIS_U3)
+  await start($, ['b1'])
+  const p = await painel($)
+  const titulo = 'Explore: varrer o repo · do pedido "Pedido um"'
+  linha(p, titulo)
+  expect(abaixo(p, titulo).map(l => l.titulo), emTexto(p)).toContain('Tarefa do sub')
+  expect(cabecalho(p).total, emTexto(p)).toBe(2)
+})

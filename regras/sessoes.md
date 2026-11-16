@@ -343,6 +343,7 @@ Origem: decisão do usuário, 2026-11-03 ("Cartão vivo solto no fim (Recomendad
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-16, texto: o cartão de sessão trabalhando também não some no corte por tamanho (cabecalho.corte-mantem-o-que-esta-em-andamento; decisão do usuário de 2026-11-15 ("Manter à vista o em andamento (Recomendado)")). Os testes deste cenário não mudam.
 Código: draw/layout.ts
+Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Solto no fim, como a filha (Recomendado)"): o mesmo vale para o cartão de subagente e de workflow que ainda trabalha (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim); a regra da sessão não muda. Os testes deste cenário não mudam.
 Estado: coberto
 
 

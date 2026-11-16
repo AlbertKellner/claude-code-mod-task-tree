@@ -1377,13 +1377,18 @@ export function openInSight(p: Panel, ids: string[], sends: { to?: string; ancho
 // A card at work: its session working, or a task of it still open (an abandoned round is not). It is
 // never left out of sight (the person, 2026-11-03: "Cartão vivo solto no fim (Recomendado)"): when
 // its request is cut ("+N pedidos anteriores") or out of the work, the card is drawn loose
-// at the end of the panel, named after its request, which itself stays out.
+// at the end of the panel, named after its request, which itself stays out. A subagent's or a
+// workflow's card at work under a task out of sight goes loose to the end the same way (body, `lost`).
 export const alive = (c: Child) => !discarded(c) && (live(c) || hasOpen(tasksOf(panelOf(c).groups ?? [])))
 // The card loose at the end: no task to hang from, and the title of the request it came from.
 export function loosen(c: Child, tasks: TaskNode[], turns: Turn[]): Child {
-  const t = tasks.find(k => k.id === c.anchor || flat(k.children).some(x => x.id === c.anchor))
-  const title = turns.find(u => u.id === t?.turn)?.title ?? t?.title ?? ''
-  return { ...c, anchor: undefined, lastAnchor: undefined, loose: title }
+  return { ...c, anchor: undefined, lastAnchor: undefined, loose: requestTitle(c.anchor, tasks, turns) }
+}
+// The title of the request a task is in (its level-1 task's turn), else that level-1 task's own title.
+// A subagent's card at work under a request out of sight carries it too (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim).
+export function requestTitle(id: string | undefined, tasks: TaskNode[], turns: Turn[]): string {
+  const t = tasks.find(k => k.id === id || flat(k.children).some(x => x.id === id))
+  return turns.find(u => u.id === t?.turn)?.title ?? t?.title ?? ''
 }
 
 // The main group's level-1 tasks with a drawn line: their request's (`|T:<turn>`), their own or one
@@ -2247,18 +2252,28 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       for (const u of ordered)
         lines.push(...(turns.includes(u) ? turnRows(u, drawn.filter(t => t.turn === u.id), top, lit, trailIds, below, inScope, counted, sent, level === 0) : briefRows(u, top, inScope)))
       if (extras && g.agent === MAIN) lines.push(...unplaced(drawn).map(w => notice(w, top)))
-      // A subagent with no task in sight to go under ends the list: launched on none, or still open
-      // under a task left out.
+      // A subagent with no task in sight to go under ends the list: launched on none, or on a task
+      // replanned away; and, under a task of a request out of sight, the card still at work (someone in
+      // it working, or a task of its own open), whole and named after that request, as a session's card
+      // at work (the person, 2026-11-15: "Solto no fim, como a filha (Recomendado)"). Done, it stays
+      // with its request.
       const inSight = flat(drawn).map(t => t.id)
-      const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor) || (!inSight.includes(k.anchor) && hasOpen(k.tasks)))
-      return extras ? lines.concat(drawKids(lost, top)) : lines
+      const away = (k: Group) => k.anchor !== undefined && ids.includes(k.anchor) && !inSight.includes(k.anchor)
+      const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor) || away(k))
+      const awayTitle = (k: Group) => (away(k) ? requestTitle(k.anchor, whole, g.turns ?? []) : undefined)
+      return extras ? lines.concat(drawKids(lost, top, awayTitle)) : lines
     }
 
     // The subagents hanging from one place (a task, or the end of a list), from `d`: more than
     // SUB_GROUP launched together, or a workflow's, in one card with a line each (the person,
     // 2026-11-09: "Cartão + grupo (Recomendado)"); the others each in its own (draw). A line opens
     // into that subagent's own card.
-    const drawKids = (list: Group[], d: number): Row[] => {
+    // `loose`: for a card drawn loose at the end because its task is out of sight, the title of that
+    // task's request; such a card is drawn only while it works, with ` · do pedido "…"` on its line.
+    const drawKids = (list: Group[], d: number, loose?: (k: Group) => string | undefined): Row[] => {
+      const working = (k: Group) => liveDeep(k) || hasOpen(k.tasks)
+      const named = (rows: Row[], title: string | undefined) =>
+        title === undefined ? rows : rows.map((r, i) => (i === 0 ? { ...r, title: `${r.title} · do pedido "${title}"` } : r))
       // Outside a workflow, the batch is read from the launches' times, not from `batch`: a panel or a
       // session's published file from an earlier version kept one batch per launch for launches that ran
       // together (subagentes.lancados-juntos-se-veem). A batch is named by its first launch's time, the
@@ -2290,13 +2305,14 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       for (const k of list) {
         const b = bucketOf(k)
         const mates = b === undefined ? [] : (buckets.get(b) ?? [])
+        const title = loose?.(k)
         if (b === undefined || !(mates.length > SUB_GROUP || (k.sub?.run !== undefined && mates.length > 1))) {
-          out.push(...draw(k, d))
+          if (title === undefined || working(k)) out.push(...named(draw(k, d), title))
           continue
         }
         if (done.has(b)) continue
         done.add(b)
-        out.push(...groupCard(b, mates, d))
+        if (title === undefined || mates.some(working)) out.push(...named(groupCard(b, mates, d), title))
       }
       return out
     }

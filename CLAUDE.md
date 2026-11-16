@@ -273,7 +273,9 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   automático não acende o pai nem o pedido, e o start seguinte acende) e o cabeçalho estreito e largo (toks/s, "ultracode", repositório; numa worktree real, o nome do repositório principal no cabeçalho e no cartão);
 - workflows reais com muitos subagentes (cartão de grupo com espera, retomada, cliques com o freio das
   gravações, um agente que falha: "… trabalhando · 1 falhou" sem cortar o título do cartão; com duas tarefas em andamento, o workflow
-  inteiro num cartão só) e o turno
+  inteiro num cartão só; com o pedido do workflow já em '+N pedidos anteriores', o cartão aparece solto no
+  fim, com '· do pedido "…"' sem cortar a palavra de estado, enquanto algum agente trabalha, e sai dali
+  quando o último termina) e o turno
   que morre por erro real (✕ "falhou" no painel e no cartão);
 - a nota da versão no merge do PR (workflow "Release").
 

@@ -220,13 +220,25 @@ Fechada a tarefa de onde saiu o subagente, o cartão dele segue embaixo dela.
 - Quando ela fecha: sozinha no fim do turno, pelo `done` do modelo (com o subagente concluído ou ainda em segundo plano), ou já fechada quando o lançamento vai a ela (no mesmo pedido, ou num pedido ainda sem plano em que a tarefa em andamento, de um plano anterior, tem pergunta aberta e não há pendente: envios.nunca-na-tarefa-da-pergunta; num pedido ainda sem plano e com nada em andamento vale subagentes.lancado-antes-do-plan-e-adotado)
 - Então o cartão segue sob a tarefa ✓, com a palavra de estado dele ("concluído", "em segundo plano"…) e fora da contagem; rodando, segue na pílula "N subagentes"; quando o pedido da tarefa sai do trabalho ("+N pedidos anteriores"), o subagente terminado que não planejou tarefas é apagado (do painel, do que é guardado e do que é publicado), e o que tem tarefas próprias vai guardado com o pedido, como o cartão da sessão e a carta; ao abrir "+N pedidos anteriores", as tarefas antigas aparecem sem os cartões de subagente
 
-Fora deste cenário: o subagente vivo sob um pedido que já saiu do trabalho segue sem ser desenhado solto no fim (depende de o cartão vivo terminar quando o fim do subagente não chega).
-
 Origem: auditoria 2026-11-10 (o cartão do subagente some quando a tarefa de origem fecha); aplica subagentes.terminado-segue-cartao ("Fecha ao terminar" não foi escolhido: o cartão fica), subagentes.pai-conclui-no-fim-do-turno ("o cartão segue 'concluído' e fora da contagem", "Fecha de fato (Recomendado)", "Fecha também"), subagentes.cartao-desde-o-lancamento e subagentes.fora-da-contagem, sem mudar nenhuma delas.
 Código: draw/layout.ts
 Reescrito: 2026-11-14, decisão do usuário ("Apagar os sem tarefas (Recomendado)"): o cartão do subagente terminado sem tarefas não vai para o histórico.
 Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): o lançamento num pedido ainda sem plano não vai à tarefa fechada do pedido anterior.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Não fecha na entrega (Recomendado)"): com pergunta aberta na tarefa em andamento de um plano anterior, num pedido ainda sem plano, o lançamento pode ir a uma tarefa fechada desse plano. Os testes existentes não mudam.
+Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Solto no fim, como a filha (Recomendado)"): o subagente vivo sob um pedido que saiu de vista saiu do "Fora deste cenário" e é desenhado solto no fim (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim). Os testes deste cenário não mudam.
+Estado: coberto
+
+### subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+O cartão do subagente ou do workflow que ainda trabalha sob um pedido recolhido aparece solto no fim.
+
+- Dado um subagente, ou um cartão de grupo ("N subagentes", "Workflow · N agentes"), sob uma tarefa de um pedido que saiu de vista ("+N pedidos anteriores" fechada: fora do trabalho atual, ou além dos três últimos), com alguém ainda trabalhando ("trabalhando" ou "em segundo plano", ele ou um subagente que ele lançou) ou com tarefa própria aberta
+- Quando o painel é desenhado
+- Então o cartão é desenhado solto no fim do painel, com o pedido de origem no título (· do pedido "…"), onde já termina a lista o subagente lançado sem tarefa: depois do último pedido e antes dos cartões soltos de sessão, na ordem de lançamento; o cartão de grupo vai inteiro, com os agentes já terminados e o "N trabalhando"; o avulso já terminado da mesma tarefa não vai; conta na pílula "N subagentes" e as tarefas próprias contam no cabeçalho; o pedido antigo não volta e a tarefa de origem não muda; com "+N pedidos anteriores" aberta, o cartão fica sob a tarefa dele, uma vez só e sem o pedido no título; quando o último termina, deixa de ser desenhado no fim e fica com o pedido dele (subagentes.cartao-fica-com-a-origem-fechada, subagentes.terminado-sem-tarefas-sai-com-o-pedido)
+
+Fora deste cenário: dentro do cartão de uma sessão filha (o desenho é o mesmo, sem teste próprio); o subagente ainda rodando cujo lançador, já terminado, saiu do trabalho (subagentes.neto-segue-o-cartao-de-quem-o-lancou).
+
+Origem: decisão do usuário, 2026-11-15 ("Solto no fim, como a filha (Recomendado)"), à pergunta sobre o subagente e o workflow trabalhando sob um pedido do histórico, que não eram desenhados em lugar nenhum (defeito relatado por ele: "vc não está mostrando os subagentes/workflows nas tarefas"); segue sessoes.cartao-vivo-nunca-some ("Cartão vivo solto no fim (Recomendado)", 2026-11-03).
+Código: draw/layout.ts
 Estado: coberto
 
 ### subagentes.tarefa-em-andamento-com-subagente-rodando
@@ -384,6 +396,7 @@ O subagente terminado que não planejou tarefas é apagado quando o pedido dele 
 
 Origem: decisão do usuário, 2026-11-14 ("Apagar os sem tarefas (Recomendado)"), à pergunta sobre os cartões de subagentes terminados que ficavam guardados para sempre (uma sessão com 524 deles); limita ao trabalho atual subagentes.terminado-segue-cartao e subagentes.cartao-fica-com-a-origem-fechada.
 Código: hooks/panel.ts, hooks/tools.ts
+Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Solto no fim, como a filha (Recomendado)"): o que ainda roda, enquanto não sai, é desenhado solto no fim (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim). Os testes deste cenário não mudam.
 Estado: coberto
 
 ### subagentes.lancado-antes-do-plan-e-adotado

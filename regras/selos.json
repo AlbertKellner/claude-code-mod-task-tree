@@ -5788,6 +5788,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
     },
+    "task-tree/tests/subagentes.test.ts::com \"+N pedidos anteriores\" aberta, o workflow que ainda trabalha fica sob a tarefa dele, uma vez só e sem o pedido no título": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim"
+      ],
+      "hash": "a800c1f40170a6ff",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
+    },
     "task-tree/tests/subagentes.test.ts::com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno": {
       "regras": [
         "subagentes.pai-conclui-no-fim-do-turno"
@@ -5933,6 +5943,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Fecha como no fim normal"
+    },
+    "task-tree/tests/subagentes.test.ts::do cartão de grupo vai o grupo inteiro; o avulso já terminado ao lado de outro vivo fica no histórico": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim"
+      ],
+      "hash": "9a71b7a8f597141f",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
     },
     "task-tree/tests/subagentes.test.ts::encerrado pela lista do app com uma pergunta dele ainda aberta, o subagente deixa ✓ a tarefa de onde lançou outro já concluído": {
       "regras": [
@@ -6280,6 +6300,27 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
     },
+    "task-tree/tests/subagentes.test.ts::o subagente avulso ainda em segundo plano sob um pedido que saiu do trabalho aparece solto no fim, e sai quando termina": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim"
+      ],
+      "hash": "178345e18e529b7e",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
+    },
+    "task-tree/tests/subagentes.test.ts::o subagente com tarefa própria aberta sob um pedido que saiu do trabalho leva o pedido no título, e a tarefa dele conta no cabeçalho": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim",
+        "subagentes.tarefas-do-subagente-contam-acima"
+      ],
+      "hash": "4793246ad2104d9c",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
+    },
     "task-tree/tests/subagentes.test.ts::o subagente com tarefas próprias fica no histórico": {
       "regras": [
         "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
@@ -6450,6 +6491,17 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Só no nome (Recomendado)"
+    },
+    "task-tree/tests/subagentes.test.ts::o workflow com um agente ainda trabalhando sob um pedido recolhido em \"+N pedidos anteriores\" aparece solto no fim, com o pedido no título, e sai dali quando o último agente termina": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim",
+        "subagentes.varios-juntos-num-cartao-de-grupo"
+      ],
+      "hash": "a9eb93c3f40705fd",
+      "assercoes": 18,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
     },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
       "regras": [

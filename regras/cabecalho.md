@@ -101,6 +101,7 @@ Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido d
 Reescrito: 2026-11-14, texto: o pedido anterior com algo aberto é desenhado inteiro e não é contado em "+N" (auditoria 2026-11-10); aplica a decisão de 2026-10-23 ("somente limpe os itens quando todos estiverem concluidos e quando iniciarem novas tarefas"), sem mudar a regra. Os testes deste cenário não mudam.
 Reescrito: 2026-11-14, decisão do usuário ("Na linha +N (Recomendado)"): o total da sessão inteira aparece na linha "+N pedidos anteriores". Os testes deste cenário não mudam.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Sob a tarefa ◉ (Recomendado)"): o teste do turno digitado na filha acompanha o lugar do cartão, agora sob a tarefa da filha; a regra dos limites não muda.
+Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Solto no fim, como a filha (Recomendado)"): o cartão de subagente ou de workflow que ainda trabalha num pedido cortado também é desenhado solto no fim (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim). Os testes deste cenário não mudam.
 Estado: coberto
 
 ### cabecalho.limite-de-cartoes-antigos
