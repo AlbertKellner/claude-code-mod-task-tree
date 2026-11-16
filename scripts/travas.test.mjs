@@ -1321,3 +1321,141 @@ test('linhasUsadas não encolhe', comMontagem(dir => {
   assert.equal(r.status, 1)
   assert.match(r.stderr, /linha usada apagada da lista: exemplo\.a/)
 }))
+
+// O renome e a remoção por decisão (revisão de 2026-11-16 do commit 9ed4e5f): o teste renomeado ainda
+// sem commit usa a mesma linha ao ser selado de novo; o renome é conferido pelas regras que o teste de
+// destino tinha no momento do renome; a recusa da linha já usada vale na remoção e no renome.
+const UNO = `${ARQ}::uno`
+const paraUno = (dir, mais = 'expect(4).toBe(4)') => {
+  trocar(dir, ARQ, "test('um'", "test('uno'")
+  trocar(dir, ARQ, 'expect(2).toBe(2)', `expect(2).toBe(2)\n  ${mais}`)
+}
+const decisaoEmUm = dir => {
+  marcado(dir)
+  reescrever(dir, 'exemplo.a', hoje)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(7).toBe(7)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'primeira decisão')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'decisão em um')
+}
+const blocoDoTeste = (dir, nome) => new RegExp(`\\n// Regra: [^\\n]*\\ntest\\('${nome}'[\\s\\S]*?\\n\\}\\)\\n`).exec(readFileSync(join(dir, ARQ), 'utf8'))[0]
+
+test('selar de novo, antes do commit, o teste recém-renomeado por decisão usa a mesma linha', comMontagem(dir => {
+  marcado(dir)
+  reescrever(dir, 'exemplo.a', hoje)
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 0, r.stderr)
+  trocar(dir, ARQ, 'expect(4).toBe(4)', 'expect(4).toBe(4)\n  expect(5).toBe(5)')
+  const s = selos(dir, '--selar', UNO, '--tipo', 'decisao', '--motivo', 'ajuste no corpo')
+  assert.equal(s.status, 0, s.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.testes[UNO].linhas['exemplo.a'].length, 1)
+  assert.deepEqual(agora.testes[UNO].linhas['exemplo.a'], [agora.removidos[UM].linha['exemplo.a']])
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  trocar(dir, ARQ, 'expect(5).toBe(5)', 'expect(5).toBe(5)\n  expect(6).toBe(6)')
+  const f = selos(dir, '--selar', UNO, '--tipo', 'refatoracao', '--motivo', 'mais uma asserção')
+  assert.equal(f.status, 0, f.stderr)
+  assert.deepEqual(lerSelosJson(dir).testes[UNO].linhas['exemplo.a'], [agora.removidos[UM].linha['exemplo.a']])
+}))
+
+test('o renome por decisão é conferido pelas regras do momento do renome, também com --base', comMontagem(dir => {
+  marcado(dir)
+  const base = gitEm(dir)('rev-parse', 'HEAD').stdout.trim()
+  reescrever(dir, 'exemplo.a', hoje)
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'renome por decisão')
+  trocar(dir, ARQ, "// Regra: exemplo.a\ntest('uno'", "// Regra: exemplo.a, exemplo.b\ntest('uno'")
+  const s = selos(dir, '--selar', UNO, '--tipo', 'refatoracao', '--motivo', 'a regra a mais')
+  assert.equal(s.status, 0, s.stderr)
+  commitar(dir, 'a regra a mais')
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  const b = selos(dir, '--repo', dir, '--base', base)
+  assert.equal(b.status, 0, b.stderr)
+  assert.doesNotMatch(b.stderr, /renome por decisão sem/)
+  assert.deepEqual(lerSelosJson(dir).removidos[UM].regrasPara, ['exemplo.a'])
+}))
+
+test('o renome por decisão cujo destino é removido no mesmo PR é conferido pelas regras do destino no renome', comMontagem(dir => {
+  trocar(dir, ARQ, "// Regra: exemplo.a\ntest('um'", "// Regra: exemplo.a, exemplo.b\ntest('um'")
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'duas regras').status, 0)
+  marcado(dir)
+  const base = gitEm(dir)('rev-parse', 'HEAD').stdout.trim()
+  reescrever(dir, 'exemplo.a', hoje)
+  trocar(dir, ARQ, "// Regra: exemplo.a, exemplo.b\ntest('um'", "// Regra: exemplo.a\ntest('um'")
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'renome por decisão')
+  outraLinha(dir, hoje, 'o usuário tirou o teste.')
+  trocar(dir, ARQ, blocoDoTeste(dir, 'uno'), '\n')
+  const m = selos(dir, '--remover', UNO, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(m.status, 0, m.stderr)
+  commitar(dir, 'remoção por decisão')
+  const b = selos(dir, '--repo', dir, '--base', base)
+  assert.equal(b.status, 0, b.stderr)
+}))
+
+test('remover por decisão com a linha que o teste já usou é recusado', comMontagem(dir => {
+  decisaoEmUm(dir)
+  const usada = selosDeHead(dir).testes[UM].linhas['exemplo.a']
+  trocar(dir, ARQ, blocoDoTeste(dir, 'um'), '\n')
+  const r = selos(dir, '--remover', UM, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /já foi usada por este teste/)
+  outraLinha(dir, hoje, 'o usuário tirou o teste.')
+  const s = selos(dir, '--remover', UM, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(s.status, 0, s.stderr)
+  assert.ok(!usada.includes(lerSelosJson(dir).removidos[UM].linha['exemplo.a']))
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('renomear por decisão com a linha que o teste já usou é recusado, e passa com uma linha nova', comMontagem(dir => {
+  decisaoEmUm(dir)
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /já foi usada por este teste/)
+  outraLinha(dir, hoje, 'o usuário renomeou o teste.')
+  const s = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(s.status, 0, s.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.testes[UNO].linhas['exemplo.a'].length, 2)
+  const registro = agora.removidos[UM]
+  assert.equal(registro.para, UNO)
+  assert.equal(registro.reescrito, hoje)
+  assert.ok(registro.linha['exemplo.a'])
+  assert.deepEqual(registro.regrasPara, ['exemplo.a'])
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('o registro de remoção ou de renome por decisão escrito à mão, sem linha nova, não passa na etapa', comMontagem(dir => {
+  decisaoEmUm(dir)
+  const usada = selosDeHead(dir).testes[UM].linhas['exemplo.a'][0]
+  trocar(dir, ARQ, blocoDoTeste(dir, 'um'), '\n')
+  const s = lerSelosJson(dir)
+  const { regras, hash } = s.testes[UM]
+  delete s.testes[UM]
+  s.removidos[UM] = { regras, data: hoje, motivo: 'à mão', reescrito: hoje, linha: { 'exemplo.a': usada }, hash, tipo: 'decisao' }
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /remoção por decisão sem `Reescrito:` novo: .*::um/)
+  gitEm(dir)('checkout', '--', '.')
+  paraUno(dir)
+  assert.equal(selos(dir, '--selar', UNO, '--tipo', 'novo', '--motivo', 'o teste novo').status, 0)
+  const t = lerSelosJson(dir)
+  const antigo = t.testes[UM]
+  delete t.testes[UM]
+  t.removidos[UM] = { regras: antigo.regras, data: hoje, motivo: 'à mão', reescrito: hoje, linha: { 'exemplo.a': usada }, hash: antigo.hash, para: UNO, tipo: 'decisao', regrasPara: ['exemplo.a'] }
+  gravarSelosJson(dir, t)
+  const n = conferir(dir)
+  assert.equal(n.status, 1)
+  assert.match(n.stderr, /renome por decisão sem `Reescrito:` novo: .*::um/)
+}))

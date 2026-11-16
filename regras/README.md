@@ -94,7 +94,9 @@ Tipos:
   (Recomendado)"). O selo guarda as linhas usadas (`linhas`: por regra, o código do texto de cada
   linha; a lista só cresce), e o comando escolhe sozinho a linha livre mais nova de cada regra.
   Testes diferentes do mesmo cenário podem usar a mesma linha; mudar de novo um teste já mudado pede
-  outra linha, com as palavras do usuário;
+  outra linha, com as palavras do usuário. As linhas já usadas são as que o teste gastou em `HEAD`:
+  selar de novo antes do commit usa a mesma linha, também no destino de um renome por decisão ainda
+  sem commit (contam as linhas da chave antiga em `HEAD`);
 - `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir, e o teste
   como ficou tem de passar no código anterior (a etapa `regressao` prova; decisão do usuário,
   2026-11-15: "Sim, provar (Recomendado)").
@@ -113,7 +115,11 @@ node scripts/selos.mjs --novos --motivo "…"   # sela como "novo" os testes e o
 e grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado em `reescrito`, o
 código da linha por regra em `linha`, o hash que saiu e o tipo). `--renomear` leva o selo para a
 chave nova e grava a antiga em `removidos` com `para`: `refatoracao` só para renome puro (o hash do
-corpo é o mesmo), `decisao` para corpo mudado, com a exigência da linha `Reescrito:` livre.
+corpo é o mesmo), `decisao` para corpo mudado, com a exigência da linha `Reescrito:` livre. O renome
+por decisão guarda no registro, em `regrasPara`, as regras do teste de destino naquele momento, e a
+etapa `selos` confere a linha de cada uma delas, também com `--base` sobre vários commits (o registro
+sem `regrasPara`, anterior a 2026-11-16 ou escrito à mão, é conferido pelas regras do selo de destino
+de agora).
 
 `linhasUsadas`, no topo do `selos.json`, guarda por regra os códigos das linhas `Reescrito:` que já
 existiam no catálogo quando a regra "uma linha por mudança" entrou (gravada uma vez por

@@ -458,7 +458,10 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     for (const [chave, r] of Object.entries(selos.removidos)) {
       if (r.tipo !== 'decisao' || head.removidos[chave] !== undefined) continue
       const antes = head.testes[chave] ?? {}
-      const ids = (r.para ? selos.testes[r.para]?.regras : undefined) ?? r.regras ?? []
+      // O renome por decisão é conferido pelas regras do destino no momento do renome (regrasPara); o
+      // registro sem elas (anterior a 2026-11-16, ou escrito à mão), pelas do selo de destino de agora.
+      const pelaGravacao = r.para && Array.isArray(r.regrasPara) && r.regrasPara.length > 0 ? r.regrasPara : undefined
+      const ids = pelaGravacao ?? (r.para ? selos.testes[r.para]?.regras : undefined) ?? r.regras ?? []
       if (ids.some(id => !linhaNova(id, r.linha?.[id], antes)))
         problemas.push(`${r.para ? 'renome' : 'remoção'} por decisão sem \`Reescrito:\` novo: ${chave} (cada regra precisa de uma linha "Reescrito:" desde ${antes.data} ainda não usada por este teste)`)
     }
@@ -510,6 +513,18 @@ function somarLinhas(linhas = {}, novas = {}) {
   return soma
 }
 const comLinhas = linhas => (linhas && Object.keys(linhas).length > 0 ? { linhas } : {})
+// As linhas "Reescrito:" que o teste já gastou em HEAD: as do selo dele em HEAD; para o destino de um
+// renome registrado na pasta de trabalho e ainda fora de HEAD, as da chave antiga em HEAD (seguindo a
+// cadeia de renomes sem commit); para um teste que não existe em HEAD nem veio de renome, nenhuma.
+function linhasDeHead(head, selos, chave) {
+  const vistas = new Set()
+  for (let c = chave; c !== undefined && !vistas.has(c); ) {
+    vistas.add(c)
+    if (head.testes[c]) return head.testes[c].linhas
+    c = Object.keys(selos.removidos).find(de => selos.removidos[de].para === c && head.removidos[de] === undefined)
+  }
+  return undefined
+}
 
 export function selar(raiz, repo, opcoes) {
   const { testes, kit, regras } = extrair(raiz)
@@ -620,7 +635,9 @@ export function selar(raiz, repo, opcoes) {
     } else usada = exigirReescrito(regras, t.regras, s.data, selos.linhasUsadas, doTeste)
     delete selos.testes[de]
     selos.testes[para] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo, ...comLinhas(somarLinhas(doTeste, usada.linha)) }
-    selos.removidos[de] = { regras: s.regras, data: hoje(), motivo, ...(usada.data ? { reescrito: usada.data, linha: usada.linha } : {}), hash: s.hash, para, tipo }
+    // O renome por decisão guarda as regras do teste de destino com que foi conferido (regrasPara): a
+    // etapa confere a linha de cada uma delas, também com --base sobre vários commits.
+    selos.removidos[de] = { regras: s.regras, data: hoje(), motivo, ...(usada.data ? { reescrito: usada.data, linha: usada.linha, regrasPara: t.regras } : {}), hash: s.hash, para, tipo }
     gravar(raiz, selos)
     return `selo renomeado (${tipo}): ${de} → ${para}`
   }
@@ -631,8 +648,11 @@ export function selar(raiz, repo, opcoes) {
   if (tipo === 'novo' && head.testes[chave]) throw new Error(`"novo" só para teste que não existia em HEAD: ${chave}`)
   if (tipo === 'refatoracao' && anterior && t.assercoes < anterior.assercoes)
     throw new Error(`refatoração não pode tirar asserções: ${chave} (${anterior.assercoes} → ${t.assercoes})`)
-  // As linhas já usadas são as do selo de HEAD: selar de novo antes do commit escolhe a mesma linha.
-  const doTeste = (head.testes[chave] ?? selos.testes[chave])?.linhas
+  // As linhas já usadas são as que o teste gastou em HEAD (linhasDeHead): selar de novo antes do
+  // commit escolhe a mesma linha, também no destino de um renome por decisão ainda sem commit. Fora da
+  // decisão, as linhas gravadas seguem herdadas do selo de HEAD ou da pasta de trabalho, para o selo de
+  // refatoração não apagar a linha que o renome gastou.
+  const doTeste = tipo === 'decisao' ? linhasDeHead(head, selos, chave) : (head.testes[chave] ?? selos.testes[chave])?.linhas
   const usada = tipo === 'decisao' ? exigirReescrito(regras, t.regras, anterior?.data, selos.linhasUsadas, doTeste) : {}
   selos.testes[chave] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo, ...comLinhas(somarLinhas(doTeste, usada.linha)) }
   gravar(raiz, selos)
