@@ -6,6 +6,8 @@ import { done, esc, fimDoTurno, iniciarSessao, pedido, plan, start, type No } fr
 import { abrirSessao, aviso, envio, falha, mensagemDe } from './kit/cenario'
 import { lancar } from './kit/cenario'
 import { lancaveis } from './kit/ambiente'
+import { responderDepois } from './kit/ambiente'
+import { fimDoSubagente, recebidaPeloSubagente } from './kit/cenario'
 
 // Lembretes ao modelo na mensagem seguinte. Origem: decisão do usuário de 2026-10-27 ("precisa
 // replanejar quando eu interrompo e envio nova mensagem"); a de outra sessão já fazia isso.
@@ -1014,4 +1016,53 @@ test('as regras dizem que o que o subagente deixa aberto vira interrompido, salv
   expect(regras).toContain('vira interrompido')
   expect(regras).toContain('salvo a tarefa dele')
   expect(regras).toContain('reflete o fim deles')
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('depois que a carta da fila é recebida, as chamadas voltam a contar para o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_parada', rodando: false }])
+  responderEnvio(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await envio($, 'local_parada')
+  expect(await tresChamadas($, 'a')).toEqual([false, false, false])
+  h.recebeu('local_parada', AGORA)
+  await aviso($)
+  expect(await tresChamadas($, 'b')).toEqual([false, false, true])
+})
+
+// O SendMessage a um subagente: a mensagem fica para a rodada seguinte dele.
+function cartaParaARodadaDoSub(on: any) {
+  on('tool.call', { tool: 'SendMessage' }, (_$: any, e: any) => ({
+    result: `{"success":true,"message":"Message queued for delivery to ${e.to} at its next tool round. If it finishes first, it is resumed with the message and notifies again."}`,
+  }))
+}
+
+// Regra: lembretes.plano-aberto-sem-start
+test('depois que o subagente recebe a carta e termina, as chamadas voltam a contar para o lembrete de start', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  cartaParaARodadaDoSub(on)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await lancar($, { descricao: 'ler o kit', segundoPlano: true })
+  await envio($, 'sub-1', 'olhe também o kit')
+  await recebidaPeloSubagente($, 'sub-1', 'olhe também o kit')
+  await fimDoSubagente($, 'sub-1')
+  expect(await tresChamadas($, 'a')).toEqual([false, false, true])
+})
+
+// Regra: lembretes.plano-aberto-sem-start
+test('três chamadas juntas com plano aberto e nada iniciado: uma só leva o lembrete de start', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'Bash', 'ok', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const chamadas = ['j1', 'j2', 'j3'].map(id => $.tool.call({ tool: 'Bash', tool_use_id: id, command: 'ls' }))
+  const ctx = (await Promise.all(chamadas)).map(r => contextoDe(r))
+  expect(ctx.filter(c => c.includes(SEM_START) && c.includes(CHAMA_START)).length, ctx.join('\n')).toBe(1)
+  expect(await lembraStart($, 'j4')).toBe(false)
 })

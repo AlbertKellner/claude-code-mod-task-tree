@@ -844,3 +844,22 @@ test('o start sozinho, numa tarefa de pedido antigo, começa trabalho novo', asy
   expect(tem(p, 'Plano B'), emTexto(p)).toBe(false)
   expect(p.some(l => l.texto.includes('pedidos anteriores')), emTexto(p)).toBe(true)
 })
+
+// Uma worktree que o Claude Code cria dentro do repositório principal, com o `.git` dela apontando para
+// o gitdir por um caminho relativo.
+async function naWorktreeRelativa($: any, on: any): Promise<{ texto: string; repo: unknown }> {
+  fixar(on)
+  const h = host(on, [], { git: { raiz: 'C:/src/meu-projeto/.claude/worktrees/ajuste', gitdir: 'C:/src/meu-projeto/.git/worktrees/ajuste', relativo: '../../../.git/worktrees/ajuste', head: 'ref: refs/heads/fix/cabecalho\n' } })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  return { texto: emTextoDoApp(await noApp($, { colunas: 100 })), repo: h.proprio()?.git?.repo }
+}
+
+// Regra: sessoes.worktree-mostra-o-repositorio-principal
+test('numa worktree dentro do repositório principal, com gitdir relativo, o cabeçalho mostra o repositório principal', async ($: any, on: any) => {
+  const r = await naWorktreeRelativa($, on)
+  expect(r.texto, r.texto).toContain('meu-projeto ⑂ fix/cabecalho')
+  expect(r.texto, r.texto).not.toContain('ajuste ⑂')
+  expect(r.repo).toBe('meu-projeto')
+})

@@ -336,11 +336,12 @@ Estado: coberto
 ### lembretes.plano-aberto-sem-start
 Com plano aberto e nada iniciado, o modelo é lembrado de dar start.
 
-- Dado um pedido com tarefa aberta, nenhuma tarefa em andamento, e nada que segure uma tarefa sem start (subagente vivo, sessão aberta trabalhando, carta na fila)
+- Dado um pedido com tarefa aberta, nenhuma tarefa em andamento, e nada que segure uma tarefa sem start (subagente vivo, sessão aberta trabalhando, carta na fila, ainda não recebida)
 - Quando o modelo faz a terceira chamada de ferramenta seguida nessa situação (as do painel, o wrap_up e a lista do app não contam)
-- Então o resultado traz o lembrete de chamar start na tarefa em que está trabalhando, uma vez por plano: só volta depois de outro plan ou de outro pedido; um start zera a contagem; a contagem sobrevive à recarga do mod; o painel segue ○ até o start (arvore.sem-start-nada-acende)
+- Então o resultado traz o lembrete de chamar start na tarefa em que está trabalhando, uma vez por plano (também quando as chamadas vêm juntas, numa mensagem só): só volta depois de outro plan ou de outro pedido; um start zera a contagem; a contagem sobrevive à recarga do mod; o painel segue ○ até o start (arvore.sem-start-nada-acende)
 
 Origem: decisão do usuário, 2026-11-15 ("Lembrete após 3 chamadas (Recomendado)").
+Reescrito: 2026-11-15, texto: a carta já recebida não segura o lembrete, e chamadas juntas contam uma a uma (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, state/durability.ts
 Estado: coberto
 

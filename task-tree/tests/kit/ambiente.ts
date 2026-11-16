@@ -101,9 +101,11 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
 // `git`: a raiz desta sessão ($.session.root) e o texto do `.git/HEAD` dela; sem ele, a sessão não
 // tem raiz (o cabeçalho fica sem repositório). Com `gitdir`, a raiz é uma worktree (ou um submódulo):
-// `<raiz>/.git` é um arquivo "gitdir: <gitdir>", e o `head` é o de `<gitdir>/HEAD`.
+// `<raiz>/.git` é um arquivo "gitdir: <gitdir>", e o `head` é o de `<gitdir>/HEAD`. Com `relativo`, o
+// arquivo traz esse texto no lugar do `gitdir` (um caminho relativo à raiz); o `gitdir` segue absoluto,
+// e o `HEAD` é servido pelo caminho pedido com `.` e `..` resolvidos.
 // `idFalha`: o get_session desta sessão ('self') responde erro, lido a cada chamada (o teste a troca no meio).
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string; gitdir?: string }; idFalha?: boolean }
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string; gitdir?: string; relativo?: string }; idFalha?: boolean }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -124,6 +126,17 @@ export type Filha = {
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
   apagada?: boolean // a sessão foi apagada: fora da lista, e o get_session dela responde "Session <id> not found."
   iniciadaPor?: string // quem a iniciou, na lista do host; padrão esta sessão (EU): outro id faz dela uma sessão ligada que não é filha (a mãe, uma irmã)
+}
+// Um caminho com as barras normalizadas e os segmentos `.` e `..` resolvidos (o host lê o arquivo pelo
+// caminho resolvido).
+function semPontos(caminho: string): string {
+  const partes: string[] = []
+  for (const p of caminho.replace(/\\/g, '/').split('/')) {
+    if (p === '.') continue
+    if (p === '..' && partes.length > 1) partes.pop()
+    else partes.push(p)
+  }
+  return partes.join('/')
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
 export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host {
@@ -162,8 +175,8 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     if (m) lidas[m[1]!] = (lidas[m[1]!] ?? 0) + 1
     if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
     if (git?.gitdir === undefined && naRaiz(e.path, '.git/HEAD')) return { value: git!.head }
-    if (git?.gitdir !== undefined && naRaiz(e.path, '.git')) return { value: `gitdir: ${git.gitdir}\n` }
-    if (git?.gitdir !== undefined && String(e.path).replace(/\\/g, '/') === `${git.gitdir}/HEAD`) return { value: git.head }
+    if (git?.gitdir !== undefined && naRaiz(e.path, '.git')) return { value: `gitdir: ${git.relativo ?? git.gitdir}\n` }
+    if (git?.gitdir !== undefined && semPontos(String(e.path)) === `${git.gitdir}/HEAD`) return { value: git.head }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
     if (s.publicado !== undefined) return { value: s.publicado }

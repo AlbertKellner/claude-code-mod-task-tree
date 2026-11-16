@@ -403,6 +403,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: o nome do repositório principal"
     },
+    "task-tree/tests/cabecalho.test.ts::numa worktree dentro do repositório principal, com gitdir relativo, o cabeçalho mostra o repositório principal": {
+      "regras": [
+        "sessoes.worktree-mostra-o-repositorio-principal"
+      ],
+      "hash": "c4fc256f20f8d633",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 da worktree: o gitdir relativo não era resolvido"
+    },
     "task-tree/tests/cabecalho.test.ts::numa worktree, o cabeçalho mostra o repositório principal e a branch da worktree": {
       "regras": [
         "sessoes.worktree-mostra-o-repositorio-principal"
@@ -2885,6 +2895,26 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/lembretes.test.ts::depois que a carta da fila é recebida, as chamadas voltam a contar para o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "7cb5c868c3f77adb",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lembrete de start: a carta já recebida contava como na fila"
+    },
+    "task-tree/tests/lembretes.test.ts::depois que o subagente recebe a carta e termina, as chamadas voltam a contar para o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "a0d568943527c204",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lembrete de start: a carta recebida pelo subagente contava como na fila"
+    },
     "task-tree/tests/lembretes.test.ts::fechar com done um passo do pedido anterior não conta como planejar o pedido novo": {
       "regras": [
         "lembretes.primeira-chamada-sem-plano"
@@ -3106,6 +3136,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Sim, acrescentar (Recomendado)\""
+    },
+    "task-tree/tests/lembretes.test.ts::três chamadas juntas com plano aberto e nada iniciado: uma só leva o lembrete de start": {
+      "regras": [
+        "lembretes.plano-aberto-sem-start"
+      ],
+      "hash": "ae09de7eb3c39306",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lembrete de start: a contagem era somada fora do update"
     },
     "task-tree/tests/lembretes.test.ts::um start antes da terceira chamada cala o lembrete de start": {
       "regras": [
@@ -6967,10 +7007,10 @@
       "motivo": "arquivo de apoio dos testes, selado na migração do hash"
     },
     "task-tree/tests/kit/ambiente.ts": {
-      "hash": "fa68343da80696e7",
+      "hash": "1c54fdc6cdf427c0",
       "tipo": "refatoracao",
       "data": "2026-11-15",
-      "motivo": "o passo do modelo aceita o esforço; sem ele, igual"
+      "motivo": "host: o arquivo .git pode trazer o gitdir relativo, e o HEAD é servido pelo caminho resolvido; nada do que os testes afirmam muda"
     },
     "task-tree/tests/kit/cenario.ts": {
       "hash": "109745bec3633eb3",

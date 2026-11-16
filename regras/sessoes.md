@@ -261,11 +261,12 @@ Estado: coberto
 ### sessoes.worktree-mostra-o-repositorio-principal
 Numa worktree, o cartão e o cabeçalho mostram o repositório principal.
 
-- Dado uma sessão cuja pasta é uma worktree de um repositório
+- Dado uma sessão cuja pasta é uma worktree de um repositório (com o `.git` dela apontando para o principal por caminho absoluto ou relativo)
 - Quando o cabeçalho dela e o cartão dela na sessão mãe são desenhados
 - Então mostram o nome do repositório principal e a branch da worktree ("meu-projeto ⑂ fix/cabecalho"); num submódulo, ou com o `.git` apontando para outro lugar, o nome da pasta
 
 Origem: decisão do usuário, 2026-11-15 ("O do repositório principal (Recomendado)").
+Reescrito: 2026-11-15, texto: o caminho relativo é resolvido antes de achar o repositório principal (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Código: io/git.ts
 Estado: coberto
 

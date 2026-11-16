@@ -66,9 +66,10 @@ Quem recebe `$` (o engine) e quem não recebe:
     `deducedOwn` (puras), `panelOf` (pura), `readFiles`, `engineText` (pura), `engineOf` (com o cache
     `engineSeen`), `deriveChildren` (pura), `justOpened`, `STARTING_GRACE`, `allSessionIds`,
     `sessionGone`, `staleFiles`.
-  - `git.ts` (108): `readGit` (repositório e branch pelos arquivos, sem processo; numa worktree, cujo
+  - `git.ts` (123): `readGit` (repositório e branch pelos arquivos, sem processo; numa worktree, cujo
     `.git` é um arquivo "gitdir: <principal>/.git/worktrees/<nome>", o nome é o do repositório
-    principal, por `mainOf`), `parseHead`, `shortPath`, `basename`, `parent`.
+    principal, por `mainOf`; o gitdir relativo é resolvido contra a pasta, por `resolvePath`, antes de
+    `mainOf` e da leitura do `HEAD`), `parseHead`, `shortPath`, `basename`, `parent`, `resolvePath`.
   - `log.ts` (14): `debug($, texto)` e `debugOnce`, uma linha no log de depuração que nunca falha.
 - **Estado** (`state/`):
   - `durability.ts` (235): a tabela de durabilidade `TABLE` e o que a lê (`rowOf`, `restoredAt`,
@@ -280,8 +281,10 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira
    chamada sem plano aberto e cada 10ª depois dela ganham `UNPLANNED`; o wrap_up e a lista do app,
    `update_plan`, não ganham nem contam; com plano aberto e nada em andamento, a terceira chamada
-   seguida ganha `START_DUE`, uma vez por plano, contada nas marcas `idleCalls`/`idleWarned`, sem
-   contar as chamadas com subagente vivo, sessão aberta trabalhando ou carta na fila).
+   seguida ganha `START_DUE`, uma vez por plano, contada nas marcas `idleCalls`/`idleWarned` por
+   `countIdleCall` (`hooks/panel.ts`), que lê, soma e grava num `update` só, e diz se o lembrete sai:
+   chamadas juntas contam uma a uma; `setMarks` também junta os campos dentro de um `update`; sem
+   contar as chamadas com subagente vivo, sessão aberta trabalhando ou carta na fila, não recebida).
 
 **Um prompt** (`hooks/prompt-submit.ts`): `said(text)` tira os `<system-reminder>` e classifica em
 mensagem de outra sessão (`peer`, `<cross-session-message`), volta de subagente (`handback`), aviso
@@ -2449,6 +2452,9 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   repositório principal e a branch segue a da worktree (2026-11-15, "O do repositório principal
   (Recomendado)"; sessoes.worktree-mostra-o-repositorio-principal). Submódulo e gitdir em outro lugar
   seguem com o nome da pasta.
+- Revisão do lote: o gitdir relativo (a worktree que o Claude Code cria em `.claude/worktrees/<nome>`,
+  com caminhos relativos ligados no git) era colado à pasta sem resolver os `..`, e o nome mostrado era
+  o da pasta da worktree. Agora o caminho é resolvido antes de `mainOf` e da leitura do `HEAD`.
 
 ## Achados baixos: o painel estreito (2026-11-15)
 
@@ -2479,6 +2485,10 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   nas marcas do pedido (`idleCalls`, `idleWarned`), que sobrevivem à recarga. `DONE.unstarted` sai também
   com uma tarefa só, no singular (2026-11-15, "Lembrete após 3 chamadas (Recomendado)";
   lembretes.plano-aberto-sem-start, arvore.done-sem-summary-e-varias-sem-start).
+- Revisão do lote: a carta recebida depois de ficar na fila contava como na fila (só a entrega imediata
+  era olhada), e o lembrete ficava calado enquanto ela estava na lista; agora conta só a carta não
+  recebida. A contagem era lida, somada e gravada fora de um `update`, e chamadas juntas perdiam conta;
+  agora `countIdleCall` faz tudo num `update`.
 
 ## Achados baixos: a ordem entre o painel e a lista de tarefas do app (2026-11-15)
 

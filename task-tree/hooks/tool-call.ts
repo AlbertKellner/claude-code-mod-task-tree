@@ -14,7 +14,7 @@ import { debugOnce } from '../io/log'
 import type { Child, Group, Send, Wait } from '../types'
 import { ASK, SEND, START_DUE, UNPLANNED, WRAP_UP } from '../text/rules'
 import { MAIN, flat, hasOpen, current, keepRounds, keepSends, live, nextSeq } from '../draw/layout'
-import { marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, sendPlace, stamp, usedAnchors, wake } from './panel'
+import { countIdleCall, marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, sendPlace, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
 import { cutText, oneLine } from '../draw/svg'
@@ -287,12 +287,10 @@ async function reminder($: any, c: Call, r: any) {
     // (Recomendado)"). A call with a task in progress, or with something that holds a task with no
     // start (a subagent alive, a session working, a letter queued), neither counts nor resets it; a
     // start, a plan taken and a new request reset it (hooks/tools, hooks/prompt-submit).
+    // The count is read, added and written in one write (countIdleCall): calls made together count
+    // one by one, and only the third takes the reminder.
     if (!open || busy || m.idleWarned || (await holdsUnstarted($, value as Group[]))) return r
-    if (m.idleCalls + 1 < 3) {
-      await setMarks($, { idleCalls: m.idleCalls + 1 })
-      return r
-    }
-    await setMarks($, { idleCalls: 0, idleWarned: true })
+    if (!(await countIdleCall($))) return r
     return { ...r, context: [...(r.context ?? []), START_DUE] }
   }
   reminders.unplanned++
@@ -301,13 +299,15 @@ async function reminder($: any, c: Call, r: any) {
 }
 
 // What keeps a task lit with no start (arvore.sem-start-nada-acende), and a letter queued: a subagent
-// the main loop launched still running, a session this one opened working, a message not taken up.
+// the main loop launched still running, a session this one opened working, a message not taken up
+// (queued: not taken, not cut, not given up as lost, as the rest of the mod reads it; a letter taken
+// from the queue later stays in the list but holds nothing).
 async function holdsUnstarted($: any, groups: Group[]): Promise<boolean> {
   if (groups.some(g => g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && (g.sub?.state === 'running' || g.sub?.state === 'background'))) return true
   const { value: kids = [] } = await $.state.get(childrenState)
   if ((kids as Child[]).some(live)) return true
   const { value: sends = [] } = await $.state.get(sendsState)
-  return (sends as Send[]).some(s => s.delivered !== true && s.cut !== true && s.lost !== true)
+  return (sends as Send[]).some(s => s.taken !== true && s.cut !== true && s.lost !== true)
 }
 
 // ---- the hook

@@ -56,6 +56,19 @@ export function mainOf(gitdir: string): string | undefined {
   return name === '' || name === '.' || name === '..' ? undefined : name
 }
 
+// A path with its `.` and `..` folders resolved and its slashes made `/`; the drive letter, a leading
+// slash or a share's two are kept. A `..` past the start stays (a relative path).
+export function resolvePath(path: string): string {
+  const lead = /^(?:[\\/]{2}|[a-zA-Z]:[\\/]|[\\/])/.exec(path)?.[0] ?? ''
+  const out: string[] = []
+  for (const part of path.slice(lead.length).split(/[\\/]+/)) {
+    if (part === '' || part === '.') continue
+    if (part === '..' && out.length > 0 && out[out.length - 1] !== '..') out.pop()
+    else if (part !== '..' || lead === '') out.push(part)
+  }
+  return lead.replace(/\\/g, '/') + out.join('/')
+}
+
 // How far up the folders a `.git` is looked for.
 const UP = 40
 
@@ -93,7 +106,9 @@ export async function readGit($: any): Promise<GitInfo | undefined> {
         const m = /^gitdir:\s*(.+)$/m.exec(dot)
         if (!m) return await folder()
         const gd = m[1]!.trim()
-        const abs = /^([a-zA-Z]:[\\/]|[\\/])/.test(gd) ? gd : `${dir}/${gd}`
+        // A relative gitdir (a worktree made inside the main repository's folder) is resolved against
+        // the folder first: the main repository's name is read from it, and its HEAD read through it.
+        const abs = /^([a-zA-Z]:[\\/]|[\\/])/.test(gd) ? gd : resolvePath(`${dir}/${gd}`)
         head = String(await $.fs.read(`${abs}/HEAD`))
         repo = mainOf(abs) ?? repo
       }

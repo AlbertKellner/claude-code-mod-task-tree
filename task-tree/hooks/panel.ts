@@ -243,17 +243,37 @@ export async function lastBrief($: any): Promise<string | undefined> {
 // the calls in a row with a plan open and nothing started, and whether this plan already took the
 // reminder to start (tool-call, reminder).
 export type Marks = { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean; idleCalls: number; idleWarned: boolean }
-export async function marks($: any): Promise<Marks> {
-  const { value } = await $.state.get(marksState)
+function shapeMarks(value: unknown): Marks {
   const v = value !== null && typeof value === 'object' ? value as Partial<Marks> : {}
   const idle = typeof v.idleCalls === 'number' && Number.isFinite(v.idleCalls) && v.idleCalls > 0 ? Math.floor(v.idleCalls) : 0
   return { planned: v.planned === true, answeredInChat: v.answeredInChat === true, briefBeforePlan: v.briefBeforePlan === true, idleCalls: idle, idleWarned: v.idleWarned === true }
 }
-// Changes the marks given, in one write; nothing is written when none changes.
+export async function marks($: any): Promise<Marks> {
+  const { value } = await $.state.get(marksState)
+  return shapeMarks(value)
+}
+// Changes the marks given, joined to the value read inside the write (update): a mark written by a
+// call running beside this one is kept. Nothing is written when none changes.
 export async function setMarks($: any, m: Partial<Marks>) {
   const now = await marks($)
   if ((Object.keys(m) as (keyof Marks)[]).every(k => now[k] === m[k])) return
-  await $.state.set(marksState, { ...now, ...m })
+  await update($, marksState, cur => ({ ...shapeMarks(cur), ...m }))
+}
+// One call of the main loop with the plan open and nothing started (tool-call, reminder), counted in
+// one write (update), so calls made together each count once: below the third it adds one; the third
+// sets the count back and marks the plan's reminder as given, and the answer is true (the reminder
+// goes out with this call); with the reminder already given, nothing changes.
+export async function countIdleCall($: any): Promise<boolean> {
+  let due = false
+  await update($, marksState, cur => {
+    const v = shapeMarks(cur)
+    due = false
+    if (v.idleWarned) return v
+    if (v.idleCalls + 1 < 3) return { ...v, idleCalls: v.idleCalls + 1 }
+    due = true
+    return { ...v, idleCalls: 0, idleWarned: true }
+  })
+  return due
 }
 
 // The main loop's tool calls since a plan was last open (see the tool.call reminder), a variable of
