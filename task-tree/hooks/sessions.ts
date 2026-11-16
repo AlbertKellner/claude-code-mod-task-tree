@@ -502,8 +502,9 @@ function finishedAll(c: Child): boolean {
   return !(p.children ?? []).some(k => !k.archived && (k.running || k.waiting === true || k.starting === true))
 }
 // Whether a session's task of origin `id` is only its place: by its round there (onlyPlaceAt): the last
-// message to it from that task put there so (Send.onlyPlace); with none, its opening there so
-// (Child.onlyPlace). A common message sent from the task afterwards closes it as always.
+// message to it from that task still among the sends put there so (Send.onlyPlace); else the mark of its
+// newest round there; else its opening there so (Child.onlyPlace). A common message sent from the task
+// afterwards closes it as always, and so does a session adopted by the plan.
 const onlyPlaceOf = (c: Child, id: string, sends: Send[]) => onlyPlaceAt(c, id, sends)
 // The sessions that ended their turn (`ended`, this read) with all of their work done close their task
 // of origin (originOf), the person, 2026-11-15: "Fecha a tarefa sozinho (Recomendado)": when it is open
@@ -528,8 +529,8 @@ async function closeByEnded($: any, ended: string[]) {
         // One the person's Esc left interrupted waits on its start (turnos.esc-com-trabalho-delegado-vivo).
         if (t === undefined || t.stopped === true || t.children.some(x => x.status === 'open')) continue
         // Its task of origin only as a place (the session opened, or a message sent to it, with a question
-        // open in an earlier plan's task: Child.onlyPlace, Send.onlyPlace): the person, 2026-11-15,
-        // "Também não fecha (Recomendado)".
+        // open in an earlier plan's task: Child.onlyPlace, Send.onlyPlace, the round's mark): the person,
+        // 2026-11-15, "Também não fecha (Recomendado)". The session adopted by the plan closes as always.
         if (onlyPlaceOf(c, t.id, sends as Send[])) continue
         if (inFlight(all, MAIN, t.id, { sends: sends as Send[], waits: waits as Wait[], children: kids as Child[] })) continue
         tasks = settle(edit(tasks, t.id, finish(now)), now)

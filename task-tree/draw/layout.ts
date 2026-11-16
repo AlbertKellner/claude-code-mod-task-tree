@@ -132,7 +132,9 @@ export function spared(groups: Group[], sends: { anchor?: string; taken?: boolea
 // it works); the close by the subagents at the turn's end (settleBySubs) passes them.
 // What is in the task only as a place holds nothing (the person, 2026-11-15: "Não segura
 // (Recomendado)"): a subagent or a letter put there only as a place (Sub.onlyPlace, Send.onlyPlace) or
-// adopted by the plan (Sub.adopted, Send.adopted), and a session there only as a place (onlyPlaceAt).
+// adopted by the plan (Sub.adopted, Send.adopted; the person, 2026-11-16: "Como hoje: não seguram
+// (Recomendado)"), and a session there only as a place (onlyPlaceAt). A session adopted by the plan
+// counts as the task's session: it holds while it works.
 export function inFlight(
   groups: Group[],
   owner: string,
@@ -147,14 +149,19 @@ export function inFlight(
   return (at.children ?? []).some(c => !c.archived && (c.running || c.starting === true || c.waiting === true) && (c.anchor === id || c.lastAnchor === id) && !onlyPlaceAt(c, id, sends))
 }
 type PlaceSend = { to?: string; anchor?: string; at?: number; seq?: number; taken?: boolean; cut?: boolean; onlyPlace?: boolean; adopted?: boolean }
-// Whether the session `c` is in the task `id` only as a place, by its round there: the last message
-// sent to it from that task, if any, says (one put there only as a place, Send.onlyPlace, or adopted by
-// the plan, Send.adopted: yes; a common one: no, it closes as always); with none, its opening there
-// (Child.onlyPlace). The person, 2026-11-15: "Também não fecha (Recomendado)" and "Não segura (Recomendado)".
+// Whether the session `c` is in the task `id` only as a place, by its round there, from three sources
+// in order: the last message sent to it from that task still among the sends (one put there only as a
+// place, Send.onlyPlace: yes; any other, adopted by the plan too: no, it closes as always); else its
+// newest round in that task (the round's own mark, kept after the letter leaves the sends: keepSends);
+// else its opening there (Child.onlyPlace). A session adopted by the plan (opened before it, or sent the
+// adopted letter) counts as the task's session. The person, 2026-11-15: "Também não fecha (Recomendado)"
+// and "Não segura (Recomendado)".
 export function onlyPlaceAt(c: Child, id: string, sends: PlaceSend[]): boolean {
   const mine = sends.filter(s => s.anchor === id && (s.to === c.id || (c.name !== '' && s.to === c.name)))
   const last = mine.reduce<PlaceSend | undefined>((a, s) => (a === undefined || (s.seq ?? 0) > (a.seq ?? 0) || ((s.seq ?? 0) === (a.seq ?? 0) && (s.at ?? 0) >= (a.at ?? 0)) ? s : a), undefined)
-  if (last !== undefined) return last.onlyPlace === true || last.adopted === true
+  if (last !== undefined) return last.onlyPlace === true
+  const round = (c.rounds ?? []).filter(r => r.anchor === id).reduce<{ at: number; onlyPlace?: boolean } | undefined>((a, r) => (a === undefined || r.at >= a.at ? r : a), undefined)
+  if (round !== undefined) return round.onlyPlace === true
   return c.onlyPlace === true && c.anchor === id
 }
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only

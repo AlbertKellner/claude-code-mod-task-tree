@@ -160,8 +160,9 @@ const sentMessage: Notes = async ($, c, notes) => {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
     // sent from once the session takes it up (see split). A session not among the children yet gets
     // its round only if it is this session's (see below): the round was lost, and the card of the
-    // turn the message opened had no task to go under.
-    const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
+    // turn the message opened had no task to go under. A round opened by a message put only as a place
+    // keeps that mark (onlyPlace), also once the letter leaves the sends (onlyPlaceAt).
+    const round: { at: number; anchor?: string; onlyPlace?: boolean }[] = sentAt === undefined ? [] : [{ at: sentAt, anchor, ...(place ? { onlyPlace: true } : {}) }]
     const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
     // A session left behind by a /clear gets no card: only the letter (forgetChildren).
     if (to !== '' && !failed && !isLeftBehind(to)) {
@@ -176,7 +177,7 @@ const sentMessage: Notes = async ($, c, notes) => {
       // The rounds kept (keepRounds): over 20, only those of tasks out of sight go.
       const { value: work = [] } = await $.state.get(workState)
       const ownTasks = (groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-      const cap = (rounds: { at: number; anchor?: string }[]) => keepRounds(rounds, ownTasks, work as string[])
+      const cap = (rounds: { at: number; anchor?: string; onlyPlace?: boolean }[]) => keepRounds(rounds, ownTasks, work as string[])
       await update($, childrenState, cur => {
         const list = cur ?? []
         if (list.some(mine)) {

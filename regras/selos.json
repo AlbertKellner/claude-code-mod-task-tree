@@ -2019,6 +2019,17 @@
       "data": "2026-11-14",
       "motivo": "a carta entregue segue verde no cartão parado e na tarefa ✕ pelo subagente"
     },
+    "task-tree/tests/envios.test.ts::a carta mandada antes do plan e adotada por ele, ainda na fila, não segura a entrega da mensagem comum mandada da tarefa": {
+      "regras": [
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota",
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa"
+      ],
+      "hash": "d3925c58c4c3ec07",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "decisão do usuário de 2026-11-16, \"Como hoje: não seguram (Recomendado)\": a carta adotada pelo plan não segura os outros fechamentos da tarefa"
+    },
     "task-tree/tests/envios.test.ts::a carta na fila cuja tarefa saiu num replano não pende de outro pedido quando o dela está em '+N pedidos anteriores'": {
       "regras": [
         "envios.carta-uma-vez-no-cartao-da-origem",
@@ -2649,6 +2660,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: cada uma gasta o seu recebimento"
+    },
+    "task-tree/tests/envios.test.ts::o subagente lançado antes do plan e adotado por ele não segura a entrega da mensagem comum mandada da tarefa": {
+      "regras": [
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota",
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa"
+      ],
+      "hash": "9e9c501e5098f90f",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "decisão do usuário de 2026-11-16, \"Como hoje: não seguram (Recomendado)\": o subagente adotado pelo plan não segura os outros fechamentos da tarefa"
     },
     "task-tree/tests/envios.test.ts::o subagente posto só como lugar na pendente do plano anterior não segura a entrega da mensagem comum mandada dela depois do start": {
       "regras": [
@@ -4507,6 +4529,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Corrigir os dois\"; o processo novo herda o lugar marcado e o guarda com a hora do pedido que ficou em primeiro"
     },
+    "task-tree/tests/sessoes.test.ts::a mensagem comum mandada à sessão que estava só como lugar segue valendo depois que a carta sai da lista das guardadas: a filha que conclui tudo fecha a pendente": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "af09986da30e9669",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-16 do commit bf89a41: o só lugar era decidido pela carta, que sai da lista das 20 guardadas (decisão do usuário de 2026-11-15, \"Não segura (Recomendado)\")"
+    },
     "task-tree/tests/sessoes.test.ts::a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega": {
       "regras": [
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
@@ -4627,6 +4659,17 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::a sessão aberta antes do plan e adotada por ele fecha a tarefa que a adotou ao concluir tudo": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem",
+        "sessoes.aberta-antes-do-plan-e-adotada"
+      ],
+      "hash": "70663676bcc86de7",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-16 do commit bf89a41: o fechamento pela sessão adotada não tinha teste (decisão do usuário de 2026-11-15, \"Fecha a tarefa sozinho (Recomendado)\")"
+    },
     "task-tree/tests/sessoes.test.ts::a sessão aberta só como lugar na pendente do plano anterior que recebe depois uma mensagem comum mandada dela fecha a pendente ao concluir tudo": {
       "regras": [
         "sessoes.filha-que-conclui-tudo-fecha-a-origem"
@@ -4677,6 +4720,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Tratar como quem já rodou (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::a sessão que recebeu a mensagem mandada antes do plan e adotada por ele fecha a tarefa que a adotou ao concluir tudo": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem",
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota"
+      ],
+      "hash": "d4d462a93621082e",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-16 do commit bf89a41: a sessão com a carta adotada tinha deixado de fechar a tarefa, sem decisão (decisões do usuário de 2026-11-15, \"Fecha a tarefa sozinho (Recomendado)\" e \"Também não fecha (Recomendado)\")"
     },
     "task-tree/tests/sessoes.test.ts::a sessão recém-aberta que o app lista parada e ainda sem tarefas é desenhada trabalhando; passado o prazo, vale o que o app diz": {
       "regras": [

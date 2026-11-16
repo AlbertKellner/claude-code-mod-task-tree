@@ -243,8 +243,10 @@ export type Child = {
   lastAnchor?: string
   // The messages the main loop sent this session (SendMessage): when (ms, before the send) and the
   // task it was sent from. The turns the session opened after each one are drawn in a card of their
-  // own under that task (see split in the hooks); absent from earlier versions.
-  rounds?: { at: number; anchor?: string }[]
+  // own under that task (see split in the hooks); absent from earlier versions. `onlyPlace`: the round
+  // opened by a message put there only as a place; absent on the common rounds and on those of earlier
+  // versions (read as common; with the letter still among the sends, the letter says).
+  rounds?: { at: number; anchor?: string; onlyPlace?: boolean }[]
   // Drawn only: which of those cards this is (0 the opening message's).
   part?: number
   // Drawn only: a card of the work the session had done before a /clear (its main group's `past`), when

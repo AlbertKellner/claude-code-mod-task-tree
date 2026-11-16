@@ -259,7 +259,8 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    `lastAnchor`, o envio em `sends`, um registro por mensagem com o seu número `seq`, e avisa se ficou na fila; se o destino não está em `children`, por id
    nem por `name`, e `to` começa com `local_`, cria ali mesmo a entrada da sessão com a rodada, como o
    `recordStart` faz: `name: ''`, `title: 'Sessão…'`, `running: true`, `starting: true`, `anchor`,
-   `lastAnchor`, `rounds: [{ at, anchor }]`; as ligações vão ao store com a publicação e voltam quando o
+   `lastAnchor`, `rounds: [{ at, anchor, onlyPlace? }]` (`onlyPlace` na rodada da mensagem posta só
+   como lugar); as ligações vão ao store com a publicação e voltam quando o
    host listar a sessão; a tarefa do envio é a de `sendAnchor`: com tarefa em andamento, ela, mesmo com
    um passo planejado depois do início dela e ainda sem `start` (2026-11-14, "Sob a em andamento
    (Recomendado)"), e, com várias em andamento, o lote recente de starts sem envio (pela ordem, o nome
@@ -287,8 +288,13 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    aviso do envio na fila é o próprio (`SEND.queuedPlace`); decisão do usuário, 2026-11-15, "Não fecha na
    entrega (Recomendado)". O que está numa tarefa só como lugar ou adotado pelo plan (`Sub.onlyPlace`,
    `Sub.adopted`, `Send.onlyPlace`, `Send.adopted`, e a sessão cuja rodada ali é só lugar, `onlyPlaceAt`
-   em `draw/layout.ts`: a última mensagem mandada dela à sessão, senão `Child.onlyPlace`) não conta em
-   `inFlight`: não fecha nem segura os outros fechamentos (2026-11-15, "Não segura (Recomendado)");
+   em `draw/layout.ts`: a última mensagem mandada dela à sessão ainda em `sends`, senão a marca da
+   rodada mais nova da sessão nessa tarefa, `rounds[].onlyPlace`, que fica depois que a carta sai da
+   lista das 20, senão `Child.onlyPlace`) não conta em `inFlight`: não fecha nem segura os outros
+   fechamentos (2026-11-15, "Não segura (Recomendado)"; para a carta e o subagente adotados, 2026-11-16,
+   "Como hoje: não seguram (Recomendado)"). A sessão adotada pelo plan (aberta antes dele, ou que
+   recebeu a carta adotada) não é só lugar: conta como sessão da tarefa, segura enquanto trabalha e,
+   ao concluir tudo, fecha-a;
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira

@@ -3182,3 +3182,107 @@ test('a sessão aberta só como lugar na pendente do plano anterior que recebe d
   esperarEstado(p, 'Dois', 'concluida')
   expect(r, r).toContain('concluiu sozinho')
 })
+
+// ---- A sessão adotada pelo plan conta como sessão da tarefa, e o só lugar guardado na rodada.
+
+const PLANO_ADOTANTE = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }, { id: 'b2', title: 'Bê dois' }] }]
+
+// O roteiro da mensagem mandada antes do plan: pedido um com "Um" concluída, pedido dois sem plano, a
+// mensagem "Revise" entregue na hora à filha-um (trabalhando) e o plan que a adota.
+async function cartaAdotadaPeloPlan($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  const modoDoEnvio = responderEnvio(on)
+  modoDoEnvio.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await envio($, K1, 'Revise')
+  await aviso($)
+  await plan($, PLANO_ADOTANTE)
+  const adotou = await painel($)
+  esperarCartaSob(adotou, 'Bê um', 'entregue')
+  expect(linha(adotou, 'Bê um').estado, emTexto(adotou)).not.toBe('concluida')
+  return { h }
+}
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, envios.antes-do-plan-fica-solta-e-o-plan-adota
+test('a sessão que recebeu a mensagem mandada antes do plan e adotada por ele fecha a tarefa que a adotou ao concluir tudo', async ($: any, on: any) => {
+  const { h } = await cartaAdotadaPeloPlan($, on)
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechou = JSON.stringify(await aviso($))
+  const depois = await painel($)
+  esperarEstado(depois, 'Bê um', 'concluida')
+  expect(linha(depois, 'Bê dois').estado, emTexto(depois)).not.toBe('concluida')
+  expect(linha(depois, 'Dois').estado, emTexto(depois)).not.toBe('concluida')
+  expect(fechou, fechou).toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, sessoes.aberta-antes-do-plan-e-adotada
+test('a sessão aberta antes do plan e adotada por ele fecha a tarefa que a adotou ao concluir tudo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await abrirSessao($)
+  await aviso($)
+  await plan($, PLANO_ADOTANTE)
+  await aviso($)
+  const adotou = await painel($)
+  expect(cartoes(adotou, 'filha-um').map(c => c.sob), emTexto(adotou)).toEqual(['Bê um'])
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechou = JSON.stringify(await aviso($))
+  const depois = await painel($)
+  esperarEstado(depois, 'Bê um', 'concluida')
+  expect(fechou, fechou).toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a mensagem comum mandada à sessão que estava só como lugar segue valendo depois que a carta sai da lista das guardadas: a filha que conclui tudo fecha a pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } },
+    { id: 'local_x', nome: 'xis', rodando: false },
+  ])
+  const modoDoEnvio = responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const respondida = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await respondida
+  await done($, ['1'])
+  await start($, ['2'])
+  modoDoEnvio.modo = 'entregue'
+  await envio($, K1, 'comum')
+  for (let i = 0; i < 22; i++) await envio($, 'local_x', `outra ${i}`)
+  const semCarta = await painel($)
+  expect(semCarta.some(l => l.titulo.includes('comum')), emTexto(semCarta)).toBe(false)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechou = JSON.stringify(await aviso($))
+  const depois = await painel($)
+  esperarEstado(depois, 'Dois', 'concluida')
+  expect(fechou, fechou).toContain('concluiu sozinho')
+})
