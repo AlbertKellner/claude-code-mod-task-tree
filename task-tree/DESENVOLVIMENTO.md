@@ -14,7 +14,8 @@ sem mudança de desenho; ver "Desempenho (fase 6, parte A)"), e depois lote a lo
 inteira contra o código em 2026-11-15, no fim dos achados médios (branch `fix/achados-medios`), e de
 novo no fim dos achados baixos (branch `fix/achados-baixos`, mesma data). Os
 números de linhas são os de `wc -l` da primeira dessas conferências, para dar a ordem de grandeza. As notas de cada fase, com os
-pedidos do usuário e os motivos de cada decisão, estão em "Decisões (histórico)", no fim.
+pedidos do usuário e os motivos de cada decisão, estão em "Decisões (histórico)", no fim. A parte "Decisões (histórico)" é congelada: não se
+emenda; o que muda entra em "Como é hoje" e no catálogo.
 
 ### Módulos
 
@@ -1129,11 +1130,18 @@ Só uma sessão real no app desktop mostra:
 
 ## Decisões (histórico)
 
+Parte congelada em 2026-11-15 (decisão do usuário, 2026-11-15: "Congelar e marcar (Recomendado)"). O que
+vale hoje está em 'Como é hoje', acima, e no catálogo `regras/`. Daqui para baixo nada é emendado: o
+texto é o da época, e uma regra que mudou depois traz a marca '[marcado em …] substituído por
+<cenário>'. Nota nova de uma rodada entra como seção nova, datada, no fim.
+
 As notas abaixo são o texto anterior deste arquivo, por fase, na íntegra (só os títulos desceram um
 nível): os pedidos do usuário citados palavra por palavra, as decisões e os motivos, as medições e as
 armadilhas de cada mudança. Onde dizem "no `register.tsx`", a função está hoje num dos arquivos de
 `task-tree/hooks/` (ver "Módulos"). Os códigos entre parênteses (R6, H3.2 etc.) eram itens de relatórios de análise que não estão mais no repositório.
 ### Estrutura
+
+> [marcado em 2026-11-15] texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 - `.claude-plugin/plugin.json`: manifesto (nome, versão, `types`).
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks. Desde a fase 4 (etapa 3) o `register.tsx` tem ~31 linhas e só registra os 14 hooks, cada um pelo nome de uma função importada; o resto vive em um arquivo por responsabilidade (ver "Arquivos de hook"). `hooks.json` segue com um módulo só (`./register.tsx`).
@@ -1154,6 +1162,9 @@ Fase 1 da rede de proteção concluída: contrato `Published`, limite de linhas 
 
 ### Validar
 
+> [marcado em 2026-11-15] texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
+> [marcado em 2026-11-15] como validar hoje: CLAUDE.md, "Como executar" (os dois validate rodam com --strict, dentro do npm run check).
+
 Use o binário da mesma versão do Claude Code que roda a sessão. Versões antigas acusam erros
 falsos (a 2.1.268, por exemplo, não reconhece `tool.check`). O app desktop traz o próprio binário:
 no Windows, em `%APPDATA%\Claude\claude-code\<versão>\<hash>\claude.exe`. Fora do app,
@@ -1169,6 +1180,8 @@ claude plugin validate task-tree
 O primeiro confere o `marketplace.json` (e o README); o segundo, o mod.
 
 #### Tabela de durabilidade
+
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 `state/durability.ts` diz, por chave, onde o dado vive e como volta. 
 
@@ -1218,6 +1231,8 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 
 #### Sobreposição dos Box
 
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
+
 A regra conferida: `overlays()` dá os mesmos `Box` que `overlay()` dava (7 profundidades × 4 aninhamentos), os trechos em px, e nenhum par de `Box` na mesma linha se cruza (estado real nas duas visões em 6 larguras, 30–112 colunas; ícone × anel; ícone × camada do nome: a camada vai da coluna do nome até a borda ou, com anel, até o `Box` do anel; `overlay('name', depth, W, ringNested?)`, nunca abaixo de `NAME_MIN` = 16 px). Nenhuma falha conhecida: a que a conferência revelou (a camada cobria o anel, e o clique nele não abria a sessão) foi corrigida no bug 2 da fase 3. Só a área do tooltip do nome cortado num cartão com anel mudou (32 px a menos, mais com cartões aninhados); nenhum pixel do SVG.
 
 - O rótulo do botão do ícone é um espaço em (U+2003), não um espaço comum: é de propósito (dá ao realce
@@ -1225,6 +1240,8 @@ A regra conferida: `overlays()` dá os mesmos `Box` que `overlay()` dava (7 prof
   podem normalizar o caractere; ao mexer nessa linha, confira o U+2003 (um script com perl resolve).
 
 #### Reinício e recarga
+
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 Dois casos:
 
@@ -1239,6 +1256,8 @@ Bugs achados por esses cenários, todos corrigidos: o painel sem `session.start`
 Limite: o kit não simula o respawn real do worker.
 
 #### Ligações com lista parcial do host
+
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 Antes, com a lista do host parcial, `restoreLinks` só mapeava as filhas listadas e `saveLinks` gravava o
 store sem as outras (uma filha com 20 rodadas sumia). Agora:
@@ -1257,6 +1276,8 @@ store sem as outras (uma filha com 20 rodadas sumia). Agora:
 
 #### Resumo do turno no state
 
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
+
 O `summary` do último `done` (a linha ↩) era a variável de módulo `lastBrief` e morria na recarga: o turno
 ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de state `brief`
 (`brief: string` em `types/index.d.ts`; '' = nenhum):
@@ -1271,6 +1292,8 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
   `lastRecap($)`.
 
 #### Arquivo publicado
+
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 Registro da fase 4. O contrato de hoje (campos, ordem, comparação e leitura) está em "Arquivo
 publicado (versão 1)"; o texto abaixo fica como estava.
@@ -1306,6 +1329,8 @@ antigas), `groups?`, `waits`, `children`, `context?`, `engine?`, `panes?`, `rend
 
 #### Leitura das filhas (`io/host.ts`)
 
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
+
 `refreshChildren` (no `register.tsx`) é a composição de quatro passos, numerados em comentário; os três
 primeiros estão em `task-tree/io/host.ts` e testam sem o app, com `$` falso ou entradas puras. O register
 guarda as chamadas de estado (`$.state.*` com chave literal: `childrenErrorState`, `update(childrenState)`,
@@ -1335,6 +1360,8 @@ update `children`/`ended` → status → publicar → `keepTime`. `inDesktopApp`
 são lidos não mudou (performance fica fora desta fase).
 
 #### Arquivos de hook
+
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 A fase 4 (etapa 3) dividiu o `register.tsx` (2 116 → 31 linhas) em um arquivo por responsabilidade em
 `task-tree/hooks/`; o comportamento é o mesmo (mesmos hooks, mesma ordem, mesmas chamadas):
@@ -1383,6 +1410,8 @@ erros contra 193 antes, todos de tipo e já existentes.
 
 #### Grupos do store sem `session.start`
 
+> [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
+
 Sem `session.start` (respawn do hooks worker, `/model`), o módulo novo tinha `$.state` vazio e a primeira
 escrita partia de `[]`, sobrescrevendo `session:<id>` (o store ia de 97 para 0 tarefas). Agora `groups`
 volta do store também sem `session.start`, como já valia para `links`:
@@ -1396,6 +1425,7 @@ volta do store também sem `session.start`, como já valia para `links`:
   depois do `restore`.
 - `view` e `work` continuam só no `session.start`, de propósito: `restoreView` na guarda mudaria o padrão do
   desenho ('full' no render × 'summary' no restore) e mudaria o desenho; ficou para a tabela de durabilidade.
+> [marcado em 2026-11-15] substituído por durabilidade.respawn-sem-session-start (2026-11-04).
 - Sem `session.start`, o desenho traz as tarefas do store, mas ainda não os cartões de sessão (a lista do
   host só é lida no `session.start` ou pelo poll).
 
@@ -1406,6 +1436,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 `keptGroups`, não `saved`.
 
 ### Desenho do painel
+
+> [marcado em 2026-11-15] texto acumulado de 2026-10-20 a 2026-11-03, com emendas posteriores até o congelamento.
 
 - O desenho é um pipeline: estado → `Model` → `layout()` (`draw/layout.ts`, puro) → `Row[]` →
   `drawDesktop`/`drawTerminal` (funções de topo no `register.tsx`, que recebem as linhas prontas) →
@@ -1444,6 +1476,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   não recebeu; com fundo .12, recebeu e mostrou o tooltip depois de 1 s por `transition-delay`);
   (5) o app só reaproveita a moldura entre desenhos se o nó for idêntico (`isEqualNode`), e a
   trocada perde o hover até o mouse se mexer. Mesmo com isso, nas linhas reais não funcionou.
+> [marcado em 2026-11-15] substituído por visual.desenho-principal e visual.cabecalho-em-cartao (2026-11-13, desenho nativo; ver "Desenho nativo híbrido (2026-11-13)", abaixo).
+> [marcado em 2026-11-15] tooltip: substituído por visual.tooltip (2026-11-09).
 - Terminal (e qualquer superfície sem `Svg`): um `Text` por linha, com as guias `├─ └─ │` em texto
   e os glifos `○ ◉ ✓ ✕ ◷ ⑂`; linha recolhida ganha " ⋯" depois do nome (nas duas superfícies). A cor fica só no ícone; o título vai em negrito na tarefa em
   andamento (e no nível 1 aberto), apagado nas concluídas e interrompidas.
@@ -1482,6 +1516,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   (tarefa; `|t:A/1` no grupo principal), `<escopo>s:<id local>` (sessão; cartão k>0: `s:<id local>#<at da mensagem>`), `<escopo>g:<agentId>`
   (subagente); dentro do painel de uma filha, o escopo é `<id local>>`. O `Button`
   tem `key` `fold:<chave>`.
+> [marcado em 2026-11-15] está no checklist do app (CLAUDE.md: "nada pisca à toa").
+> [marcado em 2026-11-15] a camada do tooltip: substituído por visual.tooltip (2026-11-09).
 - O layout monta as linhas uma vez só, com as escolhas da pessoa (fase 6). Os chips do cabeçalho
   vêm dos nós das linhas desenhadas (`Row.nodes`), por isso não mudam ao recolher; a passada sem
   escolhas que existia para eles, com resultado descartado, saiu.
@@ -1489,6 +1525,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   "quero que elas continuem na listagem, marcando que foi concluida"); não há seção separada. Uma
   concluída vem aberta, como as outras, e recolhe pelo clique. O tom
   `section` do desenho ficou sem uso.
+> [marcado em 2026-11-15] o tom `section` voltou a ser usado nas linhas "+N" (2026-11-04).
 - Desktop: a linha é um `Svg` com o ícone de progresso clicável por um `Button` vazio num `Box` absoluto
   (ver o item do clique no ícone acima). Não há coluna de botão nem seta à esquerda: o `GUTTER` foi removido.
 - Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
@@ -1557,6 +1594,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   sessão filha embaixo (aberta por `start_session` ou acionada por `SendMessage`) não tem ↩; ali a
   resposta que conta é a das filhas, já nos cartões delas (pedido do usuário: "quando as tarefas da
   sessao orquestradora abrirem sessao, a resposta nao deve aparecer, senao, fica quebrado").
+> [marcado em 2026-11-15] tooltip: substituído por visual.tooltip (2026-11-09); a resposta inteira guardada: substituído por turnos.resposta-inteira-nao-e-guardada (2026-11-14).
 - Cliques por chave (pedido do usuário: "as vezes clico nas acoes e nao faz nada, preciso clicar
   algumas vezes para funcionar"): o host só guarda o `onPress` enquanto o desenho existe, e o painel
   redesenha a cada segundo, então o clique na troca do desenho se perdia. O hook `ui.press` responde
@@ -1572,6 +1610,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   O arquivo de `task-tree-waits` publica também `panes` (id, `isPlaced`, `isShown`) e
   `renderError`; se o desenho lança exceção, o painel mostra "Painel de tarefas: erro ao desenhar:
   …" e publica o erro.
+> [marcado em 2026-11-15] as duas visões e `/task-tree resumida | completa`: substituído por cabecalho.resumida-exclui-pedido-finalizado (2026-11-04).
 - Tamanho do desenho (causa do sumiço: o da orquestradora tinha 1,6 MB e o app não o mostrava;
   "resumir os 57 pedidos anteriores resolveu"): o painel do topo desenha só os 3 últimos pedidos,
   mais qualquer um com algo aberto, e os anteriores viram a linha "+N pedidos anteriores" (a escolha
@@ -1585,6 +1624,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   se 400 linhas passarem disso, desenho de emergência: "Painel grande demais (N KB): mostrando só o
   essencial. Use ≡ (/task-tree resumida) para a visão resumida." (agora raro). Aprovado pelo usuário:
   "Sim, está bom".
+> [marcado em 2026-11-15] a visão completa e o limite de 3 pedidos: substituído por cabecalho.limites-de-linhas e cabecalho.resumida-exclui-pedido-finalizado (2026-11-04).
 - Limite de linhas (R15; mudança de visual aprovada pelo usuário: "Sim, com o corte"): `MAX_ROWS = 400` e
   `limitRows(rows)`, aplicado no `ui.render` logo depois de `panel()`, antes de guias, molduras e SVG.
   Até 400 linhas nada muda. Acima, saem blocos inteiros de nível 0 do começo (os mais antigos), contados
@@ -1621,6 +1661,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   embaixo, cartões inclusive (`Work.cards`). Cada visão conta o que inclui, recolhido ou não; fora ficam
   os pedidos finalizados de turnos anteriores na resumida (e o que o corte do cartão tira) e, na
   completa, o que o limite corta (ver o bullet do Cabeçalho em "Como é hoje" › Desenho).
+> [marcado em 2026-11-15] respondido por cabecalho.numeros-somam-o-desenhado.
+> [marcado em 2026-11-15] as duas visões e o limite de 3 pedidos da completa: substituído por cabecalho.resumida-exclui-pedido-finalizado e cabecalho.limites-de-linhas (2026-11-04).
 - Tempo decorrido: `TaskNode.startedAt`/`endedAt` (ms, opcionais; o painel publicado para a sessão
   mãe leva os dois, e versões antigas os ignoram). `start` liga o relógio da tarefa (de novo, se ela
   estava concluída) e o dos pais que ainda não tinham; `done`, o fechamento automático do pai e a
@@ -1638,6 +1680,8 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 
 ### Armadilhas
+
+> [marcado em 2026-11-15] texto acumulado de 2026-10-20 a 2026-11-03, com emendas posteriores até o congelamento.
 
 - O engine recusa o módulo inteiro, e continua rodando a versão anterior, se `$` for passado para
   uma função que não está no topo do arquivo. Helpers que recebem `$` são `function` ou `const`
@@ -1953,6 +1997,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   desde o item do ✉ até a entrega, o ✉ continua na tarefa concluída até a entrega (o `done` não
   apaga mais o envio).
   A regra está no `RULES`.
+> [marcado em 2026-11-15] a tarefa que enviou a mensagem como ✉: substituído por envios.carta-sob-a-tarefa (2026-10-30).
 - Etapa por etapa (pedido do usuário: "ela ficou parada muito tempo na primeira tarefa, e derepente
   pulo para a ultima"): a causa era o agente, que não chamava `start` e fechava várias etapas num
   `done` só no fim (as do meio saíam com 0:00); o espelho publica a cada mudança e a principal relê
@@ -2032,6 +2077,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   tempo e as somas dos pais seguem a rodada; o cabeçalho segue a sessão inteira. Tarefa em
   andamento sem `start` conta o tempo desde `plannedAt` (linha e turno). O `alt` do cabeçalho diz a
   visão. 
+> [marcado em 2026-11-15] as duas visões, os botões ≡/▤ e o estado `view`: substituído por cabecalho.resumida-exclui-pedido-finalizado (2026-11-04).
 - Anel de contexto da sessão filha (pedido do usuário: "no item pai mais alto de uma sessao filha
   ... um icone a esquerda do icone de sessao filha, mostrando a porcentagem de contexto usado"): cada
   sessão publica no seu arquivo (`publishWait`, também no `turn.complete` do loop principal)
@@ -2127,15 +2173,19 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
 
 ### Pendências
 
+> [marcado em 2026-11-15] texto acumulado de 2026-10-20 a 2026-11-03, com emendas posteriores até o congelamento.
+
 - Sobra da etapa 1 do layout: `elapsed` não é usado. (A passada de `panel(all, …)` sem escolhas, com
   resultado descartado, saiu na fase 6: a medida mostrou que ela só preenchia o memo que a passada
   seguinte preenchia igual, e as linhas ficaram idênticas.)
+> [marcado em 2026-11-15] retirado do código.
 - Cabeçalho fixo ao rolar (pedido do usuário, deixado para depois): o `Box` não tem sticky nem área
   rolável própria. O único caminho é o padrão do `ui.scroll` do `Pane`: não chamar `next`, guardar o
   próprio offset (`e.by`), invalidar e redesenhar o cabeçalho mais a fatia das linhas
   (`site.scroll.bodyRows`). Falta provar que o desktop dispara `ui.scroll` ao rolar o pane (lá as
   linhas são `Svg` em pixels). Próximo passo, quando retomado: um hook temporário de diagnóstico no
   `ui.scroll` que registre os eventos enquanto o usuário rola o pane no desktop.
+> [marcado em 2026-11-15] registrado no catálogo como cabecalho.fixo-ao-rolar, pendente (decisão do usuário, 2026-11-15: "Registrar como pendente (Recomendado)").
 
 ## Só a visão resumida (2026-11-04)
 

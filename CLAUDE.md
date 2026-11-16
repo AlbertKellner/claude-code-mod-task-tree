@@ -1,7 +1,8 @@
 # claude-code-mod-task-tree
 
 Mod do Claude Code (`task-tree/`) que desenha a árvore de tarefas da sessão num painel lateral.
-Arquitetura e histórico de decisões: [task-tree/DESENVOLVIMENTO.md](task-tree/DESENVOLVIMENTO.md).
+Arquitetura e histórico de decisões: [task-tree/DESENVOLVIMENTO.md](task-tree/DESENVOLVIMENTO.md)
+(o histórico é congelado e marcado; o que vale está em "Como é hoje" e no catálogo `regras/`).
 Regras de comportamento, uma por cenário: [regras/](regras/).
 Como o trabalho é conduzido (papéis, perguntas, lotes, paralelismo): @PROCESSO.md
 
