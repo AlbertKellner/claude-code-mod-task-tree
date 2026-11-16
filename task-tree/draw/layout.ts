@@ -134,7 +134,9 @@ export function spared(groups: Group[], sends: { anchor?: string; taken?: boolea
 // (Recomendado)"): a subagent or a letter put there only as a place (Sub.onlyPlace, Send.onlyPlace) or
 // adopted by the plan (Sub.adopted, Send.adopted; the person, 2026-11-16: "Como hoje: não seguram
 // (Recomendado)"), and a session there only as a place (onlyPlaceAt). A session adopted by the plan
-// counts as the task's session: it holds while it works.
+// counts as the task's session when its current round is that task (lastAnchor, which adoptOrphans
+// only writes on a session that had none): it holds while it works, and, as any session, it does not
+// hold a delivery.
 export function inFlight(
   groups: Group[],
   owner: string,

@@ -2646,6 +2646,17 @@
       "data": "2026-11-15",
       "motivo": "auditoria: lembretes das sessões lidos e gravados num passo só"
     },
+    "task-tree/tests/envios.test.ts::a entrega da mensagem comum mandada da tarefa a fecha mesmo com a sessão adotada pelo plan ainda trabalhando nela": {
+      "regras": [
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota",
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa"
+      ],
+      "hash": "6814809c24f5e3fb",
+      "assercoes": 9,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-16 do commit 4ff8018: o cenário dizia que a sessão adotada segura a entrega; nenhuma sessão segura (decisão do usuário de 2026-10-30, \"Sim, conclusão automática como hoje\")"
+    },
     "task-tree/tests/envios.test.ts::a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa": {
       "regras": [
         "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
@@ -5243,6 +5254,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "revisão de 2026-11-15: a marca de só lugar se perdia com a sessão fora da lista do host (decisão do usuário de 2026-11-15, \"Também não fecha (Recomendado)\")"
+    },
+    "task-tree/tests/sessoes.test.ts::a sessão adotada pelo plan que ainda trabalha segura o fechamento da tarefa pelo fim do subagente, e a fecha ao concluir tudo": {
+      "regras": [
+        "envios.antes-do-plan-fica-solta-e-o-plan-adota",
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "3cf494817f69887e",
+      "assercoes": 11,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-16 do commit 4ff8018: a metade 'segura enquanto trabalha' da sessão adotada não tinha teste que a distinguisse (a linha fica ◉ com a tarefa fechada, e os dois avisos trazem 'concluiu sozinho')"
     },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [

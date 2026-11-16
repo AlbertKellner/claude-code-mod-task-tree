@@ -294,8 +294,12 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    lista das 20, senão `Child.onlyPlace`) não conta em `inFlight`: não fecha nem segura os outros
    fechamentos (2026-11-15, "Não segura (Recomendado)"; para a carta e o subagente adotados, 2026-11-16,
    "Como hoje: não seguram (Recomendado)"). A sessão adotada pelo plan (aberta antes dele, ou que
-   recebeu a carta adotada) não é só lugar: conta como sessão da tarefa, segura enquanto trabalha e,
-   ao concluir tudo, fecha-a;
+   recebeu a carta adotada) não é só lugar: conta como sessão da tarefa quando a rodada corrente dela
+   é essa tarefa (`lastAnchor`; `adoptOrphans` só o grava na sessão que não tinha nenhum, então a que
+   já tinha recebido mensagem mandada de outra tarefa não conta em `inFlight` para a tarefa que adotou
+   a carta: limite conhecido); enquanto trabalha, segura os dois fechamentos que passam as sessões a
+   `inFlight` (`settleBySubs` e `closeByEnded`), não a entrega (`watchSends`, `takeSubSend`); e, ao
+   concluir tudo, fecha-a (`originOf` decide pela rodada, também na sessão do limite);
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira

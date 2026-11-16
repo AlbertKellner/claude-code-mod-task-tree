@@ -2053,3 +2053,48 @@ test('com a pergunta do meio fechada sem start e sem volta ao plano anterior, a 
   expect(cartaSob(p, 'Primeiro passo'), emTexto(p)).toBeUndefined()
   expect(cartaSob(p, 'Segundo passo'), emTexto(p)).toBeUndefined()
 })
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota, envios.entrega-espera-o-que-ainda-roda-na-tarefa
+test('a entrega da mensagem comum mandada da tarefa a fecha mesmo com a sessão adotada pelo plan ainda trabalhando nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const adotadaR8 = 'local_11111111-1111-1111-1111-111111111111'
+  const daAdotada = (status: 'open' | 'done') => ({ id: '1', short: '1', title: 'Da filha', status, started: 1, startedAt: AGORA - 1000, children: [] })
+  const h = host(on, [
+    { id: adotadaR8, nome: 'filha-um', painel: { tasks: [daAdotada('open')] } },
+    { id: 'local_x', rodando: false },
+  ])
+  const modoR8 = responderEnvio(on)
+  modoR8.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'Z', title: 'Plano Z', children: [{ id: 'z1', title: 'Zê um' }] }])
+  await start($, ['z1'])
+  await done($, ['z1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await envio($, adotadaR8, 'Revise')
+  await aviso($)
+  await plan($, A)
+  await start($, ['1'])
+  modoR8.modo = 'fila'
+  await envio($, 'local_x', 'comum')
+  await fimDoTurno($)
+  const antesDaEntrega = await painel($)
+  esperarCartaSob(antesDaEntrega, 'Um', 'entregue')
+  expect(linha(antesDaEntrega, 'Um').estado, emTexto(antesDaEntrega)).not.toBe('concluida')
+  const feitasAntesR8 = cabecalho(antesDaEntrega).feitas
+  await relogio.advance(5000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  const depoisDaEntrega = await painel($)
+  // A filha-um segue trabalhando e o painel dela não mudou: a conta sobe só por "Um".
+  expect(cabecalho(depoisDaEntrega).feitas, emTexto(depoisDaEntrega)).toBe(feitasAntesR8 + 1)
+  const comum = depoisDaEntrega.find((l: any) => l.titulo.startsWith('Para ') && l.titulo.includes('comum'))
+  expect(comum?.carta, emTexto(depoisDaEntrega)).toBe('entregue')
+  h.filha(adotadaR8).painel = { tasks: [daAdotada('done')] }
+  h.filha(adotadaR8).rodando = false
+  const noFimR8 = JSON.stringify(await aviso($))
+  const fimR8 = await painel($)
+  esperarEstado(fimR8, 'Um', 'concluida')
+  expect(noFimR8, noFimR8).not.toContain('concluiu sozinho a tarefa de origem')
+})

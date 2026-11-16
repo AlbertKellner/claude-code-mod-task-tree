@@ -10,6 +10,8 @@ import { envio, ferramenta } from './kit/cenario'
 import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 import { SESSAO } from './kit/ambiente'
 import { passos } from './kit/ambiente'
+import { lancaveis } from './kit/ambiente'
+import { fimDoSubagente, lancar } from './kit/cenario'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }] }] }]
@@ -3285,4 +3287,27 @@ test('a mensagem comum mandada à sessão que estava só como lugar segue valend
   const depois = await painel($)
   esperarEstado(depois, 'Dois', 'concluida')
   expect(fechou, fechou).toContain('concluiu sozinho')
+})
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota, sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a sessão adotada pelo plan que ainda trabalha segura o fechamento da tarefa pelo fim do subagente, e a fecha ao concluir tudo', async ($: any, on: any) => {
+  lancaveis(on, ['sub-1'])
+  const { h } = await cartaAdotadaPeloPlan($, on)
+  await start($, ['b1'])
+  await lancar($, { descricao: 'conferir o diff', segundoPlano: true })
+  await fimDoTurno($)
+  const antesDoFim = await painel($)
+  const feitasAntes = cabecalho(antesDoFim).feitas
+  await fimDoSubagente($, 'sub-1')
+  const depoisDoFim = await painel($)
+  // O desenho mantém a linha ◉ enquanto a sessão trabalha: a conta diz se "Bê um" fechou.
+  expect(cabecalho(depoisDoFim).feitas, emTexto(depoisDoFim)).toBe(feitasAntes)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechouPelaFilha = JSON.stringify(await aviso($))
+  const noFim = await painel($)
+  expect(fechouPelaFilha, fechouPelaFilha).toContain('concluiu sozinho a tarefa de origem')
+  expect(fechouPelaFilha, fechouPelaFilha).not.toContain('os subagentes lançados destas tarefas terminaram')
+  esperarEstado(noFim, 'Bê um', 'concluida')
+  expect(linha(noFim, 'Bê dois').estado, emTexto(noFim)).not.toBe('concluida')
 })
