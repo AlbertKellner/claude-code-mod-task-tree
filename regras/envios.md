@@ -404,3 +404,23 @@ Cada mensagem gasta o seu recebimento: o da entregue na hora não confirma a seg
 Origem: decisão do usuário, 2026-11-15 ("Cada uma gasta o seu (Recomendado)"), sobre o achado da auditoria de 2026-11-10; risco aceito: se o destino nunca publicar o primeiro recebimento, a segunda carta segue azul.
 Código: types/index.d.ts
 Estado: coberto
+
+### envios.fila-pelo-texto-da-resposta
+A carta nasce na fila quando a resposta do envio diz que a mensagem ficou retida.
+
+- Dado um SendMessage cujo resultado diz "queued", "held" ou "pending"
+- Quando a chamada volta
+- Então a carta fica azul (na fila); com "its turn has started" no resultado, verde, mesmo que ele também traga uma dessas palavras (o resultado que não diz nada disso não entra neste cenário)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### envios.entrega-sem-recibo-pelo-turno-da-sessao
+A sessão que não publica o que recebeu confirma a carta por um turno aberto depois do envio.
+
+- Dado uma carta na fila para uma sessão cujo arquivo publicado não traz o que ela recebeu
+- Quando ela publica um turno aberto depois do envio
+- Então a carta fica verde, como em envios.fica-ate-entrega
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto

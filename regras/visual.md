@@ -446,3 +446,14 @@ No app, o painel estreito mantém o título legível.
 Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)"); o que o harness não alcança (a medida é estimada em colunas).
 Código: draw/desktop.tsx
 Estado: checklist (largura real e fonte do app)
+
+### visual.erro-ao-desenhar-vira-uma-linha
+Se o desenho do painel falha, o painel mostra uma linha de erro, e o log e o arquivo publicado dizem o motivo.
+
+- Dado um painel cujo desenho lança um erro
+- Quando o painel é desenhado
+- Então no lugar da árvore aparece "Painel de tarefas: erro ao desenhar: <erro>", e o erro vai ao log de depuração e ao arquivo publicado, no campo que a sessão mãe pode ler
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/panel.ts
+Estado: coberto

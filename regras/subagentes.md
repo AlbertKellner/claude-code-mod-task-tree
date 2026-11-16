@@ -473,3 +473,14 @@ O plan de um subagente replaneja no lugar; o request e o summary dele não mexem
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
 Código: hooks/tools.ts
 Estado: coberto
+
+### subagentes.teammate-nao-termina-com-o-turno
+O fim do turno de um teammate não interrompe as tarefas dele.
+
+- Dado um teammate (como o app o lista) com tarefas abertas no painel
+- Quando um turno dele termina
+- Então as tarefas seguem como estavam (ele termina um turno por mensagem); o subagente comum segue a regra de turnos.subagente-que-termina-interrompe
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/turn.ts
+Estado: coberto

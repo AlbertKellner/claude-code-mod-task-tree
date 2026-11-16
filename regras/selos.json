@@ -1771,6 +1771,16 @@
       "data": "2026-11-14",
       "motivo": "cada carta uma vez, no cartão e no pedido da origem"
     },
+    "task-tree/tests/envios.test.ts::a carta nasce na fila quando a resposta diz \"held\" ou \"pending\", e entregue com \"its turn has started\"": {
+      "regras": [
+        "envios.fila-pelo-texto-da-resposta"
+      ],
+      "hash": "08037691a3167915",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de sessões, envios, subagentes e de falha (auditoria, achados baixos)"
+    },
     "task-tree/tests/envios.test.ts::a carta para um subagente parado com Esc antes de recebê-la fica cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez; a tarefa fica interrompida": {
       "regras": [
         "envios.subagente-parado-nao-entregue"
@@ -1891,6 +1901,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Cinza \\\"não entregue\\\" (Recomendado)\"; auditoria 2026-11-10: carta na fila sem saída com a sessão destino arquivada"
+    },
+    "task-tree/tests/envios.test.ts::a sessão que não publica o que recebeu confirma a carta por um turno aberto depois do envio": {
+      "regras": [
+        "envios.entrega-sem-recibo-pelo-turno-da-sessao"
+      ],
+      "hash": "896633ec40768171",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de sessões, envios, subagentes e de falha (auditoria, achados baixos)"
     },
     "task-tree/tests/envios.test.ts::a tarefa de mensagem que o replano tira fica visível até a entrega": {
       "regras": [
@@ -4124,6 +4144,16 @@
       "data": "2026-11-04",
       "motivo": "carta de envio na linha sob a tarefa; a tarefa segue comum e conta (usuário: \"A: linha própria sob a tarefa (Recomendado)\", 2026-10-30; \"Funcionou\", 2026-11-04)"
     },
+    "task-tree/tests/sessoes.test.ts::a mensagem que a filha recebeu sem envio visto abre um cartão próprio sob a tarefa aberta naquela hora": {
+      "regras": [
+        "sessoes.mensagem-recebida-sem-rodada-abre-cartao"
+      ],
+      "hash": "261c19d2be74ae9d",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de sessões, envios, subagentes e de falha (auditoria, achados baixos)"
+    },
     "task-tree/tests/sessoes.test.ts::a mãe é avisada de que a filha parou com pendentes": {
       "regras": [
         "sessoes.filha-parada-com-origem-fechada-sai-da-contagem"
@@ -4335,6 +4365,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Não conta (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::com a lista do app em erro, o painel diz \"Sessões indisponíveis\" e o cartão fica; com a lista de volta, a linha some": {
+      "regras": [
+        "sessoes.lista-em-erro-diz-sessoes-indisponiveis"
+      ],
+      "hash": "3010f34a805b0a8b",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de sessões, envios, subagentes e de falha (auditoria, achados baixos)"
     },
     "task-tree/tests/sessoes.test.ts::com a mãe e a filha paradas, o cartão do pedido do usuário na filha fica sob a tarefa de onde ela foi aberta": {
       "regras": [
@@ -5764,6 +5804,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "a varredura do fim do turno não trata como dono o subagente que ainda trabalha"
+    },
+    "task-tree/tests/subagentes.test.ts::o fim do turno de um teammate não interrompe as tarefas dele; o de um subagente comum, sim": {
+      "regras": [
+        "subagentes.teammate-nao-termina-com-o-turno"
+      ],
+      "hash": "6992988827f2b411",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de sessões, envios, subagentes e de falha (auditoria, achados baixos)"
     },
     "task-tree/tests/subagentes.test.ts::o lançado ainda roda quando o subagente termina: a tarefa de onde saiu fica ✕ com o resto": {
       "regras": [
@@ -7201,6 +7251,16 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/visual.test.ts::o desenho que lança vira a linha de erro, no terminal e no app; o log e o arquivo publicado dizem o motivo": {
+      "regras": [
+        "visual.erro-ao-desenhar-vira-uma-linha"
+      ],
+      "hash": "ede50cceeadc8a20",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de sessões, envios, subagentes e de falha (auditoria, achados baixos)"
     },
     "task-tree/tests/visual.test.ts::o pedido só com sequência de controle se chama 'Pedido', e os espaços em volta de uma sequência não dobram": {
       "regras": [

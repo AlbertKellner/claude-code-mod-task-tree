@@ -6,6 +6,7 @@ import { emTexto, painel } from './kit/leitura'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
 import { abrirSessao, aviso, cancelar, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { alfa, alturaDaLinha, cabecalhoDoApp, centrada, respirosDoApp, tom, vaosEntreLinhas, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
+import { PROPS } from './kit/ambiente'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -815,4 +816,33 @@ test('dentro de um cartão cujas faixas em volta já somam 8 células, cada linh
   expect(guiasDoTitulo(d, 'B dois'), todas).toEqual([])
   // O cartão aberto ali dentro, o último, mantém a faixa de uma célula, o fim.
   expect(faixas.find(f => f.primeira.includes('trineta'))?.celulas, todas).toEqual(['fim'])
+})
+
+// O texto inteiro de um desenho, como a superfície o recebe.
+const textoDoDesenho = (x: any): string => (typeof x === 'string' ? x : (x?.children ?? []).map(textoDoDesenho).join(''))
+
+// Regra: visual.erro-ao-desenhar-vira-uma-linha
+test('o desenho que lança vira a linha de erro, no terminal e no app; o log e o arquivo publicado dizem o motivo', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [])
+  // Armado, o painel lido pelo desenho tem tarefas que não são lista: o desenho lança.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => {
+    const r = await next(e)
+    return armado && e?.key === 'groups' ? { value: { ...r.value, value: [{ agent: '', label: '', tasks: 42 }] } } : r
+  })
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  armado = true
+  const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PROPS(60), requestId: 'task-tree' })
+  const terminal = textoDoDesenho(await ui.drawn())
+  await ui.unmount()
+  const app = textoDoDesenho((await noApp($)).raiz)
+  armado = false
+  expect(terminal).toContain('Painel de tarefas: erro ao desenhar')
+  expect(app).toContain('Painel de tarefas: erro ao desenhar')
+  expect(log.some(l => l.includes('erro ao desenhar o painel')), log.join('\n')).toBe(true)
+  await done($, ['1'])
+  expect(String(h.proprio()?.renderError ?? ''), JSON.stringify(h.proprio() ?? {})).not.toBe('')
 })

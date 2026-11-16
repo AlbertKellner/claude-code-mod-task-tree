@@ -1682,3 +1682,44 @@ test('a carta a um subagente posta na pendente do plano anterior por causa da pe
   expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
   esperarEstado(p, 'Dois', 'pendente')
 })
+
+// Regra: envios.fila-pelo-texto-da-resposta
+test('a carta nasce na fila quando a resposta diz "held" ou "pending", e entregue com "its turn has started"', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }, { id: 'local_z' }])
+  const respostas = ['Message held until the session is idle', 'Message pending delivery', 'Message queued; its turn has started on it']
+  let i = 0
+  on('tool.call', { tool: 'SendMessage' }, () => ({ result: JSON.stringify({ success: true, message: respostas[i++] ?? '' }) }))
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Tres' }] }])
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await start($, ['2'])
+  await envio($, 'local_y')
+  await start($, ['3'])
+  await envio($, 'local_z')
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  esperarCartaSob(p, 'Dois', 'fila')
+  esperarCartaSob(p, 'Tres', 'entregue')
+})
+
+// Regra: envios.entrega-sem-recibo-pelo-turno-da-sessao
+test('a sessão que não publica o que recebeu confirma a carta por um turno aberto depois do envio', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const arquivo = (at: number) => JSON.stringify({ version: 1, waiting: false, waits: [], children: [], groups: [{ agent: '', label: '', tasks: [], turns: [{ id: 1, title: 'turno 1', at }] }] })
+  const destino: Filha = { id: 'local_x', publicado: arquivo(AGORA - 5000) }
+  host(on, [destino])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await envio($, 'local_x')
+  await aviso($)
+  esperarCartaSob(await painel($), 'Um', 'fila')
+  await relogio.advance(2000)
+  destino.publicado = arquivo(AGORA + 2500)
+  await aviso($)
+  esperarCartaSob(await painel($), 'Um', 'entregue')
+})

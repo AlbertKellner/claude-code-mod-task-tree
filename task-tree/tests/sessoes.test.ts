@@ -2743,3 +2743,55 @@ test('a sessão publica o modelo, e o esforço quando o passo o traz', async ($:
   await start($, ['1'])
   expect(h.proprio()?.engine).toBe('Opus 5.5 · high')
 })
+
+// Regra: sessoes.lista-em-erro-diz-sessoes-indisponiveis
+test('com a lista do app em erro, o painel diz "Sessões indisponíveis" e o cartão fica; com a lista de volta, a linha some', async ($: any, on: any) => {
+  fixar(on)
+  const op = { listaFalha: false }
+  on('mcp.call', { tool: 'list_sessions' }, (_$: any, e: any, next: any) =>
+    op.listaFalha ? { value: { content: [{ type: 'text', text: 'list_sessions indisponível' }], isError: true } } : next(e),
+  )
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  op.listaFalha = true
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(true)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+  linha(p, 'Tarefa da filha')
+  op.listaFalha = false
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+})
+
+// Regra: sessoes.mensagem-recebida-sem-rodada-abre-cartao
+test('a mensagem que a filha recebeu sem envio visto abre um cartão próprio sob a tarefa aberta naquela hora', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const f1 = [noTurno(1, '1', 'f1', 'feita')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: f1, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [...f1, noTurno(2, '2', 'f2', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => ({ sob: c.sob, tarefas: c.tarefas })), emTexto(p)).toEqual([
+    { sob: 'Um', tarefas: ['f1'] },
+    { sob: 'Dois', tarefas: ['f2'] },
+  ])
+})

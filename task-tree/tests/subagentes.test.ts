@@ -2011,3 +2011,21 @@ test('o plan do subagente replaneja no lugar, e o request e o summary dele não 
   expect(p.some(l => l.texto.includes('Título do sub')), emTexto(p)).toBe(false)
   expect(p.some(l => l.texto.includes('Resumo do subagente')), emTexto(p)).toBe(false)
 })
+
+// Regra: subagentes.teammate-nao-termina-com-o-turno
+test('o fim do turno de um teammate não interrompe as tarefas dele; o de um subagente comum, sim', async ($: any, on: any) => {
+  fixar(on)
+  on('agent.list', () => ({ value: [{ id: 'tm-1', type: 'teammate', description: 'colega' }, { id: 'sub-1', type: 'general-purpose', description: 'sub' }] }))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await plan($, [{ id: 'T', title: 'Tarefa do colega' }], undefined, 'tm-1')
+  await start($, ['T'], 'tm-1')
+  await plan($, [{ id: 'S', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await start($, ['S'], 'sub-1')
+  await fimDoSubagente($, 'tm-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Tarefa do colega', 'andamento')
+  esperarEstado(p, 'Tarefa do sub', 'interrompida')
+})

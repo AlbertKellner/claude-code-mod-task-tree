@@ -528,3 +528,23 @@ A sessão publica o modelo e o esforço do loop principal.
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
 Código: hooks/turn.ts
 Estado: coberto
+
+### sessoes.lista-em-erro-diz-sessoes-indisponiveis
+Com a lista de sessões do app em erro, o painel diz "Sessões indisponíveis" e os cartões ficam como estavam.
+
+- Dado uma filha com cartão no painel
+- Quando a lista de sessões do app responde erro
+- Então aparece a linha "Sessões indisponíveis: <motivo>", o cartão segue com o que tinha, e a linha some quando a lista volta
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### sessoes.mensagem-recebida-sem-rodada-abre-cartao
+A mensagem que a filha recebeu desta sessão sem envio registrado abre o cartão dela mesmo assim.
+
+- Dado uma filha que publica uma mensagem recebida desta sessão que o painel não viu sair (painel desligado ou recarga na hora do envio)
+- Quando ela abre um turno depois dessa mensagem
+- Então o turno ganha um cartão próprio, sob a tarefa que estava aberta quando a mensagem chegou, e não se junta ao cartão anterior
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
