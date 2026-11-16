@@ -6,7 +6,7 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Child, Send } from '../types'
-import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel, drawnTasks } from '../draw/layout'
+import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, lastTurnAt, layout, guides, labelCols, gitLabel, drawnTasks } from '../draw/layout'
 import type { Row } from '../draw/layout'
 import { GLYPH, MSG_TERM, ULTRA, chips, clockText, cutText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
@@ -337,10 +337,11 @@ export async function render($: EngineInterface, e: any, next: any) {
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
-  // With nothing in progress: the task started last (done or not; the person: "o título é o do passo
-  // iniciado por último"), then the most recent level-1 task with a session at work under it (by its
+  // With nothing in progress: the task whose start is the most recent, a start again included (done or
+  // not; the person: "o título é o do passo iniciado por último"; 2026-11-15, "Pelo start mais recente
+  // (Recomendado)": the same task that lights the path and the strip), then the most recent level-1 task with a session at work under it (by its
   // current round, see atWork: an earlier round's task never), then the most recent request's.
-  const now0 = current(mainTasks).anchor ?? startedLast(inSight)?.id
+  const now0 = current(mainTasks).anchor ?? lastStarted(inSight)?.task.id
   const newest = [...inSight].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??

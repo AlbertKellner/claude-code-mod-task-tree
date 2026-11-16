@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
 import { GROUPS_VERSION, current as keepCurrent, linkOf, loadStore, loaded, readGroups, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, lastStarted, subLive } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, lastStarted, subLive } from '../draw/layout'
 import type { Idle } from '../types'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
@@ -424,7 +424,8 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   // title matches the receiving session's name (or holds the free phrase whole), if only one does (byName); else the batch planned
   // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
   // yet (`used`: a letter, a session's round, a session opened, a subagent launched), all of them used,
-  // its last; no pending task, the one started last, done included (startedLast); none started, the
+  // its last; no pending task, the one whose start is the most recent, a start again included, done or not
+  // (lastStarted; the person, 2026-11-15: "Pelo start mais recente (Recomendado)"); none started, the
   // request's last level-1 task. It took the task started last even with one pending, planned to send:
   // the card went under the closed task before it.
   const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
@@ -450,7 +451,7 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   // (no `startedAt`), the last in the order of the starts.
   if (anchor !== undefined && !asking.includes(anchor)) return keep(anchor)
   if (anchor !== undefined && going.length > 0)
-    return keep((startedLast(going.map(t => ({ ...t, children: [] }))) ?? going.reduce((a, t) => ((t.started ?? -1) >= (a.started ?? -1) ? t : a))).id)
+    return keep((lastStarted(going.map(t => ({ ...t, children: [] })))?.task ?? going.reduce((a, t) => ((t.started ?? -1) >= (a.started ?? -1) ? t : a))).id)
   // The request open now with no task of it: loose only with nothing in progress. With the task in
   // progress asking (a plan of an earlier request, continued with a start only), the request of the
   // order is the asking task's: the card or letter never goes loose with a task in progress.
@@ -490,9 +491,9 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   const level1 = [...mine].reverse().find(t => !asks(t))
   const askers = flat(mine).filter(t => asking.includes(t.id)).map(t => ({ ...t, children: [] }))
   // With no other candidate, the card goes to the asking task itself, never to its parent.
-  const other = startedLast(calm)?.id ?? level1?.id
+  const other = lastStarted(calm)?.task.id ?? level1?.id
   if (other !== undefined) return placed(other)
-  return keep(startedLast(askers)?.id ?? askers[askers.length - 1]?.id ?? startedLast(mine)?.id ?? mine[mine.length - 1]?.id)
+  return keep(lastStarted(askers)?.task.id ?? askers[askers.length - 1]?.id ?? lastStarted(mine)?.task.id ?? mine[mine.length - 1]?.id)
 }
 
 // The tasks of the main loop with a question still open under them (sendAnchor's `asking`): the

@@ -1089,3 +1089,31 @@ test('numa worktree dentro do repositório principal, com gitdir relativo, o cab
   expect(r.texto, r.texto).not.toContain('ajuste ⑂')
   expect(r.repo).toBe('meu-projeto')
 })
+
+const DOIS_PLANOS_R5: No[] = [
+  { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] },
+  { id: 'B', title: 'Plano B', children: [{ id: '3', title: 'Três' }] },
+]
+
+// Regra: cabecalho.titulo-e-a-ultima-iniciada
+test('depois de um start de novo numa tarefa que aguardava, o título é o do nível 1 dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PLANOS_R5)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await start($, ['3'])
+  await done($, ['3'])
+  await relogio.advance(1000)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await done($, ['1'])
+  const p = await painel($)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
+  esperarEstado(p, 'Plano A', 'andamento')
+  expect(estadoGeral(await noApp($))).toBe('em andamento')
+})

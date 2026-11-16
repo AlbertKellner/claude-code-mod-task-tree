@@ -1030,28 +1030,14 @@ export function firstOpen(items: TaskNode[]): string[] {
   }
   return []
 }
-// The task started last (its startedAt the latest; done or not): where a message sent with nothing
-// in progress is anchored, and what names the header with nothing in progress. On a tie (a parent
-// starts with its child, or one start names two tasks) the one started later by the start's order
+// The task whose start is the most recent one (done or not), by its last start (`lastStartAt`;
+// `startedAt` for one with none), and that start's time. A start again on a task started before counts
+// (the person, 2026-11-15: "Pelo start mais recente (Recomendado)"): it lights the path and the strip,
+// names the header with nothing in progress, and is where a message sent with nothing in progress and
+// nothing pending goes; the line's time still counts from the first start. On a tie (a parent starts
+// with its child, or one start names two tasks) the one started later by the start's order
 // (startedSeq) wins; one with no order of its own (a parent) never beats one with it; with neither,
 // the later one in the tree.
-export function startedLast(list: TaskNode[]): TaskNode | undefined {
-  let pick: TaskNode | undefined
-  for (const t of flat(list)) {
-    if (typeof t.startedAt !== 'number') continue
-    if (pick === undefined || t.startedAt > (pick.startedAt as number)) {
-      pick = t
-      continue
-    }
-    if (t.startedAt < (pick.startedAt as number)) continue
-    const [a, b] = [t.startedSeq ?? -1, pick.startedSeq ?? -1]
-    if (a > b || (a === b && a === -1)) pick = t
-  }
-  return pick
-}
-// The task whose start is the most recent one, by its last start (`lastStartAt`; `startedAt` for one
-// with none), and that start's time; ties as in startedLast. A start again on a task started before
-// counts here, not in startedLast (the header's title and where letters and cards go keep the first).
 export function lastStarted(list: TaskNode[]): { task: TaskNode; at: number } | undefined {
   let pick: { task: TaskNode; at: number } | undefined
   for (const t of flat(list)) {

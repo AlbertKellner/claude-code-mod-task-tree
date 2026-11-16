@@ -393,6 +393,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Na linha +N (Recomendado)"
     },
+    "task-tree/tests/cabecalho.test.ts::depois de um start de novo numa tarefa que aguardava, o título é o do nível 1 dela": {
+      "regras": [
+        "cabecalho.titulo-e-a-ultima-iniciada"
+      ],
+      "hash": "33cb2b9ef4a67fb7",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 do lote do start de novo: o título depois de um start de novo (decisão do usuário de 2026-11-15, \"Pelo start mais recente (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::depois do plan de um pedido novo, antes do start, o título é o do plano novo": {
       "regras": [
         "cabecalho.titulo-e-de-tarefa-desenhada"
@@ -2701,6 +2711,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "desempate do envio sem nada em andamento, sem teste até a auditoria de 2026-11-10"
+    },
+    "task-tree/tests/envios.test.ts::sem pendente, a carta vai para a tarefa de start mais recente, contado o start de novo": {
+      "regras": [
+        "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
+      ],
+      "hash": "71bb13e44fd6a271",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 do lote do start de novo: o lugar da carta sem pendente (decisão do usuário de 2026-11-15, \"Pelo start mais recente (Recomendado)\")"
     },
     "task-tree/tests/envios.test.ts::sem relógio, com a pergunta na iniciada por último e as outras já com carta, o envio vai à última na ordem dos starts": {
       "regras": [

@@ -164,9 +164,10 @@ O título do cabeçalho é o nível 1 da tarefa iniciada por último.
 
 - Dado nada em andamento e uma tarefa iniciada por último
 - Quando o cabeçalho é desenhado
-- Então o título é o nível 1 que contém essa tarefa
+- Então o título é o nível 1 que contém essa tarefa; um start de novo numa tarefa já iniciada conta: vale o start mais recente, o mesmo que acende o caminho e a faixa
 
 Origem: decisão do usuário ("o título é o do passo iniciado por último", 2026-10-23); commit f10765d.
+Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Pelo start mais recente (Recomendado)"): o título segue o start mais recente, contado o start de novo; os testes existentes não mudam.
 Código: state/tasks.ts, hooks/tools.ts
 Estado: coberto
 

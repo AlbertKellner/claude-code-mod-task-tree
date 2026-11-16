@@ -273,7 +273,8 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    são frases livres e só casam inteiros, em palavras inteiras: `namedFor`, 2026-11-14, "Só no nome
    (Recomendado)"); senão, entre as pendentes do plan mais recente (o
    mesmo `plannedAt` da mais nova), a primeira na ordem do plano sem carta, rodada, sessão ou subagente, e,
-   todas usadas, a última; sem pendente, a iniciada por último, mesmo concluída; sem nenhuma iniciada, o
+   todas usadas, a última; sem pendente, a de start mais recente (`lastStarted`, contado o start de
+   novo), mesmo concluída; sem nenhuma iniciada, o
    último nível 1 do pedido. A tarefa com pergunta aberta (`askingAnchors`: pergunta, plano a aprovar,
    escolha do fim do turno) só recebe quando o pedido não tem outra: se a em andamento escolhida pergunta,
    vale a em andamento iniciada por último que não pergunta (sem relógio, a última na ordem dos starts),
@@ -555,8 +556,10 @@ Decisão do usuário, 2026-11-14 ("Só com turno em curso (Recomendado)"): o tem
   ali (`begin`); `carry` a leva no replano (e, na folha em andamento que ganha subtarefas, a passa à primeira subtarefa aberta com o início dela). O tempo da tarefa concluída e reaberta com start recomeça do zero (`begin`: `startedAt` novo, pausa zerada); o que estava ✓ embaixo dela fica ✓.
 - A hora do último start (`TaskNode.lastStartAt`): `begin` a grava na tarefa que recebe o start (aberta
   ou reaberta); `carry` a leva com `startedAt` e `startedSeq`. Só `lastStarted` (`draw/layout.ts`) a lê,
-  para o caminho aceso (`trail`) e o `started` do cabeçalho; `startedLast` (título do cabeçalho, lugar
-  das cartas e dos cartões) e o tempo da linha seguem pelo `startedAt`. Sem ela (painel de antes), vale
+  para o caminho aceso (`trail`), o `started` do cabeçalho, o título do cabeçalho sem nada em andamento
+  e o lugar das cartas e dos cartões (2026-11-15, "Pelo start mais recente (Recomendado)"; antes, o
+  título e as cartas seguiam o primeiro start, por `startedLast`, que saiu); o tempo da linha segue
+  pelo `startedAt`. Sem ela (painel de antes), vale
   o `startedAt`.
 
 De onde conta: o tempo de uma tarefa, de um pai e de um pedido conta do primeiro start embaixo dele,
@@ -604,8 +607,8 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   fora do `find` (dentro dele, `current` percorria a árvore inteira uma vez por nível 1). Correção
   seguinte (título do cabeçalho): o título é o nível 1 que contém a tarefa iniciada por último, a
   âncora de `current()` (a mesma tarefa sob a qual vai um aviso de espera); sem nenhuma em andamento, o
-  nível 1 da tarefa iniciada por último (`startedLast`, concluída ou não; o título é o do passo
-  iniciado por último); senão o ÚLTIMO nível 1 com sessão viva embaixo (era o primeiro: nomeava uma
+  nível 1 da tarefa de start mais recente (`lastStarted`, concluída ou não, contado o start de novo:
+  2026-11-15, "Pelo start mais recente (Recomendado)"; o título é o do passo iniciado por último); senão o ÚLTIMO nível 1 com sessão viva embaixo (era o primeiro: nomeava uma
   tarefa de muitos pedidos antes; o título de tarefa muito antiga que o teste visual achou ficou
   fechado com isso); senão o nível 1 mais recente. Desde os achados baixos (2026-11-15), sem nada em
   andamento os três últimos passos procuram só entre os níveis 1 à vista, os que os números contam: os

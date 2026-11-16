@@ -97,7 +97,7 @@ Sem nada em andamento, o envio vai às pendentes planejadas por último, pela or
 
 - Dado nada em andamento no pedido atual, que já tem plano (sem plano: envios.antes-do-plan-fica-solta-e-o-plan-adota)
 - Quando sai uma mensagem
-- Então ela vai, nesta ordem: à pendente cujo título casa com o nome da sessão destino (envios.carta-pelo-nome-da-sessao); senão, entre as pendentes do plan mais recente do pedido, à primeira na ordem do plano ainda sem carta, sessão ou subagente; todas já com um deles, à última delas; sem nenhuma pendente, à tarefa iniciada por último, mesmo concluída; sem nenhuma iniciada, ao último nível 1 do pedido
+- Então ela vai, nesta ordem: à pendente cujo título casa com o nome da sessão destino (envios.carta-pelo-nome-da-sessao); senão, entre as pendentes do plan mais recente do pedido, à primeira na ordem do plano ainda sem carta, sessão ou subagente; todas já com um deles, à última delas; sem nenhuma pendente, à tarefa de start mais recente (um start de novo conta), mesmo concluída; sem nenhuma iniciada, ao último nível 1 do pedido
 
 Origem: decisão do usuário, 2026-10-23 ("Várias pendentes: a última planejada. Nenhuma pendente: última iniciada"); commits db0c11e e 8a8d51d.
 Reescrito: 2026-10-30, decisão do usuário ("a tarefa de trabalho que enviou uma mensagem não deve virar ✉ nem sair da contagem; segue tarefa comum (○ ◉ ✓, conta no x/y) e o ✉ do envio vai para uma linha própria"; "A: linha própria sob a tarefa (Recomendado)"; "Sim, conclusão automática como hoje"; "Não, fica ◷ enquanto a carta está na fila"); a carta aparece sob a tarefa escolhida.
@@ -106,6 +106,7 @@ Reescrito: 2026-11-09, decisão do usuário ("em paralelo, a sessõ de pesquisa 
 Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): vale para o pedido que já tem plano.
 Reescrito: 2026-11-14, texto completado com a ordem que o código já segue (auditoria 2026-11-10: o corpo dizia só "a pendente planejada por último"); nenhuma regra muda e os testes existentes não mudam.
 Reescrito: 2026-11-16, texto: o pedido atual é o mais novo com tarefas, salvo quando ele está todo fechado e o modelo voltou a um plano anterior ainda aberto (envios.sem-andamento-vai-ao-plano-retomado; defeito relatado pelo usuário em 2026-11-15 e decisão do usuário de 2026-11-15, "Pendente do plano retomado (Recomendado)"). Os testes deste cenário não mudam.
+Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Pelo start mais recente (Recomendado)"): sem pendente, a carta vai à tarefa de start mais recente, contado o start de novo; os testes existentes não mudam.
 Estado: coberto
 
 ### envios.sem-andamento-vai-ao-plano-retomado

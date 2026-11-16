@@ -1908,3 +1908,32 @@ test('sem nada em andamento, com a pergunta do meio respondida e o plano anterio
   esperarCartaSob(p, 'Segundo passo', 'fila')
   expect(cartaSob(p, 'Estimar o tempo'), emTexto(p)).toBeUndefined()
 })
+
+const DOIS_PLANOS_ENVIO_R5: No[] = [
+  { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] },
+  { id: 'B', title: 'Plano B', children: [{ id: '3', title: 'Três' }] },
+]
+
+// Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
+test('sem pendente, a carta vai para a tarefa de start mais recente, contado o start de novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PLANOS_ENVIO_R5)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await start($, ['3'])
+  await done($, ['3'])
+  await relogio.advance(1000)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await done($, ['1'])
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cartaSob(p, 'Três'), emTexto(p)).toBeUndefined()
+})
