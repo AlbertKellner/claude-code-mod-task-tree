@@ -2032,6 +2032,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário de 2026-11-15, \"Não segura (Recomendado)\": o que está na tarefa só como lugar não fecha nem segura os outros fechamentos"
     },
+    "task-tree/tests/envios.test.ts::a carta que a releitura marca enquanto o lembrete de outra é montado não volta à fila": {
+      "regras": [
+        "envios.lembrete-nao-desfaz-marca-da-releitura"
+      ],
+      "hash": "c180c80b20bbc164",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembretes das sessões lidos e gravados num passo só"
+    },
     "task-tree/tests/envios.test.ts::a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa": {
       "regras": [
         "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
@@ -2102,6 +2112,16 @@
       "tipo": "decisao",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Sim, fica à vista (Recomendado)\"; o pedido de id reusado segue à vista, o teste deixa de abrir \"+1 pedidos anteriores\""
+    },
+    "task-tree/tests/envios.test.ts::a sessão cujo turno termina enquanto o lembrete de outra é montado ainda é lembrada": {
+      "regras": [
+        "envios.lembrete-nao-desfaz-marca-da-releitura"
+      ],
+      "hash": "3e59adfee5e111f8",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "auditoria: lembretes das sessões lidos e gravados num passo só"
     },
     "task-tree/tests/envios.test.ts::a sessão destino arquivada com a carta na fila: carta cinza não entregue, sem tempo e fora do chip; o modelo é avisado uma vez e o Esc interrompe a tarefa": {
       "regras": [

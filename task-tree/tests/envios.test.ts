@@ -1798,3 +1798,89 @@ test('a carta posta só como lugar na pendente do plano anterior, ainda na fila,
   expect(cartasDe(p, 'Dois').length, emTexto(p)).toBe(2)
   esperarCartaSob(p, 'Dois', 'fila')
 })
+
+// Regra: envios.lembrete-nao-desfaz-marca-da-releitura
+test('a carta que a releitura marca enquanto o lembrete de outra é montado não volta à fila', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: 'local_x', nome: 'xis', rodando: false },
+    { id: 'local_y', nome: 'ypsilon', rodando: false },
+  ])
+  responderEnvio(on)
+  // Armado, a gravação do lembrete (a que leva uma carta já avisada) cruza com a da releitura: antes
+  // dela entra a lista como a releitura a grava, com a carta de Y recebida e a de X ainda sem aviso, e
+  // o lembrete tem de reler (o stub não pode chamar a releitura do mod).
+  let armado = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!armado || e?.key !== 'sends' || !(e.value ?? []).some((s: any) => s.noted)) return next(e)
+    armado = false
+    h.recebeu('local_y', AGORA + 4000)
+    const meio = (e.value as any[]).map(s => (s.to === 'local_y' ? { ...s, taken: true } : { ...s, noted: undefined }))
+    const r = await next({ ...e, value: meio })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'para xis')
+  await start($, ['2'])
+  await envio($, 'local_y', 'para ypsilon')
+  h.recebeu('local_x', AGORA + 1000)
+  await relogio.advance(3000)
+  armado = true
+  const primeiro = await contexto(aviso($))
+  expect(armado, 'a gravação do lembrete passou pelo stub').toBe(false)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  esperarCartaSob(p, 'Dois', 'entregue')
+  const segundo = await contexto(aviso($))
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  expect(primeiro, 'o aviso em curso').toContain('recebimento confirmado')
+  expect(primeiro, 'o aviso em curso').toContain('local_x')
+  expect(primeiro, 'o aviso em curso').not.toContain('local_y')
+  expect(segundo, 'o aviso seguinte').toContain('recebimento confirmado')
+  expect(segundo, 'o aviso seguinte').toContain('local_y')
+  expect(segundo, 'o aviso seguinte').not.toContain('local_x')
+})
+
+// Regra: envios.lembrete-nao-desfaz-marca-da-releitura
+test('a sessão cujo turno termina enquanto o lembrete de outra é montado ainda é lembrada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const um = 'local_11111111-1111-1111-1111-111111111111'
+  const dois = 'local_22222222-2222-2222-2222-222222222222'
+  const h = host(on, [
+    { id: um, nome: 'filha-um', painel: { tasks: [], turns: [] } },
+    { id: dois, nome: 'filha-dois', painel: { tasks: [], turns: [] } },
+  ])
+  // Armado, a gravação que tira a primeira filha da lista do fim de turno cruza com a da releitura,
+  // que anota a segunda: antes dela entra a lista com as duas, e o lembrete tem de reler.
+  let armado = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!armado || e?.key !== 'ended' || (e.value ?? []).includes(um)) return next(e)
+    armado = false
+    h.filha(dois).rodando = false
+    const r = await next({ ...e, value: [um, dois] })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(um).rodando = false
+  await relogio.advance(3000)
+  armado = true
+  const primeiro = await contexto(aviso($))
+  expect(armado, 'a gravação do lembrete passou pelo stub').toBe(false)
+  const segundo = await contexto(aviso($))
+  const juntos = primeiro + segundo
+  expect(juntos, 'os dois avisos').toContain('filha-um')
+  expect(juntos, 'os dois avisos').toContain('filha-dois')
+  expect(primeiro, 'o aviso em curso').toContain('terminou o turno')
+  expect(segundo, 'o aviso seguinte').toContain('terminou o turno')
+  expect(segundo, 'o aviso seguinte').toContain('filha-dois')
+})

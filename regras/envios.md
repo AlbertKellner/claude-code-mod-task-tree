@@ -428,3 +428,13 @@ A sessão que não publica o que recebeu confirma a carta por um turno aberto de
 
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
 Estado: coberto
+
+### envios.lembrete-nao-desfaz-marca-da-releitura
+O lembrete ao modelo não desfaz o que a releitura das sessões acabou de marcar.
+
+- Dado duas cartas na fila, a primeira já recebida e ainda não avisada ao modelo, ou duas sessões abertas de tarefas abertas
+- Quando a releitura das sessões marca a segunda carta como recebida (ou anota o fim do turno da segunda sessão) enquanto o lembrete da primeira é montado
+- Então a segunda carta segue entregue, o modelo é avisado dela uma vez, e o fim do turno da segunda sessão é lembrado; nada volta a "na fila" nem some sem aviso
+
+Origem: auditoria 2026-11-10 (os dois lembretes liam a lista e gravavam a lista lida, por cima de uma escrita feita no meio); aplica envios.fica-ate-entrega e lembretes.filha-terminou-o-turno, sem mudar nenhuma regra. No harness, a corrida do fim de turno não fica provada: a releitura seguinte anota de novo a sessão que parou.
+Estado: coberto
