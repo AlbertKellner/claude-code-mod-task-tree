@@ -429,10 +429,11 @@ Em painel estreito, a barra e depois a contagem cedem para o título, e a indent
 
 - Dado uma linha com barra e contagem cujo título ficaria com menos de 12 caracteres, ou uma linha além do 8º nível
 - Quando o painel é desenhado no app
-- Então a linha sai sem a barra; se ainda faltar espaço, sem a contagem; a palavra, o busto e o tempo ficam; do 8º nível em diante as linhas têm as guias do 8º (as faixas dos cartões em volta contadas; o recuo próprio de cada cartão segue); na 8ª coluna fica o conector da linha ou da faixa do cartão: ramo enquanto a linha seguinte também desenha nela, fim na última, sem falha na guia
+- Então a linha sai sem a barra; se ainda faltar espaço, sem a contagem; a palavra, o busto e o tempo ficam; do 8º nível em diante as linhas têm as guias do 8º (as faixas dos cartões em volta contadas; o recuo próprio de cada cartão segue); na 8ª coluna fica o conector da linha ou da faixa do cartão: ramo enquanto a linha seguinte também desenha nela, fim na última, sem falha na guia; quando as faixas em volta já somam 8, cada linha e cada cartão de dentro mantêm só o conector
 
 Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)").
 Reescrito: 2026-11-15, texto: o conector da 8ª coluna sai ramo enquanto houver linha depois na mesma coluna (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Manter o ├/└ (Recomendado)"): o corte nunca tira o conector da própria linha; dentro do cartão cujas faixas em volta já somam 8 células, cada linha e cada cartão mantêm uma célula, a do conector (custa 3 colunas de título por cartão aninhado além do teto). Os testes existentes deste cenário não mudam.
 Estado: coberto
 
 ### visual.painel-estreito-no-app

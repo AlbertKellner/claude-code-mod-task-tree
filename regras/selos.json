@@ -6872,6 +6872,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Cinza \\\"interrompido\\\" (Recomendado)\"; \"Cancelada não conta\""
     },
+    "task-tree/tests/visual.test.ts::dentro de um cartão cujas faixas em volta já somam 8 células, cada linha e cada cartão mantêm o conector": {
+      "regras": [
+        "visual.titulo-legivel-no-painel-estreito"
+      ],
+      "hash": "12836f0052a09675",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Manter o ├/└ (Recomendado)\"): o corte nunca tira o conector da própria linha"
+    },
     "task-tree/tests/visual.test.ts::do 8º nível em diante a linha tem as guias do 8º nível": {
       "regras": [
         "visual.titulo-legivel-no-painel-estreito"

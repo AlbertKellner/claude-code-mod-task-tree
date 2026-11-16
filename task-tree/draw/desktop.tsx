@@ -451,18 +451,18 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
   // `drawn`: the cells the strips around the line already draw. From the 8th cell on the indent stops
   // growing (the person, 2026-11-15: "Barra, contagem e teto (Recomendado)"): of what is left to
   // INDENT_CAP, the first cells and the last one (the connector to the line or to the card) are drawn,
-  // the ones between them are not; with nothing left, none. The connector that falls in the cap's
-  // column (cut there, or with just the cells left) is a branch while the next line of the same
-  // container (`next`; for a card, the line after its own lines) also draws in that column, and an end
-  // on the last: the column reads as one list with a guide with no gap.
+  // the ones between them are not; with nothing left (the strips around already at the cap), the
+  // connector alone (the person, 2026-11-15: "Manter o ├/└ (Recomendado)"). The connector that falls
+  // in the cap's column (cut there, or with just the cells left) is a branch while the next line of the
+  // same container (`next`; for a card, the line after its own lines) also draws in that column, and an
+  // end on the last: the column reads as one list with a guide with no gap.
   const own = (i: number, from: number) => cells(lines[i]!, lanes[i]!, hides[i]).filter(c => c.col >= from)
   const cut = (i: number, from: number, to: number, drawn: number, next: number | undefined) => {
     const cs = own(i, from)
       .filter(c => c.col < to)
       .map(c => c.kind)
-    const left = INDENT_CAP - drawn
+    const left = Math.max(1, INDENT_CAP - drawn)
     if (cs.length < left) return cs
-    if (left <= 0) return []
     const goes = next !== undefined && own(next, from).length >= left
     return [...cs.slice(0, left - 1), goes ? ('branch' as Cell) : ('end' as Cell)]
   }

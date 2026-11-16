@@ -97,7 +97,8 @@ Quem recebe `$` (o engine) e quem não recebe:
     param em `INDENT_CAP` (8) células: as primeiras e o conector; o conector que cai na coluna do
     teto (cortado ali, ou com as células que sobram) é ramo enquanto a linha seguinte do mesmo
     container também desenha nela (para um cartão, a linha depois das dele), e fim na última; vale
-    para a faixa do cartão;
+    para a faixa do cartão; com as faixas em volta já no teto, fica só o conector (2026-11-15, "Manter
+    o ├/└ (Recomendado)");
     os cartões de sessão são `Box` com borda e fundo translúcido por nível, com respiro nos quatro
     lados, o busto e o anel em `Svg`.
   - `head.tsx` (178): o cabeçalho do desktop (`desktopHead`): faixa de cor de 1 coluna, título,
@@ -2488,6 +2489,9 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   faixa de um cartão, a altura do cartão inteiro). Agora o conector da coluna do teto é ramo enquanto a
   linha seguinte do container desenha nela, e fim na última. Também a última irmã com filhas além do
   teto passa a ramo, porque as filhas dela seguem na mesma coluna.
+- Com as faixas dos cartões em volta já em 8 células, as linhas de dentro perdiam também o conector e um
+  cartão ali dentro ficava sem faixa. Agora o corte nunca tira o conector da própria linha: fica uma
+  célula, pela mesma regra de ramo e fim (2026-11-15, "Manter o ├/└ (Recomendado)").
 
 ## Achados baixos: o wrap_up e a lista do app sem o lembrete de planejar (2026-11-15)
 

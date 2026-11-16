@@ -797,3 +797,22 @@ test('a faixa de um cartão cortada pelo teto leva a barra até o pé quando há
   expect(conectorDoTitulo(d, 'N tres b'), todas).toBe('ramo')
   expect(conectorDoTitulo(d, 'N outro'), todas).toBe('fim')
 })
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('dentro de um cartão cujas faixas em volta já somam 8 células, cada linha e cada cartão mantêm o conector', async ($: any, on: any) => {
+  const trineta = { id: 'local_44444444-4444-4444-4444-444444444444', name: 'trineta', title: 'trineta', running: true, archived: false, anchor: 'Bd', panel: { groups: [{ agent: '', label: '', tasks: [estreitoTarefa('Ta', 'T única')] }], waits: [], children: [] } }
+  const tarefasDaBisneta = [estreitoTarefa('Ba', 'B um', [estreitoTarefa('Bb', 'B um a'), estreitoTarefa('Bc', 'B um b')]), estreitoTarefa('Bd', 'B dois')]
+  const bisneta = { id: 'local_33333333-3333-3333-3333-333333333333', name: 'bisneta', title: 'bisneta', running: true, archived: false, anchor: 'Nc', panel: { groups: [{ agent: '', label: '', tasks: tarefasDaBisneta }], waits: [], children: [trineta] } }
+  const d = await netaNoTeto($, on, NETA_COM_IRMA, [bisneta])
+  const faixas = faixasDoApp(d)
+  const todas = JSON.stringify({ faixas, linhas: d.linhas.map(l => [l.texto, guiasDe(l)]) })
+  // A faixa da bisneta fecha as 8 células: dentro dela, só o conector de cada linha do 2º nível (as
+  // do 1º nível de uma sessão começam sem guia, até o rótulo, como em qualquer cartão de sessão).
+  expect(faixas.find(f => f.primeira.includes('bisneta'))?.celulas, todas).toEqual(['ramo'])
+  expect(guiasDoTitulo(d, 'B um'), todas).toEqual([])
+  expect(guiasDoTitulo(d, 'B um a'), todas).toEqual(['ramo'])
+  expect(guiasDoTitulo(d, 'B um b'), todas).toEqual(['fim'])
+  expect(guiasDoTitulo(d, 'B dois'), todas).toEqual([])
+  // O cartão aberto ali dentro, o último, mantém a faixa de uma célula, o fim.
+  expect(faixas.find(f => f.primeira.includes('trineta'))?.celulas, todas).toEqual(['fim'])
+})
