@@ -64,10 +64,11 @@ As linhas que a pessoa recolheu ou abriu voltam como ela deixou num processo nov
 
 - Dado tarefas, pedidos ou cartões recolhidos pela pessoa e um "+N pedidos anteriores" aberto por ela
 - Quando o processo da sessão é refeito (/model, respawn do worker, reabrir o app) ou a sessão é retomada
-- Então o painel volta com as mesmas linhas recolhidas e abertas (na retomada, as da sessão retomada, ou nenhuma); o /clear segue limpando tudo (durabilidade.clear-esvazia); a sessão que volta do arquivo publicado (fora das 30 do store) volta no padrão
+- Então o painel volta com as mesmas linhas recolhidas e abertas (na retomada, as da sessão retomada, ou nenhuma); o /clear segue limpando tudo (durabilidade.clear-esvazia); a sessão que volta do arquivo publicado (fora das 30 do store) volta no padrão; a primeira escrita depois de um respawn (um clique, um plan que reusa um id) parte do que estava guardado, e o que ela tinha recolhido antes de uma recarga do mod é guardado na publicação seguinte
 
 Origem: decisão do usuário, 2026-11-15 ("Sim, guardado por sessão (Recomendado)").
-Código: hooks/render.tsx
+Código: hooks/render.tsx, hooks/panel.ts, hooks/tools.ts
+Reescrito: 2026-11-15, texto: as dobras de antes de uma recarga do mod são guardadas na publicação seguinte, e a primeira escrita depois de um respawn não as perde (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado

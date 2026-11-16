@@ -395,9 +395,13 @@ Os registros do store: `session` (os grupos), `work` (o trabalho atual), `links`
 `children` reduzidas a `Link`, `sends`, `received`, `receipts`, `launches` e a lista `left` das filhas
 deixadas no `/clear`), `turn` (o fim do turno: `ended`, `aborted`, `failed`, `replan`), `folds` (as linhas que a pessoa
 recolheu ou abriu, a chave `collapsed`: gravadas depois de cada clique, do plan que as renomeia e do
-`/clear`, que grava o vazio; voltam no `session.start` e no primeiro uso, `ensureFolds`, e a retomada
+`/clear`, que grava o vazio, e em toda publicação quando diferem do que este módulo já gravou, a cópia
+`lastFolds`, como o fim do turno e as ligações: a recarga a quente e a gravação recusada levam a uma
+gravação a mais; voltam no `session.start` e no primeiro uso, `ensureFolds`, e a retomada
 traz as da sessão retomada, ou nenhuma; decisão do usuário, 2026-11-15: "Sim, guardado por sessão
-(Recomendado)"), `ultra` (o interruptor de ultracode, gravado a cada aviso do motor que o muda, de
+(Recomendado)"), `ultra` (o interruptor de ultracode, gravado a cada aviso do motor, também o repetido, e em toda
+publicação, só quando difere do que este módulo já gravou, a cópia `lastUltra`: o interruptor já
+ligado na recarga a quente e a gravação recusada são gravados assim; de
 volta no `session.start`, na retomada e no primeiro uso; decisão do usuário, 2026-11-15: "Guardar por
 sessão"; só o `ultra_effort_exit` o desliga, então o interruptor desligado com a sessão parada fica
 ligado até esse aviso, risco que ele aceitou) e a lista `sessions`. O registro `session` tem versão

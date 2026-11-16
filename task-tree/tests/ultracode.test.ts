@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
-import { AGORA, armazem, fixar, host, lancaveis, SESSAO } from './kit/ambiente'
+import { AGORA, armazem, estado, fixar, host, lancaveis, SESSAO } from './kit/ambiente'
 import { abrirSessao, aviso, iniciarSessao, lancar, pedido, plan, retomar, start, type No } from './kit/cenario'
 import { emTexto, noApp, painel, primeiraDoApp } from './kit/leitura'
 
@@ -265,4 +265,70 @@ test("no terminal, nem o cartão nem o cabeçalho escrevem 'ultracode'", async (
   const p = await painel($)
   expect(p.some(l => l.texto.includes('filha-um')), emTexto(p)).toBe(true)
   expect(p.filter(l => l.texto.includes('ultracode')), emTexto(p)).toEqual([])
+})
+
+// ---- O interruptor de uma sessão que já estava ligada quando o mod recarregou, e a gravação recusada.
+
+// Um store com a sessão já na lista e um painel válido: a primeira gravação do painel não regrava tudo.
+const storeComPainel = (): Record<string, unknown> => ({
+  sessions: [SESSAO],
+  [`session:${SESSAO}`]: { version: 1, groups: [{ agent: '', label: '', tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done', children: [] }] }] },
+})
+const ULTRA_JA_LIGADA: Record<string, unknown> = storeComPainel()
+const ULTRA_PUBLICADA: Record<string, unknown> = storeComPainel()
+const ULTRA_RECUSADA: Record<string, unknown> = {}
+
+// Regra: ultracode.guardado-por-sessao
+test('ultracode já ligado na recarga, 1/2: o aviso de entrada repetido guarda o interruptor', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_JA_LIGADA)
+  estado(on, { ultracode: true }, 'semear')
+  base(on)
+  host(on, [])
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  expect(guardouUltra(ULTRA_JA_LIGADA), JSON.stringify(Object.keys(ULTRA_JA_LIGADA))).toBe(true)
+  expect(ULTRA_JA_LIGADA[`ultra:${SESSAO}`]).toBe(true)
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('ultracode já ligado na recarga, 2/2: o processo novo já desenha a palavra', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_JA_LIGADA)
+  base(on)
+  host(on, [])
+  exigirPar(guardouUltra(ULTRA_JA_LIGADA))
+  await iniciarSessao($)
+  expect(await topo($)).toContain('ultracode')
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('com o interruptor ligado no state e nada no store, a publicação seguinte o guarda, sem aviso do motor', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, ULTRA_PUBLICADA)
+  estado(on, { ultracode: true }, 'semear')
+  base(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  expect(guardouUltra(ULTRA_PUBLICADA), JSON.stringify(Object.keys(ULTRA_PUBLICADA))).toBe(true)
+  expect(ULTRA_PUBLICADA[`ultra:${SESSAO}`]).toBe(true)
+})
+
+// Regra: ultracode.guardado-por-sessao
+test('a gravação do interruptor que o store recusou é tentada de novo', async ($: any, on: any) => {
+  fixar(on)
+  let cheio = false
+  armazem(on, ULTRA_RECUSADA, { recusar: () => cheio })
+  base(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  cheio = true
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  expect(guardouUltra(ULTRA_RECUSADA), JSON.stringify(Object.keys(ULTRA_RECUSADA))).toBe(false)
+  cheio = false
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  expect(guardouUltra(ULTRA_RECUSADA), JSON.stringify(Object.keys(ULTRA_RECUSADA))).toBe(true)
+  expect(ULTRA_RECUSADA[`ultra:${SESSAO}`]).toBe(true)
 })

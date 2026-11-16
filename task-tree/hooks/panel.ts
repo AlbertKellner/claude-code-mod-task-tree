@@ -565,6 +565,8 @@ export async function persist($: any, groups: Group[], publish = true) {
     if (back) {
       lastTurn = undefined
       lastLinks = undefined
+      lastFolds = undefined
+      lastUltra = undefined
       await ensureTurn($)
       await saveTurn($)
       const { value: work } = await $.state.get(workState)
@@ -930,6 +932,10 @@ async function publishOnce($: any) {
   await saveLinks($)
   // The switch kept in the store (ensureUltra): a new process publishes it before the engine's next notice.
   const ultraBrought = await ensureUltra($)
+  // The folds and the switch the state holds go to the store too when this module has not written them
+  // yet (a hot reload, a write the store refused): only a change writes (lastFolds, lastUltra).
+  await saveFolds($)
+  await saveUltra($)
   try {
     const id = await selfId($)
     const git = await refreshGit($)
@@ -1338,10 +1344,16 @@ const foldsOf = (v: unknown): Record<string, boolean> | undefined =>
   v !== null && typeof v === 'object' && !Array.isArray(v)
     ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, b]) => typeof b === 'boolean')) as Record<string, boolean>
     : undefined
+// What this module last wrote to the store (as lastTurn, lastLinks): written again only when it changed,
+// after a hot reload or after a write the store refused (every publication tries).
+let lastFolds: string | undefined
 export async function saveFolds($: any) {
   try {
     const { value } = await $.state.get(collapsedState)
-    if (value !== undefined) await saveStore($, 'collapsed', value)
+    if (value === undefined) return
+    const text = JSON.stringify(value)
+    if (text === lastFolds) return
+    if (await saveStore($, 'collapsed', value)) lastFolds = text
   } catch (err) {
     await debugOnce($, `task-tree: dobras não guardadas: ${String(err)}`)
   }
@@ -1389,10 +1401,16 @@ export async function restoreFolds($: any, id?: string, replaceHeld = false) {
 // publishes the word at once, without waiting for the engine's next ultra_effort_enter (the person,
 // 2026-11-15: "Guardar por sessão"). Only ultra_effort_exit turns it off: a switch turned off with the
 // process stopped stays on until the engine says so (a risk the person accepted).
+// What this module last wrote (as lastFolds): every notice of the engine and every publication try, and
+// the store is written only when the switch changed or was not written by this module yet.
+let lastUltra: string | undefined
 export async function saveUltra($: any) {
   try {
     const { value } = await $.state.get(ultracodeState)
-    if (typeof value === 'boolean') await saveStore($, 'ultracode', value)
+    if (typeof value !== 'boolean') return
+    const text = String(value)
+    if (text === lastUltra) return
+    if (await saveStore($, 'ultracode', value)) lastUltra = text
   } catch (err) {
     await debugOnce($, `task-tree: ultracode não guardado: ${String(err)}`)
   }

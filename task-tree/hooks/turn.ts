@@ -64,12 +64,13 @@ export async function ultraAttachment($: EngineInterface, e: any, next: any) {
     const on = e.type === 'ultra_effort_enter'
     // The store's copy first (a new process): the notice is compared with what the session had.
     await ensureUltra($)
-    if ((await $.state.get(ultracodeState)).value !== on) {
-      await $.state.set(ultracodeState, on)
-      // Kept per session (the person, 2026-11-15: "Guardar por sessão"): a new process has it at once.
-      await saveUltra($)
-      void publishPanel($).catch(() => {})
-    }
+    const changed = (await $.state.get(ultracodeState)).value !== on
+    if (changed) await $.state.set(ultracodeState, on)
+    // Kept per session (the person, 2026-11-15: "Guardar por sessão"): a new process has it at once. On
+    // every notice, also a repeated one: a switch already on when the mod reloaded, or a write the
+    // store refused, is written then (saveUltra writes only what this module has not written yet).
+    await saveUltra($)
+    if (changed) void publishPanel($).catch(() => {})
   }
   return next(e)
 }

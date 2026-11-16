@@ -78,12 +78,13 @@ Estado: coberto
 ### ultracode.guardado-por-sessao
 A palavra "ultracode" fica guardada por sessão e volta com ela num processo novo.
 
-- Dado uma sessão com o interruptor de ultracode ligado
+- Dado uma sessão com o interruptor de ultracode ligado (também a que já estava ligada quando o mod recarregou)
 - Quando o processo dela é refeito (/model, reinício, reabrir o app) ou ela é retomada
-- Então "ultracode" já aparece no cabeçalho e no cartão dela, sem esperar o aviso seguinte do Claude Code; só o aviso de saída a apaga; a retomada traz o interruptor da sessão retomada (sem registro: desligado); o /clear não mexe nele. Risco aceito: se o ultracode for desligado com a sessão parada, a palavra volta ligada e fica errada até o Claude Code avisar a saída
+- Então "ultracode" já aparece no cabeçalho e no cartão dela, sem esperar o aviso seguinte do Claude Code; só o aviso de saída a apaga; o interruptor é guardado a cada aviso do Claude Code e a cada publicação do painel, e uma gravação que falhou é tentada de novo; a retomada traz o interruptor da sessão retomada (sem registro: desligado); o /clear não mexe nele. Risco aceito: se o ultracode for desligado com a sessão parada, a palavra volta ligada e fica errada até o Claude Code avisar a saída
 
 Origem: decisão do usuário, 2026-11-15 ("Guardar por sessão"; ele aceitou o risco, dito na pergunta, de a palavra aparecer errada se o ultracode for desligado com a sessão parada). Não muda ultracode.so-o-interruptor-real: só o aviso do motor liga e desliga.
 Código: hooks/panel.ts, hooks/session-start.ts, hooks/render.tsx, state/durability.ts
+Reescrito: 2026-11-15, texto: o interruptor de uma sessão já ligada na recarga do mod também é guardado, e a gravação que falha é tentada de novo (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### ultracode.guardado-no-app

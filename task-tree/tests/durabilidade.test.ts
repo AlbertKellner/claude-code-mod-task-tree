@@ -1951,3 +1951,100 @@ test('o primeiro uso sem session.start guarda a versão junto com o painel trazi
   expect(Array.isArray(STATE_VISTO.groups), JSON.stringify(STATE_VISTO)).toBe(true)
   expect(STATE_VISTO.groupsVersion, JSON.stringify(STATE_VISTO)).toBe(1)
 })
+
+// ---- A primeira escrita das dobras depois de um respawn (o plan que reusa um id, o clique) e a
+// gravação das dobras que o store recusou.
+
+const DOBRAS_PLANO: Record<string, unknown> = {}
+const DOBRAS_CLIQUE: Record<string, unknown> = {}
+const DOBRAS_RECUSADAS: Record<string, unknown> = {}
+const A_DE_NOVO: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: 'n1', title: 'Novo um' }] }]
+
+// O roteiro do "dobras no reinício, 1/2": Plano A recolhido e o histórico aberto, guardados no store.
+async function deixarDobrasEm($: any, on: any, store: Record<string, unknown>) {
+  const { relogio } = fixar(on)
+  armazem(on, store)
+  await pedido($, 'Pedido um')
+  await plan($, B)
+  await start($, ['b1', 'b2'])
+  await done($, ['b1', 'b2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  await start($, ['1'])
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.recolher('+1 pedidos anteriores')
+  await m.fim()
+  expect(temPainel(store) && temDobras(store), JSON.stringify(Object.keys(store))).toBe(true)
+}
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e plan no respawn, 1/2: a pessoa recolhe uma tarefa e abre o histórico', async ($: any, on: any) => {
+  await deixarDobrasEm($, on, DOBRAS_PLANO)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e plan no respawn, 2/2: o plan que reusa o id, antes de qualquer desenho, não perde o que ela deixou', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, DOBRAS_PLANO)
+  exigir(temPainel(DOBRAS_PLANO) && temDobras(DOBRAS_PLANO))
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, A_DE_NOVO)
+  const p = await painel($)
+  expect(tem(p, 'Novo um'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e clique no respawn, 1/2: a pessoa recolhe uma tarefa e abre o histórico', async ($: any, on: any) => {
+  await deixarDobrasEm($, on, DOBRAS_CLIQUE)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e clique no respawn, 2/2: recolher mais uma linha não reabre as que ela tinha recolhido', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLIQUE)
+  exigir(temPainel(DOBRAS_CLIQUE) && temDobras(DOBRAS_CLIQUE))
+  const m = await montar($)
+  await m.recolher('Plano B')
+  await m.fim()
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(tem(p, 'b1') || tem(p, 'b2'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e clique no respawn, 3/3: o processo seguinte desenha as antigas e a nova', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLIQUE)
+  exigir(temPainel(DOBRAS_CLIQUE) && temDobras(DOBRAS_CLIQUE))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(tem(p, 'b1') || tem(p, 'b2'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('as dobras que o store recusou são guardadas na publicação seguinte', async ($: any, on: any) => {
+  fixar(on)
+  let cheio = false
+  armazem(on, DOBRAS_RECUSADAS, { recusar: () => cheio })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  cheio = true
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  expect(temDobras(DOBRAS_RECUSADAS), JSON.stringify(Object.keys(DOBRAS_RECUSADAS))).toBe(false)
+  cheio = false
+  await start($, ['1'])
+  expect(temDobras(DOBRAS_RECUSADAS), JSON.stringify(Object.keys(DOBRAS_RECUSADAS))).toBe(true)
+})

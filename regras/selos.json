@@ -879,6 +879,16 @@
       "data": "2026-11-14",
       "motivo": "auditoria: store cheio"
     },
+    "task-tree/tests/durabilidade.test.ts::as dobras que o store recusou são guardadas na publicação seguinte": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "4cf059fe19dd5de8",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote das dobras guardadas: a primeira escrita depois do respawn e a regravação não tinham teste (decisão do usuário de 2026-11-15, \"Sim, guardado por sessão (Recomendado)\")"
+    },
     "task-tree/tests/durabilidade.test.ts::com a linha de status falhando, o plan responde, o painel vai ao store e é publicado": {
       "regras": [
         "durabilidade.status-nao-segura-a-gravacao"
@@ -948,6 +958,56 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: o /clear limpa as dobras"
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras e clique no respawn, 1/2: a pessoa recolhe uma tarefa e abre o histórico": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "d378a5fe1833e6c3",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote das dobras guardadas: a primeira escrita depois do respawn e a regravação não tinham teste (decisão do usuário de 2026-11-15, \"Sim, guardado por sessão (Recomendado)\")"
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras e clique no respawn, 2/2: recolher mais uma linha não reabre as que ela tinha recolhido": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "a581e75864b72b73",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote das dobras guardadas: a primeira escrita depois do respawn e a regravação não tinham teste (decisão do usuário de 2026-11-15, \"Sim, guardado por sessão (Recomendado)\")"
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras e clique no respawn, 3/3: o processo seguinte desenha as antigas e a nova": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "e5508af1524a2f49",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote das dobras guardadas: a primeira escrita depois do respawn e a regravação não tinham teste (decisão do usuário de 2026-11-15, \"Sim, guardado por sessão (Recomendado)\")"
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras e plan no respawn, 1/2: a pessoa recolhe uma tarefa e abre o histórico": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "125d99d13e798c7a",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote das dobras guardadas: a primeira escrita depois do respawn e a regravação não tinham teste (decisão do usuário de 2026-11-15, \"Sim, guardado por sessão (Recomendado)\")"
+    },
+    "task-tree/tests/durabilidade.test.ts::dobras e plan no respawn, 2/2: o plan que reusa o id, antes de qualquer desenho, não perde o que ela deixou": {
+      "regras": [
+        "durabilidade.dobras-voltam-no-processo-novo"
+      ],
+      "hash": "aea44f14c92a7d62",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote das dobras guardadas: a primeira escrita depois do respawn e a regravação não tinham teste (decisão do usuário de 2026-11-15, \"Sim, guardado por sessão (Recomendado)\")"
     },
     "task-tree/tests/durabilidade.test.ts::dobras no reinício, 1/2: a pessoa recolhe uma tarefa e abre o histórico": {
       "regras": [
@@ -7144,6 +7204,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Seguir ◷ até o start (Recomendado)\""
     },
+    "task-tree/tests/ultracode.test.ts::a gravação do interruptor que o store recusou é tentada de novo": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "204bbec96ed553ad",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote do ultracode guardado: o interruptor já ligado na recarga não era guardado (decisão do usuário de 2026-11-15, \"Guardar por sessão\")"
+    },
     "task-tree/tests/ultracode.test.ts::a palavra digitada num prompt e o attachment de um subagente não acendem": {
       "regras": [
         "ultracode.so-o-interruptor-real"
@@ -7183,6 +7253,16 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/ultracode.test.ts::com o interruptor ligado no state e nada no store, a publicação seguinte o guarda, sem aviso do motor": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "59563718f0f4e864",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote do ultracode guardado: o interruptor já ligado na recarga não era guardado (decisão do usuário de 2026-11-15, \"Guardar por sessão\")"
     },
     "task-tree/tests/ultracode.test.ts::com o interruptor ligado, 'ultracode' é desenhado no cabeçalho a 60 e a 100 colunas, não só no texto alternativo": {
       "regras": [
@@ -7255,6 +7335,26 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: leitura do app por key, texto e alt; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/ultracode.test.ts::ultracode já ligado na recarga, 1/2: o aviso de entrada repetido guarda o interruptor": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "fcfe0c5ef5f5b1c7",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote do ultracode guardado: o interruptor já ligado na recarga não era guardado (decisão do usuário de 2026-11-15, \"Guardar por sessão\")"
+    },
+    "task-tree/tests/ultracode.test.ts::ultracode já ligado na recarga, 2/2: o processo novo já desenha a palavra": {
+      "regras": [
+        "ultracode.guardado-por-sessao"
+      ],
+      "hash": "5b04cdd8258e0610",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote do ultracode guardado: o interruptor já ligado na recarga não era guardado (decisão do usuário de 2026-11-15, \"Guardar por sessão\")"
     },
     "task-tree/tests/ultracode.test.ts::ultracode no reinício, 1/2: o interruptor liga": {
       "regras": [
