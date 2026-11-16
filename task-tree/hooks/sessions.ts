@@ -7,7 +7,7 @@ import { update } from 'claude-code'
 
 import type { Child, Group, Published, Send, TaskNode, Wait } from '../types'
 import { SESSION } from '../text/rules'
-import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, hasOpen, inFlight, inSight, placeTypedTurns, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
+import { MAIN, keepSends, sameSend, subLive, cardTotal, discarded, flat, hasOpen, inFlight, inSight, onlyPlaceAt, placeTypedTurns, resolveAnchor, running, settle as settleCard, split, newBreaksMemo, rawPanel, tasksOf, tiesOf } from '../draw/layout'
 import { emptyPublished, readPublished, waitFile } from '../io/publish'
 import { debug, debugOnce } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
@@ -501,10 +501,10 @@ function finishedAll(c: Child): boolean {
   if (groups.some(g => g.agent !== MAIN && hasOpen(g.tasks))) return false
   return !(p.children ?? []).some(k => !k.archived && (k.running || k.waiting === true || k.starting === true))
 }
-// Whether a session's task of origin `id` is only its place: it was opened there so (Child.onlyPlace),
-// or a message to it was put there so (Send.onlyPlace).
-const onlyPlaceOf = (c: Child, id: string, sends: Send[]) =>
-  (c.onlyPlace === true && c.anchor === id) || sends.some(s => s.onlyPlace === true && s.anchor === id && (s.to === c.id || (c.name !== '' && s.to === c.name)))
+// Whether a session's task of origin `id` is only its place: by its round there (onlyPlaceAt): the last
+// message to it from that task put there so (Send.onlyPlace); with none, its opening there so
+// (Child.onlyPlace). A common message sent from the task afterwards closes it as always.
+const onlyPlaceOf = (c: Child, id: string, sends: Send[]) => onlyPlaceAt(c, id, sends)
 // The sessions that ended their turn (`ended`, this read) with all of their work done close their task
 // of origin (originOf), the person, 2026-11-15: "Fecha a tarefa sozinho (Recomendado)": when it is open
 // with no open subtask, not left interrupted by an Esc, and nothing else is at work in it (inFlight, with the sends, the waits and the

@@ -1931,6 +1931,17 @@
       "data": "2026-11-15",
       "motivo": "o nome do destino na carta"
     },
+    "task-tree/tests/envios.test.ts::a carta posta só como lugar na pendente do plano anterior, ainda na fila, não segura a entrega da mensagem comum mandada dela depois do start": {
+      "regras": [
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha"
+      ],
+      "hash": "51f15e45a4f190b0",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15, \"Não segura (Recomendado)\": o que está na tarefa só como lugar não fecha nem segura os outros fechamentos"
+    },
     "task-tree/tests/envios.test.ts::a entrega de uma carta cuja tarefa um plano novo interrompeu não diz que o painel concluiu a tarefa": {
       "regras": [
         "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
@@ -2468,6 +2479,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: cada uma gasta o seu recebimento"
+    },
+    "task-tree/tests/envios.test.ts::o subagente posto só como lugar na pendente do plano anterior não segura a entrega da mensagem comum mandada dela depois do start": {
+      "regras": [
+        "envios.entrega-espera-o-que-ainda-roda-na-tarefa",
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha"
+      ],
+      "hash": "701fdef5d9d8c2d8",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15, \"Não segura (Recomendado)\": o que está na tarefa só como lugar não fecha nem segura os outros fechamentos"
     },
     "task-tree/tests/envios.test.ts::o subagente recebe a mensagem na rodada seguinte: a carta fica verde; a tarefa de onde ela saiu conclui sozinha, e a que lançou o subagente espera o fim dele": {
       "regras": [
@@ -4414,6 +4436,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
+    },
+    "task-tree/tests/sessoes.test.ts::a sessão aberta só como lugar na pendente do plano anterior que recebe depois uma mensagem comum mandada dela fecha a pendente ao concluir tudo": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem"
+      ],
+      "hash": "76fb9461c829aa66",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15, \"Não segura (Recomendado)\": o que está na tarefa só como lugar não fecha nem segura os outros fechamentos"
     },
     "task-tree/tests/sessoes.test.ts::a sessão aberta só como lugar que some da lista do host e recebe uma mensagem pelo id segue só como lugar: ao voltar e concluir tudo, não fecha a pendente": {
       "regras": [

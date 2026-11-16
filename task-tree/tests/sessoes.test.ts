@@ -3151,3 +3151,34 @@ test('a sessão aberta só como lugar que some da lista do host e recebe uma men
   expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
   expect(r, r).not.toContain('concluiu sozinho')
 })
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a sessão aberta só como lugar na pendente do plano anterior que recebe depois uma mensagem comum mandada dela fecha a pendente ao concluir tudo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  const envios = responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await resp
+  await done($, ['1'])
+  await start($, ['2'])
+  envios.modo = 'entregue'
+  await envio($, K1, 'comum')
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(r, r).toContain('concluiu sozinho')
+})

@@ -279,7 +279,10 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    Nesse caso (pedido aberto sem tarefas), a tarefa escolhida que não é a da pergunta recebe a carta só
    como lugar (`sendPlace`, `Send.onlyPlace`): a entrega (`watchSends`, `takeSubSend`) não a fecha, e o
    aviso do envio na fila é o próprio (`SEND.queuedPlace`); decisão do usuário, 2026-11-15, "Não fecha na
-   entrega (Recomendado)";
+   entrega (Recomendado)". O que está numa tarefa só como lugar ou adotado pelo plan (`Sub.onlyPlace`,
+   `Sub.adopted`, `Send.onlyPlace`, `Send.adopted`, e a sessão cuja rodada ali é só lugar, `onlyPlaceAt`
+   em `draw/layout.ts`: a última mensagem mandada dela à sessão, senão `Child.onlyPlace`) não conta em
+   `inFlight`: não fecha nem segura os outros fechamentos (2026-11-15, "Não segura (Recomendado)");
    `envios.nunca-na-tarefa-da-pergunta`), `sessionNotes` (`endedNote`, que cita
    a tarefa da última rodada que a filha já tratou, se aberta, senão a de abertura;
    `takenNote`), `wrapUpOpen` (falta o resumo; tarefas abertas) e, por último, `reminder` (a primeira

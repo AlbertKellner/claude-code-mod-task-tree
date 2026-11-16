@@ -130,17 +130,32 @@ export function spared(groups: Group[], sends: { anchor?: string; taken?: boolea
 // just taken the letter is alive in that task's round by definition, and a delivery closes the task
 // (the person, 2026-10-30: "Sim, conclusão automática como hoje"; the drawing keeps the line ◉ while
 // it works); the close by the subagents at the turn's end (settleBySubs) passes them.
+// What is in the task only as a place holds nothing (the person, 2026-11-15: "Não segura
+// (Recomendado)"): a subagent or a letter put there only as a place (Sub.onlyPlace, Send.onlyPlace) or
+// adopted by the plan (Sub.adopted, Send.adopted), and a session there only as a place (onlyPlaceAt).
 export function inFlight(
   groups: Group[],
   owner: string,
   id: string,
-  at: { sends?: { anchor?: string; taken?: boolean; cut?: boolean }[]; waits?: Wait[]; children?: Child[] } = {},
+  at: { sends?: PlaceSend[]; waits?: Wait[]; children?: Child[] } = {},
 ): boolean {
-  if (groups.some(g => g.agent !== owner && (g.parent ?? MAIN) === owner && g.anchor === id && subLive(g.sub))) return true
+  if (groups.some(g => g.agent !== owner && (g.parent ?? MAIN) === owner && g.anchor === id && subLive(g.sub) && g.sub?.onlyPlace !== true && g.sub?.adopted !== true)) return true
   if ((at.waits ?? []).some(w => w.agent === owner && w.anchor === id)) return true
   if (owner !== MAIN) return false
-  if ((at.sends ?? []).some(s => s.anchor === id && !s.taken && !s.cut)) return true
-  return (at.children ?? []).some(c => !c.archived && (c.running || c.starting === true || c.waiting === true) && (c.anchor === id || c.lastAnchor === id))
+  const sends = at.sends ?? []
+  if (sends.some(s => s.anchor === id && !s.taken && !s.cut && s.onlyPlace !== true && s.adopted !== true)) return true
+  return (at.children ?? []).some(c => !c.archived && (c.running || c.starting === true || c.waiting === true) && (c.anchor === id || c.lastAnchor === id) && !onlyPlaceAt(c, id, sends))
+}
+type PlaceSend = { to?: string; anchor?: string; at?: number; seq?: number; taken?: boolean; cut?: boolean; onlyPlace?: boolean; adopted?: boolean }
+// Whether the session `c` is in the task `id` only as a place, by its round there: the last message
+// sent to it from that task, if any, says (one put there only as a place, Send.onlyPlace, or adopted by
+// the plan, Send.adopted: yes; a common one: no, it closes as always); with none, its opening there
+// (Child.onlyPlace). The person, 2026-11-15: "Também não fecha (Recomendado)" and "Não segura (Recomendado)".
+export function onlyPlaceAt(c: Child, id: string, sends: PlaceSend[]): boolean {
+  const mine = sends.filter(s => s.anchor === id && (s.to === c.id || (c.name !== '' && s.to === c.name)))
+  const last = mine.reduce<PlaceSend | undefined>((a, s) => (a === undefined || (s.seq ?? 0) > (a.seq ?? 0) || ((s.seq ?? 0) === (a.seq ?? 0) && (s.at ?? 0) >= (a.at ?? 0)) ? s : a), undefined)
+  if (last !== undefined) return last.onlyPlace === true || last.adopted === true
+  return c.onlyPlace === true && c.anchor === id
 }
 // A task left open waiting when the turn ended (halt): a leaf open with its clock stopped, which only
 // the halt makes (a start clears endedAt); drawn ◷ "Aguardando", in the chip of what waits.

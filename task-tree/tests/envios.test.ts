@@ -1744,3 +1744,57 @@ test('num pedido que continua o plano anterior só com start, com a pergunta abe
   esperarCartaSob(p, 'Dois', 'entregue')
   esperarEstado(p, 'Dois', 'concluida')
 })
+
+// ---- O que está na tarefa só como lugar não segura a entrega da mensagem comum (decisão do usuário,
+// 2026-11-15, "Não segura (Recomendado)").
+
+// "continue" sem plano, pergunta aberta em "Um"; `soLugar` põe algo em "Dois" só como lugar; depois da
+// resposta o modelo conclui "Um", dá start em "Dois", manda dela uma mensagem comum (na fila) a
+// local_x e encerra o turno; local_x toma a mensagem.
+const comumDepoisDoSoLugar = async ($: any, on: any, soLugar: () => Promise<unknown>) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [{ id: 'local_x', rodando: false }, { id: 'local_y', rodando: false }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await soLugar()
+  await relogio.advance(1000)
+  await resp
+  await done($, ['1'])
+  await start($, ['2'])
+  await envio($, 'local_x', 'comum')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  await relogio.advance(1000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  p = await painel($)
+  return p
+}
+
+// Regra: envios.entrega-espera-o-que-ainda-roda-na-tarefa, envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('o subagente posto só como lugar na pendente do plano anterior não segura a entrega da mensagem comum mandada dela depois do start', async ($: any, on: any) => {
+  const p = await comumDepoisDoSoLugar($, on, () => lancar($, { descricao: 'conferir o diff', segundoPlano: true }))
+  esperarEstado(p, 'Dois', 'concluida')
+  const sub = p.findIndex((l: any) => l.titulo.includes('conferir o diff'))
+  expect(sub, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Dois')))
+  expect(p[sub]?.texto ?? '', emTexto(p)).toContain('segundo plano')
+})
+
+// Regra: envios.entrega-espera-o-que-ainda-roda-na-tarefa, envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('a carta posta só como lugar na pendente do plano anterior, ainda na fila, não segura a entrega da mensagem comum mandada dela depois do start', async ($: any, on: any) => {
+  const p = await comumDepoisDoSoLugar($, on, () => envio($, 'local_y', 'lugar'))
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(cartasDe(p, 'Dois').length, emTexto(p)).toBe(2)
+  esperarCartaSob(p, 'Dois', 'fila')
+})
