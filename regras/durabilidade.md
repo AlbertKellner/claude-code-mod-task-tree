@@ -322,3 +322,33 @@ O /task-tree abre o painel e diz o que o app respondeu.
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
 Código: hooks/command.ts
 Estado: coberto
+
+### durabilidade.recarga-no-meio-do-turno-mantem-o-tempo
+A recarga no meio do turno não zera o tempo da tarefa em andamento.
+
+- Dado uma tarefa ◉ há algum tempo
+- Quando o mod recarrega a quente no meio do turno
+- Então ela segue ◉, o pai e o pedido também, e o tempo dela conta do start, não da recarga
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### durabilidade.recarga-com-subagente-vivo
+O subagente que trabalha durante a recarga segue no cartão, e o fim dele é registrado.
+
+- Dado um subagente trabalhando, com o cartão sob a tarefa
+- Quando o mod recarrega a quente
+- Então o cartão segue "trabalhando" sob a mesma tarefa; quando ele termina, o cartão diz "concluído" e a tarefa segue a regra de sempre (subagentes.pai-conclui-no-fim-do-turno); quantas chamadas o cartão conta depois da recarga está em subagentes.contagem-de-chamadas-segue-na-recarga
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### durabilidade.recarga-com-espera-aberta
+A espera de pergunta aberta na recarga segue no painel e sai como sempre.
+
+- Dado "Aguardando sua resposta" sob uma tarefa ◉
+- Quando o mod recarrega a quente com a pergunta ainda aberta
+- Então a espera segue desenhada sob a mesma tarefa, e sai com a mensagem seguinte da pessoa ou com o fim do turno
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto

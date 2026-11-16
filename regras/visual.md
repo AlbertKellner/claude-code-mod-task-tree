@@ -150,9 +150,10 @@ A recarga real e o respawn do worker não perdem nada.
 
 - Dado o painel aberto, com cartões e resumos
 - Quando um arquivo do mod é salvo, o worker é refeito (/model) ou a sessão é retomada no app
-- Então nada some, os relógios voltam a correr e o primeiro clique funciona; os cartões das rodadas de uma filha não mudam de lugar ao salvar um arquivo do mod
+- Então nada some; o mod recarrega sem "reload failed", os relógios voltam a correr sozinhos e o primeiro clique funciona; os cartões das rodadas de uma filha não mudam de lugar ao salvar um arquivo do mod (o que o harness alcança está em durabilidade.recarga-mantem-painel-ligacoes-e-resumo, durabilidade.recarga-no-meio-do-turno-mantem-o-tempo, durabilidade.recarga-com-subagente-vivo e durabilidade.recarga-com-espera-aberta)
 
 Origem: tabela de durabilidade, commit fe8354e, 2026-10-22.
+Reescrito: 2026-11-15, texto: separa o que só o app mostra do que os pares 1/2 e 2/2 já cobrem. A regra não muda.
 Código: hooks/sessions.ts, hooks/panel.ts, state/durability.ts
 Estado: checklist (recarga e processo reais)
 

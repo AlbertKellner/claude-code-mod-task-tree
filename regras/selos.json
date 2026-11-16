@@ -1449,6 +1449,36 @@
       "data": "2026-11-14",
       "motivo": "o recibo usado fica no state e no store"
     },
+    "task-tree/tests/durabilidade.test.ts::recarga com espera aberta, 1/2: a pergunta aberta sob a tarefa em andamento": {
+      "regras": [
+        "durabilidade.recarga-com-espera-aberta"
+      ],
+      "hash": "9f3814b03927f1fb",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com espera aberta, 2/2: a espera segue sob a tarefa e sai com a mensagem seguinte": {
+      "regras": [
+        "durabilidade.recarga-com-espera-aberta"
+      ],
+      "hash": "b58d141459156f8f",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com espera aberta, 2/2: a espera segue sob a tarefa e sai com o fim do turno": {
+      "regras": [
+        "durabilidade.recarga-com-espera-aberta"
+      ],
+      "hash": "27a50048ae84a102",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga com o painel do state fora do formato: o painel volta do store": {
       "regras": [
         "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado"
@@ -1479,6 +1509,26 @@
       "data": "2026-11-15",
       "motivo": "a contagem de chamadas parte da do cartão"
     },
+    "task-tree/tests/durabilidade.test.ts::recarga com subagente vivo, 1/2: o cartão trabalhando sob a tarefa": {
+      "regras": [
+        "durabilidade.recarga-com-subagente-vivo"
+      ],
+      "hash": "4f6ff0dc0e540b76",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga com subagente vivo, 2/2: o cartão segue trabalhando sob a mesma tarefa e o fim dele diz concluído": {
+      "regras": [
+        "durabilidade.recarga-com-subagente-vivo"
+      ],
+      "hash": "b88afd34114f4085",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
     "task-tree/tests/durabilidade.test.ts::recarga depois de um plan que reusou o id da tarefa da carta, 1/2: o plan renomeia a tarefa antiga": {
       "regras": [
         "durabilidade.recarga-nao-funde-as-ligacoes"
@@ -1498,6 +1548,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "auditoria: ligações na recarga"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga no meio do turno, 1/2: uma tarefa em andamento no state": {
+      "regras": [
+        "durabilidade.recarga-no-meio-do-turno-mantem-o-tempo"
+      ],
+      "hash": "558f7488518ebef6",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::recarga no meio do turno, 2/2: a tarefa segue em andamento e o tempo conta do start": {
+      "regras": [
+        "durabilidade.recarga-no-meio-do-turno-mantem-o-tempo"
+      ],
+      "hash": "86739243e19b5ec1",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
     },
     "task-tree/tests/durabilidade.test.ts::reinício com duas mensagens na fila, 1/2: a filha toma a primeira": {
       "regras": [
@@ -1599,6 +1669,26 @@
       "data": "2026-11-14",
       "motivo": "auditoria: /clear e retomada limpos"
     },
+    "task-tree/tests/durabilidade.test.ts::retomada com o turno terminado, 1/2: o painel e o fim do turno no store": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "33b621cb12e75f4d",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::retomada com o turno terminado, 2/2: a iniciada aguarda e o relógio não anda": {
+      "regras": [
+        "durabilidade.fim-do-turno-sobrevive-ao-reinicio"
+      ],
+      "hash": "00f4d3b129fd9886",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
     "task-tree/tests/durabilidade.test.ts::retomada sem painel guardado, 1/2: um painel no state": {
       "regras": [
         "durabilidade.retomada-nao-herda-a-sessao-anterior"
@@ -1658,6 +1748,26 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "auditoria: store cheio"
+    },
+    "task-tree/tests/durabilidade.test.ts::trabalho sem tarefa presente, 1/2: dois pedidos no store": {
+      "regras": [
+        "durabilidade.reinicio-restaura-do-store"
+      ],
+      "hash": "baafd548623af555",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::trabalho sem tarefa presente, 2/2: o trabalho que aponta para tarefas que não existem não vale": {
+      "regras": [
+        "durabilidade.reinicio-restaura-do-store"
+      ],
+      "hash": "e2ad9cee3565fddf",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "recarga no meio do turno, retomada com o turno terminado e trabalho sem tarefa presente (auditoria, achados baixos)"
     },
     "task-tree/tests/durabilidade.test.ts::turno que falhou no reinício, 1/2: o turno morre por erro com uma tarefa iniciada": {
       "regras": [

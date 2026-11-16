@@ -1686,3 +1686,175 @@ test('/task-tree com a abertura do painel em erro diz o erro no motivo', async (
   expect(t).toContain('painel recusado pelo teste')
   expect(t).not.toContain('Store:')
 })
+
+// A recarga a quente no meio do turno (os pares 1/2 e 2/2 com o state mantido): uma tarefa em
+// andamento, um subagente vivo e uma pergunta aberta. A espera é copiada no instante em que está
+// aberta (o fim da chamada a apaga do state capturado), uma cópia para cada 2/2.
+const RECARGA_TEMPO: Record<string, unknown> = {}
+const RECARGA_SUB: Record<string, unknown> = {}
+const RECARGA_ESPERA: Record<string, unknown> = {}
+const ESPERA_PELA_MENSAGEM: Record<string, unknown> = {}
+const ESPERA_PELO_FIM: Record<string, unknown> = {}
+const PERGUNTA_NA_RECARGA = {
+  questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
+}
+const ESPERANDO = 'Aguardando sua resposta'
+
+// Regra: durabilidade.recarga-no-meio-do-turno-mantem-o-tempo
+test('recarga no meio do turno, 1/2: uma tarefa em andamento no state', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RECARGA_TEMPO, 'captura')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  esperarEstado(await painel($), 'Um', 'andamento')
+  expect(Object.keys(RECARGA_TEMPO).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: durabilidade.recarga-no-meio-do-turno-mantem-o-tempo
+test('recarga no meio do turno, 2/2: a tarefa segue em andamento e o tempo conta do start', async ($: any, on: any) => {
+  fixar(on, { agora: AGORA + 10_000 })
+  estado(on, RECARGA_TEMPO, 'semear')
+  exigir(Object.keys(RECARGA_TEMPO).length > 0)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Plano A', 'andamento')
+  esperarEstado(p, 'Pedido um', 'andamento')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0:10')
+})
+
+// Regra: durabilidade.recarga-com-subagente-vivo
+test('recarga com subagente vivo, 1/2: o cartão trabalhando sob a tarefa', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RECARGA_SUB, 'captura')
+  lancaveis(on, ['sub-r'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o código' })
+  await chamadaDoSubagente($, 'sub-r', 'Grep', { pattern: 'x' })
+  const p = await painel($)
+  expect(linha(p, 'Explore: ler o código').texto, emTexto(p)).toContain('trabalhando')
+  expect(debaixo(p, 'Explore: ler o código', 'Um'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.recarga-com-subagente-vivo
+test('recarga com subagente vivo, 2/2: o cartão segue trabalhando sob a mesma tarefa e o fim dele diz concluído', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RECARGA_SUB, 'semear')
+  exigir(Object.keys(RECARGA_SUB).length > 0)
+  lancaveis(on, ['sub-r'])
+  let p = await painel($)
+  expect(linha(p, 'Explore: ler o código').texto, emTexto(p)).toContain('trabalhando')
+  expect(debaixo(p, 'Explore: ler o código', 'Um'), emTexto(p)).toBe(true)
+  await fimDoSubagente($, 'sub-r')
+  p = await painel($)
+  expect(linha(p, 'Explore: ler o código').texto, emTexto(p)).toContain('concluído')
+  expect(debaixo(p, 'Explore: ler o código', 'Um'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.recarga-com-espera-aberta
+test('recarga com espera aberta, 1/2: a pergunta aberta sob a tarefa em andamento', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, RECARGA_ESPERA, 'captura')
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_RECARGA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, ESPERANDO, 'aguardando')
+  Object.assign(ESPERA_PELA_MENSAGEM, JSON.parse(JSON.stringify(RECARGA_ESPERA)))
+  Object.assign(ESPERA_PELO_FIM, JSON.parse(JSON.stringify(RECARGA_ESPERA)))
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: durabilidade.recarga-com-espera-aberta
+test('recarga com espera aberta, 2/2: a espera segue sob a tarefa e sai com a mensagem seguinte', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ESPERA_PELA_MENSAGEM, 'semear')
+  exigir(Object.keys(ESPERA_PELA_MENSAGEM).length > 0)
+  let p = await painel($)
+  esperarEstado(p, ESPERANDO, 'aguardando')
+  esperarEstado(p, 'Um', 'andamento')
+  expect(debaixo(p, ESPERANDO, 'Um'), emTexto(p)).toBe(true)
+  await pedido($, 'sim')
+  p = await painel($)
+  expect(tem(p, ESPERANDO), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.recarga-com-espera-aberta
+test('recarga com espera aberta, 2/2: a espera segue sob a tarefa e sai com o fim do turno', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ESPERA_PELO_FIM, 'semear')
+  exigir(Object.keys(ESPERA_PELO_FIM).length > 0)
+  let p = await painel($)
+  esperarEstado(p, ESPERANDO, 'aguardando')
+  expect(debaixo(p, ESPERANDO, 'Um'), emTexto(p)).toBe(true)
+  await fimDoTurno($)
+  p = await painel($)
+  expect(tem(p, ESPERANDO), emTexto(p)).toBe(false)
+})
+
+// A retomada de uma sessão cujo turno terminou, e o store com um trabalho que aponta para tarefas que
+// não existem (os pares 1/2 e 2/2 pelo store).
+const RETOMADA_PARADA: Record<string, unknown> = {}
+const TRABALHO_SUMIDO: Record<string, unknown> = {}
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('retomada com o turno terminado, 1/2: o painel e o fim do turno no store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, RETOMADA_PARADA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  expect(temPainel(RETOMADA_PARADA), JSON.stringify(Object.keys(RETOMADA_PARADA))).toBe(true)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('retomada com o turno terminado, 2/2: a iniciada aguarda e o relógio não anda', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, RETOMADA_PARADA)
+  exigir(temPainel(RETOMADA_PARADA))
+  await retomar($, SESSAO)
+  let p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  semAndamento(p)
+  const antes = linha(p, 'Um').texto
+  await relogio.advance(5000)
+  p = await painel($)
+  expect(linha(p, 'Um').texto, emTexto(p)).toBe(antes)
+})
+
+// Regra: durabilidade.reinicio-restaura-do-store
+test('trabalho sem tarefa presente, 1/2: dois pedidos no store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, TRABALHO_SUMIDO)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  expect(Array.isArray(TRABALHO_SUMIDO[`work:${SESSAO}`]), JSON.stringify(TRABALHO_SUMIDO[`work:${SESSAO}`])).toBe(true)
+})
+
+// Regra: durabilidade.reinicio-restaura-do-store
+test('trabalho sem tarefa presente, 2/2: o trabalho que aponta para tarefas que não existem não vale', async ($: any, on: any) => {
+  fixar(on)
+  exigir(temPainel(TRABALHO_SUMIDO))
+  TRABALHO_SUMIDO[`work:${SESSAO}`] = ['nao-existe']
+  armazem(on, TRABALHO_SUMIDO)
+  await iniciarSessao($)
+  let p = await painel($)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  await start($, ['b1'])
+  p = await painel($)
+  esperarEstado(p, 'b1', 'andamento')
+})
