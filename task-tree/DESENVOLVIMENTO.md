@@ -1172,6 +1172,7 @@ armadilhas de cada mudança. Onde dizem "no `register.tsx`", a função está ho
 - `hooks/hooks.json` e `hooks/register.tsx`: o módulo de hooks. Desde a fase 4 (etapa 3) o `register.tsx` tem ~31 linhas e só registra os 14 hooks, cada um pelo nome de uma função importada; o resto vive em um arquivo por responsabilidade (ver "Arquivos de hook"). `hooks.json` segue com um módulo só (`./register.tsx`).
 - `draw/layout.ts`: o layout do painel (R12, fase 3, etapa 1): `layout(model, choices, now, ownId): Row[]`, função de topo e pura: não lê nada além dos argumentos (etapa 2). Saíram o relógio de módulo `drawNow` (`split(c, sisters, me, owner, now, memo)` recebe o `now`), o `WeakMap` de módulo `breaksMemo` (agora um `BreaksMemo` por desenho, criado por `newBreaksMemo()` no `layout()` e passado a `split`/`breaks`; chave explícita de `hits`: `lista|me|caminho|id|parte`, a mesma partição de antes) e o mapa lateral `sendsAt` (o `panel` calcula `pending` e o passa como parâmetro a `rows`/`turnRows`; só o grupo principal manda mensagens, os escopos de subagente recebem `[]`). `Model` = `{ groups, waits, children, sends (só as não tomadas), view, work }`; `Choices` = o atom `folds`. Leva junto os auxiliares puros de modelo que o `register.tsx` também usa (`count`, `total`, `split`, `atWork`, `trimToWork`, `limitRows`, `MAX_ROWS`, `SHOWN_TURNS`, `Row`, `Tone` etc.), exportados daqui. Só importa `../types`: sem import circular e sem `$`.
 - `draw/geometry.ts`: a geometria do desenho num só lugar (R14, fase 2): constantes com nome (`CELL`, `col`, `TEXT_IN`, `CARD_IN`, `CARD_RIGHT`, `RING_IN`, alturas do cabeçalho etc.), `lineWidth`, `cardRight`/`textRight` e `overlay(kind, …)` (`'icon'`, `'ring'`, `'name'`). Também `overlays(line, nested, W): Placed[]` (todos os `Box` de uma linha, na ordem de desenho, cada um pela regra da borda mais próxima), `spanOf(p, W)` (trecho em px) e `crossings(list, W)` (pares que se cruzam): as sobreposições do desenho saem só de `overlays()`. Não recebe `$`; `register.tsx` importa por `'../draw/geometry'` (o kit aceita import relativo de um `.ts` do plugin).
+> [marcado em 2026-11-16] `draw/geometry.ts` (`overlay`, `overlays`, `spanOf`, `crossings`, medidas em px) saiu do código: substituído por visual.desenho-principal (2026-11-13, desenho nativo; ver "Desenho nativo híbrido (2026-11-13)", abaixo).
 - `types/index.d.ts`: o contrato do `$.state` (`groups`, `waits`, `launches` e o legado `tasks`).
 - `text/rules.ts`: todos os textos que o plugin escreve para o modelo (R16, fase 2): `BRIEF` = 120 e `LIMIT` ("até 120 caracteres", interpolado nos 6 textos que citam o limite), `RULES` (seção `task-tree:regras`), `COMMAND`, `TOOLS`, `PROMPT`, `ASK`, `DONE`, `WRAP_UP`, `SEND`, `UNPLANNED`, `SESSION`, `EXAMPLE`. Ficam fora dele os resultados das tools ("Plano exibido…", "Concluídas: d/n…") e os `alt`/títulos do desenho.
 - `state/durability.ts`: a tabela de durabilidade (R13, fase 2): `TABLE`, uma linha por chave, com onde vive (`lives`: state, state+store, store ou module), o prefixo do store, a regra de fusão (`merge`: current, fill, union, replace, none), `keep` e quando volta (`restoredAt`: start, resume, first-use, first-save). 15 chaves de `$.state` (com `recap`), 1 do store (`sessions`) e 15 variáveis de módulo (`lastRecap` saiu). Exporta também `merge`, `current`, `loadStore`, `saveStore`, `saveGroups` (com `KEEP` = 30) e o conjunto `loaded`.
@@ -1246,6 +1247,7 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
    recap (o cartão mostrava a mensagem final). Agora é a chave de state `recap`, como o `brief`
    (`merge` none, `restoredAt` vazio: sobrevive à recarga, morre com o processo); `lastRecap($)` lê o
    state ('' = nenhum), o `wrap_up` grava e o `turn.complete` lê e zera.  A linha nova da tabela cobre a chave.
+> [marcado em 2026-11-16] o recap do `wrap_up` guardado (chave de state `recap`, `lastRecap`): substituído por turnos.resposta-inteira-nao-e-guardada (2026-11-14).
 3. `groups` no `resume` substitui o state (o `SessionStart` de resume chama restore sem olhar o state);
    no `session.start`, o state vence.
 4. `sends` sem teto na fusão; `received` e `launches` com 20.
@@ -1259,6 +1261,7 @@ Divergências que a tabela expôs (a extração não mudou nada; a 1 e a 2 já f
 > [marcado em 2026-11-15] parte do bloco "Validar": texto da fase 2 a 5 (2026-10-22), com emendas posteriores até o congelamento.
 
 A regra conferida: `overlays()` dá os mesmos `Box` que `overlay()` dava (7 profundidades × 4 aninhamentos), os trechos em px, e nenhum par de `Box` na mesma linha se cruza (estado real nas duas visões em 6 larguras, 30–112 colunas; ícone × anel; ícone × camada do nome: a camada vai da coluna do nome até a borda ou, com anel, até o `Box` do anel; `overlay('name', depth, W, ringNested?)`, nunca abaixo de `NAME_MIN` = 16 px). Nenhuma falha conhecida: a que a conferência revelou (a camada cobria o anel, e o clique nele não abria a sessão) foi corrigida no bug 2 da fase 3. Só a área do tooltip do nome cortado num cartão com anel mudou (32 px a menos, mais com cartões aninhados); nenhum pixel do SVG.
+> [marcado em 2026-11-16] a conferência das sobreposições por `overlays()`, em px: substituído por visual.desenho-principal (2026-11-13, desenho nativo; ver "Desenho nativo híbrido (2026-11-13)", abaixo).
 
 - O rótulo do botão do ícone é um espaço em (U+2003), não um espaço comum: é de propósito (dá ao realce
   nativo a largura certa). Com espaço comum, o clique "só o ícone recolhe" falha. Ferramentas de edição
@@ -1315,6 +1318,7 @@ ficava sem ↩ com o resumo (sobrava a mensagem final). Agora é a chave de stat
   `register`: "$ is passed to "lastBrief", which is not a function declared at the top of this file").
 - O recap do `wrap_up` seguiu o mesmo caminho: chave de state `recap` (divergência 2 do R13), lida por
   `lastRecap($)`.
+> [marcado em 2026-11-16] o recap do `wrap_up` guardado (chave de state `recap`, `lastRecap`): substituído por turnos.resposta-inteira-nao-e-guardada (2026-11-14).
 
 #### Arquivo publicado
 
@@ -1451,6 +1455,7 @@ volta do store também sem `session.start`, como já valia para `links`:
 - `view` e `work` continuam só no `session.start`, de propósito: `restoreView` na guarda mudaria o padrão do
   desenho ('full' no render × 'summary' no restore) e mudaria o desenho; ficou para a tabela de durabilidade.
 > [marcado em 2026-11-15] substituído por durabilidade.respawn-sem-session-start (2026-11-04).
+> [marcado em 2026-11-16] correção da data da marca acima: a regra caiu em 2026-10-22 (commit 2cef003, Origem de durabilidade.respawn-sem-session-start: o trabalho atual volta do store no primeiro uso); 2026-11-04 é a data em que o estado `view` deixou de existir.
 - Sem `session.start`, o desenho traz as tarefas do store, mas ainda não os cartões de sessão (a lista do
   host só é lida no `session.start` ou pelo poll).
 
@@ -1551,8 +1556,10 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   concluída vem aberta, como as outras, e recolhe pelo clique. O tom
   `section` do desenho ficou sem uso.
 > [marcado em 2026-11-15] o tom `section` voltou a ser usado nas linhas "+N" (2026-11-04).
+> [marcado em 2026-11-16] correção da data da marca acima: o tom `section` voltou a ser usado em 2026-10-21 ("+N pedidos anteriores" e "+N cartões antigos de sessões", commit dcf4a4c) e em 2026-10-22 ("+N linhas anteriores", commit 3ec00c5), não em 2026-11-04.
 - Desktop: a linha é um `Svg` com o ícone de progresso clicável por um `Button` vazio num `Box` absoluto
   (ver o item do clique no ícone acima). Não há coluna de botão nem seta à esquerda: o `GUTTER` foi removido.
+> [marcado em 2026-11-16] "a linha é um `Svg`": substituído por visual.desenho-principal (2026-11-13, desenho nativo); o `Button` num `Box` sobre o `Svg` do ícone continua (ver "Desenho nativo híbrido (2026-11-13)", abaixo).
 - Terminal: o nível 1 começa no ícone e cada nível recua 3 colunas. Linha que recolhe é um `Box`
   em linha (`Text` das guias, `Button` com o glifo do ícone, `Text`); linha sem nada embaixo não
   tem botão.
@@ -1650,6 +1657,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   essencial. Use ≡ (/task-tree resumida) para a visão resumida." (agora raro). Aprovado pelo usuário:
   "Sim, está bom".
 > [marcado em 2026-11-15] a visão completa e o limite de 3 pedidos: substituído por cabecalho.limites-de-linhas e cabecalho.resumida-exclui-pedido-finalizado (2026-11-04).
+> [marcado em 2026-11-16] o aviso "Painel grande demais" como saída do desenho acima de 600 KB: substituído por cabecalho.limite-de-linhas-do-desenho (2026-11-12, "Cortar os mais antigos (Recomendado)"; ver "Corte por tamanho no lugar do aviso (2026-11-12)", abaixo); o aviso fica só como último recurso (cabecalho.aviso-de-painel-grande-volta).
 - Limite de linhas (R15; mudança de visual aprovada pelo usuário: "Sim, com o corte"): `MAX_ROWS = 400` e
   `limitRows(rows)`, aplicado no `ui.render` logo depois de `panel()`, antes de guias, molduras e SVG.
   Até 400 linhas nada muda. Acima, saem blocos inteiros de nível 0 do começo (os mais antigos), contados
@@ -2139,6 +2147,7 @@ variável atribuída em outro lugar ("the function handed $ "saved" is assigned 
   toast "Não abriu <nome>: <motivo>". Sem tooltip "Abrir <nome>" (o `Button` não tem, e uma camada
   por cima engoliria o clique) e sem cursor de mão. O ⑂ continua recolhendo o cartão. Terminal: "42%" no fim da linha do
   rótulo, na cor da faixa.
+> [marcado em 2026-11-16] `ringOver`, `overlay('ring', …)`, `draw/geometry.ts` e as medidas do anel em px: substituído por visual.desenho-principal (2026-11-13, desenho nativo); o anel segue clicável por um `Button` sobre o `Svg` (ver "Desenho nativo híbrido (2026-11-13)", abaixo).
 - Modelo e esforço no cartão (pedido do usuário: "quero que voce mostre o nome do modelo e o
   esforco de cada sessao, ao lado esquerdo do anel de contexto"; depois "nao aparece em todos os
   paineis, somente no primeiro"; aprovado com "Sim, em todos"): cada sessão pega `model` e
