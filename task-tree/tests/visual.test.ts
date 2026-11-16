@@ -711,3 +711,20 @@ test('na folha parada, a palavra de estado vem logo antes do tempo, sem nada ent
   expect(depois[0]?.texto.trim(), folha.texto).toBe('interrompida')
   expect(depois[1]?.texto ?? '', folha.texto).toMatch(/^\d+:\d\d/)
 })
+
+// Regra: visual.faixa-de-estado-geral
+test("com tudo fechado e a tarefa de um subagente parado depois do turno, a faixa é cinza 'interrompido'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await start($, ['B'])
+  await lancar($, { descricao: 'revisar', segundoPlano: true })
+  await fimDoTurno($)
+  await fimDoSubagenteCom($, 'sub-1', { parado: true })
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
+  expect(d.cabecalho.texto).toContain('1 de 1')
+})

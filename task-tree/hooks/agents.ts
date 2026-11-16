@@ -437,7 +437,7 @@ export async function settleBySubs($: any, only?: string) {
           tasks = settle(edit(tasks, id, finish(x.end)), x.end)
         } else {
           tasks = settle(
-            edit(tasks, id, t => ({ ...t, status: 'interrupted', started: undefined, startedAt: t.startedAt ?? x.at, endedAt: x.end, ...(x.state === 'failed' ? { failed: true } : {}) })),
+            edit(tasks, id, t => ({ ...t, status: 'interrupted', started: undefined, startedAt: t.startedAt ?? x.at, endedAt: x.end, ...(x.state === 'failed' ? { failed: true } : { subStopped: true }) })),
             x.end,
           )
         }

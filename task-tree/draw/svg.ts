@@ -242,8 +242,8 @@ export function chips(active: number, waiting: number, cut: number, live: number
 // "\"Em andamento\" (Recomendado)", "Do primeiro start (Recomendado)"); a session at work (blue) with
 // nothing running, of its own or drawn in a session's card; all done (green); interrupted (gray) with
 // nothing open and something cut; none (the track's gray) when empty.
-// With all closed, gray wins over green when something was stopped by the person (Esc) or failed
-// (`stopped`: the count of those, out of `x`); a task taken out with cancel and what a subagent that
+// With all closed, gray wins over green when something was stopped by the person (Esc), failed, or had
+// its subagent stopped (`stopped`: the count of those, out of `x`); a task taken out with cancel and what a subagent that
 // ended well left open do not count, so a request that ended well is green (the person, 2026-11-15:
 // "Cinza \"interrompido\" (Recomendado)" and "Cancelada não conta").
 export type HeaderState = { tone: Tone; word: string }

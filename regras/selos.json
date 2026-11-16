@@ -6831,6 +6831,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Âmbar, como hoje"
     },
+    "task-tree/tests/visual.test.ts::com tudo fechado e a tarefa de um subagente parado depois do turno, a faixa é cinza 'interrompido'": {
+      "regras": [
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "a48d13eb157fa5ed",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário de 2026-11-15 (\"Cinza \\\"interrompido\\\" (Recomendado)\"): a tarefa ✕ pelo subagente parado deixa a faixa cinza"
+    },
     "task-tree/tests/visual.test.ts::com tudo fechado e a tarefa de um subagente que falhou, a faixa é cinza 'interrompido'": {
       "regras": [
         "visual.faixa-de-estado-geral"

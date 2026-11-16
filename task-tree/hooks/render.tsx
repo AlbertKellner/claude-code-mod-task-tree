@@ -338,9 +338,10 @@ export async function render($: EngineInterface, e: any, next: any) {
   const since = lastTurnAt(held ?? [])
   const lastStart = lastStarted(mainTasks)?.at
   const started = typeof ended !== 'number' && since !== undefined && typeof lastStart === 'number' && lastStart >= since
-  // The interrupted ones that make the band gray: stopped by the person (Esc) or failed, not those
+  // The interrupted ones that make the band gray: stopped by the person (Esc), failed, or whose
+  // subagent was stopped (the person, 2026-11-15: "Cinza \"interrompido\" (Recomendado)"), not those
   // taken out with cancel nor what a subagent left open (the person, 2026-11-15: "Cancelada não conta").
-  const cut = flat(shown).filter(t => t.status === 'interrupted' && t.children.length === 0 && (t.halted === true || t.stopped === true || t.failed === true)).length
+  const cut = flat(shown).filter(t => t.status === 'interrupted' && t.children.length === 0 && (t.halted === true || t.stopped === true || t.failed === true || t.subStopped === true)).length
   const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x, stopped: cut, started })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 

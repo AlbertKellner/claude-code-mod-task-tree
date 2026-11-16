@@ -43,6 +43,11 @@ export type TaskNode = {
   // settleBySubs): drawn ✕ with "falhou" instead of "interrompida". Also on an open leaf with `stopped`:
   // the turn it was in progress in died by an error (park), until a start or a done takes it away.
   failed?: boolean
+  // Closed by the panel as interrupted because the subagent launched from it was stopped (aborted,
+  // killed in the app's list, gone from it, a workflow with no sign for long; hooks/agents,
+  // settleBySubs): counts for the header's gray band as one stopped with Esc or failed (the person,
+  // 2026-11-15: "Cinza \"interrompido\" (Recomendado)"). A start that reopens the task takes it away.
+  subStopped?: boolean
   // Drawn only: started and still open when the person stopped the turn (Esc), read as interrupted
   // by that stop (halt in draw/layout); never kept nor published.
   halted?: boolean

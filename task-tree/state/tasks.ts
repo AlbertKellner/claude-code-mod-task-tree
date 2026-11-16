@@ -143,7 +143,7 @@ export function begin(list: TaskNode[], id: string, seq: number, now?: number, i
         const pause = (t.pause ?? 0) + Math.max(0, held)
         return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined, ...(pause > 0 ? { pause } : {}), ...(now !== undefined ? { lastStartAt: now } : {}) }
       }
-      const { failed: _, stopped: __, pause: ___, ...rest } = t
+      const { failed: _, stopped: __, pause: ___, subStopped: ____, ...rest } = t
       return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now, lastStartAt: now } : {}) }
     }
     if (!flat(t.children).some(c => c.id === id)) return t
@@ -177,6 +177,7 @@ export function carry(old: TaskNode, fresh: TaskNode, now?: number): TaskNode {
       ...(o.pause !== undefined ? { pause: o.pause } : {}),
       ...(sameShape && o.status === 'open' && o.stopped === true ? { stopped: true } : {}),
       ...(sameShape && o.failed === true && (o.status === 'interrupted' || o.stopped === true) ? { failed: true } : {}),
+      ...(sameShape && o.subStopped === true && o.status === 'interrupted' ? { subStopped: true } : {}),
     }
     let children = n.children.map(merge)
     if (!wasParent && isParent && going(o) && !flat(children).some(going)) {
