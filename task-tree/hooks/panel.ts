@@ -1159,6 +1159,19 @@ export async function renameFolds($: any, agent: string, ids: string[], tag: str
 // (Recomendado)"); it went loose at the end and left once done. The sends keep their own rule (the
 // letter hangs from the request's level-1 task until delivered); the subagents' groups go in planTool's
 // change. `gone`: each id left out, with the level-1 task it was in.
+// The main loop's plans between the write of their tasks and the one of the ties (renameAnchors,
+// moveToLevelOne), counted (a variable of the module: the plan and the read of the sessions share it).
+// While one is there, the read of the sessions leaves the kept places alone (hooks/sessions): it would
+// see the new tasks with the old ties, drop the place on a subtask the replan left out, and the card
+// would not go to the level-1 task (the person, 2026-11-15: "Corrida no replano").
+let planning = 0
+export function enterPlanTies() {
+  planning++
+}
+export function leavePlanTies() {
+  planning = Math.max(0, planning - 1)
+}
+export const planTiesPending = () => planning > 0
 export const movedAnchor = (gone: Map<string, string>) => (a?: string) => (a !== undefined && gone.has(a) ? gone.get(a) : a)
 export async function moveToLevelOne($: any, gone: Map<string, string>) {
   if (gone.size === 0) return

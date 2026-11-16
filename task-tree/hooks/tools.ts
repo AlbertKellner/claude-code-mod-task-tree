@@ -10,7 +10,7 @@ import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } fro
 import { cutText, oneLine, plural } from '../draw/svg'
 import { begin, build, carry, duplicates, edit, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { marks, setMarks, publishPanel, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { marks, setMarks, publishPanel, requestTasks, movedAnchor, moveToLevelOne, enterPlanTies, leavePlanTies, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime, settledBy } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -91,6 +91,16 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     // The main loop's plan publishes once, after its last write (the ties, the letters, the work), so
     // the file the session that opened this one reads already has the new work (audit, 2026-11-10);
     // a subagent's plan touches neither and publishes in the change.
+    // The main loop's plan marks the stretch from the write of its tasks to the one of the ties
+    // (enterPlanTies, left right after moveToLevelOne, or on a throw): the read of the sessions leaves
+    // the kept places alone there (the person, 2026-11-15: "Corrida no replano").
+    let tiesOpen = agent === MAIN
+    if (tiesOpen) enterPlanTies()
+    const leaveTies = () => {
+      if (!tiesOpen) return
+      tiesOpen = false
+      leavePlanTies()
+    }
     const groups = await change($, all => {
       // The subagents this loop launched from a task the plan renames go with the old copy (their
       // card, and the task the end of the turn closes by them), or they would hang from the new task
@@ -144,13 +154,17 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         })
         return { ...g, turns, tasks: inPlace(placed) }
       })
-    }, { publish: agent !== MAIN })
+    }, { publish: agent !== MAIN }).catch(err => {
+      leaveTies()
+      throw err
+    })
     try {
       await renameFolds($, agent, renamedHere, tag)
       if (agent === MAIN) {
         // The sessions' ties to a renamed task go with it (see renameAnchors).
         await renameAnchors($, renamed, tag)
         await moveToLevelOne($, gone)
+        leaveTies()
         // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
         // hanging from the request's level-1 task until the delivery (the panel's letters).
         const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
@@ -163,6 +177,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
       }
     } finally {
+      leaveTies()
       if (agent === MAIN) await publishPanel($)
     }
     // The plan does not open the panel: one the person closed stays closed until their next message

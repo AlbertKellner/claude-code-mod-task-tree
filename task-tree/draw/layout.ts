@@ -604,12 +604,13 @@ function typedCards(c0: Child, owner: TaskNode[]): { c: Child; u: Turn }[] {
     return ownTurns.filter((u, i) => ownPart.get(u.id) === -1 - i).map(u => ({ c, u }))
   })
 }
-// The kept place of the card whose first turn shown is `u` (one search, for the drawing and for
-// placeTypedTurns): the place with `u`'s time; else the latest kept before it in the same request in
-// force (inForceOf's key, by the place's time), not the place of another card shown (`firsts`, the
-// times of the cards' first turns). The second is the card whose first turn is not shown: a grandchild
-// published by its session with only the turns of its current work (trimPublished), a first turn the
-// session dropped. Read as it was kept: no resolveAnchor (it was decided at the read, after `at`).
+// The kept place of the card whose first turn shown is `u`, for the drawing (placeTypedTurns looks
+// only for the place with the same time): the place with `u`'s time; else the latest kept before it in
+// the same request in force (inForceOf's key, by the place's time), not the place of another card
+// shown (`firsts`, the times of the cards' first turns, those before a /clear too: the card made after
+// a /clear does not take the place of the one before). The second is the card whose first turn is not
+// shown: a grandchild published by its session with only the turns of its current work
+// (trimPublished). Read as it was kept: no resolveAnchor (it was decided at the read, after `at`).
 function keptPlace(c: Child, owner: TaskNode[], places: Place[], u: Turn | undefined, firsts: number[]): Place | undefined {
   const at = u?.at
   if (at === undefined) return undefined
@@ -624,20 +625,22 @@ function keptPlace(c: Child, owner: TaskNode[], places: Place[], u: Turn | undef
 // The places of a session's cards of typed turns not decided yet (a first turn with a time, and a task
 // to put it under), decided now with the ties and clocks of now and kept (hooks/sessions, on each read
 // of the sessions; the cards of the work before a /clear too). One per card, with no cap: a read with
-// nothing new keeps the list as it is (no write). A kept place whose task is gone from this session's
-// tasks no longer counts: it leaves the list and its card is decided again, with the tasks of now. The
-// session unchanged when nothing new.
+// nothing new keeps the list as it is (no write). A card counts as decided only with a place of its
+// first turn's time: the search for the latest place before it (keptPlace) is the drawing's, for a
+// grandchild published without its first turn; here it gave a card the place of a typed turn its
+// session dropped with no card (no task, no summary), and the card never got its own (the person,
+// 2026-11-15: "Lugar herdado de pedido apagado"). That dropped turn's place stays in the list, unused.
+// A kept place whose task is gone from this session's tasks no longer counts: it leaves the list and
+// its card is decided again, with the tasks of now. The session unchanged when nothing new.
 export function placeTypedTurns(c0: Child, owner: TaskNode[]): Child {
   if (c0.panel === undefined) return c0
   const ids = new Set(flat(owner).map(t => t.id))
   const all = (c0.places ?? []).filter(isPlace)
   const kept = all.filter(x => ids.has(x.anchor))
-  const cards = typedCards(c0, owner)
-  const firsts = cards.flatMap(x => (typeof x.u.at === 'number' ? [x.u.at] : []))
   const add: Place[] = []
-  for (const { c, u } of cards) {
+  for (const { c, u } of typedCards(c0, owner)) {
     const at = u.at
-    if (typeof at !== 'number' || keptPlace(c, owner, [...kept, ...add], u, firsts) !== undefined) continue
+    if (typeof at !== 'number' || [...kept, ...add].some(x => x.at === at)) continue
     const place = placeTyped(c, owner, u)
     if (place.anchor !== undefined) add.push({ at, anchor: place.anchor, ...(place.tail ? { tail: true } : {}) })
   }

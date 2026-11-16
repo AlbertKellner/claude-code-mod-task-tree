@@ -3923,6 +3923,17 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: arquivos publicados enxutos e esvaziados"
     },
+    "task-tree/tests/sessoes.test.ts::a leitura das sessões no meio do replano não tira do nível 1 o cartão do pedido do usuário na filha": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda",
+        "pedidos.replano-leva-o-cartao-ao-nivel-1"
+      ],
+      "hash": "bec72dbb2fc818a9",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; a leitura no meio do plan não descarta o lugar; o replano leva o cartão ao nível 1"
+    },
     "task-tree/tests/sessoes.test.ts::a mensagem entre irmãs fica no cartão da remetente, com o ✉ da entrega": {
       "regras": [
         "sessoes.mensagem-entre-filhas-no-cartao-da-remetente"
@@ -3982,6 +3993,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "correção direta: regras de cartão dentro do cartão"
+    },
+    "task-tree/tests/sessoes.test.ts::a neta que levou /clear, publicada sem lugar para o cartão novo: ele não herda o lugar do cartão de antes do /clear": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "f926e88799d2ebc0",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; na neta, o cartão de depois do /clear não herda o lugar guardado do de antes"
     },
     "task-tree/tests/sessoes.test.ts::a neta que trabalha sob um pedido da filha fora do trabalho aparece solta no fim do cartão da filha": {
       "regras": [
@@ -4277,6 +4298,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "com várias em andamento, a iniciada por último; a asserção que faltava"
+    },
+    "task-tree/tests/sessoes.test.ts::depois de um /clear na filha, o pedido digitado de novo no mesmo pedido da mãe tem cartão próprio, não no lugar do cartão de antes": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "eb22610a7a2d5f87",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; o cartão de depois do /clear sob a tarefa de agora, o de antes onde estava"
     },
     "task-tree/tests/sessoes.test.ts::depois do /clear na filha, o cartão dela na mãe mantém as tarefas feitas e a contagem": {
       "regras": [
@@ -4613,6 +4644,26 @@
       "data": "2026-11-15",
       "motivo": "auditoria: aviso das pendentes nas duas ordens"
     },
+    "task-tree/tests/sessoes.test.ts::o lugar da filha direta guardado numa tarefa que sumiu é decidido de novo": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "aa166504cb944c42",
+      "assercoes": 1,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; primeiro do par: guarda o lugar da filha direta no store"
+    },
+    "task-tree/tests/sessoes.test.ts::o lugar da filha direta guardado numa tarefa que sumiu é decidido de novo: o processo novo o decide e o guarda": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "b7ebbdc8dac47367",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; o lugar em tarefa que sumiu é decidido de novo e guardado com a tarefa certa"
+    },
     "task-tree/tests/sessoes.test.ts::o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo": {
       "regras": [
         "sessoes.lugar-do-cartao-digitado-nao-muda"
@@ -4643,6 +4694,16 @@
       "data": "2026-11-15",
       "motivo": "revisão de 2026-11-15 do lugar guardado do cartão do pedido digitado na filha: lugar em tarefa inexistente cai no lugar derivado"
     },
+    "task-tree/tests/sessoes.test.ts::o lugar guardado numa tarefa que não existe mais não vale: a neta sob um bloco com subtarefas fica sob a tarefa em andamento, não fechando o bloco": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "7e98a2f5aa31ce5f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; o lugar em tarefa que sumiu leva a neta à tarefa em andamento, antes da pendente"
+    },
     "task-tree/tests/sessoes.test.ts::o nome da sessão nova com uma palavra em comum com uma só tarefa leva o cartão a ela": {
       "regras": [
         "envios.carta-pelo-nome-da-sessao",
@@ -4664,6 +4725,16 @@
       "data": "2026-11-14",
       "motivo": "correção direta: higiene do arquivo publicado"
     },
+    "task-tree/tests/sessoes.test.ts::o pedido apagado sem cartão, outro com cartão, um /clear na filha e mais um pedido: cada cartão fica onde o seu pedido aconteceu": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "5d459ff1ad9cc95a",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; com /clear na filha, cada cartão sob a tarefa em andamento quando o seu pedido foi digitado"
+    },
     "task-tree/tests/sessoes.test.ts::o pedido com tudo concluído e a filha trabalhando embaixo mostra o tempo das tarefas dele, parado": {
       "regras": [
         "sessoes.tempo-da-tarefa-concluida-com-filha"
@@ -4673,6 +4744,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Só o próprio\""
+    },
+    "task-tree/tests/sessoes.test.ts::o pedido digitado na filha e apagado sem cartão não dá o lugar ao pedido digitado depois": {
+      "regras": [
+        "sessoes.lugar-do-cartao-digitado-nao-muda"
+      ],
+      "hash": "d1977c59981fdda2",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "decisão do usuário, 2026-11-15: \"Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano\"; o cartão do pedido digitado depois fica sob a tarefa em andamento quando ele digitou, não no lugar do pedido apagado"
     },
     "task-tree/tests/sessoes.test.ts::o pedido novo que reusa o id do nível 1 não puxa o cartão que fechava o pedido antigo": {
       "regras": [

@@ -624,10 +624,16 @@ O que a fase 6 (parte A) mudou nesse caminho, sem mudar uma linha nem um byte do
   renome do nível 1 reusado o leva junto). Os relógios que a conta lê são reescritos depois (o start
   da tarefa que aguardava apaga o `endedAt`; a reabertura troca o `startedAt`), e o cartão saltava
   (sessoes.lugar-do-cartao-digitado-nao-muda). Um lugar por cartão, sem teto: a leitura sem novidade
-  não regrava a lista. O desenho e o `placeTypedTurns` acham o lugar pela mesma busca (`keptPlace`): o
-  de hora igual à do primeiro turno do cartão que se vê; senão o mais recente anterior no mesmo pedido
-  vigente (a neta publicada pela filha só com os turnos do trabalho atual, `trimPublished`, chega sem o
-  primeiro). A tarefa do lugar é lida como foi guardada, sem `resolveAnchor` (o lugar é decidido na
+  não regrava a lista. O `placeTypedTurns` só dá por decidido o cartão com lugar de hora igual à do
+  primeiro turno dele. O desenho acha o lugar por `keptPlace`: o de hora igual; senão o mais recente
+  anterior no mesmo pedido vigente (a neta publicada pela filha só com os turnos do trabalho atual,
+  `trimPublished`, chega sem o primeiro), fora dos lugares dos outros cartões à vista, os de antes de
+  um /clear incluídos (`firsts`: o cartão feito depois do /clear não herda o lugar do de antes). O
+  lugar de um turno digitado sem tarefa que a filha apagou fica na lista, sem uso: ele não dá o lugar
+  ao pedido digitado depois. O plan da sessão principal marca o intervalo entre a gravação das tarefas
+  e o `moveToLevelOne` (`enterPlanTies`/`leavePlanTies`, `hooks/panel.ts`); nele a leitura das sessões
+  não chama o `placeTypedTurns` (`planTiesPending`): lendo as tarefas novas com os laços velhos, ela
+  descartava o lugar que o replano ia levar ao nível 1. A tarefa do lugar é lida como foi guardada, sem `resolveAnchor` (o lugar é decidido na
   leitura, depois da hora do turno). Lugar cuja tarefa não existe mais não vale: sai da lista e o
   cartão é decidido de novo na leitura; no desenho, vai ao lugar derivado. Em `readChildren`, as
   tarefas com que o lugar é decidido são lidas depois dos arquivos das filhas: todo turno digitado que
@@ -2351,6 +2357,12 @@ agora (Recomendado)"), com a tabela de durabilidade trocada pelo ponteiro para a
   abertura) se ela é do pedido vigente, com a filha trabalhando ou parada (2026-11-15, "Sob a tarefa ◉
   (Recomendado)" e "Sob a tarefa de origem (Recomendado)"); senão o fim do pedido vigente. Na revisão
   entraram os testes do ramo da última mensagem.
+- Quarta correção (2026-11-15, "Lugar herdado de pedido apagado,Testes que faltam,Corrida no replano"):
+  o cartão herdava o lugar de um pedido digitado que a filha apagou sem cartão (o `placeTypedTurns`
+  dava por decidido o cartão com um lugar anterior no mesmo pedido); agora só o de hora igual vale ali.
+  A leitura das sessões no meio de um replano descartava o lugar na subtarefa tirada antes de o plan o
+  levar ao nível 1; o plan marca esse intervalo, e a leitura não mexe nos lugares nele. Entraram os
+  testes do lugar em tarefa que sumiu (neta e filha direta) e do cartão depois de um /clear da filha.
 
 ## Achados baixos: corte de texto e números do desenho (2026-11-15)
 

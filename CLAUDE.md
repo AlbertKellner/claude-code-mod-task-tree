@@ -244,7 +244,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   fecha a tarefa de origem, com a mãe parada; digitar direto numa filha: o cartão aparece sob a tarefa que a
   sessão de cima tinha em andamento, senão sob a tarefa da própria filha (trabalhando ou parada), e só
   fecha o pedido quando a filha é de outro pedido; não muda de lugar depois (start de novo, reabertura,
-  replano, recarga); neta com dois pedidos digitados nela: o cartão no mesmo lugar no painel da filha e
+  replano, recarga); digitar numa filha, Esc antes do plan, e digitar de novo mais tarde com outra
+  tarefa em andamento na sessão de cima: o cartão sob a tarefa de agora; neta com dois pedidos digitados nela: o cartão no mesmo lugar no painel da filha e
   no da sessão de cima); carta a subagente real
   (recebida, parado antes de receber, retomado; o cartão do retomado volta a "trabalhando"); avisos do app; um pedido respondido só com texto termina sem plano retroativo (com summary, a linha ↩ sob o pedido);
 - modelo e esforço no cartão; o último toks/s no cartão do subagente terminado (e, no cartão estreito,

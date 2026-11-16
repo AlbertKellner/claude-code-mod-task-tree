@@ -13,7 +13,7 @@ import { debug, debugOnce } from '../io/log'
 import { allSessionIds, deducedOwn, deriveChildren, justOpened, listSessions, mineOf, readFiles, sessionGone, staleFiles } from '../io/host'
 import { edit, finish, settle } from '../state/tasks'
 import { checkSubs, strandedSends } from './agents'
-import { learnNames, change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendPlace, showStatus, stamp, usedAnchors, setIdle } from './panel'
+import { learnNames, change, ensureLinks, ensureTurn, inDesktopApp, isLeftBehind, keptLink, knownId, openList, openTurnOf, planTiesPending, publishPanel, askingAnchors, refreshGit, saveLinks, selfId, sendPlace, showStatus, stamp, usedAnchors, setIdle } from './panel'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -168,11 +168,14 @@ async function readChildren($: any) {
   // the ties and clocks of now, and kept (placeTypedTurns): the card does not move afterwards. The tasks
   // it is decided with are read after the files (the ones above only chose which files to read): every
   // typed turn this read sees is older than them, so a start made before the person typed counts.
+  // While a plan of the main loop has written its tasks and not yet its ties (planTiesPending), the
+  // places are left as they are (none dropped, none decided): the next read decides them, with the ties
+  // the plan moved. Asked on each derive (the first and the one inside the write).
   const { value: groupsRead = [] } = await $.state.get(groupsState)
   const tasksRead = (groupsRead as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
   const derive = (known: Child[]) => {
     const d = deriveChildren(mine, known, read, keptLink, now)
-    const placed = d.children.map(c => placeTypedTurns(c, tasksRead))
+    const placed = planTiesPending() ? d.children : d.children.map(c => placeTypedTurns(c, tasksRead))
     return { ...d, children: summarize(placed, groupsRead as Group[], out, self) }
   }
   // 3. The children, and the sessions whose turn just ended: the main loop is reminded of the task
