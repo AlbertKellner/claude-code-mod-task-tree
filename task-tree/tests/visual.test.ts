@@ -890,3 +890,75 @@ test("a linha '+N pedidos anteriores' é só o ▸ e o texto: sem borda, sem fun
   await conferir('▾')
   await m.fim()
 })
+
+// A linha de seção do app e o que a cerca: a borda e o fundo do Box da linha, os traços (caixas com
+// fundo e sem filhos) dentro dela fora das guias, e se a irmã de antes ou a de depois, no contêiner,
+// é um separador (caixa sem filhos com fundo ou com borda).
+const tracosEmVoltaDaSecao = (d: DesenhoDoApp, quem: RegExp) => {
+  const l = d.linhas.find(x => quem.test(x.texto))
+  if (!l) throw new Error(`linha ${String(quem)} não encontrada:\n${d.textos.join('\n')}`)
+  let pai: any
+  const achar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    for (const c of x.children ?? []) {
+      if (c === l.el) pai = x
+      achar(c)
+    }
+  }
+  achar(d.raiz)
+  const irmas = ((pai?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+  const i = irmas.indexOf(l.el)
+  const separador = (x: any) =>
+    x !== undefined && x.type === 'Box' && !(x.children ?? []).length && (x.props?.backgroundColor !== undefined || x.props?.borderColor !== undefined || x.props?.borderStyle !== undefined)
+  let tracos = 0
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if ((x.key ?? x.props?.key) === 'guides') return
+    if (x.type === 'Box' && x.props?.backgroundColor !== undefined && !(x.children ?? []).length) tracos++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(l.el)
+  const p = l.el?.props ?? {}
+  return { achada: i >= 0, borda: p.borderColor ?? p.borderStyle, fundo: p.backgroundColor, tracos, antes: separador(irmas[i - 1]), depois: separador(irmas[i + 1]) }
+}
+const SEM_TRACO_R501 = { achada: true, borda: undefined, fundo: undefined, tracos: 0, antes: false, depois: false }
+const feitaDaFilhaR501 = (i: number) => ({ id: `${i}`, short: `${i}`, title: `Pedido da filha ${i}`, status: 'done', startedAt: AGORA - 9000 + i * 100, endedAt: AGORA - 9000 + i * 100 + 50, turn: i, children: [] })
+
+// Regra: visual.secao-sem-traco
+test("a seção de dentro do cartão de uma filha e '+N cartões antigos' não têm traço, nem na linha nem em volta dela", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const turnos = [1, 2, 3, 4, 5].map(i => ({ id: i, title: `Pedido da filha ${i}`, at: AGORA - 9000 + i * 100 }))
+  const antiga = { id: '1', short: '1', title: 'Tarefa antiga', status: 'done', startedAt: AGORA - 5000, endedAt: AGORA - 4000, turn: 1, children: [] }
+  host(on, [
+    { id: 'local_44444444-4444-4444-4444-444444444444', nome: 'filha-longa', painel: { tasks: [1, 2, 3, 4, 5].map(feitaDaFilhaR501), turns: turnos } },
+    { id: 'local_33333333-3333-3333-3333-333333333333', nome: 'filha-antiga', rodando: false, painel: { tasks: [antiga], turns: [{ id: 1, title: 't', at: AGORA - 5000 }] } },
+  ])
+  for (let i = 1; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await relogio.advance(1000)
+  await pedido($, 'Pedido 5')
+  await plan($, [{ id: 'P5', title: 'Plano 5', children: [{ id: 'f5', title: 'Folha 5' }] }])
+  await start($, ['f5'])
+  await abrirSessao($, 'filha-longa')
+  await aviso($)
+  const m = await montarNoApp($)
+  // (a) dentro do cartão da filha: "+N pedidos anteriores" do cartão.
+  let d = await m.desenho()
+  const doCartao = d.linhas.filter(x => /pedidos anteriores/.test(x.texto))
+  // A primeira é a da raiz; as outras, a do cartão.
+  expect(doCartao.length, d.textos.join('\n')).toBeGreaterThanOrEqual(2)
+  for (const l of doCartao) expect(tracosEmVoltaDaSecao(d, new RegExp(l.texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))), l.texto).toEqual(SEM_TRACO_R501)
+  // (b) a raiz aberta: "+N cartões antigos de sessões".
+  const fold = doCartao[0]!.botoes.find(b => b.startsWith('fold:'))
+  expect(fold, doCartao[0]!.texto).toBeDefined()
+  await m.apertar(fold!)
+  d = await m.desenho()
+  expect(tracosEmVoltaDaSecao(d, /cartões antigos/), d.textos.join('\n')).toEqual(SEM_TRACO_R501)
+  await m.fim()
+})

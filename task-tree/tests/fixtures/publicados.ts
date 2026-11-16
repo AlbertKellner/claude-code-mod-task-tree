@@ -3,7 +3,8 @@
 // and times kept) and each list cut to its first entries. LATER_PUBLISHED_FILES brings the fields that
 // came in after it (all still `version: 1`: a new optional field does not raise the version), written
 // from the `Published` type with the same neutral texts; the last one is the shape this version
-// writes. The readers of this version must read all of them: a child may run an earlier mod.
+// writes. ABORTED_ONLY_FILE is the stop with Esc of before the task's `stopped` mark (`aborted` only).
+// The readers of this version must read all of them: a child may run an earlier mod.
 export const PUBLISHED_FILES: { label: string; file: string }[] = [
   { label: "sem version · waiting, at", file: "{\"waiting\": true, \"at\": 1792262378187}" },
   { label: "sem version · waiting, at, tasks", file: "{\"waiting\": false, \"at\": 1792436319938, \"tasks\": [{\"id\": \"1\", \"short\": \"1\", \"title\": \"Texto 1\", \"status\": \"done\", \"children\": [{\"id\": \"1/1.1\", \"short\": \"1.1\", \"title\": \"Texto 2\", \"status\": \"done\", \"children\": []}, {\"id\": \"1/1.2\", \"short\": \"1.2\", \"title\": \"Texto 3\", \"status\": \"done\", \"children\": []}, {\"id\": \"1/1.3\", \"short\": \"1.3\", \"title\": \"Texto 4\", \"status\": \"done\", \"children\": []}]}]}" },
@@ -73,3 +74,10 @@ export const LATER_PUBLISHED_FILES: { label: string; file: string }[] = [
     }),
   },
 ]
+
+// A child stopped with Esc by a version from before the mark on the task (`stopped`): only `aborted`,
+// with the task open and started. Kept apart from LATER_PUBLISHED_FILES (its test counts five).
+export const ABORTED_ONLY_FILE: { label: string; file: string } = {
+  label: 'version 1 · aborted sem a marca stopped na tarefa (de 2026-10-24 a 2026-11-12)',
+  file: JSON.stringify({ version: 1, waiting: false, at: 990_000, groups: [principal([tarefa('1', 'Texto 109', 'open', { started: 1, startedAt: 950_000 })])], waits: [], children: [], aborted: true, work: [], received: [], sends: [] }),
+}

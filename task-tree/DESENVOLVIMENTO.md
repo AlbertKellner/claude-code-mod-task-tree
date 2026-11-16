@@ -1006,7 +1006,10 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   (`rowAlt`). Cada `Svg` leva só as regras CSS que usa (`slim`), claro e escuro.
 - **Terminal** (sem `Svg`): `drawTerminal`: um `Text` por linha, guias `│ ├─ └─`, glifo por tom
   (`GLYPH`), o glifo como `Button` quando a linha recolhe.
-- Um desenho acima de `DRAW_LIMIT` = 600 KB é refeito com menos linhas até caber (decisão do usuário,
+- Um desenho acima de `DRAW_LIMIT` = 600 KB ou, no desktop, de `TEXT_LIMIT` (95 000 caracteres de
+  texto) ou de um dos tetos da tela do app (`NODE_LIMIT` = 1 900 elementos, `APP_CHARS_LIMIT` = 240 000
+  caracteres na conta dela, `DEPTH_LIMIT` = 28 níveis, medidos por `appSize`; item 8 de "Limites do
+  kit") é refeito com menos linhas até caber (decisão do usuário,
   2026-11-12: "Cortar os mais antigos (Recomendado)"): o render lê o state uma vez e a função `paint`
   (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
   `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
@@ -1016,15 +1019,16 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   trabalhando, carta na fila, espera) com os pais, logo depois de "+N linhas anteriores" e fora da
   contagem, em no máximo metade do espaço, as mais recentes primeiro; as ◷ e as pendentes saem com ele
   (cabecalho.corte-mantem-o-que-esta-em-andamento; usuário, 2026-11-15: "Manter à vista o em andamento
-  (Recomendado)"). Cada tentativa mira 95% do limite pela média
-  de bytes por linha; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
+  (Recomendado)"). Cada tentativa mira 95% do limite que passou,
+  pela média por linha (bytes, texto, elementos ou caracteres do app; vale a menor); a altura não tem
+  mira, e com ela o laço desce pelo passo mínimo; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
   (abaixo do anterior e das linhas desenhadas, que as linhas guardadas de um histórico aberto podem
   deixar acima dele). O mapa `fitted` (por
   superfície e largura) guarda o `maxRows` que coube e quantas linhas o painel tinha: o desenho
   seguinte começa por ele e só o aceita se couber e o painel tiver as mesmas linhas, senão recomeça
-  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", em KB ou, pelo texto, em mil
-  caracteres) fica como último recurso: o desenho de duas linhas ainda passa de 600 KB ou, no desktop,
-  de `TEXT_LIMIT`, ou só o piso de duas linhas coube. O botão "Voltar" fecha o que a pessoa abriu e liga
+  de 400 (o relógio redesenha o painel a cada segundo). A linha de aviso ("Painel grande demais", com o que passou: mil caracteres,
+  elementos, níveis ou KB) fica como último recurso: o desenho de duas linhas ainda passa de algum desses
+  limites, ou só o piso de duas linhas coube. O botão "Voltar" fecha o que a pessoa abriu e liga
   a marca `sec:short` nas dobras: com ela, um desenho que não cabe inteiro é refeito com os títulos (das
   linhas e do cabeçalho) em no máximo `SHORT_TEXT` = 200 caracteres, "…" no fim, com a sua entrada
   própria em `fitted`; o aviso só sai se nem assim couber. Um desenho que lança exceção vira uma linha de erro e publica `renderError`.

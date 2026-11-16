@@ -151,6 +151,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Lembrete após 3 chamadas (Recomendado)\""
     },
+    "task-tree/tests/arvore.test.ts::o done no pai com uma folha só sem start traz o aviso de 1 etapa": {
+      "regras": [
+        "arvore.done-no-pai-fecha-o-que-esta-aberto"
+      ],
+      "hash": "f996cf1596af0332",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 dos grupos 21 e 22: o teste passa a provar o que o cenário promete"
+    },
     "task-tree/tests/arvore.test.ts::o id curto não alcança as tarefas de histórico: start numa concluída não é ambíguo e o id que só existe no histórico não existe": {
       "regras": [
         "arvore.id-curto-nao-alcanca-o-historico"
@@ -828,6 +838,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::a filha parada com Esc numa versão de antes da marca stopped (só aborted): a tarefa iniciada aparece ✕": {
+      "regras": [
+        "durabilidade.formatos-antigos-do-publicado"
+      ],
+      "hash": "24ff06a70fc4c392",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 dos grupos 21 e 22: o teste passa a provar o que o cenário promete"
     },
     "task-tree/tests/durabilidade.test.ts::a filha que publica um grupo sem tarefas, uma tarefa sem filhos e um envio sem destino segue com o cartão, e o painel, as ferramentas e a publicação seguem": {
       "regras": [
@@ -6511,6 +6531,16 @@
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: subagentes terminados sem tarefas saem com o pedido"
     },
+    "task-tree/tests/subagentes.test.ts::o summary que um subagente passa no done não vira a linha ↩ do pedido quando o turno termina": {
+      "regras": [
+        "subagentes.plan-request-e-summary-do-subagente"
+      ],
+      "hash": "6f6cd432c2788600",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 dos grupos 21 e 22: o teste passa a provar o que o cenário promete"
+    },
     "task-tree/tests/subagentes.test.ts::o tempo do cartão do subagente com tarefas conta do lançamento ao fim": {
       "regras": [
         "subagentes.tempo-do-cartao-do-lancamento-ao-fim"
@@ -7449,6 +7479,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
     },
+    "task-tree/tests/ultracode.test.ts::em toda largura do cartão, o modelo e 'ultracode' são desenhados juntos ou nenhum dos dois": {
+      "regras": [
+        "ultracode.sai-junto-com-o-modelo"
+      ],
+      "hash": "189e87ad5ee27f27",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 dos grupos 21 e 22: o teste passa a provar o que o cenário promete"
+    },
     "task-tree/tests/ultracode.test.ts::no cartão largo o modelo e 'ultracode' são desenhados, nessa ordem; no estreito os dois saem juntos e ficam só no texto alternativo": {
       "regras": [
         "ultracode.sai-junto-com-o-modelo"
@@ -7650,6 +7690,16 @@
       "tipo": "decisao",
       "data": "2026-11-13",
       "motivo": "migração para o desenho nativo: cartões, rótulo de sessão e anel em Box e Text; decisão do usuário, 2026-11-13"
+    },
+    "task-tree/tests/visual.test.ts::a seção de dentro do cartão de uma filha e '+N cartões antigos' não têm traço, nem na linha nem em volta dela": {
+      "regras": [
+        "visual.secao-sem-traco"
+      ],
+      "hash": "746e8611b9826152",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 dos grupos 21 e 22: o teste passa a provar o que o cenário promete"
     },
     "task-tree/tests/visual.test.ts::a tarefa tirada com cancel não deixa a faixa cinza: com o resto concluído, verde 'concluído'": {
       "regras": [
@@ -7924,10 +7974,10 @@
   },
   "kit": {
     "task-tree/tests/fixtures/publicados.ts": {
-      "hash": "bc6025bf091c9c68",
+      "hash": "e07cb6fdd3aa9868",
       "tipo": "refatoracao",
-      "data": "2026-11-15",
-      "motivo": "segunda lista, com os formatos que entraram depois; a lista dos 8 não muda"
+      "data": "2026-11-16",
+      "motivo": "arquivo de referência novo, da filha parada com Esc só com aborted; as duas listas não mudam"
     },
     "task-tree/tests/kit/ambiente.ts": {
       "hash": "1c54fdc6cdf427c0",

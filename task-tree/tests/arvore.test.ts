@@ -530,3 +530,18 @@ test('start repetido mantém a tarefa em andamento e o tempo dela', async ($: an
   esperarEstado(p, 'Um', 'andamento')
   expect(linha(p, 'Um').texto, noTexto(p)).toContain('0:05')
 })
+
+// Regra: arvore.done-no-pai-fecha-o-que-esta-aberto
+test('o done no pai com uma folha só sem start traz o aviso de 1 etapa', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, [{ id: 'P', title: 'Pai', children: [{ id: '1', title: 'Feita' }, { id: '2', title: 'Sem start' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  const r = await done($, ['P'])
+  expect(r.erro).toBe(false)
+  expect(r.texto).toContain('1 etapa fechou sem start')
+  expect(r.texto).toContain('"P/2"')
+  const p = await painel($)
+  for (const t of ['Pai', 'Feita', 'Sem start']) esperarEstado(p, t, 'concluida')
+})

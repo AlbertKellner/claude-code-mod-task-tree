@@ -7,7 +7,7 @@ O plugin `task-tree` expõe três ferramentas ao modelo: `plan` (publica o plano
 ## Uso
 
 - `/task-tree` abre o painel e diz o que o app respondeu: se o painel está na frente, numa aba atrás de outra ou não foi desenhado, e o tamanho do desenho. Serve para quando o painel não aparece.
-- No terminal o painel mostra a árvore, com cada sessão filha numa linha; os cartões das sessões filhas e dos subagentes, o modelo e o esforço, e os cliques (recolher uma linha pelo ícone, abrir a sessão pelo anel de contexto) dependem do app desktop.
+- No terminal o painel mostra a árvore, com cada sessão filha numa linha, e as linhas recolhem pelo ícone (com um clique, ou com Enter no foco); os cartões das sessões filhas e dos subagentes, o modelo e o esforço, e abrir a sessão pelo anel de contexto dependem do app desktop.
 
 ## Instalação
 

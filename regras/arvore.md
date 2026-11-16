@@ -204,9 +204,10 @@ O done num pai aberto fecha o pai e tudo o que está aberto abaixo dele.
 
 - Dado um pai aberto com filhas ✓, ○ e ✕
 - Quando o modelo chama done no pai
-- Então o pai e as filhas abertas ficam ✓, a ✕ segue ✕ e fora do x/y, e, se duas ou mais folhas fecharam sem start, a resposta traz o aviso de etapas fechadas juntas (arvore.done-sem-summary-e-varias-sem-start)
+- Então o pai e as filhas abertas ficam ✓, a ✕ segue ✕ e fora do x/y, e, se uma ou mais folhas fecharam sem start, a resposta traz o aviso (arvore.done-sem-summary-e-varias-sem-start)
 
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Reescrito: 2026-11-16, texto: o aviso sai com uma folha só fechada sem start (decisão do usuário de 2026-11-15, "Lembrete após 3 chamadas (Recomendado)"); a regra não muda e o teste existente não muda.
 Estado: coberto
 
 ### arvore.start-em-tarefa-em-andamento

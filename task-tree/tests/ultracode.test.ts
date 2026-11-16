@@ -332,3 +332,26 @@ test('a gravação do interruptor que o store recusou é tentada de novo', async
   expect(guardouUltra(ULTRA_RECUSADA), JSON.stringify(Object.keys(ULTRA_RECUSADA))).toBe(true)
   expect(ULTRA_RECUSADA[`ultra:${SESSAO}`]).toBe(true)
 })
+
+// Regra: ultracode.sai-junto-com-o-modelo
+test("em toda largura do cartão, o modelo e 'ultracode' são desenhados juntos ou nenhum dos dois", async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', publicado: publicado(true) }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  let juntos = 0
+  let nenhum = 0
+  for (let colunas = 30; colunas <= 100; colunas++) {
+    const d = await desenhadosDoCartao($, colunas)
+    const modelo = d.textos.some(t => t.includes('Opus 5.5'))
+    const palavra = d.textos.some(t => t.includes('ultracode'))
+    expect(palavra, `${colunas} colunas: ${d.textos.join(' | ')}`).toBe(modelo)
+    if (modelo) juntos++
+    else nenhum++
+  }
+  expect(juntos).toBeGreaterThan(0)
+  expect(nenhum).toBeGreaterThan(0)
+})

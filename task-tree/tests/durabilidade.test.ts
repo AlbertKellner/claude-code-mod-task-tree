@@ -1,6 +1,7 @@
 import { expect, mock } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { LATER_PUBLISHED_FILES, PUBLISHED_FILES } from './fixtures/publicados'
+import { ABORTED_ONLY_FILE } from './fixtures/publicados'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
 import { chamadaDoSubagente, falha, fimDoSubagente, lancar } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
@@ -2047,4 +2048,19 @@ test('as dobras que o store recusou são guardadas na publicação seguinte', as
   cheio = false
   await start($, ['1'])
   expect(temDobras(DOBRAS_RECUSADAS), JSON.stringify(Object.keys(DOBRAS_RECUSADAS))).toBe(true)
+})
+
+// Regra: durabilidade.formatos-antigos-do-publicado
+test('a filha parada com Esc numa versão de antes da marca stopped (só aborted): a tarefa iniciada aparece ✕', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_10000009-0000-0000-0000-000000000000', nome: 'so-aborted', publicado: ABORTED_ONLY_FILE.file, rodando: false }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(linha(p, 'so-aborted').sessao, emTexto(p)).toBe(true)
+  expect(p.filter(l => /indispon|\berro\b/i.test(l.texto)).map(l => l.texto), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Texto 109', 'interrompida')
 })

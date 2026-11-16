@@ -86,13 +86,14 @@ Estado: coberto
 ### durabilidade.formatos-antigos-do-publicado
 Os formatos antigos do arquivo publicado são lidos.
 
-- Dado um arquivo publicado por outra versão do mod (os formatos de referência guardados com os testes: os 8 primeiros, de antes da versão do arquivo até a primeira com ela, e os que entraram depois, com taxa, pasta sem git, parada com Esc, ultracode, subagente e o fim do turno)
+- Dado um arquivo publicado por outra versão do mod (os formatos de referência guardados com os testes: os 8 primeiros, de antes da versão do arquivo até a primeira com ela, e os que entraram depois, com taxa, pasta sem git, parada com Esc (com a marca na tarefa e, de antes dela, só com `aborted`), ultracode, subagente e o fim do turno)
 - Quando o painel lê a sessão filha
 - Então o cartão aparece, sem erro, com as tarefas que o formato traz
 
 Origem: contrato do arquivo publicado, commit 7905b37, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
 Reescrito: 2026-11-15, texto: a lista de referência ganha os formatos que entraram depois dos 8 primeiros. A regra e o teste dos 8 não mudam.
+Reescrito: 2026-11-16, texto: a referência ganha o arquivo da filha parada com Esc de antes da marca na tarefa; a regra e os testes existentes não mudam.
 Código: io/publish.ts, io/host.ts
 Estado: coberto
 
@@ -334,6 +335,7 @@ A recarga no meio do turno não zera o tempo da tarefa em andamento.
 - Então ela segue ◉, o pai e o pedido também, e o tempo dela conta do start, não da recarga
 
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: state/tasks.ts, draw/layout.ts
 Estado: coberto
 
 ### durabilidade.recarga-com-subagente-vivo
@@ -344,6 +346,7 @@ O subagente que trabalha durante a recarga segue no cartão, e o fim dele é reg
 - Então o cartão segue "trabalhando" sob a mesma tarefa; quando ele termina, o cartão diz "concluído" e a tarefa segue a regra de sempre (subagentes.pai-conclui-no-fim-do-turno); quantas chamadas o cartão conta depois da recarga está em subagentes.contagem-de-chamadas-segue-na-recarga
 
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/agents.ts, hooks/turn.ts
 Estado: coberto
 
 ### durabilidade.recarga-com-espera-aberta
@@ -354,4 +357,5 @@ A espera de pergunta aberta na recarga segue no painel e sai como sempre.
 - Então a espera segue desenhada sob a mesma tarefa, e sai com a mensagem seguinte da pessoa ou com o fim do turno
 
 Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/tool-call.ts, hooks/prompt-submit.ts, hooks/turn.ts
 Estado: coberto
