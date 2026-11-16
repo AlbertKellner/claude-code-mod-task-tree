@@ -435,7 +435,10 @@ export async function recordStart($: any, resultText: string, names: string[] = 
   await update($, childrenState, cur => {
     const list = cur ?? []
     if (list.some(c => c.id === id)) return list.map(c => (c.id === id ? { ...c, ...(c.anchor === undefined ? mark : {}), anchor: c.anchor ?? anchor, openedAt: c.openedAt ?? openedAt } : c))
-    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, ...mark, anchor: anchor ?? keptLink(id)?.anchor, openedAt: openedAt ?? keptLink(id)?.openedAt }]
+    // A task only from the kept tie brings the tie's mark of only a place along.
+    const tie = keptLink(id)
+    const keptMark = anchor === undefined && tie?.anchor !== undefined && tie.onlyPlace === true ? { onlyPlace: true } : {}
+    return [...list, { id, name: '', title: 'Sessão iniciando…', running: true, archived: false, starting: true, ...mark, ...keptMark, anchor: anchor ?? tie?.anchor, openedAt: openedAt ?? tie?.openedAt }]
   })
   // The tie goes to the store before the first read: a session the list does not hold yet, dropped
   // after its grace, gets its task back from there once listed (keptLink).

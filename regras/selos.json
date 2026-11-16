@@ -2306,6 +2306,17 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: uma carta por mensagem"
     },
+    "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta aberta e sem pendente, o aviso da entrega da carta posta na tarefa já concluída diz que ela está concluída": {
+      "regras": [
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha",
+        "envios.aviso-da-entrega-diz-o-que-o-painel-fez"
+      ],
+      "hash": "efca0fc9e455976a",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: o cenário dizia \"não concluiu\" para os dois destinos e nenhum teste afirmava o aviso da carta na tarefa já concluída"
+    },
     "task-tree/tests/envios.test.ts::num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento e sem pendente, a carta vai à última tarefa iniciada desse plano, já concluída": {
       "regras": [
         "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha",
@@ -4404,6 +4415,17 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: \"Sim, o plan adota (Recomendado)\""
     },
+    "task-tree/tests/sessoes.test.ts::a sessão aberta só como lugar que some da lista do host e recebe uma mensagem pelo id segue só como lugar: ao voltar e concluir tudo, não fecha a pendente": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem",
+        "durabilidade.ligacoes-com-lista-parcial-do-host"
+      ],
+      "hash": "c0f9bf0857a58cc9",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15: a marca de só lugar se perdia com a sessão fora da lista do host (decisão do usuário de 2026-11-15, \"Também não fecha (Recomendado)\")"
+    },
     "task-tree/tests/sessoes.test.ts::a sessão parada com Esc e tarefa aberta sai da contagem; parada normal, a tarefa aguarda e conta": {
       "regras": [
         "sessoes.rodada-descartada-fora-da-contagem"
@@ -4893,6 +4915,17 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão do usuário de 2026-11-15 (\"Também não fecha (Recomendado)\"): a sessão aberta"
+    },
+    "task-tree/tests/sessoes.test.ts::num pedido sem plano, com a pergunta aberta na tarefa em andamento, a mensagem mandada a uma filha que já existia fica na pendente do plano anterior só como lugar: a filha que conclui tudo não a fecha": {
+      "regras": [
+        "sessoes.filha-que-conclui-tudo-fecha-a-origem",
+        "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha"
+      ],
+      "hash": "81e2202819f94f61",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do lote da carta só como lugar: a origem posta pela carta mandada à filha não tinha teste (decisões do usuário de 2026-11-15, \"Não fecha na entrega (Recomendado)\" e \"Também não fecha (Recomendado)\")"
     },
     "task-tree/tests/sessoes.test.ts::o arquivo de uma filha arquivada não é relido a cada leitura, e o cartão segue igual": {
       "regras": [

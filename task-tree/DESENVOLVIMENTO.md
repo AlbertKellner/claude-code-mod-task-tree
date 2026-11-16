@@ -798,8 +798,12 @@ mantida), em `draw/layout.ts`:
   cliques ficou sem cartão.)
 - Rodadas perdidas: se a sessão não estava entre as filhas quando a mensagem saiu, `sentMessage` lê a
   lista na hora; listada como filha desta, ganha a rodada (e a tarefa do envio como origem, se não tinha);
-  fora da lista mas com ligação guardada (`keptLink`), ganha a entrada com as ligações e a rodada; outra
-  sessão (a mãe, uma irmã) não ganha entrada nem rodada, só a carta. O envio que falha não toca
+  fora da lista mas com ligação guardada (`keptLink`), ganha a entrada com as ligações e a rodada (com a
+  marca de só lugar do laço, `Child.onlyPlace`, quando a tarefa de origem vem dele); outra
+  sessão (a mãe, uma irmã) não ganha entrada nem rodada, só a carta. A marca de só lugar da sessão
+  acompanha a sessão em cinco pontos: o laço guardado (`Link`/`linkOf`), a volta à lista
+  (`io/host.ts`), a restauração do arquivo publicado, a entrada refeita aqui e a entrada nova de
+  `recordStart` (que, sem tarefa escolhida agora, leva a tarefa e a marca do laço guardado). O envio que falha não toca
   `children`. E `unsent()` abre uma rodada órfã por mensagem recebida
   mesmo com zero rodadas registradas (âncora: a tarefa aberta na hora, senão a iniciada por último
   antes, senão sem âncora). Sem isso o cartão do turno caía na parte 0, sem tarefa para ficar embaixo, e

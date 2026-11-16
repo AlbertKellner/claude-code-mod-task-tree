@@ -168,7 +168,7 @@ const sentMessage: Notes = async ($, c, notes) => {
       // A local_ id not among the children: the host's list read now. Listed as one of this
       // session's, it gets the round as any child (and the send's task as its origin, if it had
       // none); else, one this session opened that the list leaves out (its tie kept, keptLink), an
-      // entry with its kept ties and the round. Any other (the mother, a sister, a session this one did
+      // entry with its kept ties (the mark of only a place too, with the task it marks) and the round. Any other (the mother, a sister, a session this one did
       // not open) gets no entry: only the letter under the task.
       const fresh = to.startsWith('local_') && !(kids0 as Child[]).some(mine)
       if (fresh) await refreshChildren($).catch(() => {})
@@ -185,7 +185,7 @@ const sentMessage: Notes = async ($, c, notes) => {
         if (!to.startsWith('local_') || kept === undefined) return list
         return [
           ...list,
-          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: cap([...(kept.rounds ?? []), ...round]), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
+          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(kept.anchor !== undefined && kept.onlyPlace === true ? { onlyPlace: true } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: cap([...(kept.rounds ?? []), ...round]), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
         ]
       })
     }

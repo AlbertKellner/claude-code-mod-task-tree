@@ -1723,3 +1723,24 @@ test('a sessão que não publica o que recebeu confirma a carta por um turno abe
   await aviso($)
   esperarCartaSob(await painel($), 'Um', 'entregue')
 })
+
+// Regra: envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha, envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('num pedido que continua o plano anterior só com start, com a pergunta aberta e sem pendente, o aviso da entrega da carta posta na tarefa já concluída diz que ela está concluída', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaSemPendente($, relogio)
+  await envio($, 'local_x')
+  await relogio.advance(1000)
+  await resp
+  await relogio.advance(1000)
+  h.recebeu('local_x', AGORA + 4500)
+  const r = await contexto(aviso($))
+  expect(r, r).toContain('recebimento confirmado')
+  expect(r, r).toContain('já concluiu a tarefa do envio')
+  expect(r, r).not.toContain('não concluiu a tarefa do envio')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'concluida')
+})

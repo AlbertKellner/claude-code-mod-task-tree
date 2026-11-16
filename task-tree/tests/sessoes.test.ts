@@ -3067,3 +3067,87 @@ test('a leitura das sessões presa durante um plan inteiro não leva o cartão d
   expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Bloco B'])
   expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Passo B')))
 })
+
+// ---- A marca de só lugar da carta mandada à filha e da sessão que some da lista do app.
+
+const PLANO_DE_TRES = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }]
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, a mensagem mandada a uma filha que já existia fica na pendente do plano anterior só como lugar: a filha que conclui tudo não a fecha', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['3'])
+  await abrirSessao($)
+  await done($, ['3'])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await envio($, K1)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  await relogio.advance(1000)
+  await resp
+  await fimDoTurno($)
+  h.recebeu(K1, AGORA + 4500)
+  const r1 = JSON.stringify(await aviso($))
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r2 = JSON.stringify(await aviso($))
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(r1, r1).not.toContain('concluiu sozinho')
+  expect(r2, r2).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, durabilidade.ligacoes-com-lista-parcial-do-host
+test('a sessão aberta só como lugar que some da lista do host e recebe uma mensagem pelo id segue só como lugar: ao voltar e concluir tudo, não fecha a pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, {})
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  const envios = responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Dois'])
+  await relogio.advance(1000)
+  await resp
+  await done($, ['1'])
+  h.filha(K1).listada = false
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
+  await start($, ['3'])
+  envios.modo = 'entregue'
+  await envio($, K1)
+  await done($, ['3'])
+  await fimDoTurno($)
+  h.filha(K1).listada = true
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toContain('Dois')
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  p = await painel($)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(r, r).not.toContain('concluiu sozinho')
+})
