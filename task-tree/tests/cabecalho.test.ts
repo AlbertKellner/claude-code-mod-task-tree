@@ -542,6 +542,149 @@ test('com "+N pedidos anteriores" aberto, o corte das 400 linhas deixa a linha �
   await m.fim()
 })
 
+// Os tetos da tela do app desktop (ela descarta em silêncio o desenho que chega a um deles; o harness não
+// os aplica) e o do mod, com folga. `nos` e `fundo` de noApp contam como ela; os caracteres, abaixo.
+const NOS_DO_APP = 2000
+const NOS_DO_MOD = 1900
+const CARACTERES_DO_APP = 262144
+const ALTURA_DO_APP = 32
+// Os caracteres de um desenho na conta da tela do app: cada texto; em Box e Text, o nome de cada prop
+// mais o valor quando é texto, o mesmo no hover, e o nome do plugin em group e part; em Button, key,
+// label, hotkey, action, o plugin do press e o hover; em Svg, só source e alt.
+function caracteresDoApp(x: any): number {
+  if (typeof x === 'string') return x.length
+  if (typeof x === 'number') return String(x).length
+  if (typeof x !== 'object' || x === null) return 0
+  const p = x.props ?? {}
+  const texto = (v: unknown) => (typeof v === 'string' ? v.length : 0)
+  const props = (o: any) => (typeof o === 'object' && o !== null ? Object.entries(o).reduce((a: number, [k, v]) => a + (k === 'children' || typeof v === 'function' ? 0 : k.length + texto(v)), 0) : 0)
+  const hover = x.hover ?? p.hover
+  let n = 0
+  if (x.type === 'Svg') n = texto(p.source) + texto(p.alt)
+  else if (x.type === 'Button') n = texto(x.key ?? p.key) + texto(p.label) + texto(p.hotkey) + texto(p.action) + texto(x.press?.plugin ?? p.press?.plugin) + props(hover)
+  else n = props(Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'hover'))) + props(hover) + texto(x.group?.plugin ?? p.group?.plugin) + texto(x.part?.plugin ?? p.part?.plugin)
+  return n + ((x.children ?? []) as any[]).reduce((a: number, c: any) => a + caracteresDoApp(c), 0)
+}
+// O plano com os ids prefixados: um id reusado levaria o pedido anterior ao histórico.
+const comIds = (prefixo: string, nos: No[]): No[] => nos.map(n => ({ ...n, id: `${prefixo}${n.id}`, ...(n.children ? { children: comIds(prefixo, n.children) } : {}) }))
+// Uma filha com `n` tarefas publicadas: as `feitas` primeiras concluídas, com tempo; as outras abertas.
+const filhaCom = (n: number, feitas = 0) => ({
+  id: 'local_34343434-3434-3434-3434-343434343434',
+  nome: 'filha-grande',
+  painel: {
+    tasks: Array.from({ length: n }, (_, k) => ({
+      id: String(k + 1),
+      short: String(k + 1),
+      title: `Tarefa da filha ${k + 1}`,
+      status: k < feitas ? 'done' : 'open',
+      ...(k < feitas ? { startedAt: AGORA - 1000, endedAt: AGORA - 500 } : {}),
+      children: [],
+    })),
+  },
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, um painel com mais linhas do que a tela do app aceita perde os pedidos mais antigos, sem aviso', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [filhaCom(8)])
+  const prefixos = ['A', 'B', 'C', 'D', 'E']
+  for (const [i, x] of prefixos.entries()) {
+    await pedido($, `Pedido ${x}`)
+    await plan($, comIds(x, grande(x, 1, 4, 4)))
+    // Uma folha iniciada e deixada aberta: o pedido fica desenhado inteiro.
+    await start($, [`${x}0.0.0`])
+    if (i < prefixos.length - 1) {
+      await fimDoTurno($)
+      await relogio.advance(1000)
+    }
+  }
+  await abrirSessao($)
+  await aviso($)
+  let d = await noApp($)
+  const conta = `${d.nos} nós, ${caracteresDoApp(d.raiz)} caracteres, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.nos, conta).toBeLessThan(NOS_DO_APP)
+  expect(d.fundo, conta).toBeLessThan(ALTURA_DO_APP)
+  expect(caracteresDoApp(d.raiz), conta).toBeLessThan(CARACTERES_DO_APP)
+  expect(d.textos[0], d.textos.slice(0, 3).join('\n')).toMatch(/^\+\d+ linhas anteriores$/)
+  expect(d.textos.some(t => t.includes('E0.3.3')), d.textos.slice(-5).join('\n')).toBe(true)
+  expect(d.textos.some(t => t.includes('filha-grande')), d.textos.join('\n')).toBe(true)
+  expect(d.textos.some(t => t.includes('Pedido A')), d.textos.slice(0, 5).join('\n')).toBe(false)
+  // Um segundo depois (o relógio redesenha o painel), o corte é o mesmo.
+  const antes = d.textos[0]
+  await relogio.advance(1000)
+  d = await noApp($)
+  expect(d.textos[0], d.textos.slice(0, 3).join('\n')).toBe(antes)
+  // O terminal não tem esses tetos: os cinco pedidos, inteiros.
+  const p = await painel($)
+  for (const x of prefixos) expect(p.some(l => l.titulo === `Pedido ${x}`), x).toBe(true)
+  expect(p.some(l => l.texto.includes('linhas anteriores')), emTexto(p).slice(0, 300)).toBe(false)
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, um pedido só acima do teto de elementos é desenhado até caber e fecha com "+N linhas"', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido grande')
+  await plan($, grande('T', 4, 5, 5))
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${caracteresDoApp(d.raiz)} caracteres, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(caracteresDoApp(d.raiz), conta).toBeLessThan(CARACTERES_DO_APP)
+  expect(d.textos.some(t => /\+\d+ linhas anteriores$/.test(t)), d.textos.slice(0, 3).join('\n')).toBe(false)
+  expect(d.textos[d.textos.length - 1], d.textos.slice(-3).join('\n')).toMatch(/\+\d+ linhas$/)
+  expect(d.textos.some(t => t.includes('T0.0.0')), d.textos.slice(0, 6).join('\n')).toBe(true)
+  // O corte usa o espaço que tem: cai perto do teto.
+  expect(d.linhas.length, conta).toBeGreaterThanOrEqual(40)
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, o cartão de uma sessão com mais linhas do que a tela aceita não estoura o teto', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [filhaCom(240, 200)])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${caracteresDoApp(d.raiz)} caracteres, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.fundo, conta).toBeLessThan(ALTURA_DO_APP)
+  expect(caracteresDoApp(d.raiz), conta).toBeLessThan(CARACTERES_DO_APP)
+  expect(d.textos.some(t => t.includes('filha-grande')), d.textos.join('\n')).toBe(true)
+  expect(d.textos.some(t => t.includes('Plano A')), d.textos.join('\n')).toBe(true)
+  expect(d.textos.some(t => /\+\d+ linhas$/.test(t)), d.textos.slice(-3).join('\n')).toBe(true)
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, um painel pequeno não perde linha nenhuma', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [filhaCom(3)])
+  const prefixos = ['X', 'Y', 'Z']
+  for (const [i, x] of prefixos.entries()) {
+    await pedido($, `Pedido ${x}`)
+    await plan($, [{ id: `${x}P`, title: `Plano ${x}`, children: [{ id: `${x}a`, title: `${x} um` }, { id: `${x}b`, title: `${x} dois` }] }])
+    await start($, [`${x}a`])
+    if (i < prefixos.length - 1) {
+      await fimDoTurno($)
+      await relogio.advance(1000)
+    }
+  }
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.textos.some(t => /\+\d+ linhas( anteriores)?$/.test(t)), d.textos.join('\n')).toBe(false)
+  for (const x of prefixos) for (const t of [`Pedido ${x}`, `Plano ${x}`, `${x} um`, `${x} dois`]) expect(d.textos.some(l => l.includes(t)), t).toBe(true)
+  expect(d.textos.some(t => t.includes('filha-grande')), d.textos.join('\n')).toBe(true)
+  expect(d.nos, conta).toBeLessThan(NOS_DO_MOD)
+})
+
 // Um plano com o título da tarefa de nível 1 enorme: ele vai no cabeçalho (no texto e no `alt` da barra),
 // que o corte não tira.
 async function planoGigante($: any, tamanho: number) {

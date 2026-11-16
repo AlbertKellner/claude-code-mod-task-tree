@@ -68,6 +68,58 @@ function textOf(el: any): number {
   return n
 }
 
+// The app desktop's pane drops a drawing whole, in silence, past any of three limits of its own (read
+// in the app 5.11492.5.0; the engine and the harness take 20,000 nodes and apply none of them): 2,000
+// nodes or more (each element and each text child counts 1), a height of 32 or more (the root is 1, a
+// text a level), or 262,144 characters or more by its count (the texts, and per element its props'
+// names with their text values, the hover's the same, the plugin's name in a part, group or press).
+// With no drawing taken it shows "Nothing to show yet"; with one taken before, it stays on that one.
+// The old "the app stopped showing the pane" (1.3 MB, 950 KB) was this same drop. The mod stays under
+// them with room: what the engine adds per node (part, group, the press's plugin) it does not see.
+const NODE_LIMIT = 1900
+const APP_CHARS_LIMIT = 240000
+const DEPTH_LIMIT = 28
+// A drawing measured as the app's pane measures it, always on the high side: nodes, height and
+// characters (a key counts with 3 more, as it may go in the props; a Button 32 more, for the plugin's
+// name in its press).
+function appSize(root: any): { nodes: number; depth: number; chars: number } {
+  let nodes = 0
+  let depth = 0
+  let chars = 0
+  const propsOf = (p: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(p)) {
+      if (k === 'children' || typeof v === 'function' || v === undefined) continue
+      chars += k.length
+      if (typeof v === 'string') chars += v.length
+      else if (typeof v === 'number' || typeof v === 'boolean') chars += String(v).length
+      else if (typeof v === 'object' && v !== null) propsOf(v as Record<string, unknown>)
+    }
+  }
+  const walk = (x: any, level: number) => {
+    if (x === null || x === undefined || typeof x === 'boolean') return
+    if (Array.isArray(x)) {
+      for (const c of x) walk(c, level)
+      return
+    }
+    nodes++
+    depth = Math.max(depth, level)
+    if (typeof x !== 'object') {
+      chars += String(x).length
+      return
+    }
+    const p = x.props ?? {}
+    const key = x.key ?? p.key
+    if (key !== undefined && key !== null) chars += String(key).length + 3
+    propsOf(p)
+    if (typeof x.hover === 'object' && x.hover !== null) propsOf(x.hover)
+    if (x.type === 'Button') chars += 32
+    const kids = x.children ?? p.children
+    if (kids !== undefined) walk(kids, level + 1)
+  }
+  walk(root, 1)
+  return { nodes, depth, chars }
+}
+
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
@@ -404,13 +456,20 @@ export async function render($: EngineInterface, e: any, next: any) {
   // first 100000"), and a native line draws its title twice (its Text and its icon's alt), so a long
   // request reached that before 600 KB and lost its last lines, "+N linhas" with them. The oldest
   // blocks go first here too (the same words of the person). The terminal is left as it was.
+  // On the desktop the drawing is also kept under the app pane's own limits (NODE_LIMIT,
+  // APP_CHARS_LIMIT, DEPTH_LIMIT, see appSize): past them the pane drops it whole, with no log. The
+  // same cut serves: the oldest blocks out first; the height has no aim of its own (cutting lines does
+  // not lower it in a known way), so past it the loop shrinks by its least step to the floor.
   const textual = e.surface === 'desktop'
   let chars = 0
-  const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT
+  let app = { nodes: 0, depth: 0, chars: 0 }
+  const overApp = () => app.nodes > NODE_LIMIT || app.chars > APP_CHARS_LIMIT || app.depth > DEPTH_LIMIT
+  const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT || overApp()
   const sized = (maxRows: number, short: boolean) => {
     const made = paint(maxRows, short)
     drawn.size = JSON.stringify(made ?? null).length
     chars = textual ? textOf(made) : 0
+    app = textual ? appSize(made) : { nodes: 0, depth: 0, chars: 0 }
     return made
   }
   // The cut, with the texts whole or shortened (`short`, each its own entry in `fitted`). It does not
@@ -433,7 +492,9 @@ export async function render($: EngineInterface, e: any, next: any) {
     for (let i = 0; over() && max > 2; i++) {
       const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
       const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
-      const aim = Math.min(byBytes, byText)
+      const byNodes = app.nodes > NODE_LIMIT ? Math.floor((drawn.rows * NODE_LIMIT * 0.95) / app.nodes) : byBytes
+      const byChars = app.chars > APP_CHARS_LIMIT ? Math.floor((drawn.rows * APP_CHARS_LIMIT * 0.95) / app.chars) : byBytes
+      const aim = Math.min(byBytes, byText, byNodes, byChars)
       // Below the last limit every time: the lines of an open history the cut keeps (limitRows) can
       // leave more lines than the limit asked.
       const rows = Math.min(max, drawn.rows)
@@ -451,8 +512,17 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The warning is the last resort: past the bytes, or on the desktop past the text (the app would draw
   // the header and nothing more, with no button), or with only the floor of two lines left.
   if (!enough) {
-    const what = chars > TEXT_LIMIT ? `${Math.round(chars / 1000)} mil caracteres` : `${Math.round(drawn.size / 1024)} KB`
-    await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB e ${chars} caracteres de texto, acima de ${Math.round(DRAW_LIMIT / 1024)} KB ou ${TEXT_LIMIT} caracteres, ou só duas linhas`)
+    const what =
+      chars > TEXT_LIMIT
+        ? `${Math.round(chars / 1000)} mil caracteres`
+        : app.nodes > NODE_LIMIT
+          ? `${app.nodes} elementos`
+          : app.chars > APP_CHARS_LIMIT
+            ? `${Math.round(app.chars / 1000)} mil caracteres`
+            : app.depth > DEPTH_LIMIT
+              ? `${app.depth} níveis`
+              : `${Math.round(drawn.size / 1024)} KB`
+    await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, ${chars} caracteres de texto, ${app.nodes} elementos, ${app.chars} caracteres na conta do app e ${app.depth} níveis, acima de ${Math.round(DRAW_LIMIT / 1024)} KB, ${TEXT_LIMIT} caracteres, ${NODE_LIMIT} elementos, ${APP_CHARS_LIMIT} caracteres do app ou ${DEPTH_LIMIT} níveis, ou só duas linhas`)
     const { Box, Button, Text } = $.ui.resolve(e) as any
     return (
       <Box flexDirection="column">

@@ -383,6 +383,46 @@
       "data": "2026-11-15",
       "motivo": "afirma que o outro plano não fica em andamento"
     },
+    "task-tree/tests/cabecalho.test.ts::no app, o cartão de uma sessão com mais linhas do que a tela aceita não estoura o teto": {
+      "regras": [
+        "cabecalho.limite-de-elementos-do-app"
+      ],
+      "hash": "84fe5776768fe982",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o desenho do app abaixo dos tetos da tela do app (defeito de 2026-11-15)"
+    },
+    "task-tree/tests/cabecalho.test.ts::no app, um painel com mais linhas do que a tela do app aceita perde os pedidos mais antigos, sem aviso": {
+      "regras": [
+        "cabecalho.limite-de-elementos-do-app"
+      ],
+      "hash": "5f966f06fb9b3b13",
+      "assercoes": 12,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o desenho do app abaixo dos tetos da tela do app (defeito de 2026-11-15)"
+    },
+    "task-tree/tests/cabecalho.test.ts::no app, um painel pequeno não perde linha nenhuma": {
+      "regras": [
+        "cabecalho.limite-de-elementos-do-app"
+      ],
+      "hash": "9f95c65077e249e9",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o desenho do app abaixo dos tetos da tela do app (defeito de 2026-11-15)"
+    },
+    "task-tree/tests/cabecalho.test.ts::no app, um pedido só acima do teto de elementos é desenhado até caber e fecha com \"+N linhas\"": {
+      "regras": [
+        "cabecalho.limite-de-elementos-do-app"
+      ],
+      "hash": "4f4a394b7d1dec1c",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o desenho do app abaixo dos tetos da tela do app (defeito de 2026-11-15)"
+    },
     "task-tree/tests/cabecalho.test.ts::num pedido grande demais, com a tarefa em andamento depois do corte, o painel mostra o trecho dela": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"

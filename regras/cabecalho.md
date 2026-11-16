@@ -83,6 +83,7 @@ O aviso de painel grande tem um botão que traz o painel de volta.
 
 Origem: decisão do usuário, 2026-11-04 ("coloque um botão para voltar a visualização anterior").
 Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): o aviso fica para o caso raro em que o corte não basta, e o botão sempre traz o painel de volta; desfaz o "Voltar" que só fechava o que foi aberto.
+Reescrito: 2026-11-15, texto: o aviso é o último recurso também para os tetos da tela do app (cabecalho.limite-de-elementos-do-app); aplica a decisão de 2026-11-13 ("Manter como rede (Recomendado)"). Os testes deste cenário não mudam.
 Código: hooks/render.tsx
 Estado: coberto
 
@@ -129,6 +130,18 @@ Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido d
 Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): o aviso também sai quando o que não cabe é o texto, ou quando só as duas linhas do piso cabem.
 Reescrito: 2026-11-14, texto: o bloco pequeno depois do último pedido não entra no lugar dele (auditoria 2026-11-10); a regra não muda e os testes existentes não mudam.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Trecho da em andamento (Recomendado)") e decisão do usuário de 2026-11-15 ("Trecho, nos dois cortes (Recomendado)"): no pedido com a tarefa em andamento depois do corte, por linhas ou por tamanho, o desenho mostra o trecho dela; muda, para esse caso, o desenho aprovado em 2026-10-22 ("Sim, com o corte"). O teste do pedido só acima de 600 KB passa a preparar o pedido sem tarefa em andamento e segue afirmando o mesmo.
+Reescrito: 2026-11-15, texto: no app desktop o corte vale também para os tetos da tela do app (cabecalho.limite-de-elementos-do-app); aplica a decisão de 2026-11-12 ("Cortar os mais antigos (Recomendado)"). Os testes deste cenário não mudam.
+Código: hooks/render.tsx
+Estado: coberto
+
+### cabecalho.limite-de-elementos-do-app
+No app desktop, o desenho fica abaixo dos tetos da tela do app; o que passa sai pelos mais antigos.
+
+- Dado um painel cujo desenho, no app desktop, passaria do que a tela do app aceita (ela descarta em silêncio o desenho com 2.000 elementos ou mais, contados os textos, com 32 níveis ou mais, ou com 262.144 caracteres ou mais na conta dela), com ou sem algo aberto pela pessoa
+- Quando é desenhado
+- Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores", até o desenho ficar abaixo dos tetos com folga (1.900 elementos, 240.000 caracteres, 28 níveis); um pedido ou um cartão que sozinho passa do teto é desenhado até caber e fecha com "+N linhas", ou mostra o trecho da tarefa em andamento (cabecalho.limite-de-linhas-do-desenho); o histórico aberto segue à vista (cabecalho.corte-preserva-historico-aberto); um painel que cabe não perde linha; o terminal não muda; o aviso "Painel grande demais" fica só para o desenho que, reduzido a duas linhas, ainda passa de um teto ou só cabe nelas (cabecalho.aviso-de-painel-grande-volta); o painel nunca fica na tela vazia do app por causa do tamanho (o descarte em si só o app mostra: checklist do app)
+
+Origem: defeito relatado pelo usuário, 2026-11-15 ("o painel task tree parou de funcionar faz algum tempo"); aplica a decisão do usuário de 2026-11-12 ("Cortar os mais antigos (Recomendado)") e a de 2026-11-13 ("Manter como rede (Recomendado)"), sem regra nova.
 Código: hooks/render.tsx
 Estado: coberto
 

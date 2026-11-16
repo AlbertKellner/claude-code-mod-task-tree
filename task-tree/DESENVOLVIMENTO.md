@@ -1035,6 +1035,15 @@ Confirmados no `claude plugin validate`; o código está escrito em volta deles:
 6. Desestruturar um `Set` pode virar `set[0]` na compilação; use arrays.
 7. Uma ferramenta registrada no `session.start` só aparece a partir do próximo prompt; a recarga
    depois de uma edição pode atrasar.
+8. A tela do app desktop descarta em silêncio a resposta de desenho com 2 000 nós ou mais (cada
+   elemento e cada texto filho conta 1), 32 níveis ou mais de altura (a raiz é 1, o texto conta como
+   nível), ou 262 144 caracteres ou mais na conta dela (os textos; em `Box` e `Text`, o nome de cada
+   prop mais o valor quando é texto, o mesmo no `hover`, e o nome do plugin em `group` e `part`; em
+   `Button`, `key`, `label`, `hotkey`, `action`, o plugin do `press` e o `hover`; em `Svg`, `source` e
+   `alt`). Sem desenho aceito, mostra "Nothing to show yet"; com um aceito antes, fica nele. O motor e
+   o harness aceitam 20 000 nós e não aplicam esses tetos. O mod corta em 1 900 nós, 240 000
+   caracteres e 28 níveis (`hooks/render.tsx`, `appSize`), contando sempre para mais. Lido no app
+   5.11492.5.0: reconferir quando o app subir.
 
 ### O que só é verificável no app
 
@@ -1056,7 +1065,7 @@ Só uma sessão real no app desktop mostra:
   tamanhos do app, o corte dos títulos; a altura das linhas e o texto centrado nelas, o respiro dos
   cartões e o degrau de tom por nível de cartão; e se o app aplica o mesmo limite de 100 000
   caracteres de texto que o harness.
-- O tamanho real do desenho que o app aceita (o `drawSize` do módulo é o JSON do desenho, não o que o app renderiza).
+- O tamanho real do desenho que o app aceita (o `drawSize` do módulo é o JSON do desenho, não o que o app renderiza), com os três tetos da tela do app (menos de 2 000 nós, de 32 níveis e de 262 144 caracteres na conta dela, item 8 dos "Limites do kit"): o descarte só se vê no app.
 - O `$.ui.status` embaixo da caixa de mensagem.
 
 ## Decisões (histórico)
@@ -2126,7 +2135,9 @@ fora (Recomendado)" (sem tooltip) e "Validar só no fim (Recomendado)".
 - O rótulo de sessão estima a largura em 0,8 célula por caractere de `caption`.
 - Corte por texto: o harness desenha só os primeiros 100 000 caracteres de texto (strings, `alt` e
   `label`); no desktop o laço de corte (`hooks/render.tsx`) também refaz o desenho com menos linhas
-  acima de `TEXT_LIMIT` = 95 000 caracteres, além do `DRAW_LIMIT` de 600 KB. Num pedido pesado medido,
+  acima de `TEXT_LIMIT` = 95 000 caracteres, além do `DRAW_LIMIT` de 600 KB. Desde 2026-11-15 ele
+  corta também pelos nós (`NODE_LIMIT` = 1 900), pelos caracteres na conta da tela do app
+  (`APP_CHARS_LIMIT` = 240 000) e pela altura (`DEPTH_LIMIT` = 28), os tetos da tela do app. Num pedido pesado medido,
   quem limita é o texto (167 linhas, 340 KB, 88 878 caracteres).
 - Medidas no harness (60 colunas), antes das guias em caixas: principal, 7 linhas, 15 151 B, 134 nós;
   filha, 6 linhas, 16 625 B. As guias em caixas aumentam o desenho (de 150 a 700 B por célula, contra
