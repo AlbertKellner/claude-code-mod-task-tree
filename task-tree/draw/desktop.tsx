@@ -225,7 +225,7 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
       <Box flexGrow={1} />
       {rate && r.rate ? (
         <Box flexShrink={0} paddingLeft={1} alignItems="center">
-          <Text size="caption" color="inactive" tabular dimColor={!r.rate.live || undefined}>
+          <Text size="caption" color="inactive" tabular>
             {rateText(r.rate.toks)}
           </Text>
         </Box>
@@ -266,7 +266,13 @@ function labelRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: nu
 // than its text (1.4, the person's "1,4"), so what it shows is centered on its height by the boxes in
 // it (alignItems), the guides' arm in the middle meeting the icon; not on the `r<i>` itself, which
 // would stop the guides from stretching.
-export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number): any {
+// The narrowest count column ("12/34").
+const COUNT_COLS = 5
+// The least room for a title on a line in columns: with less, the bar goes, then the count (the
+// person, 2026-11-15: "Barra, contagem e teto (Recomendado)"); the word, the bust and the time stay.
+export const TITLE_MIN = 12
+// `countCols`: the width of the count column, the same on every line (see desktopTree).
+export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts, cols: number, countCols = COUNT_COLS): any {
   if (r.session) return labelRow(ui, r, i, lead, acts, cols)
   const { Box, Text, Svg, Button } = ui
   const section = r.tone === 'section'
@@ -312,25 +318,36 @@ export function desktopRow(ui: any, r: Row, i: number, lead: Cell[], acts: Acts,
   const right: any[] = []
   if (columns) {
     const sub = r.sub
+    // The title's room, counted in columns as on a session's label: the line's, less the guides, the
+    // icon's cell and its padding, the ⋯, and the boxes at the right with their gaps (the word as a
+    // caption). Under TITLE_MIN the bar's box goes, then the count's; the line keeps the rest.
+    const fixed = 3 * lead.length + 3 + 1 + (folded(r) ? 2 : 0) + 1 + (r.meta ? cap(r.meta) + 1 : 0) + 3 + 1 + 7
+    const titleRoom = (bar: boolean, count: boolean) => cols - fixed - (bar ? 5 + 1 : 0) - (count ? countCols + 1 : 0)
+    const withCount = titleRoom(false, true) >= TITLE_MIN
+    const withBar = withCount && titleRoom(true, true) >= TITLE_MIN
     right.push(
       word,
       <Box key="bust" flexShrink={0} width={3} justifyContent="center" alignItems="center">
         {forked ? <Svg source={bustIcon(r.kidsState ?? 'parada')} alt="com sessão filha" width={ICON} height={ICON} /> : null}
       </Box>,
-      <Box key="bar" flexShrink={0} width={5} alignItems="center">
-        {sub ? (
-          <Box flexGrow={1} height={0.2} backgroundColor="rgba(136,135,128,0.25)">
-            {sub[1] > 0 && sub[0] > 0 ? <Box width={`${Math.max(11, Math.round((sub[0] / sub[1]) * 100))}%`} backgroundColor="success" /> : null}
-          </Box>
-        ) : null}
-      </Box>,
-      <Box key="count" flexShrink={0} width={5} justifyContent="flex-end">
-        {sub ? (
-          <Text {...small} dimColor={dim || undefined}>
-            {`${sub[0]}/${sub[1]}`}
-          </Text>
-        ) : null}
-      </Box>,
+      withBar ? (
+        <Box key="bar" flexShrink={0} width={5} alignItems="center">
+          {sub ? (
+            <Box flexGrow={1} height={0.2} backgroundColor="rgba(136,135,128,0.25)">
+              {sub[1] > 0 && sub[0] > 0 ? <Box width={`${Math.max(11, Math.round((sub[0] / sub[1]) * 100))}%`} backgroundColor="success" /> : null}
+            </Box>
+          ) : null}
+        </Box>
+      ) : null,
+      withCount ? (
+        <Box key="count" flexShrink={0} width={countCols} justifyContent="flex-end">
+          {sub ? (
+            <Text {...small} dimColor={dim || undefined}>
+              {`${sub[0]}/${sub[1]}`}
+            </Text>
+          ) : null}
+        </Box>
+      ) : null,
       time(7),
     )
   } else if (tabular) {
@@ -412,6 +429,9 @@ const card = (level: number) => {
 // What a card takes of its container's columns besides its strip: the two sides of its border and
 // padding (4 ch of padding and 2 px of border, counted 5).
 const CARD_COLS = 5
+// The most cells of guides a line has, its cards' strips counted: deeper lines line up with the 8th
+// level's (a card's own sides still take their columns at each level).
+export const INDENT_CAP = 8
 
 // The whole list of lines, the cards nested in Boxes. Inside a container every line starts at its
 // content's edge and its guides go one cell (three mono spaces wide) a column, so they line up with one
@@ -422,27 +442,45 @@ const CARD_COLS = 5
 // card's top to its foot, and the connector meets the header (the branch's bar goes on to the foot).
 export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): any[] {
   const { Box } = ui
+  // The count column: as wide as the longest "d/n" of the lines that draw it (5 at least), so a
+  // "112/340" does not run over the bar, and the columns stay lined up from line to line. A session's
+  // card line goes to labelRow, which draws no count column: it does not count.
+  const countCols = Math.max(COUNT_COLS, ...lines.map(r => (!r.session && (r.bar === true || r.card === true) && r.sub ? `${r.sub[0]}/${r.sub[1]}`.length : 0)))
   const lanes = guides(lines)
   const hides = labelCols(lines)
-  const cut = (i: number, from: number, to: number) =>
-    cells(lines[i]!, lanes[i]!, hides[i])
-      .filter(c => c.col >= from && c.col < to)
+  // `drawn`: the cells the strips around the line already draw. From the 8th cell on the indent stops
+  // growing (the person, 2026-11-15: "Barra, contagem e teto (Recomendado)"): of what is left to
+  // INDENT_CAP, the first cells and the last one (the connector to the line or to the card) are drawn,
+  // the ones between them are not; with nothing left (the strips around already at the cap), the
+  // connector alone (the person, 2026-11-15: "Manter o ├/└ (Recomendado)"). The connector that falls
+  // in the cap's column (cut there, or with just the cells left) is a branch while the next line of the
+  // same container (`next`; for a card, the line after its own lines) also draws in that column, and an
+  // end on the last: the column reads as one list with a guide with no gap.
+  const own = (i: number, from: number) => cells(lines[i]!, lanes[i]!, hides[i]).filter(c => c.col >= from)
+  const cut = (i: number, from: number, to: number, drawn: number, next: number | undefined) => {
+    const cs = own(i, from)
+      .filter(c => c.col < to)
       .map(c => c.kind)
+    const left = Math.max(1, INDENT_CAP - drawn)
+    if (cs.length < left) return cs
+    const goes = next !== undefined && own(next, from).length >= left
+    return [...cs.slice(0, left - 1), goes ? ('branch' as Cell) : ('end' as Cell)]
+  }
   // The children of a container whose content starts at column `base`, for the lines [a, b), in
   // `room` columns.
   // `level`: how many cards are around them.
-  const block = (a: number, b: number, base: number, room: number, level: number): any[] => {
+  const block = (a: number, b: number, base: number, room: number, level: number, drawn: number): any[] => {
     const out: any[] = []
     for (let i = a; i < b; ) {
       const r = lines[i]!
       if (!r.card) {
-        out.push(desktopRow(ui, r, i, cut(i, base, Infinity), acts, room))
+        out.push(desktopRow(ui, r, i, cut(i, base, Infinity, drawn, i + 1 < b ? i + 1 : undefined), acts, room, countCols))
         i++
         continue
       }
       let j = i + 1
       while (j < b && lines[j]!.depth > r.depth) j++
-      const strip = cut(i, base, r.depth)
+      const strip = cut(i, base, r.depth, drawn, j < b ? j : undefined)
       const wide = 3 * strip.length
       const inner = Math.max(10, room - wide - CARD_COLS)
       out.push(
@@ -454,8 +492,8 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
           ) : null}
           <Box {...card(level)}>
             <Box height={PAD_Y} flexShrink={0} />
-            {desktopRow(ui, r, i, [], acts, inner)}
-            {block(i + 1, j, r.depth, inner, level + 1)}
+            {desktopRow(ui, r, i, [], acts, inner, countCols)}
+            {block(i + 1, j, r.depth, inner, level + 1, drawn + strip.length)}
             <Box height={PAD_Y} flexShrink={0} />
           </Box>
         </Box>,
@@ -464,5 +502,5 @@ export function desktopTree(ui: any, lines: Row[], acts: Acts, cols: number): an
     }
     return out
   }
-  return block(0, lines.length, 0, cols, 0)
+  return block(0, lines.length, 0, cols, 0, 0)
 }

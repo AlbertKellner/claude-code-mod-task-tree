@@ -1,9 +1,11 @@
-import { expect, test } from 'claude-code/testing'
-import { PUBLISHED_FILES } from './fixtures/publicados'
-import { AGORA, armazem, estado, fixar, host, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
-import { falha } from './kit/cenario'
+import { expect, mock } from 'claude-code/testing'
+import { test } from './kit/teste'
+import { LATER_PUBLISHED_FILES, PUBLISHED_FILES } from './fixtures/publicados'
+import { ABORTED_ONLY_FILE } from './fixtures/publicados'
+import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio, SESSAO, subagente, EU, type Host } from './kit/ambiente'
+import { chamadaDoSubagente, falha, fimDoSubagente, lancar } from './kit/cenario'
 import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoTurno, iniciarSessao, limpar, mensagemDe, pedido, plan, retomar, start, type No } from './kit/cenario'
-import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, esperarEstado, linha, montar, painel, type Linha } from './kit/leitura'
+import { cartaSob, cartoes, comHistorico, cabecalho, emTexto, emTextoDoApp, esperarEstado, linha, linhaDoApp, montar, noApp, painel, type Linha } from './kit/leitura'
 
 // Os pares "1/2, 2/2" dependem de o kit rodar os testes deste arquivo em ordem, no mesmo processo:
 // o 1/2 grava nos objetos abaixo e o 2/2 (módulo novo, state vazio) lê deles.
@@ -61,7 +63,7 @@ test('reinício com session.start, 2/2: outro processo desenha o mesmo painel e 
 })
 
 // Regra: durabilidade.respawn-sem-session-start
-test('respawn sem session.start, 1/2: dois pedidos e a visão resumida no store', async ($: any, on: any) => {
+test('respawn sem session.start, 1/2: dois pedidos no store', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   armazem(on, RESPAWN)
   await pedido($, 'Pedido um')
@@ -78,7 +80,7 @@ test('respawn sem session.start, 1/2: dois pedidos e a visão resumida no store'
 })
 
 // Regra: durabilidade.respawn-sem-session-start
-test('respawn sem session.start, 2/2: o painel, a visão e o trabalho voltam no primeiro uso, e o store não encolhe', async ($: any, on: any) => {
+test('respawn sem session.start, 2/2: o painel e o trabalho voltam no primeiro uso, e o store não encolhe', async ($: any, on: any) => {
   fixar(on)
   armazem(on, RESPAWN)
   exigir(temPainel(RESPAWN))
@@ -271,6 +273,42 @@ test('recarga a quente, 2/2: módulo novo com o state mantido desenha o painel',
   esperarEstado(p, 'Dois.um', 'pendente')
 })
 
+// Um subagente que trabalha sem usar o painel faz três chamadas (o 1/2); o módulo novo, com o state
+// mantido, conta a quarta a partir do cartão (o 2/2).
+const CHAMADAS: Record<string, unknown> = {}
+const UMA: No[] = [{ id: '1', title: 'Investigar' }]
+
+// Regra: subagentes.contagem-de-chamadas-segue-na-recarga
+test('recarga com subagente trabalhando, 1/2: três chamadas contadas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, CHAMADAS, 'captura')
+  lancaveis(on, ['s1'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, UMA)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  for (const n of [1, 2, 3]) {
+    await chamadaDoSubagente($, 's1', 'Grep', { pattern: `p${n}` })
+    await relogio.advance(1000)
+  }
+  const p = await painel($)
+  expect(emTexto(p)).toContain('Grep "p3" · 3 chamadas')
+})
+
+// Regra: subagentes.contagem-de-chamadas-segue-na-recarga
+test('recarga com subagente trabalhando, 2/2: a contagem segue de onde estava', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, CHAMADAS, 'semear')
+  exigir(Object.keys(CHAMADAS).length > 0)
+  lancaveis(on, ['s1'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await chamadaDoSubagente($, 's1', 'Grep', { pattern: 'p4' })
+  await relogio.advance(1000)
+  const p = await painel($)
+  expect(emTexto(p)).toContain('Grep "p4" · 4 chamadas')
+})
+
 // Duas mensagens na fila da mesma filha, de duas tarefas; ela toma a primeira (o 1/2). O 2/2 é o módulo
 // novo (recarga, o state mantido) ou o processo novo (reinício, tudo do store). A filha segue rodando
 // sob a tarefa: o desenho a mostra ◉ mesmo concluída, então o que se lê é a contagem e a carta.
@@ -419,6 +457,68 @@ test('os 8 formatos do arquivo publicado: cada filha aparece, com as tarefas do 
     const tarefas: any[] = doc.groups?.find((g: any) => g.agent === '')?.tasks ?? doc.tasks ?? []
     if (tarefas.length > 0) expect(tarefas.some(t => tem(p, t.title)), `${f.label}:\n${emTexto(p)}`).toBe(true)
   })
+})
+
+// Um arquivo de filha com elementos fora do formato: um grupo sem tarefas, uma tarefa sem filhos, um
+// nulo, uma neta com tarefa sem filhos e um envio sem destino.
+const RUIM = {
+  version: 1,
+  waiting: false,
+  waits: [null],
+  groups: [
+    { agent: '', label: '', tasks: [{ id: 'b', short: 'b', title: 'Boa', status: 'open', started: 1, startedAt: 1, children: [] }, { id: 'x', short: 'x', title: 'Sem filhos', status: 'open' }, null] },
+    { agent: 'sub', label: 'L' },
+  ],
+  children: [{ id: 'n1', name: 'neta', title: 'neta', running: false, archived: false, panel: { groups: [{ agent: '', label: '', tasks: [{ id: 'q', title: 'Neta ruim', status: 'open' }] }], waits: [], children: [] } }],
+  sends: [{ anchor: '1', at: 1 }, { to: 'alguem', at: 2, text: 'oi' }],
+}
+
+// Regra: durabilidade.publicado-fora-do-formato-nao-derruba
+test('a filha que publica um grupo sem tarefas, uma tarefa sem filhos e um envio sem destino segue com o cartão, e o painel, as ferramentas e a publicação seguem', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-ruim', publicado: JSON.stringify(RUIM) }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await aviso($)
+  await aviso($)
+  const p = await painel($)
+  expect(p.filter(l => /erro ao desenhar|indispon/i.test(l.texto)).map(l => l.texto), emTexto(p)).toEqual([])
+  expect(linha(p, 'filha-ruim').sessao, emTexto(p)).toBe(true)
+  expect(tem(p, 'Boa'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Sem filhos'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Neta ruim'), emTexto(p)).toBe(false)
+  expect((await done($, ['1'])).erro).toBe(false)
+  expect((await plan($, B)).erro).toBe(false)
+  expect(h.proprio()?.children?.[0]?.id).toBe(K1)
+  expect(log.filter(l => l.includes(K1) && l.includes('lido em parte')).length, log.join('\n')).toBe(1)
+})
+
+// O id da própria sessão na recarga: o 1/2 grava o state, o 2/2 (módulo novo) o semeia.
+const ID_PROPRIO: Record<string, unknown> = {}
+
+// Regra: durabilidade.id-proprio-sobrevive-a-recarga
+test('o id da própria sessão volta do estado depois da recarga, 1/2: lido do app', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ID_PROPRIO, 'captura')
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  expect(h.proprio(), 'o painel publicado').toBeDefined()
+})
+
+// Regra: durabilidade.id-proprio-sobrevive-a-recarga
+test('o id da própria sessão volta do estado depois da recarga, 2/2: o app não responde o id, e o painel segue publicado', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ID_PROPRIO, 'semear')
+  const h = host(on, [], { idFalha: true })
+  exigir(ID_PROPRIO.selfId !== undefined && ID_PROPRIO.groups !== undefined)
+  await start($, ['1'])
+  const meu = h.proprio()
+  expect(meu, 'o painel publicado').toBeDefined()
+  expect(JSON.stringify(meu.groups)).toContain('"title":"Um"')
 })
 
 // O fim do turno nos três casos: reinício com session.start, respawn sem ele, e o turno parado com Esc.
@@ -1159,4 +1259,808 @@ test('a filha recém-aberta que a lista do host ainda não traz segue sob a tare
   p = await painel($)
   expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Um'])
   expect(cartoes(p, 'filha-dois').map(c => c.sob), emTexto(p)).toEqual(['Dois.um'])
+})
+
+// Regra: durabilidade.status-nao-segura-a-gravacao
+test('com a linha de status falhando, o plan responde, o painel vai ao store e é publicado', async ($: any, on: any) => {
+  // Como fixar, mas o app recusa a linha de status (o motor engole essa falha: "$.ui.status dropped").
+  // A conta que lança não tem dado real que a reproduza; o teste trava a ordem e a proteção.
+  mock.clock(on, { now: AGORA })
+  on('ui.status', () => ({ deny: 'status quebrado' }))
+  on('ui.log', () => ({ value: undefined }))
+  on('prompt.submit', (_$: any, e: any) => e)
+  on('turn.complete', () => ({ text: '' }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('tool.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
+  const dados: Record<string, unknown> = {}
+  armazem(on, dados)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  const p = await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  expect(p.erro, p.texto).toBe(false)
+  expect(p.texto).toContain('Plano exibido')
+  const s = await start($, ['1'])
+  expect(s.texto).toContain('Em andamento: Um')
+  expect(JSON.stringify(dados[`session:${SESSAO}`] ?? null)).toContain('Um')
+  expect(JSON.stringify(h.proprio()?.groups ?? null)).toContain('Um')
+})
+
+// Regra: durabilidade.fim-do-turno-registrado-mesmo-com-falha
+test('com a lista de agentes falhando, o fim do subagente ainda interrompe o que ele deixou aberto', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  let quebrar = false
+  on('agent.spawn', () => ({ model: 'claude-haiku-5-5', agentId: 'sub-1' }))
+  on('agent.list', () => (quebrar ? { deny: 'lista quebrada' } : { value: [{ id: 'sub-1', type: 'general-purpose', description: 'subagente sub-1' }] }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await plan($, [{ id: 'S', title: 'Do subagente' }], undefined, 'sub-1')
+  await start($, ['S'], 'sub-1')
+  quebrar = true
+  await fimDoSubagente($, 'sub-1')
+  quebrar = false
+  const p = await painel($)
+  esperarEstado(p, 'Do subagente', 'interrompida')
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).not.toContain('trabalhando')
+  expect(log.some(l => l.includes('fim do turno')), log.join('\n')).toBe(true)
+})
+
+// O arquivo que esta sessão publica (o cartão dela na sessão que a abriu), logo depois de um plan ou
+// de um start: já com o trabalho e as ligações novas.
+const tarefaPublicada = (h: { proprio(): any }, titulo: string): any => {
+  const achar = (l: any[]): any => {
+    for (const t of l) {
+      if (t.title === titulo) return t
+      const x = achar(t.children ?? [])
+      if (x) return x
+    }
+  }
+  return achar(((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.tasks ?? []))
+}
+
+// Regra: durabilidade.plan-publica-o-trabalho-novo
+test('numa sessão sem filhas, o que ela publica logo depois do plan já traz o trabalho novo', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1', '2'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  expect(h.proprio()?.work).toEqual(['B'])
+  expect(JSON.stringify(h.proprio()?.groups ?? [])).toContain('Plano B')
+})
+
+// Regra: durabilidade.plan-publica-o-trabalho-novo
+test('o plan que reusa o id de uma tarefa com sessão aberta publica a sessão sob a tarefa antiga', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um' }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await done($, ['1', '2'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  const publicado = JSON.stringify(h.proprio()?.children ?? [])
+  expect(publicado).toContain(':A/1"')
+  expect(publicado).not.toContain('"A/1"')
+})
+
+// Regra: durabilidade.plan-publica-o-trabalho-novo
+test('o start numa tarefa antiga, em pedido novo, publica o trabalho com ela', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  await start($, ['1'])
+  await done($, ['1'], 'Feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  await start($, ['b1'])
+  await done($, ['b1', 'b2'], 'Feito')
+  await fimDoTurno($)
+  // Pedido três: retoma a tarefa do pedido um, já concluída (com tudo fechado, é trabalho novo).
+  await pedido($, 'Pedido três')
+  await start($, ['A/1'])
+  expect(h.proprio()?.work ?? []).toEqual(['A'])
+})
+
+// Regra: durabilidade.publicacoes-em-ordem
+test('uma publicação atrasada não grava por cima da mais nova', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  on('prompt.attachment', (_$: any, e: any) => ({ text: e.text }))
+  // Armado uma vez: a leitura do uso do contexto fica presa até o relógio andar 1 s.
+  let armado = false
+  let alcancado = false
+  on('session.usage', async (_$: any, e: any, next: any) => {
+    if (armado) {
+      armado = false
+      alcancado = true
+      await relogio.sleep(1000)
+    }
+    return next(e)
+  })
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  armado = true
+  await $.prompt.attachment({ type: 'ultra_effort_enter', text: 'x', origin: { kind: 'engine' } })
+  await painel($)
+  expect(alcancado, 'a publicação do ultracode não chegou à leitura do uso').toBe(true)
+  const fechou = done($, ['1'])
+  await relogio.advance(1000)
+  await fechou
+  expect(tarefaPublicada(h, 'Um')?.status).toBe('done')
+  expect(h.proprio()?.ultracode).toBe(true)
+})
+
+// Uma gravação do state que o host recusa (o stub devolve deny: a chamada do mod rejeita), enquanto
+// `quebrar` disser que sim para a chave.
+const recusarGravacao = (on: any, quebrar: (chave: string) => boolean) =>
+  on('state.set', (_$: any, e: any, next: any) => (quebrar(String(e.key)) ? { deny: 'gravação recusada' } : next(e)))
+
+// Regra: durabilidade.fim-do-turno-registrado-mesmo-com-falha
+test('a mensagem de outra sessão cujo nome não pôde ser guardado ainda abre o pedido', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  recusarGravacao(on, k => k === 'names')
+  const ctx = ((await mensagemDe($, 'local_x', 'Faça o relatório'))?.context ?? []).join(' | ')
+  expect(ctx).toContain('A PRIMEIRA chamada')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(emTexto(p)).toContain('Faça o relatório')
+  expect(log.some(l => l.includes('passo learnNames')), log.join('\n')).toBe(true)
+})
+
+// Regra: durabilidade.fim-do-turno-registrado-mesmo-com-falha
+test('o fim do turno do loop principal é gravado mesmo se limpar o resumo falhar', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [])
+  let quebrar = false
+  recusarGravacao(on, k => quebrar && k === 'brief')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['2'], 'Feito')
+  quebrar = true
+  await fimDoTurno($)
+  quebrar = false
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  expect(typeof h.proprio()?.turn?.ended, JSON.stringify(h.proprio()?.turn)).toBe('number')
+  expect(resposta(h, 'Feito'), JSON.stringify(h.proprio())).toBe(true)
+  expect(log.some(l => l.includes('fim do turno, passo limpar o resumo')), log.join('\n')).toBe(true)
+})
+
+// As dobras da pessoa num processo novo: um store por par, e o da retomada.
+const DOBRAS: Record<string, unknown> = {}
+const DOBRAS_CLEAR: Record<string, unknown> = {}
+const DOBRAS_RETOMADA: Record<string, unknown> = {}
+const temDobras = (store: Record<string, unknown>) => Object.keys(store).some(k => k.startsWith('folds:'))
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras no reinício, 1/2: a pessoa recolhe uma tarefa e abre o histórico', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, DOBRAS)
+  await pedido($, 'Pedido um')
+  await plan($, B)
+  await start($, ['b1', 'b2'])
+  await done($, ['b1', 'b2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  await start($, ['1'])
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.recolher('+1 pedidos anteriores')
+  await m.fim()
+  const p = await painel($)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(temPainel(DOBRAS) && temDobras(DOBRAS), JSON.stringify(Object.keys(DOBRAS))).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras no reinício, 2/2: o processo novo desenha como ela deixou', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS)
+  exigir(temPainel(DOBRAS))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras no respawn sem session.start, 2/2: o primeiro desenho já vem como ela deixou', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS)
+  exigir(temPainel(DOBRAS))
+  let p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  // A primeira escrita guarda as dobras trazidas, não as perde.
+  await start($, ['2.1'])
+  p = await painel($)
+  expect(tem(p, 'Dois.um'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo, durabilidade.clear-esvazia
+test('/clear e reinício, 1/2: recolhe, limpa e planeja de novo', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLEAR)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  await limpar($)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  const p = await painel($)
+  expect(tem(p, 'Um') && tem(p, 'Dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo, durabilidade.clear-esvazia
+test('/clear e reinício, 2/2: o processo novo não traz a dobra de antes do /clear', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLEAR)
+  exigir(temPainel(DOBRAS_CLEAR))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Um') && tem(p, 'Dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('a retomada traz as dobras da sessão retomada', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_RETOMADA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  const dobra = DOBRAS_RETOMADA[`folds:${SESSAO}`]
+  expect(dobra, JSON.stringify(Object.keys(DOBRAS_RETOMADA))).toBeDefined()
+  // Uma sessão sem dobras guardadas: a retomada vem toda aberta, sem a dobra de antes.
+  DOBRAS_RETOMADA['session:uuid-aberta'] = DOBRAS_RETOMADA[`session:${SESSAO}`]
+  await retomar($, 'uuid-aberta')
+  let p = await painel($)
+  expect(tem(p, 'Plano A') && tem(p, 'Um'), emTexto(p)).toBe(true)
+  // Uma sessão que a pessoa deixou com o plano recolhido: volta recolhido.
+  DOBRAS_RETOMADA['session:uuid-recolhida'] = DOBRAS_RETOMADA['session:uuid-aberta']
+  DOBRAS_RETOMADA['folds:uuid-recolhida'] = dobra
+  await retomar($, 'uuid-recolhida')
+  p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um'), emTexto(p)).toBe(false)
+})
+
+// O painel guardado com versão: o registro do store e o grupo do state que atravessou uma recarga.
+const VELHA = [{ agent: '', label: '', tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done', children: [] }] }]
+const lojaCom = (registro: unknown): Record<string, unknown> => ({ [`session:${SESSAO}`]: registro, sessions: [SESSAO] })
+// O registro guardado é ignorado: o painel começa vazio, o log diz o motivo e as ferramentas seguem.
+async function painelGuardadoIgnorado($: any, on: any, registro: unknown) {
+  const { log } = fixar(on)
+  armazem(on, lojaCom(registro))
+  host(on, [])
+  await iniciarSessao($)
+  let p = await painel($)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(true)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+}
+const FORMA_NOVA: Record<string, unknown> = {}
+const RECARGA_RUIM: Record<string, unknown> = {}
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado de uma versão desconhecida é ignorado, com aviso no log', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, { version: 99, groups: VELHA })
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado fora do formato é ignorado, e as ferramentas seguem: um texto', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, 'painel')
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado fora do formato é ignorado, e as ferramentas seguem: um grupo com tasks que não é lista', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, [{ agent: '', label: '', tasks: 'quebrado' }])
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado fora do formato é ignorado, e as ferramentas seguem: uma tarefa sem children', async ($: any, on: any) => {
+  await painelGuardadoIgnorado($, on, [{ agent: '', label: '', tasks: [{ id: 'V', short: 'V', title: 'Velha', status: 'done' }] }])
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado sem versão, da forma anterior, é lido', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, lojaCom(VELHA))
+  host(on, [])
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Velha'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado na forma nova volta num processo novo, 1/2: o painel vai ao store com a versão', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FORMA_NOVA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const guardado = FORMA_NOVA[`session:${SESSAO}`] as { version?: unknown; groups?: unknown } | undefined
+  expect(guardado?.version, JSON.stringify(guardado)).toBe(1)
+  expect(Array.isArray(guardado?.groups), JSON.stringify(guardado)).toBe(true)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o painel guardado na forma nova volta num processo novo, 2/2: o processo novo o lê', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, FORMA_NOVA)
+  host(on, [])
+  exigir(temPainel(FORMA_NOVA))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A') && tem(p, 'Um') && tem(p, 'Dois.dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('recarga com o painel do state fora do formato: o painel volta do store', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  armazem(on, lojaCom(VELHA))
+  RECARGA_RUIM.groups = [{ agent: '', label: '', tasks: [{ id: 'Q', short: 'Q', title: 'Quebrada', status: 'talvez', children: [] }] }]
+  estado(on, RECARGA_RUIM, 'semear')
+  let p = await painel($)
+  expect(tem(p, 'Velha'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Quebrada'), emTexto(p)).toBe(false)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(tem(p, 'Quebrada'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.comando-diz-o-que-o-app-respondeu
+test('/task-tree com o painel na tela diz os painéis do app e o tamanho do desenho', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  let foco: unknown
+  on('ui.open', (_$: any, e: any) => {
+    foco = e?.focus
+    return { value: { isPlaced: true } }
+  })
+  on('ui.panes', () => ({ value: [{ id: 'task-tree', isShown: true, isPlaced: true }, { id: 'outro', isShown: false, isPlaced: true }] }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const t = await comando($)
+  expect(foco).toBe(true)
+  expect(t).toContain('Painel de tarefas aberto')
+  expect(t).toContain('task-tree (na frente)')
+  expect(t).toContain('outro (aba atrás de outra)')
+  expect(t).toMatch(/Desenho: \d+ KB de \d+ KB/)
+  expect(t).not.toContain('Store:')
+})
+
+// Regra: durabilidade.comando-diz-o-que-o-app-respondeu
+test('/task-tree com o painel fora da tela diz o motivo do app', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'largura' } }))
+  on('ui.panes', () => ({ value: [] }))
+  await pedido($, 'Pedido um')
+  const t = await comando($)
+  expect(t).toContain('O app não pôs o painel na tela: largura')
+  expect(t).toContain('Painéis: nenhum')
+  expect(t).not.toContain('Store:')
+})
+
+// Regra: durabilidade.comando-diz-o-que-o-app-respondeu
+test('/task-tree com a abertura do painel em erro diz o erro no motivo', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  on('ui.open', () => ({ deny: 'painel recusado pelo teste' }))
+  on('ui.panes', () => ({ value: [] }))
+  await pedido($, 'Pedido um')
+  const t = await comando($)
+  expect(t).toContain('O app não pôs o painel na tela:')
+  expect(t).toContain('painel recusado pelo teste')
+  expect(t).not.toContain('Store:')
+})
+
+// A recarga a quente no meio do turno (os pares 1/2 e 2/2 com o state mantido): uma tarefa em
+// andamento, um subagente vivo e uma pergunta aberta. A espera é copiada no instante em que está
+// aberta (o fim da chamada a apaga do state capturado), uma cópia para cada 2/2.
+const RECARGA_TEMPO: Record<string, unknown> = {}
+const RECARGA_SUB: Record<string, unknown> = {}
+const RECARGA_ESPERA: Record<string, unknown> = {}
+const ESPERA_PELA_MENSAGEM: Record<string, unknown> = {}
+const ESPERA_PELO_FIM: Record<string, unknown> = {}
+const PERGUNTA_NA_RECARGA = {
+  questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
+}
+const ESPERANDO = 'Aguardando sua resposta'
+
+// Regra: durabilidade.recarga-no-meio-do-turno-mantem-o-tempo
+test('recarga no meio do turno, 1/2: uma tarefa em andamento no state', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RECARGA_TEMPO, 'captura')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  esperarEstado(await painel($), 'Um', 'andamento')
+  expect(Object.keys(RECARGA_TEMPO).length, 'state capturado').toBeGreaterThan(0)
+})
+
+// Regra: durabilidade.recarga-no-meio-do-turno-mantem-o-tempo
+test('recarga no meio do turno, 2/2: a tarefa segue em andamento e o tempo conta do start', async ($: any, on: any) => {
+  fixar(on, { agora: AGORA + 10_000 })
+  estado(on, RECARGA_TEMPO, 'semear')
+  exigir(Object.keys(RECARGA_TEMPO).length > 0)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Plano A', 'andamento')
+  esperarEstado(p, 'Pedido um', 'andamento')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('0:10')
+})
+
+// Regra: durabilidade.recarga-com-subagente-vivo
+test('recarga com subagente vivo, 1/2: o cartão trabalhando sob a tarefa', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RECARGA_SUB, 'captura')
+  lancaveis(on, ['sub-r'])
+  on('tool.call', { tool: 'Grep' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o código' })
+  await chamadaDoSubagente($, 'sub-r', 'Grep', { pattern: 'x' })
+  const p = await painel($)
+  expect(linha(p, 'Explore: ler o código').texto, emTexto(p)).toContain('trabalhando')
+  expect(debaixo(p, 'Explore: ler o código', 'Um'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.recarga-com-subagente-vivo
+test('recarga com subagente vivo, 2/2: o cartão segue trabalhando sob a mesma tarefa e o fim dele diz concluído', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, RECARGA_SUB, 'semear')
+  exigir(Object.keys(RECARGA_SUB).length > 0)
+  lancaveis(on, ['sub-r'])
+  let p = await painel($)
+  expect(linha(p, 'Explore: ler o código').texto, emTexto(p)).toContain('trabalhando')
+  expect(debaixo(p, 'Explore: ler o código', 'Um'), emTexto(p)).toBe(true)
+  await fimDoSubagente($, 'sub-r')
+  p = await painel($)
+  expect(linha(p, 'Explore: ler o código').texto, emTexto(p)).toContain('concluído')
+  expect(debaixo(p, 'Explore: ler o código', 'Um'), emTexto(p)).toBe(true)
+})
+
+// Regra: durabilidade.recarga-com-espera-aberta
+test('recarga com espera aberta, 1/2: a pergunta aberta sob a tarefa em andamento', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  estado(on, RECARGA_ESPERA, 'captura')
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_RECARGA)
+  await relogio.settle()
+  const p = await painel($)
+  esperarEstado(p, ESPERANDO, 'aguardando')
+  Object.assign(ESPERA_PELA_MENSAGEM, JSON.parse(JSON.stringify(RECARGA_ESPERA)))
+  Object.assign(ESPERA_PELO_FIM, JSON.parse(JSON.stringify(RECARGA_ESPERA)))
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: durabilidade.recarga-com-espera-aberta
+test('recarga com espera aberta, 2/2: a espera segue sob a tarefa e sai com a mensagem seguinte', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ESPERA_PELA_MENSAGEM, 'semear')
+  exigir(Object.keys(ESPERA_PELA_MENSAGEM).length > 0)
+  let p = await painel($)
+  esperarEstado(p, ESPERANDO, 'aguardando')
+  esperarEstado(p, 'Um', 'andamento')
+  expect(debaixo(p, ESPERANDO, 'Um'), emTexto(p)).toBe(true)
+  await pedido($, 'sim')
+  p = await painel($)
+  expect(tem(p, ESPERANDO), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.recarga-com-espera-aberta
+test('recarga com espera aberta, 2/2: a espera segue sob a tarefa e sai com o fim do turno', async ($: any, on: any) => {
+  fixar(on)
+  estado(on, ESPERA_PELO_FIM, 'semear')
+  exigir(Object.keys(ESPERA_PELO_FIM).length > 0)
+  let p = await painel($)
+  esperarEstado(p, ESPERANDO, 'aguardando')
+  expect(debaixo(p, ESPERANDO, 'Um'), emTexto(p)).toBe(true)
+  await fimDoTurno($)
+  p = await painel($)
+  expect(tem(p, ESPERANDO), emTexto(p)).toBe(false)
+})
+
+// A retomada de uma sessão cujo turno terminou, e o store com um trabalho que aponta para tarefas que
+// não existem (os pares 1/2 e 2/2 pelo store).
+const RETOMADA_PARADA: Record<string, unknown> = {}
+const TRABALHO_SUMIDO: Record<string, unknown> = {}
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('retomada com o turno terminado, 1/2: o painel e o fim do turno no store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, RETOMADA_PARADA)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  expect(temPainel(RETOMADA_PARADA), JSON.stringify(Object.keys(RETOMADA_PARADA))).toBe(true)
+})
+
+// Regra: durabilidade.fim-do-turno-sobrevive-ao-reinicio
+test('retomada com o turno terminado, 2/2: a iniciada aguarda e o relógio não anda', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, RETOMADA_PARADA)
+  exigir(temPainel(RETOMADA_PARADA))
+  await retomar($, SESSAO)
+  let p = await painel($)
+  esperarEstado(p, 'Um', 'aguardando')
+  semAndamento(p)
+  const antes = linha(p, 'Um').texto
+  await relogio.advance(5000)
+  p = await painel($)
+  expect(linha(p, 'Um').texto, emTexto(p)).toBe(antes)
+})
+
+// Regra: durabilidade.reinicio-restaura-do-store
+test('trabalho sem tarefa presente, 1/2: dois pedidos no store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, TRABALHO_SUMIDO)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await done($, ['1'], 'Um feito')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  expect(Array.isArray(TRABALHO_SUMIDO[`work:${SESSAO}`]), JSON.stringify(TRABALHO_SUMIDO[`work:${SESSAO}`])).toBe(true)
+})
+
+// Regra: durabilidade.reinicio-restaura-do-store
+test('trabalho sem tarefa presente, 2/2: o trabalho que aponta para tarefas que não existem não vale', async ($: any, on: any) => {
+  fixar(on)
+  exigir(temPainel(TRABALHO_SUMIDO))
+  TRABALHO_SUMIDO[`work:${SESSAO}`] = ['nao-existe']
+  armazem(on, TRABALHO_SUMIDO)
+  await iniciarSessao($)
+  let p = await painel($)
+  expect(cabecalho(p).vazio, emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  await start($, ['b1'])
+  p = await painel($)
+  esperarEstado(p, 'b1', 'andamento')
+})
+
+// Regra: durabilidade.formatos-antigos-do-publicado
+test('os formatos que entraram depois (taxa do último turno, pasta, parada com Esc, ultracode com subagente e o de hoje): cada filha aparece com o que o formato traz', async ($: any, on: any) => {
+  fixar(on)
+  expect(LATER_PUBLISHED_FILES.length).toBe(5)
+  const id = (i: number) => `local_1000000${i}-0000-0000-0000-000000000000`
+  // A do formato de hoje parou: o turno dela terminou (`turn`).
+  host(on, LATER_PUBLISHED_FILES.map((f, i) => ({ id: id(i), nome: `depois-${i}`, publicado: f.file, ...(i === 4 ? { rodando: false } : {}) })))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await aviso($)
+  const p = await painel($)
+  const app = emTextoDoApp(await noApp($, { colunas: 100 }))
+  expect(p.filter(l => /indispon|\berro\b/i.test(l.texto)).map(l => l.texto), emTexto(p)).toEqual([])
+  LATER_PUBLISHED_FILES.forEach((f, i) => {
+    expect(linha(p, `depois-${i}`).sessao, `${f.label}:\n${emTexto(p)}`).toBe(true)
+    const doc = JSON.parse(f.file)
+    expect(doc.tasks, f.label).toBeUndefined()
+    const tarefas: any[] = doc.groups.find((g: any) => g.agent === '').tasks
+    expect(tarefas.some(t => tem(p, t.title)), `${f.label}:\n${emTexto(p)}`).toBe(true)
+  })
+  // 1: a taxa do arquivo, acesa, sem "(último turno)".
+  expect(linhaDoApp(await noApp($, { colunas: 100 }), 'depois-0').texto, app).toContain('87 toks/s')
+  expect(app).not.toContain('último turno')
+  // 2: o caminho da pasta, sem branch.
+  const pasta = linha(p, 'depois-1').texto
+  expect(pasta, emTexto(p)).toContain('pasta-sem-git')
+  expect(pasta, emTexto(p)).not.toContain('⑂')
+  // 3: a tarefa parada com Esc aparece ✕.
+  esperarEstado(p, 'Texto 104', 'interrompida')
+  // 4: no app, o cartão diz "ultracode", e a linha do subagente aparece dentro dele.
+  expect(linhaDoApp(await noApp($, { colunas: 100 }), 'depois-3').texto, app).toContain('ultracode')
+  expect(cartoes(p, 'depois-3')[0]?.tarefas ?? [], emTexto(p)).toContain('Explore: Texto 106')
+  // 5: as tarefas vêm de groups, e com o turno terminado nada no cartão está em andamento.
+  const hoje = cartoes(p, 'depois-4')[0]?.tarefas ?? []
+  expect(hoje, emTexto(p)).toContain('Texto 108')
+  expect(hoje.filter(t => linha(p, t).estado === 'andamento'), emTexto(p)).toEqual([])
+})
+
+// ---- A versão do painel do state: gravada antes dos grupos, e conferida no /clear.
+
+const FUTURA = [{ agent: '', label: '', tasks: [{ id: 'F', short: 'F', title: 'Futura', status: 'done', children: [] }] }]
+const RECARGA_VERSAO: Record<string, unknown> = {}
+const RECARGA_CLEAR: Record<string, unknown> = {}
+const STATE_VISTO: Record<string, unknown> = {}
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('recarga com o painel do state numa versão desconhecida: o painel volta do store', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  armazem(on, lojaCom(VELHA))
+  RECARGA_VERSAO.groups = FUTURA
+  RECARGA_VERSAO.groupsVersion = 99
+  estado(on, RECARGA_VERSAO, 'semear')
+  let p = await painel($)
+  expect(tem(p, 'Velha'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Futura'), emTexto(p)).toBe(false)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(tem(p, 'Futura'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('/clear logo depois de uma recarga com o painel do state numa versão desconhecida: as tarefas ignoradas não vão ao histórico', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [])
+  armazem(on, lojaCom(VELHA))
+  RECARGA_CLEAR.groups = FUTURA
+  RECARGA_CLEAR.groupsVersion = 99
+  estado(on, RECARGA_CLEAR, 'semear')
+  await limpar($)
+  expect(log.some(l => l.includes('painel guardado ignorado')), log.join('\n')).toBe(true)
+  const publicado = JSON.stringify(h.proprio() ?? {})
+  expect(publicado, publicado).not.toContain('Futura')
+  expect(passado(h).flatMap((x: any) => x.tasks.map((t: any) => t.title)), publicado).toContain('Velha')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const p = await painel($)
+  expect(tem(p, 'Futura'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+test('o primeiro uso sem session.start guarda a versão junto com o painel trazido do store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, lojaCom(VELHA))
+  estado(on, STATE_VISTO, 'captura')
+  await fimDoTurno($)
+  expect(Array.isArray(STATE_VISTO.groups), JSON.stringify(STATE_VISTO)).toBe(true)
+  expect(STATE_VISTO.groupsVersion, JSON.stringify(STATE_VISTO)).toBe(1)
+})
+
+// ---- A primeira escrita das dobras depois de um respawn (o plan que reusa um id, o clique) e a
+// gravação das dobras que o store recusou.
+
+const DOBRAS_PLANO: Record<string, unknown> = {}
+const DOBRAS_CLIQUE: Record<string, unknown> = {}
+const DOBRAS_RECUSADAS: Record<string, unknown> = {}
+const A_DE_NOVO: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: 'n1', title: 'Novo um' }] }]
+
+// O roteiro do "dobras no reinício, 1/2": Plano A recolhido e o histórico aberto, guardados no store.
+async function deixarDobrasEm($: any, on: any, store: Record<string, unknown>) {
+  const { relogio } = fixar(on)
+  armazem(on, store)
+  await pedido($, 'Pedido um')
+  await plan($, B)
+  await start($, ['b1', 'b2'])
+  await done($, ['b1', 'b2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, A)
+  await start($, ['1'])
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.recolher('+1 pedidos anteriores')
+  await m.fim()
+  expect(temPainel(store) && temDobras(store), JSON.stringify(Object.keys(store))).toBe(true)
+}
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e plan no respawn, 1/2: a pessoa recolhe uma tarefa e abre o histórico', async ($: any, on: any) => {
+  await deixarDobrasEm($, on, DOBRAS_PLANO)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e plan no respawn, 2/2: o plan que reusa o id, antes de qualquer desenho, não perde o que ela deixou', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, DOBRAS_PLANO)
+  exigir(temPainel(DOBRAS_PLANO) && temDobras(DOBRAS_PLANO))
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await plan($, A_DE_NOVO)
+  const p = await painel($)
+  expect(tem(p, 'Novo um'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e clique no respawn, 1/2: a pessoa recolhe uma tarefa e abre o histórico', async ($: any, on: any) => {
+  await deixarDobrasEm($, on, DOBRAS_CLIQUE)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e clique no respawn, 2/2: recolher mais uma linha não reabre as que ela tinha recolhido', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLIQUE)
+  exigir(temPainel(DOBRAS_CLIQUE) && temDobras(DOBRAS_CLIQUE))
+  const m = await montar($)
+  await m.recolher('Plano B')
+  await m.fim()
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(tem(p, 'b1') || tem(p, 'b2'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('dobras e clique no respawn, 3/3: o processo seguinte desenha as antigas e a nova', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, DOBRAS_CLIQUE)
+  exigir(temPainel(DOBRAS_CLIQUE) && temDobras(DOBRAS_CLIQUE))
+  await iniciarSessao($)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Um') || tem(p, 'Dois'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(tem(p, 'b1') || tem(p, 'b2'), emTexto(p)).toBe(false)
+})
+
+// Regra: durabilidade.dobras-voltam-no-processo-novo
+test('as dobras que o store recusou são guardadas na publicação seguinte', async ($: any, on: any) => {
+  fixar(on)
+  let cheio = false
+  armazem(on, DOBRAS_RECUSADAS, { recusar: () => cheio })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  cheio = true
+  const m = await montar($)
+  await m.recolher('Plano A')
+  await m.fim()
+  expect(temDobras(DOBRAS_RECUSADAS), JSON.stringify(Object.keys(DOBRAS_RECUSADAS))).toBe(false)
+  cheio = false
+  await start($, ['1'])
+  expect(temDobras(DOBRAS_RECUSADAS), JSON.stringify(Object.keys(DOBRAS_RECUSADAS))).toBe(true)
+})
+
+// Regra: durabilidade.formatos-antigos-do-publicado
+test('a filha parada com Esc numa versão de antes da marca stopped (só aborted): a tarefa iniciada aparece ✕', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_10000009-0000-0000-0000-000000000000', nome: 'so-aborted', publicado: ABORTED_ONLY_FILE.file, rodando: false }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(linha(p, 'so-aborted').sessao, emTexto(p)).toBe(true)
+  expect(p.filter(l => /indispon|\berro\b/i.test(l.texto)).map(l => l.texto), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Texto 109', 'interrompida')
 })

@@ -1,7 +1,7 @@
 {
   "name": "task-tree",
   "version": "0.15.2",
-  "description": "Painel lateral com a árvore de tarefas planejadas (até 3 níveis), marcando e colapsando as concluídas",
+  "description": "Painel lateral com a árvore de tarefas da sessão (até 3 níveis), as sessões filhas e os subagentes; as linhas recolhem com um clique",
   "author": {
     "name": "AlbertKellner"
   },

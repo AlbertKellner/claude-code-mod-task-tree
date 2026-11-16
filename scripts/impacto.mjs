@@ -12,6 +12,7 @@
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ehPrincipal } from './guarda.mjs'
 import { baseDoRelato } from './mudou.mjs'
 import { NUCLEO, lerCatalogo, lerTestes } from './regras.mjs'
 
@@ -59,7 +60,7 @@ export function texto(r) {
   return linhas.join('\n')
 }
 
-if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.argv[1])) {
+if (ehPrincipal(import.meta.url)) {
   try {
     const args = process.argv.slice(2)
     const valor = nome => {

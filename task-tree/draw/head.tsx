@@ -15,7 +15,7 @@ import { CARD_BORDER, CARD_FILL } from './desktop'
 // What render.tsx computes for the header. `alt`: the whole header's words (render.tsx builds them,
 // "estado geral" and "sessão inteira" included), on the bar. `whole`: "sessão inteira: a de b", or ''
 // (it is in `alt` already, and render.tsx puts it on the "+N pedidos anteriores" line: the header
-// shows the view's count, as before). `cols`: the pane's body
+// shows the drawn lines' count, as before). `cols`: the pane's body
 // columns (bodyColumns).
 export type Head = {
   title: string
@@ -23,7 +23,7 @@ export type Head = {
   n: number
   chips: Chip[]
   time?: number
-  rate?: { toks: number; live: boolean }
+  rate?: { toks: number }
   git?: GitLabel
   state: HeaderState
   ultracode: boolean
@@ -143,7 +143,7 @@ export function desktopHead(ui: any, head: Head): any {
             [
               clock ? <Text key="clock" size="footnote" color="inactive" tabular>{clock}</Text> : null,
               rate ? (
-                <Text key="rate" size="footnote" color="inactive" tabular dimColor={!rate.live || undefined}>
+                <Text key="rate" size="footnote" color="inactive" tabular>
                   {rateText(rate.toks)}
                 </Text>
               ) : null,
@@ -156,13 +156,7 @@ export function desktopHead(ui: any, head: Head): any {
           ) : clock || rate || ultra ? (
             <Text size="footnote" color="inactive" tabular>
               {clock || null}
-              {rate ? (
-                rate.live ? (
-                  <Text>{`${clock ? ' · ' : ''}${rateText(rate.toks)}`}</Text>
-                ) : (
-                  <Text dimColor>{`${clock ? ' · ' : ''}${rateText(rate.toks)}`}</Text>
-                )
-              ) : null}
+              {rate ? <Text>{`${clock ? ' · ' : ''}${rateText(rate.toks)}`}</Text> : null}
               {ultra ? (
                 <Text>
                   {clock || rate ? ' · ' : ''}

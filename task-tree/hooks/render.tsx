@@ -6,22 +6,25 @@
 import { atom, read, update } from 'claude-code'
 
 import type { Child, Send } from '../types'
-import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, startedLast, lastTurnAt, layout, guides, labelCols, gitLabel } from '../draw/layout'
+import { MAIN, MAX_ROWS, flat, hasOpen, leftWaiting, withMain, count, atWork, sessionTime, current, lastTurnAt, layout, guides, labelCols, gitLabel, drawnTasks } from '../draw/layout'
 import type { Row } from '../draw/layout'
-import { GLYPH, MSG_TERM, ULTRA, chips, clockText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
+import { GLYPH, MSG_TERM, ULTRA, chips, clockText, cutText, gitAlt, gitTerm, headerState, percent, prefix, progress, rateText, ratioBar, rightText, ringTerm } from '../draw/svg'
 import { desktopTree } from '../draw/desktop'
 import { desktopHead } from '../draw/head'
 import type { Acts } from '../draw/desktop'
-import { debug } from '../io/log'
-import { PANE, DRAW_LIMIT, drawn, act, actions, ensureGroups, ensureTurn, ensureWork, knownId, stamp } from './panel'
+import { debug, debugOnce } from '../io/log'
+import { PANE, DRAW_LIMIT, drawn, act, actions, ensureFolds, ensureGroups, ensureTurn, ensureUltra, ensureWork, knownId, saveFolds, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
-import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
+import { idleOf, lastStarted, sessionTotal, tallyOf } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
 const folds = atom({ plugin: 'task-tree', key: 'collapsed' } as const, {} as Record<string, boolean>)
+// Kept in the store too, per session (saveFolds): a new process draws them as the person left them.
 async function setFold($: any, key: string, closed: boolean) {
+  await ensureFolds($)
   await update($, folds, cur => ({ ...cur, [key]: closed }))
+  await saveFolds($)
 }
 // The way back from the emergency drawing, which has none of the lines that fold (the person,
 // 2026-11-04: "coloque um botão para voltar a visualização anterior"): the histories opened close;
@@ -31,15 +34,17 @@ async function setFold($: any, key: string, closed: boolean) {
 // shorten; with the mark, a drawing that does not fit whole is drawn with its long texts cut in "…".
 const SHORT = 'sec:short'
 async function closeOpened($: any) {
+  await ensureFolds($)
   await update($, folds, cur => {
     const open = Object.keys(cur).filter(k => cur[k] === false)
     const history = open.filter(k => k.endsWith('sec:turns'))
     return { ...cur, ...Object.fromEntries((history.length > 0 ? history : open).map(k => [k, true])), [SHORT]: true }
   })
+  await saveFolds($)
 }
 // The most characters a text has in the shortened drawing (see closeOpened), "…" its last.
 const SHORT_TEXT = 200
-const clip = (t: string) => (t.length > SHORT_TEXT ? `${t.slice(0, SHORT_TEXT - 1)}…` : t)
+const clip = (t: string) => cutText(t, SHORT_TEXT)
 
 // The line limit the last drawing fitted in when its lines passed the size limit (see render), by
 // surface and width, with the lines the panel had then: the pane is drawn again every second while a
@@ -48,7 +53,7 @@ const clip = (t: string) => (t.length > SHORT_TEXT ? `${t.slice(0, SHORT_TEXT - 
 const fitted = new Map<string, { lines: number; max: number }>()
 
 // The most text a desktop drawing may have, in characters: the app draws the first 100,000 of a
-// drawing and drops the rest (see render). A little under it, as the bytes' limit aims.
+// drawing and drops the rest (see render). A little under it, as the other limits aim.
 const TEXT_LIMIT = 95000
 // The characters of text a drawing draws: its strings, and its elements' alt and label (an Svg's alt
 // counts; its source does not).
@@ -61,6 +66,58 @@ function textOf(el: any): number {
   const kids = el.children ?? p.children
   if (kids !== undefined) n += textOf(kids)
   return n
+}
+
+// The app desktop's pane drops a drawing whole, in silence, past any of three limits of its own (read
+// in the app 5.11492.5.0; the engine and the harness take 20,000 nodes and apply none of them): 2,000
+// nodes or more (each element and each text child counts 1), a height of 32 or more (the root is 1, a
+// text a level), or 262,144 characters or more by its count (the texts, and per element its props'
+// names with their text values, the hover's the same, the plugin's name in a part, group or press).
+// With no drawing taken it shows "Nothing to show yet"; with one taken before, it stays on that one.
+// The old "the app stopped showing the pane" (1.3 MB, 950 KB) was this same drop. The mod stays under
+// them with room: what the engine adds per node (part, group, the press's plugin) it does not see.
+const NODE_LIMIT = 1900
+const APP_CHARS_LIMIT = 240000
+const DEPTH_LIMIT = 28
+// A drawing measured as the app's pane measures it, always on the high side: nodes, height and
+// characters (a key counts with 3 more, as it may go in the props; a Button 32 more, for the plugin's
+// name in its press).
+function appSize(root: any): { nodes: number; depth: number; chars: number } {
+  let nodes = 0
+  let depth = 0
+  let chars = 0
+  const propsOf = (p: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(p)) {
+      if (k === 'children' || typeof v === 'function' || v === undefined) continue
+      chars += k.length
+      if (typeof v === 'string') chars += v.length
+      else if (typeof v === 'number' || typeof v === 'boolean') chars += String(v).length
+      else if (typeof v === 'object' && v !== null) propsOf(v as Record<string, unknown>)
+    }
+  }
+  const walk = (x: any, level: number) => {
+    if (x === null || x === undefined || typeof x === 'boolean') return
+    if (Array.isArray(x)) {
+      for (const c of x) walk(c, level)
+      return
+    }
+    nodes++
+    depth = Math.max(depth, level)
+    if (typeof x !== 'object') {
+      chars += String(x).length
+      return
+    }
+    const p = x.props ?? {}
+    const key = x.key ?? p.key
+    if (key !== undefined && key !== null) chars += String(key).length + 3
+    propsOf(p)
+    if (typeof x.hover === 'object' && x.hover !== null) propsOf(x.hover)
+    if (x.type === 'Button') chars += 32
+    const kids = x.children ?? p.children
+    if (kids !== undefined) walk(kids, level + 1)
+  }
+  walk(root, 1)
+  return { nodes, depth, chars }
 }
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -77,6 +134,7 @@ const rateState = { plugin: 'task-tree', key: 'rate' } as const
 const ultracodeState = { plugin: 'task-tree', key: 'ultracode' } as const
 const gitState = { plugin: 'task-tree', key: 'git' } as const
 const namesState = { plugin: 'task-tree', key: 'names' } as const
+const selfIdState = { plugin: 'task-tree', key: 'selfId' } as const
 
 // The two drawings of the lines layout() made, each from the rows alone (and the header the render
 // built): the desktop's Boxes and Texts, the terminal's text. `$` is for the presses.
@@ -85,7 +143,9 @@ const namesState = { plugin: 'task-tree', key: 'names' } as const
 // opens by its progress icon, a plain Button (the pointer inverts it); a line with nothing below has
 // no Button. Terminal: the icon glyph is the Button. Desktop: the Svg draws the icon and a Button
 // with an empty label lies over it.
-const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open)
+// A click that fails is said once in the debug log, never left without a catch.
+const clickFailed = ($: any, what: string) => (err: unknown) => debugOnce($, `task-tree: clique (${what}): ${String(err)}`)
+const pressOf = ($: any, r: Row) => () => void setFold($, (r.fold as any).key, (r.fold as any).open).catch(clickFailed($, 'recolher'))
 
 // Desktop: the header (../draw/head), then the lines and the cards, all in the app's own elements
 // (../draw/desktop: Box, Text, Button, with an Svg only for the icons, the ring and the header's bar). No `$` goes down there: the presses
@@ -97,7 +157,7 @@ function drawDesktop($: any, ui: any, lines: Row[], cols: number, top: any, chro
   const { Box } = ui
   const acts: Acts = {
     fold: (r: Row) => act(`fold:${(r.fold as any).key}`, pressOf($, r)),
-    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title)),
+    open: (r: Row) => act(`open:${r.sid}`, () => void openSession($, r.sid as string, r.title).catch(clickFailed($, 'abrir sessão'))),
   }
   return (
     <Box flexDirection="column">
@@ -207,22 +267,28 @@ export async function render($: EngineInterface, e: any, next: any) {
   await keepTime($).catch(() => {})
   watchSessions($)
   const { value: heldState } = await $.state.get(groupsState)
-  const held = heldState ?? brought
+  // What ensureGroups brought wins: it also stands for groups of the state it read and ignored.
+  const held = brought ?? heldState
   const { value: waits = [] } = await $.state.get(waitsState)
   const { value: sessions = [] } = await $.state.get(childrenState)
   const { value: sessionsError = '' } = await $.state.get(childrenErrorState)
   // Every send of this session, queued and taken up (see watchSends): their letters.
   const { value: sends = [] } = await $.state.get(sendsState)
   // The whole session's count, for the bar's alt text and the "+N pedidos anteriores" line; the header itself counts what the
-  // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
+  // panel draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
   // What the person stopped and was not started again is out of it too, as in the drawing, and so is
   // delegated work alive below a task: sessionTotal, the same count as the status's.
-  const [ad, an] = sessionTotal(held ?? [], sessions as Child[], sends as Send[], knownId())
+  // This session's id: the module's, else the state's (a reload keeps it there, see selfId).
+  const { value: keptId } = await $.state.get(selfIdState)
+  const me = knownId() ?? (typeof keptId === 'string' && keptId !== '' ? keptId : undefined)
+  const [ad, an] = sessionTotal(held ?? [], sessions as Child[], sends as Send[], me)
   // The times are drawn against now; the pane's clock (keepTime) redraws them each second.
   const now = await stamp($)
-  // What the person opened or closed.
-  const chosen = await read($, folds)
+  // What the person opened or closed; after a restart without session.start, the store's (ensureFolds),
+  // which a drawing cannot write to the state.
+  const foldsBrought = await ensureFolds($)
+  const chosen = foldsBrought ?? (await read($, folds))
   const { value: heldWork } = await $.state.get(workState)
   const work = heldWork ?? workBrought ?? []
   // The lines, from the model and the person's choices (../draw/layout, pure): all the drawing
@@ -236,9 +302,12 @@ export async function render($: EngineInterface, e: any, next: any) {
   const aborted = heldEnded !== undefined ? heldAborted : turnBrought?.aborted
   // This session's own output rate ("n toks/s"), for its header (turn.step measures it).
   const { value: rate } = await $.state.get(rateState)
-  const headRate = rate ? { toks: rate.toks, live: rate.live } : undefined
+  const headRate = rate ? { toks: rate.toks } : undefined
   // Its ultracode switch (turn.ts, ultraAttachment), for the header beside the rate.
-  const { value: ultracode } = await $.state.get(ultracodeState)
+  // After a restart without session.start, the store's (ensureUltra), which a drawing cannot write.
+  const ultraBrought = await ensureUltra($)
+  const { value: heldUltra } = await $.state.get(ultracodeState)
+  const ultracode = heldUltra ?? ultraBrought
   // Its repository and branch (refreshGit keeps them), for the header's count line.
   const { value: git } = await $.state.get(gitState)
   const headGit = git ? gitLabel(git) : undefined
@@ -250,31 +319,37 @@ export async function render($: EngineInterface, e: any, next: any) {
   // the ones a limit left out too.
   let all = 0
   const paint = (maxRows: number, short = false) => {
-  const laid = layout(model, chosen, now, knownId(), maxRows)
+  const laid = layout(model, chosen, now, me, maxRows)
   const lines = short ? laid.map(r => (r.title.length > SHORT_TEXT ? { ...r, title: clip(r.title) } : r)) : laid
   drawn.rows = lines.length
   all = lines.reduce((a, r) => a + (r.cut ?? 0), lines.length)
 
   // The header: the level-1 task in progress (or "Tarefas"), the count, and chips for what
   // is in progress, waiting, interrupted and the sessions at work.
-  const mainTasks = withMain(held ?? []).find(g => g.agent === MAIN)?.tasks ?? []
+  const mainGroup = withMain(held ?? []).find(g => g.agent === MAIN)
+  const mainTasks = mainGroup?.tasks ?? []
+  // Without a task in progress the title is picked among the level-1 tasks with a drawn line (their
+  // request, themselves or a subtask), the ones the numbers count: with the "+N pedidos anteriores"
+  // line open, all (cabecalho.titulo-e-de-tarefa-desenhada, cabecalho.titulo-nao-e-de-pedido-recolhido).
+  // An earlier request out of the drawing never names it.
+  const inSight = drawnTasks(lines, mainTasks)
   // With none open, the level-1 task a session is still at work under. The task in progress now is the
   // one started last (current()'s anchor: the task a notice goes under); its level-1 task is the title.
   // It took the first of the lit tasks, the one started longest ago, and a task an earlier request left
   // open and started won over the current one. current() is computed once (it walks the whole tree).
-  // With nothing in progress: the task started last (done or not; the person: "o título é o do passo
-  // iniciado por último"), then the most recent level-1 task with a session at work under it (by its
+  // With nothing in progress: the task whose start is the most recent, a start again included (done or
+  // not; the person: "o título é o do passo iniciado por último"; 2026-11-15, "Pelo start mais recente
+  // (Recomendado)": the same task that lights the path and the strip), then the most recent level-1 task with a session at work under it (by its
   // current round, see atWork: an earlier round's task never), then the most recent request's.
-  const now0 = current(mainTasks).anchor ?? startedLast(mainTasks)?.id
-  const newest = [...mainTasks].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
+  const now0 = current(mainTasks).anchor ?? lastStarted(inSight)?.task.id
+  const newest = [...inSight].sort((a, b) => (b.plannedAt ?? 0) - (a.plannedAt ?? 0))
   const headTask =
     (now0 !== undefined ? mainTasks.find(t => t.id === now0 || flat(t.children).some(k => k.id === now0)) : undefined) ??
     newest.find(t => atWork(t, sessions, 0).live) ??
     newest[0]
   const head = short ? clip(headTask?.title ?? 'Tarefas') : (headTask?.title ?? 'Tarefas')
-  // The header counts, times and chips what the view draws: the tasks the drawn lines stand
-  // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
-  // group limit, the drawn groups'. The whole session's count goes in the bar's alt text and the
+  // The header counts, times and chips what the panel draws: the tasks the drawn lines stand
+  // for (Row.nodes), with the cut lines left out. The whole session's count goes in the bar's alt text and the
   // "+N pedidos anteriores" line.
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
@@ -305,24 +380,32 @@ export async function render($: EngineInterface, e: any, next: any) {
   const rows = whole ? lines.map(r => (r.key === 'sec:turns' ? { ...r, meta: whole } : r)) : lines
   const waitingNow = tally.waits + resting
   const list = chips(active, waitingNow, x, tally.live, tally.sends, pending, tally.subs)
+  // Empty, one condition for the app, its alt text and the terminal: no tasks and no chip
+  // (cabecalho.vazio-so-sem-tarefas-e-sem-chips; desktopHead's own test is the same one).
+  const empty = n + x === 0 && list.length === 0
   // The header's general state, the color of its band (headerState).
-  // With the turn going on, a task of this session started in the request now (or later): the band
-  // stays in progress between a done and the next start (headerState).
+  // With the turn going on, a task of this session started since the turn began (the last message of
+  // the person, or the notice that brought it back: lastTurnAt), by its last start (lastStarted, a start
+  // again counts): the band stays in progress between a done and the next start (headerState).
   const since = lastTurnAt(held ?? [])
-  const lastStart = startedLast(mainTasks)?.startedAt
+  const lastStart = lastStarted(mainTasks)?.at
   const started = typeof ended !== 'number' && since !== undefined && typeof lastStart === 'number' && lastStart >= since
-  const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x, started })
+  // The interrupted ones that make the band gray: stopped by the person (Esc), failed, or whose
+  // subagent was stopped (the person, 2026-11-15: "Cinza \"interrompido\" (Recomendado)"), not those
+  // taken out with cancel nor what a subagent left open (the person, 2026-11-15: "Cancelada não conta").
+  const cut = flat(shown).filter(t => t.status === 'interrupted' && t.children.length === 0 && (t.halted === true || t.stopped === true || t.failed === true || t.subStopped === true)).length
+  const state = headerState({ active, waiting: waitingNow, live: tally.live, pending, d, n, x, stopped: cut, started })
   const errorLine = sessionsError ? <Text key="error" dimColor>Sessões indisponíveis: {sessionsError}</Text> : null
 
   if (e.surface === 'desktop' && 'Svg' in ui) {
     const cols = (e.props as any).bodyColumns || 40
     const alt =
-      (n + x === 0
+      (empty
         ? 'Nenhuma tarefa planejada'
         : [
             `${head}: ${d} de ${n} (${percent(d, n)}%)`,
             ...(headTime !== undefined ? [clockText(headTime)] : []),
-            ...(headRate ? [`${rateText(headRate.toks)}${headRate.live ? '' : ' (último turno)'}`] : []),
+            ...(headRate ? [rateText(headRate.toks)] : []),
             ...(ultracode === true ? [ULTRA] : []),
             ...(headGit ? [gitAlt(headGit)] : []),
             ...list.map(c => c.text),
@@ -334,7 +417,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Terminal: the same lines as text, the guides in box-drawing characters, color only on
   // the icon; the ▾/▸ in the guides, before the icon.
   const header =
-    n + x === 0
+    empty
       ? [
           <Box key="head" flexDirection="row">
             <Text dimColor>Nenhuma tarefa planejada.</Text>
@@ -361,8 +444,9 @@ export async function render($: EngineInterface, e: any, next: any) {
         ]
   return drawTerminal($, ui, rows, header, errorLine)
   }
-  // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
-  // long session's history, 1.3 MB). A drawing past it is made again with fewer lines, the oldest
+  // The drawing's size, said by /task-tree, kept under DRAW_LIMIT (bytes, the engine's message). The
+  // pane the app stopped showing (a long session's history, 1.3 MB) was its own limits' drop (see
+  // NODE_LIMIT), not the bytes; the bytes' limit stays as a further cap. A drawing past any limit is made again with fewer lines, the oldest
   // blocks out first and counted in "+N linhas anteriores", as the 400-line cut does (limitRows),
   // until it fits (the person, 2026-11-12: "Cortar os mais antigos (Recomendado)"): 400 lines of a
   // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.
@@ -373,13 +457,20 @@ export async function render($: EngineInterface, e: any, next: any) {
   // first 100000"), and a native line draws its title twice (its Text and its icon's alt), so a long
   // request reached that before 600 KB and lost its last lines, "+N linhas" with them. The oldest
   // blocks go first here too (the same words of the person). The terminal is left as it was.
+  // On the desktop the drawing is also kept under the app pane's own limits (NODE_LIMIT,
+  // APP_CHARS_LIMIT, DEPTH_LIMIT, see appSize): past them the pane drops it whole, with no log. The
+  // same cut serves: the oldest blocks out first; the height has no aim of its own (cutting lines does
+  // not lower it in a known way), so past it the loop shrinks by its least step to the floor.
   const textual = e.surface === 'desktop'
   let chars = 0
-  const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT
+  let app = { nodes: 0, depth: 0, chars: 0 }
+  const overApp = () => app.nodes > NODE_LIMIT || app.chars > APP_CHARS_LIMIT || app.depth > DEPTH_LIMIT
+  const over = () => drawn.size > DRAW_LIMIT || chars > TEXT_LIMIT || overApp()
   const sized = (maxRows: number, short: boolean) => {
     const made = paint(maxRows, short)
     drawn.size = JSON.stringify(made ?? null).length
     chars = textual ? textOf(made) : 0
+    app = textual ? appSize(made) : { nodes: 0, depth: 0, chars: 0 }
     return made
   }
   // The cut, with the texts whole or shortened (`short`, each its own entry in `fitted`). It does not
@@ -402,7 +493,9 @@ export async function render($: EngineInterface, e: any, next: any) {
     for (let i = 0; over() && max > 2; i++) {
       const byBytes = Math.floor((drawn.rows * DRAW_LIMIT * 0.95) / drawn.size)
       const byText = chars > TEXT_LIMIT ? Math.floor((drawn.rows * TEXT_LIMIT * 0.95) / chars) : byBytes
-      const aim = Math.min(byBytes, byText)
+      const byNodes = app.nodes > NODE_LIMIT ? Math.floor((drawn.rows * NODE_LIMIT * 0.95) / app.nodes) : byBytes
+      const byChars = app.chars > APP_CHARS_LIMIT ? Math.floor((drawn.rows * APP_CHARS_LIMIT * 0.95) / app.chars) : byBytes
+      const aim = Math.min(byBytes, byText, byNodes, byChars)
       // Below the last limit every time: the lines of an open history the cut keeps (limitRows) can
       // leave more lines than the limit asked.
       const rows = Math.min(max, drawn.rows)
@@ -420,14 +513,23 @@ export async function render($: EngineInterface, e: any, next: any) {
   // The warning is the last resort: past the bytes, or on the desktop past the text (the app would draw
   // the header and nothing more, with no button), or with only the floor of two lines left.
   if (!enough) {
-    const what = chars > TEXT_LIMIT ? `${Math.round(chars / 1000)} mil caracteres` : `${Math.round(drawn.size / 1024)} KB`
-    await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB e ${chars} caracteres de texto, acima de ${Math.round(DRAW_LIMIT / 1024)} KB ou ${TEXT_LIMIT} caracteres, ou só duas linhas`)
+    const what =
+      chars > TEXT_LIMIT
+        ? `${Math.round(chars / 1000)} mil caracteres`
+        : app.nodes > NODE_LIMIT
+          ? `${app.nodes} elementos`
+          : app.chars > APP_CHARS_LIMIT
+            ? `${Math.round(app.chars / 1000)} mil caracteres`
+            : app.depth > DEPTH_LIMIT
+              ? `${app.depth} níveis`
+              : `${Math.round(drawn.size / 1024)} KB`
+    await debug($, `task-tree: desenho de ${Math.round(drawn.size / 1024)} KB, ${chars} caracteres de texto, ${app.nodes} elementos, ${app.chars} caracteres na conta do app e ${app.depth} níveis, acima de ${Math.round(DRAW_LIMIT / 1024)} KB, ${TEXT_LIMIT} caracteres, ${NODE_LIMIT} elementos, ${APP_CHARS_LIMIT} caracteres do app ou ${DEPTH_LIMIT} níveis, ou só duas linhas`)
     const { Box, Button, Text } = $.ui.resolve(e) as any
     return (
       <Box flexDirection="column">
         <Text color="warning">{`Painel grande demais (${what}): mostrando só o essencial.`}</Text>
         <Box flexDirection="row">
-          <Button key="back" onPress={act('back', () => void closeOpened($))}>
+          <Button key="back" onPress={act('back', () => void closeOpened($).catch(clickFailed($, 'voltar')))}>
             <Text>Voltar à visualização anterior</Text>
           </Button>
         </Box>

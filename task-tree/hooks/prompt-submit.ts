@@ -7,8 +7,9 @@
 
 import type { Child } from '../types'
 import { MAIN, flat, hasOpen } from '../draw/layout'
-import { PROMPT, RULES } from '../text/rules'
-import { learnNames, reminders, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
+import { APP_LIST_RULE, PROMPT, RULES } from '../text/rules'
+import { guardStep } from '../io/log'
+import { learnNames, marks, reminders, setMarks, dropWaits, ensureGroups, ensureLinks, openList, openTurn, saveTurn, showPane, wake } from './panel'
 import { subsNote } from './agents'
 import { endedNote, noteReceived, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 
@@ -102,9 +103,11 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   const it = said(text)
   // Another session's messages are kept (from, when) and published, whatever this prompt turns out
   // to be: the sender confirms its queued SendMessage by them (watchSends).
-  await ensureLinks($)
-  await noteReceived($, it.froms)
-  await learnNames($, it.names)
+  // The accessory steps each on their own (guardStep: the failure goes to the debug log once): one
+  // that fails does not keep the request from opening.
+  await guardStep($, 'prompt', 'ensureLinks', () => ensureLinks($))
+  await guardStep($, 'prompt', 'noteReceived', () => noteReceived($, it.froms))
+  await guardStep($, 'prompt', 'learnNames', () => learnNames($, it.names))
   // A prompt starts a turn: what the last one left open is in progress again.
   await wake($)
   // A turn of this session was interrupted (stopped) and no request came since: the next request, the
@@ -120,10 +123,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // their text: they do not come as `unclassified` or `task-notification`.
   if (!it.peer && (NO_TURN.includes(kind) || it.notice || it.handback)) {
     // The app's notice says a session ended its turn: read the list now, for its reminders.
-    if (it.notice) await refreshChildren($).catch(() => {})
-    const note = await endedNote($)
-    const taken = await takenNote($)
-    const subs = await subsNote($)
+    if (it.notice) await guardStep($, 'prompt', 'refreshChildren', () => refreshChildren($))
+    const note = await guardStep($, 'prompt', 'endedNote', () => endedNote($))
+    const taken = await guardStep($, 'prompt', 'takenNote', () => takenNote($))
+    const subs = await guardStep($, 'prompt', 'subsNote', () => subsNote($))
     // Tasks the person stopped (Esc) and no start took up since: only a start brings them back
     // (lembretes.parada-so-volta-com-start).
     await ensureGroups($)
@@ -147,8 +150,10 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   // Safety net: a new message means the main loop has no question open. Not one delivered into a
   // running turn (`e.turnId`: another session's message, or one typed over the turn): the question or
   // plan dialog may still be on screen, and its call drops its wait when it returns (and the turn's end).
+  // The wrap_up's choice waits on the person: only a message of hers, or a new wrap_up, takes it away;
+  // another session's message does not (the person, 2026-11-15: "Só a sua mensagem (Recomendado)").
   const midTurn = typeof e.turnId === 'string' && e.turnId !== ''
-  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission' || (midTurn && (w.kind === 'question' || w.kind === 'plan')))
+  await dropWaits($, w => w.agent !== MAIN || w.kind === 'permission' || (midTurn && (w.kind === 'question' || w.kind === 'plan')) || (it.peer && w.kind === 'choice'))
   // A message delivered into a running turn, the report of a session this one opened or one the
   // person typed over the turn, continues the request in progress (the person, 2026-11-12: "Entra
   // no pedido em curso (Recomendado)"): it opens no turn, so it gets no line of its own and no ✉,
@@ -166,15 +171,15 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     await ensureGroups($)
     const { value: held = [] } = await $.state.get(groupsState)
     if ((held.find(g => g.agent === MAIN)?.turns ?? []).length > 0) {
-      await refreshStale($).catch(() => {})
-      const note = await endedNote($)
-      const taken = await takenNote($)
-      const subs = await subsNote($)
+      await guardStep($, 'prompt', 'refreshStale', () => refreshStale($))
+      const note = await guardStep($, 'prompt', 'endedNote', () => endedNote($))
+      const taken = await guardStep($, 'prompt', 'takenNote', () => takenNote($))
+      const subs = await guardStep($, 'prompt', 'subsNote', () => subsNote($))
       const { value: groups = [] } = await $.state.get(groupsState)
       const tasks = groups.find(g => g.agent === MAIN)?.tasks ?? []
       // The person's message may be the answer to a question dismissed for the chat (see asked).
-      const answered = !it.peer && reminders.answeredInChat
-      if (!it.peer) reminders.answeredInChat = false
+      const answered = !it.peer && (await marks($)).answeredInChat
+      if (!it.peer) await setMarks($, { answeredInChat: false })
       return next({
         ...e,
         context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), PROMPT.midTurn(hasOpen(tasks) ? openList(tasks) : '', answered)],
@@ -183,16 +188,15 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
   }
   // A new request gets its own reminder at its first tool call without a plan.
   reminders.unplanned = 0
-  reminders.planned = false
-  reminders.briefBeforePlan = false
+  await setMarks($, { planned: false, briefBeforePlan: false, idleCalls: 0, idleWarned: false })
   // Every other message opens a turn, those another session sends too (they arrive as meta): each
   // is a request of its own, and the current work follows turns (startsWork).
   await openTurn($, it.title, !it.peer, it.from)
   // A stale list first: a session that ended its turn is reminded of now, not later.
-  await refreshStale($).catch(() => {})
-  const note = await endedNote($)
-  const taken = await takenNote($)
-  const subs = await subsNote($)
+  await guardStep($, 'prompt', 'refreshStale', () => refreshStale($))
+  const note = await guardStep($, 'prompt', 'endedNote', () => endedNote($))
+  const taken = await guardStep($, 'prompt', 'takenNote', () => takenNote($))
+  const subs = await guardStep($, 'prompt', 'subsNote', () => subsNote($))
   // What the last request left open (a question answered here, work this message replaces)
   // is listed, so it is closed rather than left running under the new plan.
   const { value: groups = [] } = await $.state.get(groupsState)
@@ -206,20 +210,36 @@ export async function promptSubmit($: EngineInterface, e: any, next: any) {
     await saveTurn($)
   }
   // After an interrupted turn, the message that comes next, the person's or another session's, asks
-  // for a replan of the panel instead of the list of what was left open (the replan covers it).
+  // for a replan of the panel instead of the list of what was left open (the replan covers it). With
+  // nothing left open, both get only the reminder of a new request (the person, 2026-11-15: "Tirar o
+  // texto extra (Recomendado)").
+  // Only the person's message is the answer to a question dismissed for the chat: one of another
+  // session neither says so nor spends the mark.
+  const answered = !it.peer && (await marks($)).answeredInChat
   const left = aborted && hasOpen(tasks)
-    ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), reminders.answeredInChat) : PROMPT.interruptedByYou(openList(tasks), reminders.answeredInChat)
-    : aborted && it.peer ? PROMPT.interruptedEmpty
-    : hasOpen(tasks) ? PROMPT.open(openList(tasks), reminders.answeredInChat) : undefined
-  reminders.answeredInChat = false
+    ? it.peer ? PROMPT.interrupted(openList(tasks)) : failed ? PROMPT.failedByError(openList(tasks), answered) : PROMPT.interruptedByYou(openList(tasks), answered)
+    : hasOpen(tasks) ? PROMPT.open(openList(tasks), answered) : undefined
+  if (!it.peer) await setMarks($, { answeredInChat: false })
   return next({
     ...e,
-    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks))],
+    context: [...(e.context ?? []), ...(note ? [note] : []), ...(taken ? [taken] : []), ...(subs ? [subs] : []), ...(left ? [left] : []), PROMPT.request(hasOpen(tasks), appList.offered)],
   })
 }
+
+// Whether a request composed by this module offered the desktop app's task list (its wrap_up or its
+// update_plan): the reminder of a new request then says the order with it in one sentence. A variable of
+// the module: a reload forgets it until the next composition (state/durability). Only a composition that
+// offers them sets it (a subagent's, which has no wrap_up, does not clear it).
+const APP_LIST_TOOLS = ['mcp__ccd_turn__wrap_up', 'mcp__ccd_turn__update_plan']
+export const appList = { offered: false }
 
 export async function promptCompose($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   if (!e.tools.includes('mcp__task-tree__plan')) return r
-  return { ...r, sections: [...r.sections, { id: 'task-tree:regras', text: RULES, scope: 'session' as const }] }
+  // The rule of the order with the app's task list, only when the request offers it (the person,
+  // 2026-11-15: "Sim, acrescentar (Recomendado)").
+  const offers = APP_LIST_TOOLS.some(t => e.tools.includes(t))
+  if (offers) appList.offered = true
+  const text = offers ? `${RULES}\n${APP_LIST_RULE}` : RULES
+  return { ...r, sections: [...r.sections, { id: 'task-tree:regras', text, scope: 'session' as const }] }
 }

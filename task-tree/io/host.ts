@@ -12,7 +12,7 @@
 
 import type { Child, GitInfo, Panel, Published, Rate } from '../types'
 import type { Link } from '../state/durability'
-import { MAIN } from '../draw/layout'
+import { MAIN, published } from '../draw/layout'
 import { readPublished } from './publish'
 import { debugOnce } from './log'
 
@@ -62,7 +62,8 @@ export function deducedOwn(rows: HostRow[]): string | undefined {
 // What the sessions' published files say, by session id: which wait on the person, their panels,
 // the share of context used, their model and effort, their output rate, and their repository and branch.
 // `skipped`: the archived sessions whose file was not read (see readFiles): they keep what they had.
-export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo>; skipped?: string[] }
+// `files`: the sessions whose file was read this time (a rate missing from it is no rate).
+export type Read = { waiting: string[]; aborted: string[]; panels: Record<string, Panel>; contexts: Record<string, number>; engines: Record<string, string>; ultras: string[]; rates: Record<string, Rate>; gits: Record<string, GitInfo>; skipped?: string[]; files?: string[] }
 // A published file's panel: its groups (and the rest the file has), or, from before groups, its
 // `tasks` as the main group; none when the file has neither.
 export function panelOf(file: Published): Panel | undefined {
@@ -85,15 +86,26 @@ export function panelOf(file: Published): Panel | undefined {
 // An archived session already read while archived (its entry in `known` says so) is not read again:
 // it keeps what it had (deriveChildren); unarchived, it is read again. After a restart the children
 // come back from the store without `archived`, so the first read reads them all.
+// A known session's file that could not be read (none, unreadable, invalid) keeps what the last read
+// said of `waiting`, `aborted` and `ultracode` for up to MISSES_KEPT reads in a row (counted here,
+// cleared by the next good read); after that it is read as empty, as the app says of the session.
+const MISSES_KEPT = 3
+const misses = new Map<string, number>()
 export async function readFiles($: any, mine: HostRow[], known: Child[] = []): Promise<Read> {
-  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {}, skipped: [] }
+  const read: Read = { waiting: [], aborted: [], panels: {}, contexts: {}, engines: {}, ultras: [], rates: {}, gits: {}, skipped: [], files: [] }
   for (const r of mine) {
     if (r.isArchived === true && known.some(k => k.id === r.sessionId && k.archived === true)) {
       read.skipped!.push(r.sessionId)
       continue
     }
     try {
-      const file = (await readPublished($, r.sessionId)) ?? { waiting: false, waits: [], children: [] }
+      const got = await readPublished($, r.sessionId)
+      const missed = got === undefined ? (misses.get(r.sessionId) ?? 0) + 1 : 0
+      if (missed === 0) misses.delete(r.sessionId)
+      else misses.set(r.sessionId, missed)
+      const before = missed > 0 && missed <= MISSES_KEPT ? known.find(k => k.id === r.sessionId) : undefined
+      if (got !== undefined) read.files!.push(r.sessionId)
+      const file = got ?? { waiting: before?.waiting === true, aborted: before?.aborted === true, ultracode: before?.ultracode === true, waits: [], children: [] }
       if (file.waiting) read.waiting.push(r.sessionId)
       if (file.aborted) read.aborted.push(r.sessionId)
       if (file.context) read.contexts[r.sessionId] = file.context.percent
@@ -145,8 +157,9 @@ export async function engineOf($: any, id: string): Promise<string | undefined> 
 // said and the children known before (`known`), and which of them just ended: running or waiting
 // before, stopped now (not running, not archived, not waiting). A session just opened (`starting`)
 // counts only once the host has seen it run: right after start_session the host may still list it
-// idle. A session the host lists again after leaving it out gets its ties (anchor, lastAnchor,
-// rounds) back from the store's copy (`kept`); a session whose file went missing keeps its last panel.
+// idle; the mark lasts STARTING_GRACE at most, and goes at the first read that finds tasks published
+// (then a stopped one ended its turn: it ran unseen between two reads). A session the host lists again after leaving it out gets its ties (anchor, lastAnchor,
+// rounds, places) back from the store's copy (`kept`); a session whose file went missing keeps its last panel.
 // A session just opened (start_session) that the host's list does not hold yet stays in the children
 // while recent (STARTING_GRACE from its `openedAt`), with the task it was opened on: dropped at the
 // first read, its tie was lost and its card, once listed, went to the end. One with no `openedAt` (an
@@ -159,7 +172,11 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
     .filter(r => {
       const before = known.find(k => k.id === r.sessionId)
       const stopped = r.isRunning !== true && r.isArchived !== true && !read.waiting.includes(r.sessionId)
-      return before !== undefined && before.starting !== true && (before.running || before.waiting === true) && stopped
+      if (before === undefined || !stopped) return false
+      // One still opening ended its turn too once it has published tasks: it ran and stopped between
+      // two reads, never seen running (the person, 2026-11-15: "Tratar como quem já rodou").
+      if (before.starting === true) return published({ ...before, panel: read.panels[r.sessionId] ?? before.panel, tasks: read.panels[r.sessionId] ? undefined : before.tasks })
+      return before.running || before.waiting === true
     })
     .map(r => r.sessionId)
   const children = mine.map(r => {
@@ -167,8 +184,7 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
     const seen = r.isRunning === true || r.isArchived === true || read.waiting.includes(r.sessionId)
     // Not read this time (archived, see readFiles): what its file said last time stays.
     const skipped = read.skipped?.includes(r.sessionId) === true
-    return {
-      starting: before?.starting === true && !seen ? true : undefined,
+    const child = {
       id: r.sessionId,
       name: String(r.name ?? ''),
       title: String(r.title ?? r.name ?? r.sessionId),
@@ -180,17 +196,25 @@ export function deriveChildren(mine: HostRow[], known: Child[], read: Read, kept
       engine: read.engines[r.sessionId] ?? before?.engine,
       // As its file says it at each read: off once it no longer does.
       ultracode: (skipped ? before?.ultracode === true : read.ultras.includes(r.sessionId)) || undefined,
-      rate: read.rates[r.sessionId] ?? before?.rate,
+      // As its file says it when the file was read (none there: no rate, as after a change of model);
+      // only a file not read keeps the last one.
+      rate: read.rates[r.sessionId] ?? (read.files?.includes(r.sessionId) === true ? undefined : before?.rate),
       git: read.gits[r.sessionId] ?? before?.git,
       lastAnchor: before?.lastAnchor ?? kept(r.sessionId)?.lastAnchor,
       rounds: before?.rounds ?? kept(r.sessionId)?.rounds,
+      places: before?.places ?? kept(r.sessionId)?.places,
       anchor: before?.anchor ?? kept(r.sessionId)?.anchor,
       openedAt: before?.openedAt ?? kept(r.sessionId)?.openedAt,
+      onlyPlace: before?.onlyPlace ?? kept(r.sessionId)?.onlyPlace,
       panel: read.panels[r.sessionId] ?? before?.panel,
       tasks: read.panels[r.sessionId] ? undefined : before?.tasks,
       // Kept as one line (hooks/sessions, summarize) while archived and not read again.
       summary: r.isArchived === true && !read.panels[r.sessionId] ? before?.summary : undefined,
     } as Child
+    // Still opening while the host has not seen it run, has no task published yet and is recent
+    // (STARTING_GRACE): past it, or once it published, it reads as the host lists it.
+    const opening = before?.starting === true && !seen && !published(child) && justOpened(before, now)
+    return { starting: opening ? true : undefined, ...child } as Child
   })
   const waiting = known.filter(k => !mine.some(r => r.sessionId === k.id) && justOpened(k, now))
   return { children: [...children, ...waiting], ended }

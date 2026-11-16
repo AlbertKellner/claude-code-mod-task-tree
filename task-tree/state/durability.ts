@@ -17,7 +17,7 @@
 
 import type { PluginState } from 'claude-code'
 
-import type { Child } from '../types'
+import type { Child, Group } from '../types'
 import { debugOnce } from '../io/log'
 
 export type Key = keyof PluginState['task-tree']
@@ -40,7 +40,7 @@ export type Row = {
   lives: Lives
   // The store's key prefix (`<store>:<session uuid>`); `field`: this key is one field of that
   // store record (the links record holds four, and the sessions left behind by a /clear).
-  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn'
+  store?: 'session' | 'work' | 'links' | 'sessions' | 'turn' | 'folds' | 'ultra'
   field?: boolean
   merge: Merge
   // How many entries each write keeps (the last ones).
@@ -53,34 +53,42 @@ export const TABLE: readonly Row[] = [
   // The panel.
   { key: 'groups', lives: 'state+store', store: 'session', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'the groups (tasks, turns, answers); a resume replaces the state with the store\'s; subagents\' open tasks come back interrupted; out of the store (only KEEP sessions), a new process in the desktop app brings it back from the file this session published, its long-term copy while the session exists in the app (fromOwnFile), with the work, the links\' four keys and the turn\'s end' },
+  { key: 'groupsVersion', lives: 'state', merge: 'none', restoredAt: [],
+    note: 'the version of the groups the state holds (GROUPS_VERSION when this code wrote them, written before the groups in every write that brings or converts them; absent: 1, an earlier code): the first use after a hot reload reads the state\'s groups through readGroups once, and groups of an unknown version or out of the shape are ignored with a line in the log, the store\'s valid copy (or nothing) in their place' },
   { key: 'tasks', lives: 'state', merge: 'none', restoredAt: [],
     note: 'legacy: the one list before groups, moved into the main group once (adopt) at session.start or the first write' },
   { key: 'work', lives: 'state+store', store: 'work', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
     note: 'the current work (the level-1 tasks the panel draws); a resume brings the resumed session\'s; after a restart without session.start the first write brings it back (ensureWork), else the next plan would write its own over the store\'s; with no store copy, it comes back from the published file with the groups (fromOwnFile)' },
   // The ties to other sessions: one store record (`links`), four state keys.
   { key: 'children', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind)' },
+    note: 'the sessions this one opened as the host lists them; the store keeps only their ties (id, name, title, anchor, lastAnchor, rounds, openedAt, places: where each card of turns typed there goes, decided once, with drew once that card is drawn; onlyPlace: its task of origin only as a place; each round keeps its own mark of only a place, onlyPlace), and a session the host leaves out keeps its ties in the store (keptLinks); a /clear empties them, and the sessions opened before it are left behind (leftBehind); 20 rounds per session (keepRounds), those of a task in sight never go' },
   { key: 'sends', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'messages to other sessions not yet taken up' },
+    note: 'messages to other sessions and to subagents, one per message (its own number, seq): queued until taken up (a delivery at once spends its own receipt too, spent), then kept with the letter green (or gray, not delivered); over 20 (keepSends) only the oldest delivered or not delivered and already told go' },
   { key: 'received', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'messages of other sessions this one got (the last 20)' },
   { key: 'receipts', lives: 'state+store', store: 'links', field: true, merge: 'current', restoredAt: ['start', 'first-use'],
-    note: 'per session a message went to, the last of its receipts already matched to a send of this one (instant and count at it, watchSends): an old receipt does not confirm a later message after a reload or a new process; a /clear empties it' },
+    note: 'per session a message went to, the last of its receipts already matched to a send of this one, a delivery at once included (instant and count at it, watchSends): an old receipt does not confirm a later message after a reload or a new process; a /clear empties it' },
   { key: 'launches', lives: 'state+store', store: 'links', field: true, merge: 'current', keep: 20, restoredAt: ['start', 'first-use'],
     note: 'Agent calls not yet claimed by a subagent\'s group (the last 20)' },
   // The turn's own: they survive a reload, not the process.
   { key: 'names', lives: 'state', merge: 'none', restoredAt: [], note: 'the names of the sessions known by id (the linked list of the host, the tag of a received message, this session\'s own from get_session), the last 200, for the "Para <nome>" of the letters; not stored nor published: the 3 s reread makes it again' },
   { key: 'waits', lives: 'state', merge: 'none', restoredAt: [], note: 'what waits on the person (a question, a plan, a permission, a wrap_up with ask)' },
   { key: 'engine', lives: 'state', merge: 'none', restoredAt: [], note: 'the model and effort of the main loop, published for the card' },
-  { key: 'ultracode', lives: 'state', merge: 'none', restoredAt: [], note: 'whether the main loop\'s ultracode switch is on (ultra_effort_enter/exit), published for the card and drawn in the header' },
-  { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last model calls, live or the last turn\'s mean, published for the card' },
-  { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
+  { key: 'ultracode', lives: 'state+store', store: 'ultra', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'whether the main loop\'s ultracode switch is on (ultra_effort_enter/exit), published for the card and drawn in the header; in the store too (one record per session, `ultra`), so a new process draws and publishes it without waiting for the engine\'s next notice (the person, 2026-11-15: "Guardar por sessão"; saveUltra, ensureUltra, restoreUltra); written again at every notice of the engine and every publication when it differs from what the module wrote (lastUltra); only ultra_effort_exit turns it off, so a switch turned off with the process stopped stays on until that notice (a risk the person accepted); a resume brings the resumed session\'s (none: off); a /clear does not touch it' },
+  { key: 'rate', lives: 'state', merge: 'none', restoredAt: [], note: 'the output rate ("n toks/s") of the main loop\'s last valid model call, published for the card' },
+  { key: 'git', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s repository (folder name; in a worktree, the main repository\'s) and branch, read off .git/HEAD at each publication and clock tick, published for the card' },
   { key: 'ended', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions whose turn ended, until the main loop is reminded' },
+  { key: 'goneSessions', lives: 'state', merge: 'none', restoredAt: [], note: 'sessions archived or deleted in the app with their task of origin open, until the main loop is told once' },
+  { key: 'closedBySessions', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of origin of the main loop a session that ended its turn with all of its work done closed (closeByEnded), until the model is told once (endedNote)' },
   { key: 'closedBySubs', lives: 'state', merge: 'none', restoredAt: [], note: 'the tasks of the main loop the end of their subagents closed or marked ✕ (settleBySubs), until the model is told once (subsNote)' },
   { key: 'childrenError', lives: 'state', merge: 'none', restoredAt: [], note: 'why the host\'s list of sessions failed, drawn in the panel' },
   { key: 'brief', lives: 'state', merge: 'none', restoredAt: [], note: 'done\'s summary until the turn ends (the ↩ line); in the state so a reload mid-turn keeps it' },
+  { key: 'selfId', lives: 'state', merge: 'none', restoredAt: [], note: 'this session\'s local_ id as the app answered it; in the state so a reload of the mod has it at once (the render and the reading of the sessions)' },
+  { key: 'marks', lives: 'state', merge: 'none', restoredAt: [], note: 'the request\'s marks (whether it used the panel, whether a question waits for the person\'s message as its answer, whether the summary kept came before a plan; the calls in a row with a plan open and nothing started, and whether this plan already took the reminder to start); in the state so a reload keeps them; a /clear or a resume drops them' },
   { key: 'paneOpened', lives: 'state', merge: 'none', restoredAt: [], note: 'session.start opened the panel in this process: a reload keeps it, so it does not open again a panel the person closed; a new process opens it once' },
-  { key: 'collapsed', lives: 'state', merge: 'none', restoredAt: [], note: 'the lines the person folded or opened (the folds atom)' },
+  { key: 'collapsed', lives: 'state+store', store: 'folds', merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
+    note: 'the lines the person folded or opened (the folds atom, and the mark of the shortened texts); in the store too (one record per session, `folds`), so /model, a respawn or reopening the app draws them as she left them (the person, 2026-11-15: "Sim, guardado por sessão (Recomendado)"; saveFolds, ensureFolds, restoreFolds); written again at every publication when it differs from what the module wrote (lastFolds); a resume brings the resumed session\'s (none: all by default); a /clear writes the empty one; a session back from the published file (out of the store) comes back with none' },
   // The turn's end: in the store too (one record, `turn`), so a new process (a respawn, /model, a
   // restart) does not draw as in progress what had already stopped.
   { key: 'turnEnded', lives: 'state+store', store: 'turn', field: true, merge: 'current', restoredAt: ['start', 'resume', 'first-use'],
@@ -97,10 +105,13 @@ export const TABLE: readonly Row[] = [
   { key: 'loaded', lives: 'module', merge: 'none', restoredAt: [], note: 'which store copies this module brought back (groups, links): a reload brings them back again on first use' },
   { key: 'keptLinks', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the links record as the store holds it, refilled whenever it is read or written; the ties of sessions the host leaves out' },
   { key: 'leftBehind', lives: 'module', merge: 'none', restoredAt: ['start', 'first-use'], note: 'the sessions this one opened before a /clear (the last 200), with no card from then on; kept in the links record (`left`), refilled whenever it is read or written, as keptLinks' },
-  { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (asked again after a reload)' },
+  { key: 'ownId', lives: 'module', merge: 'none', restoredAt: [], note: 'this session\'s local_ id (put back from the state\'s selfId after a reload, else asked again)' },
   { key: 'refreshedAt', lives: 'module', merge: 'none', restoredAt: [], note: 'when the host\'s list was last read' },
+  { key: 'appList', lives: 'module', merge: 'none', restoredAt: [], note: 'whether a request composed here offered the app task list (wrap_up, update_plan; hooks/prompt-submit): a reload forgets it until the next composition, and the reminder of a new request leaves out the sentence of the order meanwhile' },
   { key: 'reading', lives: 'module', merge: 'none', restoredAt: [], note: 'the read of the sessions in progress (refreshChildren): one at a time; a reload starts it over' },
   { key: 'readAgain', lives: 'module', merge: 'none', restoredAt: [], note: 'a read asked while one ran: the one in progress runs once more; a reload starts it over' },
+  { key: 'publishing', lives: 'module', merge: 'none', restoredAt: [], note: 'the publication of the panel in progress (publishPanel): one at a time; a reload starts it over' },
+  { key: 'publishAgain', lives: 'module', merge: 'none', restoredAt: [], note: 'the publication waiting for the one in progress, which the ones asked meanwhile join: it reads the state after that one wrote; a reload starts it over' },
   { key: 'drawSize', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s size, published' },
   { key: 'drawRows', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s lines, published' },
   { key: 'renderError', lives: 'module', merge: 'none', restoredAt: [], note: 'the last drawing\'s error, published' },
@@ -108,10 +119,10 @@ export const TABLE: readonly Row[] = [
   { key: 'ticker', lives: 'module', merge: 'none', restoredAt: [], note: 'the 1 s clock, started again by the pane\'s drawing (the app draws it when the mod loads) and by the next start, refresh or tool call' },
   { key: 'poller', lives: 'module', merge: 'none', restoredAt: [], note: 'the 3 s reread of the sessions, started again likewise (the pane\'s drawing too)' },
   { key: 'engineSeen', lives: 'module', merge: 'none', restoredAt: [], note: 'the host\'s model per session, a minute each' },
-  { key: 'samples', lives: 'module', merge: 'none', restoredAt: [], note: 'the turn\'s model calls so far (tokens out, duration), the last 20, for the output rate; a reload mid-turn starts them over (the state keeps the last rate)' },
-  { key: 'unplanned, planned, answeredInChat, briefBeforePlan', lives: 'module', merge: 'none', restoredAt: [], note: 'the request\'s reminders: calls without a plan, whether it planned, whether a question is answered by the next message, whether the summary kept came before a plan' },
-  { key: 'lastPublished, lastLinks, lastStatus', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record and status text: written or set again only when they change; a reload writes each once more' },
+  { key: 'unplanned', lives: 'module', merge: 'none', restoredAt: [], note: 'the main loop\'s calls without a plan, for the reminder to plan; a reload starts the count over (the reminder comes once more, only in a request that did not plan)' },
+  { key: 'lastPublished, lastLinks, lastStatus, lastFolds, lastUltra', lives: 'module', merge: 'none', restoredAt: [], note: 'the last published file (without its clocks and panes), links record, status text, folds and ultracode switch: written or set again only when they change; a reload or a refused write writes each once more' },
   { key: 'home', lives: 'module', merge: 'none', restoredAt: [], note: 'the home folder of the published files, asked of the host once per module' },
+  { key: 'calls, counted, wrote, pendingToks, gone', lives: 'module', merge: 'none', restoredAt: ['first-use'], note: 'per subagent (hooks/agents): the calls counted, taken up from its card on its first call after a reload (counted) so the card\'s count goes on; when its rate was last written; the rate measured within the second after that write, which the card\'s next write takes (a reload loses it: the card keeps the one written); when its card was first seen with no agent, which a reload starts over with one more check' },
   { key: 'pendingTools, toolsWrote, toolsTimer', lives: 'module', merge: 'none', restoredAt: [], note: 'the subagents\' tool lines not written yet, when they were last written and the timer that writes them (at most once a second for all, hooks/agents subTool); a reload drops the pending lines: the next call writes at once' },
   { key: 'inCall', lives: 'module', merge: 'none', restoredAt: [], note: 'the calls in progress by agent and tool: a permission wait goes when the last one ends; a reload starts it over, and the end of a call then drops the wait, as before' },
 ]
@@ -137,8 +148,8 @@ export const KEEP = 30
 export const loaded = new Set<string>()
 
 // What the store keeps of a session this one linked to: its ties to the tasks, not its state.
-export type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds' | 'openedAt'>
-export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds, openedAt: c.openedAt })
+export type Link = Pick<Child, 'id' | 'name' | 'title' | 'anchor' | 'lastAnchor' | 'rounds' | 'openedAt' | 'places' | 'onlyPlace'>
+export const linkOf = (c: Child): Link => ({ id: c.id, name: c.name, title: c.title, anchor: c.anchor, lastAnchor: c.lastAnchor, rounds: c.rounds, openedAt: c.openedAt, places: c.places, ...(c.onlyPlace === true ? { onlyPlace: true } : {}) })
 
 // The store's copy meeting the state's, by the row's `merge` (see Merge).
 export function merge<T>(key: string, cur: T[] | undefined, old: T[]): T[] {
@@ -163,7 +174,7 @@ export async function loadStore($: any, key: string, id?: string): Promise<unkno
 // The last write of the store that failed (what, the error, when), until that write works again.
 export const storeFailure: { what?: string; error?: string; at?: number } = {}
 // What each store record is, in the log's words.
-const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações' }
+const WHAT: Record<string, string> = { groups: 'painel', work: 'trabalho', turnEnded: 'fim do turno', children: 'ligações', collapsed: 'dobras', ultracode: 'ultracode' }
 // A write of the store (`key` names the record): tried; on a failure, said in the log, the store pruned
 // and tried once more; a failure that stays is said and kept, never thrown (the hook goes on).
 export async function guarded($: any, key: string, write: () => Promise<void>): Promise<boolean> {
@@ -189,8 +200,8 @@ export async function guarded($: any, key: string, write: () => Promise<void>): 
 }
 // The prefixes of earlier versions, which nothing writes any more.
 const GONE = ['asks', 'view']
-// The records kept per session (the panel's and the three beside it).
-const PER_SESSION = ['session', 'work', 'turn', 'links']
+// The records kept per session (the panel's and the ones beside it).
+const PER_SESSION = ['session', 'work', 'turn', 'links', 'folds', 'ultra']
 // Deletes what no session needs: the keys of earlier versions, and the records of the sessions out
 // of the list (`sessions`), but never this one's. Run once per module by itself (the first save of the
 // panel) and whenever a write fails. A failure of its own is said in the log and breaks nothing.
@@ -213,17 +224,80 @@ export async function pruneStore($: any): Promise<void> {
     await debugOnce($, `task-tree: store não podado: ${String(err)}`)
   }
 }
+// The kept panel's version and its checked reading (the person, 2026-11-15: "Versão e leitura conferida
+// (Recomendado)"). The groups kept in the store (`session`) and in the state (a hot reload hands the new
+// code what the old one wrote) are read through readGroups: a record of a version this code does not
+// know, or out of the shape, is ignored with its reason, never handed to the drawing or the tools.
+// A new optional field needs nothing. A change of shape of what is kept (groups, tasks) raises
+// GROUPS_VERSION and writes, in CONVERSIONS, the step from the version before (the key is the version
+// it converts from), with a test that reads a record of that version. In the state the version
+// (groupsVersion) is written before the groups.
+export const GROUPS_VERSION = 1
+export const CONVERSIONS: Record<number, (groups: unknown[]) => unknown[]> = {}
+const STATUSES = ['open', 'done', 'interrupted']
+const isObj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v)
+function taskProblem(v: unknown): string | undefined {
+  if (!isObj(v)) return 'tarefa que não é objeto'
+  if (typeof v.id !== 'string') return 'tarefa sem id'
+  if (typeof v.title !== 'string') return `tarefa ${v.id} sem título`
+  if (typeof v.status !== 'string' || !STATUSES.includes(v.status)) return `tarefa ${v.id} com status desconhecido`
+  if (!Array.isArray(v.children)) return `tarefa ${v.id} sem children`
+  for (const c of v.children) {
+    const p = taskProblem(c)
+    if (p !== undefined) return p
+  }
+  return undefined
+}
+function groupProblem(v: unknown): string | undefined {
+  if (!isObj(v)) return 'grupo que não é objeto'
+  if (typeof v.agent !== 'string') return 'grupo sem agent'
+  if (!Array.isArray(v.tasks)) return `grupo "${v.agent}" sem tasks`
+  for (const t of v.tasks) {
+    const p = taskProblem(t)
+    if (p !== undefined) return p
+  }
+  return undefined
+}
+// What was read (the store's record, or the state's groups with the state's version): a bare list is a
+// record of before the versions (version 1); `{ version, groups }` the current form. Answers the groups,
+// converted up to GROUPS_VERSION, or why they are ignored; nothing read answers neither.
+export function readGroups(raw: unknown): { groups?: Group[]; reason?: string } {
+  if (raw === undefined || raw === null) return {}
+  let version = 1
+  let list: unknown
+  if (Array.isArray(raw)) list = raw
+  else if (isObj(raw) && 'groups' in raw) {
+    version = raw.version as number
+    list = raw.groups
+  } else return { reason: 'não é lista nem registro' }
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return { reason: `versão ${String(version)} inválida` }
+  if (version > GROUPS_VERSION) return { reason: `versão ${version}, maior que a ${GROUPS_VERSION} deste código` }
+  if (!Array.isArray(list)) return { reason: 'grupos que não são lista' }
+  let groups = list as unknown[]
+  for (let n = version; n < GROUPS_VERSION; n++) {
+    const step = CONVERSIONS[n]
+    if (step === undefined) return { reason: `sem conversão da versão ${n}` }
+    groups = step(groups)
+  }
+  for (const g of groups) {
+    const p = groupProblem(g)
+    if (p !== undefined) return { reason: p }
+  }
+  return { groups: groups as Group[] }
+}
+
 export async function saveStore($: any, key: string, value: unknown): Promise<boolean> {
   return guarded($, key, async () => $.store.set(storeKey(key, await $.session.id()), value))
 }
 // The panel's copy, and the list of the sessions that have one (the newest KEEP; the others' copies
 // are deleted). Answers whether this session was out of the list (a new session, or one whose
 // records another session pruned): the caller then writes its work, turn end and links again.
+// The panel's copy is written with its version (GROUPS_VERSION): `{ version, groups }`.
 export async function saveGroups($: any, groups: unknown): Promise<{ saved: boolean; back: boolean }> {
   let back = false
   const saved = await guarded($, 'groups', async () => {
     const id: string = await $.session.id()
-    await $.store.set(storeKey('groups', id), groups)
+    await $.store.set(storeKey('groups', id), { version: GROUPS_VERSION, groups })
     const known = ((await $.store.get(rowOf('sessions').store as string)) as string[] | undefined) ?? []
     back = !known.includes(id)
     const order = [id, ...known.filter(k => k !== id)]

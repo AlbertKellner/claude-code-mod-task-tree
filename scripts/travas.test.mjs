@@ -1,12 +1,13 @@
 // Testes das próprias travas do selo (scripts/selos.mjs), num repositório git temporário com um
 // catálogo mínimo, dois testes e um arquivo de kit. Uso: node --test scripts/travas.test.mjs.
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, test } from 'node:test'
-import { alteradosNoIndice, baseDoRelato, etapasDoHook } from './mudou.mjs'
-import { aprovarGolden, liberaGolden, liberaRemovido, liberaTeste, selosDeHead, testesDe } from './selos.mjs'
+import { alteradosNoIndice, baseDoRelato, clonePrincipal, etapasDoHook, lerBase } from './mudou.mjs'
+import { etapaConferiu } from './guarda.mjs'
+import { aprovarGolden, lerResultados, liberaGolden, liberaRemovido, liberaTeste, naoRodaram, selosDeHead, testesDe } from './selos.mjs'
 import { impacto } from './impacto.mjs'
 import { versaoNova } from './versao.mjs'
 import assert from 'node:assert/strict'
@@ -182,6 +183,65 @@ test('o que mudou é lido do índice contra HEAD, não da pasta de trabalho', co
   assert.deepEqual(alteradosNoIndice(dir, env), ['task-tree/tests/kit/leitura.ts'])
 }))
 
+test('o hook vê um arquivo movido pelos dois caminhos', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  mkdirSync(join(dir, 'docs'))
+  assert.equal(git('mv', ARQ, 'docs/exemplo.test.ts').status, 0)
+  assert.deepEqual([...alteradosNoIndice(dir, env)].sort(), ['docs/exemplo.test.ts', ARQ].sort())
+}))
+
+test('o hook vê um arquivo com acento no nome como ele é', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  writeFileSync(join(dir, 'task-tree', 'tests', 'ação.test.ts'), 'export const x = 1\n')
+  git('add', 'task-tree/tests/ação.test.ts')
+  const alterados = alteradosNoIndice(dir, env)
+  assert.deepEqual(alterados, ['task-tree/tests/ação.test.ts'])
+  assert.equal(etapasDoHook(alterados).tsc, true)
+}))
+
+test('subir o TypeScript roda o tsc e as travas', () => {
+  for (const p of ['package.json', 'package-lock.json'])
+    assert.deepEqual(etapasDoHook([p]), { travas: true, validate: false, tsc: true }, p)
+})
+
+// O script chamado por um caminho com link (junção no Windows, link simbólico no resto) ainda roda a
+// linha de comando e imprime a linha de resumo.
+for (const [nome, script] of [['regras', 'regras.mjs'], ['selos', 'selos.mjs']])
+  test(`a etapa ${nome} roda atrás de um link para a pasta dos scripts`, comMontagem(dir => {
+    const fora = mkdtempSync(join(tmpdir(), 'travas-link-'))
+    try {
+      const link = join(fora, 'scripts')
+      symlinkSync(dirname(SELOS), link, 'junction')
+      const r = spawnSync(process.execPath, [join(link, script), '--raiz', dir], { encoding: 'utf8', env })
+      assert.equal(r.status, 0, r.stderr)
+      assert.match(r.stdout, new RegExp(`^${nome}: `, 'm'))
+    } finally {
+      rmSync(fora, { recursive: true, force: true })
+    }
+  }))
+
+test('a etapa sem linha de resumo não conferiu', () => {
+  assert.equal(etapaConferiu('regras', ''), false)
+  assert.equal(etapaConferiu('regras', 'mapa: 1 cobertos\nregras: 3 cobertas, 0 pendentes\n'), true)
+  assert.equal(etapaConferiu('selos', 'regras: 3 cobertas\n'), false)
+  assert.equal(etapaConferiu('selos', 'selos: 2 testes, 1 arquivos do kit\n'), true)
+  assert.equal(etapaConferiu('tsc', ''), true)
+})
+
+test('o clone principal de uma worktree', comMontagem(dir => {
+  const git = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env })
+  const fora = mkdtempSync(join(tmpdir(), 'travas-wt-'))
+  const wt = join(fora, 'wt')
+  try {
+    assert.equal(git('worktree', 'add', '-q', '--detach', wt).status, 0)
+    assert.equal(realpathSync.native(clonePrincipal(wt, env)), realpathSync.native(dir))
+    assert.equal(realpathSync.native(clonePrincipal(dir, env)), realpathSync.native(dir))
+  } finally {
+    git('worktree', 'remove', '--force', wt)
+    rmSync(fora, { recursive: true, force: true })
+  }
+}))
+
 test('a base do relato é HEAD com mudança fora de commit e o commit anterior sem ela', comMontagem(dir => {
   const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
   // Só o commit "base", sem anterior: HEAD.
@@ -264,7 +324,7 @@ function mapa(area, cenario) {
   writeFileSync(join(dir, 'task-tree', 'hooks', 'turn.ts'), 'export const x = 1\n')
   writeFileSync(join(dir, 'task-tree', 'draw', 'layout.ts'), 'export const y = 1\n')
   writeFileSync(join(dir, 'task-tree', 'hooks', 'render.tsx'), 'export const z = 1\n')
-  const md = ['# Turnos', '', area, '', '### turnos.um', 'Um.', '', cenario, 'Estado: coberto', '', '### turnos.dois', 'Dois.', '', 'Estado: checklist (só no app)', '']
+  const md = ['# Turnos', '', area, '', '### turnos.um', 'Um.', '', 'Origem: teste das travas, 2026-10-29.', cenario, 'Estado: coberto', '', '### turnos.dois', 'Dois.', '', 'Origem: teste das travas, 2026-10-29.', 'Estado: checklist (só no app)', '']
   writeFileSync(join(dir, 'regras', 'turnos.md'), md.join('\n'))
   writeFileSync(join(dir, 'task-tree', 'tests', 'turnos.test.ts'), "// Regra: turnos.um\ntest('um', async () => {})\n")
   return dir
@@ -650,3 +710,752 @@ test('título no formato não traz aviso', () => {
   for (const titulo of ['fix(task-tree): x', 'feat: x', 'chore(release): x', 'feat(task-tree)!: x'])
     assert.equal(versaoNova(titulo, '', '0.15.2').aviso, undefined, titulo)
 })
+
+// A regressão diz quando não comparou: teste da base que não rodou, base vazia ou inexistente.
+test('a regressão acusa o teste da base que não apareceu na saída', () => {
+  const chaves = [UM, DOIS]
+  assert.deepEqual(naoRodaram(chaves, [{ chave: UM, ok: true }]), [DOIS])
+  assert.deepEqual(naoRodaram(chaves, [{ chave: UM, ok: true }, { chave: DOIS, ok: false }]), [])
+})
+
+test('a saída do plugin test é lida por arquivo e por linha', () => {
+  const saida = ['bun test', 'tests\\x.test.ts:', '(pass) um [3ms]', 'linha solta', '(fail) dois', '', ' 1 pass'].join('\r\n')
+  assert.deepEqual(lerResultados(saida), [
+    { chave: 'task-tree/tests/x.test.ts::um', ok: true },
+    { chave: 'task-tree/tests/x.test.ts::dois', ok: false },
+  ])
+})
+
+test('uma base que não existe é erro; o repositório sem commit segue valendo', comMontagem(dir => {
+  const r = selos(dir, '--repo', dir, '--base', 'naoexiste')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /não existe/)
+  const vazio = mkdtempSync(join(tmpdir(), 'travas-vazio-'))
+  try {
+    spawnSync('git', ['-C', vazio, 'init', '-q'], { encoding: 'utf8', env })
+    assert.deepEqual(selosDeHead(vazio).testes, {})
+  } finally {
+    rmSync(vazio, { recursive: true, force: true })
+  }
+}))
+
+test('--base sem valor é erro', () => {
+  for (const args of [['--base'], ['--base', ''], ['--base', '--indice']]) assert.ok(lerBase(args).erro, JSON.stringify(args))
+  assert.deepEqual(lerBase(['--base', 'abc']), { base: 'abc' })
+  assert.deepEqual(lerBase(['--indice']), { base: undefined })
+})
+
+// Travas do selo do kit, dos testes fora do topo e dos commits citados nas origens.
+const KIT_AFIRMA = "import { expect } from 'claude-code/testing'\nexport function esperarX(v: number) {\n  expect(v).toBe(v)\n}\nexport const x = 1\n"
+test('selar o kit que já existia como novo é recusado, e o selo novo à mão não passa', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), 'export const x = 2\n')
+  const r = selos(dir, '--kit', KIT_ARQ, '--tipo', 'novo', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /"novo" só para arquivo que não existia em HEAD/)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.kit[KIT_ARQ].tipo = 'novo'
+  gravarSelosJson(dir, s)
+  const c = conferir(dir)
+  assert.equal(c.status, 1)
+  assert.match(c.stderr, /tipo `novo` em arquivo do kit que já existia: task-tree\/tests\/kit\/leitura\.ts/)
+}))
+
+test('selo do kit sem motivo é recusado', comMontagem(dir => {
+  writeFileSync(join(dir, KIT_ARQ), 'export const x = 2\n')
+  const r = selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /exige --motivo/)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.kit[KIT_ARQ].motivo = ''
+  gravarSelosJson(dir, s)
+  assert.match(conferir(dir).stderr, /selo do kit sem motivo/)
+}))
+
+// O teste um passa a chamar um helper do kit que afirma, e isso vai à base.
+const comHelperNaBase = dir => {
+  writeFileSync(join(dir, KIT_ARQ), KIT_AFIRMA)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'esperarX(2)')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  gitEm(dir)('commit', '-q', '-am', 'helper')
+  writeFileSync(join(dir, KIT_ARQ), KIT_AFIRMA.replace('  expect(v).toBe(v)\n', '  void v\n'))
+}
+
+test('um helper do kit que deixa de afirmar não passa com --recontar', comMontagem(dir => {
+  comHelperNaBase(dir)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  assert.equal(selos(dir, '--recontar').status, 0)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /menos asserções sem o teste mudar: .*::um \(2 → 1\)/)
+}))
+
+test('um helper do kit que deixa de afirmar, com o kit selado como decisão, passa', comMontagem(dir => {
+  comHelperNaBase(dir)
+  assert.equal(selos(dir, '--kit', KIT_ARQ, '--tipo', 'decisao', '--motivo', 'o usuário decidiu').status, 0)
+  assert.equal(selos(dir, '--recontar').status, 0)
+  const r = conferir(dir)
+  assert.equal(r.status, 0, r.stderr)
+}))
+
+test('um test( aninhado ou com nome em template falha a etapa selos', comMontagem(dir => {
+  for (const extra of ["\n{\n  // Regra: exemplo.a\n  test('tres', async () => {})\n}\n", "\nconst n = 'x'\n// Regra: exemplo.a\ntest(`t ${n}`, async () => {})\n"]) {
+    const original = readFileSync(join(dir, ARQ), 'utf8')
+    writeFileSync(join(dir, ARQ), original + extra)
+    const r = conferir(dir)
+    assert.equal(r.status, 1, extra)
+    assert.match(r.stderr, /3 `test\(` no arquivo, 2 testes de topo com nome literal/)
+    writeFileSync(join(dir, ARQ), original)
+  }
+}))
+
+test('dois testes com o mesmo nome no arquivo falham', comMontagem(dir => {
+  writeFileSync(join(dir, ARQ), readFileSync(join(dir, ARQ), 'utf8') + "\n// Regra: exemplo.a\ntest('um', async () => {})\n")
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /nome de teste repetido em task-tree\/tests\/exemplo\.test\.ts: um/)
+}))
+
+test('hash de origem que não existe só avisa', comMontagem(dir => {
+  trocar(dir, 'regras/exemplo.md', 'Origem: teste das travas.\nEstado: coberto\n\n### exemplo.b', 'Origem: teste das travas, commit 0123abc.\nEstado: coberto\n\n### exemplo.b')
+  let r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stdout, /aviso: exemplo\.md: exemplo\.a: commit citado não existe: 0123abc/)
+  const h = gitEm(dir)('rev-parse', '--short=7', 'HEAD').stdout.trim()
+  trocar(dir, 'regras/exemplo.md', '0123abc', h)
+  r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+  assert.doesNotMatch(r.stdout, /commit citado não existe/)
+}))
+
+// O catálogo conferido: a origem, o prefixo do id, o lugar do mapa de código e o "pendente".
+const comMapa = (area, cenario, corpo) => {
+  const dir = mapa(area, cenario)
+  try {
+    corpo(dir)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+test('cenário sem Origem falha o check', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', 'Dois.\n\nOrigem: teste das travas, 2026-10-29.\n', 'Dois.\n\n')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.md: turnos\.dois sem "Origem:"/)
+}))
+
+test('id com prefixo de outra área falha', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', '### turnos.dois', '### pedidos.dois')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.md: pedidos\.dois: o id não começa por "turnos\."/)
+}))
+
+test('Código da área: depois do primeiro cenário falha', () => comMapa('', '', dir => {
+  trocar(dir, 'regras/turnos.md', '### turnos.dois', 'Código da área: hooks/turn.ts\n\n### turnos.dois')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.md: "Código da área:" fora do topo/)
+}))
+
+test('pendente sem arquivo de teste falha; com o arquivo, passa', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', 'Estado: checklist (só no app)', 'Estado: pendente')
+  let r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /turnos\.dois está "pendente" sem o arquivo de teste entre parênteses/)
+  trocar(dir, 'regras/turnos.md', 'Estado: pendente', 'Estado: pendente (sumiu.test.ts)')
+  r = regrasEm(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /arquivo de teste que não existe: sumiu\.test\.ts/)
+  trocar(dir, 'regras/turnos.md', 'pendente (sumiu.test.ts)', 'pendente (turnos.test.ts)')
+  r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+}))
+
+test('origem sem data e decisão sem aspas só avisam', () => comMapa('Código da área: hooks/turn.ts', '', dir => {
+  trocar(dir, 'regras/turnos.md', 'Um.\n\nOrigem: teste das travas, 2026-10-29.', 'Um.\n\nOrigem: regra do painel.')
+  trocar(dir, 'regras/turnos.md', 'Dois.\n\nOrigem: teste das travas, 2026-10-29.', 'Dois.\n\nOrigem: decisão do usuário, 2026-10-29.')
+  const r = regrasEm(dir)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stdout, /aviso: origens sem data \(1\): turnos\.um/)
+  assert.match(r.stdout, /aviso: decisões sem as palavras \(1\): turnos\.dois/)
+  assert.match(r.stdout, /mapa: 1 cobertos com código, 1 avisos/)
+}))
+
+// Lote C-04: a versão do Claude Code num arquivo só; a pasta nova do app que não responde não bloqueia.
+test('o binário é o da versão mais nova que responde', async () => {
+  const { acharBinario } = await import('./binario.mjs')
+  const appdata = mkdtempSync(join(tmpdir(), 'bin-'))
+  try {
+    const exe = v => join(appdata, 'Claude', 'claude-code', v, 'x', 'claude.exe')
+    for (const v of ['2.1.9', '2.1.10']) {
+      mkdirSync(dirname(exe(v)), { recursive: true })
+      writeFileSync(exe(v), '')
+    }
+    const amb = { APPDATA: appdata }
+    assert.equal(acharBinario(amb, () => true), exe('2.1.10'))
+    assert.equal(acharBinario(amb, b => b !== exe('2.1.10')), exe('2.1.9'))
+    assert.equal(acharBinario(amb, () => false), exe('2.1.10'))
+  } finally {
+    rmSync(appdata, { recursive: true, force: true })
+  }
+})
+
+test('CLAUDE_BIN vale sem tentativa', async () => {
+  const { acharBinario } = await import('./binario.mjs')
+  let perguntou = false
+  assert.equal(acharBinario({ CLAUDE_BIN: 'meu-claude' }, () => ((perguntou = true), false)), 'meu-claude')
+  assert.equal(perguntou, false)
+})
+
+test('a versão fixada é lida do arquivo e comparada', async () => {
+  const { avisoDeVersao, lerVersaoFixada, versaoDoTexto } = await import('./binario.mjs')
+  assert.equal(versaoDoTexto('2.1.325 (Claude Code)\n'), '2.1.325')
+  assert.equal(versaoDoTexto('2.1.325'), '2.1.325')
+  assert.equal(versaoDoTexto('sem versão'), null)
+  const dir = mkdtempSync(join(tmpdir(), 'ver-'))
+  try {
+    const arq = join(dir, 'versao.txt')
+    assert.equal(lerVersaoFixada(arq), null)
+    writeFileSync(arq, '2.1.325\n')
+    assert.equal(lerVersaoFixada(arq), '2.1.325')
+    assert.equal(avisoDeVersao('2.1.325', '2.1.325'), null)
+    assert.match(avisoDeVersao('2.1.326', '2.1.325'), /roda no Claude Code 2\.1\.326, a versão fixada é 2\.1\.325/)
+    assert.equal(avisoDeVersao('2.1.326', null), null)
+    assert.equal(avisoDeVersao(null, '2.1.325'), null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('o arquivo da versão fixada existe e tem o formato X.Y.Z', () => {
+  const arq = join(dirname(fileURLToPath(import.meta.url)), 'versao-do-claude-code.txt')
+  assert.match(readFileSync(arq, 'utf8'), /^\d+\.\d+\.\d+\r?\n?$/)
+})
+
+// Lote C-05: reexecutar o release de um PR cria só o que faltou, sem novo salto de versão.
+test('o título do commit de versão dá a versão', async () => {
+  const { versaoDoCommit } = await import('./versao.mjs')
+  assert.equal(versaoDoCommit('chore(release): task-tree v0.15.2'), '0.15.2')
+  for (const titulo of ['fix(task-tree): x', 'chore(release): outra coisa', '', undefined])
+    assert.equal(versaoDoCommit(titulo), null, String(titulo))
+})
+
+test('reexecutar com o commit de versão do PR na main e sem release só cria a release', async () => {
+  const { retomada } = await import('./versao.mjs')
+  assert.deepEqual(retomada('chore(release): task-tree v0.15.2', false), { acao: 'criar', versao: '0.15.2' })
+})
+
+test('reexecutar um release completo não faz nada', async () => {
+  const { retomada } = await import('./versao.mjs')
+  assert.deepEqual(retomada('chore(release): task-tree v0.15.2', true), { acao: 'nada', versao: '0.15.2' })
+})
+
+test('sem commit de versão do PR, o release sobe a versão', async () => {
+  const { retomada } = await import('./versao.mjs')
+  assert.deepEqual(retomada('', false), { acao: 'subir', versao: null })
+  assert.deepEqual(retomada(undefined, false), { acao: 'subir', versao: null })
+})
+
+// Lote C-18: o selo de refatoração é provado rodando o teste novo contra o código anterior.
+test('as refatorações de um commit são os selos de refatoração com hash novo', async () => {
+  const { refatoracoesDoCommit } = await import('./selos.mjs')
+  const s = (tipo, hash) => ({ tipo, hash })
+  const agora = { testes: { a: s('refatoracao', '2'), b: s('refatoracao', '1'), c: s('decisao', '2'), d: s('novo', '2'), e: s('refatoracao', '2') } }
+  const base = { testes: { a: s('novo', '1'), b: s('refatoracao', '1'), c: s('novo', '1'), d: s('novo', '1') } }
+  assert.deepEqual(refatoracoesDoCommit(agora, base), ['a'])
+  const dir = montar()
+  try {
+    trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(1 + 1)')
+    const r = selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'a mesma afirmação')
+    assert.equal(r.status, 0, r.stderr)
+    assert.deepEqual(refatoracoesDoCommit(lerSelosJson(dir), selosDeHead(dir)), [UM])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+// Lote E-01: as etapas leves rodam em paralelo com o plugin test, e a primeira falha encerra as outras.
+const NODE = process.execPath
+const passo = (nome, codigo, extra = {}) => ({ nome, cmd: NODE, args: ['-e', codigo], bloqueia: true, roda: true, junto: true, depois: false, ...extra })
+const DORME = 'setTimeout(() => {}, 60000)'
+const vivo = pid => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+const morreu = async pid => {
+  for (let i = 0; i < 20 && vivo(pid); i++) await new Promise(r => setTimeout(r, 250))
+  return !vivo(pid)
+}
+
+test('as etapas leves e o plugin test vão juntos; a regressão fica para depois', async () => {
+  const { montarEtapas, dividir } = await import('./etapas.mjs')
+  const etapas = montarEtapas({ claude: 'claude', modulos: 'nm', repo: 'r', raiz: 'x', indice: true, comBase: ['--base', 'abc'] })
+  assert.deepEqual(etapas.map(e => e.nome), ['regras', 'travas', 'selos', 'validate do marketplace', 'validate do mod', 'tsc', 'plugin test', 'regressao'])
+  assert.deepEqual(etapas.map(e => e.junto), [true, true, true, true, true, true, true, false])
+  assert.ok(etapas.every(e => e.roda && e.bloqueia))
+  const args = nome => etapas.find(e => e.nome === nome).args
+  assert.deepEqual(args('selos').slice(-2), ['--base', 'abc'])
+  assert.deepEqual(args('regressao').slice(-5), ['--indice', '--raiz', 'x', '--base', 'abc'])
+  const { antes, grupo, depois } = dividir(etapas)
+  assert.deepEqual(antes, [])
+  assert.equal(grupo.length, 7)
+  assert.deepEqual(depois.map(e => e.nome), ['regressao'])
+})
+
+test('no hook, a etapa pulada fica fora do grupo', async () => {
+  const { montarEtapas, dividir } = await import('./etapas.mjs')
+  const etapas = montarEtapas({ claude: 'claude', modulos: 'nm', repo: 'r', raiz: 'r', hook: { travas: false, validate: false, tsc: false } })
+  assert.deepEqual(etapas.filter(e => !e.roda).map(e => e.nome), ['travas', 'validate do marketplace', 'validate do mod', 'tsc'])
+  assert.deepEqual(dividir(etapas).grupo.map(e => e.nome), ['regras', 'selos', 'plugin test'])
+})
+
+test('a primeira etapa que falha encerra as que ainda rodam', async () => {
+  const { rodarGrupo } = await import('./etapas.mjs')
+  const vistas = []
+  const inicio = Date.now()
+  const estados = await rodarGrupo([passo('longa', DORME), passo('quebra', "process.stderr.write('quebrou'); process.exit(3)")], {
+    aoTerminar: e => vistas.push(e.nome),
+  })
+  assert.ok(Date.now() - inicio < 20000)
+  const quebra = estados.get('quebra')
+  assert.equal(quebra.estado, 'falhou')
+  assert.equal(quebra.codigo, 3)
+  assert.match(quebra.saida, /quebrou/)
+  const longa = estados.get('longa')
+  assert.equal(longa.estado, 'encerrada')
+  assert.equal(longa.causa, 'quebra')
+  assert.deepEqual(vistas, ['quebra'])
+  assert.ok(await morreu(longa.pid))
+})
+
+test('encerrar leva junto os processos netos', async () => {
+  const { lancar, encerrar } = await import('./etapas.mjs')
+  const dir = mkdtempSync(join(tmpdir(), 'travas-etapas-'))
+  try {
+    const arq = join(dir, 'pai.js')
+    writeFileSync(arq, `const n = require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(DORME)}], { stdio: 'ignore' }); console.log('neto ' + n.pid); ${DORME}`)
+    for (const shell of [false, true]) {
+      const etapa = shell ? { nome: 'pai', cmd: `"${NODE}"`, args: [`"${arq}"`] } : { nome: 'pai', cmd: NODE, args: [arq] }
+      const { proc, fim, saida } = lancar(etapa, { shell })
+      let neto
+      for (let i = 0; i < 80 && !neto; i++) {
+        await new Promise(r => setTimeout(r, 100))
+        neto = Number(/neto (\d+)/.exec(saida())?.[1]) || undefined
+      }
+      assert.ok(neto, `o neto não apareceu (shell ${shell}): ${saida()}`)
+      encerrar(proc)
+      await fim
+      assert.ok(await morreu(proc.pid), `o filho ficou (shell ${shell})`)
+      assert.ok(await morreu(neto), `o neto ficou (shell ${shell})`)
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('todas passam: cada saída é entregue inteira, uma vez, quando a etapa termina', async () => {
+  const { rodarGrupo } = await import('./etapas.mjs')
+  const vistas = []
+  const fala = n => passo(n, `process.stdout.write('saída de ${n} ação'); process.stderr.write(' erro ${n}')`)
+  const estados = await rodarGrupo([fala('um'), fala('dois'), fala('tres')], { aoTerminar: (e, est) => vistas.push([e.nome, est.saida]) })
+  for (const n of ['um', 'dois', 'tres']) {
+    assert.equal(estados.get(n).estado, 'passou')
+    assert.match(estados.get(n).saida, new RegExp(`saída de ${n} ação`))
+    assert.match(estados.get(n).saida, new RegExp(`erro ${n}`))
+  }
+  assert.equal(vistas.length, 3)
+  assert.deepEqual(vistas.map(v => v[0]).sort(), ['dois', 'tres', 'um'])
+})
+
+test('a etapa regras ou selos sem a linha de resumo é falha também no grupo', async () => {
+  const { rodarGrupo } = await import('./etapas.mjs')
+  const estados = await rodarGrupo([passo('longa', DORME), passo('regras', '')])
+  assert.equal(estados.get('regras').estado, 'naoConferiu')
+  assert.equal(estados.get('longa').estado, 'encerrada')
+  assert.ok(await morreu(estados.get('longa').pid))
+  const ok = await rodarGrupo([passo('regras', "console.log('regras: 1 cobertas')")])
+  assert.equal(ok.get('regras').estado, 'passou')
+})
+
+test('o resumo sai na ordem da lista', async () => {
+  const { linhasDoResumo } = await import('./etapas.mjs')
+  const etapas = ['a', 'b', 'c', 'd', 'regras', 'regressao'].map(nome => ({ nome, roda: nome !== 'b' }))
+  const estados = new Map([
+    ['d', { estado: 'encerrada', causa: 'c' }],
+    ['c', { estado: 'falhou', codigo: 2 }],
+    ['regras', { estado: 'naoConferiu', codigo: 1 }],
+    ['a', { estado: 'passou', codigo: 0 }],
+  ])
+  assert.deepEqual(linhasDoResumo(etapas, estados), [
+    'ok    a',
+    '--    b (pulada no hook: os arquivos dela não mudaram)',
+    'FALHA c (exit 2)',
+    '--    d (encerrada: c falhou)',
+    'FALHA regras (a etapa não conferiu nada: o script saiu sem a linha de resumo)',
+    '--    regressao (não rodou)',
+  ])
+})
+
+test('trocar de onde vem o `test` não muda o selo de nenhum teste', () => {
+  const doKit = TESTES.replace("import { expect, test } from 'claude-code/testing'", "import { expect } from 'claude-code/testing'\nimport { test } from './kit/teste'")
+  assert.notEqual(doKit, TESTES)
+  const resumo = texto => testesDe(ARQ, texto).map(t => [t.nome, t.hash, t.assercoes])
+  assert.deepEqual(resumo(doKit), resumo(TESTES))
+  const comTeto = texto => texto.replace("test('dois', async", "test('dois', { timeoutMs: 15000 }, async")
+  assert.deepEqual(resumo(comTeto(doKit)), resumo(comTeto(TESTES)))
+  assert.deepEqual(resumo(comTeto(TESTES)), resumo(TESTES))
+})
+
+test('com o `test` do kit no repositório, o arquivo de teste que importa `test` do kit do Claude Code falha a etapa selos', comMontagem(dir => {
+  const kitTeste = 'task-tree/tests/kit/teste.ts'
+  writeFileSync(join(dir, kitTeste), "export { test } from 'claude-code/testing'\n")
+  assert.equal(selos(dir, '--kit', kitTeste, '--tipo', 'novo', '--motivo', 'x').status, 0)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /task-tree\/tests\/exemplo\.test\.ts: importa `test` de 'claude-code\/testing'; o teto por teste vem de '\.\/kit\/teste'/)
+  trocar(dir, ARQ, "import { expect, test } from 'claude-code/testing'", "import { expect } from 'claude-code/testing'\nimport { test } from './kit/teste'")
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('sem o `test` do kit no repositório, a importação direta segue valendo', comMontagem(dir => {
+  assert.equal(conferir(dir).status, 0)
+}))
+
+test('a regressão não repete o arquivo de teste igual ao da base', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const t = n => `task-tree/tests/${n}.test.ts`
+  const r = arquivosDaRegressao([t('a'), t('b'), t('c')], [t('b'), 'task-tree/hooks/turn.ts'])
+  assert.deepEqual(r.repete, [t('b')])
+  assert.deepEqual(r.iguais, [t('a'), t('c')])
+  assert.equal(r.motivo, undefined)
+})
+
+test('qualquer mudança no kit, num apoio ou no golden faz a regressão repetir tudo', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const base = ['a', 'b', 'c'].map(n => `task-tree/tests/${n}.test.ts`)
+  for (const p of ['task-tree/tests/kit/leitura.ts', 'task-tree/tests/fixtures/publicados.ts', 'task-tree/tests/golden/desenho.ts', 'task-tree/tests/kit/novo.ts']) {
+    const r = arquivosDaRegressao(base, [p])
+    assert.deepEqual(r.repete, base)
+    assert.deepEqual(r.iguais, [])
+    assert.match(r.motivo, new RegExp(p.replace(/[.\/]/g, '\\$&')))
+  }
+})
+
+test('o arquivo de teste removido ou renomeado roda da base', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const t = n => `task-tree/tests/${n}.test.ts`
+  const r = arquivosDaRegressao([t('a'), t('b')], [t('b'), t('d')])
+  assert.deepEqual(r.repete, [t('b')])
+  assert.deepEqual(r.iguais, [t('a')])
+  assert.ok(![...r.repete, ...r.iguais].includes(t('d')))
+})
+
+test('sem a passada principal, ou sem resposta do git, repete tudo', async () => {
+  const { arquivosDaRegressao } = await import('./mudou.mjs')
+  const base = ['task-tree/tests/a.test.ts', 'task-tree/tests/b.test.ts']
+  const sem = arquivosDaRegressao(base, [], false)
+  assert.deepEqual([sem.repete, sem.iguais, sem.motivo], [base, [], 'sem a passada principal'])
+  const nulo = arquivosDaRegressao(base, null)
+  assert.deepEqual([nulo.repete, nulo.iguais, nulo.motivo], [base, [], 'o git não respondeu'])
+})
+
+test('o que mudou em task-tree/tests é lido do índice contra a base, sem renome', async () => {
+  const { alteradosEmTestes } = await import('./mudou.mjs')
+  const dir = montar()
+  try {
+    const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8', env })
+    const outro = 'task-tree/tests/outro.test.ts'
+    writeFileSync(join(dir, outro), TESTES)
+    git('add', outro)
+    git('commit', '-q', '-m', 'outro')
+    assert.deepEqual(alteradosEmTestes(dir, 'HEAD', true, env), [])
+    trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(3)')
+    git('add', ARQ)
+    git('mv', outro, 'task-tree/tests/movido.test.ts')
+    assert.deepEqual(alteradosEmTestes(dir, 'HEAD', true, env).sort(), [ARQ, 'task-tree/tests/movido.test.ts', outro].sort())
+    writeFileSync(join(dir, 'task-tree', 'tests', 'kit', 'novo.ts'), 'export const y = 1\n')
+    assert.ok(!alteradosEmTestes(dir, 'HEAD', true, env).includes('task-tree/tests/kit/novo.ts'))
+    assert.ok(alteradosEmTestes(dir, 'HEAD', false, env).includes('task-tree/tests/kit/novo.ts'))
+    assert.equal(alteradosEmTestes(dir, 'naoexiste', true, env), null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('o teste selado de um arquivo não repetido tem de estar aprovado na passada principal', async () => {
+  const { naoConferidos } = await import('./selos.mjs')
+  const chaves = ['a::um', 'a::dois']
+  assert.deepEqual(naoConferidos(chaves, [{ chave: 'a::um', ok: true }, { chave: 'a::dois', ok: true }]), [])
+  assert.deepEqual(naoConferidos(chaves, [{ chave: 'a::um', ok: true }]), ['a::dois'])
+  assert.deepEqual(naoConferidos(chaves, [{ chave: 'a::um', ok: false }, { chave: 'a::dois', ok: true }]), ['a::um'])
+})
+
+test('a passada principal entrega a lista dos resultados na pasta do check', async () => {
+  const { gravarResultados, lerResultadosGravados } = await import('./selos.mjs')
+  const pasta = mkdtempSync(join(tmpdir(), 'travas-principal-'))
+  try {
+    assert.equal(lerResultadosGravados(pasta), null)
+    const saida = 'tests\\a.test.ts:\n(pass) um [1.00ms]\n(fail) dois [2.00ms]\n\ntests\\b.test.ts:\n(pass) tres [3ms]\n'
+    gravarResultados(pasta, saida)
+    assert.deepEqual(lerResultadosGravados(pasta), [
+      { chave: 'task-tree/tests/a.test.ts::um', ok: true },
+      { chave: 'task-tree/tests/a.test.ts::dois', ok: false },
+      { chave: 'task-tree/tests/b.test.ts::tres', ok: true },
+    ])
+  } finally {
+    rmSync(pasta, { recursive: true, force: true })
+  }
+})
+
+// Uma linha "Reescrito:" por mudança de um teste protegido (decisão do usuário, 2026-11-15: "Uma linha
+// por mudança (Recomendado)"): o selo guarda as linhas que usou, e as que já existiam na migração
+// (--marcar-reescritos) contam como usadas.
+const commitar = (dir, msg) => {
+  const git = gitEm(dir)
+  git('add', '-A')
+  git('commit', '-q', '-m', msg)
+}
+const marcado = dir => {
+  const r = selos(dir, '--marcar-reescritos')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'linhas marcadas')
+}
+const outraLinha = (dir, data, texto) => trocar(dir, 'regras/exemplo.md', `Reescrito: ${data}, o usuário decidiu.\n`, `Reescrito: ${data}, o usuário decidiu.\nReescrito: ${data}, ${texto}\n`)
+
+test('a mesma linha Reescrito: não libera a segunda mudança do mesmo teste', comMontagem(dir => {
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  reescrever(dir, 'exemplo.a', hoje)
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'primeira').status, 0)
+  commitar(dir, 'primeira mudança')
+  trocar(dir, ARQ, 'expect(4).toBe(4)', 'expect(4).toBe(4)\n  expect(5).toBe(5)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'segunda')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /a linha de \d{4}-\d{2}-\d{2} já foi usada por este teste/)
+  outraLinha(dir, hoje, 'o usuário decidiu de novo.')
+  const s = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'segunda')
+  assert.equal(s.status, 0, s.stderr)
+  assert.equal(lerSelosJson(dir).testes[UM].linhas['exemplo.a'].length, 2)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('dois testes do mesmo cenário usam a mesma linha', comMontagem(dir => {
+  marcado(dir)
+  trocar(dir, ARQ, "// Regra: exemplo.b\ntest('dois'", "// Regra: exemplo.a\ntest('dois'")
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  trocar(dir, ARQ, 'expect(3).toBe(3)', 'expect(3).toBe(3)\n  expect(6).toBe(6)')
+  reescrever(dir, 'exemplo.a', hoje)
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'decisão').status, 0)
+  const r = selos(dir, '--selar', DOIS, '--tipo', 'decisao', '--motivo', 'decisão')
+  assert.equal(r.status, 0, r.stderr)
+  const agora = lerSelosJson(dir)
+  assert.deepEqual(agora.testes[UM].linhas, agora.testes[DOIS].linhas)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('o selo de decisão copiado à mão, sem linha nova, não passa na etapa', comMontagem(dir => {
+  marcado(dir)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  reescrever(dir, 'exemplo.a', hoje)
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'decisão').status, 0)
+  commitar(dir, 'decisão')
+  trocar(dir, ARQ, 'expect(4).toBe(4)', 'expect(4).toBe(4)\n  expect(5).toBe(5)')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.testes[UM].tipo = 'decisao'
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /decisão sem `Reescrito:` novo: .*::um/)
+}))
+
+test('depois de --marcar-reescritos, as linhas que já existiam não liberam nada, e uma nova do mesmo dia libera', comMontagem(dir => {
+  reescrever(dir, 'exemplo.a', hoje)
+  marcado(dir)
+  assert.match(selos(dir, '--marcar-reescritos').stderr, /já foram marcadas/)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /já foi usada antes da migração/)
+  outraLinha(dir, hoje, 'uma decisão nova.')
+  const s = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'x')
+  assert.equal(s.status, 0, s.stderr)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('remover por decisão gasta a linha', comMontagem(dir => {
+  trocar(dir, ARQ, "// Regra: exemplo.b\ntest('dois'", "// Regra: exemplo.a\ntest('dois'")
+  assert.equal(selos(dir, '--selar', DOIS, '--tipo', 'refatoracao', '--motivo', 'a regra certa').status, 0)
+  marcado(dir)
+  reescrever(dir, 'exemplo.a', hoje)
+  trocar(dir, ARQ, "\n// Regra: exemplo.a\ntest('dois', async ($: any) => {\n  expect(3).toBe(3)\n})\n", '')
+  const r = selos(dir, '--remover', DOIS, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(r.status, 0, r.stderr)
+  const removido = lerSelosJson(dir).removidos[DOIS]
+  assert.equal(removido.reescrito, hoje)
+  assert.ok(removido.linha['exemplo.a'])
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  const s = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'o usuário decidiu')
+  assert.equal(s.status, 0, s.stderr)
+  assert.deepEqual(lerSelosJson(dir).testes[UM].linhas['exemplo.a'], [removido.linha['exemplo.a']])
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('linhasUsadas não encolhe', comMontagem(dir => {
+  reescrever(dir, 'exemplo.a', hoje)
+  marcado(dir)
+  const s = lerSelosJson(dir)
+  delete s.linhasUsadas['exemplo.a']
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /linha usada apagada da lista: exemplo\.a/)
+}))
+
+// O renome e a remoção por decisão (revisão de 2026-11-16 do commit 9ed4e5f): o teste renomeado ainda
+// sem commit usa a mesma linha ao ser selado de novo; o renome é conferido pelas regras que o teste de
+// destino tinha no momento do renome; a recusa da linha já usada vale na remoção e no renome.
+const UNO = `${ARQ}::uno`
+const paraUno = (dir, mais = 'expect(4).toBe(4)') => {
+  trocar(dir, ARQ, "test('um'", "test('uno'")
+  trocar(dir, ARQ, 'expect(2).toBe(2)', `expect(2).toBe(2)\n  ${mais}`)
+}
+const decisaoEmUm = dir => {
+  marcado(dir)
+  reescrever(dir, 'exemplo.a', hoje)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(7).toBe(7)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'primeira decisão')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'decisão em um')
+}
+const blocoDoTeste = (dir, nome) => new RegExp(`\\n// Regra: [^\\n]*\\ntest\\('${nome}'[\\s\\S]*?\\n\\}\\)\\n`).exec(readFileSync(join(dir, ARQ), 'utf8'))[0]
+
+test('selar de novo, antes do commit, o teste recém-renomeado por decisão usa a mesma linha', comMontagem(dir => {
+  marcado(dir)
+  reescrever(dir, 'exemplo.a', hoje)
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 0, r.stderr)
+  trocar(dir, ARQ, 'expect(4).toBe(4)', 'expect(4).toBe(4)\n  expect(5).toBe(5)')
+  const s = selos(dir, '--selar', UNO, '--tipo', 'decisao', '--motivo', 'ajuste no corpo')
+  assert.equal(s.status, 0, s.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.testes[UNO].linhas['exemplo.a'].length, 1)
+  assert.deepEqual(agora.testes[UNO].linhas['exemplo.a'], [agora.removidos[UM].linha['exemplo.a']])
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  trocar(dir, ARQ, 'expect(5).toBe(5)', 'expect(5).toBe(5)\n  expect(6).toBe(6)')
+  const f = selos(dir, '--selar', UNO, '--tipo', 'refatoracao', '--motivo', 'mais uma asserção')
+  assert.equal(f.status, 0, f.stderr)
+  assert.deepEqual(lerSelosJson(dir).testes[UNO].linhas['exemplo.a'], [agora.removidos[UM].linha['exemplo.a']])
+}))
+
+test('o renome por decisão é conferido pelas regras do momento do renome, também com --base', comMontagem(dir => {
+  marcado(dir)
+  const base = gitEm(dir)('rev-parse', 'HEAD').stdout.trim()
+  reescrever(dir, 'exemplo.a', hoje)
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'renome por decisão')
+  trocar(dir, ARQ, "// Regra: exemplo.a\ntest('uno'", "// Regra: exemplo.a, exemplo.b\ntest('uno'")
+  const s = selos(dir, '--selar', UNO, '--tipo', 'refatoracao', '--motivo', 'a regra a mais')
+  assert.equal(s.status, 0, s.stderr)
+  commitar(dir, 'a regra a mais')
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+  const b = selos(dir, '--repo', dir, '--base', base)
+  assert.equal(b.status, 0, b.stderr)
+  assert.doesNotMatch(b.stderr, /renome por decisão sem/)
+  assert.deepEqual(lerSelosJson(dir).removidos[UM].regrasPara, ['exemplo.a'])
+}))
+
+test('o renome por decisão cujo destino é removido no mesmo PR é conferido pelas regras do destino no renome', comMontagem(dir => {
+  trocar(dir, ARQ, "// Regra: exemplo.a\ntest('um'", "// Regra: exemplo.a, exemplo.b\ntest('um'")
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'duas regras').status, 0)
+  marcado(dir)
+  const base = gitEm(dir)('rev-parse', 'HEAD').stdout.trim()
+  reescrever(dir, 'exemplo.a', hoje)
+  trocar(dir, ARQ, "// Regra: exemplo.a, exemplo.b\ntest('um'", "// Regra: exemplo.a\ntest('um'")
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'renome por decisão')
+  outraLinha(dir, hoje, 'o usuário tirou o teste.')
+  trocar(dir, ARQ, blocoDoTeste(dir, 'uno'), '\n')
+  const m = selos(dir, '--remover', UNO, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(m.status, 0, m.stderr)
+  commitar(dir, 'remoção por decisão')
+  const b = selos(dir, '--repo', dir, '--base', base)
+  assert.equal(b.status, 0, b.stderr)
+}))
+
+test('remover por decisão com a linha que o teste já usou é recusado', comMontagem(dir => {
+  decisaoEmUm(dir)
+  const usada = selosDeHead(dir).testes[UM].linhas['exemplo.a']
+  trocar(dir, ARQ, blocoDoTeste(dir, 'um'), '\n')
+  const r = selos(dir, '--remover', UM, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /já foi usada por este teste/)
+  outraLinha(dir, hoje, 'o usuário tirou o teste.')
+  const s = selos(dir, '--remover', UM, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(s.status, 0, s.stderr)
+  assert.ok(!usada.includes(lerSelosJson(dir).removidos[UM].linha['exemplo.a']))
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('renomear por decisão com a linha que o teste já usou é recusado, e passa com uma linha nova', comMontagem(dir => {
+  decisaoEmUm(dir)
+  paraUno(dir)
+  const r = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /já foi usada por este teste/)
+  outraLinha(dir, hoje, 'o usuário renomeou o teste.')
+  const s = selos(dir, '--renomear', UM, '--para', UNO, '--tipo', 'decisao', '--motivo', 'o usuário renomeou')
+  assert.equal(s.status, 0, s.stderr)
+  const agora = lerSelosJson(dir)
+  assert.equal(agora.testes[UNO].linhas['exemplo.a'].length, 2)
+  const registro = agora.removidos[UM]
+  assert.equal(registro.para, UNO)
+  assert.equal(registro.reescrito, hoje)
+  assert.ok(registro.linha['exemplo.a'])
+  assert.deepEqual(registro.regrasPara, ['exemplo.a'])
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('o registro de remoção ou de renome por decisão escrito à mão, sem linha nova, não passa na etapa', comMontagem(dir => {
+  decisaoEmUm(dir)
+  const usada = selosDeHead(dir).testes[UM].linhas['exemplo.a'][0]
+  trocar(dir, ARQ, blocoDoTeste(dir, 'um'), '\n')
+  const s = lerSelosJson(dir)
+  const { regras, hash } = s.testes[UM]
+  delete s.testes[UM]
+  s.removidos[UM] = { regras, data: hoje, motivo: 'à mão', reescrito: hoje, linha: { 'exemplo.a': usada }, hash, tipo: 'decisao' }
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /remoção por decisão sem `Reescrito:` novo: .*::um/)
+  gitEm(dir)('checkout', '--', '.')
+  paraUno(dir)
+  assert.equal(selos(dir, '--selar', UNO, '--tipo', 'novo', '--motivo', 'o teste novo').status, 0)
+  const t = lerSelosJson(dir)
+  const antigo = t.testes[UM]
+  delete t.testes[UM]
+  t.removidos[UM] = { regras: antigo.regras, data: hoje, motivo: 'à mão', reescrito: hoje, linha: { 'exemplo.a': usada }, hash: antigo.hash, para: UNO, tipo: 'decisao', regrasPara: ['exemplo.a'] }
+  gravarSelosJson(dir, t)
+  const n = conferir(dir)
+  assert.equal(n.status, 1)
+  assert.match(n.stderr, /renome por decisão sem `Reescrito:` novo: .*::um/)
+}))

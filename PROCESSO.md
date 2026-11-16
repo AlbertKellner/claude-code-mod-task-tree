@@ -13,6 +13,13 @@ rodar e o que o check exige está no `CLAUDE.md`. Onde houver divergência, vale
   testes, não escreve código nem diff. Pode rodar `npm run impacto -- <arquivos>`.
 - **Implementador:** outro agente, nunca o mesmo que planejou. Escreve o código e os testes a partir do
   plano, valida e faz o commit local.
+- **Revisor:** um agente só de leitura, por grupo de lotes entregue. Lê os commits contra os planos e as
+  decisões enquanto o grupo seguinte é implementado; cada achado passa por um verificador, que tenta
+  refutá-lo. Achado confirmado vira lote de correção, com plano (decisão do usuário, 2026-11-15: "sim,
+  os dois").
+- As definições desses papéis como agentes do Claude Code ficam em `.claude/agents/` (`tt-implementador`,
+  `tt-planejador`, `tt-revisor`, `tt-verificador`) e valem a partir da sessão seguinte à que as cria ou
+  muda (decisão do usuário, 2026-11-15: "deixe os agentes versionados para sessoes futuras").
 - Modelo e esforço de cada papel são escolhidos pelo usuário a cada rodada: a orquestradora confirma no
   início e registra cada troca. Uma troca vale a partir do próximo agente lançado.
 
@@ -42,19 +49,29 @@ rodar e o que o check exige está no `CLAUDE.md`. Onde houver divergência, vale
 ## 4. Implementação de um lote
 
 1. Árvore limpa e branch certa; se não, parar e relatar.
-2. Cópia própria no scratchpad (`git clone` local da ponta). O clone real recarrega o mod a cada
+2. Cópia própria no scratchpad (`git clone` local da ponta), com `npm install` (liga o hook de
+   pré-commit na cópia) e os tipos gerados copiados do clone. O clone real recarrega o mod a cada
    arquivo salvo, em todas as sessões.
 3. Na cópia: os testes novos primeiro, com a prova de que falham no código de hoje pelo motivo do plano.
-4. Na cópia: código, cenários, documentação e selos; `npm run check` inteiro.
-5. Tudo ao clone de uma vez (`git diff --binary` e `git apply`).
-6. No clone: `npm run testes:alterados` e `npm run impacto`, e o commit. O check não é repetido à mão:
-   o hook de pré-commit roda as mesmas etapas. Exceção: quando o golden foi regravado no clone.
-7. Commit só dos arquivos do lote (`git commit -F <msg> -- <caminhos>`), um por decisão do usuário; um
-   lote de correções diretas pode ir num commit só. Nunca `git add -A`, nunca `--no-verify`, sem push.
+4. Na cópia: código, cenários, documentação e selos.
+5. Na cópia: `git commit -F <msg> -- <caminhos>`, só dos arquivos do lote, um por decisão do usuário;
+   um lote de correções diretas pode ir num commit só. O hook de pré-commit roda o check ali, e é o
+   único check do lote (decisão do usuário, 2026-11-15: "Autorizo", sobre o check uma vez por lote).
+   Se o hook falha, corrige-se na cópia; nada chegou ao clone. Nunca `git add -A`, nunca
+   `--no-verify`.
+6. O clone recebe o commit pronto, por avanço direto da branch: `git fetch <cópia> <branch>` e
+   `git merge --ff-only FETCH_HEAD`. Não há commit novo no clone, nenhum hook roda e o check não se
+   repete. Se o avanço direto for recusado, parar e relatar. Commit e entrega vão no mesmo comando,
+   com a trava dos testes. Sem push.
+7. `npm run testes:alterados` e `npm run impacto`, depois do commit, para o relato.
+   Exceção do golden: quando o usuário valida o desenho no app antes do commit, a mudança vai ao
+   clone sem commit (`git diff --binary` e `git apply`), e a aprovação, o `npm run check` à mão e o
+   commit são feitos no clone. Com a resposta "validar só no fim", o golden é regravado na cópia e
+   segue o caminho comum.
 8. O relato abre com o essencial em até 400 caracteres: hashes, check, prova na base, golden e o que
    ficou de fora. Depois, o que foi adaptado ou decidido fora do plano.
 
-Um agente pode receber até três lotes em sequência, com o check verde entre eles. Se um lote falhar ou
+Um agente pode receber até três lotes em sequência, cada um entregue ao clone antes de começar o seguinte. Se um lote falhar ou
 tiver bloqueio, ele para nesse lote, guarda o patch parcial e relata.
 
 ## 5. Paralelismo
@@ -63,17 +80,17 @@ tiver bloqueio, ele para nesse lote, guarda o patch parcial e relata.
 - Implementadores do mod rodam um por vez: todo lote grava em `regras/selos.json`, e quase todos tocam
   os mesmos arquivos de `task-tree/hooks/`.
 - Lotes que só tocam `scripts/`, `.github/` e documentação podem ir numa trilha paralela, sempre pela
-  cópia, passando pelo clone só para aplicar e fazer o commit.
-- Dois agentes nunca rodam testes ao mesmo tempo (os testes têm 5 s cada). Antes de qualquer comando que
+  cópia; o clone só recebe o commit pronto. Antes do commit, a cópia tem de estar na ponta do clone.
+- Dois agentes nunca rodam testes ao mesmo tempo (a máquina carregada atrasa os testes; o teto de 60 s por teste é só para o teste travado). Antes de qualquer comando que
   rode testes, inclusive o commit, pega-se uma trava (uma pasta criada com `mkdir`), solta no mesmo
-  comando de shell.
+  comando de shell. A entrega ao clone vai no mesmo comando do commit, com a trava.
 - Worktrees só a pedido do usuário.
 
 ## 6. Golden e testes protegidos
 
 - O golden só é regravado com as palavras do usuário, entre aspas e com a data. Quando ele responde
   "validar só no fim", o implementador regrava citando essa resposta e o usuário vê tudo no app antes do
-  merge.
+  merge; nesse caso o golden é regravado na cópia, antes do commit.
 - Teste existente só muda com decisão registrada: `Reescrito:` no cenário e selo de decisão.
 - Regressão se corrige no código, nunca no teste.
 

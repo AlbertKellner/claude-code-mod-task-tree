@@ -1,5 +1,5 @@
 // The panel's state and how the hooks change it: the state's keys, the groups and their turns, the
-// waits, the view, the current work, the ties to the sessions (links), the publication of the panel
+// waits, the marks, the current work, the ties to the sessions (links), the publication of the panel
 // and the restores after a restart or a reload (../state/durability says where each lives). Every
 // hook file uses these; nothing here registers a hook.
 
@@ -7,15 +7,16 @@ import { update } from 'claude-code'
 import type { AgentInfo } from 'claude-code'
 
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
-import { current as keepCurrent, linkOf, loadStore, loaded, restoredAt, saveGroups, saveStore } from '../state/durability'
+import { GROUPS_VERSION, current as keepCurrent, linkOf, loadStore, loaded, readGroups, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, lastStarted, subLive, heldByCard } from '../draw/layout'
 import type { Idle } from '../types'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
 import { publishWait, readPublished } from '../io/publish'
 import { hasBrief, rawPanel, sessionTotal, trimPublished } from '../draw/layout'
 import { park } from '../state/tasks'
+import { cutText, oneLine } from '../draw/svg'
 
 export const PANE = 'task-tree'
 // The state's keys, as literals (the kit's validator wants them written in the file that calls $.state,
@@ -24,6 +25,7 @@ export const PANE = 'task-tree'
 // for every one of them (the check's `regras` step fails on a key without one).
 const legacyTasks = { plugin: 'task-tree', key: 'tasks' } as const
 const groupsState = { plugin: 'task-tree', key: 'groups' } as const
+const groupsVersionState = { plugin: 'task-tree', key: 'groupsVersion' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
 const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const turnEndedState = { plugin: 'task-tree', key: 'turnEnded' } as const
@@ -38,8 +40,24 @@ export async function wake($: any) {
     await $.state.set(turnEndedState, null)
     await saveTurn($)
     // The session is going again: its idle span, if one is open, closes here.
-    await setIdle($, false, await stamp($))
+    const at = await stamp($)
+    await setIdle($, false, at)
+    // The last request is going again with no new one (a notice, a hand-back, a notification): what was
+    // started before its end no longer lights the path until a start (Turn.back; the person,
+    // 2026-11-15: "◷ até o start (Recomendado)"). A prompt of the person opens a request right after,
+    // which is newer: the mark on the one before has no effect.
+    if (at !== undefined) await markBack($, at)
   }
+}
+async function markBack($: any, at: number) {
+  await change($, all =>
+    all.map(g => {
+      if (g.agent !== MAIN || (g.turns ?? []).length === 0) return g
+      const list = g.turns as Turn[]
+      const last = list[list.length - 1] as Turn
+      return { ...g, turns: [...list.slice(0, -1), { ...last, back: at }] }
+    }),
+  )
 }
 
 // The session's idle spans (Group.idle, main group): one opens when the session stands stopped (the
@@ -96,7 +114,9 @@ export async function saveTurn($: any) {
     const text = JSON.stringify({ ended: typeof ended === 'number' ? ended : null, aborted: aborted === true, replan: replan === true, failed: failed === true })
     if (text === lastTurn) return
     if (await saveStore($, 'turnEnded', JSON.parse(text))) lastTurn = text
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: fim do turno não guardado: ${String(err)}`)
+  }
 }
 // The turn's "first use" (the table's restoredAt), as ensureWork: a restart without session.start
 // brings the end back before the first drawing or write. Answers what it brought, for a drawing that
@@ -176,7 +196,9 @@ export async function parkDeadTurn($: any) {
     await saveTurn($)
     // Stopped since the process died: the time from then on is idle (setIdle).
     await setIdle($, true, at)
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: turno do processo morto não guardado: ${String(err)}`)
+  }
 }
 // /clear: no turn end, in the state and in the store.
 export async function clearTurn($: any) {
@@ -199,6 +221,8 @@ const turnAbortedState = { plugin: 'task-tree', key: 'turnAborted' } as const
 const replanDueState = { plugin: 'task-tree', key: 'replanDue' } as const
 const turnFailedState = { plugin: 'task-tree', key: 'turnFailed' } as const
 const briefState = { plugin: 'task-tree', key: 'brief' } as const
+const marksState = { plugin: 'task-tree', key: 'marks' } as const
+const selfIdState = { plugin: 'task-tree', key: 'selfId' } as const
 const collapsedState = { plugin: 'task-tree', key: 'collapsed' } as const
 const namesState = { plugin: 'task-tree', key: 'names' } as const
 // The turn's answer in a few words, as the session gave it (done's `summary`), until the turn ends.
@@ -210,14 +234,52 @@ export async function lastBrief($: any): Promise<string | undefined> {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
-// The request's reminders, variables of the module (a reload starts them over): the main loop's
-// tool calls since a plan was last open (see the tool.call reminder); whether the current request
-// already used the panel (a plan taken, a start, or a done that closed a task of this request: with
-// everything closed, its last calls need no reminder to plan); whether the last question was answered by a chat message instead of an option
-// (that message, at the next prompt, is the answer); whether the summary kept was given before a
-// plan of the same turn (a step's, so the last done still asks for one; a reload forgets the mark,
-// and then only that second reminder is lost).
-export const reminders = { unplanned: 0, planned: false, answeredInChat: false, briefBeforePlan: false }
+// The request's marks, in the state (a reload of the mod keeps them; a /clear or a resume drops them,
+// dropHeld): whether the current request already used the panel (a plan taken, a start, or a done
+// that closed a task of this request: with everything closed, its last calls need no reminder to
+// plan); whether the last question was answered by a chat message instead of an option (the
+// person's next message is the answer; a message of another session leaves the mark); whether the
+// summary kept was given before a plan of the same turn (a step's, so the last done still asks for one);
+// the calls in a row with a plan open and nothing started, and whether this plan already took the
+// reminder to start (tool-call, reminder).
+export type Marks = { planned: boolean; answeredInChat: boolean; briefBeforePlan: boolean; idleCalls: number; idleWarned: boolean }
+function shapeMarks(value: unknown): Marks {
+  const v = value !== null && typeof value === 'object' ? value as Partial<Marks> : {}
+  const idle = typeof v.idleCalls === 'number' && Number.isFinite(v.idleCalls) && v.idleCalls > 0 ? Math.floor(v.idleCalls) : 0
+  return { planned: v.planned === true, answeredInChat: v.answeredInChat === true, briefBeforePlan: v.briefBeforePlan === true, idleCalls: idle, idleWarned: v.idleWarned === true }
+}
+export async function marks($: any): Promise<Marks> {
+  const { value } = await $.state.get(marksState)
+  return shapeMarks(value)
+}
+// Changes the marks given, joined to the value read inside the write (update): a mark written by a
+// call running beside this one is kept. Nothing is written when none changes.
+export async function setMarks($: any, m: Partial<Marks>) {
+  const now = await marks($)
+  if ((Object.keys(m) as (keyof Marks)[]).every(k => now[k] === m[k])) return
+  await update($, marksState, cur => ({ ...shapeMarks(cur), ...m }))
+}
+// One call of the main loop with the plan open and nothing started (tool-call, reminder), counted in
+// one write (update), so calls made together each count once: below the third it adds one; the third
+// sets the count back and marks the plan's reminder as given, and the answer is true (the reminder
+// goes out with this call); with the reminder already given, nothing changes.
+export async function countIdleCall($: any): Promise<boolean> {
+  let due = false
+  await update($, marksState, cur => {
+    const v = shapeMarks(cur)
+    due = false
+    if (v.idleWarned) return v
+    if (v.idleCalls + 1 < 3) return { ...v, idleCalls: v.idleCalls + 1 }
+    due = true
+    return { ...v, idleCalls: 0, idleWarned: true }
+  })
+  return due
+}
+
+// The main loop's tool calls since a plan was last open (see the tool.call reminder), a variable of
+// the module: a reload starts the count over (the reminder then comes once more, only in a request
+// that did not plan).
+export const reminders = { unplanned: 0 }
 
 // The time now, or undefined where it cannot be read (the test kit without a clock).
 export async function stamp($: any): Promise<number | undefined> {
@@ -245,8 +307,8 @@ export const migrate = (t: LegacyNode): TaskNode => ({
 const BRIEF_TURNS = 20
 export async function openTurn($: any, text: string, own = false, from?: { id: string; name?: string }) {
   // A message from another session comes wrapped in tags: its words are the title.
-  const line = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || 'Pedido'
-  const title = line.length > 60 ? `${line.slice(0, 59)}…` : line
+  const line = oneLine(text.replace(/<[^>]*>/g, ' ')) || 'Pedido'
+  const title = cutText(line, 60)
   const at = await stamp($)
   await change($, all =>
     all.map(g => {
@@ -271,15 +333,19 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
 // and the card went to that newest step, which then closed on the delivery). With nothing in progress
 // (the person's decision: "envio feito sem tarefa em andamento ancora na última iniciada do pedido
 // atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
-// current request (the last turn with tasks), else that request's last level-1 task. It was the first
+// current request (the last turn with tasks; unless it is all closed and the task started last is in
+// an earlier request with something open: then that one, the person, 2026-11-15: "Pendente do plano
+// retomado (Recomendado)"), else that request's last level-1 task. It was the first
 // open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
 // With several tasks in progress, a message goes to the latest batch of starts (the tasks started
 // within BATCH ms of the newest of them that has no message yet: one answer's starts), to the first
 // of it in the order they were started, that has no message of this session's yet since it started
 // (`used`: where the messages sent and the sessions' rounds went, and when); all of them with one,
 // the rule above (the person's decision: "pela ordem", each send to the next task in progress). A
-// task left in progress from before only gets it once the batch is done; a task with a question open
-// under it (`asking`) never does. With two sends started together both went to the task started
+// task left in progress from before only gets it once the batch is done. A task with a question open
+// under it (`asking`: a question, a plan to approve, the end of turn's choice) gets it only when the
+// request has no other: the task in progress started last that does not ask, else the pending one as
+// with nothing in progress, else the one started last, else the last level-1 task, none of them asking. With two sends started together both went to the task started
 // last; then a task opened before and still in progress took a later send, its card under it.
 export type Used = { anchor?: string; at?: number }
 const BATCH = 3000
@@ -340,53 +406,102 @@ export const requestTasks = (groups: Group[]): TaskNode[] => {
   return open === undefined ? tasks : tasks.filter(t => t.turn === open.id)
 }
 export function sendAnchor(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): string | undefined {
+  return sendPlace(list, used, asking, names, open, phrases).anchor
+}
+// sendAnchor's task, and whether it is only a place (`place`): the request open now has no task yet,
+// the task in progress asks (a question, a plan, a choice) with none other in progress that does not,
+// and the task chosen is another of that earlier plan (its pending one, else the one started last that
+// does not ask, else its last level-1 one), not the asking task itself. Such a letter or card closes
+// nothing (the person, 2026-11-15: "Não fecha na entrega (Recomendado)"; for the subagent's and the
+// session's card, "Também não fecha (Recomendado)"): the task stays as it is until the model works on it.
+export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] = [], names: string[] = [], open?: number, phrases: string[] = []): { anchor: string | undefined; place: boolean } {
+  const keep = (anchor: string | undefined) => ({ anchor, place: false })
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in this order (the person's decisions): with the request open now and no
-  // level-1 task of it yet, none (above); else the current request is the largest `turn` among the
-  // level-1 tasks; among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
+  // level-1 task of it yet and nothing in progress, none (above); else the current request is the largest `turn` among the
+  // level-1 tasks (unless it is all closed and the task started last, started again after the newest
+  // request's plan, is in an earlier request with something open: then that one, the plan the model
+  // went back to; the person, 2026-11-15); among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
   // title matches the receiving session's name (or holds the free phrase whole), if only one does (byName); else the batch planned
   // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
   // yet (`used`: a letter, a session's round, a session opened, a subagent launched), all of them used,
-  // its last; no pending task, the one started last, done included (startedLast); none started, the
+  // its last; no pending task, the one whose start is the most recent, a start again included, done or not
+  // (lastStarted; the person, 2026-11-15: "Pelo start mais recente (Recomendado)"); none started, the
   // request's last level-1 task. It took the task started last even with one pending, planned to send:
   // the card went under the closed task before it.
   const started = flat(list).filter(t => t.status === 'open' && t.children.length === 0 && t.started !== undefined)
   const going = started.filter(t => !asking.includes(t.id))
   // Two in progress, one of them asking: the other one.
-  if (going.length === 1 && started.length > 1) return going[0]!.id
+  if (going.length === 1 && started.length > 1) return keep(going[0]!.id)
   if (going.length > 1) {
     const order = going.map((t, i) => ({ t, i })).sort((a, b) => (a.t.startedAt ?? 0) - (b.t.startedAt ?? 0) || a.i - b.i)
     const has = (t: TaskNode) => used.some(u => u.anchor === t.id && (t.startedAt === undefined || u.at === undefined || u.at >= t.startedAt))
     const free = order.filter(x => !has(x.t))
     const named = byName(going, names, phrases)
-    if (named) return named.id
+    if (named) return keep(named.id)
     if (free.length > 0) {
       const newest = Math.max(...free.map(x => x.t.startedAt ?? 0))
       const batch = free.filter(x => newest - (x.t.startedAt ?? 0) <= BATCH)
-      return (batch[0] ?? free[0])!.t.id
+      return keep((batch[0] ?? free[0])!.t.id)
     }
   }
   const inProgress = flat(list).some(t => t.status === 'open' && t.started !== undefined)
   const { anchor } = inProgress ? current(list) : { anchor: undefined }
-  if (anchor === undefined) {
-    if (open !== undefined && !list.some(t => t.turn === open)) return undefined
-    const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
-    const last = turns.length > 0 ? Math.max(...turns) : undefined
-    const mine = list.filter(t => last === undefined || t.turn === last)
-    const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined)
-    const named = byName(pending, names, phrases)
-    if (named) return named.id
-    const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
-    if (newest) {
-      // Planned together (a tie): the first in order with no message of this session's yet; all with
-      // one, the last (the person's decision, 2026-11-09, with no name matching).
-      const batch = pending.filter(t => (t.plannedAt ?? -Infinity) === (newest.plannedAt ?? -Infinity))
-      const free = batch.find(t => !used.some(u => u.anchor === t.id))
-      return (free ?? newest).id
-    }
-    return startedLast(mine)?.id ?? mine[mine.length - 1]?.id
+  // The task chosen holds a question: the one in progress started last that does not ask, else as with
+  // nothing in progress, the asking tasks left out (envios.nunca-na-tarefa-da-pergunta). With no clock
+  // (no `startedAt`), the last in the order of the starts.
+  if (anchor !== undefined && !asking.includes(anchor)) return keep(anchor)
+  if (anchor !== undefined && going.length > 0)
+    return keep((lastStarted(going.map(t => ({ ...t, children: [] })))?.task ?? going.reduce((a, t) => ((t.started ?? -1) >= (a.started ?? -1) ? t : a))).id)
+  // The request open now with no task of it: loose only with nothing in progress. With the task in
+  // progress asking (a plan of an earlier request, continued with a start only), the request of the
+  // order is the asking task's: the card or letter never goes loose with a task in progress.
+  const fresh = open !== undefined && !list.some(t => t.turn === open)
+  if (fresh && anchor === undefined) return keep(undefined)
+  const askTurn = fresh && anchor !== undefined ? list.find(t => flat([t]).some(x => x.id === anchor))?.turn : undefined
+  const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
+  const newestTurn = turns.length > 0 ? Math.max(...turns) : undefined
+  // The newest request all closed (a question answered in the middle of a plan) and the task started
+  // last, a start again included (lastStarted), started again after the newest request's plan, in an
+  // earlier request with something still open: the
+  // model went back to that plan, which is the current request (the person, 2026-11-15: "Pendente do
+  // plano retomado (Recomendado)"; the workflow's card had gone under the question's closed task, kept
+  // in "+N pedidos anteriores").
+  // The model went back only with that start made at or after the newest request's last plan (the
+  // largest `plannedAt` of its tasks): with the newest request closed with no start (a done straight
+  // away, a cancel), the start before the question proved nothing, and the card went to a task of the
+  // earlier plan the model never went back to. With no `plannedAt` in it (an older panel), as before.
+  const openIn = (turn: number) => list.some(t => t.turn === turn && t.status === 'open')
+  const lastBack = anchor === undefined && askTurn === undefined && newestTurn !== undefined && !openIn(newestTurn) ? lastStarted(list) : undefined
+  const plannedNewest = flat(list.filter(t => t.turn === newestTurn)).flatMap(t => (typeof t.plannedAt === 'number' ? [t.plannedAt] : []))
+  const back = lastBack !== undefined && (plannedNewest.length === 0 || lastBack.at >= Math.max(...plannedNewest)) ? lastBack.task : undefined
+  const backTurn = back === undefined ? undefined : list.find(t => flat([t]).some(x => x.id === back.id))?.turn
+  const resumed = backTurn !== undefined && backTurn !== newestTurn && openIn(backTurn) ? backTurn : undefined
+  const last = askTurn ?? resumed ?? newestTurn
+  const mine = list.filter(t => last === undefined || t.turn === last)
+  const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && !asking.includes(t.id))
+  // Another task of that earlier plan than the asking one: only a place (above).
+  const placed = (id: string | undefined) => ({ anchor: id, place: askTurn !== undefined && id !== undefined && !asking.includes(id) })
+  const named = byName(pending, names, phrases)
+  if (named) return placed(named.id)
+  const newest = pending.reduce<TaskNode | undefined>((a, t) => (a === undefined || (t.plannedAt ?? -Infinity) >= (a.plannedAt ?? -Infinity) ? t : a), undefined)
+  if (newest) {
+    // Planned together (a tie): the first in order with no message of this session's yet; all with
+    // one, the last (the person's decision, 2026-11-09, with no name matching).
+    const batch = pending.filter(t => (t.plannedAt ?? -Infinity) === (newest.plannedAt ?? -Infinity))
+    const free = batch.find(t => !used.some(u => u.anchor === t.id))
+    return placed((free ?? newest).id)
   }
-  return anchor
+  // An asking task and its parents are no candidates (the person, 2026-11-15: "Não conta
+  // (Recomendado)": the parent of the asking task is no other task of the request).
+  const asks = (t: TaskNode) => flat([t]).some(x => asking.includes(x.id))
+  const calm = flat(mine).filter(t => !asks(t)).map(t => ({ ...t, children: [] }))
+  const level1 = [...mine].reverse().find(t => !asks(t))
+  const askers = flat(mine).filter(t => asking.includes(t.id)).map(t => ({ ...t, children: [] }))
+  // With no other candidate, the card goes to the asking task itself, never to its parent.
+  const other = lastStarted(calm)?.task.id ?? level1?.id
+  if (other !== undefined) return placed(other)
+  return keep(lastStarted(askers)?.task.id ?? askers[askers.length - 1]?.id ?? lastStarted(mine)?.task.id ?? mine[mine.length - 1]?.id)
 }
 
 // The tasks of the main loop with a question still open under them (sendAnchor's `asking`): the
@@ -442,34 +557,53 @@ export async function ensureGroup($: any, agent: string) {
 // only when its text changes (the poll calls this every few seconds); `lastStatus` is a variable of
 // the module, so a reload sets it once more.
 let lastStatus: string | undefined | null = null
+// It never throws: a failure is said once in the debug log, and the next write tries again (lastStatus
+// is set only once the app took the text).
 export async function showStatus($: any, groups: Group[]) {
-  const { value: children = [] } = await $.state.get(childrenState)
-  const { value: sends = [] } = await $.state.get(sendsState)
-  // The whole session's count, the header's "sessão inteira" (sessionTotal): the rounds cut into
-  // cards, a discarded round and a stopped session's pending tasks out, what was stopped interrupted.
-  const [d, n] = sessionTotal(groups, children as Child[], sends as Send[], knownId())
-  const text = d === n ? undefined : `Tarefas ${d}/${n}`
-  if (lastStatus !== null && lastStatus === text) return
-  lastStatus = text
-  $.ui.status(text)
+  try {
+    const { value: children = [] } = await $.state.get(childrenState)
+    const { value: sends = [] } = await $.state.get(sendsState)
+    // The whole session's count, the header's "sessão inteira" (sessionTotal): the rounds cut into
+    // cards, a discarded round and a stopped session's pending tasks out, what was stopped interrupted.
+    const [d, n] = sessionTotal(groups, children as Child[], sends as Send[], knownId())
+    const text = d === n ? undefined : `Tarefas ${d}/${n}`
+    if (lastStatus !== null && lastStatus === text) return
+    await $.ui.status(text)
+    lastStatus = text
+  } catch (err) {
+    await debugOnce($, `task-tree: status não atualizado: ${String(err)}`)
+  }
 }
 
 // A session out of the store's list (new, or pruned by another session) writes its work, turn end
 // and links again with the panel: the module's copies of what was already written are forgotten.
-export async function persist($: any, groups: Group[]) {
-  await showStatus($, groups)
+// Saved first, then published, the status line last (it never holds the panel back). `publish`
+// false: the caller publishes itself once its other writes are done (the plan and the start of the
+// main loop, after the ties and the work).
+export async function persist($: any, groups: Group[], publish = true) {
+  await markVersion($)
   try {
     const { back } = await saveGroups($, groups)
     if (back) {
       lastTurn = undefined
       lastLinks = undefined
+      lastFolds = undefined
+      lastUltra = undefined
       await ensureTurn($)
       await saveTurn($)
       const { value: work } = await $.state.get(workState)
       if (Array.isArray(work)) await saveStore($, 'work', work)
+      await saveFolds($)
+      await saveUltra($)
     }
-  } catch {}
-  await publishPanel($)
+  } catch (err) {
+    await debugOnce($, `task-tree: painel não guardado: ${String(err)}`)
+  }
+  try {
+    if (publish) await publishPanel($)
+  } finally {
+    await showStatus($, groups)
+  }
 }
 // A read of the store that failed, said once per record and reason; what the caller does is unchanged.
 async function unread($: any, what: string, err: unknown) {
@@ -487,32 +621,60 @@ export async function adopt($: any) {
   await $.state.set(legacyTasks, [])
 }
 
-export async function change($: any, fn: (groups: Group[]) => Group[]): Promise<Group[]> {
+export async function change($: any, fn: (groups: Group[]) => Group[], opts: { publish?: boolean } = {}): Promise<Group[]> {
   await ensureGroups($)
   await ensureWork($)
   await ensureLinks($)
   await adopt($)
+  await markVersion($)
   const groups = await update($, groupsState, cur => fn(withMain(cur ?? [])))
-  await persist($, groups)
+  await persist($, groups, opts.publish !== false)
   return groups
 }
 
 export async function replace($: any, groups: Group[]) {
+  await markVersion($)
   await $.state.set(groupsState, groups)
   await persist($, groups)
 }
 
 // The session's panel as the store keeps it; its subagents do not come back, so what they left
 // open is interrupted.
+// Read through readGroups (state/durability): a record of an unknown version or out of the shape is
+// said once in the log and counts as none (the published file, or nothing, comes instead); the next
+// write puts the record back in the current form.
 export async function keptGroups($: any, id: string): Promise<Group[] | undefined> {
-  let kept: Group[] | undefined
+  let raw: unknown
   try {
-    kept = (await loadStore($, 'groups', id)) as Group[] | undefined
+    raw = await loadStore($, 'groups', id)
   } catch (err) {
     await unread($, 'painel', err)
     throw err
   }
+  const { groups: kept, reason } = readGroups(raw)
+  if (reason !== undefined) await ignoredGroups($, reason)
   return kept ? kept.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) })) : undefined
+}
+async function ignoredGroups($: any, reason: string) {
+  await debugOnce($, `task-tree: painel guardado ignorado: ${reason}`)
+}
+// The state's groups carry their version (groupsVersion), written once per module, before the groups:
+// every write that brings or converts them (ensureGroups, fromOwnFile) and the first one that saves them
+// (change, replace) writes the version first. Interrupted between the two, the state holds the current
+// version with older groups (or none), which the checked read ignores, instead of converted groups
+// with an older version, which a later read would convert again.
+let versionWritten = false
+// The groups brought or converted into the state, the version first.
+async function setGroups($: any, groups: Group[]) {
+  await $.state.set(groupsVersionState, GROUPS_VERSION)
+  await $.state.set(groupsState, groups)
+}
+async function markVersion($: any) {
+  if (versionWritten) return
+  try {
+    if ((await $.state.get(groupsVersionState)).value !== GROUPS_VERSION) await $.state.set(groupsVersionState, GROUPS_VERSION)
+    versionWritten = true
+  } catch {}
 }
 
 // The panel out of the store (only the 30 sessions that wrote last keep theirs there) comes back
@@ -535,11 +697,11 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
     if (!file || !groups || !groups.some(g => g.tasks.length > 0)) return undefined
     const back = groups.map(g => (g.agent === MAIN ? g : { ...g, tasks: g.tasks.map(interrupt(undefined)) }))
     try {
-      // The groups first: a caller that cannot write the state (a drawing) leaves the whole try to
-      // the next one.
-      if ((await $.state.get(groupsState)).value === undefined) await $.state.set(groupsState, back)
+      // The groups first (their version before them): a caller that cannot write the state (a drawing)
+      // leaves the whole try to the next one.
+      if ((await $.state.get(groupsState)).value === undefined) await setGroups($, back)
       if (file.work && (await $.state.get(workState)).value === undefined) await $.state.set(workState, file.work)
-      // The children's ties (anchor, lastAnchor, rounds, openedAt): into the module's copy of the links
+      // The children's ties (anchor, lastAnchor, rounds, openedAt, places): into the module's copy of the links
       // (a reread of the host's list gives them back), and into the children the state already has
       // without them (a reread that came first).
       for (const c of file.children) if (typeof c?.id === 'string' && !keptLinks.has(c.id)) keptLinks.set(c.id, linkOf(c))
@@ -551,7 +713,7 @@ export async function fromOwnFile($: any): Promise<Group[] | undefined> {
           childrenState,
           (held as Child[]).map(c => {
             const f = c.anchor === undefined ? file.children.find(x => x.id === c.id) : undefined
-            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt } : c
+            return f ? { ...c, anchor: f.anchor, lastAnchor: c.lastAnchor ?? f.lastAnchor, rounds: c.rounds ?? f.rounds, openedAt: c.openedAt ?? f.openedAt, places: c.places ?? f.places, onlyPlace: c.onlyPlace ?? f.onlyPlace } : c
           }),
         )
       }
@@ -588,11 +750,12 @@ export async function restore($: any, id: string): Promise<boolean> {
   if (groups) await replace($, groups)
   return groups !== undefined
 }
-// The waits and the done's summary belong to the session that set them: a /clear
+// The waits, the done's summary and the request's marks belong to the session that set them: a /clear
 // or a resume drops them, without publishing (the replace that follows publishes).
 export async function dropHeld($: any) {
   await $.state.set(waitsState, [])
   await $.state.set(briefState, '')
+  await $.state.set(marksState, { planned: false, answeredInChat: false, briefBeforePlan: false, idleCalls: 0, idleWarned: false })
 }
 
 // The groups' "first use" of the table (restoredAt): session.start brings them back from the store
@@ -607,9 +770,36 @@ export async function dropHeld($: any) {
 export async function ensureGroups($: any): Promise<Group[] | undefined> {
   if (loaded.has('groups') || !restoredAt('groups', 'first-use')) return undefined
   try {
-    if ((await $.state.get(groupsState)).value !== undefined) {
-      loaded.add('groups')
-      return undefined
+    const { value: held } = await $.state.get(groupsState)
+    if (held !== undefined) {
+      // The groups a hot reload kept (perhaps written by an earlier code), read through readGroups once:
+      // out of the shape or of an unknown version, the store's valid copy (or nothing) replaces them
+      // (the person, 2026-11-15: "Versão e leitura conferida (Recomendado)").
+      const { value: version } = await $.state.get(groupsVersionState)
+      const read = readGroups(version === undefined ? held : { version, groups: held })
+      if (read.reason === undefined) {
+        if (read.groups !== held) {
+          try {
+            await setGroups($, read.groups as Group[])
+          } catch {
+            return read.groups
+          }
+        } else if (version === undefined) {
+          // Read as version 1 with the key absent: the key is written, the groups stay.
+          try {
+            await $.state.set(groupsVersionState, GROUPS_VERSION)
+          } catch {}
+        }
+        loaded.add('groups')
+        return undefined
+      }
+      await ignoredGroups($, `${read.reason} (no state)`)
+      const instead = (await keptGroups($, await $.session.id())) ?? []
+      try {
+        await setGroups($, instead)
+        loaded.add('groups')
+      } catch {}
+      return instead
     }
     const groups = (await keptGroups($, await $.session.id())) ?? (await fromOwnFile($))
     if (groups === undefined) {
@@ -617,7 +807,7 @@ export async function ensureGroups($: any): Promise<Group[] | undefined> {
       return undefined
     }
     try {
-      await $.state.set(groupsState, groups)
+      await setGroups($, groups)
       loaded.add('groups')
     } catch {}
     return groups
@@ -664,9 +854,10 @@ export async function inDesktopApp($: any) {
   }
 }
 
-// This session's id as the desktop app names it (local_…); none outside the app.
+// This session's id as the desktop app names it (local_…); none outside the app. Kept in the state too
+// (`selfId`): a reload of the mod takes it from there, without waiting for the app.
 export let ownId: string | undefined
-// The id as known so far, for a reader that must not ask the app (the render).
+// The id as known so far, for a reader that must not ask the app (the render reads the state's too).
 export const knownId = () => ownId
 // The names of sessions known by id (`names`): written only when one is new or changed, the last
 // NAMES_KEEP. A just-opened session's placeholder title ("Sessão…") names nothing.
@@ -688,6 +879,10 @@ export async function learnNames($: any, pairs: [string, string][]) {
 export async function selfId($: any): Promise<string | undefined> {
   if (ownId) return ownId
   try {
+    const { value: kept } = await $.state.get(selfIdState)
+    if (typeof kept === 'string' && kept !== '') return (ownId = kept)
+  } catch {}
+  try {
     const r = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' })
     const body = r.content.map((c: any) => (c.type === 'text' ? c.text : '')).join('')
     if (!r.isError) {
@@ -695,11 +890,12 @@ export async function selfId($: any): Promise<string | undefined> {
       ownId = got.sessionId
       // Its own name, if the app gives it: a child's letter to this session is drawn with it.
       const name = typeof got?.name === 'string' && got.name !== '' ? got.name : typeof got?.title === 'string' ? got.title : ''
+      if (typeof ownId === 'string' && ownId !== '') await $.state.set(selfIdState, ownId).catch(() => {})
       if (typeof ownId === 'string' && name !== '') await learnNames($, [[ownId, name]])
     }
-    else await debug($, `task-tree: get_session falhou: ${body.slice(0, 300)}`)
+    else await debugOnce($, `task-tree: get_session falhou: ${body.slice(0, 300)}`)
   } catch (err) {
-    await debug($, `task-tree: get_session falhou: ${String(err)}`)
+    await debugOnce($, `task-tree: get_session falhou: ${String(err)}`)
   }
   return ownId
 }
@@ -725,11 +921,43 @@ export async function refreshGit($: any): Promise<GitInfo | undefined> {
 // Publishes this session's panel (io/publish.ts): gathers it from the state here, where the kit
 // wants the state keys literal, and what the last drawing left. The children go cut to their current
 // work (trimPublished): the state keeps them whole, so this panel does not change.
-export async function publishPanel($: any) {
+// One publication at a time (audit, 2026-11-10: two in progress wrote out of order, an older one
+// last): one asked while another runs waits for it and then reads the state again, and the ones
+// asked meanwhile join that waiting round (only one waits at a time), so the file ends with the
+// newest panel. Variables of the module, as the reread of the sessions (reading, readAgain): a
+// reload starts them over.
+let publishing: Promise<void> | undefined
+let publishAgain: Promise<void> | undefined
+export async function publishPanel($: any): Promise<void> {
+  if (publishAgain) return publishAgain
+  const before = publishing
+  const mine = publishRound($, before)
+  if (before) publishAgain = mine
+  publishing = mine
+  try {
+    await mine
+  } finally {
+    if (publishing === mine) publishing = undefined
+  }
+}
+async function publishRound($: any, before: Promise<void> | undefined) {
+  if (before) {
+    await before.catch(() => {})
+    publishAgain = undefined
+  }
+  await publishOnce($)
+}
+async function publishOnce($: any) {
   await ensureGroups($)
   await ensureWork($)
   await ensureLinks($)
   await saveLinks($)
+  // The switch kept in the store (ensureUltra): a new process publishes it before the engine's next notice.
+  const ultraBrought = await ensureUltra($)
+  // The folds and the switch the state holds go to the store too when this module has not written them
+  // yet (a hot reload, a write the store refused): only a change writes (lastFolds, lastUltra).
+  await saveFolds($)
+  await saveUltra($)
   try {
     const id = await selfId($)
     const git = await refreshGit($)
@@ -739,7 +967,8 @@ export async function publishPanel($: any) {
     const { value: work } = await $.state.get(workState)
     const { value: received = [] } = await $.state.get(receivedState)
     const { value: engine } = await $.state.get(engineState)
-    const { value: ultracode } = await $.state.get(ultracodeState)
+    const { value: heldUltra } = await $.state.get(ultracodeState)
+    const ultracode = heldUltra ?? ultraBrought
     const { value: rate } = await $.state.get(rateState)
     const { value: sends = [] } = await $.state.get(sendsState)
     // Whether the last turn was stopped (turn.complete's isAborted, cleared by the next prompt): the
@@ -765,9 +994,10 @@ export async function publishPanel($: any) {
 // with the latest action instead.
 // The last drawing's size (serialized), and the most a drawing may be: past it the render draws fewer
 // lines and, as the last resort, only a warning line (hooks/render.tsx). A 1.3 MB one was not shown by
-// the app (the person's words: "resumir os 57 pedidos anteriores resolveu"). 20 MB was tried on
-// 2026-11-04 and froze the pane: the app did not apply a
-// drawing of ~950 KB and kept the last one it took (the person: "eu quero ver as tarefas em andamento,
+// the app (the person's words: "resumir os 57 pedidos anteriores resolveu"), and 20 MB, tried on
+// 2026-11-04, froze the pane: the app did not apply a drawing of ~950 KB and kept the last one it
+// took. Both were the app pane's own limits (nodes, characters, height: NODE_LIMIT in
+// hooks/render.tsx), read later, not the bytes; this one stays as a further cap (the person: "eu quero ver as tarefas em andamento,
 // e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens
 // em andamento"). Back to 600 KB: the small warning, with its button, reaches the app.
 export const DRAW_LIMIT = 600 * 1024
@@ -823,17 +1053,14 @@ export async function dropAsked($: any, agent: string) {
   if ((value as Wait[]).some(asked)) await dropWaits($, w => !asked(w))
 }
 
-// A press on a line's ▾/▸: the line stays as the person left it (closed or open) until they
-// press it again. Written from onPress, since a render may not write.
 // The current work (what the panel draws): the main group's level-1 tasks of the person's
 // current request, with those of earlier requests still going on. A plan or start of the main loop
 // in a new request (another message of the person) starts new work: the new level-1 tasks, plus the
-// ones of the work before that still have something open (goingOn);
+// ones of the work before that still have something open (joinWork, by openInSight);
 // the requests all done leave it (the person's words: "segundo a regra antiga, na visão resumida,
 // ficam somente as tarefas novas do turno"). Within the request of the current work its level-1
 // tasks join it. With no requests recorded (panels from before turns), new work starts only with
-// no open leaf anywhere, as before. Kept in the state and in the store under the session, like the
-// view.
+// no open leaf anywhere, as before. Kept in the state and in the store under the session.
 export async function nothingOpen($: any): Promise<boolean> {
   await ensureGroups($)
   await ensureWork($)
@@ -891,6 +1118,7 @@ export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: 
 // published file grew with every workflow.
 export function settledSubs(groups: Group[], work: string[], waits: Wait[], sends: Send[]): string[] {
   const byAgent = new Map(groups.map(g => [g.agent, g]))
+  const held = heldByCard(groups)
   // The level-1 task of the main group the group came from, up through who launched it.
   const origin = (g: Group): string | undefined => {
     const seen = new Set<string>()
@@ -909,6 +1137,9 @@ export function settledSubs(groups: Group[], work: string[], waits: Wait[], send
       return from === undefined || !work.includes(from)
     })
     .filter(g => !groups.some(c => c.parent === g.agent && subLive(c.sub)))
+    // Nor one of a group card a mate of which still works: the card drawn loose at the end goes whole
+    // (heldByCard; the person, 2026-11-15: "Solto no fim, como a filha (Recomendado)").
+    .filter(g => !held.has(g.agent))
     .filter(g => !waits.some(w => w.agent === g.agent))
     .filter(g => !sends.some(s => s.agent === g.agent && !s.taken && !s.lost))
     .map(g => g.agent)
@@ -971,6 +1202,7 @@ export async function renameAnchors($: any, ids: string[], tag: string) {
 // session's to rename.
 export async function renameFolds($: any, agent: string, ids: string[], tag: string) {
   if (ids.length === 0) return
+  await ensureFolds($)
   const head = `${agent}|t:`
   const fix = (k: string) => {
     if (!k.startsWith(head)) return k
@@ -983,6 +1215,7 @@ export async function renameFolds($: any, agent: string, ids: string[], tag: str
     if (!Object.keys(all).some(k => fix(k) !== k)) return all
     return Object.fromEntries(Object.entries(all).map(([k, v]) => [fix(k), v]))
   })
+  await saveFolds($)
 }
 // A replan in place that leaves a subtask out (the level-1 task kept, carry): the ties to it (and to
 // any task below it) go to that level-1 task, so the card of a session opened from it stays under the
@@ -990,19 +1223,48 @@ export async function renameFolds($: any, agent: string, ids: string[], tag: str
 // (Recomendado)"); it went loose at the end and left once done. The sends keep their own rule (the
 // letter hangs from the request's level-1 task until delivered); the subagents' groups go in planTool's
 // change. `gone`: each id left out, with the level-1 task it was in.
+// The main loop's plans between the write of their tasks and the one of the ties (renameAnchors,
+// moveToLevelOne), counted (a variable of the module: the plan and the read of the sessions share it).
+// While one is there, the read of the sessions leaves the kept places alone (hooks/sessions): it would
+// see the new tasks with the old ties, drop the place on a subtask the replan left out, and the card
+// would not go to the level-1 task (the person, 2026-11-15: "Corrida no replano"). `planEpoch` goes up
+// at each entry and each exit: a read that read the tasks before a plan and derives after it (held by
+// the app meanwhile, the get_session of a session gone) sees it changed and leaves the places alone too
+// (planTiesEpoch; the person, 2026-11-15: "Corrigir os dois"): the write of `update` is synchronous, so
+// the tasks cannot be read again there.
+let planning = 0
+let planEpoch = 0
+export function enterPlanTies() {
+  planning++
+  planEpoch++
+}
+export function leavePlanTies() {
+  planning = Math.max(0, planning - 1)
+  planEpoch++
+}
+export const planTiesPending = () => planning > 0
+export const planTiesEpoch = () => planEpoch
 export const movedAnchor = (gone: Map<string, string>) => (a?: string) => (a !== undefined && gone.has(a) ? gone.get(a) : a)
 export async function moveToLevelOne($: any, gone: Map<string, string>) {
   if (gone.size === 0) return
   await moveAnchors($, movedAnchor(gone), false)
 }
 // The sessions' ties, the launches' (and the sends', with `sends`) and the module's copy of the links,
-// by `fix`.
+// by `fix`. The kept places of the cards of typed turns go too: renamed with their level-1 task (a
+// reused id, `sends`), and, moved by a replan to the level-1 task, under its line (no `tail`).
 async function moveAnchors($: any, fix: (a?: string) => string | undefined, sends: boolean) {
-  const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[] }>(c: T): T => {
+  const place = (x: { at: number; anchor: string; tail?: boolean }) => {
+    const a = fix(x.anchor)
+    if (a === undefined || a === x.anchor) return x
+    const { tail, ...rest } = x
+    return sends && tail ? { ...rest, anchor: a, tail } : { ...rest, anchor: a }
+  }
+  const link = <T extends { anchor?: string; lastAnchor?: string; rounds?: { at: number; anchor?: string }[]; places?: { at: number; anchor: string; tail?: boolean }[] }>(c: T): T => {
     const out = { ...c }
     if (c.anchor !== undefined) out.anchor = fix(c.anchor)
     if (c.lastAnchor !== undefined) out.lastAnchor = fix(c.lastAnchor)
     if (c.rounds !== undefined) out.rounds = c.rounds.map(r => (r.anchor === undefined ? r : { ...r, anchor: fix(r.anchor) }))
+    if (Array.isArray(c.places)) out.places = c.places.map(x => (typeof x?.anchor === 'string' ? place(x) : x))
     return out
   }
   await update($, childrenState, cur => (cur ?? []).map(link))
@@ -1027,7 +1289,9 @@ export async function saveLinks($: any) {
     const key = JSON.stringify(record)
     if (key !== lastLinks && (await saveStore($, 'children', record))) lastLinks = key
     keptLinks = new Map(links.map(l => [l.id, l]))
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: ligações não guardadas: ${String(err)}`)
+  }
 }
 // The links' "first use" (the table's restoredAt), as ensureGroups: once per module, before any write
 // of the links (and at session.start), the store's record is read: keptLinks is refilled from it, and
@@ -1068,7 +1332,9 @@ export async function forgetChildren($: any) {
     await $.state.set(endedState, [])
     keptLinks = new Map()
     await saveLinks($)
-  } catch {}
+  } catch (err) {
+    await debugOnce($, `task-tree: sessões do /clear não esquecidas: ${String(err)}`)
+  }
 }
 // A resume replaces the groups with the resumed session's (restore): its work comes with them, kept
 // under the new session too. With the old work's ids gone from the groups the panel drew nothing.
@@ -1090,6 +1356,124 @@ export async function restoreWork($: any) {
     if (Array.isArray(saved)) await $.state.set(workState, keepCurrent(cur, saved.map(String)))
   } catch (err) {
     await unread($, 'trabalho', err)
+  }
+}
+
+// The person's folds (the lines folded or opened, `collapsed`) are kept per session in the store too
+// (`folds`), so a new process (/model, a respawn of the worker, reopening the app) draws them as she
+// left them (the person, 2026-11-15: "Sim, guardado por sessão (Recomendado)"). Written after each
+// change of the state (a press, a plan that renames, the /clear's empty one); brought back as the work
+// is (session.start, a resume, the first use).
+const foldsOf = (v: unknown): Record<string, boolean> | undefined =>
+  v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, b]) => typeof b === 'boolean')) as Record<string, boolean>
+    : undefined
+// What this module last wrote to the store (as lastTurn, lastLinks): written again only when it changed,
+// after a hot reload or after a write the store refused (every publication tries).
+let lastFolds: string | undefined
+export async function saveFolds($: any) {
+  try {
+    const { value } = await $.state.get(collapsedState)
+    if (value === undefined) return
+    const text = JSON.stringify(value)
+    if (text === lastFolds) return
+    if (await saveStore($, 'collapsed', value)) lastFolds = text
+  } catch (err) {
+    await debugOnce($, `task-tree: dobras não guardadas: ${String(err)}`)
+  }
+}
+// The first use (a drawing or a press after a restart without session.start): with no folds in the
+// state, the store's come back. Answers what it brought, for a drawing that cannot write the state.
+export async function ensureFolds($: any): Promise<Record<string, boolean> | undefined> {
+  if (loaded.has('folds') || !restoredAt('collapsed', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(collapsedState)).value !== undefined) {
+      loaded.add('folds')
+      return undefined
+    }
+    const saved = foldsOf(await loadStore($, 'collapsed'))
+    if (saved === undefined) {
+      loaded.add('folds')
+      return undefined
+    }
+    try {
+      await $.state.set(collapsedState, saved)
+      loaded.add('folds')
+    } catch {}
+    return saved
+  } catch (err) {
+    await unread($, 'dobras', err)
+    return undefined
+  }
+}
+// At session.start (only into an empty state) and at a resume (`id`, which replaces: the resumed
+// session's, or none), written under this session too.
+export async function restoreFolds($: any, id?: string, replaceHeld = false) {
+  loaded.add('folds')
+  try {
+    if (!replaceHeld && (await $.state.get(collapsedState)).value !== undefined) return
+    const saved = foldsOf(await loadStore($, 'collapsed', id))
+    if (saved === undefined && !replaceHeld) return
+    await $.state.set(collapsedState, saved ?? {})
+    if (replaceHeld) await saveFolds($)
+  } catch (err) {
+    await unread($, 'dobras', err)
+  }
+}
+
+// The ultracode switch is kept per session in the store too (`ultra`), so a new process draws and
+// publishes the word at once, without waiting for the engine's next ultra_effort_enter (the person,
+// 2026-11-15: "Guardar por sessão"). Only ultra_effort_exit turns it off: a switch turned off with the
+// process stopped stays on until the engine says so (a risk the person accepted).
+// What this module last wrote (as lastFolds): every notice of the engine and every publication try, and
+// the store is written only when the switch changed or was not written by this module yet.
+let lastUltra: string | undefined
+export async function saveUltra($: any) {
+  try {
+    const { value } = await $.state.get(ultracodeState)
+    if (typeof value !== 'boolean') return
+    const text = String(value)
+    if (text === lastUltra) return
+    if (await saveStore($, 'ultracode', value)) lastUltra = text
+  } catch (err) {
+    await debugOnce($, `task-tree: ultracode não guardado: ${String(err)}`)
+  }
+}
+// The first use, as ensureFolds: with nothing in the state, the store's; answers what it brought.
+export async function ensureUltra($: any): Promise<boolean | undefined> {
+  if (loaded.has('ultra') || !restoredAt('ultracode', 'first-use')) return undefined
+  try {
+    if ((await $.state.get(ultracodeState)).value !== undefined) {
+      loaded.add('ultra')
+      return undefined
+    }
+    const saved = await loadStore($, 'ultracode')
+    if (typeof saved !== 'boolean') {
+      loaded.add('ultra')
+      return undefined
+    }
+    try {
+      await $.state.set(ultracodeState, saved)
+      loaded.add('ultra')
+    } catch {}
+    return saved
+  } catch (err) {
+    await unread($, 'ultracode', err)
+    return undefined
+  }
+}
+// At session.start (only into an empty state) and at a resume (`id`, which replaces: the resumed
+// session's, or off), written under this session too.
+export async function restoreUltra($: any, id?: string, replaceHeld = false) {
+  loaded.add('ultra')
+  try {
+    if (!replaceHeld && (await $.state.get(ultracodeState)).value !== undefined) return
+    const saved = await loadStore($, 'ultracode', id)
+    if (typeof saved !== 'boolean' && !replaceHeld) return
+    await $.state.set(ultracodeState, saved === true)
+    if (replaceHeld) await saveUltra($)
+  } catch (err) {
+    await unread($, 'ultracode', err)
   }
 }
 

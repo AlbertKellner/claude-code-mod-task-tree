@@ -1,7 +1,10 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { fixar, responderDepois } from './kit/ambiente'
-import { done, ferramenta, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { aviso, done, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, linha, painel } from './kit/leitura'
+import { subagente } from './kit/ambiente'
+import { chamadaDoSubagente } from './kit/cenario'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const PERGUNTA = {
@@ -243,6 +246,32 @@ test('a escolha do wrap_up fica até a próxima mensagem', async ($: any, on: an
   expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
 })
 
+// Regra: perguntas.escolha-do-wrapup-ate-proxima-mensagem
+test('a mensagem de outra sessão e o aviso do app não tiram a escolha do wrap_up; a mensagem da pessoa e um wrap_up novo tiram', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  const escolha = async () => (await painel($)).some(l => l.titulo === 'Aguardando sua escolha')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  await fimDoTurno($)
+  await mensagemDe($, 'local_99999999-9999-9999-9999-999999999999', 'relato')
+  esperarEstado(await painel($), 'Aguardando sua escolha', 'aguardando')
+  await fimDoTurno($)
+  await aviso($)
+  esperarEstado(await painel($), 'Aguardando sua escolha', 'aguardando')
+  // Um wrap_up novo, sem pergunta, tira a escolha.
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito' })
+  expect(await escolha(), emTexto(await painel($))).toBe(false)
+  // Com pergunta de novo, a mensagem da pessoa a tira.
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
+  await fimDoTurno($)
+  expect(await escolha(), emTexto(await painel($))).toBe(true)
+  await pedido($, 'sim')
+  expect(await escolha(), emTexto(await painel($))).toBe(false)
+})
+
 // Regra: perguntas.permissao-espera
 test('o pedido de permissão aparece como espera; o de pergunta, não', async ($: any, on: any) => {
   fixar(on)
@@ -307,4 +336,101 @@ test('o wrap_up com pergunta que falha não deixa "Aguardando sua escolha"', asy
   await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'feito', ask: 'Seguir?' })
   const p = await painel($)
   expect(p.some(l => l.titulo === 'Aguardando sua escolha'), emTexto(p)).toBe(false)
+})
+
+// Regra: perguntas.sem-tarefa-recusada, perguntas.falha-de-um-passo-nao-pula-a-recusa
+test('a pergunta sem tarefa é recusada mesmo com a falha de outro passo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  // Armado, a leitura do fim do turno (wake) falha antes da pergunta; a recusa não a lê.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'turnEnded' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  armado = true
+  const r = await ferramenta($, 'AskUserQuestion', PERGUNTA)
+  armado = false
+  expect(r.erro, r.texto).toBe(true)
+  expect(r.texto).toContain('plan')
+})
+
+// Regra: perguntas.mod-em-erro-abre-a-pergunta
+test('com a conferência da pergunta em erro, a pergunta abre e o log diz', async ($: any, on: any) => {
+  const { relogio, log } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  // Armado, toda leitura do painel falha, inclusive a que decide a recusa.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'groups' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  armado = true
+  const r = await ferramenta($, 'AskUserQuestion', PERGUNTA)
+  armado = false
+  expect(r.erro, r.texto).toBe(false)
+  expect(r.texto).toContain('Opção A')
+  expect(log.some(l => l.includes('a conferência da pergunta sem tarefa falhou')), log.join('\n')).toBe(true)
+})
+
+// Regra: perguntas.mod-em-erro-abre-a-pergunta
+test('com a conferência sem erro, a mesma pergunta sem tarefa segue recusada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A', 0)
+  on('state.get', async (_$: any, e: any, next: any) => next(e))
+  await pedido($, 'Pedido um')
+  expect((await ferramenta($, 'AskUserQuestion', PERGUNTA)).erro).toBe(true)
+})
+
+// Regra: perguntas.pergunta-e-plano-saem-no-fim-do-turno
+test('o fim do turno tira a espera da pergunta que ficou sem resposta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.pergunta-e-plano-saem-no-fim-do-turno
+test('o fim do turno tira a espera da aprovação do plano que ficou sem resposta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'ExitPlanMode', 'aprovado')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'ExitPlanMode', { plan: 'o plano' })
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, 'Aguardando aprovação do plano', 'aguardando')
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.pergunta-de-subagente
+test('a pergunta de um subagente passa sem tarefa do loop principal e espera sob a tarefa dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  subagente(on, 'sub-1')
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'S', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await start($, ['S'], 'sub-1')
+  const resp = chamadaDoSubagente($, 'sub-1', 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Tarefa do sub')) + 1)
+  await relogio.advance(1000)
+  const r = await resp
+  expect(typeof r?.deny, JSON.stringify(r)).not.toBe('string')
+  expect(String(r?.result ?? ''), JSON.stringify(r)).toContain('Opção A')
+  p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
 })

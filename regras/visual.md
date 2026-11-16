@@ -11,7 +11,7 @@ O desenho termina na borda real.
 - Quando o painel é desenhado
 - Então as linhas terminam na borda real do painel, com o texto cortado pelo app ("…"), em qualquer largura
 
-Origem: commit 6c706e7, 2026-10-27.
+Origem: commit 8168afe, 2026-10-27.
 Estado: checklist (largura real do app)
 
 ### visual.cliques-no-icone-e-no-anel
@@ -21,7 +21,7 @@ Os cliques no ícone e no anel funcionam.
 - Quando a pessoa clica no botão sobre o ícone ou sobre o anel
 - Então a ação correspondente acontece
 
-Origem: commit 4edb3f2, 2026-10-21 ("cliques por chave, painel na tela e desenho menor").
+Origem: commit dcf4a4c, 2026-10-21 ("cliques por chave, painel na tela e desenho menor").
 Estado: checklist (cliques reais)
 
 ### visual.botoes-por-chave
@@ -42,7 +42,7 @@ Texto cortado não tem tooltip.
 - Quando o painel é desenhado no app desktop
 - Então não há tooltip: nenhum `Svg` interativo, nenhum `<title>` em fonte de `Svg` e nenhum elemento com `hover` ou escondido
 
-Origem: commit 450aa9f, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
+Origem: commit 9ff32dc, 2026-10-21 ("tooltip com o nome inteiro da tarefa cortada").
 Reescrito: 2026-11-09, decisão do usuário ("não funcionou. aborte e remova a funcionalidade de tooltip"), depois de pedir "mostre um tooltip com o texto completo quando eu parar o mouse em cima do texto por um segundo".
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): não há tooltip: nenhum `Svg` interativo, nenhum `<title>` em fonte de `Svg` e nenhum elemento com `hover` ou escondido.
 Código: hooks/render.tsx
@@ -66,7 +66,7 @@ A linha nova aparece de uma vez, sem animação, e nada pisca à toa.
 - Quando ela aparece
 - Então ela aparece pronta, sem animação, e as outras não piscam
 
-Origem: commit f19a4ad, 2026-10-23 ("linhas e cartões novos entram com fade-in").
+Origem: commit f2883c9, 2026-10-23 ("linhas e cartões novos entram com fade-in").
 Reescrito: 2026-11-04, "Manter sem animações" (decisão do usuário, depois de "desative as animacoes do task tree, quero avaliar como fica sem"); desfaz a linha que se revelava, o ícone que crescia, o traço do ✓, a barra que crescia e o chip que surgia.
 Estado: checklist (desenho real)
 
@@ -77,7 +77,7 @@ As cores seguem o tema.
 - Quando o painel é desenhado
 - Então os textos e fundos usam as cores do tema do app; os `Svg` que restam levam as suas, claro e escuro
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-13, decisão do usuário ("nao aparece nenhum card"): os textos usam as cores do tema; o fundo e a borda do cartão e do cabeçalho, o trilho das barras e a faixa sem chave de tema são cores cruas translúcidas, que assentam nos dois temas; os `Svg` levam as suas.
 Estado: checklist (pintura real; o desenho fica travado por visual.desenho-*; a pintura real, no app)
 
@@ -88,7 +88,7 @@ O cabeçalho aparece em cartão, no desenho V4.
 - Quando o cabeçalho é desenhado
 - Então ele é um cartão com a faixa de estado à esquerda (fundo de `Box`), o título no tamanho de título do app, o repositório e a branch, a barra, as pílulas e o bloco de números à direita (o % grande, "d de n", o tempo e toks/s); no painel estreito, o toks/s e 'ultracode' em linhas próprias abaixo do tempo
 
-Origem: commit ccbd8fb, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
+Origem: commit bc5dac2, 2026-10-24 ("cabeçalho dentro de um cartão (fundo, borda e raio dos cartões de sessão), sem a linha divisória").
 Reescrito: 2026-11-03, decisão do usuário ("gostei da V4, siga para análise e implementação"): o cabeçalho V4 ("Respiro", 116 px).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o cabeçalho em componentes nativos, com só a barra e os ícones das pílulas em `Svg`; sem medidas em px.
@@ -104,8 +104,9 @@ O status aparece embaixo da caixa de mensagem.
 - Quando o app desenha a caixa de mensagem
 - Então o status do painel aparece embaixo dela, com o número da sessão inteira (cabecalho.status-igual-a-sessao-inteira)
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Reescrito: 2026-11-14, texto: o número é o da sessão inteira; a regra do que o app mostra não muda.
+Código: hooks/panel.ts
 Estado: checklist (status do app)
 
 ### visual.cartao-modelo-e-esforco
@@ -115,8 +116,9 @@ O cartão da filha mostra o modelo e o esforço dela.
 - Quando o cartão é desenhado no app desktop
 - Então mostra o modelo e o esforço ("Opus 5.5 · high") à esquerda do anel
 
-Origem: regra do painel.
+Origem: regra do painel, no repositório desde 2026-10-21.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-filha-modelo-e-carta.
+Código: draw/layout.ts, io/host.ts
 Estado: checklist (o terminal não desenha o modelo; o desenho fica travado por visual.desenho-filha-modelo-e-carta; a pintura real, no app)
 
 ### visual.cartao-posicao-de-toks-e-repo
@@ -126,8 +128,9 @@ No cartão do app desktop, toks/s fica à esquerda do modelo e repositório e br
 - Quando o cartão é desenhado no app desktop
 - Então "n toks/s" fica à esquerda do modelo, e o repositório e a branch à direita do nome
 
-Origem: commits 1987482 e 689d569, 2026-10-24.
+Origem: commits 1a3dc9f e 2cd2beb, 2026-10-24.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Ampliar o golden (Recomendado)"): o desenho fica travado por visual.desenho-cartao-filha.
+Código: draw/layout.ts, io/host.ts
 Estado: checklist (posição na linha; o desenho fica travado por visual.desenho-cartao-filha; a pintura real, no app)
 
 ### visual.cartoes-ordem-e-espera
@@ -135,9 +138,11 @@ Os cartões de várias sessões reais seguem a ordem de execução, sem pulo.
 
 - Dado várias sessões reais, com mensagens entre irmãs e mais de 20 rodadas
 - Quando o painel é desenhado
-- Então os cartões seguem a ordem de início do trabalho, o cartão de mensagem de irmã espera a origem (até 10 s) sem pular, e a espera e o anel ficam só no cartão líder
+- Então os cartões seguem a ordem de início do trabalho, o cartão de mensagem de irmã espera a origem (até 10 s) sem pular; a espera fica só no cartão da frente (o que está trabalhando), e o anel de contexto aparece em todo cartão da sessão
 
-Origem: commits fddd473 e 8b67366, 2026-10-23.
+Origem: commits bd0b1b3 e 11e4044, 2026-10-23.
+Reescrito: 2026-11-15, texto: o anel fica em todo cartão, por pedido do usuário ("mesmo depois que a sessao termina, o icone se contexto precisa continuar aparecendo"); só a espera fica no cartão da frente. A regra não muda.
+Código: draw/layout.ts
 Estado: checklist (sessões e tempos reais)
 
 ### visual.recarga-real-e-respawn
@@ -145,9 +150,11 @@ A recarga real e o respawn do worker não perdem nada.
 
 - Dado o painel aberto, com cartões e resumos
 - Quando um arquivo do mod é salvo, o worker é refeito (/model) ou a sessão é retomada no app
-- Então nada some, os relógios voltam a correr e o primeiro clique funciona
+- Então nada some; o mod recarrega sem "reload failed", os relógios voltam a correr sozinhos e o primeiro clique funciona; os cartões das rodadas de uma filha não mudam de lugar ao salvar um arquivo do mod (o que o harness alcança está em durabilidade.recarga-mantem-painel-ligacoes-e-resumo, durabilidade.recarga-no-meio-do-turno-mantem-o-tempo, durabilidade.recarga-com-subagente-vivo e durabilidade.recarga-com-espera-aberta)
 
-Origem: tabela de durabilidade, commit 9fb1c51, 2026-10-22.
+Origem: tabela de durabilidade, commit fe8354e, 2026-10-22.
+Reescrito: 2026-11-15, texto: separa o que só o app mostra do que os pares 1/2 e 2/2 já cobrem. A regra não muda.
+Código: hooks/sessions.ts, hooks/panel.ts, state/durability.ts
 Estado: checklist (recarga e processo reais)
 
 ### visual.cabecalho-barra-e-chips-desenhados
@@ -191,9 +198,10 @@ No app desktop, as guias da árvore são caixas nativas finas com fundo.
 
 - Dado uma árvore com pai, filhas e netas
 - Quando o painel é desenhado no app desktop
-- Então cada linha tem uma célula de guia por nível: barra onde o ancestral ainda tem irmã abaixo, vazio onde não tem, e no fim o ramo (a linha tem irmã depois) ou o fim (é a última); cada traço é uma caixa com fundo, todas da mesma cor; nenhum texto tem caractere de caixa e nenhuma guia é `Svg`. O terminal segue com os caracteres
+- Então cada linha tem uma célula de guia por nível, até o teto de 8 células contadas com as faixas dos cartões em volta (visual.titulo-legivel-no-painel-estreito): barra onde o ancestral ainda tem irmã abaixo, vazio onde não tem, e no fim o ramo (a linha tem irmã depois) ou o fim (é a última); cada traço é uma caixa com fundo, todas da mesma cor; nenhum texto tem caractere de caixa e nenhuma guia é `Svg`. O terminal segue com os caracteres
 
 Origem: decisão do usuário, 2026-11-13 ("Caixas finas nativas (Recomendado)"), à pergunta se queria guias contínuas; desfaz "Caracteres (Recomendado)", do mesmo dia (guias em caracteres de caixa, mono).
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Barra, contagem e teto (Recomendado)"): do 8º nível em diante a linha não ganha mais células de guia. Os testes deste cenário não mudam.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -202,9 +210,10 @@ Estado: coberto
 
 - Dado um cartão de sessão filha ou de subagente sob uma tarefa
 - Quando o painel é desenhado no app desktop
-- Então a faixa à esquerda do cartão tem uma célula por coluna de fora, não uma linha de texto por linha do cartão: barra onde o ancestral continua e, na última, o ramo (há irmã depois do cartão; a barra segue até o pé) ou o fim (o cartão é o último); dentro do cartão as linhas têm as guias das colunas do cartão, e as tarefas de uma sessão começam sem guia até o rótulo
+- Então a faixa à esquerda do cartão tem uma célula por coluna de fora, até o mesmo teto de 8 células, não uma linha de texto por linha do cartão: barra onde o ancestral continua e, na última, o ramo (há irmã depois do cartão; a barra segue até o pé) ou o fim (o cartão é o último); dentro do cartão as linhas têm as guias das colunas do cartão enquanto o teto deixar (visual.titulo-legivel-no-painel-estreito), e as tarefas de uma sessão começam sem guia até o rótulo
 
 Origem: a mesma decisão, 2026-11-13 ("Caixas finas nativas (Recomendado)"), que desfaz "Caracteres (Recomendado)", do mesmo dia.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Barra, contagem e teto (Recomendado)"): a faixa do cartão e as linhas de dentro dele contam para o teto de 8 células. Os testes deste cenário não mudam.
 Código: draw/layout.ts
 Estado: coberto
 
@@ -358,13 +367,16 @@ A faixa à esquerda do cabeçalho diz o estado geral pela cor.
 
 - Dado o painel com tarefas, sessões filhas ou nada
 - Quando o cabeçalho é desenhado no app desktop
-- Então a faixa é âmbar com tarefa em andamento e também, com o turno em curso, enquanto há tarefas pendentes e alguma já foi iniciada no pedido (entre um done e o start seguinte); âmbar claro ("aguardando") com algo aguardando ou só tarefas pendentes, nada iniciado; azul com só uma sessão filha trabalhando sem tarefa iniciada dela à vista; com uma tarefa iniciada da filha à vista no cartão, âmbar, porque ela conta como "em andamento"; verde com tudo concluído; cinza com o que ficou interrompido; e o estado vai ao texto alternativo ("estado geral: …")
+- Então a faixa é âmbar com tarefa em andamento e também, com o turno em curso, enquanto há tarefas pendentes e alguma foi iniciada desde a última mensagem da pessoa ou, se o turno foi reaberto por um aviso do app, desde o aviso (entre um done e o start seguinte; o start de novo numa tarefa que aguardava conta; turnos.aviso-sem-start-aguarda); âmbar claro ("aguardando") com algo aguardando ou só tarefas pendentes, nada iniciado; azul com só uma sessão filha trabalhando sem tarefa iniciada dela à vista; com uma tarefa iniciada da filha à vista no cartão, âmbar, porque ela conta como "em andamento"; com tudo fechado, cinza ("interrompido") se alguma tarefa foi parada com Esc, falhou ou teve o subagente dela parado, e verde ("concluído") com o resto concluído, sem contar a tarefa tirada com cancel nem a sobra de um subagente que concluiu; os números não mudam; e o estado vai ao texto alternativo ("estado geral: …")
 
 Origem: decisão do usuário, 2026-11-03 ("gostei da V4, siga para análise e implementação"; para só pendentes, nada iniciado: "Âmbar claro, 'aguardando'", contra a recomendação de cinza).
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o estado no texto alternativo do cabeçalho ("estado geral: …"), não mais a classe da faixa no SVG; a regra não muda.
 Reescrito: 2026-11-14, decisão do usuário ("\"Em andamento\" (Recomendado)"; "Do primeiro start (Recomendado)"): com o turno em curso, a faixa não volta a âmbar claro entre um done e o start seguinte; "só pendentes, nada iniciado" segue âmbar claro (2026-11-03). Os testes existentes deste cenário não mudam.
 Reescrito: 2026-11-14, decisão do usuário ("Âmbar, como hoje"): a tarefa iniciada da filha conta como "em andamento" no cabeçalho; o azul fica para a filha sem tarefa iniciada à vista. Os testes existentes deste cenário não mudam.
-Código: draw/svg.ts, hooks/render.tsx
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Cinza \"interrompido\" (Recomendado)"; "Cancelada não conta"): com tudo fechado e alguma tarefa parada com Esc ou que falhou, a faixa é cinza; antes, verde sempre que alguma tarefa tinha sido concluída. A tarefa tirada com cancel e a sobra de um subagente que concluiu não contam: o pedido que terminou bem fica verde. Os números não mudam. Os testes existentes deste cenário não mudam; entram os testes do cinza e da cancelada.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("◷ até o start (Recomendado)"): depois de um aviso do app com o turno terminado, a faixa segue "aguardando" até um start dado depois dele; limita "Em andamento" (2026-11-14) ao que foi iniciado desde a mensagem ou o aviso. Os testes existentes deste cenário não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Cinza \"interrompido\" (Recomendado)"): a tarefa ✕ pelo subagente parado também deixa a faixa cinza. Os testes existentes deste cenário não mudam.
+Código: draw/svg.ts, hooks/render.tsx, hooks/agents.ts
 Estado: coberto
 
 ### visual.secao-sem-traco
@@ -375,5 +387,77 @@ A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizonta
 - Então não há linha horizontal atravessando o painel nem as bordas do cartão; a seção é só o ▸/▾ e o texto apagado
 
 Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
-Código: draw/svg.ts
-Estado: checklist (pintura real)
+Reescrito: 2026-11-15, texto: passa a coberto; a linha de seção é desenhada em elementos nativos, que o harness lê. A pintura real segue no checklist do app. A regra não muda.
+Reescrito: 2026-11-16, texto: o teste passa a cobrir a seção de dentro de um cartão e "+N cartões antigos", e as linhas vizinhas; a da raiz é travada também pelo golden do cabeçalho largo. A regra não muda.
+Reescrito: 2026-11-16, texto: o teste de 2026-11-16 da seção de dentro do cartão achava a linha pelo texto e conferia a da raiz, de mesmo começo; um teste novo confere a linha do cartão pelo elemento dela. A regra não muda.
+Código: draw/desktop.tsx
+Estado: coberto
+
+### visual.corte-de-texto-inteiro-e-limpo
+Os textos que o painel corta saem inteiros no último caractere e sem caracteres de controle.
+
+- Dado um pedido, uma carta ou uma linha de ferramenta com um emoji na posição do corte, ou com uma sequência de controle (ANSI) no texto, ou com quebras de linha e espaços repetidos
+- Quando o painel o desenha
+- Então o corte termina num caractere inteiro seguido de "…", nenhum caractere de controle chega ao painel, o texto sai numa linha só, com um espaço entre as palavras e sem espaço nas pontas, e o pedido que fica sem texto depois da limpeza se chama "Pedido"
+
+Origem: auditoria 2026-11-10 (cortes por unidade UTF-16; texto do prompt sem filtro); regra do painel, sem decisão nova.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, hooks/agents.ts, draw/layout.ts
+Reescrito: 2026-11-15, texto: a limpeza vem antes de juntar os espaços e do nome "Pedido", e tira também VT e FF (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Estado: coberto
+
+### visual.tempo-nunca-negativo
+Nenhum tempo do painel é desenhado negativo.
+
+- Dado uma carta na fila, um subagente ou um grupo com a hora gravada à frente do relógio
+- Quando o painel é desenhado
+- Então o tempo aparece "0:00" até o relógio alcançar a hora gravada; um tempo inválido não é desenhado
+
+Origem: auditoria 2026-11-10 ("-1:-2" com o relógio do sistema voltando atrás); regra do painel, sem decisão nova.
+Código: draw/layout.ts
+Estado: coberto
+
+### visual.coluna-da-contagem-cabe-a-maior
+A coluna da contagem tem a largura da maior contagem desenhada.
+
+- Dado uma linha com contagem de seis caracteres ou mais ("112/340")
+- Quando o painel é desenhado no app
+- Então a coluna da contagem de todas as linhas que a desenham tem a largura da maior (no mínimo 5), e as colunas da barra, da contagem e do tempo seguem alinhadas entre as linhas; a contagem de um cartão de sessão, que não é desenhada nessa coluna, não entra na largura; a linha que cede a barra ou a contagem no painel estreito (visual.titulo-legivel-no-painel-estreito) sai sem essa coluna, e as que ficam seguem alinhadas
+
+Origem: auditoria 2026-11-10 (a contagem larga passava sobre a barra); regra do painel, sem decisão nova.
+Reescrito: 2026-11-15, texto: só as linhas que desenham a coluna contam (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Barra, contagem e teto (Recomendado)"): em painel estreito uma linha pode sair sem a barra ou sem a contagem. Os testes deste cenário não mudam.
+Estado: coberto
+
+### visual.titulo-legivel-no-painel-estreito
+Em painel estreito, a barra e depois a contagem cedem para o título, e a indentação para no 8º nível.
+
+- Dado uma linha com barra e contagem cujo título ficaria com menos de 12 caracteres, ou uma linha além do 8º nível
+- Quando o painel é desenhado no app
+- Então a linha sai sem a barra; se ainda faltar espaço, sem a contagem; a palavra, o busto e o tempo ficam; do 8º nível em diante as linhas têm as guias do 8º (as faixas dos cartões em volta contadas; o recuo próprio de cada cartão segue); na 8ª coluna fica o conector da linha ou da faixa do cartão: ramo enquanto a linha seguinte também desenha nela, fim na última, sem falha na guia; quando as faixas em volta já somam 8, cada linha e cada cartão de dentro mantêm só o conector
+
+Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)").
+Reescrito: 2026-11-15, texto: o conector da 8ª coluna sai ramo enquanto houver linha depois na mesma coluna (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Manter o ├/└ (Recomendado)"): o corte nunca tira o conector da própria linha; dentro do cartão cujas faixas em volta já somam 8 células, cada linha e cada cartão mantêm uma célula, a do conector (custa 3 colunas de título por cartão aninhado além do teto). Os testes existentes deste cenário não mudam.
+Estado: coberto
+
+### visual.painel-estreito-no-app
+No app, o painel estreito mantém o título legível.
+
+- Dado o painel na menor largura do app, com um cartão de filha e um de neta
+- Quando se olha as linhas com contagem
+- Então o título tem uns 12 caracteres ou mais, sem texto sobre texto; as colunas que ficam seguem alinhadas pelo tempo; o cartão dentro de cartão segue legível
+
+Origem: decisão do usuário, 2026-11-15 ("Barra, contagem e teto (Recomendado)"); o que o harness não alcança (a medida é estimada em colunas).
+Código: draw/desktop.tsx
+Estado: checklist (largura real e fonte do app)
+
+### visual.erro-ao-desenhar-vira-uma-linha
+Se o desenho do painel falha, o painel mostra uma linha de erro, e o log e o arquivo publicado dizem o motivo.
+
+- Dado um painel cujo desenho lança um erro
+- Quando o painel é desenhado
+- Então no lugar da árvore aparece "Painel de tarefas: erro ao desenhar: <erro>", e o erro vai ao log de depuração e ao arquivo publicado, no campo que a sessão mãe pode ler
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/panel.ts
+Estado: coberto

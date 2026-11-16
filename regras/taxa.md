@@ -2,7 +2,7 @@
 
 O "n toks/s" do cabeçalho, do cartão da filha e do cartão de subagente.
 
-Código da área: hooks/turn.ts, hooks/agents.ts
+Código da área: hooks/turn.ts, hooks/agents.ts, draw/desktop.tsx, draw/head.tsx, draw/svg.ts, draw/layout.ts, io/publish.ts, io/host.ts
 
 ### taxa.velocidade-de-geracao
 O toks/s é a velocidade de escrita da resposta, do primeiro chunk ao 'stop'.
@@ -29,11 +29,23 @@ No fim do turno, o último número fica aceso.
 
 - Dado um número medido no turno
 - Quando o turno termina (com ou sem passo válido nele)
-- Então o último número válido fica, aceso, sem esmaecer e sem "(último turno)"
+- Então o último número válido fica, aceso, sem esmaecer e sem "(último turno)"; o número de uma filha em versão anterior do mod, publicado como média do último turno, também aparece aceso
 
 Origem: decisão do usuário, 2026-11-10 ("Fica aceso"); turno sem passo válido: o número anterior fica (derivado de "Fica aceso").
 Reescrito: 2026-11-13, decisão do usuário ("migrar todo o Mod para o hibrido de nativo e mantendo somente o que for obrigatório em SVG"): o teste lê o texto do cabeçalho e da linha no app: o que mostram e o texto alternativo dos `Svg`, não mais o `alt` de uma imagem; a regra não muda.
+Reescrito: 2026-11-15, texto: aplica "Fica aceso" (2026-11-10) à taxa lida de uma filha em versão anterior do mod; saem do desenho os restos da medida antiga. Os testes existentes não mudam.
 Código: draw/head.tsx
+Estado: coberto
+
+### taxa.troca-de-modelo-apaga
+Na troca de modelo, o toks/s do modelo anterior some até a primeira medida do novo.
+
+- Dado uma sessão com um toks/s medido, no cabeçalho dela e no cartão dela na sessão que a abriu
+- Quando o modelo da sessão é trocado
+- Então o número antigo sai do cabeçalho e do cartão, que passa a mostrar o modelo novo sem toks/s; ele volta com a primeira resposta válida medida com o modelo novo; mudar só o esforço não apaga; sem troca, o último número segue aceso no fim do turno (taxa.fim-do-turno-fica-aceso)
+
+Origem: decisão do usuário, 2026-11-15 ("Some até a medida nova (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (o cartão mostrava o modelo novo ao lado do toks/s do antigo).
+Código: io/host.ts
 Estado: coberto
 
 ### taxa.subagente-mesma-medida
@@ -45,3 +57,47 @@ O cartão de subagente mede igual.
 
 Origem: decisão do usuário, 2026-11-10 ("Sim, todos (Recomendado)").
 Estado: coberto
+
+### taxa.subagente-terminado-fica-com-o-ultimo
+O cartão do subagente terminado segue com o último toks/s.
+
+- Dado um subagente com um passo válido medido
+- Quando ele termina
+- Então o cartão diz "<modelo> · <n> toks/s · concluído" (ou a palavra do fim dele), com o número do último passo válido, mesmo medido menos de 1 s depois do anterior
+
+Fora deste cenário: a linha do agente dentro do cartão de grupo, que segue sem toks/s (decisão do usuário, 2026-11-15: "Como hoje (Recomendado)").
+
+Origem: decisão do usuário, 2026-11-15 ("Sim, fica o último (Recomendado)"); aplica ao cartão do subagente "Fica aceso" (2026-11-10).
+Código: draw/layout.ts
+Estado: coberto
+
+### taxa.passo-nao-cai-com-o-painel
+Uma falha do painel antes ou depois do stream não derruba o passo do modelo.
+
+- Dado uma falha ao ler ou gravar o modelo, a taxa ou o cartão do subagente
+- Quando o passo do modelo roda
+- Então a resposta passa inteira, a falha fica no log de depuração, e o passo seguinte volta a medir
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: as leituras e escritas em volta do stream não tinham proteção).
+Estado: coberto
+
+### taxa.fluxo-encerrado-quando-o-consumo-para
+Quando a resposta é interrompida no meio, o painel encerra o fluxo que ele repassava.
+
+- Dado um passo do modelo com o stream pela metade
+- Quando quem consome o stream para (Esc no meio da resposta)
+- Então o fluxo de baixo é encerrado por este hook, e o último toks/s válido fica como estava
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o laço não tinha `finally`).
+Estado: coberto
+
+### taxa.esc-no-meio-da-resposta
+No app, o Esc no meio de uma resposta para a resposta e não deixa o painel preso.
+
+- Dado uma resposta longa em curso, no app desktop
+- Quando a pessoa aperta Esc
+- Então a resposta para, o painel mostra o turno parado (a tarefa em andamento ✕) e o toks/s fica no último valor válido
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15); o harness não para um stream real.
+Código: hooks/turn.ts
+Estado: checklist (o harness não simula o Esc no meio de um stream real)

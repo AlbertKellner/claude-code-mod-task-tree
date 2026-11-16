@@ -1,7 +1,12 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
+import { responderEnvio } from './kit/ambiente'
+import { envio } from './kit/cenario'
+import { emTexto, painel } from './kit/leitura'
 import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, cancelar, chamadaDoSubagente, done, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
 import { alfa, alturaDaLinha, cabecalhoDoApp, centrada, respirosDoApp, tom, vaosEntreLinhas, cartoesDoApp, estadoGeral, faixasDoApp, guiasDe, linhaDoApp, montarNoApp, noApp, pedacosDepois, textosComCaixa, tracosDoApp, type CaixaDoApp, type DesenhoDoApp } from './kit/leitura'
+import { PROPS } from './kit/ambiente'
 
 // O cabeçalho do app desktop (V4): a faixa de estado geral, lida no texto alternativo do cabeçalho ("estado geral: …").
 
@@ -80,6 +85,54 @@ test('com tudo desta sessão concluído e a filha trabalhando numa tarefa inicia
   const texto = (await noApp($)).cabecalho.texto
   expect(texto).toContain('1 em andamento')
   expect(texto).toContain('1 sessão ativa')
+})
+
+const DOIS_PASSOS: No[] = [
+  { id: 'A', title: 'Um' },
+  { id: 'B', title: 'Dois' },
+]
+
+// Regra: visual.faixa-de-estado-geral
+test("com tudo fechado e uma tarefa parada com Esc, a faixa é cinza 'interrompido'; os números não mudam", async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await start($, ['B'])
+  await esc($)
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
+  expect(d.cabecalho.texto).toContain('1 de 1')
+})
+
+// Regra: visual.faixa-de-estado-geral
+test("a tarefa tirada com cancel não deixa a faixa cinza: com o resto concluído, verde 'concluído'", async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await cancelar($, ['B'])
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('concluído')
+  expect(d.cabecalho.texto).toContain('1 de 1')
+})
+
+// Regra: visual.faixa-de-estado-geral
+test("com tudo fechado e a tarefa de um subagente que falhou, a faixa é cinza 'interrompido'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await start($, ['B'])
+  await lancar($, { descricao: 'revisar' })
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  await fimDoTurno($)
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
 })
 
 // O título de uma linha do app desktop: o texto inteiro, que o app corta com "…" na largura real.
@@ -420,4 +473,555 @@ test('no app, o cartão tem respiro nos quatro lados, e o conector da faixa desc
     expect(r.conector!.antes, quais).toBe(r.cima)
     expect(r.conector!.bloco, quais).toBe(altura)
   }
+})
+
+// Um pedido cujo corte de hoje (59 unidades) cai no meio do par do emoji.
+const COM_EMOJI = `${'a'.repeat(58)}😀 e mais um pouco de texto`
+
+// Regra: visual.corte-de-texto-inteiro-e-limpo
+test('o título do pedido e a carta são cortados sem partir um emoji e sem caractere de controle', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, COM_EMOJI)
+  await plan($, UM)
+  await start($, ['1'])
+  await envio($, 'local_x', 'antes\u001b[31mdepois')
+  const p = await painel($)
+  const doPedido = p.find(l => l.titulo.startsWith('aaaa'))
+  expect(doPedido?.titulo, emTexto(p)).toBe(`${'a'.repeat(58)}😀…`)
+  expect(/[\ud800-\udbff](?![\udc00-\udfff])/.test(doPedido?.titulo ?? ''), emTexto(p)).toBe(false)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo, emTexto(p)).toContain('antesdepois')
+  expect(carta?.titulo ?? '', emTexto(p)).not.toContain('\u001b')
+})
+
+// Regra: visual.tempo-nunca-negativo
+test('um tempo com a hora à frente do relógio é desenhado 0:00, nunca negativo', async ($: any, on: any) => {
+  fixar(on)
+  const futuro = AGORA + 60000
+  host(on, [
+    {
+      id: 'local_11111111-1111-1111-1111-111111111111',
+      nome: 'filha',
+      painel: {
+        tasks: [{ id: '1', short: '1', title: 'Da filha', status: 'open', started: 1, startedAt: AGORA - 1000, children: [] }],
+        agentes: [{ agent: 'fs-1', label: 'Explore: lançado no futuro', parent: '', anchor: '1', tasks: [], sub: { at: futuro, state: 'running', calls: 1, batch: futuro, engine: 'Haiku 5.5' } }],
+      },
+    },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const sub = p.find(l => l.titulo.includes('lançado no futuro'))
+  expect(sub?.texto, emTexto(p)).toContain('0:00')
+  expect(sub?.texto ?? '', emTexto(p)).not.toMatch(/-\d/)
+})
+
+// As caixas da coluna da contagem (key "count") de um desenho do app, em qualquer profundidade.
+function colunasDaContagem(raiz: any): { width: unknown; texto: string }[] {
+  const achadas: { width: unknown; texto: string }[] = []
+  const texto = (x: any): string => (typeof x === 'string' ? x : typeof x !== 'object' || x === null ? '' : (x.children ?? []).map(texto).join(''))
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Box' && (x.key ?? x.props?.key) === 'count') achadas.push({ width: x.props?.width, texto: texto(x) })
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(raiz)
+  return achadas
+}
+
+// Regra: visual.coluna-da-contagem-cabe-a-maior
+test('a coluna da contagem tem a largura da maior contagem, igual em todas as linhas', async ($: any, on: any) => {
+  fixar(on)
+  const tarefas = Array.from({ length: 120 }, (_, k) => ({
+    id: String(k + 1),
+    short: String(k + 1),
+    title: `Tarefa ${k + 1}`,
+    status: k < 100 ? 'done' : 'open',
+    ...(k < 100 ? { startedAt: AGORA - 1000, endedAt: AGORA - 500 } : {}),
+    children: [],
+  }))
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: tarefas } }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const colunas = colunasDaContagem(d.raiz)
+  const quais = JSON.stringify(colunas)
+  expect(colunas.some(c => /^100\/\d{3}$/.test(c.texto)), quais).toBe(true)
+  const maior = Math.max(...colunas.map(c => c.texto.length))
+  const larguras = new Set(colunas.map(c => c.width))
+  expect(larguras.size, quais).toBe(1)
+  expect(Number(colunas[0]?.width), quais).toBeGreaterThanOrEqual(maior)
+})
+
+// Uma tarefa publicada por uma sessão filha, com as subtarefas dadas.
+const estreitoTarefa = (id: string, title: string, children: any[] = []) => ({ id, short: id, title, status: 'open', ...(children.length === 0 ? { started: 1, startedAt: AGORA - 1000 } : {}), children })
+// Um Box de key `k` em qualquer profundidade de um elemento do desenho do app.
+function estreitoCaixa(el: any, k: string): boolean {
+  if (typeof el !== 'object' || el === null) return false
+  if (el.type === 'Box' && (el.key ?? el.props?.key) === k) return true
+  return ((el.children ?? []) as any[]).some(c => estreitoCaixa(c, k))
+}
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('em painel estreito, a linha com colunas perde a barra e depois a contagem; em painel largo, tem as duas', async ($: any, on: any) => {
+  fixar(on)
+  const pai = estreitoTarefa('P', 'Pai da filha', [estreitoTarefa('P1', 'Primeira da filha'), estreitoTarefa('P2', 'Segunda da filha')])
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: [pai] } }])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const caixas = async (colunas: number) => {
+    const d = await noApp($, { colunas })
+    const l = linhaDoApp(d, 'Pai da filha')
+    return { bar: estreitoCaixa(l.el, 'bar'), count: estreitoCaixa(l.el, 'count'), time: estreitoCaixa(l.el, 'time'), titulo: l.texto.includes('Pai da filha') }
+  }
+  expect(await caixas(100)).toEqual({ bar: true, count: true, time: true, titulo: true })
+  expect(await caixas(50)).toEqual({ bar: false, count: true, time: true, titulo: true })
+  expect(await caixas(40)).toEqual({ bar: false, count: false, time: true, titulo: true })
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('do 8º nível em diante a linha tem as guias do 8º nível', async ($: any, on: any) => {
+  fixar(on)
+  const tres = (p: string) => [estreitoTarefa(`${p}a`, `${p} nível um`, [estreitoTarefa(`${p}b`, `${p} nível dois`, [estreitoTarefa(`${p}c`, `${p} nível três`), estreitoTarefa(`${p}d`, `${p} nível três bis`)])])]
+  const neta = { id: 'local_22222222-2222-2222-2222-222222222222', name: 'neta', title: 'neta', running: true, archived: false, anchor: 'Fc', panel: { groups: [{ agent: '', label: '', tasks: tres('N') }], waits: [], children: [] } }
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: tres('F'), filhas: [neta] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }] }] }])
+  await start($, ['1.1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($, { colunas: 100 })
+  // Cada linha com as células das faixas dos cartões em volta dela somadas às guias dela.
+  const somas: { texto: string; celulas: number }[] = []
+  const linhas = new Map(d.linhas.map(l => [l.el, l]))
+  const andar = (x: any, antes: number) => {
+    if (typeof x !== 'object' || x === null) return
+    const l = linhas.get(x)
+    if (l) return void somas.push({ texto: l.texto, celulas: antes + guiasDe(l).length })
+    const k = x.key ?? x.props?.key
+    let soma = antes
+    if (x.type === 'Box' && typeof k === 'string' && /^c\d+$/.test(k)) {
+      const strip = ((x.children ?? []) as any[]).find(c => c?.type === 'Box' && (c.key ?? c.props?.key) === 'strip')
+      soma += ((strip?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null).length
+    }
+    for (const c of x.children ?? []) andar(c, soma)
+  }
+  andar(d.raiz, 0)
+  const quais = JSON.stringify(somas)
+  const de = (titulo: string) => somas.find(s => s.texto.includes(titulo))?.celulas
+  // A neta começa no 7º; o 8º e o 9º nível dela ficam na mesma coluna.
+  expect(de('N nível um'), quais).toBe(7)
+  expect(de('N nível dois'), quais).toBe(8)
+  expect(de('N nível três'), quais).toBe(8)
+  expect(Math.max(...somas.map(s => s.celulas)), quais).toBe(8)
+})
+
+// Um comando em várias linhas, com FF e VT ao lado de espaços e espaços repetidos.
+const COMANDO_EM_LINHAS = 'git status\r\n\fgit diff\u000b  --stat'
+// Algum caractere de controle (C0, DEL, C1).
+const CONTROLE = /[\u0000-\u001f\u007f-\u009f]/
+
+// Regra: visual.corte-de-texto-inteiro-e-limpo
+test('a linha da ferramenta do subagente sai numa linha só, sem quebra de linha nem caractere de controle', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'rodar o git' })
+  await chamadaDoSubagente($, 'sub-1', 'Bash', { command: COMANDO_EM_LINHAS })
+  const p = await painel($)
+  const corpo = p.map(l => l.texto).join('\n')
+  expect(corpo, emTexto(p)).toContain('Bash git status git diff --stat')
+  for (const l of p) expect(CONTROLE.test(l.texto), JSON.stringify(l.texto)).toBe(false)
+  const linha = p.find(l => l.texto.includes('Bash git'))
+  expect(linha?.texto ?? '', emTexto(p)).not.toMatch(/Bash git.* {2}/)
+})
+
+// Regra: visual.corte-de-texto-inteiro-e-limpo
+test("o pedido só com sequência de controle se chama 'Pedido', e os espaços em volta de uma sequência não dobram", async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, '\u001b[0m')
+  await plan($, UM)
+  await start($, ['1'])
+  await envio($, 'local_x', 'antes \u001b[31m depois')
+  await fimDoTurno($)
+  await pedido($, 'erro \u001b[31m vermelho')
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: '2', title: 'Dois' }] }])
+  const p = await painel($)
+  expect(p.some(l => l.titulo === 'Pedido'), emTexto(p)).toBe(true)
+  expect(p.some(l => /^[◉○✓✕◷] {2}/.test(l.texto)), emTexto(p)).toBe(false)
+  const carta = p.find(l => l.titulo.startsWith('Para '))
+  expect(carta?.titulo ?? '', emTexto(p)).toContain('antes depois')
+  expect(p.some(l => l.titulo === 'erro vermelho'), emTexto(p)).toBe(true)
+})
+
+// Regra: visual.coluna-da-contagem-cabe-a-maior
+test('a contagem do cartão de sessão solto não alarga a coluna da contagem das outras linhas', async ($: any, on: any) => {
+  fixar(on)
+  const muitas = Array.from({ length: 120 }, (_, k) => ({
+    id: String(k + 1),
+    short: String(k + 1),
+    title: `Tarefa ${k + 1}`,
+    status: k < 100 ? 'done' : 'open',
+    ...(k < 100 ? { startedAt: AGORA - 1000, endedAt: AGORA - 500 } : {}),
+    children: [],
+  }))
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: muitas } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const colunas = colunasDaContagem(d.raiz)
+  const quais = JSON.stringify(colunas)
+  expect(colunas.length, quais).toBeGreaterThan(0)
+  const larguras = new Set(colunas.map(c => c.width))
+  expect(larguras.size, quais).toBe(1)
+  expect(Number(colunas[0]?.width), quais).toBe(Math.max(5, ...colunas.map(c => c.texto.length)))
+})
+
+// Regra: visual.titulo-sem-contagem-vai-ate-o-tempo
+test('na folha parada, a palavra de estado vem logo antes do tempo, sem nada entre os dois', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Parada aqui' }, { id: '2', title: 'Outra' }] }])
+  await start($, ['1'])
+  await esc($)
+  const d = await noApp($)
+  const folha = linhaDoApp(d, 'Parada aqui')
+  const depois = pedacosDepois(folha, 'Parada aqui')
+  expect(depois.map(p => p.tipo), folha.texto).toEqual(['texto', 'texto'])
+  expect(depois[0]?.texto.trim(), folha.texto).toBe('interrompida')
+  expect(depois[1]?.texto ?? '', folha.texto).toMatch(/^\d+:\d\d/)
+})
+
+// Regra: visual.faixa-de-estado-geral
+test("com tudo fechado e a tarefa de um subagente parado depois do turno, a faixa é cinza 'interrompido'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PASSOS)
+  await start($, ['A'])
+  await done($, ['A'])
+  await start($, ['B'])
+  await lancar($, { descricao: 'revisar', segundoPlano: true })
+  await fimDoTurno($)
+  await fimDoSubagenteCom($, 'sub-1', { parado: true })
+  const d = await noApp($)
+  expect(estadoGeral(d), d.cabecalho.texto).toBe('interrompido')
+  expect(d.cabecalho.texto).toContain('1 de 1')
+})
+
+// A mãe com plano de 3 níveis e start no nível 3, a filha de três níveis aberta ali e a neta ancorada
+// no nível 3 da filha (as faixas em volta das linhas da neta somam 7 células), com as tarefas dadas à
+// neta e as sessões publicadas por ela; o desenho no app a 100 colunas.
+async function netaNoTeto($: any, on: any, tarefasDaNeta: any[], sessoesDaNeta: any[] = []) {
+  fixar(on)
+  const tresDoTeto = (p: string) => [estreitoTarefa(`${p}a`, `${p} nível um`, [estreitoTarefa(`${p}b`, `${p} nível dois`, [estreitoTarefa(`${p}c`, `${p} nível três`), estreitoTarefa(`${p}d`, `${p} nível três bis`)])])]
+  const netaDoTeto = { id: 'local_22222222-2222-2222-2222-222222222222', name: 'neta', title: 'neta', running: true, archived: false, anchor: 'Fc', panel: { groups: [{ agent: '', label: '', tasks: tarefasDaNeta }], waits: [], children: sessoesDaNeta } }
+  host(on, [{ id: 'local_11111111-1111-1111-1111-111111111111', nome: 'filha', painel: { tasks: tresDoTeto('F'), filhas: [netaDoTeto] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }] }] }])
+  await start($, ['1.1'])
+  await abrirSessao($)
+  await aviso($)
+  return await noApp($, { colunas: 100 })
+}
+// As células de guia próprias da linha do app cujo título é exatamente `titulo`.
+const guiasDoTitulo = (d: DesenhoDoApp, titulo: string) => {
+  const l = d.linhas.find(x => x.pedacos.some(p => p.tipo === 'texto' && p.texto === titulo))
+  return l === undefined ? undefined : guiasDe(l)
+}
+// A última célula (o conector) das guias da linha de título `titulo`.
+const conectorDoTitulo = (d: DesenhoDoApp, titulo: string) => {
+  const g = guiasDoTitulo(d, titulo)
+  return g === undefined ? undefined : g[g.length - 1]
+}
+const NETA_COM_IRMA = [
+  estreitoTarefa('Na', 'N um', [
+    estreitoTarefa('Nb', 'N dois', [estreitoTarefa('Nc', 'N tres a'), estreitoTarefa('Nd', 'N tres b')]),
+    estreitoTarefa('Ne', 'N outro'),
+  ]),
+]
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('do 8º nível em diante, a guia da 8ª coluna não tem falha: ramo enquanto a linha seguinte desenha nela, fim na última', async ($: any, on: any) => {
+  const d = await netaNoTeto($, on, NETA_COM_IRMA)
+  const todas = JSON.stringify(d.linhas.map(l => [l.texto, guiasDe(l)]))
+  // As quatro na mesma coluna, a do teto.
+  const tamanhos = ['N dois', 'N tres a', 'N tres b', 'N outro'].map(t => guiasDoTitulo(d, t)?.length)
+  expect(tamanhos.every(n => n !== undefined && n > 0), todas).toBe(true)
+  expect(new Set(tamanhos).size, todas).toBe(1)
+  expect(conectorDoTitulo(d, 'N dois'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N tres a'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N tres b'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N outro'), todas).toBe('fim')
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('na 8ª coluna, a última irmã com filhas além do teto sai ramo, e a última filha, fim', async ($: any, on: any) => {
+  const tresDaNeta = [estreitoTarefa('Na', 'N nível um', [estreitoTarefa('Nb', 'N nível dois', [estreitoTarefa('Nc', 'N nível três'), estreitoTarefa('Nd', 'N nível três bis')])])]
+  const d = await netaNoTeto($, on, tresDaNeta)
+  const todas = JSON.stringify(d.linhas.map(l => [l.texto, guiasDe(l)]))
+  expect(conectorDoTitulo(d, 'N nível dois'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N nível três'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N nível três bis'), todas).toBe('fim')
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito, visual.guias-na-faixa-do-cartao
+test('a faixa de um cartão cortada pelo teto leva a barra até o pé quando há linha depois dele', async ($: any, on: any) => {
+  const bisneta = { id: 'local_33333333-3333-3333-3333-333333333333', name: 'bisneta', title: 'bisneta', running: true, archived: false, anchor: 'Nc', panel: { groups: [{ agent: '', label: '', tasks: [estreitoTarefa('Ba', 'B única')] }], waits: [], children: [] } }
+  const d = await netaNoTeto($, on, NETA_COM_IRMA, [bisneta])
+  const faixas = faixasDoApp(d)
+  const todas = JSON.stringify({ faixas, linhas: d.linhas.map(l => [l.texto, guiasDe(l)]) })
+  const daBisneta = faixas.find(f => f.primeira.includes('bisneta'))
+  expect(daBisneta?.celulas, todas).toEqual(['ramo'])
+  expect(conectorDoTitulo(d, 'N tres a'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N tres b'), todas).toBe('ramo')
+  expect(conectorDoTitulo(d, 'N outro'), todas).toBe('fim')
+})
+
+// Regra: visual.titulo-legivel-no-painel-estreito
+test('dentro de um cartão cujas faixas em volta já somam 8 células, cada linha e cada cartão mantêm o conector', async ($: any, on: any) => {
+  const trineta = { id: 'local_44444444-4444-4444-4444-444444444444', name: 'trineta', title: 'trineta', running: true, archived: false, anchor: 'Bd', panel: { groups: [{ agent: '', label: '', tasks: [estreitoTarefa('Ta', 'T única')] }], waits: [], children: [] } }
+  const tarefasDaBisneta = [estreitoTarefa('Ba', 'B um', [estreitoTarefa('Bb', 'B um a'), estreitoTarefa('Bc', 'B um b')]), estreitoTarefa('Bd', 'B dois')]
+  const bisneta = { id: 'local_33333333-3333-3333-3333-333333333333', name: 'bisneta', title: 'bisneta', running: true, archived: false, anchor: 'Nc', panel: { groups: [{ agent: '', label: '', tasks: tarefasDaBisneta }], waits: [], children: [trineta] } }
+  const d = await netaNoTeto($, on, NETA_COM_IRMA, [bisneta])
+  const faixas = faixasDoApp(d)
+  const todas = JSON.stringify({ faixas, linhas: d.linhas.map(l => [l.texto, guiasDe(l)]) })
+  // A faixa da bisneta fecha as 8 células: dentro dela, só o conector de cada linha do 2º nível (as
+  // do 1º nível de uma sessão começam sem guia, até o rótulo, como em qualquer cartão de sessão).
+  expect(faixas.find(f => f.primeira.includes('bisneta'))?.celulas, todas).toEqual(['ramo'])
+  expect(guiasDoTitulo(d, 'B um'), todas).toEqual([])
+  expect(guiasDoTitulo(d, 'B um a'), todas).toEqual(['ramo'])
+  expect(guiasDoTitulo(d, 'B um b'), todas).toEqual(['fim'])
+  expect(guiasDoTitulo(d, 'B dois'), todas).toEqual([])
+  // O cartão aberto ali dentro, o último, mantém a faixa de uma célula, o fim.
+  expect(faixas.find(f => f.primeira.includes('trineta'))?.celulas, todas).toEqual(['fim'])
+})
+
+// O texto inteiro de um desenho, como a superfície o recebe.
+const textoDoDesenho = (x: any): string => (typeof x === 'string' ? x : (x?.children ?? []).map(textoDoDesenho).join(''))
+
+// Regra: visual.erro-ao-desenhar-vira-uma-linha
+test('o desenho que lança vira a linha de erro, no terminal e no app; o log e o arquivo publicado dizem o motivo', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  const h = host(on, [])
+  // Armado, o painel lido pelo desenho tem tarefas que não são lista: o desenho lança.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => {
+    const r = await next(e)
+    return armado && e?.key === 'groups' ? { value: { ...r.value, value: [{ agent: '', label: '', tasks: 42 }] } } : r
+  })
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  armado = true
+  const ui = await $.ui.mount({ plugin: 'task-tree', surface: 'terminal', component: 'Pane', props: PROPS(60), requestId: 'task-tree' })
+  const terminal = textoDoDesenho(await ui.drawn())
+  await ui.unmount()
+  const app = textoDoDesenho((await noApp($)).raiz)
+  armado = false
+  expect(terminal).toContain('Painel de tarefas: erro ao desenhar')
+  expect(app).toContain('Painel de tarefas: erro ao desenhar')
+  expect(log.some(l => l.includes('erro ao desenhar o painel')), log.join('\n')).toBe(true)
+  await done($, ['1'])
+  expect(String(h.proprio()?.renderError ?? ''), JSON.stringify(h.proprio() ?? {})).not.toBe('')
+})
+
+// O que a linha do app pede de borda e de fundo no seu Box, e os traços (caixas com fundo e sem filhos) dentro dela.
+const tracosDaLinhaDoApp = (el: any) => {
+  let tracos = 0
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Box' && x.props?.backgroundColor !== undefined && !(x.children ?? []).length) tracos++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(el)
+  const p = el?.props ?? {}
+  return { borda: p.borderColor ?? p.borderStyle, fundo: p.backgroundColor, tracos }
+}
+
+// Regra: visual.secao-sem-traco
+test("a linha '+N pedidos anteriores' é só o ▸ e o texto: sem borda, sem fundo e sem traço", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  for (let i = 1; i <= 5; i++) {
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+    await relogio.advance(1000)
+  }
+  const m = await montarNoApp($)
+  const conferir = async (seta: string) => {
+    const d = await m.desenho()
+    const l = d.linhas.find(x => /pedidos anteriores/.test(x.texto))
+    expect(l, d.textos.join('\n')).toBeDefined()
+    const fold = l!.botoes.find(b => b.startsWith('fold:'))
+    expect(fold, l!.texto).toBeDefined()
+    expect(l!.pedacos.some(p => p.tipo === 'botao' && p.texto === seta), l!.texto).toBe(true)
+    expect(l!.pedacos.filter(p => p.tipo === 'svg'), l!.texto).toEqual([])
+    const titulo = l!.pedacos.find(p => p.tipo === 'texto' && /pedidos anteriores/.test(p.texto))
+    expect(titulo?.props.color, l!.texto).toBe('inactive')
+    expect(tracosDaLinhaDoApp(l!.el)).toEqual({ borda: undefined, fundo: undefined, tracos: 0 })
+    return fold!
+  }
+  const fold = await conferir('▸')
+  await m.apertar(fold)
+  await conferir('▾')
+  await m.fim()
+})
+
+// A linha de seção do app e o que a cerca: a borda e o fundo do Box da linha, os traços (caixas com
+// fundo e sem filhos) dentro dela fora das guias, e se a irmã de antes ou a de depois, no contêiner,
+// é um separador (caixa sem filhos com fundo ou com borda).
+const tracosEmVoltaDaSecao = (d: DesenhoDoApp, quem: RegExp) => {
+  const l = d.linhas.find(x => quem.test(x.texto))
+  if (!l) throw new Error(`linha ${String(quem)} não encontrada:\n${d.textos.join('\n')}`)
+  let pai: any
+  const achar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    for (const c of x.children ?? []) {
+      if (c === l.el) pai = x
+      achar(c)
+    }
+  }
+  achar(d.raiz)
+  const irmas = ((pai?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+  const i = irmas.indexOf(l.el)
+  const separador = (x: any) =>
+    x !== undefined && x.type === 'Box' && !(x.children ?? []).length && (x.props?.backgroundColor !== undefined || x.props?.borderColor !== undefined || x.props?.borderStyle !== undefined)
+  let tracos = 0
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if ((x.key ?? x.props?.key) === 'guides') return
+    if (x.type === 'Box' && x.props?.backgroundColor !== undefined && !(x.children ?? []).length) tracos++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(l.el)
+  const p = l.el?.props ?? {}
+  return { achada: i >= 0, borda: p.borderColor ?? p.borderStyle, fundo: p.backgroundColor, tracos, antes: separador(irmas[i - 1]), depois: separador(irmas[i + 1]) }
+}
+const SEM_TRACO_R501 = { achada: true, borda: undefined, fundo: undefined, tracos: 0, antes: false, depois: false }
+const feitaDaFilhaR501 = (i: number) => ({ id: `${i}`, short: `${i}`, title: `Pedido da filha ${i}`, status: 'done', startedAt: AGORA - 9000 + i * 100, endedAt: AGORA - 9000 + i * 100 + 50, turn: i, children: [] })
+
+// Regra: visual.secao-sem-traco
+test("a seção de dentro do cartão de uma filha e '+N cartões antigos' não têm traço, nem na linha nem em volta dela", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const turnos = [1, 2, 3, 4, 5].map(i => ({ id: i, title: `Pedido da filha ${i}`, at: AGORA - 9000 + i * 100 }))
+  const antiga = { id: '1', short: '1', title: 'Tarefa antiga', status: 'done', startedAt: AGORA - 5000, endedAt: AGORA - 4000, turn: 1, children: [] }
+  host(on, [
+    { id: 'local_44444444-4444-4444-4444-444444444444', nome: 'filha-longa', painel: { tasks: [1, 2, 3, 4, 5].map(feitaDaFilhaR501), turns: turnos } },
+    { id: 'local_33333333-3333-3333-3333-333333333333', nome: 'filha-antiga', rodando: false, painel: { tasks: [antiga], turns: [{ id: 1, title: 't', at: AGORA - 5000 }] } },
+  ])
+  for (let i = 1; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await relogio.advance(1000)
+  await pedido($, 'Pedido 5')
+  await plan($, [{ id: 'P5', title: 'Plano 5', children: [{ id: 'f5', title: 'Folha 5' }] }])
+  await start($, ['f5'])
+  await abrirSessao($, 'filha-longa')
+  await aviso($)
+  const m = await montarNoApp($)
+  // (a) dentro do cartão da filha: "+N pedidos anteriores" do cartão.
+  let d = await m.desenho()
+  const doCartao = d.linhas.filter(x => /pedidos anteriores/.test(x.texto))
+  // A primeira é a da raiz; as outras, a do cartão.
+  expect(doCartao.length, d.textos.join('\n')).toBeGreaterThanOrEqual(2)
+  for (const l of doCartao) expect(tracosEmVoltaDaSecao(d, new RegExp(l.texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))), l.texto).toEqual(SEM_TRACO_R501)
+  // (b) a raiz aberta: "+N cartões antigos de sessões".
+  const fold = doCartao[0]!.botoes.find(b => b.startsWith('fold:'))
+  expect(fold, doCartao[0]!.texto).toBeDefined()
+  await m.apertar(fold!)
+  d = await m.desenho()
+  expect(tracosEmVoltaDaSecao(d, /cartões antigos/), d.textos.join('\n')).toEqual(SEM_TRACO_R501)
+  await m.fim()
+})
+
+// Como tracosEmVoltaDaSecao, a partir da própria linha (o elemento dela), e não da primeira que casa um texto.
+const tracosEmVoltaDaLinhaR7 = (d: DesenhoDoApp, l: DesenhoDoApp['linhas'][number]) => {
+  let pai: any
+  const achar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    for (const c of x.children ?? []) {
+      if (c === l.el) pai = x
+      achar(c)
+    }
+  }
+  achar(d.raiz)
+  const irmas = ((pai?.children ?? []) as any[]).filter(c => typeof c === 'object' && c !== null)
+  const i = irmas.indexOf(l.el)
+  const separador = (x: any) =>
+    x !== undefined && x.type === 'Box' && !(x.children ?? []).length && (x.props?.backgroundColor !== undefined || x.props?.borderColor !== undefined || x.props?.borderStyle !== undefined)
+  let tracos = 0
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if ((x.key ?? x.props?.key) === 'guides') return
+    if (x.type === 'Box' && x.props?.backgroundColor !== undefined && !(x.children ?? []).length) tracos++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(l.el)
+  const p = l.el?.props ?? {}
+  return { achada: i >= 0, borda: p.borderColor ?? p.borderStyle, fundo: p.backgroundColor, tracos, antes: separador(irmas[i - 1]), depois: separador(irmas[i + 1]) }
+}
+
+// Regra: visual.secao-sem-traco
+test("a linha '+N pedidos anteriores' de dentro do cartão de uma filha, conferida pelo elemento dela, não tem traço nem na linha nem em volta", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const turnosR7 = [1, 2, 3, 4, 5, 6].map(i => ({ id: i, title: `Pedido da filha ${i}`, at: AGORA - 9000 + i * 100 }))
+  host(on, [{ id: 'local_44444444-4444-4444-4444-444444444444', nome: 'filha-longa', painel: { tasks: [1, 2, 3, 4, 5, 6].map(feitaDaFilhaR501), turns: turnosR7 } }])
+  for (let i = 1; i <= 4; i++) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+  await relogio.advance(1000)
+  await pedido($, 'Pedido 5')
+  await plan($, [{ id: 'P5', title: 'Plano 5', children: [{ id: 'f5', title: 'Folha 5' }] }])
+  await start($, ['f5'])
+  await abrirSessao($, 'filha-longa')
+  await aviso($)
+  const m = await montarNoApp($)
+  const d = await m.desenho()
+  const conta = d.textos.join('\n')
+  const doCartao = d.linhas.filter(x => x.texto.includes('+5 pedidos anteriores'))
+  const daRaiz = d.linhas.filter(x => x.texto.includes('+4 pedidos anteriores'))
+  expect(doCartao.length, conta).toBe(1)
+  expect(daRaiz.length, conta).toBe(1)
+  const cartao = d.linhas.findIndex(x => x.texto.includes('filha-longa'))
+  expect(cartao, conta).toBeGreaterThanOrEqual(0)
+  expect(d.linhas.indexOf(doCartao[0]!), conta).toBeGreaterThan(cartao)
+  expect(d.linhas.indexOf(daRaiz[0]!), conta).toBeLessThan(cartao)
+  expect(doCartao[0]!.el === daRaiz[0]!.el, conta).toBe(false)
+  expect(tracosEmVoltaDaLinhaR7(d, doCartao[0]!), doCartao[0]!.texto).toEqual(SEM_TRACO_R501)
+  expect(tracosEmVoltaDaLinhaR7(d, daRaiz[0]!), daRaiz[0]!.texto).toEqual(SEM_TRACO_R501)
+  await m.fim()
 })

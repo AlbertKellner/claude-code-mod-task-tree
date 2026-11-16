@@ -100,8 +100,12 @@ export type Host = { recebeu(id: string, at: number): void; filha(id: string): F
 // `arquivoProprio`: o texto do arquivo que esta sessão publicou antes (o host o serve na leitura dele).
 // `nome`: o nome desta sessão, que o get_session dela devolve (sem ele, só o id).
 // `git`: a raiz desta sessão ($.session.root) e o texto do `.git/HEAD` dela; sem ele, a sessão não
-// tem raiz (o cabeçalho fica sem repositório).
-export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string } }
+// tem raiz (o cabeçalho fica sem repositório). Com `gitdir`, a raiz é uma worktree (ou um submódulo):
+// `<raiz>/.git` é um arquivo "gitdir: <gitdir>", e o `head` é o de `<gitdir>/HEAD`. Com `relativo`, o
+// arquivo traz esse texto no lugar do `gitdir` (um caminho relativo à raiz); o `gitdir` segue absoluto,
+// e o `HEAD` é servido pelo caminho pedido com `.` e `..` resolvidos.
+// `idFalha`: o get_session desta sessão ('self') responde erro, lido a cada chamada (o teste a troca no meio).
+export type OpcoesDoHost = { pasta?: { name: string; size: number; mtimeMs: number }[]; listaFalha?: boolean; arquivoProprio?: string; nome?: string; git?: { raiz: string; head: string; gitdir?: string; relativo?: string }; idFalha?: boolean }
 // Uma sessão filha como o host a lista e como ela publica o painel. O id tem o formato do app
 // ('local_<uuid>') quando o teste a abre com abrirSessao: o painel só reconhece esse formato.
 export type Filha = {
@@ -120,7 +124,19 @@ export type Filha = {
   envios?: { to: string; anchor?: string; at: number; taken?: boolean }[] // sends publicados (mensagem a uma irmã)
   publicado?: string // o texto cru do arquivo publicado (formatos antigos), no lugar do montado
   listada?: boolean // padrão true; false: a lista do host a deixa de fora
+  apagada?: boolean // a sessão foi apagada: fora da lista, e o get_session dela responde "Session <id> not found."
   iniciadaPor?: string // quem a iniciou, na lista do host; padrão esta sessão (EU): outro id faz dela uma sessão ligada que não é filha (a mãe, uma irmã)
+}
+// Um caminho com as barras normalizadas e os segmentos `.` e `..` resolvidos (o host lê o arquivo pelo
+// caminho resolvido).
+function semPontos(caminho: string): string {
+  const partes: string[] = []
+  for (const p of caminho.replace(/\\/g, '/').split('/')) {
+    if (p === '.') continue
+    if (p === '..' && partes.length > 1) partes.pop()
+    else partes.push(p)
+  }
+  return partes.join('/')
 }
 // O start_session devolve o id da próxima sessão de `sessoes` ainda não aberta, na ordem.
 export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host {
@@ -133,14 +149,15 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     pedidos.push(String(e.tool))
     if (e.tool === 'get_session') {
       const id = String(e.args?.session_id ?? 'self')
-      if (id === 'self' || id === EU || sessoes.some(s => s.id === id)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
+      if (id === 'self' && opcoes.idFalha) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
+      if (id === 'self' || id === EU || sessoes.some(s => s.id === id && !s.apagada)) return texto(JSON.stringify({ sessionId: EU, ...(opcoes.nome !== undefined && (id === 'self' || id === EU) ? { name: opcoes.nome } : {}) }))
       return { value: { content: [{ type: 'text', text: `Session ${id} not found.` }], isError: true } }
     }
     if (e.tool === 'list_sessions' && opcoes.listaFalha && e.args?.linked !== true) return { value: { content: [{ type: 'text', text: 'falhou' }], isError: true } }
     if (e.tool === 'list_sessions')
       return texto(
         JSON.stringify(
-          sessoes.filter(s => s.listada !== false).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: s.iniciadaPor ?? EU })),
+          sessoes.filter(s => s.listada !== false && !s.apagada).map(s => ({ sessionId: s.id, name: s.nome ?? s.id, title: s.nome ?? s.id, isRunning: s.rodando ?? true, ...(s.arquivada ? { isArchived: true } : {}), startedBy: s.iniciadaPor ?? EU })),
         ),
       )
     return texto('')
@@ -157,7 +174,9 @@ export function host(on: any, sessoes: Filha[], opcoes: OpcoesDoHost = {}): Host
     const m = /task-tree-waits[\\/](.+)\.json$/.exec(String(e.path))
     if (m) lidas[m[1]!] = (lidas[m[1]!] ?? 0) + 1
     if (m && m[1] === EU && opcoes.arquivoProprio !== undefined) return { value: opcoes.arquivoProprio }
-    if (git && naRaiz(e.path, '.git/HEAD')) return { value: git.head }
+    if (git?.gitdir === undefined && naRaiz(e.path, '.git/HEAD')) return { value: git!.head }
+    if (git?.gitdir !== undefined && naRaiz(e.path, '.git')) return { value: `gitdir: ${git.relativo ?? git.gitdir}\n` }
+    if (git?.gitdir !== undefined && semPontos(String(e.path)) === `${git.gitdir}/HEAD`) return { value: git.head }
     const s = m ? sessoes.find(x => x.id === m[1]) : undefined
     if (!s) return { deny: 'sem arquivo' }
     if (s.publicado !== undefined) return { value: s.publicado }
@@ -245,9 +264,9 @@ export function lancaveis(on: any, ids: string[], modelo = 'claude-haiku-5-5') {
 // Os passos do modelo (turn.step), com o stream: `antes` ms até o primeiro chunk, `geracao` ms até o
 // chunk 'stop', `tokens` no usage; o relógio parado avança entre os chunks. Chamar antes da primeira
 // chamada a $; devolve o roteiro que roda um passo.
-export type Passo = { antes?: number; geracao?: number; tokens?: number; agente?: string }
+export type Passo = { antes?: number; geracao?: number; tokens?: number; agente?: string; esforco?: string }
 export function passos(on: any, relogio: any) {
-  let atual: Required<Omit<Passo, 'agente'>> = { antes: 800, geracao: 2000, tokens: 200 }
+  let atual: Required<Omit<Passo, 'agente' | 'esforco'>> = { antes: 800, geracao: 2000, tokens: 200 }
   on('turn.step', async function* (_$: any, _e: any, _next: any) {
     const { antes, geracao, tokens } = atual
     await relogio.advance(antes)
@@ -258,7 +277,7 @@ export function passos(on: any, relogio: any) {
   })
   return async ($: any, p: Passo = {}) => {
     atual = { antes: p.antes ?? 800, geracao: p.geracao ?? 2000, tokens: p.tokens ?? 200 }
-    const s = $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', ...(p.agente !== undefined ? { agentId: p.agente } : {}) })
+    const s = $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', ...(p.agente !== undefined ? { agentId: p.agente } : {}), ...(p.esforco !== undefined ? { effort: p.esforco } : {}) })
     for await (const _ of s) void _
     return s.result
   }

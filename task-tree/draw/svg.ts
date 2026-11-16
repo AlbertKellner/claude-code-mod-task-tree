@@ -6,9 +6,11 @@
 
 import type { Tone, Row, Guide, SessionState, GitLabel, MsgState } from './layout'
 
-// "0:04", "6:12", "1:02:09".
+// "0:04", "6:12", "1:02:09". A time ahead of the clock (the system clock gone back, a file published
+// by another machine) is "0:00", never negative; one that is not a number is not drawn ("").
 export function clockText(ms: number): string {
-  const s = Math.floor(ms / 1000)
+  if (!Number.isFinite(ms)) return ''
+  const s = Math.floor(Math.max(0, ms) / 1000)
   const two = (k: number) => String(k).padStart(2, '0')
   return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`
 }
@@ -47,6 +49,25 @@ export const prefix = (r: Row, g: Guide, hide: number[] = []) =>
 export const ratioBar = (d: number, n: number, cells: number) => {
   const k = n > 0 ? Math.round((d / n) * cells) : 0
   return ['█'.repeat(k), '░'.repeat(cells - k)]
+}
+
+// A text the panel shows, clean: without ANSI sequences (whole), the other control characters (C0
+// but TAB, LF and CR, so VT and FF go too; DEL, C1) and half a surrogate pair left alone. TAB, LF
+// and CR are spaces, the caller's to join (oneLine).
+export const cleanText = (t: string) =>
+  t
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|\u001b\[[0-?]*[ -\/]*[@-~]|\u009b[0-?]*[ -\/]*[@-~]/g, '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')
+// The clean text on one line: cleaned first, then every run of spaces, tabs and line breaks one
+// space, and no space at the ends (a sequence taken out never leaves two spaces).
+export const oneLine = (t: string) => cleanText(t).replace(/\s+/g, ' ').trim()
+// The clean text cut to at most `max` characters (code points, never half an emoji), its last "…"
+// when it is cut and `dots`.
+export function cutText(t: string, max: number, dots = true): string {
+  const chars = Array.from(cleanText(t))
+  if (chars.length <= max) return chars.join('')
+  return dots ? `${chars.slice(0, max - 1).join('')}…` : chars.slice(0, max).join('')
 }
 
 export const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
@@ -215,18 +236,23 @@ export function chips(active: number, waiting: number, cut: number, live: number
 // The header's general state, the color of its band (the person, 2026-11-03: "gostei da V4, siga para
 // análise e implementação"): in progress (amber) while a task of its own runs; waiting (light amber)
 // with something left waiting, a notice, or only pending tasks, nothing started yet (the person:
-// "Âmbar claro, 'aguardando'"); in progress too, with the turn going on, tasks pending and one already
-// started in the request (`started`: between a done and the next start; the person, 2026-11-14:
+// "Âmbar claro, 'aguardando'"); in progress too, with the turn going on, tasks pending and one started
+// since the person's last message, or since the notice that brought the turn back, a start again
+// counting (`started`: between a done and the next start; the person, 2026-11-14:
 // "\"Em andamento\" (Recomendado)", "Do primeiro start (Recomendado)"); a session at work (blue) with
 // nothing running, of its own or drawn in a session's card; all done (green); interrupted (gray) with
 // nothing open and something cut; none (the track's gray) when empty.
+// With all closed, gray wins over green when something was stopped by the person (Esc), failed, or had
+// its subagent stopped (`stopped`: the count of those, out of `x`); a task taken out with cancel and what a subagent that
+// ended well left open do not count, so a request that ended well is green (the person, 2026-11-15:
+// "Cinza \"interrompido\" (Recomendado)" and "Cancelada não conta").
 export type HeaderState = { tone: Tone; word: string }
-export function headerState(s: { active: number; waiting: number; live: number; pending: number; d: number; n: number; x: number; started?: boolean }): HeaderState {
+export function headerState(s: { active: number; waiting: number; live: number; pending: number; d: number; n: number; x: number; stopped?: number; started?: boolean }): HeaderState {
   if (s.active > 0) return { tone: 'current', word: 'em andamento' }
   if (s.waiting > 0) return { tone: 'paused', word: 'aguardando' }
   if (s.started === true && s.pending > 0) return { tone: 'current', word: 'em andamento' }
   if (s.live > 0) return { tone: 'running', word: 'sessão ativa' }
-  if (s.n > 0 && s.d === s.n && s.pending === 0) return { tone: 'done', word: 'concluído' }
+  if (s.n > 0 && s.d === s.n && s.pending === 0 && !((s.stopped ?? 0) > 0)) return { tone: 'done', word: 'concluído' }
   if (s.x > 0 && s.pending === 0) return { tone: 'interrupted', word: 'interrompido' }
   if (s.n + s.x === 0) return { tone: 'open', word: 'nenhuma tarefa' }
   return { tone: 'paused', word: 'aguardando' }
@@ -237,11 +263,11 @@ export const rowAlt = (r: Row) =>
   (r.hint ? ` (${r.hint})` : '') +
   (r.sub ? `, ${r.sub[0]} de ${r.sub[1]}` : '') +
   (r.meta ? `, ${r.meta}` : '') +
-  (typeof r.time === 'number' ? `, ${clockText(r.time)}` : '') +
+  (typeof r.time === 'number' && clockText(r.time) ? `, ${clockText(r.time)}` : '') +
   (r.kids ? ', com sessão filha' : '') +
   (r.engine ? `, ${r.engine}` : '') +
   (r.ultracode ? `, ${ULTRA}` : '') +
-  (r.rate ? `, ${rateText(r.rate.toks)}${r.rate.live ? '' : ' (último turno)'}` : '') +
+  (r.rate ? `, ${rateText(r.rate.toks)}` : '') +
   (r.git ? `, ${gitAlt(r.git)}` : '') +
   (r.ring ? `, contexto da sessão ${r.ring.name}: ${r.ring.percent}%` : '') +
   (r.fold && !r.fold.open ? ', recolhida' : '')

@@ -26,6 +26,34 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      # Retomada: o commit de versão leva no corpo "PR: #<número>". Se a main já tem o commit deste
+      # PR (uma execução anterior gravou a versão e parou, ou o job foi reexecutado depois de dar
+      # certo), não se calcula versão nova: cria-se só a release que faltou, ou nada. A decisão fica
+      # em scripts/versao.mjs --retomada (testada nas travas).
+      - name: Procurar o commit de versão deste PR
+        id: retomada
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          linha=$(git log --format='%H %s' --grep="^PR: #${PR}$" | grep -m1 ' chore(release): task-tree v' || true)
+          sha=${linha%% *}
+          titulo=${linha#* }
+          [ -n "$linha" ] || titulo=
+          versao=$(COMMIT_TITLE="$titulo" node scripts/versao.mjs --retomada | sed -n 's/^versao=//p')
+          existe=false
+          if [ -n "$versao" ] && gh release view "v$versao" >/dev/null 2>&1; then existe=true; fi
+          out=$(COMMIT_TITLE="$titulo" EXISTS="$existe" node scripts/versao.mjs --retomada)
+          acao=$(printf '%s\n' "$out" | sed -n 's/^acao=//p')
+          if [ "$acao" = criar ]; then
+            echo "::notice::reexecução: a versão $versao já estava na main ($sha); criada só a release"
+          elif [ "$acao" = nada ]; then
+            echo "::notice::este PR já foi lançado como v$versao"
+          fi
+          echo "acao=$acao" >> "$GITHUB_OUTPUT"
+          echo "tag=v$versao" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       # A versão sobe sozinha pelo PR mesclado (ninguém edita o plugin.json à mão): "!" depois do
       # tipo no título, ou uma linha "BREAKING CHANGE:" no rodapé do corpo → major; título "feat…"
       # → minor; qualquer outro → patch (fora do formato Conventional Commits, com aviso no resumo
@@ -33,6 +61,7 @@ jobs:
       # Título e corpo entram por env, nunca interpolados no script.
       - name: Calcular a versão nova
         id: version
+        if: steps.retomada.outputs.acao == 'subir'
         env:
           TITLE: ${{ github.event.pull_request.title }}
           BODY: ${{ github.event.pull_request.body }}
@@ -57,6 +86,7 @@ jobs:
       # gravada (nada de commit de versão sem release).
       - name: Conferir se a release já existe
         id: exists
+        if: steps.retomada.outputs.acao == 'subir'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -70,9 +100,10 @@ jobs:
 
       - name: Gravar a versão e enviar para a main
         id: commit
-        if: steps.exists.outputs.exists != 'true'
+        if: steps.retomada.outputs.acao == 'subir' && steps.exists.outputs.exists != 'true'
         env:
           NEW: ${{ steps.version.outputs.new }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           file=task-tree/.claude-plugin/plugin.json
           tmp=$(mktemp)
@@ -80,14 +111,15 @@ jobs:
           mv "$tmp" "$file"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(release): task-tree v$NEW" -- "$file"
+          # A linha do PR no corpo é o que a retomada procura (decisão do usuário, 2026-11-15).
+          git commit -m "chore(release): task-tree v$NEW" -m "PR: #$PR" -- "$file"
           # O push do GITHUB_TOKEN não dispara outros workflows, e o gatilho aqui é só PR fechado:
           # o commit de release não roda este workflow de novo.
           git push origin HEAD:main
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Criar release
-        if: steps.exists.outputs.exists != 'true'
+        if: steps.retomada.outputs.acao == 'subir' && steps.exists.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -97,3 +129,31 @@ jobs:
             --target "$SHA" \
             --title "task-tree $TAG" \
             --generate-notes
+
+      # Reexecução de um PR cuja versão já está na main: só a release, apontando para aquele commit.
+      - name: Criar só a release que faltou
+        if: steps.retomada.outputs.acao == 'criar'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.retomada.outputs.tag }}
+          SHA: ${{ steps.retomada.outputs.sha }}
+        run: |
+          gh release create "$TAG"             --target "$SHA"             --title "task-tree $TAG"             --generate-notes
+
+      # Só quando algo falhou: o que ficou pela metade e o que fazer, no resumo do workflow.
+      - name: O que ficou pela metade
+        if: failure()
+        env:
+          NEW: ${{ steps.version.outputs.new }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          COMMIT: ${{ steps.commit.outcome }}
+        run: |
+          if [ -n "$SHA" ]; then
+            msg="A versão $NEW foi gravada na main (commit $SHA) e a release não foi criada. Reexecute este job: ele cria só a release, sem subir a versão de novo."
+          elif [ "$COMMIT" = failure ]; then
+            msg="O push do commit de versão foi recusado; nada foi gravado. Se a main exige PR, a proteção precisa liberar o push do github-actions[bot]."
+          else
+            msg="O release falhou antes de gravar a versão; nada foi gravado. Reexecute este job."
+          fi
+          echo "::error::$msg"
+          printf '### Release pela metade\n\n%s\n' "$msg" >> "$GITHUB_STEP_SUMMARY"

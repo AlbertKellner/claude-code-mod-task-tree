@@ -1,11 +1,17 @@
-import { expect, test } from 'claude-code/testing'
-import { AGORA, EU, fixar, host, type Filha } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, pedido, plan, start, type No } from './kit/cenario'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
+import { AGORA, EU, armazem, fixar, host, type Filha } from './kit/ambiente'
+import { abrirSessao, aviso, done, esc, iniciarSessao, pedido, plan, start, type No } from './kit/cenario'
 import { fimDoTurno } from './kit/cenario'
 import { emTexto, esperarEstado, esperarPalavra, linha, painel, temBusto } from './kit/leitura'
 import { responderEnvio } from './kit/ambiente'
+import { responderDepois } from './kit/ambiente'
 import { envio, ferramenta } from './kit/cenario'
 import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
+import { SESSAO } from './kit/ambiente'
+import { passos } from './kit/ambiente'
+import { lancaveis } from './kit/ambiente'
+import { fimDoSubagente, lancar } from './kit/cenario'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }] }] }]
@@ -79,8 +85,30 @@ test('filha parada: a iniciada aguarda e as pendentes seguem pendentes', async (
   esperarEstado(p, 'Nunca', 'pendente')
 })
 
+// Regra: sessoes.palavra-de-estado-do-cartao
+test('a filha que espera a pessoa: o cartão diz "aguardando", segura a tarefa de origem e não gera o lembrete de fim de turno', async ($: any, on: any) => {
+  const tarefas = [tarefa('1', 'Feita', 'feita'), tarefa('2', 'Começada', 'iniciada'), tarefa('3', 'Nunca')]
+  const h = await abrir($, on, { painel: { tasks: tarefas } })
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  let r = await aviso($)
+  let p = await painel($)
+  esperarPalavra(p, 'filha-um', 'aguardando')
+  for (const palavra of ['parada', 'encerrada', 'concluída', 'arquivada']) expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain(palavra)
+  esperarEstado(p, 'Começada', 'andamento')
+  esperarEstado(p, 'Nunca', 'pendente')
+  esperarEstado(p, 'Um', 'andamento')
+  expect(JSON.stringify(r)).not.toContain('terminou o turno')
+  h.filha(K1).aguardando = false
+  r = await aviso($)
+  p = await painel($)
+  esperarPalavra(p, 'filha-um', 'parada')
+  esperarEstado(p, 'Começada', 'aguardando')
+  expect(JSON.stringify(r)).toContain('terminou o turno')
+})
+
 // Regra: sessoes.filha-arquivada-interrompe, sessoes.palavra-de-estado-do-cartao
-test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída aguarda', async ($: any, on: any) => {
+test('filha arquivada: o que ficou aberto fica interrompido, e o pai com filha concluída fica concluído', async ($: any, on: any) => {
   const pai = tarefa('P', 'Pai da filha', 'aberta', [tarefa('P/1', 'Feita', 'feita'), tarefa('P/2', 'Aberta')])
   await abrir($, on, { rodando: false, arquivada: true, painel: { tasks: [pai] } })
   const p = await painel($)
@@ -605,9 +633,9 @@ test('o turno que o usuário abriu na filha pendura no fim do pedido da mãe vig
   await aviso($)
   const p = await painel($)
   const cartao = linha(p, PROPRIO)
-  // No fim do pedido atual (sob a última tarefa de nível 1 dele), não no pedido antigo.
+  // Sob a tarefa da mãe em andamento quando ele digitou ("Limpar refs"), não no pedido antigo.
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
   expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Pedido atual')))
 })
@@ -628,7 +656,7 @@ test('dois turnos digitados na filha com o mesmo pedido da mãe em curso ficam n
   // O turno concluído sai do trabalho atual e fica em "+1 pedidos anteriores" do cartão: aberto, ele volta.
   const p = await comHistorico($, 1)
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(cs[0]?.tarefas.filter(t => !t.startsWith('+')).slice(0, 4), emTexto(p)).toEqual(['primeiro pedido', 'A2', 'segundo pedido', 'A3'])
   expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
 })
@@ -647,7 +675,30 @@ test('turnos digitados com pedidos diferentes da mãe em curso ficam em cartões
   }
   await aviso($)
   const p = await painel($)
-  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Reescrita', 'Limpeza'])
+  // O primeiro turno, com a mãe parada: sob a tarefa da filha, "Pedir a reescrita", do pedido vigente.
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita', 'Limpar refs'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('sem tarefa em andamento na mãe quando ele digitou, o cartão do pedido do usuário na filha fecha o pedido, depois das subtarefas', async ($: any, on: any) => {
+  // A filha é de um pedido antigo: a tarefa dela não está no pedido vigente quando ele digita.
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v1'])
+  await done($, ['v1'])
+  await start($, ['v2'])
+  await done($, ['v2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Conferir refs')))
+  expect(p[i + 1]?.titulo, emTexto(p)).toBe('Reescrever com filter-repo')
 })
 
 // Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente, cabecalho.limites-de-linhas
@@ -666,7 +717,8 @@ test('com o turno próprio da filha trabalhando no pedido antigo, o pedido segue
   const p = await painel($)
   expect(p.some(l => l.titulo === 'Reescrita'), emTexto(p)).toBe(true)
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Reescrita'])
+  // Com a mãe parada, sob a tarefa da filha no pedido vigente quando ele digitou.
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita'])
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
   expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
 })
@@ -678,9 +730,11 @@ test('o turno digitado na filha depois da rodada da mãe é a rodada atual: cont
   await pedido($, 'Pedido antigo')
   await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
   await start($, ['o1'])
+  await done($, ['o1'])
+  // A filha abre da segunda, que fica aberta: o cartão do turno digitado vai para baixo dela.
+  await start($, ['o2'])
   await abrirSessao($)
   await aviso($)
-  await done($, ['o1'])
   await fimDoTurno($)
   h.filha(K1).painel = {
     tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Feita na filha', 'feita'), noTurno(2, '3', 'Pendente na filha', 'aberta')],
@@ -691,7 +745,8 @@ test('o turno digitado na filha depois da rodada da mãe é a rodada atual: cont
   let p = await painel($)
   let c = cabecalho(p)
   expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
-  expect(c.chips.pendentes, emTexto(p)).toBe(2)
+  // A pendente da filha; "Conferir a reescrita", iniciada, aguarda.
+  expect(c.chips.pendentes, emTexto(p)).toBe(1)
   esperarPalavra(p, PROPRIO, 'parada')
   h.filha(K1).rodando = true
   await aviso($)
@@ -700,6 +755,536 @@ test('o turno digitado na filha depois da rodada da mãe é a rodada atual: cont
   expect([c.feitas, c.total], emTexto(p)).toEqual([3, 5])
   expect(c.chips.ativas, emTexto(p)).toBe(1)
   esperarEstado(p, 'Reescrita', 'andamento')
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('o cartão do pedido do usuário na filha fica onde o primeiro turno digitado aconteceu, não onde o mais recente', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'A2', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'primeiro pedido', at: AGORA + 1500, own: true }],
+  }
+  await aviso($)
+  await done($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'A2', 'feita'), noTurno(3, '3', 'A3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'primeiro pedido', at: AGORA + 1500, own: true }, { id: 3, title: 'segundo pedido', at: AGORA + 2500, own: true }],
+  }
+  await aviso($)
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  // O primeiro turno foi digitado com "Limpar refs" em andamento; o segundo, com a mãe parada.
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  expect(cs[0]?.tarefas.filter(t => t === 'primeiro pedido' || t === 'segundo pedido'), emTexto(p)).toEqual(['primeiro pedido', 'segundo pedido'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com várias tarefas em andamento na mãe, o cartão do pedido do usuário na filha fica sob a iniciada por último', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v2'])
+  await relogio.advance(500)
+  await start($, ['v1'])
+  await relogio.advance(500)
+  digitouNaFilha(h, AGORA + 1800)
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Conferir refs', 'andamento')
+  esperarEstado(p, 'Limpar refs', 'andamento')
+  // A iniciada por último, embora seja a primeira na ordem do plano.
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('turno digitado na filha antes do primeiro plan da mãe e outro depois ficam num cartão só', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(500)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'B2', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'antes do plan', at: AGORA + 500, own: true }],
+  }
+  await aviso($)
+  await relogio.advance(500)
+  await plan($, [{ id: 'N', title: 'Plano N', children: [{ id: 'n1', title: 'Escrever o código' }, { id: 'n2', title: 'Rodar a bateria' }] }])
+  await relogio.advance(500)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'B2', 'iniciada'), noTurno(3, '3', 'B3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'antes do plan', at: AGORA + 500, own: true }, { id: 3, title: 'depois do plan', at: AGORA + 1500, own: true }],
+  }
+  await aviso($)
+  // O turno mais antigo do cartão fica em "+1 pedidos anteriores": aberto, ele volta.
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.length, emTexto(p)).toBe(1)
+  expect(cs[0]?.tarefas.filter(t => t === 'antes do plan' || t === 'depois do plan'), emTexto(p)).toEqual(['antes do plan', 'depois do plan'])
+  // Dentro do pedido, não solto no fim.
+  expect(['Plano N', 'Escrever o código', 'Rodar a bateria'], emTexto(p)).toContain(cs[0]?.sob)
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('turno digitado publicado sem hora por versão antiga e outro com hora, no pedido de origem, ficam num cartão só', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'C2', 'iniciada'), noTurno(3, '3', 'C3', 'iniciada')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'sem hora', own: true }, { id: 3, title: 'com hora', at: AGORA + 500, own: true }],
+  }
+  await aviso($)
+  // O turno mais antigo do cartão fica em "+1 pedidos anteriores": aberto, ele volta.
+  const p = await comHistorico($, 1)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.length, emTexto(p)).toBe(1)
+  expect(cs[0]?.tarefas.filter(t => t === 'sem hora' || t === 'com hora'), emTexto(p)).toEqual(['sem hora', 'com hora'])
+})
+
+// A mãe abre a filha de "Pedir a reescrita" e termina o turno com ela iniciada (a filha com uma
+// tarefa feita e uma pendente).
+async function abrirEParar($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(1, '1b', 'Pendente da filha', 'aberta')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  return { h, relogio }
+}
+const sobAOrigem = (p: any[]) => {
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Pedir a reescrita')))
+  expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir a reescrita')))
+}
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com a mãe parada e a filha trabalhando sob a tarefa, o cartão do pedido do usuário na filha fica sob essa tarefa', async ($: any, on: any) => {
+  const { h, relogio } = await abrirEParar($, on)
+  let p = await painel($)
+  esperarEstado(p, 'Pedir a reescrita', 'andamento')
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  sobAOrigem(await painel($))
+  await start($, ['o1'])
+  await aviso($)
+  sobAOrigem(await painel($))
+  await done($, ['o1'])
+  await aviso($)
+  p = await painel($)
+  sobAOrigem(p)
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com a mãe e a filha paradas, o cartão do pedido do usuário na filha fica sob a tarefa de onde ela foi aberta', async ($: any, on: any) => {
+  const { h, relogio } = await abrirEParar($, on)
+  h.filha(K1).rodando = false
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Pedir a reescrita', 'aguardando')
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  h.filha(K1).rodando = true
+  await aviso($)
+  sobAOrigem(await painel($))
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('a filha de um pedido antigo, com a mãe parada num pedido novo: o cartão fecha o pedido vigente', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }] }])
+  await start($, ['v1'])
+  await done($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Limpar refs')))
+})
+
+const KB = 'local_33333333-3333-3333-3333-333333333333'
+const PROPRIO_A = 'filha-a · pedido do usuário na filha'
+const digitouNaA = (h: any) => {
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Da filha a', 'feita'), noTurno(1, '1b', 'Pendente da filha a', 'aberta'), noTurno(2, '2', 'Pedido digitado na a', 'feita')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'pedido na a', at: AGORA + 1500, own: true }],
+  }
+}
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('a tarefa acesa por outra filha não leva o cartão do pedido digitado na filha parada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: K1, nome: 'filha-a', painel: { tasks: [noTurno(1, '1', 'Da filha a', 'feita'), noTurno(1, '1b', 'Pendente da filha a', 'aberta')], turns: [turno(1, AGORA + 10)] } },
+    { id: KB, nome: 'filha-b', painel: { tasks: [tarefa('1', 'Da filha b', 'iniciada')] } },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await start($, ['2'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  h.filha(K1).rodando = false
+  await aviso($)
+  const p0 = await painel($)
+  esperarEstado(p0, 'Dois', 'andamento')
+  await relogio.advance(1000)
+  digitouNaA(h)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO_A).map(c => c.sob), emTexto(p)).toEqual(['Um'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com a filha fora do pedido vigente, a tarefa acesa por outra filha também não leva o cartão: ele fecha o pedido', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const b: any = { id: KB, nome: 'filha-b', listada: false, painel: { tasks: [tarefa('1', 'Da filha b', 'iniciada')] } }
+  const h = host(on, [{ id: K1, nome: 'filha-a', painel: { tasks: [noTurno(1, '1', 'Da filha a', 'feita'), noTurno(1, '1b', 'Pendente da filha a', 'aberta')], turns: [turno(1, AGORA + 10)] } }, b])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  h.filha(K1).rodando = false
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v1'])
+  b.listada = true
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  const p0 = await painel($)
+  esperarEstado(p0, 'Limpar refs', 'andamento')
+  await relogio.advance(1000)
+  digitouNaA(h)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO_A).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(p.indexOf(linha(p, PROPRIO_A)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+// O pedido novo da mãe, "Limpeza", com duas subtarefas, depois de abrir a filha no pedido antigo.
+async function pedidoLimpeza($: any, relogio: any, segundo = false) {
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [
+    { id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] },
+    ...(segundo ? [{ id: 'W', title: 'Segundo bloco', children: [{ id: 'w1', title: 'Passo do segundo' }] }] : []),
+  ])
+}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão do pedido do usuário na filha que fechava o pedido não salta quando a mãe inicia de novo a tarefa que aguardava', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const confere = async () => {
+    const p = await painel($)
+    expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+    expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Conferir refs')))
+  }
+  await confere()
+  await relogio.advance(1000)
+  await start($, ['v1'])
+  await aviso($)
+  await confere()
+  await done($, ['v1'])
+  await aviso($)
+  await confere()
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão do pedido do usuário na filha segue sob a tarefa onde estava quando a mãe a reabre com start', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  await done($, ['v1'])
+  await relogio.advance(1000)
+  await start($, ['v1'])
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Limpar refs', 'andamento')
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda, pedidos.replano-leva-o-cartao-ao-nivel-1
+test('o replano que tira a tarefa onde estava o cartão do pedido do usuário na filha leva o cartão ao nível 1 que a continha', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio, true)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  await plan($, [
+    { id: 'V', title: 'Limpeza', children: [{ id: 'v2', title: 'Conferir refs' }] },
+    { id: 'W', title: 'Segundo bloco', children: [{ id: 'w1', title: 'Passo do segundo' }] },
+  ])
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Limpeza')))
+  expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+// O lugar guardado no store, lido por um processo novo (os testes rodam em ordem, no mesmo processo).
+const LUGAR: Record<string, unknown> = {}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo', async ($: any, on: any) => {
+  armazem(on, LUGAR)
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  await done($, ['v1'])
+  await relogio.advance(1000)
+  await start($, ['v1'])
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar do cartão do pedido do usuário na filha sobrevive a um processo novo: o processo novo o lê do store', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, LUGAR)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  digitouNaFilha(h, AGORA + 1500)
+  if (!Object.keys(LUGAR).some(k => k.startsWith('links:'))) throw new Error('rode o par inteiro: o primeiro não gravou')
+  await iniciarSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// A filha com uma tarefa em andamento e a neta com um turno digitado nela, publicada pela filha.
+const netaDigitada = (extra: object = {}) => ({
+  id: NETA,
+  name: 'neta',
+  title: 'neta',
+  running: true,
+  archived: false,
+  anchor: 'o1',
+  panel: {
+    groups: [{ agent: '', label: '', tasks: [noTurno(2, 'n2', 'Neta digitada', 'iniciada')], turns: [turno(1, AGORA + 20), { id: 2, title: 'digitei na neta', at: AGORA + 500, own: true }] }],
+    waits: [],
+    children: [],
+  },
+  ...extra,
+})
+async function filhaComNeta($: any, on: any, neta: object) {
+  fixar(on)
+  const filha = { tasks: [noTurno(1, 'o1', 'Origem da neta', 'feita'), noTurno(1, 'o2', 'Outra da filha', 'feita'), noTurno(1, 'o3', 'Em andamento na filha', 'iniciada')], turns: [turno(1, AGORA + 10)], filhas: [neta] }
+  host(on, [{ id: K1, nome: 'filha-um', painel: filha }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  return painel($)
+}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a neta com o lugar guardado no arquivo publicado da filha fica onde a filha o guardou', async ($: any, on: any) => {
+  const p = await filhaComNeta($, on, netaDigitada({ places: [{ at: AGORA + 500, anchor: 'o2' }] }))
+  expect(cartoes(p, 'neta · pedido do usuário na filha').map(c => c.sob), emTexto(p)).toEqual(['Outra da filha'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a neta com turno digitado publicada sem o lugar guardado segue desenhada pelo relógio das tarefas da filha', async ($: any, on: any) => {
+  const p = await filhaComNeta($, on, netaDigitada())
+  expect(cartoes(p, 'neta · pedido do usuário na filha').map(c => c.sob), emTexto(p)).toEqual(['Em andamento na filha'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a neta com dois turnos digitados no mesmo pedido da filha, publicada só com o segundo, fica onde a filha guardou', async ($: any, on: any) => {
+  const neta = netaDigitada({ places: [{ at: AGORA + 500, anchor: 'o2' }] }) as any
+  neta.panel.groups[0].tasks = [noTurno(3, 'n3', 'Neta de novo', 'iniciada')]
+  neta.panel.groups[0].turns = [turno(1, AGORA + 20), { id: 3, title: 'digitei de novo na neta', at: AGORA + 800, own: true }]
+  const p = await filhaComNeta($, on, neta)
+  expect(cartoes(p, 'neta · pedido do usuário na filha').map(c => c.sob), emTexto(p)).toEqual(['Outra da filha'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar guardado numa tarefa que não existe mais não vale: a neta fica no lugar derivado', async ($: any, on: any) => {
+  const p = await filhaComNeta($, on, netaDigitada({ places: [{ at: AGORA + 500, anchor: 'sumiu' }] }))
+  expect(cartoes(p, 'neta · pedido do usuário na filha').map(c => c.sob), emTexto(p)).toEqual(['Em andamento na filha'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão que fecha o pedido segue nele quando o último nível 1 foi planejado depois de ele digitar e reusa o id de um nível 1 antigo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [
+    { id: '1', title: 'Primeiro antigo', children: [{ id: '1a', title: 'Abrir a filha' }] },
+    { id: '2', title: 'Segundo antigo', children: [{ id: '2a', title: 'Passo antigo' }] },
+  ])
+  await start($, ['1a'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['1a'])
+  await start($, ['2a'])
+  await done($, ['2a'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: '1', title: 'Primeiro novo', children: [{ id: '1b', title: 'Folha nova' }] }])
+  await start($, ['1b'])
+  await done($, ['1b'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  // O aviso do app não abre pedido: o nível 1 "2" novo entra no pedido dois, planejado depois do turno digitado.
+  await aviso($)
+  await plan($, [{ id: '2', title: 'Segundo novo', children: [{ id: '2b', title: 'Passo novo' }] }])
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Segundo novo'])
+  expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Passo novo')))
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('vinte e um cartões de pedido digitado na filha: nenhum lugar sai e a leitura sem novidade não regrava', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  const tarefasDigitadas: any[] = [noTurno(1, '1', 'Reescrever autoria', 'feita')]
+  const turnosDigitados: any[] = [turno(1, AGORA + 10)]
+  for (let i = 1; i <= 21; i++) {
+    if (i > 1) await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `Q${i}`, title: `Bloco ${i}`, children: [{ id: `q${i}`, title: `Folha ${i}` }] }])
+    await start($, [`q${i}`])
+    if (i === 1) {
+      await abrirSessao($)
+      await aviso($)
+      // Parada, com tudo feito: não segura os pedidos antigos à vista.
+      h.filha(K1).rodando = false
+    }
+    await done($, [`q${i}`])
+    await fimDoTurno($)
+    tarefasDigitadas.push(noTurno(i + 1, `d${i}`, `Digitada ${i}`, 'feita'))
+    turnosDigitados.push({ id: i + 1, title: `digitei ${i}`, at: AGORA + 1000 * (i - 1) + 500, own: true })
+  }
+  h.filha(K1).painel = { tasks: tarefasDigitadas, turns: turnosDigitados }
+  await aviso($)
+  const lugaresDe = () => (h.proprio()?.children ?? []).find((c: any) => c.id === K1)?.places ?? []
+  const antes = lugaresDe()
+  const p0 = await painel($)
+  expect(antes.length, JSON.stringify(antes)).toBe(21)
+  await aviso($)
+  await aviso($)
+  expect(lugaresDe(), JSON.stringify(lugaresDe())).toEqual(antes)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(cartoes(p0, PROPRIO).map(c => c.sob))
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('outra mensagem da mãe à filha não tira do lugar o cartão do pedido digitado nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }, { id: 'o2', title: 'Conferir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita'])
+  await relogio.advance(1000)
+  await aviso($)
+  await start($, ['o2'])
+  await envio($, K1)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Pedir a reescrita'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o pedido novo que reusa o id do nível 1 não puxa o cartão que fechava o pedido antigo', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido B')
+  await plan($, [{ id: '1', title: 'Bloco B', children: [{ id: 'b1', title: 'Passo B' }] }])
+  await start($, ['b1'])
+  await done($, ['b1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Bloco B'])
+  await relogio.advance(1000)
+  await pedido($, 'Pedido C')
+  await plan($, [{ id: '1', title: 'Bloco C', children: [{ id: 'c1', title: 'Passo C' }] }])
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Bloco B'])
+  expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Passo B')))
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com dois starts da mãe no mesmo instante, o cartão do pedido do usuário na filha fica sob a iniciada por último', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v2'])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  const p = await painel($)
+  esperarEstado(p, 'Conferir refs', 'andamento')
+  esperarEstado(p, 'Limpar refs', 'andamento')
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
 })
 
 // ---- Cartão vivo nunca some.
@@ -817,6 +1402,35 @@ test('filha parada só com pendentes e origem fechada: encerrada, fora da contag
   esperarPalavra(p, 'filha-um', 'encerrada')
   esperarEstado(p, 'Colapso', 'pendente')
   expect([c.feitas, c.total, c.pct, c.chips.pendentes], emTexto(p)).toEqual([4, 4, 100, 0])
+})
+
+// Regra: sessoes.palavra-de-estado-do-cartao, sessoes.filha-parada-com-origem-fechada-sai-da-contagem
+test('a filha que espera a pessoa só com pendentes e a origem fechada segue "aguardando", contando', async ($: any, on: any) => {
+  fixar(on)
+  responderEnvio(on)
+  const tarefas = [deTurno(1, 'a', 'f1', 'feita'), deTurno(1, 'b', 'f2', 'feita'), deTurno(1, 'c', 'Colapso', 'aberta')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: tarefas, turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  await aviso($)
+  await done($, ['1', '9'])
+  await fimDoTurno($)
+  let p = await painel($)
+  esperarPalavra(p, 'filha-um', 'aguardando')
+  expect(p.filter(l => l.texto.includes('encerrada')).map(l => l.titulo), emTexto(p)).toEqual([])
+  esperarEstado(p, 'Colapso', 'pendente')
+  esperarEstado(p, 'Um', 'andamento')
+  expect([cabecalho(p).total, cabecalho(p).chips.pendentes], emTexto(p)).toEqual([5, 1])
+  h.filha(K1).aguardando = false
+  await aviso($)
+  p = await painel($)
+  esperarPalavra(p, 'filha-um', 'encerrada')
+  expect(cabecalho(p).total, emTexto(p)).toBe(4)
 })
 
 // Regra: sessoes.filha-parada-com-origem-fechada-sai-da-contagem
@@ -1062,7 +1676,7 @@ test('o turno 1 próprio que começa bem depois da abertura (a filha limpa com /
   await aviso($)
   const p = await painel($)
   const cs = cartoes(p, PROPRIO)
-  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
   expect(cs[0]?.tarefas[0], emTexto(p)).toBe('Reescrever com filter-repo')
 })
 
@@ -1505,4 +2119,1195 @@ test('no cartão da filha, a carta para a própria mãe mostra o nome da mãe qu
   const p = await painel($)
   const carta = p.find(l => l.titulo.startsWith('Para '))
   expect(carta?.titulo, emTexto(p)).toBe('Para orquestradora')
+})
+
+// Regra: sessoes.rodada-a-vista-nao-sai-pelo-teto
+test('na 21ª mensagem à mesma filha, o cartão da primeira rodada segue sob a tarefa dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const f1 = [noTurno(1, '1', 'f1', 'feita')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: f1, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [...f1, noTurno(2, '2', 'f2', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  await start($, ['3'])
+  for (let i = 1; i <= 20; i++) {
+    await relogio.advance(1000)
+    await envio($, K1, `mensagem ${i}`)
+  }
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => ({ sob: c.sob, tarefas: c.tarefas })), emTexto(p)).toContainEqual({ sob: 'Dois', tarefas: ['f2'] })
+})
+
+// Regra: sessoes.id-proprio-nao-lido-avisa
+test('sem o id da própria sessão, o painel avisa depois de 10 s, o log diz uma vez, e os cartões voltam quando o id vem', async ($: any, on: any) => {
+  const { relogio, log } = fixar(on)
+  const op = { idFalha: true }
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }], op)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  await relogio.advance(11_000)
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis') && l.texto.includes('id da sessão')), emTexto(p)).toBe(true)
+  expect(log.filter(l => l.includes('get_session falhou')).length, log.join('\n')).toBe(1)
+  op.idFalha = false
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+})
+
+// Regra: sessoes.lista-vazia-refaz-o-status
+test('a filha que some da lista sai também da linha de status', async ($: any, on: any) => {
+  const { status } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Feita', 'feita'), tarefa('2', 'Nunca')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  expect(status()).toBe('Tarefas 1/3')
+  h.filha(K1).listada = false
+  await aviso($)
+  const p = await painel($)
+  expect(p.some(l => l.sessao && l.titulo === 'filha-um'), emTexto(p)).toBe(false)
+  expect(status()).toBe('Tarefas 0/1')
+})
+
+// Regra: sessoes.leitura-falha-nao-apaga-a-espera
+test('uma leitura do arquivo que falha não apaga o "aguardando" nem gera o lembrete de fim de turno; depois de várias, volta a valer o que o app diz', async ($: any, on: any) => {
+  const h = await abrir($, on, { painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  h.filha(K1).rodando = false
+  h.filha(K1).aguardando = true
+  await aviso($)
+  esperarPalavra(await painel($), 'filha-um', 'aguardando')
+  h.filha(K1).publicado = '{quebrado'
+  const r = await aviso($)
+  let p = await painel($)
+  esperarPalavra(p, 'filha-um', 'aguardando')
+  expect(JSON.stringify(r)).not.toContain('terminou o turno')
+  for (let i = 0; i < 5; i++) await aviso($)
+  p = await painel($)
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('aguardando')
+  h.filha(K1).publicado = undefined
+  await aviso($)
+  esperarPalavra(await painel($), 'filha-um', 'aguardando')
+})
+
+// Regra: sessoes.recem-aberta-sem-tarefas-trabalha
+test('a sessão recém-aberta que o app lista parada e ainda sem tarefas é desenhada trabalhando; passado o prazo, vale o que o app diz', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', rodando: false }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['1'])
+  let p = await painel($)
+  for (const w of ['concluída', 'parada', 'encerrada']) expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain(w)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+  await relogio.advance(121_000)
+  await aviso($)
+  p = await painel($)
+  esperarPalavra(p, 'filha-um', 'concluída')
+  esperarEstado(p, 'Um', 'concluida')
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(0)
+  h.filha(K1).rodando = true
+  await aviso($)
+  p = await painel($)
+  expect(linha(p, 'filha-um').texto, emTexto(p)).not.toContain('concluída')
+  esperarEstado(p, 'Um', 'andamento')
+})
+
+// Regra: sessoes.abriu-e-parou-sem-ser-vista-rodando
+test('a sessão que abre, trabalha e para sem ser vista rodando gera o lembrete de fim de turno e, com a origem fechada, fica encerrada', async ($: any, on: any) => {
+  fixar(on)
+  responderEnvio(on)
+  host(on, [{ id: K1, nome: 'filha-um', rodando: false, painel: { tasks: [deTurno(1, 'a', 'f1', 'feita'), deTurno(1, 'c', 'Colapso', 'aberta')], turns: [turnoDe(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '9', title: 'Outra' }])
+  await start($, ['1'])
+  const a = await $.tool.call({ tool: 'mcp__ccd_session__start_session', tool_use_id: 's1', title: 'filha' })
+  const b = await aviso($)
+  const juntos = JSON.stringify([a, b])
+  let p = await painel($)
+  for (const t of ['terminou o turno', 'Um', '1 pendentes']) expect(juntos, emTexto(p)).toContain(t)
+  esperarPalavra(p, 'filha-um', 'parada')
+  const r = await done($, ['1', '9'])
+  expect(JSON.stringify(r), emTexto(p)).toContain('saíram da contagem')
+  await fimDoTurno($)
+  p = await painel($)
+  esperarPalavra(p, 'filha-um', 'encerrada')
+  expect([cabecalho(p).feitas, cabecalho(p).total], emTexto(p)).toEqual([3, 3])
+})
+
+// Regra: taxa.troca-de-modelo-apaga, sessoes.toks-e-repo-branch-no-cartao
+test('no cartão da filha que trocou de modelo, o toks/s antigo some', async ($: any, on: any) => {
+  const h = await abrir($, on, { modelo: 'Opus 5.5 · high', rate: { toks: 90, live: true }, painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } })
+  esperarPalavra(await painel($), 'filha-um', '90 toks/s')
+  h.filha(K1).rate = undefined
+  h.filha(K1).modelo = 'Sonnet 5.5 · high'
+  await aviso($)
+  const p = await painel($)
+  expect(linha(p, 'filha-um')?.texto, emTexto(p)).not.toContain('toks/s')
+  h.filha(K1).rate = { toks: 40, live: true }
+  await aviso($)
+  esperarPalavra(await painel($), 'filha-um', '40 toks/s')
+})
+
+// A filha aberta de "Um" (plano de duas tarefas), o turno da mãe encerrado; a filha passa a publicar
+// `painel` e, com `parar`, para.
+const DUAS: No[] = [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }]
+async function filhaQueTermina($: any, on: any, filha: Omit<Filha, 'id'> = {}) {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] }, ...filha }])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await fimDoTurno($)
+  return h
+}
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha que termina o turno com tudo concluído fecha a tarefa de origem, com a mãe parada, e o modelo é avisado uma vez', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  esperarEstado(await painel($), 'Um', 'andamento')
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  for (const t of ['concluiu sozinho a tarefa de origem', 'filha-um', 'Um']) expect(r, r).toContain(t)
+  expect(r).not.toContain('continua aberta')
+  expect(JSON.stringify(await aviso($))).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha que para com uma tarefa aberta não fecha a tarefa de origem, e vale o lembrete', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita'), tarefa('2', 'Outra da filha')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  esperarEstado(await painel($), 'Um', 'aguardando')
+  for (const t of ['terminou o turno', 'continua aberta']) expect(r, r).toContain(t)
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha parada com Esc, mesmo com tudo concluído, não fecha a tarefa de origem', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).aborted = true
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  esperarEstado(await painel($), 'Um', 'aguardando')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a filha que para sem tarefas publicadas não fecha a tarefa de origem', async ($: any, on: any) => {
+  const h = await filhaQueTermina($, on)
+  h.filha(K1).painel = { tasks: [] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  esperarEstado(await painel($), 'Um', 'aguardando')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('com uma carta saída da tarefa de origem ainda na fila, a filha que conclui tudo não a fecha', async ($: any, on: any) => {
+  fixar(on)
+  responderEnvio(on)
+  const K2 = 'local_22222222-2222-2222-2222-222222222222'
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } },
+    { id: K2, nome: 'outra', iniciadaPor: 'local_99999999-9999-9999-9999-999999999999' },
+  ])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await envio($, K2)
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a tarefa de origem com subtarefa aberta não é fechada pela filha que conclui tudo', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  // A tarefa de onde a filha foi aberta ganha uma subtarefa, aberta.
+  await plan($, [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }] }, { id: '2', title: 'Dois' }])
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  expect(r).not.toContain('concluiu sozinho')
+})
+
+// O painel da filha "governanca" com o turno 2 (o da mensagem da mãe, com `tarefa2`) e o turno 3, que o
+// usuário abriu digitando nela em `at`, com uma tarefa iniciada.
+const digitouDepoisDaMensagem = (h: any, tarefa2: string, at2: number, at: number) => {
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', tarefa2, 'feita'), noTurno(3, '3', 'Pedido digitado depois da mensagem', 'iniciada')],
+    turns: [turno(1, AGORA + 10), turno(2, at2), { id: 3, title: 'pedido digitado', at, own: true }],
+  }
+}
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('com a mãe parada, o cartão do pedido do usuário na filha fica sob a tarefa da última mensagem que a mãe lhe mandou, não sob a de onde ela foi aberta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderEnvio(on)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'R', title: 'Reescrita', children: [{ id: 'r1', title: 'Pedir a reescrita' }, { id: 'r2', title: 'Conferir a reescrita' }] }])
+  await start($, ['r1'])
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['r1'])
+  await start($, ['r2'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Tratar a mensagem', 'feita')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  await done($, ['r2'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouDepoisDaMensagem(h, 'Tratar a mensagem', AGORA + 1800, AGORA + 2500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Conferir a reescrita'])
+})
+
+// Regra: sessoes.turno-proprio-da-filha-no-pedido-vigente
+test('a filha aberta num pedido antigo que recebeu mensagem de uma tarefa do pedido vigente: o cartão do pedido do usuário nela fica sob essa tarefa, não fecha o pedido', async ($: any, on: any) => {
+  responderEnvio(on)
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'V', title: 'Limpeza', children: [{ id: 'v1', title: 'Limpar refs' }, { id: 'v2', title: 'Conferir refs' }] }])
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  await envio($, K1)
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 2500)
+  h.filha(K1).painel = { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Limpar as refs', 'feita')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 2600)] }
+  await aviso($)
+  await done($, ['v1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouDepoisDaMensagem(h, 'Limpar as refs', AGORA + 2600, AGORA + 3500)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+const PERGUNTA_NA_CONTINUACAO = {
+  questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
+}
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, a filha aberta na pendente do plano anterior que conclui tudo não a fecha', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await resp
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(r, r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.mensagem-entre-filhas-no-cartao-da-remetente, sessoes.cadeia-sem-cartao-dentro-de-cartao
+test('com a carta entre irmãs já tomada, a carta fica verde e os cartões seguem na sequência', async ($: any, on: any) => {
+  const { p } = await cadeia($, on, true)
+  esperarCartaSob(p, 'Avisar K2', 'entregue')
+  const um = cartoes(p, 'filha-um')
+  const d2 = cartoes(p, 'filha-dois').filter(c => c.tarefas.includes('d2'))
+  expect(d2.map(c => c.sob), emTexto(p)).toEqual(['Um'])
+  expect(d2[0]?.nivel, emTexto(p)).toBe(um[0]?.nivel)
+  expect(um.some(c => c.tarefas.includes('d2')), emTexto(p)).toBe(false)
+})
+
+// Regra: envios.carta-pelo-nome-da-sessao, sessoes.cartao-sob-a-tarefa-de-origem
+test('abrirSessao com nome abre a sessão como a chamada direta: o nome leva o cartão à tarefa', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Pesquisa web: changelog' }, { id: '2', title: 'Implementação: ler o código' }] }])
+  await start($, ['1', '2'])
+  await abrirSessao($, 'revisao-codigo')
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Implementação: ler o código')
+})
+
+// ---- O lugar do cartão do pedido digitado na filha: pedido apagado sem cartão, /clear, lugar em
+// tarefa que sumiu e a leitura das sessões no meio do replano.
+
+// A filha publica o turno 2 digitado em `at` sem nenhuma tarefa dele (Esc antes do plan): sem cartão.
+const digitouEApagou = (h: any, at: number) => {
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'digitei e apertei Esc', at, own: true }],
+  }
+}
+// O pedido novo da mãe, "Entrega", com as folhas dadas (ids e1, e2…), a primeira iniciada.
+async function pedidoEntrega($: any, relogio: any, folhas: string[]) {
+  await relogio.advance(1000)
+  await pedido($, 'Pedido atual')
+  await plan($, [{ id: 'E', title: 'Entrega', children: folhas.map((t, i) => ({ id: `e${i + 1}`, title: t })) }])
+  await start($, ['e1'])
+  await relogio.advance(1000)
+}
+// A filha sem o turno 2 (ela o apagou no prompt seguinte) e com o turno 3 digitado em `at`, com uma tarefa.
+const digitouDeNovo = (at: number) => ({
+  tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(3, '3', 'Revisar o que fiz', 'iniciada')],
+  turns: [turno(1, AGORA + 10), { id: 3, title: 'agora revise', at, own: true }],
+})
+// O arquivo de uma filha depois de um /clear: em `past`, o que ela tinha antes; no grupo, o que veio depois.
+const limpaCom = (antes: { tasks: any[]; turns: any[] }, depois: { tasks: any[]; turns: any[] }, at: number) =>
+  JSON.stringify({ version: 1, waiting: false, waits: [], children: [], groups: [{ agent: '', label: '', ...depois, past: [{ at, ...antes }] }] })
+// Um turno 1 digitado depois do /clear, mais de 10 minutos depois da abertura, com uma tarefa iniciada.
+const DEPOIS_DO_CLEAR = 12 * 60_000
+const turnoDepoisDoClear = { tasks: [noTurno(1, 'n1', 'Trabalho depois do clear', 'iniciada')], turns: [{ id: 1, title: 'pedido depois do clear', at: AGORA + DEPOIS_DO_CLEAR, own: true }] }
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o pedido digitado na filha e apagado sem cartão não dá o lugar ao pedido digitado depois', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoEntrega($, relogio, ['Implementar', 'Revisar'])
+  digitouEApagou(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO), emTexto(p)).toEqual([])
+  await done($, ['e1'])
+  await start($, ['e2'])
+  await relogio.advance(1000)
+  h.filha(K1).painel = digitouDeNovo(AGORA + 2500)
+  await aviso($)
+  p = await painel($)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Revisar'])
+  expect(cs[0]?.tarefas, emTexto(p)).toContain('Revisar o que fiz')
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o pedido apagado sem cartão, outro com cartão, um /clear na filha e mais um pedido: cada cartão fica onde o seu pedido aconteceu', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoEntrega($, relogio, ['Implementar', 'Revisar', 'Publicar'])
+  digitouEApagou(h, AGORA + 1500)
+  await aviso($)
+  await done($, ['e1'])
+  await start($, ['e2'])
+  await relogio.advance(1000)
+  h.filha(K1).painel = digitouDeNovo(AGORA + 2500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Revisar'])
+  await done($, ['e2'])
+  await start($, ['e3'])
+  await relogio.advance(20 * 60_000)
+  h.filha(K1).publicado = limpaCom(digitouDeNovo(AGORA + 2500), turnoDepoisDoClear, AGORA + DEPOIS_DO_CLEAR - 60_000)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Revisar', 'Publicar'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('depois de um /clear na filha, o pedido digitado de novo no mesmo pedido da mãe tem cartão próprio, não no lugar do cartão de antes', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  await done($, ['v1'])
+  await start($, ['v2'])
+  await relogio.advance(20 * 60_000)
+  const antes = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(2, '2', 'Reescrever com filter-repo', 'feita')],
+    turns: [turno(1, AGORA + 10), { id: 2, title: 'pode apagar e reescrever', at: AGORA + 1500, own: true }],
+  }
+  h.filha(K1).publicado = limpaCom(antes, turnoDepoisDoClear, AGORA + DEPOIS_DO_CLEAR - 60_000)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs', 'Conferir refs'])
+})
+
+// A filha com um nível 1 só ("Bloco da filha") e três subtarefas: a de origem da neta (feita), uma
+// iniciada e uma aberta; a neta aberta da primeira, publicada pela filha.
+async function filhaComBloco($: any, on: any, neta: object) {
+  fixar(on)
+  const bloco = {
+    ...noTurno(1, 'F', 'Bloco da filha', 'aberta'),
+    children: [tarefa('f1', 'Origem da neta', 'feita'), tarefa('f2', 'Em andamento na filha', 'iniciada'), tarefa('f3', 'Pendente na filha')],
+  }
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [bloco], turns: [turno(1, AGORA + 10)], filhas: [neta] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  return painel($)
+}
+const NETA_PROPRIO = 'neta · pedido do usuário na filha'
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a neta que levou /clear, publicada sem lugar para o cartão novo: ele não herda o lugar do cartão de antes do /clear', async ($: any, on: any) => {
+  const neta = netaDigitada({
+    anchor: 'f1',
+    places: [{ at: AGORA + 500, anchor: 'f1' }],
+    panel: {
+      groups: [
+        {
+          agent: '',
+          label: '',
+          tasks: [noTurno(2, 'n3', 'Neta depois do clear', 'iniciada')],
+          turns: [turno(1, AGORA + 600), { id: 2, title: 'digitei depois do clear', at: AGORA + 800, own: true }],
+          past: [{ at: AGORA + 550, tasks: [noTurno(2, 'n2', 'Neta digitada', 'feita')], turns: [turno(1, AGORA + 20), { id: 2, title: 'digitei na neta', at: AGORA + 500, own: true }] }],
+        },
+      ],
+      waits: [],
+      children: [],
+    },
+  })
+  const p = await filhaComBloco($, on, neta)
+  expect(cartoes(p, NETA_PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Origem da neta', 'Em andamento na filha'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar guardado numa tarefa que não existe mais não vale: a neta sob um bloco com subtarefas fica sob a tarefa em andamento, não fechando o bloco', async ($: any, on: any) => {
+  const p = await filhaComBloco($, on, netaDigitada({ anchor: 'f1', places: [{ at: AGORA + 500, anchor: 'sumiu' }] }))
+  expect(cartoes(p, NETA_PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Em andamento na filha'])
+  expect(p.indexOf(linha(p, NETA_PROPRIO)), emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Pendente na filha')))
+})
+
+// O lugar guardado no store pelo primeiro teste do par, lido (com a tarefa trocada) pelo segundo.
+const LUGAR_SUMIDO: Record<string, unknown> = {}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar da filha direta guardado numa tarefa que sumiu é decidido de novo', async ($: any, on: any) => {
+  armazem(on, LUGAR_SUMIDO)
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  await done($, ['v1'])
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar da filha direta guardado numa tarefa que sumiu é decidido de novo: o processo novo o decide e o guarda', async ($: any, on: any) => {
+  const chave = Object.keys(LUGAR_SUMIDO).find(k => k.startsWith('links:'))
+  if (chave === undefined) throw new Error('rode o par inteiro: o primeiro não gravou')
+  const cru = LUGAR_SUMIDO[chave]
+  const registro: any = typeof cru === 'string' ? JSON.parse(cru) : cru
+  let trocados = 0
+  for (const c of registro?.children ?? []) for (const x of c?.places ?? []) if (x?.at === AGORA + 1500) (x.anchor = 'nao-existe'), trocados++
+  if (trocados === 0) throw new Error('o primeiro do par não guardou o lugar: ' + JSON.stringify(registro))
+  LUGAR_SUMIDO[chave] = typeof cru === 'string' ? JSON.stringify(registro) : registro
+  fixar(on, { agora: AGORA + 5000 })
+  armazem(on, LUGAR_SUMIDO)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  digitouNaFilha(h, AGORA + 1500)
+  await iniciarSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  const lugares = (h.proprio()?.children ?? []).find((c: any) => c.id === K1)?.places ?? []
+  const limpar = flatTarefas(h.proprio()?.groups ?? []).find((t: any) => t.title === 'Limpar refs')?.id
+  expect(limpar, JSON.stringify(h.proprio()?.groups)).toBeDefined()
+  expect(lugares.find((x: any) => x.at === AGORA + 1500)?.anchor, JSON.stringify(lugares)).toBe(limpar)
+})
+const flatTarefas = (groups: any[]): any[] => {
+  const todas = (ts: any[]): any[] => ts.flatMap(t => [t, ...todas(t.children ?? [])])
+  return groups.flatMap(g => todas(g.tasks ?? []))
+}
+
+// O store do teste da leitura no meio do replano, e a leitura armada para a próxima gravação do painel.
+const LOJA_DO_REPLANO: Record<string, unknown> = {}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda, pedidos.replano-leva-o-cartao-ao-nivel-1
+test('a leitura das sessões no meio do replano não tira do nível 1 o cartão do pedido do usuário na filha', async ($: any, on: any) => {
+  // O store do armazem, com a leitura armada na gravação do painel (o harness não deixa dois store.set).
+  let armada = false
+  let leu = false
+  on('session.id', () => ({ value: SESSAO }))
+  on('store.get', (_$: any, e: any) => ({ value: LOJA_DO_REPLANO[e.key] }))
+  on('store.delete', (_$: any, e: any) => {
+    delete LOJA_DO_REPLANO[e.key]
+    return { value: undefined }
+  })
+  on('store.keys', () => ({ value: Object.keys(LOJA_DO_REPLANO) }))
+  on('store.set', async (_$: any, e: any) => {
+    LOJA_DO_REPLANO[e.key] = e.value === undefined ? undefined : JSON.parse(JSON.stringify(e.value))
+    const r = { value: undefined }
+    if (armada && e.value?.groups !== undefined) {
+      armada = false
+      await aviso($)
+      leu = true
+    }
+    return r
+  })
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio, true)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  armada = true
+  await plan($, [
+    { id: 'V', title: 'Limpeza', children: [{ id: 'v2', title: 'Conferir refs' }] },
+    { id: 'W', title: 'Segundo bloco', children: [{ id: 'w1', title: 'Passo do segundo' }] },
+  ])
+  expect(leu).toBe(true)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Limpeza')))
+  expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+// Regra: sessoes.modelo-e-esforco-publicados
+test('a sessão publica o modelo, e o esforço quando o passo o traz', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  const passo = passos(on, relogio)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await passo($)
+  await start($, ['1'])
+  expect(h.proprio()?.engine).toBe('Opus 5.5')
+  await passo($, { esforco: 'high' })
+  await start($, ['1'])
+  expect(h.proprio()?.engine).toBe('Opus 5.5 · high')
+  await passo($, { agente: 'sub-1', esforco: 'low' })
+  await start($, ['1'])
+  expect(h.proprio()?.engine).toBe('Opus 5.5 · high')
+})
+
+// Regra: sessoes.lista-em-erro-diz-sessoes-indisponiveis
+test('com a lista do app em erro, o painel diz "Sessões indisponíveis" e o cartão fica; com a lista de volta, a linha some', async ($: any, on: any) => {
+  fixar(on)
+  const op = { listaFalha: false }
+  on('mcp.call', { tool: 'list_sessions' }, (_$: any, e: any, next: any) =>
+    op.listaFalha ? { value: { content: [{ type: 'text', text: 'list_sessions indisponível' }], isError: true } } : next(e),
+  )
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Tarefa da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  op.listaFalha = true
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(true)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+  linha(p, 'Tarefa da filha')
+  op.listaFalha = false
+  await aviso($)
+  p = await painel($)
+  expect(p.some(l => l.texto.includes('Sessões indisponíveis')), emTexto(p)).toBe(false)
+  expect(linha(p, 'filha-um').sessao, emTexto(p)).toBe(true)
+})
+
+// Regra: sessoes.mensagem-recebida-sem-rodada-abre-cartao
+test('a mensagem que a filha recebeu sem envio visto abre um cartão próprio sob a tarefa aberta naquela hora', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const f1 = [noTurno(1, '1', 'f1', 'feita')]
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: f1, turns: [turno(1, AGORA + 10)] } }])
+  await pedido($, 'Pedido um')
+  await plan($, A3)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await start($, ['2'])
+  await relogio.advance(1000)
+  h.recebeu(K1, AGORA + 1500)
+  h.filha(K1).painel = { tasks: [...f1, noTurno(2, '2', 'f2', 'iniciada')], turns: [turno(1, AGORA + 10), turno(2, AGORA + 1800)] }
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => ({ sob: c.sob, tarefas: c.tarefas })), emTexto(p)).toEqual([
+    { sob: 'Um', tarefas: ['f1'] },
+    { sob: 'Dois', tarefas: ['f2'] },
+  ])
+})
+
+// ---- O cartão que já teve tarefa e perde o primeiro pedido (a filha apaga as respostas só com resumo
+// mais antigas), e a leitura das sessões presa durante um plan inteiro.
+
+const TRABALHO_PEDIDO = 'Trabalho pedido na filha'
+// A filha com os turnos digitados dados (com `resumo`, respondido só com resumo) e, com `comTarefa`, uma
+// tarefa iniciada do último deles.
+const filhaComPedidos = (h: any, pedidos: { id: number; at: number; resumo?: boolean }[], comTarefa = false) => {
+  const ultimo = pedidos[pedidos.length - 1]
+  h.filha(K1).painel = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), ...(comTarefa && ultimo ? [noTurno(ultimo.id, String(ultimo.id), TRABALHO_PEDIDO, 'iniciada')] : [])],
+    turns: [turno(1, AGORA + 10), ...pedidos.map(u => ({ id: u.id, title: `pedido ${u.id}`, at: u.at, own: true, ...(u.resumo ? { brief: `resposta ${u.id}` } : {}) }))],
+  }
+}
+const lugaresDaFilha = (h: any): any[] => (h.proprio()?.children ?? []).find((c: any) => c.id === K1)?.places ?? []
+const idDaTarefa = (h: any, titulo: string) => flatTarefas(h.proprio()?.groups ?? []).find((t: any) => t.title === titulo)?.id
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão do pedido do usuário na filha não salta quando a filha apaga, um a um, os pedidos só com resumo que vieram antes do trabalho', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoEntrega($, relogio, ['Implementar', 'Revisar', 'Publicar'])
+  const r2 = { id: 2, at: AGORA + 1500, resumo: true }
+  const r3 = { id: 3, at: AGORA + 2500, resumo: true }
+  const r4 = { id: 4, at: AGORA + 3500, resumo: true }
+  const r5 = { id: 5, at: AGORA + 4500 }
+  filhaComPedidos(h, [{ id: 2, at: AGORA + 1500 }])
+  await aviso($)
+  filhaComPedidos(h, [r2])
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO), emTexto(p)).toEqual([])
+  await done($, ['e1'])
+  await start($, ['e2'])
+  await relogio.advance(1000)
+  filhaComPedidos(h, [r2, r3])
+  await aviso($)
+  await done($, ['e2'])
+  await start($, ['e3'])
+  await relogio.advance(1000)
+  filhaComPedidos(h, [r2, r3, r4])
+  await aviso($)
+  await relogio.advance(1000)
+  filhaComPedidos(h, [r2, r3, r4, r5], true)
+  await aviso($)
+  p = await painel($)
+  const cs = cartoes(p, PROPRIO)
+  expect(cs.map(c => c.sob), emTexto(p)).toEqual(['Implementar'])
+  expect(cs[0]?.tarefas, emTexto(p)).toContain(TRABALHO_PEDIDO)
+  for (const resto of [[r3, r4, r5], [r4, r5], [r5]]) {
+    filhaComPedidos(h, resto, true)
+    await aviso($)
+    p = await painel($)
+    expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Implementar'])
+  }
+  const implementar = idDaTarefa(h, 'Implementar')
+  expect(implementar, JSON.stringify(h.proprio()?.groups)).toBeDefined()
+  expect(lugaresDaFilha(h).map((x: any) => x.anchor), JSON.stringify(lugaresDaFilha(h))).toEqual([implementar])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o pedido apagado sem cartão não dá o lugar, e o cartão que nasce depois não salta quando perde o primeiro pedido', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoEntrega($, relogio, ['Implementar', 'Revisar', 'Publicar'])
+  digitouEApagou(h, AGORA + 1500)
+  await aviso($)
+  await done($, ['e1'])
+  await start($, ['e2'])
+  await relogio.advance(1000)
+  const r3 = { id: 3, at: AGORA + 2500, resumo: true }
+  const r4 = { id: 4, at: AGORA + 3500 }
+  filhaComPedidos(h, [r3])
+  await aviso($)
+  await done($, ['e2'])
+  await start($, ['e3'])
+  await relogio.advance(1000)
+  filhaComPedidos(h, [r3, r4], true)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Revisar'])
+  filhaComPedidos(h, [r4], true)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Revisar'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o pedido respondido só com resumo e apagado sem o cartão ter existido não dá o lugar ao pedido digitado depois', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoEntrega($, relogio, ['Implementar', 'Revisar'])
+  filhaComPedidos(h, [{ id: 2, at: AGORA + 1500, resumo: true }])
+  await aviso($)
+  await done($, ['e1'])
+  await start($, ['e2'])
+  await relogio.advance(1000)
+  filhaComPedidos(h, [{ id: 3, at: AGORA + 2500 }], true)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Revisar'])
+})
+
+// O cartão sob "Limpar refs" com o pedido 2 só com resumo e o 3 com tarefa, e depois sem o 2.
+async function cartaoQuePerdeuOPrimeiro($: any, on: any, apaga: boolean) {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  const q3 = { id: 3, at: AGORA + 1800 }
+  filhaComPedidos(h, [{ id: 2, at: AGORA + 1500, resumo: true }, q3], true)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  if (apaga) {
+    filhaComPedidos(h, [q3], true)
+    await aviso($)
+    p = await painel($)
+    expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  }
+  await done($, ['v1'])
+  await start($, ['v2'])
+  await relogio.advance(20 * 60_000)
+  return h
+}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão que perdeu o primeiro pedido, um /clear na filha e outro pedido: o cartão novo tem lugar próprio', async ($: any, on: any) => {
+  const h = await cartaoQuePerdeuOPrimeiro($, on, true)
+  const antes = {
+    tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita'), noTurno(3, '3', TRABALHO_PEDIDO, 'feita')],
+    turns: [turno(1, AGORA + 10), { id: 3, title: 'pedido 3', at: AGORA + 1800, own: true }],
+  }
+  h.filha(K1).publicado = limpaCom(antes, turnoDepoisDoClear, AGORA + DEPOIS_DO_CLEAR - 60_000)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs', 'Conferir refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o cartão novo não herda o lugar de um cartão de um trecho que já saiu do histórico da filha', async ($: any, on: any) => {
+  const h = await cartaoQuePerdeuOPrimeiro($, on, false)
+  h.filha(K1).publicado = limpaCom({ tasks: [], turns: [turno(1, AGORA + 10)] }, turnoDepoisDoClear, AGORA + DEPOIS_DO_CLEAR - 60_000)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Conferir refs'])
+})
+
+// O lugar com a marca do cartão já desenhado, guardado no store pelo primeiro do par e lido pelo segundo.
+const LUGAR_MARCADO: Record<string, unknown> = {}
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a marca do cartão já desenhado vai ao store com o lugar', async ($: any, on: any) => {
+  armazem(on, LUGAR_MARCADO)
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  const m2 = { id: 2, at: AGORA + 1500, resumo: true }
+  filhaComPedidos(h, [m2])
+  await aviso($)
+  await done($, ['v1'])
+  await start($, ['v2'])
+  await relogio.advance(1000)
+  filhaComPedidos(h, [m2, { id: 3, at: AGORA + 2500 }], true)
+  await aviso($)
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a marca do cartão já desenhado vai ao store com o lugar: o processo novo não decide de novo o cartão que perdeu o primeiro pedido', async ($: any, on: any) => {
+  if (!Object.keys(LUGAR_MARCADO).some(k => k.startsWith('links:'))) throw new Error('rode o par inteiro: o primeiro não gravou')
+  fixar(on, { agora: AGORA + 5000 })
+  armazem(on, LUGAR_MARCADO)
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }])
+  filhaComPedidos(h, [{ id: 3, at: AGORA + 2500 }], true)
+  await iniciarSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  const limpar = idDaTarefa(h, 'Limpar refs')
+  expect(limpar, JSON.stringify(h.proprio()?.groups)).toBeDefined()
+  expect(lugaresDaFilha(h).map((x: any) => ({ at: x.at, anchor: x.anchor })), JSON.stringify(lugaresDaFilha(h))).toEqual([{ at: AGORA + 2500, anchor: limpar }])
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('o lugar levado ao nível 1 por um replano segue valendo quando o cartão perde o primeiro pedido', async ($: any, on: any) => {
+  const { h, relogio } = await abrirNoPedidoAntigo($, on)
+  await pedidoLimpeza($, relogio, true)
+  await start($, ['v1'])
+  await relogio.advance(1000)
+  const s3 = { id: 3, at: AGORA + 1800 }
+  filhaComPedidos(h, [{ id: 2, at: AGORA + 1500, resumo: true }, s3], true)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpar refs'])
+  await plan($, [
+    { id: 'V', title: 'Limpeza', children: [{ id: 'v2', title: 'Conferir refs' }] },
+    { id: 'W', title: 'Segundo bloco', children: [{ id: 'w1', title: 'Passo do segundo' }] },
+  ])
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  filhaComPedidos(h, [s3], true)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Limpeza'])
+  const i = p.indexOf(linha(p, PROPRIO))
+  expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Limpeza')))
+  expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+// Regra: sessoes.lugar-do-cartao-digitado-nao-muda
+test('a leitura das sessões presa durante um plan inteiro não leva o cartão do pedido antigo para a tarefa de mesmo id do pedido novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const outra: any = { id: KB, nome: 'outra', painel: { tasks: [noTurno(1, '1', 'Da outra', 'feita')], turns: [turno(1, AGORA + 10)] } }
+  const h = host(on, [{ id: K1, nome: 'governanca', painel: { tasks: [noTurno(1, '1', 'Reescrever autoria', 'feita')], turns: [turno(1, AGORA + 10)] } }, outra])
+  // Armada, a leitura das sessões fica presa logo depois de ler as tarefas, quando vai conferir a outra
+  // filha, que sumiu da lista (a leitura das tarefas, depois de `work`, e a seguinte, a do aviso da
+  // filha apagada): o harness não deixa outro stub de mcp.call para prender o get_session dela.
+  let armadaNoApp = false
+  let prendeu = false
+  let avisarPresa: () => void = () => {}
+  let soltarLeitura: () => void = () => {}
+  const presa = new Promise<void>(r => (avisarPresa = r))
+  const solta = new Promise<void>(r => (soltarLeitura = r))
+  const lidas: string[] = []
+  on('state.get', async (_s: any, e: any, next: any) => {
+    if (armadaNoApp) {
+      lidas.push(String(e?.key))
+      if (lidas.slice(-3).join(',') === 'work,groups,groups') {
+        armadaNoApp = false
+        prendeu = true
+        avisarPresa()
+        await solta
+      }
+    }
+    return next(e)
+  })
+  await pedido($, 'Pedido antigo')
+  await plan($, [{ id: 'O', title: 'Reescrita', children: [{ id: 'o1', title: 'Pedir a reescrita' }] }])
+  await start($, ['o1'])
+  await abrirSessao($)
+  await abrirSessao($)
+  await aviso($)
+  await done($, ['o1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido B')
+  await plan($, [{ id: '1', title: 'Bloco B', children: [{ id: 'b1', title: 'Passo B' }] }])
+  await start($, ['b1'])
+  await done($, ['b1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  digitouNaFilha(h, AGORA + 1500)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Bloco B'])
+  await relogio.advance(1000)
+  await pedido($, 'Pedido C')
+  outra.apagada = true
+  armadaNoApp = true
+  const leitura = aviso($)
+  await presa
+  await plan($, [{ id: '1', title: 'Bloco C', children: [{ id: 'c1', title: 'Passo C' }] }])
+  soltarLeitura()
+  await leitura
+  expect(prendeu).toBe(true)
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, PROPRIO).map(c => c.sob), emTexto(p)).toEqual(['Bloco B'])
+  expect(p.indexOf(linha(p, PROPRIO)), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Passo B')))
+})
+
+// ---- A marca de só lugar da carta mandada à filha e da sessão que some da lista do app.
+
+const PLANO_DE_TRES = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }] }]
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, a mensagem mandada a uma filha que já existia fica na pendente do plano anterior só como lugar: a filha que conclui tudo não a fecha', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['3'])
+  await abrirSessao($)
+  await done($, ['3'])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await envio($, K1)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  await relogio.advance(1000)
+  await resp
+  await fimDoTurno($)
+  h.recebeu(K1, AGORA + 4500)
+  const r1 = JSON.stringify(await aviso($))
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r2 = JSON.stringify(await aviso($))
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(r1, r1).not.toContain('concluiu sozinho')
+  expect(r2, r2).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, durabilidade.ligacoes-com-lista-parcial-do-host
+test('a sessão aberta só como lugar que some da lista do host e recebe uma mensagem pelo id segue só como lugar: ao voltar e concluir tudo, não fecha a pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  armazem(on, {})
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  const envios = responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  let p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Dois'])
+  await relogio.advance(1000)
+  await resp
+  await done($, ['1'])
+  h.filha(K1).listada = false
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um'), emTexto(p)).toEqual([])
+  await start($, ['3'])
+  envios.modo = 'entregue'
+  await envio($, K1)
+  await done($, ['3'])
+  await fimDoTurno($)
+  h.filha(K1).listada = true
+  await aviso($)
+  p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toContain('Dois')
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  p = await painel($)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  expect(r, r).not.toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a sessão aberta só como lugar na pendente do plano anterior que recebe depois uma mensagem comum mandada dela fecha a pendente ao concluir tudo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  const envios = responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await resp
+  await done($, ['1'])
+  await start($, ['2'])
+  envios.modo = 'entregue'
+  await envio($, K1, 'comum')
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const r = JSON.stringify(await aviso($))
+  const p = await painel($)
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(r, r).toContain('concluiu sozinho')
+})
+
+// ---- A sessão adotada pelo plan conta como sessão da tarefa, e o só lugar guardado na rodada.
+
+const PLANO_ADOTANTE = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }, { id: 'b2', title: 'Bê dois' }] }]
+
+// O roteiro da mensagem mandada antes do plan: pedido um com "Um" concluída, pedido dois sem plano, a
+// mensagem "Revise" entregue na hora à filha-um (trabalhando) e o plan que a adota.
+async function cartaAdotadaPeloPlan($: any, on: any) {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  const modoDoEnvio = responderEnvio(on)
+  modoDoEnvio.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await envio($, K1, 'Revise')
+  await aviso($)
+  await plan($, PLANO_ADOTANTE)
+  const adotou = await painel($)
+  esperarCartaSob(adotou, 'Bê um', 'entregue')
+  expect(linha(adotou, 'Bê um').estado, emTexto(adotou)).not.toBe('concluida')
+  return { h }
+}
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, envios.antes-do-plan-fica-solta-e-o-plan-adota
+test('a sessão que recebeu a mensagem mandada antes do plan e adotada por ele fecha a tarefa que a adotou ao concluir tudo', async ($: any, on: any) => {
+  const { h } = await cartaAdotadaPeloPlan($, on)
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechou = JSON.stringify(await aviso($))
+  const depois = await painel($)
+  esperarEstado(depois, 'Bê um', 'concluida')
+  expect(linha(depois, 'Bê dois').estado, emTexto(depois)).not.toBe('concluida')
+  expect(linha(depois, 'Dois').estado, emTexto(depois)).not.toBe('concluida')
+  expect(fechou, fechou).toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem, sessoes.aberta-antes-do-plan-e-adotada
+test('a sessão aberta antes do plan e adotada por ele fecha a tarefa que a adotou ao concluir tudo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } }])
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await abrirSessao($)
+  await aviso($)
+  await plan($, PLANO_ADOTANTE)
+  await aviso($)
+  const adotou = await painel($)
+  expect(cartoes(adotou, 'filha-um').map(c => c.sob), emTexto(adotou)).toEqual(['Bê um'])
+  await fimDoTurno($)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechou = JSON.stringify(await aviso($))
+  const depois = await painel($)
+  esperarEstado(depois, 'Bê um', 'concluida')
+  expect(fechou, fechou).toContain('concluiu sozinho')
+})
+
+// Regra: sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a mensagem comum mandada à sessão que estava só como lugar segue valendo depois que a carta sai da lista das guardadas: a filha que conclui tudo fecha a pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: K1, nome: 'filha-um', painel: { tasks: [tarefa('1', 'Da filha', 'iniciada')] } },
+    { id: 'local_x', nome: 'xis', rodando: false },
+  ])
+  const modoDoEnvio = responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_DE_TRES)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const respondida = ferramenta($, 'AskUserQuestion', PERGUNTA_NA_CONTINUACAO)
+  await relogio.settle()
+  await abrirSessao($)
+  await aviso($)
+  await relogio.advance(1000)
+  await respondida
+  await done($, ['1'])
+  await start($, ['2'])
+  modoDoEnvio.modo = 'entregue'
+  await envio($, K1, 'comum')
+  for (let i = 0; i < 22; i++) await envio($, 'local_x', `outra ${i}`)
+  const semCarta = await painel($)
+  expect(semCarta.some(l => l.titulo.includes('comum')), emTexto(semCarta)).toBe(false)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechou = JSON.stringify(await aviso($))
+  const depois = await painel($)
+  esperarEstado(depois, 'Dois', 'concluida')
+  expect(fechou, fechou).toContain('concluiu sozinho')
+})
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota, sessoes.filha-que-conclui-tudo-fecha-a-origem
+test('a sessão adotada pelo plan que ainda trabalha segura o fechamento da tarefa pelo fim do subagente, e a fecha ao concluir tudo', async ($: any, on: any) => {
+  lancaveis(on, ['sub-1'])
+  const { h } = await cartaAdotadaPeloPlan($, on)
+  await start($, ['b1'])
+  await lancar($, { descricao: 'conferir o diff', segundoPlano: true })
+  await fimDoTurno($)
+  const antesDoFim = await painel($)
+  const feitasAntes = cabecalho(antesDoFim).feitas
+  await fimDoSubagente($, 'sub-1')
+  const depoisDoFim = await painel($)
+  // O desenho mantém a linha ◉ enquanto a sessão trabalha: a conta diz se "Bê um" fechou.
+  expect(cabecalho(depoisDoFim).feitas, emTexto(depoisDoFim)).toBe(feitasAntes)
+  h.filha(K1).painel = { tasks: [tarefa('1', 'Da filha', 'feita')] }
+  h.filha(K1).rodando = false
+  const fechouPelaFilha = JSON.stringify(await aviso($))
+  const noFim = await painel($)
+  expect(fechouPelaFilha, fechouPelaFilha).toContain('concluiu sozinho a tarefa de origem')
+  expect(fechouPelaFilha, fechouPelaFilha).not.toContain('os subagentes lançados destas tarefas terminaram')
+  esperarEstado(noFim, 'Bê um', 'concluida')
+  expect(linha(noFim, 'Bê dois').estado, emTexto(noFim)).not.toBe('concluida')
 })

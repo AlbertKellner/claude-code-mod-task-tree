@@ -12,14 +12,17 @@
 //   node scripts/selos.mjs --novos --motivo "…"             sela como "novo" todo teste e kit sem selo
 //   node scripts/selos.mjs --recontar                       regrava só "assercoes" dos selos que conferem
 //   node scripts/selos.mjs --migrar                         regrava os hashes do algoritmo anterior pelo atual
+//   node scripts/selos.mjs --marcar-reescritos              dá por usadas (linhasUsadas) as linhas "Reescrito:" de hoje no catálogo
 // --raiz <pasta>: onde estão os arquivos (padrão: o repositório); --repo <pasta>: o git de HEAD
 // (padrão: a própria raiz); --base <ref>: compara com esse commit em vez de HEAD (a CI, a base do PR).
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
+import { ehPrincipal } from './guarda.mjs'
+import { TESTE } from './regras.mjs'
 
 // Chamadas que afirmam: expect e as funções exportadas de tests/kit/leitura.ts que chamam expect ou
 // lançam erro (derivadas do arquivo, ver assercoesDoKit).
@@ -33,6 +36,8 @@ export const ALGORITMO = 2
 const impressora = ts.createPrinter({ removeComments: true })
 const hash = texto => createHash('sha256').update(texto).digest('hex').slice(0, 16)
 const barra = p => p.replace(/\\/g, '/')
+// O código de uma linha "Reescrito:": o hash do texto dela, sem espaços nas pontas.
+export const codigoDaLinha = linha => hash(linha.trim())
 export const hoje = () => new Date().toLocaleDateString('sv-SE')
 
 const arquivos = (dir, filtro) =>
@@ -166,7 +171,8 @@ export function hashDoKit(caminho, texto) {
   return hash(impressora.printFile(sf))
 }
 
-// O catálogo: estado e datas de "Reescrito:" de cada regra.
+// O catálogo: estado e linhas "Reescrito:" de cada regra (as datas em `reescrito`; em `linhas`, a data e
+// o código do texto inteiro da linha, que a identifica: um cenário pode ter várias no mesmo dia).
 export function catalogo(raiz) {
   const regras = new Map()
   const pasta = join(raiz, 'regras')
@@ -176,7 +182,7 @@ export function catalogo(raiz) {
     for (const l of readFileSync(join(pasta, f), 'utf8').split(/\r?\n/)) {
       const id = /^### (\S+)\s*$/.exec(l)
       if (id) {
-        atual = { estado: undefined, reescrito: [] }
+        atual = { estado: undefined, reescrito: [], linhas: [] }
         regras.set(id[1], atual)
         continue
       }
@@ -184,7 +190,10 @@ export function catalogo(raiz) {
       const e = /^Estado: (coberto|pendente|checklist)\b/.exec(l)
       if (e && atual.estado === undefined) atual.estado = e[1]
       const r = /^Reescrito: (\d{4}-\d{2}-\d{2}),/.exec(l)
-      if (r) atual.reescrito.push(r[1])
+      if (r) {
+        atual.reescrito.push(r[1])
+        atual.linhas.push({ data: r[1], codigo: codigoDaLinha(l) })
+      }
     }
   }
   return regras
@@ -201,10 +210,15 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
   const regras = catalogo(raiz)
   const nomes = lerAssercoes(raiz)
   const testes = {}
+  // Por arquivo de teste: as linhas que o catálogo conta como test( e os nomes que viram selo.
+  const porArquivo = []
   const pastaTestes = join(raiz, 'task-tree', 'tests')
   for (const p of arquivos(pastaTestes, f => /\.test\.tsx?$/.test(f)).filter(p => !barra(p).includes('/kit/'))) {
     const rel = barra(relative(raiz, p))
-    for (const t of testesDe(p, readFileSync(p, 'utf8'), nomes, algoritmo)) {
+    const texto = readFileSync(p, 'utf8')
+    const todos = testesDe(p, texto, nomes, algoritmo)
+    porArquivo.push({ rel, linhas: texto.split(/\r?\n/).filter(l => TESTE.test(l)).length, nomes: todos.map(t => t.nome), testDireto: importaTestDireto(p, texto) })
+    for (const t of todos) {
       if (!t.regras.some(id => regras.get(id)?.estado === 'coberto')) continue
       testes[`${rel}::${t.nome}`] = t
     }
@@ -215,20 +229,89 @@ export function extrair(raiz, algoritmo = ALGORITMO) {
     const rel = barra(relative(raiz, p))
     if (ehApoio(rel)) kit[rel] = hashDoKit(p, readFileSync(p, 'utf8'))
   }
-  return { testes, kit, regras }
+  return { testes, kit, regras, porArquivo }
+}
+
+// O `test` com o teto por teste (decisão do usuário, 2026-11-15: "Autorizo"): com ele no repositório,
+// o arquivo de teste não importa `test` direto do kit do Claude Code, que daria os 5 s de antes.
+export const KIT_TESTE = 'task-tree/tests/kit/teste.ts'
+export function importaTestDireto(caminho, texto) {
+  const fonte = ts.createSourceFile(caminho, texto, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  return fonte.statements.some(s => ts.isImportDeclaration(s) && ts.isStringLiteral(s.moduleSpecifier) && s.moduleSpecifier.text === 'claude-code/testing' &&
+    s.importClause?.namedBindings && ts.isNamedImports(s.importClause.namedBindings) &&
+    s.importClause.namedBindings.elements.some(e => (e.propertyName ?? e.name).text === 'test'))
 }
 
 const vazio = () => ({ algoritmo: 1, testes: {}, kit: {}, golden: {}, removidos: {} })
 // Sem selos.json, um começo do zero já é do algoritmo atual; um selos.json sem o campo é do algoritmo 1.
 const lerSelos = raiz => (existsSync(join(raiz, SELOS)) ? { ...vazio(), ...JSON.parse(readFileSync(join(raiz, SELOS), 'utf8')) } : { ...vazio(), algoritmo: ALGORITMO })
-// Os selos de um commit (HEAD por padrão; na CI, a base do PR).
+// A ref é um commit deste repositório?
+export const ehCommit = (repo, ref) => spawnSync('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { encoding: 'utf8' }).status === 0
+// Os selos de um commit (HEAD por padrão; na CI, a base do PR). Uma ref que não é commit é erro, salvo
+// HEAD num repositório ainda sem commit (o começo do zero: sem selos). Sem o arquivo no commit, vazio.
 export function selosDeHead(repo, ref = 'HEAD') {
+  if (!ehCommit(repo, ref)) {
+    if (ref === 'HEAD') return vazio()
+    throw new Error(`a base ${ref} não existe neste repositório`)
+  }
   const r = spawnSync('git', ['-C', repo, 'show', `${ref}:${SELOS}`], { encoding: 'utf8' })
   return { ...vazio(), ...(r.status === 0 ? JSON.parse(r.stdout) : {}) }
 }
+
+// A saída do `plugin test`: uma linha por teste, agrupadas pelo arquivo ("tests\x.test.ts:" e
+// "(pass|fail) <nome> [ms]"). Devolve { chave, ok } por teste.
+export function lerResultados(saida) {
+  let arquivo
+  const resultados = []
+  for (const linha of saida.split(/\r?\n/)) {
+    const a = /^tests[\\/](.+):$/.exec(linha)
+    if (a) {
+      arquivo = `task-tree/tests/${a[1].replace(/\\/g, '/')}`
+      continue
+    }
+    const t = /^\((pass|fail)\) (.+?)(?: \[[\d.]+m?s\])?$/.exec(linha)
+    if (t && arquivo) resultados.push({ chave: `${arquivo}::${t[2]}`, ok: t[1] === 'pass' })
+  }
+  return resultados
+}
+// Os resultados da passada principal (o plugin test do check), gravados na pasta temporária do check
+// para a regressão conferir os arquivos de teste que ela não repete. Nada sobrevive ao check: a pasta
+// sai no fim dele.
+export const RESULTADOS_DA_PRINCIPAL = join('principal', 'resultados.json')
+export function gravarResultados(pasta, saida) {
+  const arquivo = join(pasta, RESULTADOS_DA_PRINCIPAL)
+  mkdirSync(dirname(arquivo), { recursive: true })
+  writeFileSync(arquivo, JSON.stringify(lerResultados(saida)))
+  return arquivo
+}
+export function lerResultadosGravados(pasta) {
+  const arquivo = join(pasta, RESULTADOS_DA_PRINCIPAL)
+  return existsSync(arquivo) ? JSON.parse(readFileSync(arquivo, 'utf8')) : null
+}
+// As chaves seladas que não constam aprovadas nos resultados (de um arquivo não repetido na regressão).
+export function naoConferidos(chaves, resultados) {
+  const aprovadas = new Set(resultados.filter(r => r.ok).map(r => r.chave))
+  return chaves.filter(c => !aprovadas.has(c))
+}
+// As chaves seladas que não aparecem nos resultados (o teste não rodou).
+export function naoRodaram(chaves, resultados) {
+  const vistas = new Set(resultados.map(r => r.chave))
+  return chaves.filter(c => !vistas.has(c))
+}
+// As refatorações que um commit traz: selo "refatoracao" com hash diferente do da base. Teste sem selo
+// na base (novo, ou nome novo de um renome) não entra; selo igual ao da base veio de antes. A etapa
+// regressao roda cada uma contra o código anterior (decisão do usuário, 2026-11-15: "Sim, provar
+// (Recomendado)").
+export function refatoracoesDoCommit(agora, base) {
+  return Object.entries(agora.testes ?? {})
+    .filter(([chave, s]) => s.tipo === 'refatoracao' && base.testes?.[chave] !== undefined && base.testes[chave].hash !== s.hash)
+    .map(([chave]) => chave)
+}
 const gravar = (raiz, selos) => {
   const ordenado = o => Object.fromEntries(Object.keys(o ?? {}).sort().map(k => [k, o[k]]))
-  writeFileSync(join(raiz, SELOS), `${JSON.stringify({ algoritmo: selos.algoritmo, testes: ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden), removidos: ordenado(selos.removidos) }, null, 2)}\n`)
+  // linhasUsadas só existe depois do --marcar-reescritos (sem ele, a etapa selos segue pela data).
+  const usadas = selos.linhasUsadas === undefined ? {} : { linhasUsadas: ordenado(selos.linhasUsadas) }
+  writeFileSync(join(raiz, SELOS), `${JSON.stringify({ algoritmo: selos.algoritmo, ...usadas, testes:ordenado(selos.testes), kit: ordenado(selos.kit), golden: ordenado(selos.golden), removidos: ordenado(selos.removidos) }, null, 2)}\n`)
 }
 
 // ---- Golden do desenho: a árvore e as fontes dos Svg de cada cenário, aprovadas pelo usuário no app (tests/golden/desenho.ts).
@@ -302,10 +385,17 @@ export function selosDaBase(repo, ref = 'HEAD', algoritmo = ALGORITMO, nomes = [
 
 // A conferência: devolve a lista de problemas.
 export function conferir(raiz, repo = raiz, base = 'HEAD') {
-  const { testes, kit, regras } = extrair(raiz)
+  const { testes, kit, regras, porArquivo } = extrair(raiz)
   const selos = lerSelos(raiz)
   const head = selosDaBase(repo, base, selos.algoritmo, lerAssercoes(raiz))
   const problemas = []
+  // Todo test( é uma instrução de topo, com nome literal e único no arquivo: o resto não seria selado.
+  const temKitTeste = existsSync(join(raiz, KIT_TESTE))
+  for (const { rel, linhas, nomes, testDireto } of porArquivo) {
+    if (temKitTeste && testDireto) problemas.push(`${rel}: importa \`test\` de 'claude-code/testing'; o teto por teste vem de './kit/teste'`)
+    if (linhas !== nomes.length) problemas.push(`${rel}: ${linhas} \`test(\` no arquivo, ${nomes.length} testes de topo com nome literal (teste aninhado, em laço ou com nome em template não é selado)`)
+    for (const n of new Set(nomes.filter((n, i) => nomes.indexOf(n) !== i))) problemas.push(`nome de teste repetido em ${rel}: ${n}`)
+  }
   if (selos.algoritmo !== ALGORITMO) problemas.push(`selos do algoritmo ${selos.algoritmo}, o atual é o ${ALGORITMO} (node scripts/selos.mjs --migrar)`)
   for (const [chave, t] of Object.entries(testes)) {
     const s = selos.testes[chave]
@@ -319,6 +409,15 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
     else if (s.hash !== h) problemas.push(`${ehDoKit(arq) ? 'o kit' : 'o arquivo de apoio dos testes'} mudou sem selo novo: ${arq}`)
   }
   for (const arq of Object.keys(selos.kit)) if (!kit[arq]) problemas.push(`${nomeDe(arq)} selado sumiu: ${arq}`)
+  // O selo do kit que mudou contra a base: "novo" só para arquivo que não existia nela, e sempre com motivo.
+  for (const [arq, s] of Object.entries(selos.kit)) {
+    const b = head.kit[arq]
+    if (b && s.hash === b.hash) continue
+    if (b && s.tipo === 'novo') problemas.push(`tipo \`novo\` em arquivo do kit que já existia: ${arq}`)
+    if (!s.motivo) problemas.push(`selo do kit sem motivo: ${arq}`)
+  }
+  // Um helper do kit que deixa de afirmar baixa a contagem sem o teste mudar: só com o kit selado como decisão.
+  const kitDecidido = selos.kit[KIT_LEITURA]?.tipo === 'decisao' && selos.kit[KIT_LEITURA]?.hash !== head.kit[KIT_LEITURA]?.hash
   // A lista do que afirma é derivada do kit: um helper exportado com expect( fora dela é a derivação quebrada.
   const pKit = join(raiz, KIT_LEITURA)
   if (existsSync(pKit)) {
@@ -328,19 +427,47 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
       if (!nomes.includes(nome)) problemas.push(`helper do kit que afirma fora da contagem de asserções: ${nome}`)
     }
   }
+  // Com a base marcada (linhasUsadas, decisão do usuário, 2026-11-15: "Uma linha por mudança
+  // (Recomendado)"), cada mudança por decisão gasta uma linha "Reescrito:" própria: do cenário, desde a
+  // data do selo da base, fora das já usadas na migração e das que o selo da base daquele teste já usou.
+  const estrito = head.linhasUsadas !== undefined
+  const usadas = id => new Set([...(head.linhasUsadas?.[id] ?? []), ...(selos.linhasUsadas?.[id] ?? [])])
+  const linhaNova = (id, c, antes) => c !== undefined && !usadas(id).has(c) && !(antes.linhas?.[id] ?? []).includes(c) &&
+    (regras.get(id)?.linhas ?? []).some(l => l.codigo === c && (!antes.data || l.data >= antes.data))
   for (const [chave, s] of Object.entries(selos.testes)) {
     const t = testes[chave]
     // O número gravado tem de ser o contado: escrito à mão, ele esconderia uma perda.
     if (t && s.assercoes !== t.assercoes) problemas.push(`asserções do selo diferentes das contadas: ${chave} (selo ${s.assercoes}, contadas ${t.assercoes})`)
     const antes = head.testes[chave]
+    if (t && antes && s.hash === antes.hash && t.assercoes < antes.assercoes && !kitDecidido)
+      problemas.push(`menos asserções sem o teste mudar: ${chave} (${antes.assercoes} → ${t.assercoes}): um helper do kit deixou de afirmar`)
     if (!antes || s.hash === antes.hash) continue
     const contadas = t?.assercoes ?? s.assercoes
     if (s.tipo === 'novo') problemas.push(`tipo \`novo\` em teste que já existia: ${chave}`)
     if ((s.tipo === 'refatoracao' || s.tipo === 'novo') && contadas < antes.assercoes)
       problemas.push(`menos asserções sem decisão: ${chave} (${antes.assercoes} → ${contadas})`)
-    if (s.tipo === 'decisao' && (s.regras ?? []).some(id => !(regras.get(id)?.reescrito ?? []).some(d => !antes.data || d >= antes.data)))
+    if (s.tipo !== 'decisao') continue
+    if (estrito) {
+      if ((s.regras ?? []).some(id => !(s.linhas?.[id] ?? []).some(c => linhaNova(id, c, antes))))
+        problemas.push(`decisão sem \`Reescrito:\` novo: ${chave} (cada regra do selo precisa de uma linha "Reescrito:" desde ${antes.data} ainda não usada por este teste)`)
+    } else if ((s.regras ?? []).some(id => !(regras.get(id)?.reescrito ?? []).some(d => !antes.data || d >= antes.data)))
       problemas.push(`decisão sem \`Reescrito:\`: ${chave} (cada regra do selo precisa de "Reescrito:" desde ${antes.data})`)
   }
+  // Remoção ou renome por decisão que entrou agora: também gasta uma linha "Reescrito:" nova por regra.
+  if (estrito)
+    for (const [chave, r] of Object.entries(selos.removidos)) {
+      if (r.tipo !== 'decisao' || head.removidos[chave] !== undefined) continue
+      const antes = head.testes[chave] ?? {}
+      // O renome por decisão é conferido pelas regras do destino no momento do renome (regrasPara); o
+      // registro sem elas (anterior a 2026-11-16, ou escrito à mão), pelas do selo de destino de agora.
+      const pelaGravacao = r.para && Array.isArray(r.regrasPara) && r.regrasPara.length > 0 ? r.regrasPara : undefined
+      const ids = pelaGravacao ?? (r.para ? selos.testes[r.para]?.regras : undefined) ?? r.regras ?? []
+      if (ids.some(id => !linhaNova(id, r.linha?.[id], antes)))
+        problemas.push(`${r.para ? 'renome' : 'remoção'} por decisão sem \`Reescrito:\` novo: ${chave} (cada regra precisa de uma linha "Reescrito:" desde ${antes.data} ainda não usada por este teste)`)
+    }
+  // A lista das linhas já usadas só cresce.
+  for (const [id, codigos] of Object.entries(head.linhasUsadas ?? {}))
+    for (const c of codigos) if (!(selos.linhasUsadas?.[id] ?? []).includes(c)) problemas.push(`linha usada apagada da lista: ${id} (${c})`)
   // Selo da base que saiu do arquivo: só com o registro de --remover ou --renomear.
   for (const chave of Object.keys(head.testes)) if (!selos.testes[chave] && !selos.removidos[chave]) problemas.push(`selo apagado sem registro: ${chave}`)
   const golden = lerGolden(raiz)
@@ -356,11 +483,47 @@ export function conferir(raiz, repo = raiz, base = 'HEAD') {
   return problemas
 }
 
-// Exige, em cada regra, um "Reescrito:" com data igual ou posterior a `desde`; devolve a data mais nova.
-function exigirReescrito(regras, ids, desde) {
-  const faltam = ids.filter(id => !(regras.get(id)?.reescrito ?? []).some(d => !desde || d >= desde))
+// Exige, em cada regra, uma linha "Reescrito:" livre: com data igual ou posterior a `desde`, fora de
+// `linhasUsadas` e das linhas que o selo anterior do teste já usou (`doTeste`). Escolhe a mais nova de
+// cada regra; devolve a data mais nova e o código escolhido por regra.
+function exigirReescrito(regras, ids, desde, linhasUsadas = {}, doTeste = {}) {
+  const escolhidas = {}
+  const faltam = []
+  for (const id of ids) {
+    const desdeA = (regras.get(id)?.linhas ?? []).filter(l => !desde || l.data >= desde)
+    const livres = desdeA.filter(l => !(linhasUsadas[id] ?? []).includes(l.codigo) && !(doTeste[id] ?? []).includes(l.codigo))
+    const l = livres.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0)).at(-1)
+    if (l) escolhidas[id] = l
+    else if (desdeA.length === 0) faltam.push(id)
+    else {
+      const u = desdeA.at(-1)
+      faltam.push(`${id} (a linha de ${u.data} já foi usada ${(doTeste[id] ?? []).includes(u.codigo) ? 'por este teste' : 'antes da migração'})`)
+    }
+  }
   if (faltam.length > 0) throw new Error(`reescreva o cenário no catálogo com a decisão do usuário antes de selar ("Reescrito: AAAA-MM-DD, …" em ${faltam.join(', ')})`)
-  return ids.flatMap(id => regras.get(id)?.reescrito ?? []).sort().at(-1)
+  return {
+    data: Object.values(escolhidas).map(l => l.data).sort().at(-1),
+    linha: Object.fromEntries(Object.entries(escolhidas).map(([id, l]) => [id, l.codigo])),
+  }
+}
+// As linhas de um selo com as escolhidas agora acrescentadas (a lista só cresce).
+function somarLinhas(linhas = {}, novas = {}) {
+  const soma = Object.fromEntries(Object.entries(linhas).map(([id, cs]) => [id, [...cs]]))
+  for (const [id, c] of Object.entries(novas)) if (!(soma[id] ??= []).includes(c)) soma[id].push(c)
+  return soma
+}
+const comLinhas = linhas => (linhas && Object.keys(linhas).length > 0 ? { linhas } : {})
+// As linhas "Reescrito:" que o teste já gastou em HEAD: as do selo dele em HEAD; para o destino de um
+// renome registrado na pasta de trabalho e ainda fora de HEAD, as da chave antiga em HEAD (seguindo a
+// cadeia de renomes sem commit); para um teste que não existe em HEAD nem veio de renome, nenhuma.
+function linhasDeHead(head, selos, chave) {
+  const vistas = new Set()
+  for (let c = chave; c !== undefined && !vistas.has(c); ) {
+    vistas.add(c)
+    if (head.testes[c]) return head.testes[c].linhas
+    c = Object.keys(selos.removidos).find(de => selos.removidos[de].para === c && head.removidos[de] === undefined)
+  }
+  return undefined
 }
 
 export function selar(raiz, repo, opcoes) {
@@ -403,9 +566,25 @@ export function selar(raiz, repo, opcoes) {
     gravar(raiz, selos)
     return `${n} contagens de asserções regravadas`
   }
+  // Uma vez, na entrada da regra "uma linha por mudança": toda linha "Reescrito:" que já existe no
+  // catálogo conta como usada (decisão do usuário, 2026-11-15: "os selos de hoje contam como já usados").
+  if (opcoes.marcar) {
+    if (selos.linhasUsadas !== undefined) throw new Error('as linhas "Reescrito:" já foram marcadas (linhasUsadas)')
+    selos.linhasUsadas = {}
+    let n = 0
+    for (const [id, r] of regras) {
+      const codigos = [...new Set(r.linhas.map(l => l.codigo))]
+      if (codigos.length === 0) continue
+      selos.linhasUsadas[id] = codigos
+      n += codigos.length
+    }
+    gravar(raiz, selos)
+    return `${n} linhas "Reescrito:" de ${Object.keys(selos.linhasUsadas).length} cenários marcadas como usadas`
+  }
   const head = selosDeHead(repo)
   const { tipo, motivo = '' } = opcoes
   if (opcoes.novos) {
+    if (!motivo) throw new Error('--novos exige --motivo')
     let n = 0
     for (const [chave, t] of Object.entries(testes)) {
       if (selos.testes[chave] || head.testes[chave]) continue
@@ -413,7 +592,7 @@ export function selar(raiz, repo, opcoes) {
       n++
     }
     for (const [arq, h] of Object.entries(kit)) {
-      if (selos.kit[arq]) continue
+      if (selos.kit[arq] || head.kit[arq]) continue
       selos.kit[arq] = { hash: h, tipo: 'novo', data: hoje(), motivo }
       n++
     }
@@ -424,6 +603,8 @@ export function selar(raiz, repo, opcoes) {
   if (opcoes.kit) {
     const arq = barra(opcoes.kit)
     if (!kit[arq]) throw new Error(`arquivo do kit não encontrado: ${arq}`)
+    if (tipo === 'novo' && head.kit[arq]) throw new Error(`"novo" só para arquivo que não existia em HEAD: ${arq}`)
+    if (!motivo) throw new Error('o selo do kit exige --motivo')
     selos.kit[arq] = { hash: kit[arq], tipo, data: hoje(), motivo }
     gravar(raiz, selos)
     return `kit selado: ${arq}`
@@ -432,9 +613,9 @@ export function selar(raiz, repo, opcoes) {
     const s = selos.testes[opcoes.remover]
     if (!s) throw new Error(`sem selo: ${opcoes.remover}`)
     if (tipo !== 'decisao') throw new Error('remover um teste selado exige --tipo decisao')
-    const reescrito = exigirReescrito(regras, s.regras, s.data)
+    const { data: reescrito, linha } = exigirReescrito(regras, s.regras, s.data, selos.linhasUsadas, (head.testes[opcoes.remover] ?? s).linhas)
     delete selos.testes[opcoes.remover]
-    selos.removidos[opcoes.remover] = { regras: s.regras, data: hoje(), motivo, reescrito, hash: s.hash, tipo }
+    selos.removidos[opcoes.remover] = { regras: s.regras, data: hoje(), motivo, reescrito, linha, hash: s.hash, tipo }
     gravar(raiz, selos)
     return `selo removido (registrado): ${opcoes.remover}`
   }
@@ -447,13 +628,16 @@ export function selar(raiz, repo, opcoes) {
     const t = testes[para]
     if (!t) throw new Error(`teste coberto não encontrado: ${para}`)
     if (tipo === 'novo') throw new Error('renomear exige --tipo refatoracao ou decisao')
-    let reescrito
+    let usada = {}
+    const doTeste = (head.testes[de] ?? s).linhas
     if (tipo === 'refatoracao') {
       if (t.hash !== s.hash) throw new Error(`refatoração só para renome puro (o corpo mudou): ${de} → ${para}; use --tipo decisao`)
-    } else reescrito = exigirReescrito(regras, t.regras, s.data)
+    } else usada = exigirReescrito(regras, t.regras, s.data, selos.linhasUsadas, doTeste)
     delete selos.testes[de]
-    selos.testes[para] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo }
-    selos.removidos[de] = { regras: s.regras, data: hoje(), motivo, ...(reescrito ? { reescrito } : {}), hash: s.hash, para, tipo }
+    selos.testes[para] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo, ...comLinhas(somarLinhas(doTeste, usada.linha)) }
+    // O renome por decisão guarda as regras do teste de destino com que foi conferido (regrasPara): a
+    // etapa confere a linha de cada uma delas, também com --base sobre vários commits.
+    selos.removidos[de] = { regras: s.regras, data: hoje(), motivo, ...(usada.data ? { reescrito: usada.data, linha: usada.linha, regrasPara: t.regras } : {}), hash: s.hash, para, tipo }
     gravar(raiz, selos)
     return `selo renomeado (${tipo}): ${de} → ${para}`
   }
@@ -464,14 +648,19 @@ export function selar(raiz, repo, opcoes) {
   if (tipo === 'novo' && head.testes[chave]) throw new Error(`"novo" só para teste que não existia em HEAD: ${chave}`)
   if (tipo === 'refatoracao' && anterior && t.assercoes < anterior.assercoes)
     throw new Error(`refatoração não pode tirar asserções: ${chave} (${anterior.assercoes} → ${t.assercoes})`)
-  if (tipo === 'decisao') exigirReescrito(regras, t.regras, anterior?.data)
-  selos.testes[chave] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo }
+  // As linhas já usadas são as que o teste gastou em HEAD (linhasDeHead): selar de novo antes do
+  // commit escolhe a mesma linha, também no destino de um renome por decisão ainda sem commit. Fora da
+  // decisão, as linhas gravadas seguem herdadas do selo de HEAD ou da pasta de trabalho, para o selo de
+  // refatoração não apagar a linha que o renome gastou.
+  const doTeste = tipo === 'decisao' ? linhasDeHead(head, selos, chave) : (head.testes[chave] ?? selos.testes[chave])?.linhas
+  const usada = tipo === 'decisao' ? exigirReescrito(regras, t.regras, anterior?.data, selos.linhasUsadas, doTeste) : {}
+  selos.testes[chave] = { regras: t.regras, hash: t.hash, assercoes: t.assercoes, tipo, data: hoje(), motivo, ...comLinhas(somarLinhas(doTeste, usada.linha)) }
   gravar(raiz, selos)
   return `teste selado (${tipo}): ${chave}`
 }
 
 // Linha de comando.
-if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.argv[1])) {
+if (ehPrincipal(import.meta.url)) {
   const args = process.argv.slice(2)
   const valor = nome => {
     const i = args.indexOf(nome)
@@ -480,8 +669,8 @@ if (process.argv[1] && barra(fileURLToPath(import.meta.url)) === barra(process.a
   const raiz = valor('--raiz') ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const repo = valor('--repo') ?? raiz
   try {
-    if (args.some(a => ['--selar', '--kit', '--remover', '--renomear', '--novos', '--recontar', '--migrar'].includes(a))) {
-      console.log(selar(raiz, repo, { selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), renomear: valor('--renomear'), para: valor('--para'), novos: args.includes('--novos'), recontar: args.includes('--recontar'), migrar: args.includes('--migrar'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
+    if (args.some(a => ['--selar', '--kit', '--remover', '--renomear', '--novos', '--recontar', '--migrar', '--marcar-reescritos'].includes(a))) {
+      console.log(selar(raiz, repo, { marcar: args.includes('--marcar-reescritos'), selar: valor('--selar'), kit: valor('--kit'), remover: valor('--remover'), renomear: valor('--renomear'), para: valor('--para'), novos: args.includes('--novos'), recontar: args.includes('--recontar'), migrar: args.includes('--migrar'), tipo: valor('--tipo'), motivo: valor('--motivo') }))
     } else {
       const problemas = conferir(raiz, repo, valor('--base') ?? 'HEAD')
       for (const p of problemas) console.error(`- ${p}`)

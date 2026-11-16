@@ -1,6 +1,8 @@
-import { expect, test } from 'claude-code/testing'
-import { AGORA, fixar, host } from './kit/ambiente'
-import { abrirSessao, aviso, done, esc, fimDoTurno, pedido, plan, start, type No } from './kit/cenario'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
+import { AGORA, fixar, host, lancaveis } from './kit/ambiente'
+import { abrirSessao, aviso, done, esc, falha, fimDoSubagenteCom, fimDoTurno, lancar, pedido, plan, start, type No } from './kit/cenario'
+import { cabecalho } from './kit/leitura'
 import { cartoes, comHistorico, emTexto, esperarCarta, esperarEstado, esperarPalavra, linha, montar, painel, temBusto, type Linha } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -99,7 +101,7 @@ test('plan com o mesmo id substitui no lugar no mesmo pedido e interrompe o ante
 })
 
 // Regra: turnos.pai-com-filha-concluida-nunca-interrompido
-test('no Esc, pai com filha concluída fica aguardando, nunca interrompido', async ($: any, on: any) => {
+test('no Esc, o pai com filha concluída e o pedido ficam concluídos, nunca interrompidos', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
   await plan($, [{ id: 'C', title: 'Plano C', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
@@ -222,6 +224,116 @@ test('pai abaixo do nível 1 concluído que ganha filha nova no replano volta a 
   esperarEstado(p, 'Dois.um', 'concluida')
   esperarEstado(p, 'Dois.dois', 'concluida')
   esperarEstado(p, 'Um', 'pendente')
+})
+
+// Regra: pedidos.replano-mantem-o-falhou
+test('o replano no mesmo pedido mantém o ✕ "falhou" da tarefa que o turno com erro parou', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await falha($)
+  await aviso($)
+  await plan($, comTres())
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+  esperarEstado(p, 'Três', 'pendente')
+  expect(p.filter(l => l.titulo === 'Plano A').length, emTexto(p)).toBe(1)
+})
+
+// Regra: pedidos.replano-mantem-o-falhou
+test('o replano mantém o ✕ "falhou" da tarefa cujo subagente falhou', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await fimDoSubagenteCom($, 'sub-1', { erro: true })
+  await fimDoTurno($)
+  await aviso($)
+  let p = await painel($)
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+  await plan($, comTres())
+  p = await painel($)
+  esperarEstado(p, 'Um', 'interrompida')
+  expect(linha(p, 'Um').texto, emTexto(p)).toContain('falhou')
+})
+
+// Regra: pedidos.replano-pai-que-vira-folha
+test('no replano, o pai que vira folha nasce pendente, sem relógio, e segue pendente no fim do turno e no Esc', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['2.1'])
+  await relogio.advance(2000)
+  await done($, ['2.1'])
+  await relogio.advance(3000)
+  await plan($, [{ ...A2[0]!, children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await relogio.advance(4000)
+  let p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect([cabecalho(p).chips.andamento, cabecalho(p).chips.pendentes], emTexto(p)).toEqual([0, 2])
+  expect(linha(p, 'Dois').texto, emTexto(p)).not.toMatch(/\d:\d\d/)
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(cabecalho(p).chips.aguardando, emTexto(p)).toBe(0)
+  await pedido($, 'segue')
+  await esc($)
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(p.filter(l => l.estado === 'interrompida').map(l => l.titulo), emTexto(p)).toEqual([])
+})
+
+// Regra: pedidos.replano-folha-que-ganha-subtarefas
+test('no replano, a folha em andamento que ganha subtarefas passa o andamento à primeira', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await relogio.advance(5000)
+  const ganha = (): No[] => [{ ...A2[0]!, children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }, { id: '1.2', title: 'Um.dois' }] }, A2[0]!.children![1]!] }]
+  await plan($, ganha())
+  let p = await painel($)
+  esperarEstado(p, 'Um.um', 'andamento')
+  esperarEstado(p, 'Um.dois', 'pendente')
+  esperarEstado(p, 'Um', 'andamento')
+  esperarEstado(p, 'Plano A', 'andamento')
+  expect(cabecalho(p).chips.andamento, emTexto(p)).toBe(1)
+  expect(linha(p, 'Um.um').texto, emTexto(p)).toContain('0:05')
+  await done($, ['1.1'])
+  esperarEstado(await painel($), 'Um.dois', 'pendente')
+  await start($, ['1.2'])
+  await fimDoTurno($)
+  esperarEstado(await painel($), 'Um.dois', 'aguardando')
+})
+
+// Regra: pedidos.replano-folha-que-ganha-subtarefas
+test('no replano, a folha parada com Esc que ganha subtarefas não deixa a marca de parada no pai', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, A2)
+  await start($, ['1'])
+  await esc($)
+  await aviso($)
+  await plan($, [{ ...A2[0]!, children: [{ id: '1', title: 'Um', children: [{ id: '1.1', title: 'Um.um' }, { id: '1.2', title: 'Um.dois' }] }, A2[0]!.children![1]!] }])
+  let p = await painel($)
+  esperarEstado(p, 'Um.um', 'pendente')
+  esperarEstado(p, 'Um.dois', 'pendente')
+  expect(p.filter(l => l.estado === 'interrompida').map(l => l.titulo), emTexto(p)).toEqual([])
+  for (const id of ['1.1', '1.2']) {
+    await start($, [id])
+    await done($, [id])
+  }
+  await fimDoTurno($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  expect(cabecalho(p).chips.interrompidas, emTexto(p)).toBe(0)
+  const principal = (h.proprio()?.groups ?? []).find((g: any) => g.agent === '')
+  expect(JSON.stringify(principal?.tasks ?? []), JSON.stringify(principal)).not.toContain('"stopped":true')
 })
 
 // Regra: pedidos.nivel1-concluido-e-historico
@@ -534,6 +646,8 @@ test("com mais de três pedidos, o pedido antigo com algo aberto fica inteiro e 
   expect(linha(p, 'Pedido 1').texto, emTexto(p)).toContain('1/2')
   expect(p.filter(l => l.texto.includes('+1 pedidos anteriores')).length, emTexto(p)).toBe(1)
   expect(p.some(l => l.texto.includes('+2 pedidos anteriores')), emTexto(p)).toBe(false)
+  for (const titulo of ['Plano 3', 'Plano 4', 'Plano 5']) expect(p.some(l => l.titulo === titulo), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Plano 2'), emTexto(p)).toBe(false)
 })
 
 // Regra: pedidos.plan-avisa-o-que-fez-as-tarefas-antigas
@@ -589,4 +703,67 @@ test('um plano sem ids repetidos não traz avisos', async ($: any, on: any) => {
   const r = await plan($, B)
   expect(r.texto).toContain('Plano exibido')
   expect(r.texto).not.toContain('Avisos')
+})
+
+// Regra: pedidos.plan-decide-com-o-estado-da-gravacao
+test('uma tarefa fechada por outra escrita no meio do plan vira histórico com o cartão, e o plan avisa', async ($: any, on: any) => {
+  fixar(on)
+  const K1 = 'local_41414141-4141-4141-4141-414141414141'
+  host(on, [{ id: K1, nome: 'filha-um', painel: { tasks: [] } }])
+  // Armado, a próxima gravação do painel dá lugar a outra escrita (a tarefa antiga interrompida, como um
+  // cancel de outra chamada a faria) e volta como perdida: o plan relê e decide de novo sobre o painel
+  // já mudado (o harness não deixa o stub chamar a ferramenta).
+  let armado = false
+  const parar = (t: any): any => ({ ...t, status: t.status === 'open' ? 'interrupted' : t.status, started: undefined, children: t.children.map(parar) })
+  on('state.set', async (_s: any, e: any, next: any) => {
+    if (!armado || e.key !== 'groups') return next(e)
+    armado = false
+    const outra = (e.previous as any[]).map(g => (g.agent === '' ? { ...g, tasks: g.tasks.map((t: any) => (t.id === '1' ? parar(t) : t)) } : g))
+    const r = await next({ ...e, value: outra })
+    return { ...r, value: { ...r.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Antiga', children: [{ id: '1.1', title: 'Passo' }] }])
+  await start($, ['1.1'])
+  await abrirSessao($)
+  await aviso($)
+  armado = true
+  const r = await plan($, [{ id: '1', title: 'Nova', children: [{ id: '1.1', title: 'Passo novo' }] }])
+  expect(r.texto).toContain('ficou como histórico')
+  const p = await painel($)
+  esperarEstado(p, 'Passo', 'interrompida')
+  esperarEstado(p, 'Passo novo', 'pendente')
+  expect(cartoes(p, 'filha-um')[0]?.sob, emTexto(p)).toBe('Passo')
+  expect(p.some(l => l.titulo === 'Antiga'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Nova'), emTexto(p)).toBe(true)
+})
+
+// Regra: pedidos.replano-no-lugar
+test('o replano de um nível 1 entre outros mantém o lugar dele na lista', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }, { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Bê um' }] }])
+  await plan($, [{ id: 'A', title: 'Plano A revisto', children: [{ id: '1', title: 'Um' }] }])
+  let p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano A'), emTexto(p)).toBe(false)
+  expect(indice(p, 'Plano A revisto'), emTexto(p)).toBeLessThan(indice(p, 'Plano B'))
+  expect(emTexto(p)).not.toContain('✕')
+  await plan($, [{ id: 'B', title: 'Plano B revisto', children: [{ id: 'b1', title: 'Bê um' }] }])
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Plano B'), emTexto(p)).toBe(false)
+  expect(indice(p, 'Plano A revisto'), emTexto(p)).toBeLessThan(indice(p, 'Plano B revisto'))
+  expect(emTexto(p)).not.toContain('✕')
+})
+
+// Regra: pedidos.titulo-do-pedido-e-cortado
+test('o título do pedido é cortado em 60 com … e o do request em 80 sem …', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  const ultimo = () => String((((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]).at(-1)?.title)
+  await pedido($, 'm'.repeat(70))
+  await plan($, A)
+  expect(ultimo()).toBe(`${'m'.repeat(59)}…`)
+  await pedido($, 'Pedido dois')
+  await plan($, B, 'r'.repeat(90))
+  expect(ultimo()).toBe('r'.repeat(80))
 })

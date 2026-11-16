@@ -1,7 +1,9 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { AGORA, armazem, estado, fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
-import { abrirSessao, aviso, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
-import { cabecalho, comHistorico, emTexto, esperarEstado, linha, montar, painel } from './kit/leitura'
+import { passos } from './kit/ambiente'
+import { abrirSessao, aviso, cancelar, chamadaDoSubagente, done, envio, esc, fimDoSubagente, fimDoSubagenteCom, ferramenta, fimDoTurno, iniciarSessao, lancar, pedido, plan, retomadaDoSubagente, start, type No } from './kit/cenario'
+import { cabecalho, comHistorico, emTexto, esperarEstado, estadoGeral, linha, montar, noApp, painel } from './kit/leitura'
 
 // O cartão de subagente (na raiz e dentro de uma filha), lido pela superfície terminal como as outras linhas.
 
@@ -215,6 +217,32 @@ test('terminado, o cartão segue com "concluído"; com erro, "falhou"; parado, "
   expect(abaixo(p, 'Explore: um').length).toBe(0)
 })
 
+// Regra: subagentes.terminado-com-sobras-segue-concluido
+test("o subagente que termina sem erro deixando tarefas abertas: cartão 'concluído', sobras ✕ dentro e a tarefa de origem ✓", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }])
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }, { id: 'Y', title: 'Escrever o relato' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await done($, ['X'], undefined, 'sub-1')
+  await start($, ['Y'], 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('concluído')
+  const dentro = abaixo(p, 'general-purpose: revisar testes').map(l => l.titulo)
+  expect(dentro, emTexto(p)).toContain('Ler os testes')
+  expect(dentro).toContain('Escrever o relato')
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Escrever o relato', 'interrompida')
+  esperarEstado(p, 'Investigar', 'concluida')
+  // A sobra do subagente concluído não deixa a faixa cinza: o pedido terminou bem (decisão 45).
+  expect(estadoGeral(await noApp($)), emTexto(p)).toBe('concluído')
+})
+
 // Regra: subagentes.varios-juntos-num-cartao-de-grupo
 test('mais de três lançados juntos ficam num cartão de grupo, uma linha por agente; três, cada um no seu', async ($: any, on: any) => {
   fixar(on)
@@ -232,6 +260,34 @@ test('mais de três lançados juntos ficam num cartão de grupo, uma linha por a
   expect(abaixo(p, '4 subagentes').map(l => l.titulo)).toEqual(['Explore: a', 'Explore: b', 'Explore: c', 'Explore: d'])
 })
 
+// Regra: subagentes.cartao-de-grupo-diz-a-falha
+test("o cartão de grupo diz a falha de um agente, com os outros trabalhando e depois de todos terminarem; parado, diz 'interrompido'", async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['s1', 's2', 's3', 's4', 't1', 't2', 't3', 't4'])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await start($, ['1'])
+  for (const d of ['a', 'b', 'c', 'd']) await lancar($, { descricao: d })
+  await fimDoSubagenteCom($, 's1', { erro: true })
+  let p = await painel($)
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('3 trabalhando')
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('1 falhou')
+  for (const s of ['s2', 's3', 's4']) await fimDoSubagente($, s)
+  p = await painel($)
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).toContain('falhou')
+  expect(linha(p, '4 subagentes').texto, emTexto(p)).not.toContain('interrompido')
+  await done($, ['1'])
+  await start($, ['2'])
+  for (const d of ['e', 'f', 'g', 'h']) await lancar($, { descricao: d })
+  await fimDoSubagenteCom($, 't1', { parado: true })
+  for (const s of ['t2', 't3', 't4']) await fimDoSubagente($, s)
+  p = await painel($)
+  const grupos = p.filter(l => l.titulo === '4 subagentes')
+  expect(grupos.length, emTexto(p)).toBe(2)
+  expect(grupos[1]!.texto, emTexto(p)).toContain('interrompido')
+  expect(grupos[1]!.texto, emTexto(p)).not.toContain('falhou')
+})
+
 // Regra: subagentes.varios-juntos-num-cartao-de-grupo
 test('os agentes de um workflow ficam num cartão "Workflow · N agentes"', async ($: any, on: any) => {
   fixar(on)
@@ -243,6 +299,53 @@ test('os agentes de um workflow ficam num cartão "Workflow · N agentes"', asyn
   await lancar($, { descricao: 'ler os testes', run: 'wf_1' })
   const p = await painel($)
   expect(abaixo(p, 'Workflow · 2 agentes').map(l => l.titulo), emTexto(p)).toEqual(['Explore: ler o diff', 'Explore: ler os testes'])
+})
+
+const DUAS: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }, { id: '2', title: 'Revisar' }] }]
+
+// Regra: subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+test('com duas tarefas em andamento, os agentes de um workflow ficam todos na tarefa do primeiro, num cartão só', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await pedido($, 'Pedido um')
+  await plan($, DUAS)
+  await start($, ['1', '2'])
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_1' })
+  const p = await painel($)
+  expect(abaixo(p, 'Investigar').map(l => l.titulo), emTexto(p)).toContain('Workflow · 3 agentes')
+  expect(abaixo(p, 'Workflow · 3 agentes').map(l => l.titulo)).toEqual(['Explore: ler o diff', 'Explore: ler os testes', 'Explore: ler o kit'])
+  expect(abaixo(p, 'Revisar')).toEqual([])
+})
+
+// Regra: subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+test('os agentes de um workflow lançados antes do plan são adotados juntos, pela tarefa do primeiro', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await pedido($, 'Pedido um')
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_1' })
+  await plan($, DUAS)
+  const p = await painel($)
+  const cartao = p.filter(l => l.titulo === 'Workflow · 3 agentes')
+  expect(cartao.length, emTexto(p)).toBe(1)
+  expect(p.filter(l => l.titulo.startsWith('Workflow ·')).length).toBe(1)
+})
+
+// Regra: subagentes.tempo-do-cartao-do-lancamento-ao-fim
+test('o tempo do cartão do subagente com tarefas conta do lançamento ao fim', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'ler o kit' })
+  await relogio.advance(3000)
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await relogio.advance(2000)
+  await done($, ['X'], undefined, 'sub-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  expect(linha(p, 'Explore: ler o kit').texto, emTexto(p)).toContain('0:05')
 })
 
 // Regra: subagentes.fora-da-contagem
@@ -911,6 +1014,86 @@ test('terminado, o subagente lançado por outro subagente segue com o cartão "c
   expect(linha(p, 'Explore: achar o kit').texto).toContain('concluído')
 })
 
+// Regra: subagentes.fim-do-turno-nao-fecha-tarefa-de-subagente-vivo
+test('o fim do turno da sessão não fecha a tarefa de um subagente que ainda trabalha, mesmo com o subagente que ele lançou concluído', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes', segundoPlano: true })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  await fimDoSubagente($, 'neto-1')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(['concluida', 'interrompida'], emTexto(p)).not.toContain(linha(p, 'Ler os testes').estado)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('em segundo plano')
+  expect(linha(p, 'Investigar').estado, emTexto(p)).not.toBe('concluida')
+  await done($, ['X'], undefined, 'sub-1')
+  p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+})
+
+// Um subagente com duas tarefas, "Ler os testes" iniciada e "Corrigir" pendente, que lança outro de
+// "Ler os testes".
+async function subComNeto($: any, on: any, segundoPlano = false) {
+  fixar(on)
+  lancaveis(on, ['sub-1', 'neto-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes', segundoPlano })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }, { id: 'Y', title: 'Corrigir' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+}
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o subagente termina com o turno da sessão em curso: a tarefa de onde ele lançou outro, já concluído, fica ✓; o resto, ✕', async ($: any, on: any) => {
+  await subComNeto($, on)
+  await fimDoSubagente($, 'neto-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('concluído')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o subagente termina com o turno da sessão já terminado: a tarefa de onde ele lançou outro, já concluído, fica ✓; o resto, ✕', async ($: any, on: any) => {
+  await subComNeto($, on, true)
+  await fimDoSubagente($, 'neto-1')
+  await fimDoTurno($)
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('concluído')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o lançado pelo subagente falhou: a tarefa de onde saiu fica ✕ "falhou" quando o subagente termina', async ($: any, on: any) => {
+  await subComNeto($, on)
+  await fimDoSubagenteCom($, 'neto-1', { erro: true })
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  expect(linha(p, 'Ler os testes').texto, emTexto(p)).toContain('falhou')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('o lançado ainda roda quando o subagente termina: a tarefa de onde saiu fica ✕ com o resto', async ($: any, on: any) => {
+  await subComNeto($, on)
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  expect(linha(p, 'Ler os testes').texto, emTexto(p)).not.toContain('falhou')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
 // Regra: subagentes.neto-segue-o-cartao-de-quem-o-lancou, subagentes.na-filha
 test('numa filha, o subagente terminado que outro subagente lançou segue no cartão dele', async ($: any, on: any) => {
   fixar(on)
@@ -1354,6 +1537,34 @@ const PERGUNTA = {
   questions: [{ question: 'Qual?', header: 'Rumo', multiSelect: false, options: [{ label: 'Opção A', description: 'a' }, { label: 'Opção B', description: 'b' }] }],
 }
 
+// Regra: subagentes.cartao-fica-com-a-origem-fechada
+test('num pedido sem plano que continua o plano anterior, com a pergunta na tarefa em andamento e sem pendente, o cartão do subagente vai à última tarefa iniciada desse plano, já concluída', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['2'])
+  await done($, ['2'])
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await lancar($, { descricao: 'conferir o diff' })
+  await relogio.advance(1000)
+  await resp
+  const p = await painel($)
+  const doCartao = (l: any) => l.titulo.includes('conferir o diff')
+  expect(abaixo(p, 'Dois').filter(doCartao).length, emTexto(p)).toBe(1)
+  expect(abaixo(p, 'Um').filter(doCartao).length, emTexto(p)).toBe(0)
+  expect(p.filter(doCartao).length, emTexto(p)).toBe(1)
+  esperarEstado(p, 'Dois', 'concluida')
+})
+
 // Regra: subagentes.pai-conclui-no-fim-do-turno
 test('com a sessão aberta na tarefa esperando a pessoa, o subagente concluído não a fecha no fim do turno', async ($: any, on: any) => {
   fixar(on)
@@ -1647,4 +1858,609 @@ test('o done numa tarefa interrompida diz que o start a reabre', async ($: any, 
   const r = await done($, ['1'])
   expect(r.texto).toContain('foi interrompida')
   expect(r.texto).toContain('start')
+})
+
+// O sub-1, conferido pela lista do app, planeja "Ler os testes" e "Corrigir" e dá start na primeira;
+// com `neto`, lança dela o neto-1. A lista começa com os dois rodando. `stubs`: os do teste, antes da
+// primeira chamada a $.
+async function subPelaLista($: any, on: any, neto: boolean, stubs?: (relogio: any) => void) {
+  const { relogio, log } = fixar(on)
+  host(on, [])
+  const app = listaDoApp(on, ['sub-1', 'neto-1'])
+  stubs?.(relogio)
+  app.lista = [listado('sub-1', 'running'), listado('neto-1', 'running')]
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }, { id: 'Y', title: 'Corrigir' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  if (neto) await lancar($, { descricao: 'achar o kit', pai: 'sub-1' })
+  return { relogio, log, app }
+}
+
+// Regra: subagentes.sem-fim-vira-interrompido
+test('o subagente com tarefas que some da lista do app deixa interrompido o que deixou aberto', async ($: any, on: any) => {
+  const { relogio, app } = await subPelaLista($, on, false)
+  app.lista = []
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('interrompido')
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado, subagentes.sem-fim-vira-interrompido
+test('encerrado pela lista do app, o subagente deixa ✓ a tarefa de onde lançou outro já concluído, e ✕ o resto', async ($: any, on: any) => {
+  const { relogio, app } = await subPelaLista($, on, true)
+  await fimDoSubagente($, 'neto-1')
+  app.lista = [listado('neto-1', 'completed')]
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('interrompido')
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+})
+
+// Regra: subagentes.tarefa-do-subagente-reflete-o-lancado
+test('encerrado pela lista do app com uma pergunta dele ainda aberta, o subagente deixa ✓ a tarefa de onde lançou outro já concluído', async ($: any, on: any) => {
+  // A resposta só chega bem depois das releituras que encerram o cartão.
+  const { relogio, app } = await subPelaLista($, on, true, r => responderDepois(on, r, 'AskUserQuestion', 'Opção A', 60000))
+  await fimDoSubagente($, 'neto-1')
+  const resp = chamadaDoSubagente($, 'sub-1', 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  app.lista = [listado('neto-1', 'completed')]
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  const p = await painel($)
+  esperarEstado(p, 'Ler os testes', 'concluida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  const cartao = abaixo(p, 'general-purpose: revisar testes')
+  expect(cartao.some(l => l.estado === 'aguardando' || /aguardando|pergunta/i.test(l.texto)), emTexto(p)).toBe(false)
+  await relogio.advance(60000)
+  await resp
+})
+
+// Regra: subagentes.sem-fim-vira-interrompido
+test('na releitura que encerra o cartão, uma falha ao refletir os lançados não impede a interrupção do que o subagente deixou aberto', async ($: any, on: any) => {
+  let armado = false
+  // Armado, a leitura das sessões filhas falha: o reflexo dos lançados a lê, o encerramento do cartão não.
+  const { relogio, log, app } = await subPelaLista($, on, false, () =>
+    on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'children' ? { deny: 'estouro de teste' } : next(e))),
+  )
+  app.lista = []
+  armado = true
+  for (let i = 0; i < 3; i++) await relogio.advance(3000)
+  armado = false
+  const p = await painel($)
+  expect(linha(p, 'general-purpose: revisar testes').texto, emTexto(p)).toContain('interrompido')
+  esperarEstado(p, 'Ler os testes', 'interrompida')
+  esperarEstado(p, 'Corrigir', 'interrompida')
+  expect(log.some(l => l.includes('releitura dos subagentes, passo') && l.includes('estouro de teste')), log.join('\n')).toBe(true)
+})
+
+// Pedido "continue" sem plano que retoma "Um" com start, com a pergunta aberta nela e "Dois" pendente do
+// plano anterior; um subagente é lançado (vai a "Dois", só como lugar) e termina como `fim` disser.
+const subNaPendenteDoPlanoAnterior = async ($: any, on: any, fim: (agente: string) => Promise<unknown>) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await lancar($, { descricao: 'conferir o diff' })
+  await fim('sub-1')
+  await relogio.advance(1000)
+  await resp
+  await fimDoTurno($)
+  return await painel($)
+}
+
+// Regra: subagentes.pai-conclui-no-fim-do-turno
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, o subagente concluído posto na pendente do plano anterior não a fecha no fim do turno', async ($: any, on: any) => {
+  const p = await subNaPendenteDoPlanoAnterior($, on, a => fimDoSubagente($, a))
+  const doCartao = (l: any) => l.titulo.includes('conferir o diff')
+  expect(abaixo(p, 'Dois').filter(doCartao).length, emTexto(p)).toBe(1)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  esperarEstado(p, 'Dois', 'pendente')
+})
+
+// Regra: subagentes.pai-reflete-falha-ou-interrupcao
+test('num pedido sem plano, com a pergunta aberta na tarefa em andamento, o subagente que falha posto na pendente do plano anterior não a deixa interrompida', async ($: any, on: any) => {
+  const p = await subNaPendenteDoPlanoAnterior($, on, a => fimDoSubagenteCom($, a, { erro: true }))
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('interrompida')
+  esperarEstado(p, 'Dois', 'pendente')
+})
+
+// Regra: subagentes.cartao-mostra-modelo-e-estado
+test('o cartão do subagente diz o esforço ao lado do modelo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const passoDoModelo = passos(on, relogio)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { descricao: 'buscar usos de hover' })
+  await passoDoModelo($, { agente: 'sub-1', esforco: 'high' })
+  const p = await painel($)
+  const cartao = p.find(l => l.titulo === 'Explore: buscar usos de hover')
+  expect(cartao?.texto ?? '', emTexto(p)).toContain('Opus 5.5 · high')
+})
+
+// Regra: subagentes.plan-request-e-summary-do-subagente
+test('o plan do subagente replaneja no lugar, e o request e o summary dele não mexem no pedido', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await plan($, [{ id: 'X', title: 'Ler os testes de novo' }], 'Título do sub', 'sub-1')
+  await done($, ['X'], 'Resumo do subagente', 'sub-1')
+  const p = await painel($)
+  expect(p.filter(l => l.titulo.startsWith('Ler os testes')).map(l => l.titulo), emTexto(p)).toEqual(['Ler os testes de novo'])
+  expect(p.some(l => l.estado === 'interrompida'), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Pedido um', 'andamento')
+  expect(p.some(l => l.texto.includes('Título do sub')), emTexto(p)).toBe(false)
+  expect(p.some(l => l.texto.includes('Resumo do subagente')), emTexto(p)).toBe(false)
+})
+
+// Regra: subagentes.teammate-nao-termina-com-o-turno
+test('o fim do turno de um teammate não interrompe as tarefas dele; o de um subagente comum, sim', async ($: any, on: any) => {
+  fixar(on)
+  on('agent.list', () => ({ value: [{ id: 'tm-1', type: 'teammate', description: 'colega' }, { id: 'sub-1', type: 'general-purpose', description: 'sub' }] }))
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await plan($, [{ id: 'T', title: 'Tarefa do colega' }], undefined, 'tm-1')
+  await start($, ['T'], 'tm-1')
+  await plan($, [{ id: 'S', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await start($, ['S'], 'sub-1')
+  await fimDoSubagente($, 'tm-1')
+  await fimDoSubagente($, 'sub-1')
+  const p = await painel($)
+  esperarEstado(p, 'Tarefa do colega', 'andamento')
+  esperarEstado(p, 'Tarefa do sub', 'interrompida')
+})
+
+// O subagente e o workflow que ainda trabalham sob um pedido que saiu de vista.
+const PLANO_LONGO_U3: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }, { id: 'r2', title: 'Segundo passo' }] }]
+const PERGUNTA_U3: No[] = [{ id: 'Q', title: 'Estimar o tempo' }]
+const SO_INVESTIGAR_U3: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Investigar' }] }]
+const PLANO_DOIS_U3: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'Depois' }] }]
+// O caso real: o plano longo aberto segura o trabalho; a pergunta "Quanto falta?" lança o que cada teste
+// pede e fecha; três pedidos depois, ela está em "+1 pedidos anteriores".
+async function perguntaNoHistoricoU3($: any, relogio: any, lancamentos: () => Promise<void>) {
+  await pedido($, 'Pedido um')
+  await plan($, PLANO_LONGO_U3)
+  await start($, ['r1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Quanto falta?')
+  await plan($, PERGUNTA_U3)
+  await start($, ['Q'])
+  await lancamentos()
+  await done($, ['Q'], 'Falta pouco')
+  await fimDoTurno($)
+  for (const i of [3, 4, 5]) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+  }
+}
+async function workflowU3($: any) {
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_u3', segundoPlano: true })
+  await fimDoSubagente($, 'w1')
+  await fimDoSubagente($, 'w2')
+}
+const WORKFLOW_SOLTO_U3 = 'Workflow · 3 agentes · do pedido "Quanto falta?"'
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.varios-juntos-num-cartao-de-grupo
+test('o workflow com um agente ainda trabalhando sob um pedido recolhido em "+N pedidos anteriores" aparece solto no fim, com o pedido no título, e sai dali quando o último agente termina', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await perguntaNoHistoricoU3($, relogio, () => workflowU3($))
+  let p = await painel($)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Estimar o tempo'), emTexto(p)).toBe(false)
+  const cartoes = p.filter(l => l.titulo.startsWith('Workflow ·'))
+  expect(cartoes.map(l => l.titulo), emTexto(p)).toEqual([WORKFLOW_SOLTO_U3])
+  const cartao = cartoes[0]!
+  expect(cartao.texto, emTexto(p)).toContain('1 trabalhando')
+  expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Folha 5')))
+  expect(cartao.nivel, emTexto(p)).toBe(linha(p, 'Pedido 5').nivel)
+  expect(abaixo(p, WORKFLOW_SOLTO_U3).map(l => l.titulo), emTexto(p)).toEqual(['Explore: ler o diff', 'Explore: ler os testes', 'Explore: ler o kit'])
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  await fimDoSubagente($, 'w3')
+  p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('Workflow ·')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+  const h = await comHistorico($, 1)
+  expect(abaixo(h, 'Estimar o tempo').map(l => l.titulo), emTexto(h)).toContain('Workflow · 3 agentes')
+  expect(h.filter(l => l.titulo.startsWith('Workflow ·')).length, emTexto(h)).toBe(1)
+  expect(linha(h, 'Workflow · 3 agentes').texto, emTexto(h)).toContain('concluído')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('com "+N pedidos anteriores" aberta, o workflow que ainda trabalha fica sob a tarefa dele, uma vez só e sem o pedido no título', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await perguntaNoHistoricoU3($, relogio, () => workflowU3($))
+  const h = await comHistorico($, 1)
+  expect(h.filter(l => l.titulo.startsWith('Workflow ·')).map(l => l.titulo), emTexto(h)).toEqual(['Workflow · 3 agentes'])
+  expect(abaixo(h, 'Estimar o tempo').map(l => l.titulo), emTexto(h)).toContain('Workflow · 3 agentes')
+  expect(linha(h, 'Workflow · 3 agentes').texto, emTexto(h)).toContain('1 trabalhando')
+  expect(pilula(h), emTexto(h)).toContain('▸ 1')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('o subagente avulso ainda em segundo plano sob um pedido que saiu do trabalho aparece solto no fim, e sai quando termina', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, SO_INVESTIGAR_U3)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await done($, ['1'], 'Lançado')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DOIS_U3)
+  await start($, ['b1'])
+  let p = await painel($)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Investigar'), emTexto(p)).toBe(false)
+  const cartao = linha(p, 'Explore: varrer o repo · do pedido "Pedido um"')
+  expect(p.indexOf(cartao), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Depois')))
+  expect(cartao.texto, emTexto(p)).toContain('em segundo plano')
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  await fimDoSubagente($, 'sub-1')
+  p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('Explore: varrer o repo')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('do cartão de grupo vai o grupo inteiro; o avulso já terminado ao lado de outro vivo fica no histórico', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['a1', 'a2'])
+  await perguntaNoHistoricoU3($, relogio, async () => {
+    await lancar($, { descricao: 'ler o diff' })
+    await fimDoSubagente($, 'a1')
+    await lancar($, { descricao: 'ler o kit', segundoPlano: true })
+  })
+  const p = await painel($)
+  linha(p, 'Explore: ler o kit · do pedido "Quanto falta?"')
+  expect(p.some(l => l.titulo.startsWith('Explore: ler o diff')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.tarefas-do-subagente-contam-acima
+test('o subagente com tarefa própria aberta sob um pedido que saiu do trabalho leva o pedido no título, e a tarefa dele conta no cabeçalho', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, SO_INVESTIGAR_U3)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await plan($, [{ id: 's', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await done($, ['1'], 'Lançado')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DOIS_U3)
+  await start($, ['b1'])
+  const p = await painel($)
+  const titulo = 'Explore: varrer o repo · do pedido "Pedido um"'
+  linha(p, titulo)
+  expect(abaixo(p, titulo).map(l => l.titulo), emTexto(p)).toContain('Tarefa do sub')
+  expect(cabecalho(p).total, emTexto(p)).toBe(2)
+})
+
+const PLANO_LONGO_U2: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }, { id: 'r2', title: 'Segundo passo' }, { id: 'r3', title: 'Terceiro passo' }] }]
+const SO_PASSO_U2: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }] }]
+const NO_MEIO_U2: No[] = [{ id: 'Q', title: 'Estimar o tempo' }]
+// Um plano aberto com "Primeiro passo" em andamento; o turno acaba; a pergunta do meio ("Quanto falta?")
+// ganha um plano próprio, com uma tarefa só, iniciada e concluída. Com o relógio, 1 s entre os passos.
+const perguntaNoMeioU2 = async ($: any, relogio?: any, plano: No[] = PLANO_LONGO_U2) => {
+  const anda = async () => {
+    if (relogio) await relogio.advance(1000)
+  }
+  await pedido($, 'Pedido um')
+  await anda()
+  await plan($, plano)
+  await anda()
+  await start($, ['r1'])
+  await anda()
+  await fimDoTurno($)
+  await anda()
+  await pedido($, 'Quanto falta?')
+  await anda()
+  await plan($, NO_MEIO_U2)
+  await anda()
+  await start($, ['Q'])
+  await anda()
+  await done($, ['Q'], 'Falta pouco')
+}
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado, subagentes.cartao-desde-o-lancamento
+test('sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, o subagente vai à pendente do plano, não à tarefa concluída da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaNoMeioU2($, relogio)
+  await relogio.advance(1000)
+  await start($, ['r1'])
+  await relogio.advance(1000)
+  await done($, ['r1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await relogio.advance(1000)
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  const cartao = abaixo(p, 'Segundo passo').find(l => l.titulo === 'Explore: conferir o diff')
+  expect(cartao, emTexto(p)).toBeDefined()
+  expect(cartao.texto).toContain('trabalhando')
+  expect(abaixo(p, 'Estimar o tempo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado, subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+test('sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, o workflow fica num cartão só sob a pendente do plano', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await perguntaNoMeioU2($)
+  await start($, ['r1'])
+  await done($, ['r1'])
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_u2' })
+  const p = await painel($)
+  expect(abaixo(p, 'Segundo passo').map(l => l.titulo), emTexto(p)).toContain('Workflow · 3 agentes')
+  expect(p.filter(l => l.titulo.startsWith('Workflow ·')).length, emTexto(p)).toBe(1)
+  expect(abaixo(p, 'Estimar o tempo'), emTexto(p)).toEqual([])
+  expect(abaixo(p, 'Terceiro passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('sem start no plano anterior depois da pergunta respondida, o subagente segue sob a tarefa da pergunta', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaNoMeioU2($)
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Segundo passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com o plano anterior todo fechado, o subagente segue sob a tarefa da pergunta', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaNoMeioU2($, undefined, SO_PASSO_U2)
+  await start($, ['r1'])
+  await done($, ['r1'])
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Primeiro passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: subagentes.plan-request-e-summary-do-subagente
+test('o summary que um subagente passa no done não vira a linha ↩ do pedido quando o turno termina', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  const hR501 = host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await done($, ['X'], 'Resumo do subagente', 'sub-1')
+  const r = await done($, ['1', '2'])
+  expect(r.texto).toContain('falta o summary')
+  await fimDoTurno($)
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('Resumo do subagente')), emTexto(p)).toBe(false)
+  const turnos: any[] = ((hR501.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? [])
+  expect(turnos.length, JSON.stringify(hR501.proprio() ?? {})).toBeGreaterThan(0)
+  expect(turnos.filter(u => typeof u.brief === 'string' && u.brief !== ''), JSON.stringify(turnos)).toEqual([])
+})
+
+// O cartão de grupo que ainda trabalha sob um pedido que saiu do trabalho (o pedido um, com dois pedidos só).
+async function foraDoTrabalhoR7($: any, lancamentos: () => Promise<void>) {
+  await pedido($, 'Pedido um')
+  await plan($, SO_INVESTIGAR_U3)
+  await start($, ['1'])
+  await lancamentos()
+  await done($, ['1'], 'Lançado')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DOIS_U3)
+  await start($, ['b1'])
+}
+const WORKFLOW_SOLTO_R7 = 'Workflow · 3 agentes · do pedido "Pedido um"'
+async function workflowR7($: any) {
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_r7', segundoPlano: true })
+}
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o workflow sob um pedido que saiu do trabalho, com um agente ainda trabalhando, aparece solto no fim inteiro, com os agentes já terminados, e os terminados só saem depois que o último termina', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await foraDoTrabalhoR7($, async () => {
+    await workflowR7($)
+    await fimDoSubagente($, 'w1')
+    await fimDoSubagente($, 'w2')
+  })
+  let p = await painel($)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Investigar'), emTexto(p)).toBe(false)
+  const cartoes = p.filter(l => l.titulo.startsWith('Workflow ·'))
+  expect(cartoes.map(l => l.titulo), emTexto(p)).toEqual([WORKFLOW_SOLTO_R7])
+  expect(cartoes[0]!.texto, emTexto(p)).toContain('1 trabalhando')
+  expect(p.indexOf(cartoes[0]!), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Depois')))
+  expect(abaixo(p, WORKFLOW_SOLTO_R7).map(l => l.titulo), emTexto(p)).toEqual(['Explore: ler o diff', 'Explore: ler os testes', 'Explore: ler o kit'])
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  expect(publicados(h)).toContain('w1')
+  expect(publicados(h)).toContain('w2')
+  expect(publicados(h)).toContain('w3')
+  await fimDoSubagente($, 'w3')
+  p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('Workflow ·')), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo.startsWith('Explore:')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+  await fimDoTurno($)
+  await pedido($, 'Pedido três')
+  await plan($, TERCEIRO)
+  const depois = publicados(h)
+  expect(depois).not.toContain('w1')
+  expect(depois).not.toContain('w2')
+  expect(depois).not.toContain('w3')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('os agentes do workflow que terminam depois de o pedido sair do trabalho seguem no cartão solto, com o mesmo título', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await foraDoTrabalhoR7($, () => workflowR7($))
+  let p = await painel($)
+  expect(linha(p, WORKFLOW_SOLTO_R7).texto, emTexto(p)).toContain('3 trabalhando')
+  for (const [agente, vivos] of [['w1', '2'], ['w2', '1']] as const) {
+    await fimDoSubagente($, agente)
+    p = await painel($)
+    const cartoes = p.filter(l => l.titulo.startsWith('Workflow ·'))
+    expect(cartoes.map(l => l.titulo), emTexto(p)).toEqual([WORKFLOW_SOLTO_R7])
+    expect(cartoes[0]!.texto, emTexto(p)).toContain(`${vivos} trabalhando`)
+    expect(abaixo(p, WORKFLOW_SOLTO_R7).length, emTexto(p)).toBe(3)
+  }
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.varios-juntos-num-cartao-de-grupo
+test('mais de três subagentes lançados juntos sob um pedido que saiu do trabalho seguem num cartão só enquanto um deles trabalha', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['s1', 's2', 's3', 's4'])
+  await foraDoTrabalhoR7($, async () => {
+    for (const d of ['ler o diff', 'ler os testes', 'ler o kit', 'ler o catálogo']) await lancar($, { descricao: d, segundoPlano: true })
+    for (const s of ['s1', 's2', 's3']) await fimDoSubagente($, s)
+  })
+  const p = await painel($)
+  const titulo = '4 subagentes · do pedido "Pedido um"'
+  expect(linha(p, titulo).texto, emTexto(p)).toContain('1 trabalhando')
+  expect(abaixo(p, titulo).length, emTexto(p)).toBe(4)
+  expect(p.filter(l => l.titulo.startsWith('Explore:') && l.nivel === linha(p, titulo).nivel), emTexto(p)).toEqual([])
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('com "+N pedidos anteriores" aberta, o workflow do pedido que saiu do trabalho fica inteiro sob a tarefa dele, sem o pedido no título', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await foraDoTrabalhoR7($, async () => {
+    await workflowR7($)
+    await fimDoSubagente($, 'w1')
+    await fimDoSubagente($, 'w2')
+  })
+  const h = await comHistorico($, 1)
+  expect(h.filter(l => l.titulo.startsWith('Workflow ·')).map(l => l.titulo), emTexto(h)).toEqual(['Workflow · 3 agentes'])
+  expect(abaixo(h, 'Investigar').map(l => l.titulo), emTexto(h)).toContain('Workflow · 3 agentes')
+  expect(linha(h, 'Workflow · 3 agentes').texto, emTexto(h)).toContain('1 trabalhando')
+  expect(abaixo(h, 'Workflow · 3 agentes').length, emTexto(h)).toBe(3)
+})
+
+// Regra: subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o avulso já terminado ao lado de outro vivo, sob um pedido que saiu do trabalho, sai com o pedido como antes', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  lancaveis(on, ['a1', 'a2'])
+  await foraDoTrabalhoR7($, async () => {
+    await lancar($, { descricao: 'ler o diff' })
+    await fimDoSubagente($, 'a1')
+    await lancar($, { descricao: 'ler o kit', segundoPlano: true })
+  })
+  const p = await painel($)
+  linha(p, 'Explore: ler o kit · do pedido "Pedido um"')
+  expect(p.some(l => l.titulo.startsWith('Explore: ler o diff')), emTexto(p)).toBe(false)
+  expect(publicados(h)).toContain('a2')
+  expect(publicados(h)).not.toContain('a1')
+})
+
+// A pergunta do meio fechada sem start (`fechar`: done direto ou cancel), com o relógio andando 1 s entre
+// os passos: o start em "Primeiro passo" é de antes do plan da pergunta.
+async function perguntaFechadaSemStartR7($: any, relogio: any, fechar: () => Promise<unknown>) {
+  const anda = () => relogio.advance(1000)
+  await pedido($, 'Pedido um')
+  await anda()
+  await plan($, PLANO_LONGO_U2)
+  await anda()
+  await start($, ['r1'])
+  await anda()
+  await fimDoTurno($)
+  await anda()
+  await pedido($, 'Quanto falta?')
+  await anda()
+  await plan($, NO_MEIO_U2)
+  await anda()
+  await fechar()
+  await anda()
+}
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio fechada por done direto, sem start, e sem volta ao plano anterior, o subagente fica sob a tarefa da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaFechadaSemStartR7($, relogio, () => done($, ['Q'], 'Falta pouco'))
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Primeiro passo'), emTexto(p)).toEqual([])
+  expect(abaixo(p, 'Segundo passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio tirada com cancel e sem volta ao plano anterior, o subagente fica sob a tarefa da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaFechadaSemStartR7($, relogio, () => cancelar($, ['Q']))
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Primeiro passo'), emTexto(p)).toEqual([])
+  expect(abaixo(p, 'Segundo passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio fechada sem start e o plano anterior retomado depois, o subagente vai à pendente do plano', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaFechadaSemStartR7($, relogio, () => done($, ['Q'], 'Falta pouco'))
+  await start($, ['r1'])
+  await relogio.advance(1000)
+  await done($, ['r1'])
+  await relogio.advance(1000)
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Segundo passo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Estimar o tempo'), emTexto(p)).toEqual([])
 })

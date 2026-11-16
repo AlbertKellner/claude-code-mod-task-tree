@@ -28,7 +28,9 @@ export const ferramenta = async ($: any, tool: string, args: object = {}): Promi
 export const envio = ($: any, para: string, texto = 'oi') => ferramenta($, 'SendMessage', { to: para, message: texto })
 
 // O modelo abre uma sessão filha (start_session); o stub do host devolve o id da próxima filha dele.
-export const abrirSessao = ($: any) => ferramenta($, 'mcp__ccd_session__start_session', { title: 'filha' })
+// Com `nome`, a chamada leva também o nome da sessão.
+export const abrirSessao = ($: any, nome?: string) =>
+  ferramenta($, 'mcp__ccd_session__start_session', nome === undefined ? { title: 'filha' } : { title: 'filha', name: nome })
 
 // Um processo novo: o session.start, com a lista do host e os arquivos lidos em segundo plano.
 export const iniciarSessao = async ($: any) => {
@@ -38,8 +40,6 @@ export const iniciarSessao = async ($: any) => {
 // A retomada de uma sessão (o state passa a ser o do store dela) e o /clear.
 export const retomar = ($: any, id: string) => $.classic.SessionStart({ source: 'resume', session_id: id })
 export const limpar = ($: any) => $.classic.SessionStart({ source: 'clear' })
-
-// Troca a visão, como /task-tree resumida | completa.
 
 // Uma mensagem de outra sessão: abre um pedido marcado como recebido.
 export const mensagemDe = ($: any, de: string, texto: string) =>

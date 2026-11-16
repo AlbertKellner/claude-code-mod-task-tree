@@ -1,8 +1,12 @@
-// Where this session's git is: the repository (its folder's name) and the branch, read off the
-// files alone, with no process: `$.session.root()` for the root (it follows /cd and a worktree), then
+// Where this session's git is: the repository (its folder's name; in a worktree, the main
+// repository's) and the branch, read off the files alone, with no process: `$.session.root()` for
+// the root (it follows /cd and a worktree), then
 // up the folders from there to the first one with a `.git` (a session in a subfolder of a repository
 // shows the repository and its branch, as at its root), and `$.fs.read` for `<dir>/.git/HEAD`, or,
 // where `.git` is a file ("gitdir: <path>", a worktree or a submodule), `<path>/HEAD`.
+// In a worktree the gitdir is `<main repository>/.git/worktrees/<name>`: the name shown is the main
+// repository's, the branch the worktree's own (the person's words: "O do repositório principal
+// (Recomendado)"); a submodule, or a gitdir anywhere else, keeps the folder's name.
 // "ref: refs/heads/<branch>" names the branch; a bare hash is a detached head, shown by its first 7
 // characters. The app gives no branch of its own (get_session has the cwd only), so each session
 // reads its own and publishes it for its card (the person's words: "qual repositório e qual branch a
@@ -43,6 +47,28 @@ export function shortPath(path: string, home: string | undefined): string {
   return p
 }
 
+// The main repository's folder name for a worktree's gitdir (`<main>/.git/worktrees/<name>`, either
+// slash); nothing for any other gitdir (a submodule's `<outer>/.git/modules/<name>`, elsewhere).
+export function mainOf(gitdir: string): string | undefined {
+  const m = /^(.*)[\\/]\.git[\\/]worktrees[\\/][^\\/]+[\\/]*$/.exec(gitdir.trim())
+  if (!m || m[1] === '') return undefined
+  const name = basename(m[1]!)
+  return name === '' || name === '.' || name === '..' ? undefined : name
+}
+
+// A path with its `.` and `..` folders resolved and its slashes made `/`; the drive letter, a leading
+// slash or a share's two are kept. A `..` past the start stays (a relative path).
+export function resolvePath(path: string): string {
+  const lead = /^(?:[\\/]{2}|[a-zA-Z]:[\\/]|[\\/])/.exec(path)?.[0] ?? ''
+  const out: string[] = []
+  for (const part of path.slice(lead.length).split(/[\\/]+/)) {
+    if (part === '' || part === '.') continue
+    if (part === '..' && out.length > 0 && out[out.length - 1] !== '..') out.pop()
+    else if (part !== '..' || lead === '') out.push(part)
+  }
+  return lead.replace(/\\/g, '/') + out.join('/')
+}
+
 // How far up the folders a `.git` is looked for.
 const UP = 40
 
@@ -70,6 +96,7 @@ export async function readGit($: any): Promise<GitInfo | undefined> {
     // session's folder a plain folder.
     try {
       let head: string | undefined
+      let repo = basename(dir)
       try {
         head = String(await $.fs.read(`${dir}/.git/HEAD`))
       } catch {}
@@ -79,12 +106,15 @@ export async function readGit($: any): Promise<GitInfo | undefined> {
         const m = /^gitdir:\s*(.+)$/m.exec(dot)
         if (!m) return await folder()
         const gd = m[1]!.trim()
-        const abs = /^([a-zA-Z]:[\\/]|[\\/])/.test(gd) ? gd : `${dir}/${gd}`
+        // A relative gitdir (a worktree made inside the main repository's folder) is resolved against
+        // the folder first: the main repository's name is read from it, and its HEAD read through it.
+        const abs = /^([a-zA-Z]:[\\/]|[\\/])/.test(gd) ? gd : resolvePath(`${dir}/${gd}`)
         head = String(await $.fs.read(`${abs}/HEAD`))
+        repo = mainOf(abs) ?? repo
       }
       const parsed = parseHead(head)
       if (!parsed) return await folder()
-      return { repo: basename(dir), branch: parsed.branch, ...(parsed.detached ? { detached: true } : {}) }
+      return { repo, branch: parsed.branch, ...(parsed.detached ? { detached: true } : {}) }
     } catch {
       return await folder()
     }

@@ -4,12 +4,13 @@
 import { update } from 'claude-code'
 
 import type { Child, Group, Send, TaskNode, Turn, Wait } from '../types'
-import { DONE, PLAN, START } from '../text/rules'
+import { DONE, NOT_A_LIST, PLAN, START, TOOL_ERROR } from '../text/rules'
+import { debug } from '../io/log'
 import { MAIN, flat, firstOpen, tasksOf, hasOpen, count, interrupt, idleOf } from '../draw/layout'
-import { plural } from '../draw/svg'
-import { begin, build, carry, duplicates, edit, fillStarts, finish, resolve, settle } from '../state/tasks'
+import { cutText, oneLine, plural } from '../draw/svg'
+import { begin, build, carry, duplicates, edit, finish, resolve, settle } from '../state/tasks'
 import type { InNode } from '../state/tasks'
-import { reminders, requestTasks, movedAnchor, moveToLevelOne, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
+import { marks, setMarks, publishPanel, requestTasks, movedAnchor, moveToLevelOne, enterPlanTies, leavePlanTies, renameAnchors, renameFolds, renamedAnchor, change, ensureGroup, joinWork, lastBrief, stamp, startsWork, wake, askingAnchors, openTurnOf, saveLinks, sendAnchor, usedAnchors } from './panel'
 import { keepTime, settledBy } from './sessions'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
@@ -35,19 +36,24 @@ export const level = (inner?: object) => ({
 export async function planTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
-    // A summary given before this plan was a step's, not the turn's: it no longer silences the
-    // reminder of the last done (a new summary clears the mark).
-    if (agent === MAIN) reminders.briefBeforePlan = true
     if (agent === MAIN) await wake($)
     const input = ((e as any).input ?? e) as { tasks?: InNode[]; request?: string }
-    const fresh = build(input.tasks ?? [], 1, undefined, await stamp($))
-    const request = typeof input.request === 'string' ? input.request.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
+    // An input the panel cannot take is refused before anything changes: the request keeps its name
+    // and the plan does not count as using the panel.
+    const bad = planInputError(input.tasks)
+    if (bad !== undefined) return { result: bad, isError: true as const }
+    // A summary given before this plan was a step's, not the turn's: it no longer silences the
+    // reminder of the last done (a new summary clears the mark).
+    if (agent === MAIN) await setMarks($, { briefBeforePlan: true })
+    const fresh = build(input.tasks as InNode[], 1, undefined, await stamp($))
+    const request = typeof input.request === 'string' ? cutText(oneLine(input.request), 80, false) : ''
     const dup = duplicates(fresh)
     if (dup.length > 0) {
       return { result: `erro: ids repetidos no plano (${dup.join(', ')}); use ids únicos.`, isError: true as const }
     }
     // Only a plan taken counts as using the panel in this request (a refused one does not).
-    if (agent === MAIN) reminders.planned = true
+    // A plan taken starts the count of the reminder to start over, and it may come once more.
+    if (agent === MAIN) await setMarks($, { planned: true, idleCalls: 0, idleWarned: false })
     await ensureGroup($, agent)
     // Keeps earlier level-1 tasks: an open one with an id the new plan reuses is replanned
     // (replaced in its place, the tasks that keep their id keeping their state: carry) when it is of
@@ -60,43 +66,59 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const tag = Math.random().toString(36).slice(2, 6)
     const rename = (t: TaskNode): TaskNode => ({ ...t, id: `${tag}:${t.id}`, children: t.children.map(rename) })
     const fresh0 = agent === MAIN && (await startsWork($))
-    const { value: before = [] } = await $.state.get(groupsState)
-    const beforeMain = (before as Group[]).find(g => g.agent === MAIN)
-    // The request open now (the person's last message): the main group's last turn.
-    const nowTurn = beforeMain?.turns?.[beforeMain.turns.length - 1]?.id
+    // The request open now (the person's last message): the main group's last turn, as the write finds it.
+    let nowTurn: number | undefined
     const sameRequest = (t: TaskNode) => agent !== MAIN || nowTurn === undefined || t.turn === undefined || t.turn === nowTurn
     // A level-1 task of the main loop already done is replanned too, in the same request: it opens
     // again with the done steps kept (carry) and only the new ones open (the person, 2026-11-14:
     // "Reabre mantendo os ✓ (Recomendado)"). A subagent's done task stays as history.
     const replanned = (t: TaskNode) =>
       (t.status === 'open' || (t.status === 'done' && agent === MAIN)) && ids.includes(t.id) && sameRequest(t)
-    // The sends still queued: a message task a replan leaves out stays until delivered (carry).
-    const { value: sendsNow = [] } = await $.state.get(sendsState)
-    const queued = (sendsNow as Send[]).filter(s => !s.taken).map(s => String(s.anchor ?? ''))
-    const renamed = (beforeMain?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
-    // The subtasks a replan in place leaves out, each with its level-1 task: the ties to them go to it
-    // (moveToLevelOne; the person, 2026-11-14: "Sob o nível 1 (Recomendado)").
+    // What is replanned and what is renamed is decided inside the write, on the panel as it stands
+    // there (the write may run again when another one came in between: a delivery, a subagent's end,
+    // a done), and the steps after it follow that decision (audit, 2026-11-10). Reset on every run.
+    // The main group's level-1 tasks renamed to history (the sessions' ties and the work follow them);
+    // the caller's (its folds); the subtasks a replan in place leaves out, each with its level-1 task
+    // (the ties to them go to it: moveToLevelOne; the person, 2026-11-14: "Sob o nível 1
+    // (Recomendado)"); and the caller's level-1 tasks that had an id the plan reuses, with what the
+    // plan did to them, said in its result.
     const kept = new Set(flat(fresh).map(t => t.id))
-    const gone = new Map<string, string>()
-    for (const t of (before as Group[]).find(g => g.agent === agent)?.tasks ?? []) {
-      if (!replanned(t)) continue
-      for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
-    }
-    const toLevelOne = movedAnchor(gone)
-    // What the plan does to the level-1 tasks that already had an id it reuses, said in its result
-    // (the tasks renamed to history, and the replans in place, counted below on the result).
-    const ownBefore = (before as Group[]).find(g => g.agent === agent)?.tasks ?? []
-    const warned = ownBefore.filter(t => ids.includes(t.id))
-    // The person's folds go with the tasks renamed in the planning loop's group (renameFolds).
-    const renamedHere = ((before as Group[]).find(g => g.agent === agent)?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+    let renamed: string[] = []
+    let renamedHere: string[] = []
+    let gone = new Map<string, string>()
+    let warned: { t: TaskNode; again: boolean }[] = []
     const now = await stamp($)
+    // The main loop's plan publishes once, after its last write (the ties, the letters, the work), so
+    // the file the session that opened this one reads already has the new work (audit, 2026-11-10);
+    // a subagent's plan touches neither and publishes in the change.
+    // The main loop's plan marks the stretch from the write of its tasks to the one of the ties
+    // (enterPlanTies, left right after moveToLevelOne, or on a throw): the read of the sessions leaves
+    // the kept places alone there (the person, 2026-11-15: "Corrida no replano").
+    let tiesOpen = agent === MAIN
+    if (tiesOpen) enterPlanTies()
+    const leaveTies = () => {
+      if (!tiesOpen) return
+      tiesOpen = false
+      leavePlanTies()
+    }
     const groups = await change($, all => {
       // The subagents this loop launched from a task the plan renames go with the old copy (their
       // card, and the task the end of the turn closes by them), or they would hang from the new task
       // with that id: the ids as `away` below takes them, from the groups this change gets.
+      const main = all.find(g => g.agent === MAIN)
+      nowTurn = main?.turns?.[main.turns.length - 1]?.id
       const own = all.find(g => g.agent === agent)?.tasks ?? []
-      const renameTie = renamedAnchor(own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id), tag)
+      renamed = (main?.tasks ?? []).filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+      renamedHere = own.filter(t => ids.includes(t.id) && !replanned(t)).map(t => t.id)
+      gone = new Map<string, string>()
+      for (const t of own) {
+        if (!replanned(t)) continue
+        for (const x of flat(t.children)) if (!kept.has(x.id)) gone.set(x.id, t.id)
+      }
+      warned = own.filter(t => ids.includes(t.id)).map(t => ({ t, again: replanned(t) }))
+      const renameTie = renamedAnchor(renamedHere, tag)
       // And those launched from a subtask the replan leaves out go to its level-1 task.
+      const toLevelOne = movedAnchor(gone)
       const fix = (a?: string) => toLevelOne(renameTie(a))
       return all.map(g => {
         if (g.agent !== agent) return (g.parent ?? MAIN) === agent && fix(g.anchor) !== g.anchor ? { ...g, anchor: fix(g.anchor) } : g
@@ -106,7 +128,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         // Abandoned by a new request: interrupted (what was left open), then renamed.
         const away = (t: TaskNode) => rename(t.status === 'open' ? interrupt(now)(t) : t)
         const inPlace = (list: TaskNode[]) => {
-          const out = g.tasks.map(t => (reused(t) ? carry(t, list.find(f => f.id === t.id) as TaskNode, queued, now) : ids.includes(t.id) ? away(t) : t))
+          const out = g.tasks.map(t => (reused(t) ? carry(t, list.find(f => f.id === t.id) as TaskNode, now) : ids.includes(t.id) ? away(t) : t))
           return [...out, ...list.filter(f => !g.tasks.some(t => reused(t) && t.id === f.id))]
         }
         if (agent !== MAIN) return { ...g, tasks: inPlace(fresh) }
@@ -132,22 +154,31 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         })
         return { ...g, turns, tasks: inPlace(placed) }
       })
+    }, { publish: agent !== MAIN }).catch(err => {
+      leaveTies()
+      throw err
     })
-    await renameFolds($, agent, renamedHere, tag)
-    if (agent === MAIN) {
-      // The sessions' ties to a renamed task go with it (see renameAnchors).
-      await renameAnchors($, renamed, tag)
-      await moveToLevelOne($, gone)
-      // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
-      // hanging from the request's level-1 task until the delivery (the panel's letters).
-      const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
-      await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
-      // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
-      // task of the current work stays in it, and in new work the old copy is checked with the rest
-      // of the work before for what still holds the view.
-      // Adopted first: a subagent that ended with no task before the plan is not one to drop (joinWork).
-      await adoptOrphans($, groups)
-      await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
+    try {
+      await renameFolds($, agent, renamedHere, tag)
+      if (agent === MAIN) {
+        // The sessions' ties to a renamed task go with it (see renameAnchors).
+        await renameAnchors($, renamed, tag)
+        await moveToLevelOne($, gone)
+        leaveTies()
+        // The sends from tasks the replan left out go once delivered; a queued one is kept, its letter
+        // hanging from the request's level-1 task until the delivery (the panel's letters).
+        const there = new Set(flat(groups.find(g => g.agent === MAIN)?.tasks ?? []).map(t => t.id))
+        await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
+        // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
+        // task of the current work stays in it, and in new work the old copy is checked with the rest
+        // of the work before for what still holds the current work.
+        // Adopted first: a subagent that ended with no task before the plan is not one to drop (joinWork).
+        await adoptOrphans($, groups)
+        await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))
+      }
+    } finally {
+      leaveTies()
+      if (agent === MAIN) await publishPanel($)
     }
     // The plan does not open the panel: one the person closed stays closed until their next message
     // (the person, 2026-11-14: "Só na sua mensagem (Recomendado)").
@@ -156,8 +187,8 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     const ownAfter = groups.find(g => g.agent === agent)?.tasks ?? []
     const [gd, gn] = count(ownAfter)
     const sent = plural(flat(fresh).length, 'tarefa', 'tarefas')
-    const notes = warned.flatMap(t => {
-      if (replanned(t)) {
+    const notes = warned.flatMap(({ t, again }) => {
+      if (again) {
         const old = new Set(flat(t.children).map(x => x.id))
         const kept = flat(ownAfter.find(x => x.id === t.id)?.children ?? []).filter(x => old.has(x.id))
         const doneN = kept.filter(x => x.status === 'done').length
@@ -169,8 +200,50 @@ export async function planTool($: EngineInterface, e: any, next: any) {
     })
     return { result: `Plano exibido no painel: ${sent} neste plano (${plural(gn - gd, 'aberta', 'abertas')} no seu grupo).` + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true as const }
+    return failed($, 'plan', err)
   }
+}
+
+// What a plan's input must be (the first problem, said to the model, or undefined): a list of at
+// least one task, each with an id and a title in non-empty text, no ":" in any id (the panel's mark
+// of history), no "/" in a level-1 id (it splits the level 1 from the subtasks), at most 3 levels.
+function planInputError(tasks: unknown): string | undefined {
+  if (!Array.isArray(tasks) || tasks.length === 0) return PLAN.empty
+  const text = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
+  const walk = (list: unknown[], depth: number, parent?: string): string | undefined => {
+    for (const [i, t] of list.entries()) {
+      const at = parent === undefined ? `a ${i + 1}ª tarefa do plano` : `a ${i + 1}ª tarefa de "${parent}"`
+      if (typeof t !== 'object' || t === null) return PLAN.shape(at)
+      const { id, title, children } = t as { id?: unknown; title?: unknown; children?: unknown }
+      if (!text(id)) return PLAN.shape(at)
+      if (!text(title) || (children !== undefined && !Array.isArray(children))) return PLAN.shape(`"${id}"`)
+      if (id.includes(':')) return PLAN.colon(id)
+      if (depth === 1 && id.includes('/')) return PLAN.slash(id)
+      const kids = (children ?? []) as unknown[]
+      if (kids.length > 0 && depth >= 3) return PLAN.fourth(id)
+      const below = walk(kids, depth + 1, id)
+      if (below !== undefined) return below
+    }
+    return undefined
+  }
+  return walk(tasks, 1)
+}
+
+// `ids` or `cancel` given as something other than a list: refused (a text would be read letter by letter).
+const notList = (v: unknown) => v !== undefined && !Array.isArray(v)
+
+// An internal failure of plan, done or start: the exception to the debug log, a fixed text to the model.
+async function failed($: any, name: string, err: unknown) {
+  const said = err instanceof Error ? (err.stack ?? `${err.name}: ${err.message}`) : String(err)
+  await debug($, `task-tree: erro em ${name}: ${said.slice(0, 600)}`)
+  return { result: TOOL_ERROR(name), isError: true as const }
+}
+
+// The warnings for an agent that has no group yet (it never planned): each id is another agent's or
+// does not exist; nothing is created.
+function noGroupNotes(all: Group[], ids: string[]): string[] {
+  const others = tasksOf(all)
+  return ids.map(id => (resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`))
 }
 
 // The request's first plan adopts what the main loop sent, opened or launched in it before, with no
@@ -192,8 +265,8 @@ async function adoptOrphans($: any, groups: Group[]) {
   const sends = sends0 as Send[]
   const kids = kids0 as Child[]
   const named = (list: string[]) => list.filter(n => n !== '' && !/^local_/.test(n) && !n.endsWith('…'))
-  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[]; phrases: string[] }
-  const sendKey = (x: Send) => `${x.to}|${x.at}`
+  type Orphan = { at: number; kind: 'send' | 'open' | 'group'; key: string; names: string[]; phrases: string[]; run?: string }
+  const sendKey = (x: Send) => (x.seq !== undefined ? `#${x.seq}` : `${x.to}|${x.at}`)
   const orphans: Orphan[] = [
     ...sends.flatMap(x =>
       x.anchor === undefined && typeof x.at === 'number' && x.at >= since
@@ -203,7 +276,7 @@ async function adoptOrphans($: any, groups: Group[]) {
     ...kids.flatMap(c => (c.anchor === undefined && typeof c.openedAt === 'number' && c.openedAt >= since ? [{ at: c.openedAt, kind: 'open' as const, key: c.id, names: named([c.name]), phrases: named([c.title]) }] : [])),
     ...groups.flatMap(g =>
       g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && g.sub && g.anchor === undefined && g.sub.at >= since
-        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: [], phrases: named(g.label.split(': ')) }]
+        ? [{ at: g.sub.at, kind: 'group' as const, key: g.agent, names: [], phrases: named(g.label.split(': ')), ...(g.sub.run !== undefined ? { run: g.sub.run } : {}) }]
         : [],
     ),
   ].sort((a, b) => a.at - b.at)
@@ -211,10 +284,15 @@ async function adoptOrphans($: any, groups: Group[]) {
   const used = usedAnchors(kids, sends, groups.filter(g => (g.parent ?? MAIN) === MAIN))
   const asking = askingAnchors(waits0 as Wait[])
   const got = new Map<string, string>()
+  // A workflow's agents are adopted together, by the task given to its first one
+  // (subagentes.workflow-fica-junto-na-tarefa-do-primeiro).
+  const runs = new Map<string, string>()
   for (const o of orphans) {
-    const anchor = sendAnchor(main.tasks, used, asking, o.names, turn.id, o.phrases)
+    const together = o.run !== undefined ? runs.get(o.run) : undefined
+    const anchor = together ?? sendAnchor(main.tasks, used, asking, o.names, turn.id, o.phrases)
     if (anchor === undefined) continue
-    used.push({ anchor, at: o.at })
+    if (o.run !== undefined) runs.set(o.run, anchor)
+    if (together === undefined) used.push({ anchor, at: o.at })
     got.set(`${o.kind}:${o.key}`, anchor)
   }
   if (got.size === 0) return
@@ -248,12 +326,17 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
     if (agent === MAIN) await wake($)
-    const input = ((e as any).input ?? e) as { ids?: string[]; cancel?: string[]; summary?: unknown }
+    const input = ((e as any).input ?? e) as { ids?: unknown; cancel?: unknown; summary?: unknown }
+    // Checked before anything is written (the summary too): a text in place of the list is refused.
+    if (notList(input.ids)) return { result: NOT_A_LIST('ids'), isError: true as const }
+    if (notList(input.cancel)) return { result: NOT_A_LIST('cancel'), isError: true as const }
+    const ids = ((input.ids ?? []) as unknown[]).map(String)
+    const cancel = ((input.cancel ?? []) as unknown[]).map(String)
     // The panel draws its own ↩ before the summary: one the model wrote too is dropped ("↩ ↩").
     const brief = typeof input.summary === 'string' ? input.summary.replace(/^\s*↩\s*/, '') : ''
     if (agent === MAIN && brief.trim() !== '') {
       await $.state.set(briefState, brief)
-      reminders.briefBeforePlan = false
+      await setMarks($, { briefBeforePlan: false })
     }
     let notes: string[] = []
     let closed: string[] = []
@@ -268,23 +351,24 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       unstarted = []
       canceled = 0
       const others = tasksOf(all.filter(g => g.agent !== agent))
+      if (!all.some(g => g.agent === agent)) notes = noGroupNotes(all, [...ids, ...cancel])
       return all.map(g => {
         if (g.agent !== agent) return g
         let tasks = g.tasks
-        for (const id of input.ids ?? []) {
+        for (const id of ids) {
           const { node: hit, error } = resolve(tasks, id)
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
           else if (hit.status === 'interrupted') notes.push(DONE.interrupted(id))
           else {
             unstarted.push(...flat([hit]).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && t.startedAt === undefined).map(t => t.id))
-            tasks = settle(edit(fillStarts(tasks, hit.id, now), hit.id, finish(now)), now)
+            tasks = settle(edit(tasks, hit.id, finish(now)), now)
             closed.push(...flat([hit]).filter(t => t.status === 'open').map(t => t.id))
           }
         }
         // Tasks that will not be done (the person changed course): interrupted, out of x/y. What was
         // done below stays done; a parent with something done below closes by settle.
-        for (const id of Array.isArray(input.cancel) ? input.cancel : []) {
+        for (const id of cancel) {
           const { node: hit, error } = resolve(tasks, id)
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
@@ -320,30 +404,33 @@ export async function doneTool($: EngineInterface, e: any, next: any) {
       // summary, or on a task of an earlier request, did not (the reminder to plan still comes).
       const mine = requestTasks(groups)
       const ofRequest = new Set(flat(mine).map(t => t.id))
-      if (closed.some(id => ofRequest.has(id))) reminders.planned = true
+      if (closed.some(id => ofRequest.has(id))) await setMarks($, { planned: true })
       // The last step of the current request closed with no summary: the request would have no ↩
       // line, or the ↩ of a step before a later plan (the answer to a question) instead of the work's.
       // A task left open by an earlier request does not hide it.
-      if (((await lastBrief($)) === undefined || reminders.briefBeforePlan) && closed.length > 0 && !hasOpen(mine))
+      if (((await lastBrief($)) === undefined || (await marks($)).briefBeforePlan) && closed.length > 0 && !hasOpen(mine))
         notes.push(DONE.noSummary)
     }
     const [d, n] = count(groups.find(g => g.agent === agent)?.tasks ?? [])
-    // Several steps never started and closed together: the panel showed the first one in progress
-    // all along, then jumped to the last, the steps between at 0:00 (the person's words: "ficou
-    // parada muito tempo na primeira tarefa, e derepente pulo para a ultima").
-    if (unstarted.length >= 2) notes.push(DONE.unstarted(unstarted))
+    // Several steps never started and closed together: the panel showed none of them in progress,
+    // and they close with no time, "—" (the person's words: "ficou parada muito tempo na primeira
+    // tarefa, e derepente pulo para a ultima"; and 2026-11-15: "Sem tempo, \"—\" (Recomendado)").
+    // One alone too (the person, 2026-11-15: "Lembrete após 3 chamadas (Recomendado)").
+    if (unstarted.length >= 1) notes.push(DONE.unstarted(unstarted))
     return { result: `Concluídas: ${d}/${n} no seu grupo.` + (canceled > 0 ? ` Canceladas: ${canceled}.` : '') + (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : '') }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true as const }
+    return failed($, 'done', err)
   }
 }
 
 export async function startTool($: EngineInterface, e: any, next: any) {
   try {
     const agent = e.agentId ?? MAIN
-    if (agent === MAIN) reminders.planned = true
+    if (agent === MAIN) await setMarks($, { planned: true, idleCalls: 0 })
     if (agent === MAIN) await wake($)
-    const input = ((e as any).input ?? e) as { ids?: string[] }
+    const input = ((e as any).input ?? e) as { ids?: unknown }
+    if (notList(input.ids)) return { result: NOT_A_LIST('ids'), isError: true as const }
+    const ids = ((input.ids ?? []) as unknown[]).map(String)
     let notes: string[] = []
     let begun: string[] = []
     let roots: string[] = []
@@ -356,10 +443,11 @@ export async function startTool($: EngineInterface, e: any, next: any) {
       // Past every start so far, done ones too (startedSeq outlives the done), so the order holds.
       let seq = flat(tasksOf(all)).reduce((top, t) => Math.max(top, t.started ?? 0, t.startedSeq ?? 0), 0) + 1
       const others = tasksOf(all.filter(g => g.agent !== agent))
+      if (!all.some(g => g.agent === agent)) notes = noGroupNotes(all, ids)
       return all.map(g => {
         if (g.agent !== agent) return g
         let tasks = g.tasks
-        for (const id of input.ids ?? []) {
+        for (const id of ids) {
           const { node: hit, error } = resolve(tasks, id)
           if (error) notes.push(error)
           else if (!hit) notes.push(resolve(others, id).node ? `"${id}" é de outro agente` : `"${id}" não existe`)
@@ -379,8 +467,13 @@ export async function startTool($: EngineInterface, e: any, next: any) {
         }
         return { ...g, tasks }
       })
-    })
-    if (agent === MAIN) await joinWork($, roots, fresh0)
+    }, { publish: agent !== MAIN })
+    // Published after the work it joins (as the plan).
+    try {
+      if (agent === MAIN) await joinWork($, roots, fresh0)
+    } finally {
+      if (agent === MAIN) await publishPanel($)
+    }
     await keepTime($)
     return {
       result:
@@ -388,6 +481,6 @@ export async function startTool($: EngineInterface, e: any, next: any) {
         (notes.length > 0 ? ` Avisos: ${notes.join('; ')}.` : ''),
     }
   } catch (err) {
-    return { result: 'erro: ' + String(err), isError: true as const }
+    return failed($, 'start', err)
   }
 }

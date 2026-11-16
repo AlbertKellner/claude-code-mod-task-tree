@@ -37,8 +37,8 @@ export const RULES = [
     'O título do pedido é o do primeiro plan: um `request` em outro plan da mesma mensagem não o troca.',
   '- Etapa por etapa, no momento em que acontece: mcp__task-tree__start ao começar cada tarefa (várias ' +
     'podem estar em andamento) e mcp__task-tree__done assim que ela estiver de fato concluída, antes de ' +
-    'passar à próxima. Nunca feche várias de uma vez no fim: o painel fica parado na primeira e pula para ' +
-    'a última, com 0:00 nas do meio. Um pai fecha sozinho quando todos os filhos fecham.',
+    'passar à próxima. Nunca feche várias de uma vez no fim: o painel não mostra o que está em andamento e ' +
+    'as tarefas ficam sem tempo. Um pai fecha sozinho quando todos os filhos fecham.',
   '- Tarefa que não será feita (o usuário mudou de rumo, o plano mudou) não é concluída: passe o id dela em ' +
     '`cancel`, no mcp__task-tree__done. Ela fica ✕ interrompida no painel, fora da contagem. `ids` é só para o ' +
     'que foi de fato concluído.',
@@ -78,9 +78,14 @@ export const RULES = [
     'em que vai executar, e só então siga com start e done.',
   '- Cada subagente lançado (Agent) aparece como um cartão embaixo da tarefa em andamento no lançamento, com ' +
     'o estado dele; as tarefas que ele planejar ficam dentro do cartão. Cada agente só mexe no próprio grupo; o ' +
-    'que ele deixar aberto ao terminar vira interrompido. Quando todos os subagentes lançados de uma tarefa ' +
+    'que ele deixar aberto ao terminar vira interrompido, salvo a tarefa dele de onde saíram subagentes já ' +
+    'terminados, que reflete o fim deles. Quando todos os subagentes lançados de uma tarefa ' +
     'terminam e o turno acaba, o painel fecha a tarefa sozinho: concluída se todos concluíram, interrompida se ' +
     'algum falhou ou foi parado; para refazê-la, chame start nela.',
+  '- Dentro de um subagente (você foi lançado por outra sessão com Agent), plan, start e done valem só para ' +
+    'as suas tarefas, que ficam no cartão do subagente, não na lista da sessão. Ali não valem: request e ' +
+    'summary (são ignorados; o pedido e a linha ↩ são da sessão que lançou você), a recusa do ' +
+    'AskUserQuestion sem tarefa e os lembretes de planejar.',
   '- Planeje antes de delegar: num pedido novo, chame mcp__task-tree__plan e marque com start a tarefa antes ' +
     'de mandar mensagem a outra sessão (SendMessage), abrir sessão (start_session) ou lançar subagente (Agent). ' +
     'O que for criado antes do plan do pedido fica solto no fim do painel, e o primeiro plan do pedido o ' +
@@ -92,8 +97,19 @@ export const RULES = [
     'chamar done. Com "queued", não chame done nela: quando o recebimento é confirmado, o painel a ' +
     'conclui sozinho (mesmo com esta sessão parada) e avisa.',
   '- Sessões abertas com start_session aparecem embaixo da tarefa em andamento quando foram abertas, com ' +
-    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence.',
+    'as tarefas do painel delas: antes de abrir uma sessão, marque com start a tarefa a que ela pertence. ' +
+    'Quando a sessão termina o turno com todas as tarefas concluídas e nada mais está em execução na tarefa ' +
+    'de origem, o painel conclui essa tarefa sozinho e avisa; para seguir nela, reabra com start.',
 ].join('\n')
+
+// Added to RULES only when the request offers the desktop app's task list (update_plan, wrap_up; hooks/
+// prompt-submit, promptCompose): how the panel goes with it (the person, 2026-11-15: "Sim, acrescentar
+// (Recomendado)").
+export const APP_LIST_RULE =
+  '- No app desktop há também a lista de tarefas do app (update_plan no começo, wrap_up no fim): ela não ' +
+  'substitui este painel, use os dois. Na primeira mensagem do turno, chame mcp__task-tree__plan junto ' +
+  'com a lista do app. Antes do wrap_up, feche com mcp__task-tree__done as tarefas concluídas e passe o ' +
+  '`summary` no último done: o wrap_up vem depois.'
 
 // The /task-tree command and the three tools, as the model sees them.
 export const COMMAND = 'Abre o painel da árvore de tarefas e diz o estado dele'
@@ -150,7 +166,8 @@ export const PROMPT = {
   // `open`: tasks were open before the message (their list goes in the reminder before this one):
   // the done of what it concludes comes first, then the plan (the person, 2026-11-14: "Done, depois
   // plan (Recomendado)"), so the asked task closes ✓ in its own request and the new plan goes in whole.
-  request: (open: boolean) =>
+  // `appList`: the last request composed offered the app's task list (APP_LIST_RULE, in one sentence).
+  request: (open: boolean, appList = false) =>
     PANEL + 'todo pedido abre pelo menos uma tarefa no painel, mesmo uma ' +
     'pergunta simples ou respondida só com pesquisa ou leitura de arquivos. ' +
     (open
@@ -166,7 +183,8 @@ export const PROMPT = {
     'Antes de perguntar (AskUserQuestion, ExitPlanMode, wrap_up com ask), mantenha em andamento a ' +
     'tarefa da pergunta e feche-a só depois da resposta. No primeiro plan desta mensagem, passe em ' +
     'request um título curto do que foi pedido. No done da última etapa do turno, passe summary: ' +
-    `resumo da resposta em ${LIMIT}, tipo manchete.`,
+    `resumo da resposta em ${LIMIT}, tipo manchete.` +
+    (appList ? ' No app desktop, a lista do app vai junto com o plan e não o substitui; antes do wrap_up, done nas concluídas e summary.' : ''),
   open: (list: string, answered: boolean) =>
     (answered ? 'Esta mensagem é a resposta do usuário à pergunta anterior. ' : '') +
     PANEL + `tarefas abertas antes desta mensagem: ${list}. Feche com ` +
@@ -223,10 +241,6 @@ export const PROMPT = {
     'O que ela pede de novo vai em mcp__task-tree__plan, com ids novos, na ordem em que vai executar: um ' +
     'plan com o id de um nível 1 da lista o deixaria como histórico, com as abertas interrompidas, e criaria ' +
     'uma cópia toda pendente. Depois siga etapa por etapa com start e done.',
-  interruptedEmpty:
-    PANEL + 'seu turno anterior foi interrompido antes de terminar, e esta mensagem de outra sessão ' +
-    'chegou em seguida. Antes de seguir, replaneje o painel com o que esta mensagem pede: chame ' +
-    'mcp__task-tree__plan e siga etapa por etapa com start e done.',
   // The person stopped the last turn (Esc) and wrote next (the person: "precisa replanejar quando eu
   // interrompo e envio nova mensagem"): the model replans the panel before going on, keeping what the
   // stopped work left open only if this message continues it.
@@ -271,7 +285,22 @@ export const PLAN = {
   carried: (id: string, done: number, going: number) =>
     `"${id}" replanejada no lugar: ${done + going} ${done + going === 1 ? 'tarefa manteve' : 'tarefas mantiveram'} o estado ` +
     `(${done} ${done === 1 ? 'concluída' : 'concluídas'}, ${going} em andamento); as demais entraram pendentes`,
+  // The refusals of a plan whose input the panel cannot take (nothing changes in the panel).
+  empty: 'erro: o plano veio sem tarefas; passe em tasks pelo menos uma tarefa, com id e title.',
+  shape: (where: string) => `erro: toda tarefa precisa de id e title em texto, não vazios (problema em: ${where}); nada mudou no painel.`,
+  colon: (id: string) => `erro: o id "${id}" tem ":", que o painel reserva para o histórico; use ids sem ":".`,
+  slash: (id: string) => `erro: o id de nível 1 "${id}" tem "/", que separa o nível 1 das subtarefas; use um id sem "/" no nível 1.`,
+  fourth: (id: string) =>
+    `erro: o plano tem um quarto nível (abaixo de "${id}"); o painel aceita até 3: junte essas tarefas no terceiro nível ou divida o nível 1.`,
 }
+
+// The refusal of done and start when `ids` or `cancel` is not a list.
+export const NOT_A_LIST = (field: 'ids' | 'cancel') => `erro: ${field} deve ser uma lista de ids (ex.: ["1.2"]).`
+
+// What plan, done and start answer on an internal failure; the exception goes to the debug log.
+export const TOOL_ERROR = (name: string) =>
+  `erro: falha interna do painel de tarefas ao executar ${name}; a chamada pode ter sido aplicada só em parte. ` +
+  `Chame ${name} de novo com os mesmos argumentos; se o erro se repetir, siga o trabalho e diga ao usuário que o painel pode estar desatualizado.`
 
 // Warnings in done's result (joined after "Avisos:").
 export const DONE = {
@@ -282,10 +311,15 @@ export const DONE = {
     `parou com pendentes a sessão ${sessions.join(', a sessão ')}: elas saíram da contagem do painel ao ` +
     'fechar a tarefa de origem; se o trabalho delegado não acabou, retome a sessão',
   noSummary: `falta o summary: se este done foi o último passo do turno, chame done de novo só com summary, a resposta do turno em ${LIMIT} (vira a linha ↩); se ainda vai planejar ou seguir trabalhando, ignore este aviso e passe o summary no último done`,
+  // One or more steps closed never started (one too since the person's 2026-11-15 answer, "Lembrete
+  // após 3 chamadas (Recomendado)").
   unstarted: (ids: string[]) =>
-    `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel ficou ` +
-    'parado na primeira e elas aparecem com 0:00. Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
-    'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
+    ids.length === 1
+      ? `1 etapa fechou sem start ("${ids[0]}"): o painel não a mostrou em andamento e ela aparece sem tempo (—). ` +
+        'Daqui em diante, marque cada etapa com mcp__task-tree__start ao começá-la e com mcp__task-tree__done ao terminá-la'
+      : `${ids.length} etapas fecharam juntas sem start (${ids.map(id => `"${id}"`).join(', ')}): o painel não ` +
+        'mostrou nenhuma em andamento e elas aparecem sem tempo (—). Daqui em diante, marque cada etapa com mcp__task-tree__start ' +
+        'ao começá-la e com mcp__task-tree__done ao terminá-la, uma de cada vez',
   queued: (to: string, id: string) => `a mensagem para ${to} ("${id}") ainda está na fila, sem confirmação de recebimento`,
 }
 
@@ -311,11 +345,25 @@ export const SEND = {
     PANEL + `a mensagem para o subagente ${to} ficou na fila, sem confirmação de recebimento. ` +
     `Mantenha em andamento a tarefa do envio${task ? ` (${task})` : ''}: o painel avisa quando ele a ` +
     'receber, ou quando ele parar sem recebê-la.',
+  // The letter put under another task of an earlier plan only as a place, a question open in the task
+  // in progress and the request open now with no task yet (hooks/panel, sendPlace; the person,
+  // 2026-11-15: "Não fecha na entrega (Recomendado)"): said instead of queued and queuedSub.
+  queuedPlace: (to: string, task: string | undefined, sub: boolean) =>
+    PANEL + `a mensagem para ${sub ? 'o subagente ' : ''}${to} ficou na fila, sem confirmação de recebimento. ` +
+    `A carta aparece sob a tarefa${task ? ` ${task}` : ''} só como lugar, porque a tarefa em andamento tem uma ` +
+    'pergunta aberta: o painel avisa quando ela for recebida e não conclui essa tarefa por isso; ela segue ' +
+    'como está até você trabalhar nela (mcp__task-tree__start e mcp__task-tree__done).',
 }
 export const UNPLANNED =
   PANEL + 'há chamada de ferramenta sem plano aberto no painel. Todo pedido ' +
   'abre pelo menos uma tarefa: chame mcp__task-tree__plan agora, mcp__task-tree__start ao começar ' +
   'e mcp__task-tree__done só quando a tarefa estiver de fato concluída.'
+// A plan open and nothing started, at the third call in a row of the main loop, once a plan (hooks/
+// tool-call, reminder; the person, 2026-11-15: "Lembrete após 3 chamadas (Recomendado)").
+export const START_DUE =
+  PANEL + 'há plano aberto e nenhuma tarefa em andamento: o painel mostra tudo pendente e o relógio ' +
+  'parado. Chame mcp__task-tree__start na tarefa em que está trabalhando agora; as que já terminou, ' +
+  'feche com mcp__task-tree__done.'
 
 // The sessions this one opened: one took up a queued message (`what`: each session, with the task
 // it was sent from); one was archived with a message still queued, which is not delivered (`lost`);
@@ -330,7 +378,7 @@ export const SESSION = {
   takenOpen: (what: string[]) =>
     PANEL + `recebimento confirmado, a sessão começou a tratar a mensagem: ${what.join('; ')}. ` +
     'O painel não concluiu a tarefa do envio: ela segue como está no painel (aberta com subtarefa aberta ou com ' +
-    'algo ainda em execução nela, interrompida por um plano novo, ou fora do plano). Se o trabalho dela ' +
+    'algo ainda em execução nela, interrompida por um plano novo, ou fora do plano, ou a carta só estava posta nela, como lugar). Se o trabalho dela ' +
     'terminou, feche-a com mcp__task-tree__done.',
   lost: (what: string[]) =>
     PANEL + `mensagem não entregue, a sessão foi arquivada com ela ainda na fila: ${what.join('; ')}. ` +
@@ -339,7 +387,7 @@ export const SESSION = {
   // tools, or resumed with it), or it ended without receiving it.
   takenSub: (what: string[]) =>
     PANEL + `recebimento confirmado, o subagente recebeu a mensagem: ${what.join('; ')}. ` +
-    'A tarefa do envio deixou de esperar por ela: o painel a concluiu, ou a conclui com o fim do subagente lançado dela.',
+    'A tarefa do envio deixou de esperar por ela: o painel a concluiu, ou a conclui com o fim do subagente lançado dela; se a carta só estava posta nela como lugar, ela segue como está.',
   lostSub: (what: string[]) =>
     PANEL + `mensagem não entregue, o subagente parou antes de recebê-la: ${what.join('; ')}. ` +
     'A tarefa do envio deixou de esperar por ela; trate-a como qualquer outra tarefa. Se a mensagem ainda importa, ' +
@@ -353,9 +401,24 @@ export const SESSION = {
         'delegado não acabou, retome a sessão em vez de fechar. '
       : '') +
     `Tarefas abertas no painel: ${open}.`,
+  // A session that ended its turn with all of its work done, its task of origin closed by the panel
+  // (hooks/sessions, closeByEnded; the person, 2026-11-15: "Fecha a tarefa sozinho (Recomendado)").
+  closedBy: (sessions: string[]) =>
+    PANEL + `terminou o turno com todas as tarefas concluídas a sessão ${sessions.join(', a sessão ')}, e o painel ` +
+    'concluiu sozinho a tarefa de origem. Confira o relato dela; se a tarefa ainda tinha algo a fazer, reabra com mcp__task-tree__start.',
   stopped: (sessions: string[]) =>
     PANEL + `parou com a tarefa de origem já fechada a sessão ${sessions.join(', a sessão ')}: essas pendentes ` +
     'saíram da contagem do painel. Se o trabalho delegado não acabou, retome a sessão.',
+  // A session deleted, or archived, in the app with its task of origin open here: said once
+  // (hooks/sessions, noteGone and endedNote; the person, 2026-11-15: "Avisar o modelo uma vez").
+  deleted: (sessions: string[]) =>
+    PANEL + `não existe mais no app a sessão ${sessions.join(', a sessão ')}, e a tarefa de origem continua aberta: ` +
+    'o cartão dela saiu do painel, com as tarefas que ela tinha. Se o trabalho delegado já bastava, conclua a ' +
+    'tarefa com mcp__task-tree__done; se não, refaça-o por outro caminho ou cancele a tarefa (mcp__task-tree__done com cancel).',
+  archived: (sessions: string[]) =>
+    PANEL + `foi arquivada no app a sessão ${sessions.join(', a sessão ')}, e a tarefa de origem continua aberta: ` +
+    'o que ela deixou aberto ficou ✕ no cartão e não será feito por ela. Confira o que ela concluiu e feche a ' +
+    'tarefa com mcp__task-tree__done, ou cancele-a (cancel) se não será feita.',
 }
 
 // The tasks of the main loop the end of their subagents closed (✓) or marked ✕ (one failed or was

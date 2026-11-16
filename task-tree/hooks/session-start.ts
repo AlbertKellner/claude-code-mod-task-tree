@@ -6,7 +6,7 @@
 import { MAIN, PAST_KEEP, interrupt } from '../draw/layout'
 import { COMMAND, TOOLS } from '../text/rules'
 import { loaded } from '../state/durability'
-import { PANE, adopt, clearTurn, dropHeld, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFromOwnFile, restoreTurn, restoreWork, restoreWorkOf, setWork } from './panel'
+import { PANE, adopt, clearTurn, dropHeld, ensureGroups, forgetChildren, parkDeadTurn, replace, ensureLinks, restore, restoreFolds, restoreFromOwnFile, restoreTurn, restoreUltra, restoreWork, restoreWorkOf, saveFolds, setWork } from './panel'
 import { refreshChildren, sweepPublished, watchSessions } from './sessions'
 import { level } from './tools'
 
@@ -60,11 +60,15 @@ export async function sessionStart($: EngineInterface, e: any, next: any) {
   // With nothing held (a new process), a resumed session's panel comes back from the store.
   await adopt($)
   const fresh = (await $.state.get(groupsState)).value === undefined
+  // Groups the state kept (a reload): read through readGroups once (ensureGroups) before they count.
+  if (!fresh) await ensureGroups($)
   // Out of the store (only the last 30 sessions are there), from the file it published (fromOwnFile).
   if (fresh && !(await restore($, await $.session.id()))) await restoreFromOwnFile($)
   loaded.add('groups')
   await restoreWork($)
   await restoreTurn($)
+  await restoreFolds($)
+  await restoreUltra($)
   // A turn the store holds as going on died with the process before this one: stopped (parkDeadTurn).
   if (fresh) await parkDeadTurn($)
   await ensureLinks($)
@@ -91,7 +95,10 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     // What the session had done stays in its main group, as history its own panel does not draw: the
     // session above keeps its card (the person, 2026-11-14: "Mantém o histórico (Recomendado)").
     const at = await $.clock.now()
-    const main = (((await $.state.get(groupsState)).value ?? []) as Group[]).find(g => g.agent === MAIN)
+    // The panel checked first (ensureGroups): as the first use after a reload, groups of an unknown
+    // version or out of the shape do not go to the history (the store's valid copy, or nothing, does).
+    const brought = await ensureGroups($)
+    const main = ((brought ?? (await $.state.get(groupsState)).value ?? []) as Group[]).find(g => g.agent === MAIN)
     const before: Past[] = main && main.tasks.length > 0 ? [{ at, tasks: main.tasks.map(interrupt(at)), ...(main.turns ? { turns: main.turns } : {}) }] : []
     const past = [...(main?.past ?? []), ...before].slice(-PAST_KEEP)
     await dropHeld($)
@@ -102,7 +109,10 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     await forgetChildren($)
     // The person's folds go with the panel: no plan after the /clear is born folded (the lines folded,
     // the histories opened and the mark of the shortened texts).
+    // In the store too (saveFolds): a new process after the /clear does not bring back the ones before.
+    loaded.add('folds')
     await $.state.set(collapsedState, {})
+    await saveFolds($)
     // The idle spans stay (closed at the /clear): the history's cards leave them out of their times too.
     const idle = (main?.idle ?? []).map(x => (x.to === undefined ? { ...x, to: Math.max(at, x.from) } : x))
     await replace($, [{ agent: MAIN, label: '', tasks: [], ...(past.length > 0 ? { past } : {}), ...(idle.length > 0 ? { idle } : {}) }])
@@ -112,6 +122,10 @@ export async function classicSessionStart($: EngineInterface, e: any, next: any)
     if (!(await restore($, e.session_id))) await replace($, [{ agent: MAIN, label: '', tasks: [] }])
     await restoreWorkOf($, e.session_id)
     await restoreTurn($, e.session_id, true)
+    // The resumed session's folds, or none (restoreFolds).
+    await restoreFolds($, e.session_id, true)
+    // The resumed session's ultracode switch, or off (restoreUltra); a /clear leaves it: it is the session's.
+    await restoreUltra($, e.session_id, true)
     await parkDeadTurn($)
   }
   return next(e)

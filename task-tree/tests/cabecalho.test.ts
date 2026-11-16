@@ -1,4 +1,5 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { AGORA } from './kit/ambiente'
 import { abrirSessao, aviso, ferramenta, lancar } from './kit/cenario'
 import { fixar, host, lancaveis, responderDepois, responderEnvio } from './kit/ambiente'
@@ -11,7 +12,7 @@ const B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1'
 const tem = (linhas: { titulo: string }[], titulo: string) => linhas.some(l => l.titulo === titulo)
 
 // Regra: cabecalho.numeros-somam-o-desenhado
-test('os números somam o que a visão desenha, e recolher não muda nada', async ($: any, on: any) => {
+test('os números somam o que o painel desenha, e recolher não muda nada', async ($: any, on: any) => {
   fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A)
@@ -34,7 +35,7 @@ test('os números somam o que a visão desenha, e recolher não muda nada', asyn
 })
 
 // Regra: cabecalho.resumida-exclui-pedido-finalizado, cabecalho.resumida-limpa-so-com-tudo-concluido
-test('o pedido finalizado sai da resumida quando um pedido novo começa trabalho; a completa o mantém', async ($: any, on: any) => {
+test('o pedido finalizado sai do painel quando um pedido novo começa trabalho, e volta ao abrir "+N pedidos anteriores"', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A)
@@ -59,7 +60,7 @@ test('o pedido finalizado sai da resumida quando um pedido novo começa trabalho
 })
 
 // Regra: pedidos.resumida-mantem-anteriores-com-algo-aberto
-test('com algo aberto à vista, a resumida mantém o pedido anterior', async ($: any, on: any) => {
+test('com algo aberto à vista, o pedido anterior segue no painel', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   await pedido($, 'Pedido um')
   await plan($, A)
@@ -135,6 +136,42 @@ test('o título é o nível 1 da tarefa iniciada por último', async ($: any, on
   expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano B')
 })
 
+// Regra: cabecalho.titulo-e-de-tarefa-desenhada
+test('depois do plan de um pedido novo, antes do start, o título é o do plano novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'], 'feito')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  const p = await painel($)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano B')
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(false)
+  expect(tem(p, '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+})
+
+// Regra: cabecalho.vazio-so-sem-tarefas-e-sem-chips
+test("sem tarefas e com uma sessão aberta, o cabeçalho mostra a pílula, não 'Nenhuma tarefa planejada'", async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_f1', rodando: true }])
+  await pedido($, 'Pedido um')
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  const c = cabecalho(p)
+  expect(c.vazio, emTexto(p)).toBe(false)
+  expect(c.chips.ativas, emTexto(p)).toBe(1)
+  const d = await noApp($)
+  expect(d.cabecalho.texto, emTextoDoApp(d)).toContain('1 sessão ativa')
+  expect(d.cabecalho.texto, emTextoDoApp(d)).not.toContain('Nenhuma tarefa planejada')
+  expect(estadoGeral(d), emTextoDoApp(d)).toBe('sessão ativa')
+})
+
 // Regra: cabecalho.titulo-desempata-pela-ordem-do-start
 test('dois starts no mesmo instante: o título é o do último da lista do start', async ($: any, on: any) => {
   fixar(on)
@@ -147,10 +184,11 @@ test('dois starts no mesmo instante: o título é o do último da lista do start
   const p = await painel($)
   expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
   esperarEstado(p, 'Plano A', 'andamento')
+  expect(linha(p, 'Plano B').estado, emTexto(p)).not.toBe('andamento')
 })
 
 // Regra: cabecalho.limites-de-linhas
-test('só os três últimos pedidos aparecem na completa; os outros viram "+N pedidos anteriores"', async ($: any, on: any) => {
+test('os pedidos concluídos fora do trabalho atual viram "+N pedidos anteriores", e o cabeçalho conta o que ficou à vista', async ($: any, on: any) => {
   const { relogio } = fixar(on)
   for (let i = 1; i <= 5; i++) {
     await pedido($, `Pedido ${i}`)
@@ -504,6 +542,255 @@ test('com "+N pedidos anteriores" aberto, o corte das 400 linhas deixa a linha �
   await m.fim()
 })
 
+// Os tetos da tela do app desktop (ela descarta em silêncio o desenho que chega a um deles; o harness não
+// os aplica) e o do mod, com folga. `nos` e `fundo` de noApp contam como ela; os caracteres, abaixo.
+const NOS_DO_APP = 2000
+const NOS_DO_MOD = 1900
+const CARACTERES_DO_APP = 262144
+const ALTURA_DO_APP = 32
+// Os caracteres de um desenho na conta da tela do app: cada texto; em Box e Text, o nome de cada prop
+// mais o valor quando é texto, o mesmo no hover, e o nome do plugin em group e part; em Button, key,
+// label, hotkey, action, o plugin do press e o hover; em Svg, só source e alt.
+function caracteresDoApp(x: any): number {
+  if (typeof x === 'string') return x.length
+  if (typeof x === 'number') return String(x).length
+  if (typeof x !== 'object' || x === null) return 0
+  const p = x.props ?? {}
+  const texto = (v: unknown) => (typeof v === 'string' ? v.length : 0)
+  const props = (o: any) => (typeof o === 'object' && o !== null ? Object.entries(o).reduce((a: number, [k, v]) => a + (k === 'children' || typeof v === 'function' ? 0 : k.length + texto(v)), 0) : 0)
+  const hover = x.hover ?? p.hover
+  let n = 0
+  if (x.type === 'Svg') n = texto(p.source) + texto(p.alt)
+  else if (x.type === 'Button') n = texto(x.key ?? p.key) + texto(p.label) + texto(p.hotkey) + texto(p.action) + texto(x.press?.plugin ?? p.press?.plugin) + props(hover)
+  else n = props(Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'hover'))) + props(hover) + texto(x.group?.plugin ?? p.group?.plugin) + texto(x.part?.plugin ?? p.part?.plugin)
+  return n + ((x.children ?? []) as any[]).reduce((a: number, c: any) => a + caracteresDoApp(c), 0)
+}
+// O plano com os ids prefixados: um id reusado levaria o pedido anterior ao histórico.
+const comIds = (prefixo: string, nos: No[]): No[] => nos.map(n => ({ ...n, id: `${prefixo}${n.id}`, ...(n.children ? { children: comIds(prefixo, n.children) } : {}) }))
+// Uma filha com `n` tarefas publicadas: as `feitas` primeiras concluídas, com tempo; as outras abertas.
+const filhaCom = (n: number, feitas = 0) => ({
+  id: 'local_34343434-3434-3434-3434-343434343434',
+  nome: 'filha-grande',
+  painel: {
+    tasks: Array.from({ length: n }, (_, k) => ({
+      id: String(k + 1),
+      short: String(k + 1),
+      title: `Tarefa da filha ${k + 1}`,
+      status: k < feitas ? 'done' : 'open',
+      ...(k < feitas ? { startedAt: AGORA - 1000, endedAt: AGORA - 500 } : {}),
+      children: [],
+    })),
+  },
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, um painel com mais linhas do que a tela do app aceita perde os pedidos mais antigos, sem aviso', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [filhaCom(8)])
+  const prefixos = ['A', 'B', 'C', 'D', 'E']
+  for (const [i, x] of prefixos.entries()) {
+    await pedido($, `Pedido ${x}`)
+    await plan($, comIds(x, grande(x, 1, 4, 4)))
+    // Uma folha iniciada e deixada aberta: o pedido fica desenhado inteiro.
+    await start($, [`${x}0.0.0`])
+    if (i < prefixos.length - 1) {
+      await fimDoTurno($)
+      await relogio.advance(1000)
+    }
+  }
+  await abrirSessao($)
+  await aviso($)
+  let d = await noApp($)
+  const conta = `${d.nos} nós, ${caracteresDoApp(d.raiz)} caracteres, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.nos, conta).toBeLessThan(NOS_DO_APP)
+  expect(d.fundo, conta).toBeLessThan(ALTURA_DO_APP)
+  expect(caracteresDoApp(d.raiz), conta).toBeLessThan(CARACTERES_DO_APP)
+  expect(d.textos[0], d.textos.slice(0, 3).join('\n')).toMatch(/^\+\d+ linhas anteriores$/)
+  expect(d.textos.some(t => t.includes('E0.3.3')), d.textos.slice(-5).join('\n')).toBe(true)
+  expect(d.textos.some(t => t.includes('filha-grande')), d.textos.join('\n')).toBe(true)
+  expect(d.textos.some(t => t.includes('Pedido A')), d.textos.slice(0, 5).join('\n')).toBe(false)
+  // Um segundo depois (o relógio redesenha o painel), o corte é o mesmo.
+  const antes = d.textos[0]
+  await relogio.advance(1000)
+  d = await noApp($)
+  expect(d.textos[0], d.textos.slice(0, 3).join('\n')).toBe(antes)
+  // O terminal não tem esses tetos: os cinco pedidos, inteiros.
+  const p = await painel($)
+  for (const x of prefixos) expect(p.some(l => l.titulo === `Pedido ${x}`), x).toBe(true)
+  expect(p.some(l => l.texto.includes('linhas anteriores')), emTexto(p).slice(0, 300)).toBe(false)
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, um pedido só acima do teto de elementos é desenhado até caber e fecha com "+N linhas"', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido grande')
+  await plan($, grande('T', 4, 5, 5))
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${caracteresDoApp(d.raiz)} caracteres, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(caracteresDoApp(d.raiz), conta).toBeLessThan(CARACTERES_DO_APP)
+  expect(d.textos.some(t => /\+\d+ linhas anteriores$/.test(t)), d.textos.slice(0, 3).join('\n')).toBe(false)
+  expect(d.textos[d.textos.length - 1], d.textos.slice(-3).join('\n')).toMatch(/\+\d+ linhas$/)
+  expect(d.textos.some(t => t.includes('T0.0.0')), d.textos.slice(0, 6).join('\n')).toBe(true)
+  // O corte usa o espaço que tem: cai perto do teto.
+  expect(d.linhas.length, conta).toBeGreaterThanOrEqual(40)
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, o cartão de uma sessão com mais linhas do que a tela aceita não estoura o teto', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [filhaCom(240, 200)])
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${caracteresDoApp(d.raiz)} caracteres, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.fundo, conta).toBeLessThan(ALTURA_DO_APP)
+  expect(caracteresDoApp(d.raiz), conta).toBeLessThan(CARACTERES_DO_APP)
+  expect(d.textos.some(t => t.includes('filha-grande')), d.textos.join('\n')).toBe(true)
+  expect(d.textos.some(t => t.includes('Plano A')), d.textos.join('\n')).toBe(true)
+  expect(d.textos.some(t => /\+\d+ linhas$/.test(t)), d.textos.slice(-3).join('\n')).toBe(true)
+})
+
+// Regra: cabecalho.limite-de-elementos-do-app
+test('no app, um painel pequeno não perde linha nenhuma', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [filhaCom(3)])
+  const prefixos = ['X', 'Y', 'Z']
+  for (const [i, x] of prefixos.entries()) {
+    await pedido($, `Pedido ${x}`)
+    await plan($, [{ id: `${x}P`, title: `Plano ${x}`, children: [{ id: `${x}a`, title: `${x} um` }, { id: `${x}b`, title: `${x} dois` }] }])
+    await start($, [`${x}a`])
+    if (i < prefixos.length - 1) {
+      await fimDoTurno($)
+      await relogio.advance(1000)
+    }
+  }
+  await abrirSessao($)
+  await aviso($)
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.textos.some(t => /\+\d+ linhas( anteriores)?$/.test(t)), d.textos.join('\n')).toBe(false)
+  for (const x of prefixos) for (const t of [`Pedido ${x}`, `Plano ${x}`, `${x} um`, `${x} dois`]) expect(d.textos.some(l => l.includes(t)), t).toBe(true)
+  expect(d.textos.some(t => t.includes('filha-grande')), d.textos.join('\n')).toBe(true)
+  expect(d.nos, conta).toBeLessThan(NOS_DO_MOD)
+})
+
+// Os pedidos que não cabem juntos na tela do app: o primeiro (A) com o que cada teste deixa em andamento,
+// os outros quatro com uma folha iniciada que o fim do turno deixa aguardando (◷); o E com o turno em curso.
+const PEDIDOS_QUE_NAO_CABEM = ['A', 'B', 'C', 'D', 'E']
+async function ateOCorte($: any, relogio: any, planoA: No[], noA: () => Promise<void>, noE: () => Promise<void> = async () => {}) {
+  for (const x of PEDIDOS_QUE_NAO_CABEM) {
+    await pedido($, `Pedido ${x}`)
+    await plan($, x === 'A' ? planoA : comIds(x, grande(x, 1, 4, 4)))
+    await start($, [`${x}0.0.0`])
+    if (x === 'A') await noA()
+    if (x === 'E') await noE()
+    else {
+      await fimDoTurno($)
+      await relogio.advance(1000)
+    }
+  }
+}
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no app, o pedido antigo que não cabe deixa à vista a tarefa com a sessão trabalhando, e o cabeçalho conta a sessão', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [filhaCom(8)])
+  await ateOCorte($, relogio, comIds('A', grande('A', 1, 4, 4)), async () => {
+    await abrirSessao($)
+    await aviso($)
+  })
+  let d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas\n${emTextoDoApp(d)}`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.textos[0], conta).toMatch(/^\+\d+ linhas anteriores$/)
+  for (const t of ['Pedido A', 'A0.0.0', 'filha-grande']) expect(d.textos.some(l => l.includes(t)), `${t}\n${conta}`).toBe(true)
+  expect(d.textos.some(l => l.includes('A0.3.3')), conta).toBe(false)
+  expect(d.textos.some(l => l.includes('Pedido B')), conta).toBe(false)
+  expect(d.cabecalho.texto, conta).toContain('1 sessão ativa')
+  const p = await painel($)
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+  const primeira = d.textos[0]
+  await relogio.advance(1000)
+  d = await noApp($)
+  expect(d.textos[0], emTextoDoApp(d)).toBe(primeira)
+})
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no app, a tarefa em andamento da própria sessão num pedido antigo que não cabe fica à vista, com o pedido e os pais', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await ateOCorte($, relogio, comIds('A', grande('A', 1, 4, 4)), async () => {}, async () => {
+    await start($, ['A0.2.0'])
+  })
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas\n${emTextoDoApp(d)}`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.textos[0], conta).toMatch(/^\+\d+ linhas anteriores$/)
+  for (const t of ['Pedido A', 'A0', 'A0.2', 'A0.2.0']) expect(d.textos.some(l => l.split(/\s+/).includes(t) || l.includes(`${t} `) || l.endsWith(t)), `${t}\n${conta}`).toBe(true)
+  expect(d.textos.some(l => l.includes('A0.3.3')), conta).toBe(false)
+  const andamento = cabecalho(await painel($)).chips.andamento
+  expect(andamento, conta).toBeGreaterThan(0)
+  expect(d.cabecalho.texto, conta).toContain(`${andamento} em andamento`)
+})
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no app, muitas linhas em andamento nos pedidos que não cabem não tiram o lugar do pedido atual', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  const planoA = comIds('A', grande('A', 2, 4, 5))
+  const folhas = planoA.flatMap(a => (a.children ?? []).flatMap(b => (b.children ?? []).map(c => c.id)))
+  await ateOCorte($, relogio, planoA, async () => {}, async () => {
+    await start($, folhas)
+  })
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas\n${emTextoDoApp(d)}`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.textos[0], conta).toMatch(/^\+\d+ linhas anteriores$/)
+  // O pedido atual segue inteiro; do A ficam as últimas em andamento, no máximo metade do espaço.
+  for (const t of ['E0.0.0', 'E0.3.3']) expect(d.textos.some(l => l.includes(t)), `${t}\n${conta}`).toBe(true)
+  const doA = d.textos.filter(l => /\bA\d/.test(l) || l.includes('Pedido A')).length
+  expect(doA, conta).toBeGreaterThan(0)
+  expect(doA, conta).toBeLessThan(folhas.length)
+  expect(d.textos.some(l => l.includes('A1.3.4')), conta).toBe(true)
+  expect(d.textos.some(l => l.includes('A0.0.0')), conta).toBe(false)
+})
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no corte das 400 linhas, as linhas em andamento guardadas dos pedidos que saem ocupam no máximo metade do espaço, as mais recentes', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  const planoR7 = comIds('A', grande('A', 2, 6, 30))
+  const folhasR7 = planoR7.flatMap(a => (a.children ?? []).flatMap(b => (b.children ?? []).map(c => c.id)))
+  await ateOCorte($, relogio, planoR7, async () => {}, async () => {
+    await start($, folhasR7)
+  })
+  const p = await painel($)
+  const corpo = p.filter(l => !l.cabecalho)
+  const conta = `${corpo.length} linhas\n${emTexto(p).slice(0, 800)}`
+  expect(corpo[0]?.texto.trim(), conta).toMatch(/^\+\d+ linhas anteriores$/)
+  expect(corpo.length, conta).toBeLessThanOrEqual(400)
+  // Metade do espaço do corte: (400 - 1) >> 1 linhas, com o pedido e os pais; o teto é usado inteiro.
+  const doA = corpo.filter(l => l.titulo === 'Pedido A' || /^A\d/.test(l.titulo)).length
+  expect(doA, conta).toBeLessThanOrEqual(199)
+  expect(doA, conta).toBeGreaterThanOrEqual(190)
+  expect(corpo.some(l => l.titulo === 'A1.5.29'), conta).toBe(true)
+  expect(corpo.some(l => l.titulo === 'A0.0.0'), conta).toBe(false)
+  for (const t of ['Pedido B', 'E0.0.0', 'E0.3.3']) expect(corpo.some(l => l.titulo === t), `${t}\n${conta}`).toBe(true)
+})
+
 // Um plano com o título da tarefa de nível 1 enorme: ele vai no cabeçalho (no texto e no `alt` da barra),
 // que o corte não tira.
 async function planoGigante($: any, tamanho: number) {
@@ -686,4 +973,170 @@ test('com o turno encerrado e uma carta na fila (ou a filha trabalhando), o temp
   await relogio.advance(60_000)
   const p = await painel($)
   expect(tempoDoCabecalho(p), emTexto(p)).toBe('1:00')
+})
+
+// Regra: cabecalho.titulo-nao-e-de-pedido-recolhido
+test("com mais de três pedidos no trabalho, o título não é de um pedido que está em '+N pedidos anteriores'", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: 'a1', title: 'a1' }, { id: 'a2', title: 'a2' }] }])
+  await start($, ['a1'])
+  await done($, ['a1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, [{ id: 'PB', title: 'Plano B', children: [{ id: 'pb1', title: 'pb1' }] }])
+  await start($, ['pb1'])
+  await done($, ['pb1'])
+  await fimDoTurno($)
+  for (const n of ['3', '4', '5']) {
+    await relogio.advance(1000)
+    await pedido($, `Pedido ${n}`)
+    await plan($, [{ id: `P${n}`, title: `Plano ${n}`, children: [{ id: `p${n}`, title: `p${n}` }] }])
+    await done($, [`p${n}`])
+    await fimDoTurno($)
+  }
+  let p = await painel($)
+  expect(tem(p, '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(false)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
+  p = await comHistorico($, 1)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano B')
+})
+
+// Regra: cabecalho.titulo-e-de-tarefa-desenhada
+test("com a linha '+N pedidos anteriores' aberta, o título é o da iniciada por último entre tudo o que está desenhado", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await start($, ['2'])
+  await done($, ['2'], 'feito')
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, B)
+  const p = await comHistorico($, 1)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(true)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
+})
+
+// Uma sessão aberta numa pasta com `.git` arquivo apontando para o gitdir dado, com a branch do HEAD dele.
+async function naPastaGit($: any, on: any, raiz: string, gitdir: string): Promise<{ texto: string; repo: unknown }> {
+  fixar(on)
+  const h = host(on, [], { git: { raiz, gitdir, head: 'ref: refs/heads/fix/cabecalho\n' } })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  return { texto: emTextoDoApp(await noApp($, { colunas: 100 })), repo: h.proprio()?.git?.repo }
+}
+
+// Regra: sessoes.worktree-mostra-o-repositorio-principal
+test('numa worktree, o cabeçalho mostra o repositório principal e a branch da worktree', async ($: any, on: any) => {
+  const r = await naPastaGit($, on, 'C:/src/ajuste-cabecalho', 'C:/src/meu-projeto/.git/worktrees/ajuste-cabecalho')
+  expect(r.texto, r.texto).toContain('meu-projeto ⑂ fix/cabecalho')
+  expect(r.texto, r.texto).not.toContain('ajuste-cabecalho')
+  expect(r.repo).toBe('meu-projeto')
+})
+
+// Regra: sessoes.worktree-mostra-o-repositorio-principal
+test('num submódulo, segue o nome da pasta', async ($: any, on: any) => {
+  const r = await naPastaGit($, on, 'C:/src/meu-projeto/lib', 'C:/src/meu-projeto/.git/modules/lib')
+  expect(r.texto, r.texto).toContain('lib ⑂ fix/cabecalho')
+  expect(r.texto, r.texto).not.toContain('meu-projeto ⑂')
+  expect(r.repo).toBe('lib')
+})
+
+const SO_A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
+const SO_B: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }]
+
+// Regra: cabecalho.resumida-exclui-pedido-finalizado
+test('o plan sozinho do pedido novo já tira o pedido finalizado do painel', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, SO_A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, SO_B)
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Plano B', 'pendente')
+})
+
+// Regra: cabecalho.resumida-exclui-pedido-finalizado
+test('o start sozinho, numa tarefa de pedido antigo, começa trabalho novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, SO_A)
+  await start($, ['1'])
+  await done($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, SO_B)
+  await start($, ['b1'])
+  await done($, ['b1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido três')
+  await start($, ['1'])
+  const p = await painel($)
+  expect(tem(p, 'Plano A'), emTexto(p)).toBe(true)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(tem(p, 'Plano B'), emTexto(p)).toBe(false)
+  expect(p.some(l => l.texto.includes('pedidos anteriores')), emTexto(p)).toBe(true)
+})
+
+// Uma worktree que o Claude Code cria dentro do repositório principal, com o `.git` dela apontando para
+// o gitdir por um caminho relativo.
+async function naWorktreeRelativa($: any, on: any): Promise<{ texto: string; repo: unknown }> {
+  fixar(on)
+  const h = host(on, [], { git: { raiz: 'C:/src/meu-projeto/.claude/worktrees/ajuste', gitdir: 'C:/src/meu-projeto/.git/worktrees/ajuste', relativo: '../../../.git/worktrees/ajuste', head: 'ref: refs/heads/fix/cabecalho\n' } })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  return { texto: emTextoDoApp(await noApp($, { colunas: 100 })), repo: h.proprio()?.git?.repo }
+}
+
+// Regra: sessoes.worktree-mostra-o-repositorio-principal
+test('numa worktree dentro do repositório principal, com gitdir relativo, o cabeçalho mostra o repositório principal', async ($: any, on: any) => {
+  const r = await naWorktreeRelativa($, on)
+  expect(r.texto, r.texto).toContain('meu-projeto ⑂ fix/cabecalho')
+  expect(r.texto, r.texto).not.toContain('ajuste ⑂')
+  expect(r.repo).toBe('meu-projeto')
+})
+
+const DOIS_PLANOS_R5: No[] = [
+  { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] },
+  { id: 'B', title: 'Plano B', children: [{ id: '3', title: 'Três' }] },
+]
+
+// Regra: cabecalho.titulo-e-a-ultima-iniciada
+test('depois de um start de novo numa tarefa que aguardava, o título é o do nível 1 dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PLANOS_R5)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await start($, ['3'])
+  await done($, ['3'])
+  await relogio.advance(1000)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await done($, ['1'])
+  const p = await painel($)
+  expect(cabecalho(p).titulo, emTexto(p)).toBe('Plano A')
+  esperarEstado(p, 'Plano A', 'andamento')
+  expect(estadoGeral(await noApp($))).toBe('em andamento')
 })

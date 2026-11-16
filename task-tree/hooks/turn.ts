@@ -7,7 +7,8 @@ import { BRIEF } from '../text/rules'
 import type { Group, Turn } from '../types'
 import { MAIN, flat, hasOpen, interrupt } from '../draw/layout'
 import { engineText } from '../io/host'
-import { change, dropAsked, dropPermissions, dropWaits, lastBrief, publishPanel, saveTurn, stamp } from './panel'
+import { debug, guardStep } from '../io/log'
+import { change, dropAsked, dropPermissions, dropWaits, ensureUltra, lastBrief, publishPanel, saveTurn, saveUltra, stamp } from './panel'
 import { settleBySubs, subEnd, subStep } from './agents'
 import { syncIdle } from './sessions'
 import { ensureGroups } from './panel'
@@ -61,10 +62,15 @@ export function speedOf(tokens: number, ms: number): number | undefined {
 export async function ultraAttachment($: EngineInterface, e: any, next: any) {
   if (!e.agentId && (e.type === 'ultra_effort_enter' || e.type === 'ultra_effort_exit')) {
     const on = e.type === 'ultra_effort_enter'
-    if ((await $.state.get(ultracodeState)).value !== on) {
-      await $.state.set(ultracodeState, on)
-      void publishPanel($).catch(() => {})
-    }
+    // The store's copy first (a new process): the notice is compared with what the session had.
+    await ensureUltra($)
+    const changed = (await $.state.get(ultracodeState)).value !== on
+    if (changed) await $.state.set(ultracodeState, on)
+    // Kept per session (the person, 2026-11-15: "Guardar por sessão"): a new process has it at once. On
+    // every notice, also a repeated one: a switch already on when the mod reloaded, or a write the
+    // store refused, is written then (saveUltra writes only what this module has not written yet).
+    await saveUltra($)
+    if (changed) void publishPanel($).catch(() => {})
   }
   return next(e)
 }
@@ -74,37 +80,56 @@ export async function ultraAttachment($: EngineInterface, e: any, next: any) {
 // The model and effort of the main loop's requests, published for the card in the session that
 // opened this one (the person's words: "mostre o nome do modelo e o esforco de cada sessao"); and
 // the call's output rate (above), published when it changes.
+// The panel's reads and writes around the stream never bring the step down: a failure goes to the
+// debug log and the answer passes whole. A consumer that stops in the middle (Esc) closes the stream
+// below too (finally); an error of the stream below goes up as it came.
 export async function* turnStep($: EngineInterface, e: any, next: any) {
   const main = !e.agentId
-  if (main && typeof e.model === 'string') {
-    const text = engineText(e.model, e.effort)
-    if ((await $.state.get(engineState)).value !== text) {
-      await $.state.set(engineState, text)
-      void publishPanel($).catch(() => {})
+  try {
+    if (main && typeof e.model === 'string') {
+      const text = engineText(e.model, e.effort)
+      const prev = (await $.state.get(engineState)).value
+      if (prev !== text) {
+        await $.state.set(engineState, text)
+        // Another model (the effort alone does not count): the old one's rate goes until the new one
+        // measures (the person, 2026-11-15: "Some até a medida nova (Recomendado)").
+        if (typeof prev === 'string' && prev !== '' && prev.split(' · ')[0] !== engineText(e.model)) await $.state.set(rateState, null)
+        void publishPanel($).catch(() => {})
+      }
     }
+  } catch (err) {
+    await debug($, `task-tree: passo do modelo, antes do stream: ${String(err)}`)
   }
   // The chunks pass through as they come; the clock is read at the first one and at the 'stop'.
   const it = next(e)
   let first: number | undefined
   let stop: { tokens: number; at: number } | undefined
-  let step = await it.next()
-  while (!step.done) {
-    const chunk = step.value
-    if (first === undefined) first = await stamp($)
-    if (chunk?.kind === 'stop' && typeof chunk.usage?.output_tokens === 'number') stop = { tokens: chunk.usage.output_tokens, at: (await stamp($)) ?? 0 }
-    yield chunk
+  let over = false
+  let step: IteratorResult<any, any>
+  try {
     step = await it.next()
+    while (!step.done) {
+      const chunk = step.value
+      if (first === undefined) first = await stamp($)
+      if (chunk?.kind === 'stop' && typeof chunk.usage?.output_tokens === 'number') stop = { tokens: chunk.usage.output_tokens, at: (await stamp($)) ?? 0 }
+      yield chunk
+      step = await it.next()
+    }
+    over = true
+  } finally {
+    if (!over && typeof it?.return === 'function') await Promise.resolve(it.return(undefined)).catch(() => {})
   }
   const r = step.value
-  const toks = first !== undefined && stop ? speedOf(stop.tokens, stop.at - first) : undefined
-  // A subagent's step: its card's model, effort and rate (hooks/agents).
-  if (!main) {
-    await subStep($, String(e.agentId), e, toks)
-    return r
-  }
-  if (toks !== undefined && (await $.state.get(rateState)).value?.toks !== toks) {
-    await $.state.set(rateState, { toks, at: stop!.at, live: true })
-    void publishPanel($).catch(() => {})
+  try {
+    const toks = first !== undefined && stop ? speedOf(stop.tokens, stop.at - first) : undefined
+    // A subagent's step: its card's model, effort and rate (hooks/agents).
+    if (!main) await subStep($, String(e.agentId), e, toks)
+    else if (toks !== undefined && (await $.state.get(rateState)).value?.toks !== toks) {
+      await $.state.set(rateState, { toks, at: stop!.at, live: true })
+      void publishPanel($).catch(() => {})
+    }
+  } catch (err) {
+    await debug($, `task-tree: passo do modelo, depois do stream: ${String(err)}`)
   }
   return r
 }
@@ -126,6 +151,14 @@ function answeredTurn(g: Group, summary: boolean): Turn | undefined {
   if (touched) return last
   return summary ? cur : undefined
 }
+// One step of the turn's end, its failure said in the debug log ("fim do turno, passo <nome>").
+async function guarded($: any, name: string, run: () => Promise<unknown>) {
+  try {
+    await run()
+  } catch (err) {
+    await debug($, `task-tree: fim do turno, passo ${name}: ${String(err)}`)
+  }
+}
 export async function turnComplete($: EngineInterface, e: any, next: any) {
   const r = await next(e)
   const agent = e.agentId
@@ -135,18 +168,21 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   const halted = e.isAborted === true || failed
   // A question or plan dialog never outlives the turn that opened it (one answered by a chat
   // message may end without the call returning here).
-  await dropAsked($, agent ?? MAIN)
+  // The main loop's accessory steps each on their own (guardStep, the failure in the debug log once):
+  // the turn's end, its marks and its copy in the store are written whatever fails around them. The
+  // order does not change.
+  await guardStep($, 'fim do turno', 'dropAsked', () => dropAsked($, agent ?? MAIN))
   // A permission wait the main loop left over (its call never ended here) does not outlive the turn.
-  if (!agent) await dropPermissions($, MAIN)
+  if (!agent) await guardStep($, 'fim do turno', 'dropPermissions', () => dropPermissions($, MAIN))
   // What the turn answered, kept on its turn (the last one of the main group) and published: only its
   // summary (done's, the ↩ line), drawn under the turn's tasks and in this session's card in the one
   // that opened it. The whole answer is not kept (the person, 2026-11-14: "Tirar, basta o ↩
   // (Recomendado)"), and the `reply` earlier versions wrote goes in the same write.
   // The summary goes at the end of every turn, stopped too: a stopped turn records no ↩, and what it
   // left must not become the next request's.
-  const given = agent ? undefined : await lastBrief($)
-  if (given !== undefined) await $.state.set(briefState, '')
-  if (!agent && !halted && given !== undefined) {
+  const given = agent ? undefined : await guardStep($, 'fim do turno', 'lastBrief', () => lastBrief($))
+  if (given !== undefined) await guardStep($, 'fim do turno', 'limpar o resumo', () => $.state.set(briefState, ''))
+  if (!agent && !halted && given !== undefined) await guardStep($, 'fim do turno', 'resumo do turno', async () => {
     const short = brief(given)
     // The turn's ↩ is the done's summary; it is kept even when the turn ended with no text of its own
     // (the model stopped right after a tool).
@@ -162,20 +198,20 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
         return last ? { ...g, turns: turns.map(u => (u.id === last.id ? { ...u, brief: short } : u)) } : g
       }),
     )
-  }
+  })
   // The turn ended: what it left open is not in progress until the next prompt (the person: a session
   // that ended its turn shows no task running), drawn with no close and its clock stopped here.
   const endedAt = agent ? undefined : await stamp($)
   if (!agent) await $.state.set(turnEndedState, endedAt ?? 0)
   // The turn is over: a task whose work was subagents, all ended, reflects their end (hooks/agents).
-  if (!agent && !e.isAborted) await settleBySubs($)
+  if (!agent && !e.isAborted) await guardStep($, 'fim do turno', 'settleBySubs', () => settleBySubs($))
   // What it left in progress waits on the task itself until its start (rest, state/tasks).
-  if (!agent && !halted) {
+  if (!agent && !halted) await guardStep($, 'fim do turno', 'rest', async () => {
     await ensureGroups($)
     const { value: now = [] } = await $.state.get(groupsState)
     if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
       await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(rest(endedAt)) } : g)))
-  }
+  })
   // The turn's output rate stays as it is, lit (the person, 2026-11-10: "Fica aceso").
   // Interrupted (stopped) before it was over: the next message of another session is reminded to
   // replan (prompt.submit); the person's own next prompt clears it.
@@ -190,28 +226,37 @@ export async function turnComplete($: EngineInterface, e: any, next: any) {
   // store: it reads as interrupted until its next start, through the turns that open no request and
   // those that start another task (the person, 2026-11-12: "Segue ✕ até novo start (Recomendado)").
   // The groups come back from the store first (a respawn with no session.start).
-  if (!agent && halted) {
+  if (!agent && halted) await guardStep($, 'fim do turno', 'park', async () => {
     await ensureGroups($)
     const { value: now = [] } = await $.state.get(groupsState)
     if (now.some(g => g.agent === MAIN && hasOpen(g.tasks)))
       await change($, all => all.map(g => (g.agent === MAIN ? { ...g, tasks: g.tasks.map(park(endedAt, failed)) } : g)))
-  }
+  })
   // The end in the store too: a new process draws it as stopped (see saveTurn).
   if (!agent) await saveTurn($)
   // Nothing alive past the turn: the session stands stopped from its end on (syncIdle).
-  if (!agent) await syncIdle($, endedAt)
+  if (!agent) await guardStep($, 'fim do turno', 'syncIdle', () => syncIdle($, endedAt))
   // The turn's answer grew the context: publish its share for the session that opened this one.
-  if (!agent) await publishPanel($)
+  if (!agent) await guardStep($, 'fim do turno', 'publishPanel', () => publishPanel($))
+  // A subagent's end: each step on its own (a failure goes to the debug log and the next one runs); a
+  // list of agents that fails reads as "not a teammate", so the end goes on.
   if (agent) {
-    const info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
+    let info: AgentInfo | undefined
+    await guarded($, 'lista de agentes', async () => {
+      info = ((await $.agent.list()) as AgentInfo[]).find(a => a.id === agent)
+    })
     if (info?.type !== 'teammate' && info?.teammateId === undefined) {
-      await subEnd($, agent, e)
-      await dropWaits($, w => w.agent !== agent)
-      const { value } = await $.state.get(groupsState)
-      if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {
-        const now = await stamp($)
-        await change($, all => all.map(g => (g.agent === agent ? { ...g, tasks: g.tasks.map(interrupt(now)) } : g)))
-      }
+      await guarded($, 'subEnd', () => subEnd($, agent, e))
+      await guarded($, 'dropWaits', () => dropWaits($, w => w.agent !== agent))
+      // Its task whose launched subagents all ended reflects them first; the rest is interrupted.
+      await guarded($, 'settleBySubs', () => settleBySubs($, agent))
+      await guarded($, 'interromper', async () => {
+        const { value } = await $.state.get(groupsState)
+        if (value?.some(g => g.agent === agent && hasOpen(g.tasks))) {
+          const now = await stamp($)
+          await change($, all => all.map(g => (g.agent === agent ? { ...g, tasks: g.tasks.map(interrupt(now)) } : g)))
+        }
+      })
     }
     // The subagent that ends the last thing alive past the turn leaves the session stopped (syncIdle).
     await syncIdle($)

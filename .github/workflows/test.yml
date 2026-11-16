@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # A mesma versão do app; subir junto com o app (CLAUDE.md, "CI").
-      CLAUDE_CODE_VERSION: 2.1.321
       DISABLE_AUTOUPDATER: 1
     steps:
       # O histórico inteiro: a regressão roda os testes da base do PR contra o código dele.
@@ -38,8 +36,14 @@ jobs:
       - run: npm ci
 
       - name: Claude Code
+        # A versão fixada mora em scripts/versao-do-claude-code.txt (CLAUDE.md, "CI").
         run: |
-          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          versao=$(tr -d '[:space:]' < scripts/versao-do-claude-code.txt)
+          if ! printf '%s' "$versao" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::scripts/versao-do-claude-code.txt vazio ou fora do formato X.Y.Z: '$versao'"
+            exit 1
+          fi
+          npm install -g "@anthropic-ai/claude-code@${versao}"
           echo "CLAUDE_BIN=$(command -v claude)" >> "$GITHUB_ENV"
           claude --version
 
@@ -55,20 +59,26 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          set -e
           if [ -n "$BASE_SHA" ]; then
-            echo "ref=$(git merge-base "$BASE_SHA" HEAD)" >> "$GITHUB_OUTPUT"
+            ref=$(git merge-base "$BASE_SHA" HEAD)
           else
-            echo "ref=$(git merge-base origin/main HEAD)" >> "$GITHUB_OUTPUT"
+            ref=$(git merge-base origin/main HEAD)
           fi
+          if [ -z "$ref" ]; then
+            echo "::error::a base de comparação saiu vazia (git merge-base sem resposta)"
+            exit 1
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
       - name: npm run check
         run: npm run check -- --base "${{ steps.base.outputs.ref }}"
 
       - name: Testes alterados
-        if: always()
+        if: always() && steps.base.outputs.ref != ''
         run: npm run testes:alterados -- --base "${{ steps.base.outputs.ref }}"
 
       # Informativo, só no log: os cenários, testes, checklist e golden que o PR toca (sai sempre com 0).
       - name: Matriz de impacto
-        if: always()
+        if: always() && steps.base.outputs.ref != ''
         run: npm run impacto -- --base "${{ steps.base.outputs.ref }}"

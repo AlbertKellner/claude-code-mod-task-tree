@@ -4,17 +4,20 @@
 // back, a start_session records its session, then each note handler adds, in order, what it has to say
 // to the result (a message only queued, a session that ended its turn, a message taken up, a task the
 // end of its subagents closed or marked ✕, what a
-// wrap_up leaves open) and, last, the reminder to plan: the first call of a request that has not
-// used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own).
+// wrap_up leaves open) and, last, the reminder to plan (never on the app's wrap_up or task list): the first call of a request that has not
+// used the panel, with no open task of its own and none in progress, and every 10th after it (what prompt.submit misses: answers to questions, work Claude continues on its own);
+// with a plan open and nothing started, the reminder to start at the third call, once a plan.
 
 import { update } from 'claude-code'
+import { debugOnce } from '../io/log'
 
 import type { Child, Group, Send, Wait } from '../types'
-import { ASK, SEND, UNPLANNED, WRAP_UP } from '../text/rules'
-import { MAIN, flat, hasOpen, current } from '../draw/layout'
-import { reminders, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, stamp, usedAnchors, wake } from './panel'
+import { ASK, SEND, START_DUE, UNPLANNED, WRAP_UP } from '../text/rules'
+import { MAIN, flat, hasOpen, current, keepRounds, keepSends, live, nextSeq } from '../draw/layout'
+import { countIdleCall, marks, reminders, setMarks, requestTasks, inCall, addWait, askingAnchors, dropWaits, ensureLinks, isLeftBehind, keptLink, lastBrief, openList, openTurnOf, publishPanel, sendAnchor, sendPlace, stamp, usedAnchors, wake } from './panel'
 import { endedNote, keepTime, recordStart, refreshChildren, refreshStale, takenNote, watchSessions } from './sessions'
 import { launchAnchor, subTool, subsNote } from './agents'
+import { cutText, oneLine } from '../draw/svg'
 
 // The state's keys this file reads or writes, as literals: the kit's validator wants them written in the
 // file that calls $.state (../state/durability has a row for every one).
@@ -23,6 +26,7 @@ const launchesState = { plugin: 'task-tree', key: 'launches' } as const
 const childrenState = { plugin: 'task-tree', key: 'children' } as const
 const sendsState = { plugin: 'task-tree', key: 'sends' } as const
 const waitsState = { plugin: 'task-tree', key: 'waits' } as const
+const workState = { plugin: 'task-tree', key: 'work' } as const
 
 // What the handlers share about one call: the loop that made it (`agent`), the event, when a
 // message was sent (`sentAt`, before the call: a message delivered at once opens the session's turn
@@ -54,25 +58,42 @@ async function asked($: any, c: Call, next: any): Promise<any | undefined> {
   // in progress, of any request, is refused. A task only pending from an earlier request does not
   // let it through (the person, 2026-11-14: "Não (Recomendado)"). ExitPlanMode and the wrap_up's
   // choice are let through, as first designed: it is not that plan mode holds the panel's tools.
+  // A failure of the mod while checking opens the question, said in the debug log: a defect of the
+  // panel never holds the model (the person, 2026-11-15: "Abre, com erro no log (Recomendado)").
   if (kind === 'question' && agent === MAIN) {
-    const { value = [] } = await $.state.get(groupsState)
-    const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-    if (!hasOpen(requestTasks(value as Group[])) && current(all).anchor === undefined) {
-      return { deny: ASK.refused }
+    let refuse = false
+    try {
+      const { value = [] } = await $.state.get(groupsState)
+      const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+      refuse = !hasOpen(requestTasks(value as Group[])) && current(all).anchor === undefined
+    } catch (err) {
+      await debugOnce($, `task-tree: a conferência da pergunta sem tarefa falhou (${String(err)}); a pergunta foi aberta`)
     }
+    if (refuse) return { deny: ASK.refused }
   }
+  // The question always reaches the person and the answer always goes back: the panel's steps around
+  // it (the wait, the reminder, dropping the wait) fail into the debug log.
   const key = e.tool_use_id
-  await addWait($, { agent, kind, tool: e.tool, key, ...(await askAnchor($, agent)) })
+  try {
+    await addWait($, { agent, kind, tool: e.tool, key, ...(await askAnchor($, agent)) })
+  } catch (err) {
+    await stepFailed($, 'addWait', err)
+  }
   try {
     const r = await next(e)
     // Answered by a chat message instead of an option: that message is still to come.
     const inChat = /did not answer|sent a message instead/i.test(JSON.stringify(r.result ?? r))
-    if (inChat && agent === MAIN) reminders.answeredInChat = true
-    const { value = [] } = await $.state.get(groupsState)
-    if (!hasOpen(value.find((g: Group) => g.agent === agent)?.tasks ?? [])) return r
+    if (inChat && agent === MAIN) await setMarks($, { answeredInChat: true })
+    try {
+      const { value = [] } = await $.state.get(groupsState)
+      if (!hasOpen(value.find((g: Group) => g.agent === agent)?.tasks ?? [])) return r
+    } catch (err) {
+      await stepFailed($, 'lembrete da resposta', err)
+      return r
+    }
     return { ...r, context: [...(r.context ?? []), inChat ? ASK.inChat : ASK.answered] }
   } finally {
-    await dropWaits($, w => w.key !== key)
+    await dropWaits($, w => w.key !== key).catch(err => stepFailed($, 'dropWaits', err))
   }
 }
 
@@ -118,7 +139,8 @@ const sentMessage: Notes = async ($, c, notes) => {
   const failed = r.isError === true || /success[\\"]*:\s*false/.test(out)
   const to = String(e.to ?? e.input?.to ?? '')
   // The message's start, its letter's title.
-  const said = String(e.message ?? e.input?.message ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
+  const said0 = oneLine(String(e.message ?? e.input?.message ?? ''))
+  const said = cutText(said0, 200, false)
   // The task the message is sent from, once, before this send is recorded anywhere (a round, a send):
   // with several tasks in progress it is the first one with no message yet (sendAnchor), and the
   // records below must not move it to the next.
@@ -129,35 +151,42 @@ const sentMessage: Notes = async ($, c, notes) => {
   // The receiving session's names, to match a task's title (sendAnchor): what `to` says, and the name
   // the host lists for that id.
   const names = [to, ...(kids0 as Child[]).filter(k => k.id === to).map(k => k.name)].filter(n => n !== '' && !/^local_/.test(n))
-  // Before the request's first plan: none (drawn loose until the plan adopts it).
-  const anchor = sendAnchor((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
-  // The session is used for the task in progress: the summary view draws it there.
+  // Before the request's first plan: none (drawn loose until the plan adopts it). With a question open
+  // in the task in progress and the request with no task yet, another task of that plan, only as a
+  // place (`place`, Send.onlyPlace): its delivery closes nothing.
+  const { anchor, place } = sendPlace((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
+  // The session is used for the task in progress: the panel draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
     // sent from once the session takes it up (see split). A session not among the children yet gets
     // its round only if it is this session's (see below): the round was lost, and the card of the
-    // turn the message opened had no task to go under.
-    const round = sentAt === undefined ? [] : [{ at: sentAt, anchor }]
+    // turn the message opened had no task to go under. A round opened by a message put only as a place
+    // keeps that mark (onlyPlace), also once the letter leaves the sends (onlyPlaceAt).
+    const round: { at: number; anchor?: string; onlyPlace?: boolean }[] = sentAt === undefined ? [] : [{ at: sentAt, anchor, ...(place ? { onlyPlace: true } : {}) }]
     const mine = (ch: { id: string; name: string }) => ch.id === to || (ch.name !== '' && ch.name === to)
     // A session left behind by a /clear gets no card: only the letter (forgetChildren).
     if (to !== '' && !failed && !isLeftBehind(to)) {
       // A local_ id not among the children: the host's list read now. Listed as one of this
       // session's, it gets the round as any child (and the send's task as its origin, if it had
       // none); else, one this session opened that the list leaves out (its tie kept, keptLink), an
-      // entry with its kept ties and the round. Any other (the mother, a sister, a session this one did
+      // entry with its kept ties (the mark of only a place too, with the task it marks) and the round. Any other (the mother, a sister, a session this one did
       // not open) gets no entry: only the letter under the task.
       const fresh = to.startsWith('local_') && !(kids0 as Child[]).some(mine)
       if (fresh) await refreshChildren($).catch(() => {})
       const kept = keptLink(to)
+      // The rounds kept (keepRounds): over 20, only those of tasks out of sight go.
+      const { value: work = [] } = await $.state.get(workState)
+      const ownTasks = (groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
+      const cap = (rounds: { at: number; anchor?: string; onlyPlace?: boolean }[]) => keepRounds(rounds, ownTasks, work as string[])
       await update($, childrenState, cur => {
         const list = cur ?? []
         if (list.some(mine)) {
-          return list.map(ch => (mine(ch) ? { ...ch, ...(fresh && ch.anchor === undefined && anchor !== undefined ? { anchor } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(ch.rounds ?? []), ...round].slice(-20) } : ch))
+          return list.map(ch => (mine(ch) ? { ...ch, ...(fresh && ch.anchor === undefined && anchor !== undefined ? { anchor } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: cap([...(ch.rounds ?? []), ...round]) } : ch))
         }
         if (!to.startsWith('local_') || kept === undefined) return list
         return [
           ...list,
-          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: [...(kept.rounds ?? []), ...round].slice(-20), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
+          { id: to, name: '', title: 'Sessão…', running: true, archived: false, starting: true, anchor: kept.anchor ?? anchor, ...(kept.anchor !== undefined && kept.onlyPlace === true ? { onlyPlace: true } : {}), ...(anchor !== undefined ? { lastAnchor: anchor } : {}), rounds: cap([...(kept.rounds ?? []), ...round]), ...(kept.openedAt !== undefined ? { openedAt: kept.openedAt } : {}) },
         ]
       })
     }
@@ -176,17 +205,23 @@ const sentMessage: Notes = async ($, c, notes) => {
   const agent = to !== '' && !failed && !to.startsWith('local_') ? await subagentOf($, to) : undefined
   if (to !== '' && !failed) {
     const at = sentAt ?? (await stamp($))
-    await update($, sendsState, cur => [
-      ...(cur ?? []).filter(s => !(s.to === to && s.anchor === anchor)),
-      { to, anchor, at, text: said, ...(agent !== undefined ? { agent } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true }) },
-    ].slice(-20))
+    // One letter per message, also a second one from the same task to the same session (the person,
+    // 2026-11-15: "Uma carta por mensagem (Recomendado)"), each with its own number. Over 20, only the
+    // letters delivered (or not) and already told go (keepSends).
+    await update($, sendsState, cur =>
+      keepSends([
+        ...(cur ?? []),
+        { to, anchor, at, seq: nextSeq(cur ?? []), text: said, ...(agent !== undefined ? { agent } : {}), ...(place ? { onlyPlace: true } : {}), ...(waitsDelivery ? {} : { delivered: true, taken: true, spent: false }) },
+      ]),
+    )
     // The task it went from stays a task like any other: the message is its letter, drawn below it.
     await publishPanel($)
   }
   if (waitsDelivery && to !== '') {
     const all = flat((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [])
     const t = all.find(t => t.id === anchor)
-    notes.push((agent !== undefined ? SEND.queuedSub : SEND.queued)(to, t ? `"${t.id}" ${t.title}` : undefined))
+    const task = t ? `"${t.id}" ${t.title}` : undefined
+    notes.push(place ? SEND.queuedPlace(to, task, agent !== undefined) : (agent !== undefined ? SEND.queuedSub : SEND.queued)(to, task))
   }
 }
 
@@ -228,8 +263,17 @@ const wrapUpOpen: Notes = async ($, c, notes) => {
 // In this order, after the call (the kit wants each one called by name, so no list is walked).
 
 // The reminder to plan, in the result of the first call of the main loop with no open plan and of
-// every 10th after it; a call of the panel's own tools, or a request that planned, starts the count over.
+// every 10th after it. The count starts over with a new request and stays at zero while the request
+// has a plan (the mark `planned`), an open task or a task in progress; a call of the panel's own tools
+// would zero it only through the defense below, which this hook does not reach today.
+// The app's wrap_up and its task list neither take it nor count (the person, 2026-11-15: "Não levar
+// (Recomendado)", "Não leva (Recomendado)"): a request answered with text alone gets no plan made
+// after the fact, and the list called beside the plan does not ask for it again.
+const NOT_COUNTED = ['mcp__ccd_turn__wrap_up', 'mcp__ccd_turn__update_plan']
 async function reminder($: any, c: Call, r: any) {
+  if (NOT_COUNTED.includes(String(c.e.tool))) return r
+  // A defense: today the panel's own tools answer in their own hooks (hooks/register.tsx, no next)
+  // and this hook does not see them (checked in the harness, 2026-11-15).
   if (String(c.e.tool).startsWith('mcp__task-tree__')) {
     reminders.unplanned = 0
     return r
@@ -238,29 +282,59 @@ async function reminder($: any, c: Call, r: any) {
   // Measured on the current request: a task only pending from an earlier one does not silence it; a
   // task in progress, of any request (a start on an old one is the expected way to go on), does.
   const all = (value as Group[]).find(g => g.agent === MAIN)?.tasks ?? []
-  if (reminders.planned || hasOpen(requestTasks(value as Group[])) || current(all).anchor !== undefined) {
+  const open = hasOpen(requestTasks(value as Group[]))
+  const busy = current(all).anchor !== undefined
+  const m = await marks($)
+  if (m.planned || open || busy) {
     reminders.unplanned = 0
-    return r
+    // The plan open and nothing started (the panel all ○, its clock still): the third call in a row
+    // takes the reminder to start, once a plan (the person, 2026-11-15: "Lembrete após 3 chamadas
+    // (Recomendado)"). A call with a task in progress, or with something that holds a task with no
+    // start (a subagent alive, a session working, a letter queued), neither counts nor resets it; a
+    // start, a plan taken and a new request reset it (hooks/tools, hooks/prompt-submit).
+    // The count is read, added and written in one write (countIdleCall): calls made together count
+    // one by one, and only the third takes the reminder.
+    if (!open || busy || m.idleWarned || (await holdsUnstarted($, value as Group[]))) return r
+    if (!(await countIdleCall($))) return r
+    return { ...r, context: [...(r.context ?? []), START_DUE] }
   }
   reminders.unplanned++
   if (reminders.unplanned % 10 !== 1) return r
   return { ...r, context: [...(r.context ?? []), UNPLANNED] }
 }
 
+// What keeps a task lit with no start (arvore.sem-start-nada-acende), and a letter queued: a subagent
+// the main loop launched still running, a session this one opened working, a message not taken up
+// (queued: not taken, not cut, not given up as lost, as the rest of the mod reads it; a letter taken
+// from the queue later stays in the list but holds nothing).
+async function holdsUnstarted($: any, groups: Group[]): Promise<boolean> {
+  if (groups.some(g => g.agent !== MAIN && (g.parent ?? MAIN) === MAIN && (g.sub?.state === 'running' || g.sub?.state === 'background'))) return true
+  const { value: kids = [] } = await $.state.get(childrenState)
+  if ((kids as Child[]).some(live)) return true
+  const { value: sends = [] } = await $.state.get(sendsState)
+  return (sends as Send[]).some(s => s.taken !== true && s.cut !== true && s.lost !== true)
+}
+
 // ---- the hook
 
 import type { EngineInterface } from 'claude-code'
 
+// A step of the hook that failed: said once per step and reason in the debug log; the hook goes on to
+// the next step. The tool itself (next) is not caught; asked's refusal opens the question when its check fails.
+async function stepFailed($: any, step: string, err: unknown) {
+  await debugOnce($, `task-tree: tool.call, passo ${step}: ${String(err)}`)
+}
+
 export async function toolCall($: EngineInterface, e: any, next: any) {
   const c: Call = { agent: e.agentId ?? MAIN, e }
   // A call of the main loop: its turn is running, what the last one left open is in progress again.
-  if (c.agent === MAIN) await wake($)
+  if (c.agent === MAIN) await wake($).catch(err => stepFailed($, 'wake', err))
   // A subagent's call: the tool its card shows (hooks/agents); the cards are written at most once a
   // second for all the subagents, so this call waits on a write only once a second at most.
-  else await subTool($, c.agent, e)
+  else await subTool($, c.agent, e).catch(err => stepFailed($, 'subTool', err))
   // The links come back from the store before the launch writes one (a new process).
-  await ensureLinks($)
-  await launch($, c)
+  await ensureLinks($).catch(err => stepFailed($, 'ensureLinks', err))
+  await launch($, c).catch(err => stepFailed($, 'launch', err))
   const answered = await asked($, c, next)
   if (answered !== undefined) return answered
   c.sentAt = String(e.tool) === 'SendMessage' ? await stamp($) : undefined
@@ -274,26 +348,32 @@ export async function toolCall($: EngineInterface, e: any, next: any) {
     if (left > 0) inCall.set(busy, left)
     else {
       inCall.delete(busy)
-      await dropWaits($, w => w.key !== busy)
+      await dropWaits($, w => w.key !== busy).catch(err => stepFailed($, 'dropWaits', err))
     }
   }
-  await wrapUpAsk($, c)
+  // Each step after the call on its own (stepFailed): one that fails does not lose the letter of a send,
+  // the round of a session or the reminders. The order does not change.
+  await wrapUpAsk($, c).catch(err => stepFailed($, 'wrapUpAsk', err))
   if (c.agent !== MAIN) return c.r
   // After a reload the clock is gone with the old module: the next call starts it again.
-  await keepTime($)
+  await keepTime($).catch(err => stepFailed($, 'keepTime', err))
   watchSessions($)
-  await refreshStale($).catch(() => {})
+  await refreshStale($).catch(err => stepFailed($, 'refreshStale', err))
   if (String(e.tool) === 'mcp__ccd_session__start_session') {
     const out = JSON.stringify(c.r.result ?? c.r)
     const input = ((e as any).input ?? e) as { name?: unknown; title?: unknown }
-    await recordStart($, out, [input.name].filter((n): n is string => typeof n === 'string' && n !== ''), [input.title].filter((n): n is string => typeof n === 'string' && n !== ''))
+    await recordStart($, out, [input.name].filter((n): n is string => typeof n === 'string' && n !== ''), [input.title].filter((n): n is string => typeof n === 'string' && n !== '')).catch(err => stepFailed($, 'recordStart', err))
   }
   if (c.r.deny !== undefined) return c.r
   const notes: string[] = []
-  await sentMessage($, c, notes)
-  await sessionNotes($, c, notes)
-  await wrapUpOpen($, c, notes)
+  await sentMessage($, c, notes).catch(err => stepFailed($, 'sentMessage', err))
+  await sessionNotes($, c, notes).catch(err => stepFailed($, 'sessionNotes', err))
+  await wrapUpOpen($, c, notes).catch(err => stepFailed($, 'wrapUpOpen', err))
   let r = c.r
   if (notes.length > 0) r = { ...r, context: [...(r.context ?? []), ...notes] }
-  return reminder($, c, r)
+  const done = r
+  return reminder($, c, done).catch(async err => {
+    await stepFailed($, 'reminder', err)
+    return done
+  })
 }

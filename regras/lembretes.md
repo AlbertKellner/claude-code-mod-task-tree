@@ -11,7 +11,7 @@ Depois do Esc, a mensagem da pessoa pede para replanejar.
 - Quando ela manda a mensagem seguinte
 - Então o modelo recebe o pedido de replanejar com a lista das abertas, no lugar da lista para fechar
 
-Origem: decisão do usuário, 2026-10-27 ("precisa replanejar quando eu interrompo e envio nova mensagem"); commit d3ff1be.
+Origem: decisão do usuário, 2026-10-27 ("precisa replanejar quando eu interrompo e envio nova mensagem"); commit 4787aef.
 Estado: coberto
 
 ### lembretes.fim-normal-lista-abertas
@@ -21,7 +21,7 @@ Depois do fim normal, a mensagem da pessoa lista o que ficou aberto.
 - Quando chega a mensagem da pessoa
 - Então o modelo recebe a lista para fechar ou manter, sem pedido de replanejar
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### lembretes.outra-sessao-apos-esc
@@ -31,17 +31,18 @@ Depois do Esc, a mensagem de outra sessão pede para replanejar.
 - Quando a mensagem seguinte é de outra sessão
 - Então o modelo recebe o pedido de replanejar dessa origem
 
-Origem: commit 2326900, 2026-10-23 ("lembrete de replanejar quando uma mensagem de outra sessão chega depois de um turno interrompido").
+Origem: commit 0629c5f, 2026-10-23 ("lembrete de replanejar quando uma mensagem de outra sessão chega depois de um turno interrompido").
 Estado: coberto
 
 ### lembretes.esc-sem-abertas
 Depois do Esc sem nada aberto, não há o que replanejar.
 
 - Dado um turno parado sem tarefas abertas
-- Quando chega a mensagem da pessoa
-- Então não há pedido de replanejar
+- Quando chega a mensagem seguinte, da pessoa ou de outra sessão
+- Então não há pedido de replanejar: as duas seguem só com o lembrete de pedido novo
 
-Origem: decisão do usuário, 2026-10-27; commit d3ff1be.
+Origem: decisão do usuário, 2026-10-27; commit 4787aef.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Tirar o texto extra (Recomendado)"): a mensagem de outra sessão deixa de levar o pedido de replanejar quando nada ficou aberto; as duas origens ficam iguais. O teste existente deste cenário não muda.
 Estado: coberto
 
 ### lembretes.replanejar-vale-uma-vez
@@ -51,7 +52,7 @@ O pedido de replanejar vale uma vez só.
 - Quando o turno seguinte termina normalmente e chega outra mensagem
 - Então volta o lembrete normal da lista das abertas
 
-Origem: decisão do usuário, 2026-10-27; commit d3ff1be.
+Origem: decisão do usuário, 2026-10-27; commit 4787aef.
 Estado: coberto
 
 ### lembretes.replanejar-apos-esc-com-aviso-no-meio
@@ -70,9 +71,10 @@ O lembrete de planejar na primeira ferramenta sem plano.
 
 - Dado um pedido em que o modelo ainda não usou o painel (nenhum plan aceito, nenhum start, nenhum done em tarefa deste pedido), sem tarefa aberta própria e sem tarefa em andamento
 - Quando o modelo chama a primeira ferramenta e, depois, a cada 10
-- Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala
+- Então ele recebe o lembrete de planejar; uma tarefa só pendente de um pedido anterior não cala o lembrete, nem o done nela, nem um plan recusado; uma tarefa em andamento, ou um start numa tarefa antiga, cala; o wrap_up do app e a lista do app (update_plan) não levam o lembrete nem contam como chamada
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o texto passou para text/rules.ts no commit 758dbb7, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20); o texto passou para text/rules.ts no commit dee2f67, 2026-10-22 ("textos do modelo num módulo, com golden"); a medida pelo pedido atual, auditoria 2026-11-10.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Não levar (Recomendado)"): no wrap_up sai só "falta o resumo do turno"; o lembrete de planejar segue nas outras ferramentas; e de 2026-11-15 ("Não leva (Recomendado)"): a lista do app (update_plan) também deixa de receber o lembrete. Os testes existentes deste cenário não mudam.
 Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts
 Estado: coberto
 
@@ -83,7 +85,7 @@ As regras do painel entram no prompt de sistema.
 - Quando o prompt de sistema é montado
 - Então a seção de regras do painel entra
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### lembretes.estado-guardado-so-no-mesmo-pedido
@@ -154,10 +156,22 @@ Quando uma sessão filha termina o turno, o modelo é lembrado da tarefa de orig
 
 - Dado uma filha aberta de uma tarefa, que depois recebeu mensagens enviadas de outras tarefas
 - Quando ela termina um turno
-- Então, uma vez, o modelo recebe o lembrete de conferir o relato e fechar o que o trabalho delegado concluiu, citando a tarefa da última mensagem que a filha já tratou, se ela segue aberta, senão a tarefa em que a filha foi aberta; a mensagem ainda na fila não muda a tarefa citada; sem nenhuma das duas aberta, não há lembrete
+- Então, uma vez, o modelo recebe o lembrete de conferir o relato e fechar o que o trabalho delegado concluiu, citando a tarefa da última mensagem que a filha já tratou, se ela segue aberta, senão a tarefa em que a filha foi aberta; a mensagem ainda na fila não muda a tarefa citada; sem nenhuma das duas aberta, não há lembrete; quando a filha concluiu tudo e o painel fechou a tarefa de origem, o aviso diz isso no lugar do lembrete (sessoes.filha-que-conclui-tudo-fecha-a-origem)
 
 Origem: regra do painel desde a entrada do mod (o lembrete, sem cenário até aqui); auditoria 2026-11-10 (triagem de 2026-11-13: o lembrete olhava só a tarefa de abertura, enquanto o painel já tratava a tarefa da última rodada como a origem). Aplica sessoes.um-cartao-por-mensagem, sem mudar nenhuma regra.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Fecha a tarefa sozinho (Recomendado)"). Os testes existentes não mudam.
 Código: hooks/sessions.ts, hooks/tool-call.ts
+Estado: coberto
+
+### lembretes.filha-arquivada-ou-apagada
+Quando uma sessão filha é arquivada ou apagada com a tarefa de origem aberta, o modelo é avisado uma vez.
+
+- Dado uma sessão filha aberta de uma tarefa que segue aberta
+- Quando a pessoa a arquiva ou a apaga no app
+- Então, uma vez, na mensagem ou chamada seguinte, o modelo lê que a sessão foi arquivada (o que ela deixou aberto ficou ✕) ou que não existe mais (o cartão saiu do painel), com o nome dela e a tarefa de origem, para concluir, refazer ou cancelar essa tarefa; o painel segue como antes (o cartão da arquivada fica, o da apagada some); a sessão que só saiu da lista do app, sem confirmação de que não existe, não gera aviso; com a tarefa de origem fechada, não há aviso; depois de um reinício, o aviso não se repete
+
+Origem: decisão do usuário, 2026-11-15 ("Avisar o modelo uma vez (Recomendado)"), sobre dois achados da auditoria de 2026-11-10 (a filha apagada sumia sem aviso; a arquivada não gerava lembrete).
+Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
 
 ### lembretes.planejar-antes-de-delegar
@@ -186,9 +200,20 @@ As regras do painel descrevem o cartão do subagente e o fechamento da tarefa pe
 
 - Dado as regras do painel no prompt de sistema
 - Quando o modelo as lê
-- Então elas dizem que cada subagente lançado tem um cartão sob a tarefa do lançamento, que o que ele deixa aberto vira interrompido, que a tarefa fecha sozinha quando todos terminam e o turno acaba (concluída, ou interrompida se algum falhou ou foi parado) e que o start nela a reabre
+- Então elas dizem que cada subagente lançado tem um cartão sob a tarefa do lançamento, que o que ele deixa aberto vira interrompido, salvo a tarefa dele de onde saíram subagentes já terminados, que reflete o fim deles, que a tarefa fecha sozinha quando todos terminam e o turno acaba (concluída, ou interrompida se algum falhou ou foi parado) e que o start nela a reabre
 
 Origem: auditoria 2026-11-10 (a regra dizia só "ganham um grupo próprio"); aplica subagentes.cartao-desde-o-lancamento, subagentes.pai-conclui-no-fim-do-turno e subagentes.pai-reflete-falha-ou-interrupcao (decisões de 2026-11-09).
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("✓, reflete o lançado (Recomendado)"): a regra cita a tarefa do subagente que reflete o lançado. O teste não muda.
+Estado: coberto
+
+### lembretes.regras-dizem-o-que-nao-vale-no-subagente
+As regras do painel dizem o que não vale dentro de um subagente.
+
+- Dado as regras do painel no prompt de sistema de um subagente (o mesmo texto da sessão)
+- Quando o modelo as lê
+- Então elas dizem que, dentro de um subagente, as tarefas ficam no cartão dele, que `request` e `summary` são ignorados e que a recusa da pergunta sem tarefa e os lembretes de planejar não valem
+
+Origem: auditoria 2026-11-10 (as regras mandavam o subagente passar request e summary, que o painel ignora nele); cenário por texto, como decidido em 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere os trechos essenciais; a redação segue livre.
 Estado: coberto
 
 ### lembretes.done-antes-do-plan
@@ -198,7 +223,7 @@ Com tarefas abertas, a mensagem nova pede primeiro o done do que ela conclui, de
 - Quando o modelo recebe os lembretes dela, e quando lê a primeira regra do painel
 - Então a ordem é uma só: fechar com done o que a mensagem conclui (e cancelar o que ela substitui) e, depois disso, plan com o pedido novo, sem repetir os ids das tarefas ainda abertas; sem tarefas abertas, o lembrete segue mandando o plan como primeira chamada
 
-Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (465b09e), para o caso da mensagem com tarefas abertas.
+Origem: decisão do usuário, 2026-11-14 ("Done, depois plan (Recomendado)"); muda a regra de uso "a primeira chamada é plan", que vinha desde a entrada do mod (85744cb), para o caso da mensagem com tarefas abertas.
 Estado: coberto
 
 ### lembretes.retorno-de-subagente
@@ -208,7 +233,7 @@ O retorno de um subagente traz o lembrete curto de atualizar o painel.
 - Quando o prompt de retorno chega
 - Então o modelo recebe o lembrete de que o subagente terminou e de marcar com done o que ele concluiu; não recebe o lembrete de pedido novo, e a mensagem seguinte da pessoa não traz esse lembrete
 
-Origem: regra do painel (texto em text/rules.ts desde o commit 758dbb7, 2026-10-22); cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
+Origem: regra do painel (texto em text/rules.ts desde o commit dee2f67, 2026-10-22); cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
 Estado: coberto
 
 ### lembretes.tarefa-em-segundo-plano
@@ -253,6 +278,28 @@ Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por text
 Código: hooks/tool-call.ts
 Estado: coberto
 
+### lembretes.marcas-do-pedido-sobrevivem-a-recarga
+O que o pedido já fez no painel vale depois de uma recarga do mod.
+
+- Dado um pedido em que o modelo já planejou e fechou tudo, ou uma pergunta dispensada para o chat que ainda espera a mensagem da pessoa
+- Quando o mod é recarregado (um arquivo dele é salvo) antes da chamada ou da mensagem seguinte
+- Então a chamada seguinte não traz o lembrete de planejar, e a mensagem seguinte da pessoa ainda é dita "a resposta do usuário à pergunta anterior"; um /clear ou uma retomada zeram essas marcas
+
+Origem: auditoria 2026-11-10 (as marcas do pedido eram variáveis do módulo, zeradas na recarga); aplica lembretes.primeira-chamada-sem-plano e lembretes.resposta-pelo-chat, sem mudar nenhuma regra.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, hooks/prompt-submit.ts, state/durability.ts
+Estado: coberto
+
+### lembretes.resposta-pelo-chat-so-na-mensagem-da-pessoa
+Só a mensagem da pessoa é dita como a resposta à pergunta dispensada para o chat.
+
+- Dado uma pergunta que o usuário dispensou para responder por mensagem, com o turno já encerrado
+- Quando chega antes a mensagem de outra sessão, e depois a da pessoa
+- Então a mensagem da outra sessão leva o lembrete dela sem "a resposta do usuário à pergunta anterior", e a da pessoa, a seguinte, leva a frase, uma vez
+
+Origem: auditoria 2026-11-10 (a mensagem de outra sessão levava o prefixo e gastava a marca); aplica lembretes.resposta-pelo-chat ("a mensagem seguinte da pessoa"), sem mudar nenhuma regra.
+Código: hooks/tool-call.ts, hooks/prompt-submit.ts, hooks/panel.ts
+Estado: coberto
+
 ### lembretes.wrap-up-sem-resumo
 O wrap_up sem summary no turno avisa que falta o resumo.
 
@@ -284,4 +331,27 @@ As descrições das ferramentas do painel e do comando dizem o essencial de cada
 
 Origem: cenário criado por decisão do usuário, 2026-11-14 ("Cenário por texto (Recomendado)"): o teste confere quando o texto sai e os trechos essenciais; a redação segue livre.
 Código: hooks/register.tsx
+Estado: coberto
+
+### lembretes.plano-aberto-sem-start
+Com plano aberto e nada iniciado, o modelo é lembrado de dar start.
+
+- Dado um pedido com tarefa aberta, nenhuma tarefa em andamento, e nada que segure uma tarefa sem start (subagente vivo, sessão aberta trabalhando, carta na fila, ainda não recebida)
+- Quando o modelo faz a terceira chamada de ferramenta seguida nessa situação (as do painel, o wrap_up e a lista do app não contam)
+- Então o resultado traz o lembrete de chamar start na tarefa em que está trabalhando, uma vez por plano (também quando as chamadas vêm juntas, numa mensagem só): só volta depois de outro plan ou de outro pedido; um start zera a contagem; a contagem sobrevive à recarga do mod; o painel segue ○ até o start (arvore.sem-start-nada-acende)
+
+Origem: decisão do usuário, 2026-11-15 ("Lembrete após 3 chamadas (Recomendado)").
+Reescrito: 2026-11-15, texto: a carta já recebida não segura o lembrete, e chamadas juntas contam uma a uma (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Código: hooks/tool-call.ts, hooks/tools.ts, hooks/panel.ts, state/durability.ts
+Estado: coberto
+
+### lembretes.ordem-com-a-lista-do-app
+No app desktop, as regras dizem como o painel convive com a lista de tarefas do app.
+
+- Dado um pedido que oferece a lista de tarefas do app (update_plan, wrap_up)
+- Quando o prompt de sistema é montado e quando chega a mensagem seguinte da pessoa
+- Então as regras dizem que a lista do app não substitui o painel, que o plan vai junto com ela na primeira mensagem e que os done e o summary vêm antes do wrap_up; o lembrete do pedido novo repete isso numa frase; fora do app, nenhum dos dois textos sai
+
+Origem: decisão do usuário, 2026-11-15 ("Sim, acrescentar (Recomendado)").
+Código: hooks/prompt-submit.ts, text/rules.ts
 Estado: coberto

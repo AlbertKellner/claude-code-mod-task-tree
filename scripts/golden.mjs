@@ -21,6 +21,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acharBinario } from './binario.mjs'
+import { ehPrincipal } from './guarda.mjs'
 import { CENARIOS, aprovarGolden, lerGolden, motivoValido } from './selos.mjs'
 
 export { CENARIOS }
@@ -230,7 +231,7 @@ section{border-top:1px solid #ddd;margin-top:20px;padding-top:4px}
 ${blocos}`
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url).replace(/\\/g, '/') === process.argv[1].replace(/\\/g, '/')) {
+if (ehPrincipal(import.meta.url)) {
   const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
   const args = process.argv.slice(2)
   const valor = nome => {

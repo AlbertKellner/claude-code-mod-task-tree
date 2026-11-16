@@ -11,7 +11,7 @@ O reinício e a retomada restauram o painel do store.
 - Quando um processo novo roda o session.start, ou a sessão é retomada (resume) com outro painel no state
 - Então o painel volta como estava no store (títulos, estados e números), com o trabalho da sessão retomada, e o start seguinte age sobre ele; um trabalho sem nenhuma tarefa presente não vale, e o painel nunca fica vazio por isso
 
-Origem: regra do painel desde a entrada do mod (commit 465b09e); tabela de durabilidade, commit 9fb1c51, 2026-10-22.
+Origem: regra do painel desde a entrada do mod (commit 85744cb); tabela de durabilidade, commit fe8354e, 2026-10-22.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); sem visão completa, o trabalho antigo deixava o painel vazio na retomada.
 Estado: coberto
 
@@ -22,7 +22,7 @@ Num processo novo sem session.start, o painel volta no primeiro uso, e o store n
 - Quando o painel é desenhado e o modelo chama start e done
 - Então o painel aparece inteiro, o trabalho atual volta, e o store não encolhe
 
-Origem: commits 59eb558 e fba6171, 2026-10-22.
+Origem: commits 7c7ade7 e 2cef003, 2026-10-22.
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
 Estado: coberto
 
@@ -56,19 +56,67 @@ O /clear esvazia o painel.
 - Quando a pessoa usa /clear
 - Então o painel fica "Nenhuma tarefa planejada."; as linhas recolhidas pela pessoa são esquecidas: o plano seguinte nasce aberto
 
-Origem: regra do painel desde a entrada do mod (commit 465b09e).
+Origem: regra do painel desde a entrada do mod (commit 85744cb, 2026-10-20).
+Estado: coberto
+
+### durabilidade.dobras-voltam-no-processo-novo
+As linhas que a pessoa recolheu ou abriu voltam como ela deixou num processo novo.
+
+- Dado tarefas, pedidos ou cartões recolhidos pela pessoa e um "+N pedidos anteriores" aberto por ela
+- Quando o processo da sessão é refeito (/model, respawn do worker, reabrir o app) ou a sessão é retomada
+- Então o painel volta com as mesmas linhas recolhidas e abertas (na retomada, as da sessão retomada, ou nenhuma); o /clear segue limpando tudo (durabilidade.clear-esvazia); a sessão que volta do arquivo publicado (fora das 30 do store) volta no padrão; a primeira escrita depois de um respawn (um clique, um plan que reusa um id) parte do que estava guardado, e o que ela tinha recolhido antes de uma recarga do mod é guardado na publicação seguinte
+
+Origem: decisão do usuário, 2026-11-15 ("Sim, guardado por sessão (Recomendado)").
+Código: hooks/render.tsx, hooks/panel.ts, hooks/tools.ts
+Reescrito: 2026-11-15, texto: as dobras de antes de uma recarga do mod são guardadas na publicação seguinte, e a primeira escrita depois de um respawn não as perde (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Estado: coberto
+
+### durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado
+O painel guardado tem versão, e um dado de forma desconhecida é ignorado em vez de derrubar o painel.
+
+- Dado o painel guardado de uma sessão (o do store, ou o do state que atravessou uma recarga) numa versão que este código não conhece, ou fora do formato
+- Quando o painel é trazido de volta (processo novo, retomada, primeiro uso depois de uma recarga, também quando esse primeiro uso é um /clear)
+- Então o dado é ignorado, o log de depuração diz o motivo uma vez, e o painel vem da outra cópia válida ou começa vazio; as ferramentas e o desenho seguem funcionando; o painel guardado da forma anterior, sem versão, segue lido; o que o /clear guarda no histórico é o painel conferido
+
+Origem: decisão do usuário, 2026-11-15 ("Versão e leitura conferida (Recomendado)").
+Código: hooks/session-start.ts, io/log.ts
+Reescrito: 2026-11-15, texto: a versão do painel do state é gravada junto com ele, e o /clear confere o painel antes de guardá-lo no histórico (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Estado: coberto
 
 ### durabilidade.formatos-antigos-do-publicado
 Os formatos antigos do arquivo publicado são lidos.
 
-- Dado um arquivo publicado por uma versão antiga do mod (os 8 formatos que já existiram)
+- Dado um arquivo publicado por outra versão do mod (os formatos de referência guardados com os testes: os 8 primeiros, de antes da versão do arquivo até a primeira com ela, e os que entraram depois, com taxa, pasta sem git, parada com Esc (com a marca na tarefa e, de antes dela, só com `aborted`), ultracode, subagente e o fim do turno)
 - Quando o painel lê a sessão filha
 - Então o cartão aparece, sem erro, com as tarefas que o formato traz
 
-Origem: contrato do arquivo publicado, commit 04fcae7, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
+Origem: contrato do arquivo publicado, commit 7905b37, 2026-10-22 ("Já existiram 8 formatos", DESENVOLVIMENTO).
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)"); o teste só deixa de escolher a visão ou abre a linha.
+Reescrito: 2026-11-15, texto: a lista de referência ganha os formatos que entraram depois dos 8 primeiros. A regra e o teste dos 8 não mudam.
+Reescrito: 2026-11-16, texto: a referência ganha o arquivo da filha parada com Esc de antes da marca na tarefa; a regra e os testes existentes não mudam.
 Código: io/publish.ts, io/host.ts
+Estado: coberto
+
+### durabilidade.publicado-fora-do-formato-nao-derruba
+Um elemento fora do formato no arquivo de uma filha sai só ele: o cartão e o painel seguem.
+
+- Dado o arquivo publicado de uma sessão filha (ou o painel de uma neta dentro dele) com um grupo sem lista de tarefas, uma tarefa sem lista de subtarefas ou sem id, ou um envio sem destino
+- Quando o painel lê a filha, desenha, conta, publica e responde plan, start e done
+- Então o elemento ruim fica de fora e o resto do arquivo é usado: o cartão da filha aparece com as tarefas boas, o painel não vira a linha de erro, as ferramentas respondem e esta sessão segue publicando; o log de depuração diz uma vez, por sessão, o que ficou de fora
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: só o envelope do arquivo era conferido, e um elemento ruim derrubava o painel inteiro, as ferramentas e a publicação); estende durabilidade.formatos-antigos-do-publicado, sem mudá-la.
+Código: io/publish.ts, io/host.ts
+Estado: coberto
+
+### durabilidade.id-proprio-sobrevive-a-recarga
+O id da própria sessão sobrevive à recarga do mod.
+
+- Dado o id desta sessão já lido do app
+- Quando o mod recarrega a quente (módulo novo, state mantido) e o app demora ou falha em responder o id de novo
+- Então o painel segue sendo publicado e os cartões seguem divididos em rodadas com o id guardado, sem esperar o app
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o id era variável do módulo, pedido de novo ao app a cada recarga).
+Código: hooks/render.tsx, hooks/sessions.ts
 Estado: coberto
 
 ### durabilidade.recarga-mantem-painel-ligacoes-e-resumo
@@ -78,7 +126,7 @@ A recarga a quente mantém o painel e as ligações.
 - Quando o mod recarrega a quente (módulo novo, state mantido, sem session.start)
 - Então o painel e os cartões seguem iguais (o resumo do done na recarga segue em durabilidade.resumo-do-done-na-recarga)
 
-Origem: bugs achados no teste visual do usuário, 2026-10-21/22; commits 946f653, 22650c9 e 13ef0ef.
+Origem: bugs achados no teste visual do usuário, 2026-10-21/22; commits 23b7002, 2a6e86d e 027b231.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Tirar, basta o ↩ (Recomendado)"): o recap do wrap_up deixa de ser guardado; a resposta do turno no painel é só o resumo ↩. Saem os dois testes do recap na recarga.
 Estado: coberto
 
@@ -89,7 +137,7 @@ A filha que a lista do host deixa de fora volta sob a mesma tarefa.
 - Quando a lista volta a listá-la
 - Então o cartão volta sob a mesma tarefa
 
-Origem: commit 13ef0ef, 2026-10-22.
+Origem: commit 027b231, 2026-10-22.
 Código: hooks/sessions.ts, io/host.ts
 Estado: coberto
 
@@ -100,7 +148,7 @@ O resumo do done chega à resposta do turno, mesmo com uma recarga no meio.
 - Quando o turno termina
 - Então o resumo aparece como ↩ no cartão desta sessão, na sessão que a abriu
 
-Origem: commits 946f653, 2026-10-21, e 22650c9; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
+Origem: commits 23b7002, 2026-10-21, e 2a6e86d; o ↩ sem resposta final foi corrigido na análise de 2026-10-29.
 Código: hooks/turn.ts, hooks/tools.ts
 Estado: coberto
 
@@ -223,4 +271,91 @@ Depois de uma recarga do mod ou de um reinício, o recibo já usado não confirm
 
 Origem: auditoria 2026-11-10 (os recibos usados eram variável do módulo); aplica envios.fica-ate-entrega ("a carta fica azul até a entrega"), sem mudar nenhuma regra.
 Código: hooks/sessions.ts
+Estado: coberto
+
+### durabilidade.status-nao-segura-a-gravacao
+A linha de status embaixo da caixa de mensagem nunca impede o painel de ser salvo e publicado.
+
+- Dado uma falha ao calcular ou ao mostrar a linha "Tarefas d/n"
+- Quando plan, start, done ou qualquer outra mudança grava o painel
+- Então o painel é salvo no store e publicado antes; a falha do status fica no log de depuração e a ferramenta responde normalmente; o status é tentado de novo na mudança seguinte
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o status era calculado antes de salvar e publicar, sem proteção); sem mudar nenhuma regra.
+Estado: coberto
+
+### durabilidade.fim-do-turno-registrado-mesmo-com-falha
+O fim do turno é registrado, e o pedido abre, mesmo quando um passo acessório falha.
+
+- Dado, no fim de um subagente, uma falha na lista de agentes do app ou num passo do fim dele (o cartão, as esperas, as tarefas abertas); no fim do turno do loop principal, uma falha num passo acessório (limpar o resumo, tirar as esperas, fechar pelos subagentes, pôr em espera, publicar); ou, numa mensagem que chega, uma falha num passo acessório (guardar o nome da sessão que a mandou, as mensagens recebidas, os lembretes)
+- Quando o turno do subagente ou do loop principal termina, ou a mensagem chega
+- Então a falha fica no log de depuração (uma vez por passo e motivo) e os outros passos rodam: o subagente que termina deixa interrompido o que deixou aberto e o cartão dele sai de "trabalhando"; o fim do turno do loop principal é gravado (a tarefa iniciada fica ◷ e o arquivo publicado traz o fim e o ↩); a mensagem abre o pedido
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: uma falha no começo do fim do turno deixava o painel em andamento e a sessão de cima sem o fim); sem mudar nenhuma regra (turnos.subagente-que-termina-interrompe). Estendido no mesmo dia ao fim do turno do loop principal e à mensagem que abre o pedido (auditoria 2026-11-10: nos hooks do prompt e do fim do turno, um passo acessório que lançava cancelava os essenciais seguintes, sem registro), sem mudar nenhuma regra.
+Código: hooks/turn.ts, hooks/agents.ts, hooks/prompt-submit.ts, io/log.ts
+Estado: coberto
+
+### durabilidade.plan-publica-o-trabalho-novo
+O que a sessão publica depois de um plan ou de um start já traz o trabalho e as ligações novas.
+
+- Dado uma sessão com um pedido anterior concluído (com ou sem sessão aberta de uma tarefa dele)
+- Quando o modelo planeja o pedido novo, reusando ou não o id da tarefa antiga, ou inicia uma tarefa de um pedido antigo com tudo fechado
+- Então o arquivo que a sessão publica nesse mesmo passo traz o trabalho novo e as sessões ligadas à tarefa antiga renomeada: na sessão que a abriu, o cartão mostra o pedido novo sem esperar o próximo done
+
+Origem: auditoria 2026-11-10 (o plan publicava antes de renomear as ligações e de gravar o trabalho); aplica sessoes.publicado-enxuto e pedidos.plano-anterior-vira-historico, sem mudar nenhuma regra.
+Código: hooks/tools.ts, io/publish.ts
+Estado: coberto
+
+### durabilidade.publicacoes-em-ordem
+Uma publicação do painel por vez: a mais velha não grava por último.
+
+- Dado uma publicação do painel ainda em curso (disparada pelo ultracode, pela troca de modelo, pela taxa ou pelo comando)
+- Quando o painel muda e é publicado de novo antes de ela terminar
+- Então o arquivo publicado termina com o estado mais novo
+
+Origem: auditoria 2026-11-10 (duas publicações em curso gravavam fora de ordem).
+Código: io/publish.ts, hooks/turn.ts
+Estado: coberto
+
+### durabilidade.comando-diz-o-que-o-app-respondeu
+O /task-tree abre o painel e diz o que o app respondeu.
+
+- Dado o painel fora da tela
+- Quando a pessoa roda /task-tree
+- Então o painel é aberto com foco e a resposta diz "Painel de tarefas aberto", os painéis que o app lista (cada um "na frente", "aba atrás de outra" ou "não desenhado") e o tamanho do desenho; se o app não o põe na tela, diz "O app não pôs o painel na tela" com o motivo
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/command.ts
+Estado: coberto
+
+### durabilidade.recarga-no-meio-do-turno-mantem-o-tempo
+A recarga no meio do turno não zera o tempo da tarefa em andamento.
+
+- Dado uma tarefa ◉ há algum tempo
+- Quando o mod recarrega a quente no meio do turno
+- Então ela segue ◉, o pai e o pedido também, e o tempo dela conta do start, não da recarga
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: state/tasks.ts, draw/layout.ts
+Estado: coberto
+
+### durabilidade.recarga-com-subagente-vivo
+O subagente que trabalha durante a recarga segue no cartão, e o fim dele é registrado.
+
+- Dado um subagente trabalhando, com o cartão sob a tarefa
+- Quando o mod recarrega a quente
+- Então o cartão segue "trabalhando" sob a mesma tarefa; quando ele termina, o cartão diz "concluído" e a tarefa segue a regra de sempre (subagentes.pai-conclui-no-fim-do-turno); quantas chamadas o cartão conta depois da recarga está em subagentes.contagem-de-chamadas-segue-na-recarga
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/agents.ts, hooks/turn.ts
+Estado: coberto
+
+### durabilidade.recarga-com-espera-aberta
+A espera de pergunta aberta na recarga segue no painel e sai como sempre.
+
+- Dado "Aguardando sua resposta" sob uma tarefa ◉
+- Quando o mod recarrega a quente com a pergunta ainda aberta
+- Então a espera segue desenhada sob a mesma tarefa, e sai com a mensagem seguinte da pessoa ou com o fim do turno
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/tool-call.ts, hooks/prompt-submit.ts, hooks/turn.ts
 Estado: coberto

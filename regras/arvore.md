@@ -11,7 +11,7 @@ Um pai fecha sozinho quando todas as filhas fecham.
 - Quando todas as folhas são concluídas com done
 - Então o pai e os ancestrais ficam ✓ sem done próprio, e o último done não traz avisos
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.start-reabre-pais
@@ -21,7 +21,7 @@ start numa tarefa concluída reabre ela e os pais.
 - Quando o modelo chama start numa folha
 - Então ela, o pai e o nível 1 voltam a ◉, e as irmãs seguem ✓
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.start-recusa-pai-concluido
@@ -31,7 +31,8 @@ start num pai concluído é recusado.
 - Quando o modelo chama start nele
 - Então a resposta recusa, diz que ela já foi concluída (o pai fechado é ✓ no painel, também com as filhas ✕) e os dois caminhos (start nas subtarefas a refazer, que reabre os pais, ou replanejar com ids novos), e nada muda no painel
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e); texto da recusa completado na auditoria de 2026-11-10.
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb); texto da recusa completado na auditoria de 2026-11-10.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Como hoje (Recomendado)"): a recusa segue dizendo "já foi concluída" também para o pai fechado só com ✕ embaixo, porque é o que o painel mostra (✓); o achado da auditoria que pedia "foi interrompida" fica resolvido. Os testes não mudam.
 Código: text/rules.ts
 Estado: coberto
 
@@ -53,7 +54,7 @@ Sem start, nada fica em andamento.
 - Quando nenhum start foi chamado
 - Então todas as tarefas, o pai e o pedido ficam ○; salvo a tarefa com sessão filha trabalhando (sessoes.filha-trabalhando-mantem-pais-em-andamento) ou com subagente rodando (subagentes.tarefa-em-andamento-com-subagente-rodando)
 
-Origem: decisão do usuário, 2026-10-23 ("sem start, nada aceso"); commit b742294.
+Origem: decisão do usuário, 2026-10-23 ("sem start, nada aceso"); commit db0c11e.
 Código: draw/layout.ts
 Reescrito: 2026-11-14, decisão do usuário ("Sim, ◉ como a filha (Recomendado)"): exceção para a tarefa com subagente rodando. O teste deste cenário não muda.
 Estado: coberto
@@ -61,12 +62,13 @@ Estado: coberto
 ### arvore.pai-em-andamento-no-caminho-da-ultima-iniciada
 O pai aberto fica em andamento no caminho da última tarefa iniciada no turno.
 
-- Dado start e done numa filha, sem outro start, no mesmo turno
+- Dado start (o primeiro, ou de novo numa tarefa que aguardava) e done numa filha, sem outro start, no mesmo turno
 - Quando o painel é desenhado
 - Então o pai e o pedido aparecem ◉ (não ◷), e o chip "em andamento" não conta o pai; planos parados de pedidos anteriores seguem ◷
 
-Origem: decisão do usuário, 2026-10-27 ("pai aberto deve mostrar ◉ em andamento"), sobre "Pai aguardando" de 2026-10-20; commit a201198.
-Código: draw/layout.ts
+Origem: decisão do usuário, 2026-10-27 ("pai aberto deve mostrar ◉ em andamento"), sobre "Pai aguardando" de 2026-10-20; commit 023a054.
+Reescrito: 2026-11-15, texto: o start de novo numa tarefa que aguardava conta como start do turno (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Código: draw/layout.ts, state/tasks.ts
 Estado: coberto
 
 ### arvore.ids-curtos-e-avisos
@@ -76,18 +78,19 @@ Ids curtos e os avisos de id ambíguo, inexistente ou de outro agente.
 - Quando o modelo chama start ou done com um id curto ambíguo, inexistente ou de outro agente
 - Então a resposta avisa cada caso, e o id completo ("D/1.2") resolve
 
-Origem: regra do painel desde a entrada do mod, 2026-10-20 (465b09e).
+Origem: regra do painel desde a entrada do mod, 2026-10-20 (85744cb).
 Estado: coberto
 
 ### arvore.done-sem-summary-e-varias-sem-start
-Avisos do done: sem summary no fim e etapas fechadas juntas sem start.
+Avisos do done: sem summary no fim e uma ou mais tarefas fechadas sem start.
 
-- Dado o último done do pedido sem summary (o último do pedido atual, mesmo com tarefa aberta de pedido anterior; também quando o único resumo dado veio antes de um plan do mesmo turno), ou várias tarefas fechadas de uma vez sem start
+- Dado o último done do pedido sem summary (o último do pedido atual, mesmo com tarefa aberta de pedido anterior; também quando o único resumo dado veio antes de um plan do mesmo turno), ou uma ou mais tarefas fechadas sem start
 - Quando o done responde
 - Então a resposta traz o aviso correspondente; o do summary diz que só vale se aquele done foi o último passo do turno
 
-Origem: commit 9c054f8, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit 3f06a32, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão"); o aviso no meio do turno e o resumo de antes do plan, auditoria 2026-11-10.
+Origem: commit a8d333f, 2026-10-21 ("avisa quando etapas fecham juntas sem start"); o aviso de falta de summary, commit c0190c3, 2026-10-21 ("↩ mostra só o resumo escrito pela própria sessão"); o aviso no meio do turno e o resumo de antes do plan, auditoria 2026-11-10.
 Código: text/rules.ts
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Lembrete após 3 chamadas (Recomendado)": "o aviso do done também para uma tarefa só fechada sem start"). O teste existente deste cenário não muda.
 Estado: coberto
 
 ### arvore.plan-recusa-ids-repetidos
@@ -97,7 +100,50 @@ plan com ids repetidos é recusado.
 - Quando o modelo chama plan
 - Então a resposta é um erro com os ids repetidos, e nada muda no painel
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
+Estado: coberto
+
+### arvore.plan-recusa-entrada-invalida
+plan sem tarefas, com quarto nível ou com id ou título inválido é recusado.
+
+- Dado um plano sem nenhuma tarefa; ou com uma tarefa sem id ou sem título; ou com ":" num id; ou com "/" no id de um nível 1; ou com tarefas abaixo do terceiro nível
+- Quando o modelo chama plan
+- Então a resposta é um erro que diz qual foi o problema e como corrigir, nada muda no painel, e o request desse plan não dá nome ao pedido; a subtarefa que já vem com o prefixo do nível 1 ("D/1.1") e os ids em caminho abaixo do nível 1 seguem aceitos (pedidos.replano-aceita-o-id-completo)
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o plano vazio respondia "Plano exibido" e gastava o título do pedido, o quarto nível sumia sem aviso, e o nível 1 com "/" ficava fora do trabalho à vista); estende arvore.plan-recusa-ids-repetidos, sem mudá-la.
+Código: text/rules.ts
+Estado: coberto
+
+### arvore.listas-de-ids-conferidas
+done e start recusam `ids` e `cancel` que não são lista.
+
+- Dado uma chamada de done ou de start com um texto no lugar da lista de ids
+- Quando a ferramenta responde
+- Então a resposta é um erro que pede uma lista, e nada muda no painel
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: um texto no lugar da lista seria lido letra a letra).
+Código: text/rules.ts
+Estado: coberto
+
+### arvore.agente-sem-grupo-recebe-os-avisos
+O agente que ainda não planejou recebe os mesmos avisos de id.
+
+- Dado um subagente sem nenhuma tarefa planejada
+- Quando ele chama done ou start com o id de uma tarefa de outro agente, ou com um id que não existe
+- Então a resposta avisa "é de outro agente" ou "não existe", como para quem já tem tarefas (arvore.ids-curtos-e-avisos); nada muda no painel e nenhum cartão é criado para ele
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: a resposta vinha "Concluídas: 0/0" ou "Nada marcado", sem aviso).
+Estado: coberto
+
+### arvore.falha-interna-das-ferramentas
+Uma falha interna de plan, start ou done vai ao log, e o modelo recebe um texto fixo.
+
+- Dado uma exceção dentro de plan, start ou done
+- Quando a ferramenta responde
+- Então a resposta é um erro que diz que foi uma falha interna do painel, que a chamada pode ter sido aplicada só em parte e que ela deve ser repetida com os mesmos argumentos, sem o texto da exceção; a exceção fica no log de depuração, com o nome da ferramenta
+
+Origem: auditoria 2026-11-10 (triagem de 2026-11-15: o modelo recebia "erro: TypeError…" e nada ia ao log).
+Código: text/rules.ts, io/log.ts
 Estado: coberto
 
 ### arvore.pai-fecha-com-nada-aberto-embaixo
@@ -107,7 +153,7 @@ Pai e pedido sem nada aberto embaixo ficam ✓.
 - Quando o painel é desenhado (depois de Esc, de subagente que terminou, de replano com o mesmo id em pedido novo, de filha parada ou arquivada)
 - Então o pai e os ancestrais ficam ✓, a folha ✕ segue ✕ e fora do x/y; ◷ fica para o pai com algo ainda aberto embaixo
 
-Origem: decisão do usuário, 2026-11-04 ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); mantém "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido" (95b1a21).
+Origem: decisão do usuário, 2026-11-04 ("todos os subitens estão concluidos ou interrompidos, mas a tarefa pai está como em andamento, ela deveria estar concluida tambem"; pai com só ✕ embaixo: "Fica ✓"); mantém "se existem tarefas concluidas como filhas, o pai nunca pode ficar como interrompido" (af4a524).
 Código: draw/layout.ts, state/tasks.ts
 Estado: coberto
 
@@ -141,4 +187,35 @@ O done numa tarefa interrompida não a conclui, e diz que o start a reabre.
 
 Origem: auditoria 2026-11-10 (o aviso dizia só "foi interrompida").
 Código: text/rules.ts
+Estado: coberto
+
+### arvore.done-em-concluida-nao-muda-nada
+O done numa tarefa já concluída não muda nada.
+
+- Dado uma tarefa ✓
+- Quando o modelo chama done nela de novo
+- Então ela segue ✓ com o mesmo tempo, a contagem não muda e a resposta não traz aviso
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### arvore.done-no-pai-fecha-o-que-esta-aberto
+O done num pai aberto fecha o pai e tudo o que está aberto abaixo dele.
+
+- Dado um pai aberto com filhas ✓, ○ e ✕
+- Quando o modelo chama done no pai
+- Então o pai e as filhas abertas ficam ✓, a ✕ segue ✕ e fora do x/y, e, se uma ou mais folhas fecharam sem start, a resposta traz o aviso (arvore.done-sem-summary-e-varias-sem-start)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Reescrito: 2026-11-16, texto: o aviso sai com uma folha só fechada sem start (decisão do usuário de 2026-11-15, "Lembrete após 3 chamadas (Recomendado)"); a regra não muda e o teste existente não muda.
+Estado: coberto
+
+### arvore.start-em-tarefa-em-andamento
+O start numa tarefa já em andamento a mantém como está.
+
+- Dado uma tarefa ◉
+- Quando o modelo chama start nela de novo
+- Então ela segue ◉, o tempo dela não recomeça, e a resposta diz "Em andamento" sem aviso
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
 Estado: coberto

@@ -13,7 +13,7 @@ As pendentes seguem pendentes no fim do turno, na principal e nas filhas.
 - Quando o turno termina, normal ou com Esc
 - Então elas seguem ○, nunca ✕, e o cabeçalho as conta
 
-Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24); commit d57807e.
+Origem: decisão do usuário, 2026-10-27 (desfaz "reaproveitar o interrompida", 2026-10-24); commit cd96021.
 Estado: coberto
 ```
 
@@ -21,7 +21,9 @@ Estado: coberto
 - **Título**: uma frase com a regra.
 - **Dado/Quando/Então**: em português, no que se vê no painel ou nos textos ao modelo, sem nomes de função.
 - **Origem**: "decisão do usuário, AAAA-MM-DD", com as palavras dele entre aspas quando houver, ou
-  "regra do painel", mais o commit que a implementou. Sem confirmação, "a confirmar".
+  "regra do painel", mais o commit que a implementou; a data (AAAA-MM-DD) é esperada também em "regra
+  do painel". Sem confirmação, "a confirmar". Origem nova cita
+  o PR (`#NN`); o hash do commit é opcional e tem de existir no `main`.
 - **Estado**:
   - `coberto`: há teste que cita o id;
   - `pendente (<arquivo de teste>)`: deve virar teste;
@@ -45,11 +47,16 @@ O teste cita a regra num comentário na linha logo acima do `test(...)`, com um 
 test('fim do turno com uma tarefa iniciada: ela aguarda e as outras seguem pendentes', ...)
 ```
 
-`scripts/regras.mjs`, a primeira etapa do `npm run check`, falha quando: um id se repete ou tem
+`scripts/regras.mjs`, a etapa `regras` do `npm run check`, falha quando: um id se repete ou tem
 formato inválido; um cenário não tem `Estado:` válido; um cenário `coberto` não é citado por
 nenhum teste; um teste cita um id que não existe; um teste cita um cenário `pendente` ou
-`checklist`; um `test(` não tem `// Regra:` acima; ou uma chave do state do mod não tem linha na
-tabela de durabilidade (e vice-versa).
+`checklist`; um `test(` não tem `// Regra:` acima; um cenário não tem `Origem:`; o id não começa pelo
+nome do arquivo (`turnos.md` → `turnos.…`); um `Código da área:` vem depois do primeiro cenário; um
+`pendente` não diz entre parênteses um arquivo de teste que existe em `task-tree/tests/`; ou uma chave
+do state do mod não tem linha na tabela de durabilidade (e vice-versa). Origem sem data e "decisão do
+usuário" sem as palavras dele entre aspas só avisam, numa linha cada, com a contagem e os ids.
+
+Todo `test(` é uma instrução de topo, com nome literal e único no arquivo.
 
 ## Selo dos testes e do kit
 
@@ -79,10 +86,20 @@ conferem com o teste; com algum teste mudado sem selo, ele recusa.
 ```
 
 Tipos:
-- `novo`: teste novo (só para chave que não existia em `HEAD`), ou a linha de base;
-- `decisao`: o comportamento esperado mudou por decisão do usuário; cada regra do teste precisa de
-  `Reescrito:` com data igual ou posterior à do selo anterior;
-- `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir.
+- `novo`: teste novo (só para chave que não existia em `HEAD`), arquivo do kit ou de apoio novo (só
+  para arquivo que não existia em `HEAD`), ou a linha de base;
+- `decisao`: o comportamento esperado mudou por decisão do usuário; cada mudança do teste usa uma
+  linha `Reescrito:` própria de cada regra dele: com data igual ou posterior à do selo anterior e
+  ainda não usada por aquele teste (decisão do usuário, 2026-11-15: "Uma linha por mudança
+  (Recomendado)"). O selo guarda as linhas usadas (`linhas`: por regra, o código do texto de cada
+  linha; a lista só cresce), e o comando escolhe sozinho a linha livre mais nova de cada regra.
+  Testes diferentes do mesmo cenário podem usar a mesma linha; mudar de novo um teste já mudado pede
+  outra linha, com as palavras do usuário. As linhas já usadas são as que o teste gastou em `HEAD`:
+  selar de novo antes do commit usa a mesma linha, também no destino de um renome por decisão ainda
+  sem commit (contam as linhas da chave antiga em `HEAD`);
+- `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir, e o teste
+  como ficou tem de passar no código anterior (a etapa `regressao` prova; decisão do usuário,
+  2026-11-15: "Sim, provar (Recomendado)").
 
 Selar é um passo explícito, que aparece no diff de `selos.json`:
 
@@ -94,20 +111,49 @@ node scripts/selos.mjs --renomear "<chave antiga>" --para "<chave nova>" --tipo 
 node scripts/selos.mjs --novos --motivo "…"   # sela como "novo" os testes e o kit ainda sem selo
 ```
 
-`--remover` (exige `Reescrito:` em cada regra, com data igual ou posterior à do selo) apaga o selo e
-grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado, o hash que saiu e o
-tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos` com `para`:
-`refatoracao` só para renome puro (o hash do corpo é o mesmo), `decisao` para corpo mudado, com a
-exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
-`removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada.
+`--remover` (exige, em cada regra, uma linha `Reescrito:` livre, como o selo `decisao`) apaga o selo
+e grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado em `reescrito`, o
+código da linha por regra em `linha`, o hash que saiu e o tipo). `--renomear` leva o selo para a
+chave nova e grava a antiga em `removidos` com `para`: `refatoracao` só para renome puro (o hash do
+corpo é o mesmo), `decisao` para corpo mudado, com a exigência da linha `Reescrito:` livre. O renome
+por decisão guarda no registro, em `regrasPara`, as regras do teste de destino naquele momento, e a
+etapa `selos` confere a linha de cada uma delas, também com `--base` sobre vários commits (o registro
+sem `regrasPara`, anterior a 2026-11-16 ou escrito à mão, é conferido pelas regras do selo de destino
+de agora).
+
+`linhasUsadas`, no topo do `selos.json`, guarda por regra os códigos das linhas `Reescrito:` que já
+existiam no catálogo quando a regra "uma linha por mudança" entrou (gravada uma vez por
+`node scripts/selos.mjs --marcar-reescritos`, que recusa se a lista já existe): essas linhas não
+liberam mais nada, para teste nenhum. Sem ela na base (um repositório antigo, ou a CI contra uma base
+de antes dela), a etapa `selos` confere o `Reescrito:` só pela data. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
+`removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada. Um teste
+selado de `HEAD` que não aparece na saída do `plugin test` ("TESTE DE <ref> NÃO RODOU") conta como
+falha, com as mesmas liberações. A `regressao` do check só repete os arquivos de teste que mudaram
+contra a base (todos, se mudou o kit, um apoio ou o golden); o selado de um arquivo não repetido tem
+de constar aprovado na passada principal do mesmo check ("NÃO CONFERIDO NA PASSADA PRINCIPAL", sem
+liberação). Um `--base` que não é commit do repositório é erro. Num commit com
+selo `refatoracao` de hash novo, a `regressao` faz uma segunda passada: o código do mod de `HEAD` (ou
+`--base`) com os testes de agora, só dos arquivos refatorados (mais o kit e os apoios); cada teste
+refatorado tem de passar ("REFATORAÇÃO NÃO PROVADA" se não), e o resumo diz "refatorações provadas
+contra <ref>: N". Refatorar um teste e mudar o código de que ele depende vão em commits separados
+(primeiro o teste), ou é decisão.
 
 A etapa `selos` do `npm run check` confere os selos contra os de `HEAD` (ou `--base`) e falha quando:
 um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste selado sumiu; um selo de
 `HEAD` foi apagado sem registro em `removidos`; um selo `refatoracao`/`novo` tem menos asserções que o
 de `HEAD`; um teste que já existia ganhou hash novo com tipo `novo`; um selo `decisao` com hash novo
-não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`); as asserções do selo
+não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`) ou, com `linhasUsadas`
+na base, não traz em `linhas`, para cada regra, uma linha do cenário desde essa data que não estava
+nas `linhas` do selo de `HEAD` nem em `linhasUsadas` (decisão sem `Reescrito:` novo); uma remoção ou
+um renome por decisão novo em `removidos` não traz essa linha em `linha`; uma entrada de
+`linhasUsadas` de `HEAD` sumiu ("linha usada apagada da lista"); as asserções do selo
 são diferentes das contadas no teste; ou um cenário do golden (os previstos, com `tests/golden.test.ts`
-no repositório, e os de `HEAD`) sumiu do desenho ou do selo. A etapa `travas` testa essas regras num
+no repositório, e os de `HEAD`) sumiu do desenho ou do selo; um selo do kit mudado é `novo` para
+arquivo que já existia, ou não tem motivo (o selo do kit sempre leva `--motivo`); um teste com o mesmo
+hash da base tem menos asserções que ela (um helper do kit deixou de afirmar), salvo com o kit
+`tests/kit/leitura.ts` selado como `decisao`; ou um arquivo de teste tem `test(` aninhado, em laço,
+com nome em template ou com nome repetido; ou, com `tests/kit/teste.ts` no repositório (o `test` com
+o teto de 60 s por teste), um arquivo de teste importa `test` direto de `claude-code/testing`. A etapa `travas` testa essas regras num
 repositório temporário.
 
 ## Mapa de código (matriz de impacto)
@@ -128,7 +174,8 @@ Estado: coberto
 - O núcleo (`hooks/register.tsx`, `hooks/render.tsx`, `types/index.d.ts`) vive em `scripts/regras.mjs`,
   não no catálogo: tocá-lo afeta todos os cenários.
 - Manutenção: quem cria um cenário ou um arquivo do mod atualiza o mapa. A etapa `regras` falha com
-  caminho inexistente e avisa, sem falhar, com cenário coberto sem código ou arquivo fora do mapa.
+  caminho inexistente e avisa, sem falhar, com cenário coberto sem código, arquivo fora do mapa ou
+  commit citado numa linha `Origem:` ou `Reescrito:` que não existe no repositório.
 - `npm run impacto` lê o mapa: arquivos tocados → cenários → testes → checklist do app → golden.
 
 ## Modelos

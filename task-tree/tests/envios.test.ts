@@ -1,6 +1,7 @@
-import { expect, test } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
+import { test } from './kit/teste'
 import { AGORA, fixar, host, lancaveis, responderDepois, responderEnvio, type Filha } from './kit/ambiente'
-import { aviso, done, envio, esc, ferramenta, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, mensagemDe, pedido, plan, recebidaPeloSubagente, retomadaDoSubagente, start, type No } from './kit/cenario'
+import { abrirSessao, aviso, done, envio, esc, ferramenta, fimDoSubagente, fimDoSubagenteCom, fimDoTurno, lancar, mensagemDe, pedido, plan, recebidaPeloSubagente, retomadaDoSubagente, start, type No } from './kit/cenario'
 import { cabecalho, cartaSob, cartoes, emTexto, esperarCarta, esperarCartaSob, esperarEstado, linha, painel } from './kit/leitura'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
@@ -119,6 +120,64 @@ test('o envio nunca vai à tarefa com pergunta aberta', async ($: any, on: any) 
   const p = await painel($)
   esperarCartaSob(p, 'Um', 'fila')
   expect(cartaSob(p, 'Dois'), emTexto(p)).toBe(undefined)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com uma só tarefa em andamento e a pergunta aberta nela, o envio vai à pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe(undefined)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a escolha do fim do turno aberta numa tarefa, o envio do turno de um aviso vai à outra pendente', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'mcp__ccd_turn__wrap_up', 'ok', 0)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'parcial', ask: 'Seguir?' })
+  await fimDoTurno($)
+  await aviso($)
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(cartaSob(p, 'Um'), emTexto(p)).toBe(undefined)
+  const titulos = p.map(l => l.titulo)
+  const espera = titulos.indexOf('Aguardando sua escolha')
+  expect(espera > titulos.indexOf('Um') && espera < titulos.indexOf('Dois'), emTexto(p)).toBe(true)
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta aberta na única tarefa do pedido, a carta fica nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'S', title: 'Sozinha' }])
+  await start($, ['S'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Sozinha', 'fila')
   await relogio.advance(1000)
   await resp
 })
@@ -348,7 +407,13 @@ test('a entrega imediata e depois uma mensagem na fila à mesma sessão: cada um
   let p = await painel($)
   esperarCartaSob(p, 'Um', 'entregue')
   esperarCartaSob(p, 'Dois', 'fila')
+  // O primeiro recebimento é o da entregue na hora: a da fila segue azul.
   h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  esperarCartaSob(p, 'Dois', 'fila')
+  h.recebeu('local_x', AGORA + 2)
   await aviso($)
   p = await painel($)
   esperarCartaSob(p, 'Um', 'entregue')
@@ -1061,4 +1126,975 @@ test('o done que fecha a tarefa de uma carta ainda na fila avisa; com a carta en
   await start($, ['2'])
   await envio($, 'local_x')
   expect((await done($, ['2'])).texto).not.toContain('ainda está na fila')
+})
+
+// Regra: turnos.concluida-sem-start-sem-tempo, envios.fica-ate-entrega
+test('a tarefa fechada pela entrega da carta sem ter recebido start não mostra tempo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }])
+  await envio($, 'local_x')
+  await done($, ['1'])
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  await relogio.advance(60_000)
+  h.recebeu('local_x', AGORA + 60_000)
+  await aviso($)
+  p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  const texto = linha(p, 'Um').texto
+  expect(/\d+:\d{2}\s*$/.test(texto), emTexto(p)).toBe(false)
+  expect(texto, emTexto(p)).toContain('—')
+})
+
+// Regra: envios.carta-na-fila-nao-sai-pelo-teto
+test('com 20 envios mais novos já entregues, a carta na fila segue sob a tarefa', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'Revise o PR')
+  env.modo = 'entregue'
+  for (let i = 1; i <= 20; i++) await envio($, `destino-${i}`, `mensagem ${i}`)
+  let p = await painel($)
+  expect(p.find(l => l.titulo === 'Para outra: Revise o PR')?.carta, emTexto(p)).toBe('fila')
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(1)
+  h.recebeu('local_x', AGORA)
+  await aviso($)
+  p = await painel($)
+  expect(p.find(l => l.titulo === 'Para outra: Revise o PR')?.carta, emTexto(p)).toBe('entregue')
+})
+
+// Regra: envios.marca-de-entrega-na-carta-certa
+test('um envio no meio da releitura das sessões não recebe a marca de outro envio', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  responderEnvio(on)
+  // Armado, a gravação seguinte dos envios cruza com outra: a mensagem "segunda", da mesma tarefa à
+  // mesma sessão, entra no lugar da primeira (como o SendMessage a grava), e a gravação da releitura
+  // tem de reler a lista (o stub não pode chamar a ferramenta do mod).
+  let armado = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!armado || e?.key !== 'sends') return next(e)
+    armado = false
+    const r = await next({ ...e, value: [{ to: 'outra', anchor: '1', at: AGORA + 1000, text: 'segunda' }] })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'outra', 'primeira')
+  h.recebeu('local_x', AGORA)
+  await relogio.advance(1000)
+  armado = true
+  await aviso($)
+  const p = await painel($)
+  expect(p.find(l => l.titulo === 'Para outra: segunda')?.carta, emTexto(p)).toBe('fila')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+})
+
+// Regra: envios.falha-de-um-passo-nao-perde-a-carta
+test('a falha de um passo do hook não perde a carta do envio', async ($: any, on: any) => {
+  const { log } = fixar(on)
+  host(on, [{ id: 'local_x', nome: 'outra', rodando: false }])
+  responderEnvio(on)
+  // Armado, a leitura do fim do turno (wake, keepTime) falha; asked e sentMessage não a leem.
+  let armado = false
+  on('state.get', async (_$: any, e: any, next: any) => (armado && e?.key === 'turnEnded' ? { deny: 'estouro de teste' } : next(e)))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  armado = true
+  // A chamada como o modelo a faz, para ler o aviso que volta junto (context).
+  const r = await $.tool.call({ tool: 'SendMessage', tool_use_id: 'SendMessage-1', to: 'local_x', message: 'Revise o PR' })
+  armado = false
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(JSON.stringify(r?.context ?? []), JSON.stringify(r)).toContain('ficou na fila')
+  expect(log.some(l => l.includes('tool.call, passo') && l.includes('estouro de teste')), log.join('\n')).toBe(true)
+})
+
+// As cartas a "revisor" no painel: o texto depois de "Para revisor: " e o estado de cada uma.
+const cartasAoRevisor = (p: Awaited<ReturnType<typeof painel>>) => p.filter(l => l.titulo.startsWith('Para revisor')).map(l => [l.titulo.replace('Para revisor: ', ''), l.carta])
+
+// Duas mensagens de "Um" a "revisor", a segunda `depois` ms depois da primeira; os recebimentos em `ats`.
+async function duasCartas($: any, on: any, depois: number, ats: [number, number]) {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', nome: 'revisor', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'primeira')
+  if (depois > 0) relogio.advance(depois)
+  await envio($, 'local_x', 'segunda')
+  let p = await painel($)
+  expect(cartasAoRevisor(p), emTexto(p)).toEqual([
+    ['primeira', 'fila'],
+    ['segunda', 'fila'],
+  ])
+  expect(cabecalho(p).chips.sessao, emTexto(p)).toBe(2)
+  h.recebeu('local_x', ats[0])
+  await aviso($)
+  p = await painel($)
+  expect(cartasAoRevisor(p), emTexto(p)).toEqual([
+    ['primeira', 'entregue'],
+    ['segunda', 'fila'],
+  ])
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_x', ats[1])
+  await aviso($)
+  p = await painel($)
+  expect(cartasAoRevisor(p), emTexto(p)).toEqual([
+    ['primeira', 'entregue'],
+    ['segunda', 'entregue'],
+  ])
+  esperarEstado(p, 'Um', 'concluida')
+}
+
+// Regra: envios.uma-carta-por-mensagem
+test('duas mensagens da mesma tarefa à mesma sessão: duas cartas, cada uma verde na sua entrega, e a tarefa fecha na última', async ($: any, on: any) => {
+  await duasCartas($, on, 1000, [AGORA, AGORA + 1000])
+})
+
+// Regra: envios.uma-carta-por-mensagem
+test('duas mensagens no mesmo instante: cada carta recebe a sua marca', async ($: any, on: any) => {
+  await duasCartas($, on, 0, [AGORA, AGORA])
+})
+
+// Regra: envios.entrega-imediata-gasta-o-seu-recebimento
+test('o recebimento da mensagem entregue na hora não confirma a mensagem seguinte, na fila, nem fecha a tarefa dela', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x' }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  env.modo = 'entregue'
+  await envio($, 'local_x', 'na hora')
+  await start($, ['2'])
+  env.modo = 'fila'
+  await envio($, 'local_x', 'na fila')
+  h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_x', AGORA + 2)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  // A entregue na hora não fecha a tarefa dela: segue em andamento até o done do modelo.
+  expect(linha(p, 'Um').estado, emTexto(p)).toBe('andamento')
+})
+
+// Um pedido novo ("continue") que segue o plano anterior só com start, com a pergunta aberta na tarefa
+// em andamento: o pedido aberto ainda não tem tarefas.
+const continuaComPergunta = async ($: any, relogio: any, plano: No[], id: string) => {
+  await pedido($, 'Pedido um')
+  await plan($, plano)
+  await start($, [id])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, [id])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  return { resp }
+}
+const QUATRO: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }, { id: '4', title: 'Quatro' }] }]
+const SOLTOS: No[] = [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Três' }]
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, a carta vai à pendente desse plano e não fica solta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaComPergunta($, relogio, A, '1')
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  expect(p.filter(l => l.titulo.startsWith('Para ')).length, emTexto(p)).toBe(1)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('num pedido que continua só com start a única tarefa do plano anterior, com a pergunta nela, a carta fica nela e não fica solta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaComPergunta($, relogio, [{ id: 'S', title: 'Sozinha' }], 'S')
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Sozinha', 'fila')
+  expect(p.filter(l => l.titulo.startsWith('Para ')).length, emTexto(p)).toBe(1)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, o cartão da sessão aberta vai à pendente desse plano', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_12121212-1212-1212-1212-121212121212', nome: 'filha-um' }])
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaComPergunta($, relogio, A, '1')
+  await abrirSessao($)
+  await aviso($)
+  const p = await painel($)
+  expect(cartoes(p, 'filha-um').map(c => c.sob), emTexto(p)).toEqual(['Dois'])
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com três em andamento, as duas primeiras já com carta e a pergunta na iniciada por último, o envio vai à segunda', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }, { id: 'local_z' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, QUATRO)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await start($, ['2'])
+  await envio($, 'local_x')
+  await envio($, 'local_y')
+  await relogio.advance(1000)
+  await start($, ['3'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_z', 'terceira')
+  const p = await painel($)
+  const dois = cartasDe(p, 'Dois')
+  expect(dois.length, emTexto(p)).toBe(2)
+  expect(dois.some(t => t.includes('terceira')), emTexto(p)).toBe(true)
+  expect(cartasDe(p, 'Três'), emTexto(p)).toEqual([])
+  expect(cartasDe(p, 'Quatro'), emTexto(p)).toEqual([])
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta na tarefa em andamento e as outras do pedido concluídas, o envio vai à iniciada por último delas', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, SOLTOS)
+  await start($, ['3'])
+  await done($, ['3'])
+  await relogio.advance(1000)
+  await start($, ['2'])
+  await done($, ['2'])
+  await relogio.advance(1000)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  expect(cartasDe(p, 'Dois').length, emTexto(p)).toBe(1)
+  expect(cartasDe(p, 'Três'), emTexto(p)).toEqual([])
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta na tarefa em andamento e as outras do pedido fechadas sem start, o envio vai ao último nível 1 que não pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, SOLTOS)
+  await done($, ['2'])
+  await done($, ['3'])
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  expect(cartasDe(p, 'Três').length, emTexto(p)).toBe(1)
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('sem relógio, com a pergunta na iniciada por último e as outras já com carta, o envio vai à última na ordem dos starts', async ($: any, on: any) => {
+  // Como fixar, sem o relógio: o mod lê a hora como indefinida e não grava início nas tarefas.
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('prompt.submit', (_$: any, e: any) => e)
+  on('session.receive', (_$: any, e: any) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('session.start', () => ({ cwd: '.' }))
+  on('command.register', () => ({ value: {} }))
+  on('tool.register', () => ({ value: {} }))
+  on('classic.SessionStart', () => ({}))
+  on('clock.now', () => ({ value: 'sem hora' }))
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }, { id: 'local_z' }])
+  responderEnvio(on)
+  on('tool.call', { tool: 'mcp__ccd_turn__wrap_up' }, () => ({ result: 'ok' }))
+  await pedido($, 'Pedido um')
+  await plan($, QUATRO)
+  await start($, ['1'])
+  await start($, ['2'])
+  await envio($, 'local_x')
+  await envio($, 'local_y')
+  await start($, ['3'])
+  await ferramenta($, 'mcp__ccd_turn__wrap_up', { recap: 'parcial', ask: 'Seguir?' })
+  await envio($, 'local_z', 'terceira')
+  const p = await painel($)
+  const dois = cartasDe(p, 'Dois')
+  expect(dois.length, emTexto(p)).toBe(2)
+  expect(dois.some(t => t.includes('terceira')), emTexto(p)).toBe(true)
+  expect(cartasDe(p, 'Três'), emTexto(p)).toEqual([])
+  expect(cartasDe(p, 'Quatro'), emTexto(p)).toEqual([])
+})
+
+const SO_UM: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta na única subtarefa do plano, a carta fica nela, não no pai', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  expect(cartasDe(p, 'Um').length, emTexto(p)).toBe(1)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('com a pergunta numa subtarefa e outro plano já concluído no pedido, a carta vai à última iniciada desse plano, não ao pai da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [
+    { id: 'A', title: 'Plano A', children: [{ id: 'a1', title: 'a1' }] },
+    { id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'B.1' }] },
+  ])
+  await start($, ['a1'])
+  await done($, ['a1'])
+  await relogio.advance(1000)
+  await start($, ['b1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  expect(cartasDe(p, 'a1').length, emTexto(p)).toBe(1)
+  expect(cartasDe(p, 'B.1'), emTexto(p)).toEqual([])
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.nunca-na-tarefa-da-pergunta, envios.done-com-carta-na-fila
+test('com a carta na única subtarefa que perguntava, o done dela avisa que a mensagem ainda está na fila', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, SO_UM)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  await relogio.advance(1000)
+  await resp
+  expect((await done($, ['1'])).texto).toContain('ainda está na fila')
+})
+
+// Regra: envios.entrega-imediata-gasta-o-seu-recebimento
+test('depois de uma entrega na hora, a tarefa da carta da fila fecha no segundo recebimento, não no primeiro', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  const env = responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  env.modo = 'entregue'
+  await envio($, 'local_x', 'na hora')
+  await start($, ['2'])
+  env.modo = 'fila'
+  await envio($, 'local_x', 'na fila')
+  h.recebeu('local_x', AGORA + 1)
+  await aviso($)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  h.recebeu('local_x', AGORA + 2)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+})
+
+// Um plano de um pedido do meio, que o pedido "continue" não toca.
+const PLANO_DO_MEIO: No[] = [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }]
+// Pedido "continue" que retoma "Um" com start depois de "Dois" já feita: sem pendente no plano anterior.
+const continuaSemPendente = async ($: any, relogio: any) => {
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['2'])
+  await done($, ['2'])
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  return { resp }
+}
+const SO_LUGAR = 'só como lugar'
+
+// Regra: envios.nunca-na-tarefa-da-pergunta
+test('num pedido sem plano que retoma um plano de dois pedidos atrás, com a pergunta na tarefa em andamento, a carta vai à pendente desse plano, não à do pedido do meio', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DO_MEIO)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue o plano A')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  expect(cartasDe(p, 'b1'), emTexto(p)).toEqual([])
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  expect(p.filter(l => l.titulo.startsWith('Para ')).length, emTexto(p)).toBe(1)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha, envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento, a entrega da carta não conclui a pendente em que ela foi posta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  // A sessão destino parada: uma filha trabalhando manteria a tarefa ◉.
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaComPergunta($, relogio, A, '1')
+  const fila = await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's1', to: 'local_x', message: 'oi' }))
+  expect(fila).toContain(NA_FILA)
+  expect(fila).toContain(SO_LUGAR)
+  expect(fila).not.toContain('Mantenha em andamento')
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  await relogio.advance(1000)
+  await resp
+  await relogio.advance(1000)
+  h.recebeu('local_x', AGORA + 2500)
+  const entrega = await contexto(aviso($))
+  expect(entrega).toContain('recebimento confirmado')
+  expect(entrega).toContain('não concluiu a tarefa do envio')
+  expect(entrega).not.toContain('já concluiu a tarefa do envio')
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(linha(p, 'Um').estado, emTexto(p)).not.toBe('concluida')
+  await start($, ['2'])
+  await done($, ['2'])
+  p = await painel($)
+  esperarEstado(p, 'Dois', 'concluida')
+})
+
+// Regra: envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha, envios.nunca-na-tarefa-da-pergunta
+test('num pedido que continua o plano anterior só com start, com a pergunta na tarefa em andamento e sem pendente, a carta vai à última tarefa iniciada desse plano, já concluída', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaSemPendente($, relogio)
+  const fila = await contexto($.tool.call({ tool: 'SendMessage', tool_use_id: 's1', to: 'local_x', message: 'oi' }))
+  expect(fila).toContain(SO_LUGAR)
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(cartasDe(p, 'Um'), emTexto(p)).toEqual([])
+  expect(p.filter(l => l.titulo.startsWith('Para ')).length, emTexto(p)).toBe(1)
+  await relogio.advance(1000)
+  await resp
+  await relogio.advance(1000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'concluida')
+})
+
+// Regra: envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('a carta a um subagente posta na pendente do plano anterior por causa da pergunta aberta não a conclui quando ele a recebe', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  filaDoSubagente(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await lancar($, { descricao: 'varrer o repo', segundoPlano: true })
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await envio($, 'sub-1', 'recado')
+  let p = await painel($)
+  esperarCartaSob(p, 'Dois', 'fila')
+  await relogio.advance(1000)
+  await resp
+  await recebidaPeloSubagente($, 'sub-1', 'recado')
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  esperarEstado(p, 'Dois', 'pendente')
+})
+
+// Regra: envios.fila-pelo-texto-da-resposta
+test('a carta nasce na fila quando a resposta diz "held" ou "pending", e entregue com "its turn has started"', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }, { id: 'local_y' }, { id: 'local_z' }])
+  const respostas = ['Message held until the session is idle', 'Message pending delivery', 'Message queued; its turn has started on it']
+  let i = 0
+  on('tool.call', { tool: 'SendMessage' }, () => ({ result: JSON.stringify({ success: true, message: respostas[i++] ?? '' }) }))
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }, { id: '3', title: 'Tres' }] }])
+  await start($, ['1'])
+  await envio($, 'local_x')
+  await start($, ['2'])
+  await envio($, 'local_y')
+  await start($, ['3'])
+  await envio($, 'local_z')
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  esperarCartaSob(p, 'Dois', 'fila')
+  esperarCartaSob(p, 'Tres', 'entregue')
+})
+
+// Regra: envios.entrega-sem-recibo-pelo-turno-da-sessao
+test('a sessão que não publica o que recebeu confirma a carta por um turno aberto depois do envio', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const arquivo = (at: number) => JSON.stringify({ version: 1, waiting: false, waits: [], children: [], groups: [{ agent: '', label: '', tasks: [], turns: [{ id: 1, title: 'turno 1', at }] }] })
+  const destino: Filha = { id: 'local_x', publicado: arquivo(AGORA - 5000) }
+  host(on, [destino])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await envio($, 'local_x')
+  await aviso($)
+  esperarCartaSob(await painel($), 'Um', 'fila')
+  await relogio.advance(2000)
+  destino.publicado = arquivo(AGORA + 2500)
+  await aviso($)
+  esperarCartaSob(await painel($), 'Um', 'entregue')
+})
+
+// Regra: envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha, envios.aviso-da-entrega-diz-o-que-o-painel-fez
+test('num pedido que continua o plano anterior só com start, com a pergunta aberta e sem pendente, o aviso da entrega da carta posta na tarefa já concluída diz que ela está concluída', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  const { resp } = await continuaSemPendente($, relogio)
+  await envio($, 'local_x')
+  await relogio.advance(1000)
+  await resp
+  await relogio.advance(1000)
+  h.recebeu('local_x', AGORA + 4500)
+  const r = await contexto(aviso($))
+  expect(r, r).toContain('recebimento confirmado')
+  expect(r, r).toContain('já concluiu a tarefa do envio')
+  expect(r, r).not.toContain('não concluiu a tarefa do envio')
+  const p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  esperarEstado(p, 'Dois', 'concluida')
+})
+
+// ---- O que está na tarefa só como lugar não segura a entrega da mensagem comum (decisão do usuário,
+// 2026-11-15, "Não segura (Recomendado)").
+
+// "continue" sem plano, pergunta aberta em "Um"; `soLugar` põe algo em "Dois" só como lugar; depois da
+// resposta o modelo conclui "Um", dá start em "Dois", manda dela uma mensagem comum (na fila) a
+// local_x e encerra o turno; local_x toma a mensagem.
+const comumDepoisDoSoLugar = async ($: any, on: any, soLugar: () => Promise<unknown>) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [{ id: 'local_x', rodando: false }, { id: 'local_y', rodando: false }])
+  responderEnvio(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'continue')
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  await soLugar()
+  await relogio.advance(1000)
+  await resp
+  await done($, ['1'])
+  await start($, ['2'])
+  await envio($, 'local_x', 'comum')
+  await fimDoTurno($)
+  let p = await painel($)
+  expect(linha(p, 'Dois').estado, emTexto(p)).not.toBe('concluida')
+  await relogio.advance(1000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  p = await painel($)
+  return p
+}
+
+// Regra: envios.entrega-espera-o-que-ainda-roda-na-tarefa, envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('o subagente posto só como lugar na pendente do plano anterior não segura a entrega da mensagem comum mandada dela depois do start', async ($: any, on: any) => {
+  const p = await comumDepoisDoSoLugar($, on, () => lancar($, { descricao: 'conferir o diff', segundoPlano: true }))
+  esperarEstado(p, 'Dois', 'concluida')
+  const sub = p.findIndex((l: any) => l.titulo.includes('conferir o diff'))
+  expect(sub, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Dois')))
+  expect(p[sub]?.texto ?? '', emTexto(p)).toContain('segundo plano')
+})
+
+// Regra: envios.entrega-espera-o-que-ainda-roda-na-tarefa, envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha
+test('a carta posta só como lugar na pendente do plano anterior, ainda na fila, não segura a entrega da mensagem comum mandada dela depois do start', async ($: any, on: any) => {
+  const p = await comumDepoisDoSoLugar($, on, () => envio($, 'local_y', 'lugar'))
+  esperarEstado(p, 'Dois', 'concluida')
+  expect(cartasDe(p, 'Dois').length, emTexto(p)).toBe(2)
+  esperarCartaSob(p, 'Dois', 'fila')
+})
+
+// Regra: envios.lembrete-nao-desfaz-marca-da-releitura
+test('a carta que a releitura marca enquanto o lembrete de outra é montado não volta à fila', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [
+    { id: 'local_x', nome: 'xis', rodando: false },
+    { id: 'local_y', nome: 'ypsilon', rodando: false },
+  ])
+  responderEnvio(on)
+  // Armado, a gravação do lembrete (a que leva uma carta já avisada) cruza com a da releitura: antes
+  // dela entra a lista como a releitura a grava, com a carta de Y recebida e a de X ainda sem aviso, e
+  // o lembrete tem de reler (o stub não pode chamar a releitura do mod).
+  let armado = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!armado || e?.key !== 'sends' || !(e.value ?? []).some((s: any) => s.noted)) return next(e)
+    armado = false
+    h.recebeu('local_y', AGORA + 4000)
+    const meio = (e.value as any[]).map(s => (s.to === 'local_y' ? { ...s, taken: true } : { ...s, noted: undefined }))
+    const r = await next({ ...e, value: meio })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'para xis')
+  await start($, ['2'])
+  await envio($, 'local_y', 'para ypsilon')
+  h.recebeu('local_x', AGORA + 1000)
+  await relogio.advance(3000)
+  armado = true
+  const primeiro = await contexto(aviso($))
+  expect(armado, 'a gravação do lembrete passou pelo stub').toBe(false)
+  let p = await painel($)
+  esperarCartaSob(p, 'Um', 'entregue')
+  esperarCartaSob(p, 'Dois', 'entregue')
+  const segundo = await contexto(aviso($))
+  p = await painel($)
+  esperarCartaSob(p, 'Dois', 'entregue')
+  expect(primeiro, 'o aviso em curso').toContain('recebimento confirmado')
+  expect(primeiro, 'o aviso em curso').toContain('local_x')
+  expect(primeiro, 'o aviso em curso').not.toContain('local_y')
+  expect(segundo, 'o aviso seguinte').toContain('recebimento confirmado')
+  expect(segundo, 'o aviso seguinte').toContain('local_y')
+  expect(segundo, 'o aviso seguinte').not.toContain('local_x')
+})
+
+// Regra: envios.lembrete-nao-desfaz-marca-da-releitura
+test('a sessão cujo turno termina enquanto o lembrete de outra é montado ainda é lembrada', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const um = 'local_11111111-1111-1111-1111-111111111111'
+  const dois = 'local_22222222-2222-2222-2222-222222222222'
+  const h = host(on, [
+    { id: um, nome: 'filha-um', painel: { tasks: [], turns: [] } },
+    { id: dois, nome: 'filha-dois', painel: { tasks: [], turns: [] } },
+  ])
+  // Armado, a gravação que tira a primeira filha da lista do fim de turno cruza com a da releitura,
+  // que anota a segunda: antes dela entra a lista com as duas, e o lembrete tem de reler.
+  let armado = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!armado || e?.key !== 'ended' || (e.value ?? []).includes(um)) return next(e)
+    armado = false
+    h.filha(dois).rodando = false
+    const r = await next({ ...e, value: [um, dois] })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await abrirSessao($)
+  await aviso($)
+  h.filha(um).rodando = false
+  await relogio.advance(3000)
+  armado = true
+  const primeiro = await contexto(aviso($))
+  expect(armado, 'a gravação do lembrete passou pelo stub').toBe(false)
+  const segundo = await contexto(aviso($))
+  const juntos = primeiro + segundo
+  expect(juntos, 'os dois avisos').toContain('filha-um')
+  expect(juntos, 'os dois avisos').toContain('filha-dois')
+  expect(primeiro, 'o aviso em curso').toContain('terminou o turno')
+  expect(segundo, 'o aviso seguinte').toContain('terminou o turno')
+  expect(segundo, 'o aviso seguinte').toContain('filha-dois')
+})
+
+const LONGO_ENVIO_U2: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }, { id: 'r2', title: 'Segundo passo' }, { id: 'r3', title: 'Terceiro passo' }] }]
+const MEIO_ENVIO_U2: No[] = [{ id: 'Q', title: 'Estimar o tempo' }]
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, a carta vai à pendente do plano', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, LONGO_ENVIO_U2)
+  await start($, ['r1'])
+  await fimDoTurno($)
+  await pedido($, 'Quanto falta?')
+  await plan($, MEIO_ENVIO_U2)
+  await start($, ['Q'])
+  await done($, ['Q'], 'Falta pouco')
+  await start($, ['r1'])
+  await done($, ['r1'])
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Segundo passo', 'fila')
+  expect(cartaSob(p, 'Estimar o tempo'), emTexto(p)).toBeUndefined()
+})
+
+const DOIS_PLANOS_ENVIO_R5: No[] = [
+  { id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] },
+  { id: 'B', title: 'Plano B', children: [{ id: '3', title: 'Três' }] },
+]
+
+// Regra: envios.sem-andamento-vai-a-pendente-planejada-por-ultimo
+test('sem pendente, a carta vai para a tarefa de start mais recente, contado o start de novo', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, DOIS_PLANOS_ENVIO_R5)
+  await start($, ['1'])
+  await relogio.advance(1000)
+  await start($, ['3'])
+  await done($, ['3'])
+  await relogio.advance(1000)
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await relogio.advance(1000)
+  await start($, ['1'])
+  await done($, ['1'])
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Um', 'fila')
+  expect(cartaSob(p, 'Três'), emTexto(p)).toBeUndefined()
+})
+
+// ---- O subagente e a carta adotados pelo plan não seguram a entrega (decisão de 2026-11-16).
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota, envios.entrega-espera-o-que-ainda-roda-na-tarefa
+test('o subagente lançado antes do plan e adotado por ele não segura a entrega da mensagem comum mandada da tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  lancaveis(on, ['sub-1'])
+  const h = host(on, [{ id: 'local_x', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await lancar($, { descricao: 'conferir o diff', segundoPlano: true })
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'comum')
+  await fimDoTurno($)
+  let quadro = await painel($)
+  expect(linha(quadro, 'Um').estado, emTexto(quadro)).not.toBe('concluida')
+  await relogio.advance(5000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  quadro = await painel($)
+  esperarEstado(quadro, 'Um', 'concluida')
+  const sub = quadro.findIndex((l: any) => l.titulo.includes('conferir o diff'))
+  expect(sub, emTexto(quadro)).toBeGreaterThan(quadro.indexOf(linha(quadro, 'Um')))
+  expect(sub, emTexto(quadro)).toBeLessThan(quadro.indexOf(linha(quadro, 'Dois')))
+  expect(quadro[sub]?.texto ?? '', emTexto(quadro)).toContain('segundo plano')
+})
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota, envios.entrega-espera-o-que-ainda-roda-na-tarefa
+test('a carta mandada antes do plan e adotada por ele, ainda na fila, não segura a entrega da mensagem comum mandada da tarefa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [{ id: 'local_x', rodando: false }, { id: 'local_y', rodando: false }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await envio($, 'local_y', 'antes')
+  await plan($, A)
+  await start($, ['1'])
+  await envio($, 'local_x', 'comum')
+  await fimDoTurno($)
+  let quadro = await painel($)
+  expect(linha(quadro, 'Um').estado, emTexto(quadro)).not.toBe('concluida')
+  await relogio.advance(5000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  quadro = await painel($)
+  esperarEstado(quadro, 'Um', 'concluida')
+  expect(cartasDe(quadro, 'Um').length, emTexto(quadro)).toBe(2)
+  esperarCartaSob(quadro, 'Um', 'fila')
+})
+
+// Regra: envios.lembrete-nao-desfaz-marca-da-releitura
+test('a sessão que a releitura anota enquanto o lembrete de outra é gravado é lembrada no aviso seguinte, e a primeira não se repete', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const idUm = 'local_11111111-1111-1111-1111-111111111111'
+  const idDois = 'local_22222222-2222-2222-2222-222222222222'
+  const hostDasDuas = host(on, [
+    { id: idUm, nome: 'filha-um', painel: { tasks: [], turns: [] } },
+    { id: idDois, nome: 'filha-dois', painel: { tasks: [], turns: [] } },
+  ])
+  // Armado, a gravação que tira a primeira filha da lista do fim de turno cruza com a da releitura,
+  // que anota a segunda: entra a lista com as duas, sem o app dizer que a segunda parou.
+  let pronto = false
+  on('state.set', async (_$: any, e: any, next: any) => {
+    if (!pronto || e?.key !== 'ended' || (e.value ?? []).includes(idUm)) return next(e)
+    pronto = false
+    const r = await next({ ...e, value: [idUm, idDois] })
+    return { ...r, value: { ...r?.value, isSet: false } }
+  })
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  await start($, ['2'])
+  await abrirSessao($)
+  await aviso($)
+  hostDasDuas.filha(idUm).rodando = false
+  await relogio.advance(3000)
+  pronto = true
+  const avisoUm = await contexto(aviso($))
+  expect(pronto, 'a gravação do lembrete passou pelo stub').toBe(false)
+  const avisoDois = await contexto(aviso($))
+  expect(avisoUm, 'o aviso em curso').toContain('terminou o turno')
+  expect(avisoUm, 'o aviso em curso').toContain('filha-um')
+  expect(avisoUm, 'o aviso em curso').not.toContain('filha-dois')
+  expect(avisoDois, 'o aviso seguinte').toContain('terminou o turno')
+  expect(avisoDois, 'o aviso seguinte').toContain('filha-dois')
+  expect(avisoDois, 'o aviso seguinte').not.toContain('filha-um')
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com a pergunta do meio fechada sem start e sem volta ao plano anterior, a carta fica sob a tarefa da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  const anda = () => relogio.advance(1000)
+  await pedido($, 'Pedido um')
+  await anda()
+  await plan($, LONGO_ENVIO_U2)
+  await anda()
+  await start($, ['r1'])
+  await anda()
+  await fimDoTurno($)
+  await anda()
+  await pedido($, 'Quanto falta?')
+  await anda()
+  await plan($, MEIO_ENVIO_U2)
+  await anda()
+  await done($, ['Q'], 'Falta pouco')
+  await anda()
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Estimar o tempo', 'fila')
+  expect(cartaSob(p, 'Primeiro passo'), emTexto(p)).toBeUndefined()
+  expect(cartaSob(p, 'Segundo passo'), emTexto(p)).toBeUndefined()
+})
+
+// Regra: envios.antes-do-plan-fica-solta-e-o-plan-adota, envios.entrega-espera-o-que-ainda-roda-na-tarefa
+test('a entrega da mensagem comum mandada da tarefa a fecha mesmo com a sessão adotada pelo plan ainda trabalhando nela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const adotadaR8 = 'local_11111111-1111-1111-1111-111111111111'
+  const daAdotada = (status: 'open' | 'done') => ({ id: '1', short: '1', title: 'Da filha', status, started: 1, startedAt: AGORA - 1000, children: [] })
+  const h = host(on, [
+    { id: adotadaR8, nome: 'filha-um', painel: { tasks: [daAdotada('open')] } },
+    { id: 'local_x', rodando: false },
+  ])
+  const modoR8 = responderEnvio(on)
+  modoR8.modo = 'entregue'
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'Z', title: 'Plano Z', children: [{ id: 'z1', title: 'Zê um' }] }])
+  await start($, ['z1'])
+  await done($, ['z1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await pedido($, 'Pedido dois')
+  await envio($, adotadaR8, 'Revise')
+  await aviso($)
+  await plan($, A)
+  await start($, ['1'])
+  modoR8.modo = 'fila'
+  await envio($, 'local_x', 'comum')
+  await fimDoTurno($)
+  const antesDaEntrega = await painel($)
+  esperarCartaSob(antesDaEntrega, 'Um', 'entregue')
+  expect(linha(antesDaEntrega, 'Um').estado, emTexto(antesDaEntrega)).not.toBe('concluida')
+  const feitasAntesR8 = cabecalho(antesDaEntrega).feitas
+  await relogio.advance(5000)
+  h.recebeu('local_x', AGORA + 4500)
+  await aviso($)
+  const depoisDaEntrega = await painel($)
+  // A filha-um segue trabalhando e o painel dela não mudou: a conta sobe só por "Um".
+  expect(cabecalho(depoisDaEntrega).feitas, emTexto(depoisDaEntrega)).toBe(feitasAntesR8 + 1)
+  const comum = depoisDaEntrega.find((l: any) => l.titulo.startsWith('Para ') && l.titulo.includes('comum'))
+  expect(comum?.carta, emTexto(depoisDaEntrega)).toBe('entregue')
+  h.filha(adotadaR8).painel = { tasks: [daAdotada('done')] }
+  h.filha(adotadaR8).rodando = false
+  const noFimR8 = JSON.stringify(await aviso($))
+  const fimR8 = await painel($)
+  esperarEstado(fimR8, 'Um', 'concluida')
+  expect(noFimR8, noFimR8).not.toContain('concluiu sozinho a tarefa de origem')
 })

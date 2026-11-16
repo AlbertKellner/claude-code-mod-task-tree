@@ -2,7 +2,7 @@
 
 As esperas de pergunta, plano e escolha.
 
-Código da área: hooks/tool-call.ts, hooks/panel.ts, draw/layout.ts
+Código da área: hooks/tool-call.ts, hooks/panel.ts, draw/layout.ts, hooks/prompt-submit.ts, hooks/turn.ts
 
 ### perguntas.sem-tarefa-recusada
 A pergunta sem tarefa aberta do pedido atual, nem tarefa em andamento, é recusada.
@@ -11,7 +11,7 @@ A pergunta sem tarefa aberta do pedido atual, nem tarefa em andamento, é recusa
 - Quando o modelo chama AskUserQuestion
 - Então a chamada é recusada, com o pedido de planejar ou dar start antes, e o painel não mostra espera; o ExitPlanMode e a escolha do wrap_up não são recusados
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Código: text/rules.ts
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Não (Recomendado)"): um passo ○ de um pedido anterior não libera a pergunta de um pedido novo.
 Estado: coberto
@@ -23,7 +23,7 @@ A pergunta aberta aparece sob a tarefa, que segue em andamento.
 - Quando a pergunta está aberta
 - Então aparece ◷ "Aguardando sua resposta" logo abaixo dela, e ela segue ◉
 
-Origem: decisão do usuário, 2026-10-26; commit 309f9be.
+Origem: decisão do usuário, 2026-10-26; commit ebc0f19.
 Estado: coberto
 
 ### perguntas.espera-sob-a-pendente
@@ -44,7 +44,7 @@ A resposta por opção tira a espera.
 - Quando a pessoa escolhe uma opção
 - Então a espera some e a tarefa segue ◉
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### perguntas.resposta-pelo-chat-tira-espera
@@ -54,7 +54,7 @@ A resposta pelo chat tira a espera na hora.
 - Quando a pessoa responde pelo chat, sem escolher opção
 - Então a espera some na hora, antes da mensagem dela chegar, e a tarefa segue ◉
 
-Origem: decisão do usuário, 2026-10-27; commit cf5ea53.
+Origem: decisão do usuário, 2026-10-27; commit e5f5f2d.
 Estado: coberto
 
 ### perguntas.exitplanmode-espera
@@ -64,7 +64,7 @@ O ExitPlanMode mostra a espera da aprovação do plano.
 - Quando ExitPlanMode está aberto
 - Então aparece "Aguardando aprovação do plano" até a resposta
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20).
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20).
 Estado: coberto
 
 ### perguntas.mensagem-no-meio-do-turno-mantem-espera
@@ -83,9 +83,10 @@ A escolha do wrap_up fica até a próxima mensagem.
 
 - Dado um wrap_up com pergunta (ask)
 - Quando o turno termina
-- Então "Aguardando sua escolha" fica até a próxima mensagem da pessoa
+- Então "Aguardando sua escolha" fica até a próxima mensagem da pessoa, ou até a sessão encerrar outro turno com um wrap_up novo (com outra pergunta, ou sem pergunta); a mensagem de outra sessão e o aviso do app não a tiram
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); confirmada pelo usuário em 2026-11-14 ("Toda pergunta espera"): a pergunta opcional, que não bloqueia o trabalho, também fica como espera.
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20); confirmada pelo usuário em 2026-11-14 ("Toda pergunta espera"): a pergunta opcional, que não bloqueia o trabalho, também fica como espera.
+Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Só a sua mensagem (Recomendado)"): a mensagem de outra sessão deixa de tirar a linha. O teste existente não muda.
 Estado: coberto
 
 ### perguntas.permissao-espera
@@ -95,7 +96,7 @@ O pedido de permissão aparece como espera.
 - Quando o app pede a permissão
 - Então aparece "Aguardando permissão: <ferramenta>"
 
-Origem: regra do painel desde a entrada do mod (465b09e, 2026-10-20); o hook passou para hooks/permission.ts no commit c442523, 2026-10-22 ("hooks em arquivos próprios").
+Origem: regra do painel desde a entrada do mod (85744cb, 2026-10-20); o hook passou para hooks/permission.ts no commit 013f2b1, 2026-10-22 ("hooks em arquivos próprios").
 Código: hooks/permission.ts
 Estado: coberto
 
@@ -118,4 +119,46 @@ O wrap_up com pergunta que falha não vira espera.
 - Então o painel não mostra "Aguardando sua escolha", e a espera que já havia fica como estava
 
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a espera era criada antes de a chamada dar certo); aplica perguntas.escolha-do-wrapup-ate-proxima-mensagem, sem mudá-la.
+Estado: coberto
+
+### perguntas.falha-de-um-passo-nao-pula-a-recusa
+A falha de um passo acessório do painel não deixa passar a pergunta sem tarefa.
+
+- Dado nenhuma tarefa aberta do pedido atual e nenhuma em andamento
+- Quando o modelo chama AskUserQuestion e um passo acessório do painel falha antes da pergunta
+- Então a chamada é recusada como em perguntas.sem-tarefa-recusada
+
+Origem: auditoria 2026-11-10; aplica perguntas.sem-tarefa-recusada, sem mudar nenhuma regra.
+Código: hooks/tool-call.ts
+Estado: coberto
+
+### perguntas.mod-em-erro-abre-a-pergunta
+Se o mod falha por erro interno ao conferir a pergunta sem tarefa, a pergunta abre e o erro vai ao log.
+
+- Dado nenhuma tarefa aberta do pedido atual, e um erro interno do mod ao ler o painel naquele instante
+- Quando o modelo chama AskUserQuestion
+- Então a pergunta abre para a pessoa (não é recusada), e o log de depuração diz que a conferência falhou e por quê; sem erro interno, vale perguntas.sem-tarefa-recusada
+
+Origem: decisão do usuário, 2026-11-15 ("Abre, com erro no log (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a recusa falhava aberta, sem registro).
+Código: io/log.ts
+Estado: coberto
+
+### perguntas.pergunta-e-plano-saem-no-fim-do-turno
+A espera de pergunta ou de aprovação de plano não sobrevive ao turno.
+
+- Dado "Aguardando sua resposta" ou "Aguardando aprovação do plano" no painel
+- Quando o turno do loop principal termina com a chamada ainda sem resposta
+- Então a espera some (a escolha do wrap_up fica: perguntas.escolha-do-wrapup-ate-proxima-mensagem)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### perguntas.pergunta-de-subagente
+A pergunta de um subagente não é recusada e espera sob a tarefa dele.
+
+- Dado um subagente com uma tarefa em andamento, e o loop principal sem tarefa aberta do pedido
+- Quando o subagente chama AskUserQuestion
+- Então a chamada passa, "Aguardando sua resposta" aparece sob a tarefa do subagente, e some com a resposta
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
 Estado: coberto
