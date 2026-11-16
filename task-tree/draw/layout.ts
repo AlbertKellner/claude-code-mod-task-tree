@@ -1149,6 +1149,9 @@ export const SHOWN_CARD_TURNS = 3
 // are never cut, so the person can close it (the person, 2026-11-13: "Preservar a linha
 // (Recomendado)"): they come right after "+N linhas anteriores", in their order, and are not counted
 // in it. With none open the cut is the same as before; kept lines alone past `max` stay all the same.
+// A block that goes whole keeps its lines in progress the same way, with their parents (atWorkRow; the
+// person, 2026-11-15: "Manter à vista o em andamento (Recomendado)"), in at most half the room, the
+// latest first; inside the last block nothing changes.
 // What comes at depth 0 after the last request's block (a notice with no task at work, a session's card
 // or a subagent's with no task to go under, "+N cartões antigos de sessões", a letter with no place) is
 // the tail: its room is held and the cut goes over the requests only, so a small block at the end never
@@ -1190,8 +1193,37 @@ function cutRows(rows: Row[], max: number): Row[] {
       }
     }
   })
-  const keptBefore = (n: number) => rows.filter((_, i) => i < n && keep.has(i))
-  const from = rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i + keptBefore(i).length <= room)
+  // A block that goes whole leaves its lines in progress drawn, with their parents (the person,
+  // 2026-11-15: "Manter à vista o em andamento (Recomendado)"): those the header's live chips count.
+  // Together they take at most half the room; past it, the latest ones stay.
+  const parentsAt = (i: number) => {
+    const out = [i]
+    let depth = rows[i]!.depth
+    for (let j = i - 1; j >= 0 && depth > 0; j--) {
+      if (rows[j]!.depth < depth) {
+        out.push(j)
+        depth = rows[j]!.depth
+      }
+    }
+    return out
+  }
+  const busy = rows.map((r, i) => (atWorkRow(r) ? i : -1)).filter(i => i >= 0)
+  const workBefore = (n: number) => {
+    const out = new Set<number>()
+    for (let b = busy.length - 1; b >= 0; b--) {
+      const i = busy[b]!
+      if (i >= n) continue
+      const chain = parentsAt(i).filter(j => !out.has(j))
+      if (out.size + chain.length > room >> 1) break
+      chain.forEach(j => out.add(j))
+    }
+    return out
+  }
+  const keptBefore = (n: number) => {
+    const work = workBefore(n)
+    return rows.filter((_, i) => i < n && (keep.has(i) || work.has(i)))
+  }
+  const from =rows.findIndex((r, i) => r.depth === 0 && i > 0 && rows.length - i + keptBefore(i).length <= room)
   if (from > 0) {
     const held = keptBefore(from)
     return [before(from - held.length), ...held, ...rows.slice(from)]
@@ -1224,6 +1256,17 @@ function cutRows(rows: Row[], max: number): Row[] {
   const kept = [...block.slice(0, k), ...keptIn(k)]
   const after = block.length - kept.length
   return [...head, ...kept, afterRow(after)]
+}
+
+// A line in progress for the cut: one a live chip of the header counts (cabecalho.corte-mantem-o-que-esta-em-andamento):
+// a task at work (Row.active, or a started leaf with no end among its tasks), or a wait, a letter
+// queued, a session or a subagent at work, itself or hidden under it. A task left waiting (◷) or
+// pending is not.
+function atWorkRow(r: Row): boolean {
+  if (r.active === true) return true
+  if (flat(r.nodes ?? []).some(t => t.status === 'open' && t.children.length === 0 && t.startedAt !== undefined && t.endedAt === undefined)) return true
+  const t = tallyOf([r])
+  return t.waits + t.sends + t.live + t.subs > 0
 }
 
 // The first line of a block in progress: a task at work of its own (Row.active), else the deepest line of

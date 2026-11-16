@@ -341,6 +341,7 @@ Um cartão com a sessão trabalhando ou com tarefa aberta nunca some.
 
 Origem: decisão do usuário, 2026-11-03 ("Cartão vivo solto no fim (Recomendado)"); pedido dele: "preciso saber pela sessão principal tudo que as filhas planejaram, executaram, estao executando, etc...". Reescreve, só para o cartão vivo, a decisão de 2026-10-23 da resumida ("não traz o pedido de volta, nem o cartão é desenhado solto").
 Reescrito: 2026-11-04, decisão do usuário ("remova os icones de reesumo e tarefas completas, deixe somente a visão resumida"; "Ficam em '+N pedidos anteriores' (Recomendado)").
+Reescrito: 2026-11-16, texto: o cartão de sessão trabalhando também não some no corte por tamanho (cabecalho.corte-mantem-o-que-esta-em-andamento; decisão do usuário de 2026-11-15 ("Manter à vista o em andamento (Recomendado)")). Os testes deste cenário não mudam.
 Código: draw/layout.ts
 Estado: coberto
 

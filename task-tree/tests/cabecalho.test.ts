@@ -685,6 +685,89 @@ test('no app, um painel pequeno não perde linha nenhuma', async ($: any, on: an
   expect(d.nos, conta).toBeLessThan(NOS_DO_MOD)
 })
 
+// Os pedidos que não cabem juntos na tela do app: o primeiro (A) com o que cada teste deixa em andamento,
+// os outros quatro com uma folha iniciada que o fim do turno deixa aguardando (◷); o E com o turno em curso.
+const PEDIDOS_QUE_NAO_CABEM = ['A', 'B', 'C', 'D', 'E']
+async function ateOCorte($: any, relogio: any, planoA: No[], noA: () => Promise<void>, noE: () => Promise<void> = async () => {}) {
+  for (const x of PEDIDOS_QUE_NAO_CABEM) {
+    await pedido($, `Pedido ${x}`)
+    await plan($, x === 'A' ? planoA : comIds(x, grande(x, 1, 4, 4)))
+    await start($, [`${x}0.0.0`])
+    if (x === 'A') await noA()
+    if (x === 'E') await noE()
+    else {
+      await fimDoTurno($)
+      await relogio.advance(1000)
+    }
+  }
+}
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no app, o pedido antigo que não cabe deixa à vista a tarefa com a sessão trabalhando, e o cabeçalho conta a sessão', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [filhaCom(8)])
+  await ateOCorte($, relogio, comIds('A', grande('A', 1, 4, 4)), async () => {
+    await abrirSessao($)
+    await aviso($)
+  })
+  let d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas\n${emTextoDoApp(d)}`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.textos[0], conta).toMatch(/^\+\d+ linhas anteriores$/)
+  for (const t of ['Pedido A', 'A0.0.0', 'filha-grande']) expect(d.textos.some(l => l.includes(t)), `${t}\n${conta}`).toBe(true)
+  expect(d.textos.some(l => l.includes('A0.3.3')), conta).toBe(false)
+  expect(d.textos.some(l => l.includes('Pedido B')), conta).toBe(false)
+  expect(d.cabecalho.texto, conta).toContain('1 sessão ativa')
+  const p = await painel($)
+  expect(cabecalho(p).chips.ativas, emTexto(p)).toBe(1)
+  const primeira = d.textos[0]
+  await relogio.advance(1000)
+  d = await noApp($)
+  expect(d.textos[0], emTextoDoApp(d)).toBe(primeira)
+})
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no app, a tarefa em andamento da própria sessão num pedido antigo que não cabe fica à vista, com o pedido e os pais', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  await ateOCorte($, relogio, comIds('A', grande('A', 1, 4, 4)), async () => {}, async () => {
+    await start($, ['A0.2.0'])
+  })
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas\n${emTextoDoApp(d)}`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.textos[0], conta).toMatch(/^\+\d+ linhas anteriores$/)
+  for (const t of ['Pedido A', 'A0', 'A0.2', 'A0.2.0']) expect(d.textos.some(l => l.split(/\s+/).includes(t) || l.includes(`${t} `) || l.endsWith(t)), `${t}\n${conta}`).toBe(true)
+  expect(d.textos.some(l => l.includes('A0.3.3')), conta).toBe(false)
+  const andamento = cabecalho(await painel($)).chips.andamento
+  expect(andamento, conta).toBeGreaterThan(0)
+  expect(d.cabecalho.texto, conta).toContain(`${andamento} em andamento`)
+})
+
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no app, muitas linhas em andamento nos pedidos que não cabem não tiram o lugar do pedido atual', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  const planoA = comIds('A', grande('A', 2, 4, 5))
+  const folhas = planoA.flatMap(a => (a.children ?? []).flatMap(b => (b.children ?? []).map(c => c.id)))
+  await ateOCorte($, relogio, planoA, async () => {}, async () => {
+    await start($, folhas)
+  })
+  const d = await noApp($)
+  const conta = `${d.nos} nós, ${d.linhas.length} linhas\n${emTextoDoApp(d)}`
+  expect(d.aviso, conta).toBe(false)
+  expect(d.nos, conta).toBeLessThanOrEqual(NOS_DO_MOD)
+  expect(d.textos[0], conta).toMatch(/^\+\d+ linhas anteriores$/)
+  // O pedido atual segue inteiro; do A ficam as últimas em andamento, no máximo metade do espaço.
+  for (const t of ['E0.0.0', 'E0.3.3']) expect(d.textos.some(l => l.includes(t)), `${t}\n${conta}`).toBe(true)
+  const doA = d.textos.filter(l => /\bA\d/.test(l) || l.includes('Pedido A')).length
+  expect(doA, conta).toBeGreaterThan(0)
+  expect(doA, conta).toBeLessThan(folhas.length)
+  expect(d.textos.some(l => l.includes('A1.3.4')), conta).toBe(true)
+  expect(d.textos.some(l => l.includes('A0.0.0')), conta).toBe(false)
+})
+
 // Um plano com o título da tarefa de nível 1 enorme: ele vai no cabeçalho (no texto e no `alt` da barra),
 // que o corte não tira.
 async function planoGigante($: any, tamanho: number) {

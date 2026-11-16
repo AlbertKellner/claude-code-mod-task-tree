@@ -413,6 +413,26 @@
       "data": "2026-11-15",
       "motivo": "afirma que o outro plano não fica em andamento"
     },
+    "task-tree/tests/cabecalho.test.ts::no app, a tarefa em andamento da própria sessão num pedido antigo que não cabe fica à vista, com o pedido e os pais": {
+      "regras": [
+        "cabecalho.corte-mantem-o-que-esta-em-andamento"
+      ],
+      "hash": "bd38538eede77b1e",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 do corte pelos tetos da tela do app: o trabalho em andamento do pedido que sai (decisão do usuário de 2026-11-15, \"Manter à vista o em andamento (Recomendado)\")"
+    },
+    "task-tree/tests/cabecalho.test.ts::no app, muitas linhas em andamento nos pedidos que não cabem não tiram o lugar do pedido atual": {
+      "regras": [
+        "cabecalho.corte-mantem-o-que-esta-em-andamento"
+      ],
+      "hash": "143b88e3c2d01e3a",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 do corte pelos tetos da tela do app: o trabalho em andamento do pedido que sai (decisão do usuário de 2026-11-15, \"Manter à vista o em andamento (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::no app, o cartão de uma sessão com mais linhas do que a tela aceita não estoura o teto": {
       "regras": [
         "cabecalho.limite-de-elementos-do-app"
@@ -422,6 +442,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "o desenho do app abaixo dos tetos da tela do app (defeito de 2026-11-15)"
+    },
+    "task-tree/tests/cabecalho.test.ts::no app, o pedido antigo que não cabe deixa à vista a tarefa com a sessão trabalhando, e o cabeçalho conta a sessão": {
+      "regras": [
+        "cabecalho.corte-mantem-o-que-esta-em-andamento"
+      ],
+      "hash": "54e3de6cbe568609",
+      "assercoes": 10,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "revisão de 2026-11-15 do corte pelos tetos da tela do app: o trabalho em andamento do pedido que sai (decisão do usuário de 2026-11-15, \"Manter à vista o em andamento (Recomendado)\")"
     },
     "task-tree/tests/cabecalho.test.ts::no app, um painel com mais linhas do que a tela do app aceita perde os pedidos mais antigos, sem aviso": {
       "regras": [

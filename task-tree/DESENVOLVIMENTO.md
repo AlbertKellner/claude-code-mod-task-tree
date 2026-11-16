@@ -1001,7 +1001,12 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   (layout, cabeçalho e desenho, sem leitura nem espera) é chamada de novo com um `maxRows` menor, que o
   `limitRows` aplica como aplica as 400 linhas (blocos mais antigos fora, "+N linhas anteriores"; o
   último pedido sozinho, até o limite, com "+N linhas", ou o trecho da tarefa em andamento dele quando ela
-  está depois do corte; a cauda depois do último pedido fica inteira, com o espaço reservado). Cada tentativa mira 95% do limite pela média
+  está depois do corte; a cauda depois do último pedido fica inteira, com o espaço reservado). Do pedido que
+  sai inteiro ficam à vista as linhas em andamento (`atWorkRow`: tarefa ◉, sessão ou subagente
+  trabalhando, carta na fila, espera) com os pais, logo depois de "+N linhas anteriores" e fora da
+  contagem, em no máximo metade do espaço, as mais recentes primeiro; as ◷ e as pendentes saem com ele
+  (cabecalho.corte-mantem-o-que-esta-em-andamento; usuário, 2026-11-15: "Manter à vista o em andamento
+  (Recomendado)"). Cada tentativa mira 95% do limite pela média
   de bytes por linha; depois de três, no máximo a metade das linhas, até 2; o máximo cai a cada volta
   (abaixo do anterior e das linhas desenhadas, que as linhas guardadas de um histórico aberto podem
   deixar acima dele). O mapa `fitted` (por

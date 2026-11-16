@@ -245,7 +245,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
 - o limite de 100 000 caracteres de texto (o harness desenha só esses; o mod corta em 95 000 no app);
 - os tetos da tela do app (menos de 2 000 elementos, de 32 níveis e de 262 144 caracteres; o harness
   não os aplica; o mod corta em 1 900, 28 e 240 000): um painel com mais de 60 linhas aparece, com
-  '+N linhas anteriores', e nunca a tela 'Nothing to show yet';
+  '+N linhas anteriores', e nunca a tela 'Nothing to show yet'; a tarefa em andamento e o cartão da
+  sessão trabalhando de um pedido que saiu seguem à vista logo depois dela, e saem quando terminam;
 - recarga a quente real (salvar um arquivo com o painel aberto); os cartões das rodadas não saltam ao salvar um arquivo do mod; com um subagente trabalhando, o "· N chamadas" do cartão não volta a 1; o painel fechado pela pessoa segue fechado na recarga e nos plans; as linhas recolhidas e o histórico aberto seguem como a pessoa deixou depois de /model e de reabrir o app; 'ultracode' depois de /model e de reabrir o app; desligado com a sessão parada, a palavra fica até o aviso de saída;
 - depois de `checkout`, `pull`, `merge`, `rebase` ou `stash` no clone carregado: o mod recarrega sem
   "reload failed" e o painel das sessões abertas segue inteiro;

@@ -131,6 +131,7 @@ Reescrito: 2026-11-13, decisão do usuário ("Manter como rede (Recomendado)"): 
 Reescrito: 2026-11-14, texto: o bloco pequeno depois do último pedido não entra no lugar dele (auditoria 2026-11-10); a regra não muda e os testes existentes não mudam.
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-14 ("Trecho da em andamento (Recomendado)") e decisão do usuário de 2026-11-15 ("Trecho, nos dois cortes (Recomendado)"): no pedido com a tarefa em andamento depois do corte, por linhas ou por tamanho, o desenho mostra o trecho dela; muda, para esse caso, o desenho aprovado em 2026-10-22 ("Sim, com o corte"). O teste do pedido só acima de 600 KB passa a preparar o pedido sem tarefa em andamento e segue afirmando o mesmo.
 Reescrito: 2026-11-15, texto: no app desktop o corte vale também para os tetos da tela do app (cabecalho.limite-de-elementos-do-app); aplica a decisão de 2026-11-12 ("Cortar os mais antigos (Recomendado)"). Os testes deste cenário não mudam.
+Reescrito: 2026-11-16, texto: o pedido que sai inteiro deixa à vista o que tem em andamento (cabecalho.corte-mantem-o-que-esta-em-andamento; decisão do usuário de 2026-11-15 ("Manter à vista o em andamento (Recomendado)")). Os testes deste cenário não mudam.
 Código: hooks/render.tsx
 Estado: coberto
 
@@ -142,7 +143,19 @@ No app desktop, o desenho fica abaixo dos tetos da tela do app; o que passa sai 
 - Então saem blocos inteiros de pedidos do começo (os mais antigos), contados em "+N linhas anteriores", até o desenho ficar abaixo dos tetos com folga (1.900 elementos, 240.000 caracteres, 28 níveis); um pedido ou um cartão que sozinho passa do teto é desenhado até caber e fecha com "+N linhas", ou mostra o trecho da tarefa em andamento (cabecalho.limite-de-linhas-do-desenho); o histórico aberto segue à vista (cabecalho.corte-preserva-historico-aberto); um painel que cabe não perde linha; o terminal não muda; o aviso "Painel grande demais" fica só para o desenho que, reduzido a duas linhas, ainda passa de um teto ou só cabe nelas (cabecalho.aviso-de-painel-grande-volta); o painel nunca fica na tela vazia do app por causa do tamanho (o descarte em si só o app mostra: checklist do app)
 
 Origem: defeito relatado pelo usuário, 2026-11-15 ("o painel task tree parou de funcionar faz algum tempo"); aplica a decisão do usuário de 2026-11-12 ("Cortar os mais antigos (Recomendado)") e a de 2026-11-13 ("Manter como rede (Recomendado)"), sem regra nova.
+Reescrito: 2026-11-16, texto: o pedido que sai inteiro deixa à vista o que tem em andamento (cabecalho.corte-mantem-o-que-esta-em-andamento; decisão do usuário de 2026-11-15 ("Manter à vista o em andamento (Recomendado)")). Os testes deste cenário não mudam.
 Código: hooks/render.tsx
+Estado: coberto
+
+### cabecalho.corte-mantem-o-que-esta-em-andamento
+O corte do desenho deixa à vista o trabalho em andamento dos pedidos que saem.
+
+- Dado um desenho que passa de um limite (400 linhas, 600 KB, o texto ou, no app desktop, os tetos da tela do app) e um pedido anterior, que sai inteiro em "+N linhas anteriores", com uma tarefa em andamento, um cartão de sessão ou de subagente trabalhando, uma carta na fila ou um aviso de espera
+- Quando é desenhado
+- Então essas linhas seguem desenhadas logo depois de "+N linhas anteriores", na ordem delas, com o pedido e os pais acima (para um cartão, a tarefa de origem), e não entram na contagem dessa linha; o resto do pedido sai como antes; o cabeçalho conta o que ficou desenhado (a tarefa em andamento, a sessão ativa, o subagente, a carta, a espera); as tarefas ◷ aguardando e as pendentes de um pedido que sai saem com ele; juntas, essas linhas ocupam no máximo metade do espaço do desenho, e passando disso ficam as dos pedidos mais recentes; dentro do último pedido o corte não muda (cabecalho.limite-de-linhas-do-desenho)
+
+Origem: revisão do lote do corte pelos tetos da tela do app, 2026-11-15 (o corte, antes raro, passou a tirar trabalho em andamento em painéis comuns); decisão do usuário de 2026-11-15 ("Manter à vista o em andamento (Recomendado)").
+Código: draw/layout.ts
 Estado: coberto
 
 ### cabecalho.titulo-e-a-ultima-iniciada
