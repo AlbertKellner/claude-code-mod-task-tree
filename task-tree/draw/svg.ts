@@ -236,8 +236,9 @@ export function chips(active: number, waiting: number, cut: number, live: number
 // The header's general state, the color of its band (the person, 2026-11-03: "gostei da V4, siga para
 // análise e implementação"): in progress (amber) while a task of its own runs; waiting (light amber)
 // with something left waiting, a notice, or only pending tasks, nothing started yet (the person:
-// "Âmbar claro, 'aguardando'"); in progress too, with the turn going on, tasks pending and one already
-// started in the request (`started`: between a done and the next start; the person, 2026-11-14:
+// "Âmbar claro, 'aguardando'"); in progress too, with the turn going on, tasks pending and one started
+// since the person's last message, or since the notice that brought the turn back, a start again
+// counting (`started`: between a done and the next start; the person, 2026-11-14:
 // "\"Em andamento\" (Recomendado)", "Do primeiro start (Recomendado)"); a session at work (blue) with
 // nothing running, of its own or drawn in a session's card; all done (green); interrupted (gray) with
 // nothing open and something cut; none (the track's gray) when empty.

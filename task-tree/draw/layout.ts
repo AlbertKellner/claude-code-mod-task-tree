@@ -1009,13 +1009,33 @@ export function startedLast(list: TaskNode[]): TaskNode | undefined {
   }
   return pick
 }
-// The open path to the task started last, when it was started in the turn going on (since its `at`):
-// a parent there reads in progress between a done and the next start (the person: ◉ only on the
-// path of the last task started in this turn; a stopped plan of an earlier request stays ◷).
+// The task whose start is the most recent one, by its last start (`lastStartAt`; `startedAt` for one
+// with none), and that start's time; ties as in startedLast. A start again on a task started before
+// counts here, not in startedLast (the header's title and where letters and cards go keep the first).
+export function lastStarted(list: TaskNode[]): { task: TaskNode; at: number } | undefined {
+  let pick: { task: TaskNode; at: number } | undefined
+  for (const t of flat(list)) {
+    const at = typeof t.lastStartAt === 'number' ? t.lastStartAt : t.startedAt
+    if (typeof at !== 'number') continue
+    if (pick === undefined || at > pick.at) {
+      pick = { task: t, at }
+      continue
+    }
+    if (at < pick.at) continue
+    const [a, b] = [t.startedSeq ?? -1, pick.task.startedSeq ?? -1]
+    if (a > b || (a === b && a === -1)) pick = { task: t, at }
+  }
+  return pick
+}
+// The open path to the task started last (lastStarted), when that start was in the turn going on
+// (since its `at`, or the notice that brought the session back): a parent there reads in progress
+// between a done and the next start (the person: ◉ only on the path of the last task started in this
+// turn; a stopped plan of an earlier request stays ◷). A start again on a task waiting (◷) counts.
 // With no `since` (no turn's time), none.
 export function trail(list: TaskNode[], since?: number): string[] {
-  const s = since === undefined ? undefined : startedLast(list)
-  if (s === undefined || (s.startedAt as number) < (since as number)) return []
+  const last = since === undefined ? undefined : lastStarted(list)
+  if (last === undefined || last.at < (since as number)) return []
+  const s = last.task
   // The task started last was stopped by the person and not started again (open with its clock
   // stopped, as park leaves it, a parent started itself too; or read as interrupted by stay): nothing
   // is on its way.

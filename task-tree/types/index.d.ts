@@ -15,6 +15,10 @@ export type TaskNode = {
   // The order of the start, kept after the done: breaks a tie of startedAt (two starts in one ms).
   startedSeq?: number
   startedAt?: number
+  // When the task's last start was (the first one is `startedAt`, which its time counts from): what the
+  // lit path (trail) and the header's `started` compare with the turn's time, so a start again on a
+  // waiting task counts in the turn of a notice. Missing (a panel kept before it): `startedAt`.
+  lastStartAt?: number
   endedAt?: number
   // When the task was planned: where a task closed with no start starts, at the latest.
   plannedAt?: number

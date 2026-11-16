@@ -141,10 +141,10 @@ export function begin(list: TaskNode[], id: string, seq: number, now?: number, i
         const { stopped: _, failed: __, ...open } = t
         const held = t.startedAt !== undefined && t.endedAt !== undefined && now !== undefined && now > t.endedAt ? now - t.endedAt - idleIn(idle, t.endedAt, now) : 0
         const pause = (t.pause ?? 0) + Math.max(0, held)
-        return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined, ...(pause > 0 ? { pause } : {}) }
+        return { ...open, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: t.startedAt ?? now, endedAt: undefined, ...(pause > 0 ? { pause } : {}), ...(now !== undefined ? { lastStartAt: now } : {}) }
       }
       const { failed: _, stopped: __, pause: ___, ...rest } = t
-      return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now } : {}) }
+      return { ...rest, status: 'open' as Status, started: seq, startedSeq: seq, startedAt: now, endedAt: undefined, ...(now !== undefined ? { reopenedAt: now, lastStartAt: now } : {}) }
     }
     if (!flat(t.children).some(c => c.id === id)) return t
     return { ...t, status: 'open' as Status, startedAt: t.startedAt ?? now, endedAt: undefined, children: begin(t.children, id, seq, now, idle) }
@@ -173,6 +173,7 @@ export function carry(old: TaskNode, fresh: TaskNode, now?: number): TaskNode {
     const kept = {
       status: o.status, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, endedAt: o.endedAt, plannedAt: o.plannedAt, msg: o.msg,
       ...(o.reopenedAt !== undefined ? { reopenedAt: o.reopenedAt } : {}),
+      ...(o.lastStartAt !== undefined ? { lastStartAt: o.lastStartAt } : {}),
       ...(o.pause !== undefined ? { pause: o.pause } : {}),
       ...(sameShape && o.status === 'open' && o.stopped === true ? { stopped: true } : {}),
       ...(sameShape && o.failed === true && (o.status === 'interrupted' || o.stopped === true) ? { failed: true } : {}),
@@ -182,7 +183,7 @@ export function carry(old: TaskNode, fresh: TaskNode, now?: number): TaskNode {
       const path = firstOpen(children)
       const leaf = path[path.length - 1]
       if (leaf !== undefined)
-        children = edit(children, leaf, t => ({ ...t, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, ...(o.pause !== undefined ? { pause: o.pause } : {}) }))
+        children = edit(children, leaf, t => ({ ...t, started: o.started, startedSeq: o.startedSeq, startedAt: o.startedAt, ...(o.lastStartAt !== undefined ? { lastStartAt: o.lastStartAt } : {}), ...(o.pause !== undefined ? { pause: o.pause } : {}) }))
     }
     return { ...n, ...kept, children }
   }

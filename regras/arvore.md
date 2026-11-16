@@ -62,12 +62,13 @@ Estado: coberto
 ### arvore.pai-em-andamento-no-caminho-da-ultima-iniciada
 O pai aberto fica em andamento no caminho da última tarefa iniciada no turno.
 
-- Dado start e done numa filha, sem outro start, no mesmo turno
+- Dado start (o primeiro, ou de novo numa tarefa que aguardava) e done numa filha, sem outro start, no mesmo turno
 - Quando o painel é desenhado
 - Então o pai e o pedido aparecem ◉ (não ◷), e o chip "em andamento" não conta o pai; planos parados de pedidos anteriores seguem ◷
 
 Origem: decisão do usuário, 2026-10-27 ("pai aberto deve mostrar ◉ em andamento"), sobre "Pai aguardando" de 2026-10-20; commit 023a054.
-Código: draw/layout.ts
+Reescrito: 2026-11-15, texto: o start de novo numa tarefa que aguardava conta como start do turno (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Código: draw/layout.ts, state/tasks.ts
 Estado: coberto
 
 ### arvore.ids-curtos-e-avisos

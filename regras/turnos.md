@@ -264,8 +264,9 @@ Um aviso do app, antes do start, deixa o pai e o pedido aguardando.
 
 - Dado um turno terminado com algo feito no plano e algo pendente
 - Quando chega um aviso do app, um retorno de subagente ou uma notificação de tarefa em segundo plano, e ainda não houve start
-- Então o pai e o pedido seguem ◷ e a faixa do cabeçalho segue "aguardando", até o start, que os acende; com o turno ainda em curso, o aviso não muda nada
+- Então o pai e o pedido seguem ◷ e a faixa do cabeçalho segue "aguardando", até o start, que os acende (também o start de novo numa tarefa já iniciada antes do aviso); com o turno ainda em curso, o aviso não muda nada
 
-Origem: decisão do usuário, 2026-11-15 ("◷ até o start (Recomendado)"); iguala o aviso do app à mensagem da pessoa (turnos.continuacao-sem-start-aguarda, 2026-10-27) e limita "pai aberto deve mostrar ◉ em andamento" (2026-10-27) ao turno em que houve start.
-Código: hooks/panel.ts, draw/layout.ts
+Origem: decisão do usuário, 2026-11-15 ("◷ até o start (Recomendado)"); iguala o aviso do app à mensagem da pessoa (turnos.continuacao-sem-start-aguarda, 2026-10-27) e limita "pai aberto deve mostrar ◉ em andamento" (2026-10-27) ao turno em que houve start, e a faixa "Em andamento" de 2026-11-14 (visual.faixa-de-estado-geral).
+Reescrito: 2026-11-15, texto: o start de novo numa tarefa que aguardava conta como start do turno (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
+Código: hooks/panel.ts, draw/layout.ts, state/tasks.ts
 Estado: coberto

@@ -6213,6 +6213,29 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Sem tempo, \\\"—\\\" (Recomendado)\""
     },
+    "task-tree/tests/turnos.test.ts::depois de um aviso, o caminho aceso é o da tarefa iniciada de novo, não o da que teve o primeiro start mais recente": {
+      "regras": [
+        "turnos.aviso-sem-start-aguarda",
+        "arvore.pai-em-andamento-no-caminho-da-ultima-iniciada"
+      ],
+      "hash": "2175a79529d30cb0",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do aviso sem start: a tarefa do caminho aceso é a do start mais recente"
+    },
+    "task-tree/tests/turnos.test.ts::depois de um aviso, o start de novo na tarefa que aguardava mantém o pai e o pedido em andamento entre o done dela e o start seguinte": {
+      "regras": [
+        "turnos.aviso-sem-start-aguarda",
+        "arvore.pai-em-andamento-no-caminho-da-ultima-iniciada",
+        "visual.faixa-de-estado-geral"
+      ],
+      "hash": "e8fea953b98483fd",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do aviso sem start: o start de novo não contava como iniciada neste turno"
+    },
     "task-tree/tests/turnos.test.ts::depois de um fim normal, a mensagem seguinte não reacende a tarefa que aguardava, e o relógio dela fica parado": {
       "regras": [
         "turnos.aguardando-segue-ate-o-start"
@@ -6305,6 +6328,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::num pedido que continua o plano, o start de novo na tarefa que aguardava mantém o pai em andamento depois do done dela": {
+      "regras": [
+        "arvore.pai-em-andamento-no-caminho-da-ultima-iniciada"
+      ],
+      "hash": "baadcba6ca4abecb",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "revisão de 2026-11-15 do aviso sem start: o mesmo defeito no pedido que continua o plano"
     },
     "task-tree/tests/turnos.test.ts::numa mensagem da pessoa em que o modelo dá start em outra tarefa, a parada com Esc segue interrompida, também no fim do turno": {
       "regras": [

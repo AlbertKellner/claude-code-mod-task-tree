@@ -15,7 +15,7 @@ import type { Acts } from '../draw/desktop'
 import { debug, debugOnce } from '../io/log'
 import { PANE, DRAW_LIMIT, drawn, act, actions, ensureFolds, ensureGroups, ensureTurn, ensureUltra, ensureWork, knownId, saveFolds, stamp } from './panel'
 import { keepTime, openSession, watchSessions } from './sessions'
-import { idleOf, sessionTotal, tallyOf } from '../draw/layout'
+import { idleOf, lastStarted, sessionTotal, tallyOf } from '../draw/layout'
 
 // The pane's lines the person opened or closed (see setFold): the fold of a line, written from a
 // press (a render may not write).
@@ -332,10 +332,11 @@ export async function render($: EngineInterface, e: any, next: any) {
   // (cabecalho.vazio-so-sem-tarefas-e-sem-chips; desktopHead's own test is the same one).
   const empty = n + x === 0 && list.length === 0
   // The header's general state, the color of its band (headerState).
-  // With the turn going on, a task of this session started in the request now (or later): the band
-  // stays in progress between a done and the next start (headerState).
+  // With the turn going on, a task of this session started since the turn began (the last message of
+  // the person, or the notice that brought it back: lastTurnAt), by its last start (lastStarted, a start
+  // again counts): the band stays in progress between a done and the next start (headerState).
   const since = lastTurnAt(held ?? [])
-  const lastStart = startedLast(mainTasks)?.startedAt
+  const lastStart = lastStarted(mainTasks)?.at
   const started = typeof ended !== 'number' && since !== undefined && typeof lastStart === 'number' && lastStart >= since
   // The interrupted ones that make the band gray: stopped by the person (Esc) or failed, not those
   // taken out with cancel nor what a subagent left open (the person, 2026-11-15: "Cancelada não conta").
