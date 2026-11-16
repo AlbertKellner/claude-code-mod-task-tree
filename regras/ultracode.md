@@ -41,15 +41,26 @@ Código: hooks/render.tsx
 Estado: coberto
 
 ### ultracode.cor-e-corte
-A palavra tem a cor do rótulo "Ultracode on" do app e sai junto com o modelo.
+A palavra tem a cor do rótulo "Ultracode on" do app.
 
 - Dado uma filha em ultracode
 - Quando o cartão é desenhado no app desktop, nos dois temas
-- Então "ultracode" fica em roxo sólido, #AF87FF no escuro e #8700FF no claro (o effortUltra do app), sem brilho animado; faltando espaço, sai junto com o modelo; nada no terminal; no cabeçalho estreito, a mesma cor
+- Então "ultracode" fica em roxo sólido, #AF87FF no escuro e #8700FF no claro (o effortUltra do app), sem brilho animado; no cabeçalho estreito, a mesma cor
 
 Origem: decisão do usuário, 2026-11-10 ("Roxo sólido (Recomendado)"; "Junto com o modelo (Recomendado)").
 Reescrito: 2026-11-14, decisão do usuário ("Os dois sempre").
+Reescrito: 2026-11-15, texto: o corte junto com o modelo e o "nada no terminal" passam a ultracode.sai-junto-com-o-modelo, coberto por teste; aqui ficam a cor e o tema. A regra não muda.
 Estado: checklist (cor e tema, no app)
+
+### ultracode.sai-junto-com-o-modelo
+Faltando espaço no cartão, "ultracode" sai junto com o modelo; no terminal, a palavra não aparece.
+
+- Dado uma filha em ultracode, com o modelo publicado
+- Quando o cartão é desenhado no app num painel largo, num estreito, e no terminal
+- Então no largo o modelo e, depois dele, "ultracode" são desenhados; no estreito os dois saem juntos (nunca a palavra sem o modelo, nem o modelo sem a palavra), e seguem no texto alternativo do ícone; no terminal, nem o cartão nem o cabeçalho escrevem "ultracode"
+
+Origem: decisão do usuário, 2026-11-10 ("Junto com o modelo (Recomendado)"); antes parte de ultracode.cor-e-corte.
+Estado: coberto
 
 
 ### ultracode.subagente-sem-palavra

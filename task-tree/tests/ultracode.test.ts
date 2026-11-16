@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 import { test } from './kit/teste'
 import { AGORA, armazem, fixar, host, lancaveis, SESSAO } from './kit/ambiente'
 import { abrirSessao, aviso, iniciarSessao, lancar, pedido, plan, retomar, start, type No } from './kit/cenario'
-import { noApp, primeiraDoApp } from './kit/leitura'
+import { emTexto, noApp, painel, primeiraDoApp } from './kit/leitura'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }]
@@ -215,4 +215,54 @@ test('a retomada traz o interruptor da sessão retomada', async ($: any, on: any
   ULTRA_RETOMADA['ultra:uuid-com-ultra'] = true
   await retomar($, 'uuid-com-ultra')
   expect(await topo($)).toContain('ultracode')
+})
+
+// Os textos desenhados da linha do cartão da filha (sem o texto alternativo do ícone), e os alts dos ícones.
+const desenhadosDoCartao = async ($: any, colunas: number) => {
+  const l = primeiraDoApp(await noApp($, { colunas }), 'filha-um')
+  return {
+    textos: (l?.pedacos ?? []).filter(p => p.tipo === 'texto').map(p => p.texto),
+    alts: (l?.pedacos ?? []).filter(p => p.tipo === 'svg').map(p => p.texto).join('\n'),
+  }
+}
+
+// Regra: ultracode.sai-junto-com-o-modelo
+test("no cartão largo o modelo e 'ultracode' são desenhados, nessa ordem; no estreito os dois saem juntos e ficam só no texto alternativo", async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: K1, nome: 'filha-um', publicado: publicado(true) }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await abrirSessao($)
+  await aviso($)
+  const largo = await desenhadosDoCartao($, 100)
+  const modelo = largo.textos.findIndex(t => t.includes('Opus 5.5 · xhigh'))
+  const palavra = largo.textos.findIndex(t => t.includes('ultracode'))
+  expect(modelo, largo.textos.join(' | ')).toBeGreaterThanOrEqual(0)
+  expect(palavra, largo.textos.join(' | ')).toBeGreaterThan(modelo)
+  const estreito = await desenhadosDoCartao($, 30)
+  expect(estreito.textos.some(t => t.includes('Opus 5.5')), estreito.textos.join(' | ')).toBe(false)
+  expect(estreito.textos.some(t => t.includes('ultracode')), estreito.textos.join(' | ')).toBe(false)
+  expect(estreito.textos.some(t => t.includes('filha-um')), estreito.textos.join(' | ')).toBe(true)
+  expect(estreito.alts).toContain('Opus 5.5 · xhigh')
+  expect(estreito.alts).toContain('ultracode')
+})
+
+// Regra: ultracode.sai-junto-com-o-modelo
+test("no terminal, nem o cartão nem o cabeçalho escrevem 'ultracode'", async ($: any, on: any) => {
+  fixar(on)
+  base(on)
+  host(on, [{ id: K1, nome: 'filha-um', publicado: publicado(true) }])
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await $.prompt.attachment(anexo('ultra_effort_enter'))
+  await abrirSessao($)
+  await aviso($)
+  // No app a palavra está no cabeçalho e no cartão: o roteiro acendeu os dois.
+  expect(await topo($)).toContain('ultracode')
+  expect(await cartao($)).toContain('ultracode')
+  const p = await painel($)
+  expect(p.some(l => l.texto.includes('filha-um')), emTexto(p)).toBe(true)
+  expect(p.filter(l => l.texto.includes('ultracode')), emTexto(p)).toEqual([])
 })

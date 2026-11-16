@@ -387,8 +387,9 @@ A linha "+N pedidos anteriores" (e as outras seções) não tem traço horizonta
 - Então não há linha horizontal atravessando o painel nem as bordas do cartão; a seção é só o ▸/▾ e o texto apagado
 
 Origem: decisão do usuário, 2026-11-09 ("esta ficando bom, mas tem uma linha em cima do +1 pedido anterior, não quero ver essa linha."; "Tirar de todas (Recomendado)").
+Reescrito: 2026-11-15, texto: passa a coberto; a linha de seção é desenhada em elementos nativos, que o harness lê. A pintura real segue no checklist do app. A regra não muda.
 Código: draw/desktop.tsx
-Estado: checklist (pintura real)
+Estado: coberto
 
 ### visual.corte-de-texto-inteiro-e-limpo
 Os textos que o painel corta saem inteiros no último caractere e sem caracteres de controle.

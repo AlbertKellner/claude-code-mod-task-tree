@@ -846,3 +846,47 @@ test('o desenho que lança vira a linha de erro, no terminal e no app; o log e o
   await done($, ['1'])
   expect(String(h.proprio()?.renderError ?? ''), JSON.stringify(h.proprio() ?? {})).not.toBe('')
 })
+
+// O que a linha do app pede de borda e de fundo no seu Box, e os traços (caixas com fundo e sem filhos) dentro dela.
+const tracosDaLinhaDoApp = (el: any) => {
+  let tracos = 0
+  const andar = (x: any) => {
+    if (typeof x !== 'object' || x === null) return
+    if (x.type === 'Box' && x.props?.backgroundColor !== undefined && !(x.children ?? []).length) tracos++
+    for (const c of x.children ?? []) andar(c)
+  }
+  andar(el)
+  const p = el?.props ?? {}
+  return { borda: p.borderColor ?? p.borderStyle, fundo: p.backgroundColor, tracos }
+}
+
+// Regra: visual.secao-sem-traco
+test("a linha '+N pedidos anteriores' é só o ▸ e o texto: sem borda, sem fundo e sem traço", async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  for (let i = 1; i <= 5; i++) {
+    await pedido($, `Pedido ${i}`)
+    await plan($, [{ id: `P${i}`, title: `Plano ${i}`, children: [{ id: `f${i}`, title: `Folha ${i}` }] }])
+    await start($, [`f${i}`])
+    await done($, [`f${i}`])
+    await fimDoTurno($)
+    await relogio.advance(1000)
+  }
+  const m = await montarNoApp($)
+  const conferir = async (seta: string) => {
+    const d = await m.desenho()
+    const l = d.linhas.find(x => /pedidos anteriores/.test(x.texto))
+    expect(l, d.textos.join('\n')).toBeDefined()
+    const fold = l!.botoes.find(b => b.startsWith('fold:'))
+    expect(fold, l!.texto).toBeDefined()
+    expect(l!.pedacos.some(p => p.tipo === 'botao' && p.texto === seta), l!.texto).toBe(true)
+    expect(l!.pedacos.filter(p => p.tipo === 'svg'), l!.texto).toEqual([])
+    const titulo = l!.pedacos.find(p => p.tipo === 'texto' && /pedidos anteriores/.test(p.texto))
+    expect(titulo?.props.color, l!.texto).toBe('inactive')
+    expect(tracosDaLinhaDoApp(l!.el)).toEqual({ borda: undefined, fundo: undefined, tracos: 0 })
+    return fold!
+  }
+  const fold = await conferir('▸')
+  await m.apertar(fold)
+  await conferir('▾')
+  await m.fim()
+})

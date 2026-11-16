@@ -7000,6 +7000,26 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Os dois sempre"
     },
+    "task-tree/tests/ultracode.test.ts::no cartão largo o modelo e 'ultracode' são desenhados, nessa ordem; no estreito os dois saem juntos e ficam só no texto alternativo": {
+      "regras": [
+        "ultracode.sai-junto-com-o-modelo"
+      ],
+      "hash": "2ad999bf25d0aa76",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o corte do ultracode junto com o modelo e a seção sem traço saem do checklist (auditoria, achados baixos)"
+    },
+    "task-tree/tests/ultracode.test.ts::no terminal, nem o cartão nem o cabeçalho escrevem 'ultracode'": {
+      "regras": [
+        "ultracode.sai-junto-com-o-modelo"
+      ],
+      "hash": "41f96cbe681c1e2f",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o corte do ultracode junto com o modelo e a seção sem traço saem do checklist (auditoria, achados baixos)"
+    },
     "task-tree/tests/ultracode.test.ts::o aviso de saída apaga a palavra também para o processo seguinte, 1/2: liga e desliga": {
       "regras": [
         "ultracode.guardado-por-sessao"
@@ -7131,6 +7151,16 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: Em andamento (Recomendado)"
+    },
+    "task-tree/tests/visual.test.ts::a linha '+N pedidos anteriores' é só o ▸ e o texto: sem borda, sem fundo e sem traço": {
+      "regras": [
+        "visual.secao-sem-traco"
+      ],
+      "hash": "9d00dff0c750e0c4",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "o corte do ultracode junto com o modelo e a seção sem traço saem do checklist (auditoria, achados baixos)"
     },
     "task-tree/tests/visual.test.ts::a linha da ferramenta do subagente sai numa linha só, sem quebra de linha nem caractere de controle": {
       "regras": [
