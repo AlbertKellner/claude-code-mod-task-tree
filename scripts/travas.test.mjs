@@ -1213,3 +1213,111 @@ test('a passada principal entrega a lista dos resultados na pasta do check', asy
     rmSync(pasta, { recursive: true, force: true })
   }
 })
+
+// Uma linha "Reescrito:" por mudança de um teste protegido (decisão do usuário, 2026-11-15: "Uma linha
+// por mudança (Recomendado)"): o selo guarda as linhas que usou, e as que já existiam na migração
+// (--marcar-reescritos) contam como usadas.
+const commitar = (dir, msg) => {
+  const git = gitEm(dir)
+  git('add', '-A')
+  git('commit', '-q', '-m', msg)
+}
+const marcado = dir => {
+  const r = selos(dir, '--marcar-reescritos')
+  assert.equal(r.status, 0, r.stderr)
+  commitar(dir, 'linhas marcadas')
+}
+const outraLinha = (dir, data, texto) => trocar(dir, 'regras/exemplo.md', `Reescrito: ${data}, o usuário decidiu.\n`, `Reescrito: ${data}, o usuário decidiu.\nReescrito: ${data}, ${texto}\n`)
+
+test('a mesma linha Reescrito: não libera a segunda mudança do mesmo teste', comMontagem(dir => {
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  reescrever(dir, 'exemplo.a', hoje)
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'primeira').status, 0)
+  commitar(dir, 'primeira mudança')
+  trocar(dir, ARQ, 'expect(4).toBe(4)', 'expect(4).toBe(4)\n  expect(5).toBe(5)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'segunda')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /a linha de \d{4}-\d{2}-\d{2} já foi usada por este teste/)
+  outraLinha(dir, hoje, 'o usuário decidiu de novo.')
+  const s = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'segunda')
+  assert.equal(s.status, 0, s.stderr)
+  assert.equal(lerSelosJson(dir).testes[UM].linhas['exemplo.a'].length, 2)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('dois testes do mesmo cenário usam a mesma linha', comMontagem(dir => {
+  marcado(dir)
+  trocar(dir, ARQ, "// Regra: exemplo.b\ntest('dois'", "// Regra: exemplo.a\ntest('dois'")
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  trocar(dir, ARQ, 'expect(3).toBe(3)', 'expect(3).toBe(3)\n  expect(6).toBe(6)')
+  reescrever(dir, 'exemplo.a', hoje)
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'decisão').status, 0)
+  const r = selos(dir, '--selar', DOIS, '--tipo', 'decisao', '--motivo', 'decisão')
+  assert.equal(r.status, 0, r.stderr)
+  const agora = lerSelosJson(dir)
+  assert.deepEqual(agora.testes[UM].linhas, agora.testes[DOIS].linhas)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('o selo de decisão copiado à mão, sem linha nova, não passa na etapa', comMontagem(dir => {
+  marcado(dir)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  reescrever(dir, 'exemplo.a', hoje)
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'decisão').status, 0)
+  commitar(dir, 'decisão')
+  trocar(dir, ARQ, 'expect(4).toBe(4)', 'expect(4).toBe(4)\n  expect(5).toBe(5)')
+  assert.equal(selos(dir, '--selar', UM, '--tipo', 'refatoracao', '--motivo', 'x').status, 0)
+  const s = lerSelosJson(dir)
+  s.testes[UM].tipo = 'decisao'
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /decisão sem `Reescrito:` novo: .*::um/)
+}))
+
+test('depois de --marcar-reescritos, as linhas que já existiam não liberam nada, e uma nova do mesmo dia libera', comMontagem(dir => {
+  reescrever(dir, 'exemplo.a', hoje)
+  marcado(dir)
+  assert.match(selos(dir, '--marcar-reescritos').stderr, /já foram marcadas/)
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  const r = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'x')
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /já foi usada antes da migração/)
+  outraLinha(dir, hoje, 'uma decisão nova.')
+  const s = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'x')
+  assert.equal(s.status, 0, s.stderr)
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('remover por decisão gasta a linha', comMontagem(dir => {
+  trocar(dir, ARQ, "// Regra: exemplo.b\ntest('dois'", "// Regra: exemplo.a\ntest('dois'")
+  assert.equal(selos(dir, '--selar', DOIS, '--tipo', 'refatoracao', '--motivo', 'a regra certa').status, 0)
+  marcado(dir)
+  reescrever(dir, 'exemplo.a', hoje)
+  trocar(dir, ARQ, "\n// Regra: exemplo.a\ntest('dois', async ($: any) => {\n  expect(3).toBe(3)\n})\n", '')
+  const r = selos(dir, '--remover', DOIS, '--tipo', 'decisao', '--motivo', 'o usuário tirou')
+  assert.equal(r.status, 0, r.stderr)
+  const removido = lerSelosJson(dir).removidos[DOIS]
+  assert.equal(removido.reescrito, hoje)
+  assert.ok(removido.linha['exemplo.a'])
+  trocar(dir, ARQ, 'expect(2).toBe(2)', 'expect(2).toBe(2)\n  expect(4).toBe(4)')
+  const s = selos(dir, '--selar', UM, '--tipo', 'decisao', '--motivo', 'o usuário decidiu')
+  assert.equal(s.status, 0, s.stderr)
+  assert.deepEqual(lerSelosJson(dir).testes[UM].linhas['exemplo.a'], [removido.linha['exemplo.a']])
+  const c = conferir(dir)
+  assert.equal(c.status, 0, c.stderr)
+}))
+
+test('linhasUsadas não encolhe', comMontagem(dir => {
+  reescrever(dir, 'exemplo.a', hoje)
+  marcado(dir)
+  const s = lerSelosJson(dir)
+  delete s.linhasUsadas['exemplo.a']
+  gravarSelosJson(dir, s)
+  const r = conferir(dir)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /linha usada apagada da lista: exemplo\.a/)
+}))

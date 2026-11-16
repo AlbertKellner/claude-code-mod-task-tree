@@ -88,8 +88,13 @@ conferem com o teste; com algum teste mudado sem selo, ele recusa.
 Tipos:
 - `novo`: teste novo (só para chave que não existia em `HEAD`), arquivo do kit ou de apoio novo (só
   para arquivo que não existia em `HEAD`), ou a linha de base;
-- `decisao`: o comportamento esperado mudou por decisão do usuário; cada regra do teste precisa de
-  `Reescrito:` com data igual ou posterior à do selo anterior;
+- `decisao`: o comportamento esperado mudou por decisão do usuário; cada mudança do teste usa uma
+  linha `Reescrito:` própria de cada regra dele: com data igual ou posterior à do selo anterior e
+  ainda não usada por aquele teste (decisão do usuário, 2026-11-15: "Uma linha por mudança
+  (Recomendado)"). O selo guarda as linhas usadas (`linhas`: por regra, o código do texto de cada
+  linha; a lista só cresce), e o comando escolhe sozinho a linha livre mais nova de cada regra.
+  Testes diferentes do mesmo cenário podem usar a mesma linha; mudar de novo um teste já mudado pede
+  outra linha, com as palavras do usuário;
 - `refatoracao`: a forma mudou e nada do que se afirma; as asserções não podem diminuir, e o teste
   como ficou tem de passar no código anterior (a etapa `regressao` prova; decisão do usuário,
   2026-11-15: "Sim, provar (Recomendado)").
@@ -104,11 +109,17 @@ node scripts/selos.mjs --renomear "<chave antiga>" --para "<chave nova>" --tipo 
 node scripts/selos.mjs --novos --motivo "…"   # sela como "novo" os testes e o kit ainda sem selo
 ```
 
-`--remover` (exige `Reescrito:` em cada regra, com data igual ou posterior à do selo) apaga o selo e
-grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado, o hash que saiu e o
-tipo). `--renomear` leva o selo para a chave nova e grava a antiga em `removidos` com `para`:
-`refatoracao` só para renome puro (o hash do corpo é o mesmo), `decisao` para corpo mudado, com a
-exigência do `Reescrito:`. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
+`--remover` (exige, em cada regra, uma linha `Reescrito:` livre, como o selo `decisao`) apaga o selo
+e grava a chave em `removidos` (regras, data, motivo, a data do `Reescrito:` usado em `reescrito`, o
+código da linha por regra em `linha`, o hash que saiu e o tipo). `--renomear` leva o selo para a
+chave nova e grava a antiga em `removidos` com `para`: `refatoracao` só para renome puro (o hash do
+corpo é o mesmo), `decisao` para corpo mudado, com a exigência da linha `Reescrito:` livre.
+
+`linhasUsadas`, no topo do `selos.json`, guarda por regra os códigos das linhas `Reescrito:` que já
+existiam no catálogo quando a regra "uma linha por mudança" entrou (gravada uma vez por
+`node scripts/selos.mjs --marcar-reescritos`, que recusa se a lista já existe): essas linhas não
+liberam mais nada, para teste nenhum. Sem ela na base (um repositório antigo, ou a CI contra uma base
+de antes dela), a etapa `selos` confere o `Reescrito:` só pela data. A etapa `regressao` aceita a falha do teste de `HEAD` cuja chave entrou em
 `removidos` como decisão hoje (na CI, no PR); um renome de refatoração não libera nada. Um teste
 selado de `HEAD` que não aparece na saída do `plugin test` ("TESTE DE <ref> NÃO RODOU") conta como
 falha, com as mesmas liberações. A `regressao` do check só repete os arquivos de teste que mudaram
@@ -125,7 +136,11 @@ A etapa `selos` do `npm run check` confere os selos contra os de `HEAD` (ou `--b
 um teste selado mudou sem selo novo; um teste coberto não tem selo; um teste selado sumiu; um selo de
 `HEAD` foi apagado sem registro em `removidos`; um selo `refatoracao`/`novo` tem menos asserções que o
 de `HEAD`; um teste que já existia ganhou hash novo com tipo `novo`; um selo `decisao` com hash novo
-não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`); as asserções do selo
+não tem `Reescrito:` desde a data do selo de `HEAD` (decisão sem `Reescrito:`) ou, com `linhasUsadas`
+na base, não traz em `linhas`, para cada regra, uma linha do cenário desde essa data que não estava
+nas `linhas` do selo de `HEAD` nem em `linhasUsadas` (decisão sem `Reescrito:` novo); uma remoção ou
+um renome por decisão novo em `removidos` não traz essa linha em `linha`; uma entrada de
+`linhasUsadas` de `HEAD` sumiu ("linha usada apagada da lista"); as asserções do selo
 são diferentes das contadas no teste; ou um cenário do golden (os previstos, com `tests/golden.test.ts`
 no repositório, e os de `HEAD`) sumiu do desenho ou do selo; um selo do kit mudado é `novo` para
 arquivo que já existia, ou não tem motivo (o selo do kit sempre leva `--motivo`); um teste com o mesmo

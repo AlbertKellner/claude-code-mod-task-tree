@@ -1,5 +1,528 @@
 {
   "algoritmo": 2,
+  "linhasUsadas": {
+    "arvore.done-no-pai-fecha-o-que-esta-aberto": [
+      "15f2bf23f5715686"
+    ],
+    "arvore.done-sem-summary-e-varias-sem-start": [
+      "0d2fb7f3735409fe"
+    ],
+    "arvore.pai-em-andamento-no-caminho-da-ultima-iniciada": [
+      "318fb93407f8d4e1"
+    ],
+    "arvore.sem-start-nada-acende": [
+      "cd0d1ae727d8c70b"
+    ],
+    "arvore.start-recusa-pai-concluido": [
+      "09b0a4711dfefb95"
+    ],
+    "cabecalho.aviso-de-painel-grande-volta": [
+      "9174905ff50dc9d6",
+      "7965ef5b72dd184b"
+    ],
+    "cabecalho.chips-contam-folhas": [
+      "8de1e12b6057b72d",
+      "7e21b4b774ddc3bb"
+    ],
+    "cabecalho.historico-abre-com-clique": [
+      "a7da3a7d68285db3"
+    ],
+    "cabecalho.interrompida-fora-do-total": [
+      "ab129d6cb87b9ea9"
+    ],
+    "cabecalho.limite-de-cartoes-antigos": [
+      "a7da3a7d68285db3"
+    ],
+    "cabecalho.limite-de-elementos-do-app": [
+      "3e5092f34f44de15"
+    ],
+    "cabecalho.limite-de-linhas-do-desenho": [
+      "b5cc88ef697b09a1",
+      "ab129d6cb87b9ea9",
+      "3f21582b7782b9eb",
+      "bc052a911cad19c1",
+      "7a013f600b8a80fd",
+      "63cc4b92df8fb383",
+      "c5401badf5e7ce03",
+      "19ec5755e3760c8a",
+      "bc9ae4ff26803c1e",
+      "3e5092f34f44de15"
+    ],
+    "cabecalho.limites-de-linhas": [
+      "84faae875b989915",
+      "a7da3a7d68285db3",
+      "5361782ea4622065",
+      "9d634ea4d98b624a",
+      "b5408850475670dc",
+      "1735ffcfe3a5b72a",
+      "ffad2114b2495392"
+    ],
+    "cabecalho.numeros-somam-o-desenhado": [
+      "b5e6fb36fe7fc3b2",
+      "5f12de0883cd854d"
+    ],
+    "cabecalho.resumida-exclui-pedido-finalizado": [
+      "a7da3a7d68285db3"
+    ],
+    "cabecalho.resumida-limpa-so-com-tudo-concluido": [
+      "a7da3a7d68285db3"
+    ],
+    "cabecalho.titulo-e-a-ultima-iniciada": [
+      "f515cf0a6a9f159c"
+    ],
+    "durabilidade.dobras-voltam-no-processo-novo": [
+      "59add2f9b41e8d95"
+    ],
+    "durabilidade.fim-do-turno-sobrevive-ao-reinicio": [
+      "c984c61bf62c60ac"
+    ],
+    "durabilidade.formatos-antigos-do-publicado": [
+      "ab129d6cb87b9ea9",
+      "3fb75c2e9f8811f5",
+      "3e8aa7753b8875bc"
+    ],
+    "durabilidade.painel-guardado-de-forma-desconhecida-e-ignorado": [
+      "90e0f1706cc27cb1"
+    ],
+    "durabilidade.painel-volta-do-arquivo-publicado": [
+      "2c5c0934bd2c5fb9"
+    ],
+    "durabilidade.recarga-mantem-painel-ligacoes-e-resumo": [
+      "b9a4e6a8d68e6875"
+    ],
+    "durabilidade.reinicio-restaura-do-store": [
+      "c481a7e3260dc89c"
+    ],
+    "durabilidade.respawn-sem-session-start": [
+      "a7da3a7d68285db3"
+    ],
+    "envios.ancora-no-lote-recente": [
+      "8eeb9a444114153e",
+      "7e21b4b774ddc3bb",
+      "5cc3c92d81deeaf0"
+    ],
+    "envios.antes-do-plan-fica-solta-e-o-plan-adota": [
+      "f084feddfcef7c06",
+      "e3c09507cfff710f",
+      "7704015d43e0fe9a"
+    ],
+    "envios.carta-pelo-nome-da-sessao": [
+      "b4622699b3a06f4c",
+      "4652cf324cf27e1e"
+    ],
+    "envios.carta-sob-a-tarefa": [
+      "8ecc3ee5072742ab",
+      "56ad3452f22ad26e",
+      "4868b55cd1a0a2c0"
+    ],
+    "envios.com-pergunta-em-pedido-sem-plano-a-entrega-nao-fecha": [
+      "af0864c169c9225e",
+      "1c6a1e40dac679ba",
+      "7692880e2e6a516d"
+    ],
+    "envios.cor-por-estado": [
+      "a64e670516843971",
+      "7e21b4b774ddc3bb",
+      "ab129d6cb87b9ea9",
+      "e2155b5964c222b6",
+      "a9c5a5c48f679ba9",
+      "b937bdcbc1b46848",
+      "7dfd3d4e0d83c727",
+      "a910f56bf9c66acb"
+    ],
+    "envios.entrega-espera-o-que-ainda-roda-na-tarefa": [
+      "62112fd2c7daf4e2",
+      "73a3f1a7aa75da5c"
+    ],
+    "envios.entrega-imediata-fica-verde": [
+      "3818c17bf91f4729",
+      "7e21b4b774ddc3bb",
+      "669806a0653bfb37"
+    ],
+    "envios.esc-apos-entrega-imediata": [
+      "8ca90b2c4cd38514",
+      "7e21b4b774ddc3bb",
+      "917d514d48f23022",
+      "3b0c8596dfb9a5dd",
+      "c50fc1ceab290f77"
+    ],
+    "envios.fica-ate-entrega": [
+      "92ea1a284310544e",
+      "7e21b4b774ddc3bb",
+      "46980064259ea334",
+      "bb86470d4af0b52e",
+      "e7fb8db2e0910e4d",
+      "669806a0653bfb37"
+    ],
+    "envios.fila-nao-interrompe-no-fim-do-turno": [
+      "734982def16ef210",
+      "7e21b4b774ddc3bb"
+    ],
+    "envios.lembrete-nao-desfaz-marca-da-releitura": [
+      "8653fb6f84789062"
+    ],
+    "envios.nunca-na-tarefa-da-pergunta": [
+      "54a0902f70ef7e7f",
+      "22f53918c40537b1",
+      "44b39f08ea98bc61",
+      "1a0061dec907ba1d"
+    ],
+    "envios.pedido-recebido-mostra-carta": [
+      "4b3f2f6465a6944b",
+      "11c648b116ba1fea"
+    ],
+    "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo": [
+      "8eeb9a444114153e",
+      "7e21b4b774ddc3bb",
+      "e987bca6afcf0bfe",
+      "557a717d7c0d27df",
+      "c25f2f07027f213d",
+      "ccd97a5e7e80bcd9",
+      "0b49bd96ed87c557"
+    ],
+    "lembretes.esc-sem-abertas": [
+      "8039b3a4502b4ae9"
+    ],
+    "lembretes.filha-terminou-o-turno": [
+      "cb31d295c4aa04dd"
+    ],
+    "lembretes.plano-aberto-sem-start": [
+      "453a9950d237d580"
+    ],
+    "lembretes.primeira-chamada-sem-plano": [
+      "10e1da1f3aa43bc1"
+    ],
+    "lembretes.regra-dos-subagentes": [
+      "938ea8ce40e5dd7e"
+    ],
+    "pedidos.id-reusado-segura-pedido-com-cartao-aberto": [
+      "96eaf445fc5cc88e"
+    ],
+    "pedidos.nivel1-concluido-e-historico": [
+      "6017370ed4e35eee"
+    ],
+    "pedidos.plano-anterior-vira-historico": [
+      "a7da3a7d68285db3",
+      "dfb57d6d1fcf399d"
+    ],
+    "pedidos.replano-mantem-envio-ate-entrega": [
+      "c7db3b84a7a07aaf",
+      "7e21b4b774ddc3bb"
+    ],
+    "pedidos.replano-no-lugar": [
+      "ab129d6cb87b9ea9"
+    ],
+    "pedidos.replano-preserva-estado": [
+      "8eec2224de5380e3"
+    ],
+    "pedidos.resumida-mantem-anteriores-com-algo-aberto": [
+      "24685ebfd4518f60",
+      "a7da3a7d68285db3",
+      "9d634ea4d98b624a"
+    ],
+    "pedidos.titulo-vem-do-request": [
+      "d2c8be60e35f80ca"
+    ],
+    "pedidos.uma-mensagem-um-pedido": [
+      "b3945473ffc0d02c"
+    ],
+    "perguntas.escolha-do-wrapup-ate-proxima-mensagem": [
+      "866ecde8ac42e6bb"
+    ],
+    "perguntas.sem-tarefa-recusada": [
+      "fe24f5389e738d4c"
+    ],
+    "sessoes.aberta-antes-do-plan-e-adotada": [
+      "d32dc0738de59492"
+    ],
+    "sessoes.cartao-sob-a-tarefa-de-origem": [
+      "ddfdf30150b7bdb1",
+      "b6ffb945cee94a16",
+      "092c0b8a48e692c9"
+    ],
+    "sessoes.cartao-vivo-nunca-some": [
+      "a7da3a7d68285db3",
+      "826b396b5c7c1529",
+      "cfa95ebcada19762"
+    ],
+    "sessoes.filha-arquivada-interrompe": [
+      "dfb57d6d1fcf399d",
+      "90a10604c6052fcd",
+      "7b18308405e2352e"
+    ],
+    "sessoes.filha-parada-pendentes-seguem-pendentes": [
+      "afe6ea2623d049f0",
+      "acdc0654d860ef08",
+      "a31e5adaecf03889"
+    ],
+    "sessoes.filha-que-conclui-tudo-fecha-a-origem": [
+      "4554a8479b64b0a9",
+      "f14d234daac23b47",
+      "29cb902f5fa6406d",
+      "6159107429d79372"
+    ],
+    "sessoes.lugar-do-cartao-digitado-nao-muda": [
+      "1e3aa8d085ed82a7",
+      "ab318dbef092b5ba"
+    ],
+    "sessoes.mensagem-entre-filhas-no-cartao-da-remetente": [
+      "9157893ce151913f",
+      "7e21b4b774ddc3bb"
+    ],
+    "sessoes.palavra-de-estado-do-cartao": [
+      "6153b59ec75c6a81",
+      "a6e444d909321497",
+      "0491205f8410687c",
+      "a722cb7fc9623c1a"
+    ],
+    "sessoes.rodada-da-frente-e-a-mais-recente": [
+      "62ba0bd9f80c28fb"
+    ],
+    "sessoes.rodada-descartada-fora-da-contagem": [
+      "d78063b56e66f25d",
+      "dd875694fd8e59de",
+      "7e21b4b774ddc3bb"
+    ],
+    "sessoes.rodada-descartada-fora-da-contagem-do-pai": [
+      "dd875694fd8e59de",
+      "7e21b4b774ddc3bb"
+    ],
+    "sessoes.toks-e-repo-branch-no-cartao": [
+      "c4c2e528431351ae"
+    ],
+    "sessoes.turno-de-abertura-da-filha-sob-a-origem": [
+      "a4195a0a3b897d03"
+    ],
+    "sessoes.turno-proprio-da-filha-no-pedido-vigente": [
+      "ab129d6cb87b9ea9",
+      "0baf3c38c7a6d6d3",
+      "e44544d7199e60d3",
+      "f8cd522e3cff4775",
+      "d5df93c6464e685d"
+    ],
+    "sessoes.worktree-mostra-o-repositorio-principal": [
+      "c16c86fba52a38b7"
+    ],
+    "subagentes.cartao-desde-o-lancamento": [
+      "bf0197a2aed7a261",
+      "ef1805590614f512"
+    ],
+    "subagentes.cartao-fica-com-a-origem-fechada": [
+      "820e81b0b5195702",
+      "e60d58e2ba6583c8",
+      "ad3350769b18e9bf",
+      "3bdfd55f24fb66f0"
+    ],
+    "subagentes.cartao-mostra-modelo-e-estado": [
+      "6cbe75bb3395a0db"
+    ],
+    "subagentes.fora-da-contagem": [
+      "f8de826fdeede8d7"
+    ],
+    "subagentes.id-reusado-nao-herda-cartao": [
+      "61322495bce81da1"
+    ],
+    "subagentes.lancado-antes-da-tarefa-nao-conta": [
+      "11f939719fa3e5a8"
+    ],
+    "subagentes.lancados-juntos-se-veem": [
+      "78b5dbaf3fe0c1f6"
+    ],
+    "subagentes.neto-segue-o-cartao-de-quem-o-lancou": [
+      "60c4a61da5dbaed3"
+    ],
+    "subagentes.pai-conclui-no-fim-do-turno": [
+      "6765b4f47202e6f6",
+      "c6ff9e635d0b2cb9",
+      "05cbfb1e2bbe6796"
+    ],
+    "subagentes.pai-reflete-falha-ou-interrupcao": [
+      "212768d04c248ae4",
+      "53de2f32e02e3c9f"
+    ],
+    "subagentes.reaberta-nao-fecha-pelo-subagente-antigo": [
+      "f8ec836959bac1fb",
+      "92cfbf43ea921859"
+    ],
+    "subagentes.sem-fim-vira-interrompido": [
+      "8872c40b2f0f5feb"
+    ],
+    "subagentes.tarefa-do-subagente-reflete-o-lancado": [
+      "888700d0377f4bfa"
+    ],
+    "subagentes.terminado-sem-tarefas-sai-com-o-pedido": [
+      "7576d8bfd4daaf69"
+    ],
+    "subagentes.um-rodando-mantem-o-pai": [
+      "712cab7689731be3"
+    ],
+    "taxa.fim-do-turno-fica-aceso": [
+      "6b63c1c7cc9179ff",
+      "a0e1cbb400f6c1ac"
+    ],
+    "turnos.aviso-sem-start-aguarda": [
+      "318fb93407f8d4e1"
+    ],
+    "turnos.esc-interrompe-so-a-iniciada": [
+      "dfb57d6d1fcf399d",
+      "837f8f85abdd89c6"
+    ],
+    "turnos.iniciada-aguarda-no-fim": [
+      "c5d7d49a71d8e53b",
+      "1f40f3da7a198c90"
+    ],
+    "turnos.pai-com-filha-concluida-nunca-interrompido": [
+      "dfb57d6d1fcf399d"
+    ],
+    "turnos.parada-segue-interrompida-ate-o-start": [
+      "56e54edc6b136082",
+      "96532644ea7b5d65"
+    ],
+    "turnos.pendentes-seguem-pendentes": [
+      "a31e5adaecf03889",
+      "29d338b1a5550744"
+    ],
+    "turnos.prompt-seguinte-retoma": [
+      "d462ca4088d8566e",
+      "6660e7e12e42f6d8",
+      "0a69a9d57e0572f8"
+    ],
+    "turnos.subagente-que-termina-interrompe": [
+      "4ac3ac10fac7a019",
+      "f5e89a5bcfc53d22",
+      "d885f62545ac72ab"
+    ],
+    "ultracode.cabecalho": [
+      "6b63c1c7cc9179ff",
+      "a0457fe68f52d673"
+    ],
+    "ultracode.cartao-da-filha": [
+      "77c8613be7a4af90"
+    ],
+    "ultracode.cor-e-corte": [
+      "7aaea639ae089767",
+      "84fd66f37c8847f8"
+    ],
+    "ultracode.guardado-por-sessao": [
+      "21d4df3a47768c04"
+    ],
+    "ultracode.so-o-interruptor-real": [
+      "6b63c1c7cc9179ff"
+    ],
+    "ultracode.subagente-sem-palavra": [
+      "6b63c1c7cc9179ff"
+    ],
+    "visual.animacao-de-linha-nova": [
+      "173eab56d71e4b59"
+    ],
+    "visual.cabecalho-barra-e-chips-desenhados": [
+      "5132d8517dd7084e",
+      "a7da3a7d68285db3"
+    ],
+    "visual.cabecalho-em-cartao": [
+      "5132d8517dd7084e",
+      "a7da3a7d68285db3",
+      "22543a2352f005da",
+      "332c2fab061f8cfd",
+      "7aaea639ae089767"
+    ],
+    "visual.cartao-e-cabecalho-destacados": [
+      "3c38e19c5f3e6a8f"
+    ],
+    "visual.cartao-modelo-e-esforco": [
+      "c4145a548f138c16"
+    ],
+    "visual.cartao-posicao-de-toks-e-repo": [
+      "3133aa3ce92ce42b"
+    ],
+    "visual.cartoes-ordem-e-espera": [
+      "f81968edd19c590d"
+    ],
+    "visual.coluna-da-contagem-cabe-a-maior": [
+      "bcc08bd926937a24",
+      "ec5859807d9de0ed"
+    ],
+    "visual.cores-dos-temas": [
+      "7aa4b0ed800d5af4"
+    ],
+    "visual.corte-de-texto-inteiro-e-limpo": [
+      "4e24d524181024d8"
+    ],
+    "visual.desenho-cartao-filha": [
+      "a3d0608125c315e1",
+      "a7da3a7d68285db3",
+      "a42f94c7a9dffa62",
+      "d79040a2ada51c85",
+      "9f219eacae4081fd",
+      "3582e1fb245c61f3"
+    ],
+    "visual.desenho-envios": [
+      "a3d0608125c315e1",
+      "a7da3a7d68285db3",
+      "cb1fd9ab74a179af",
+      "d79040a2ada51c85",
+      "9f219eacae4081fd",
+      "3582e1fb245c61f3",
+      "68ce7125bb230efe"
+    ],
+    "visual.desenho-principal": [
+      "a3d0608125c315e1",
+      "a7da3a7d68285db3",
+      "9afa7319b7f524dc",
+      "cb1fd9ab74a179af",
+      "d79040a2ada51c85",
+      "9f219eacae4081fd",
+      "3582e1fb245c61f3",
+      "d9bf93bb944107b6",
+      "0c0963aa87537852",
+      "c46c0d61044cbf69"
+    ],
+    "visual.desenho-subagente": [
+      "cb1fd9ab74a179af",
+      "d79040a2ada51c85",
+      "9f219eacae4081fd",
+      "3582e1fb245c61f3"
+    ],
+    "visual.faixa-de-estado-geral": [
+      "f0337d8793db8851",
+      "2e1538893d90e48a",
+      "34aa41f5be9664f5",
+      "3766d62f1c05fd48",
+      "1a50efb29a9fcbcf",
+      "5ea9d7c482d1e7ef"
+    ],
+    "visual.golden-gera-desenho": [
+      "7a9a1fbfafd986c8",
+      "323e34bcb5c7aa24"
+    ],
+    "visual.guias-em-caixas-nativas": [
+      "dcb10454332891b7"
+    ],
+    "visual.guias-na-faixa-do-cartao": [
+      "280c339acbd87eea"
+    ],
+    "visual.recarga-real-e-respawn": [
+      "cab0341dd453473a"
+    ],
+    "visual.secao-sem-traco": [
+      "9ca408436ed3fe9a",
+      "ea1f5475112519a5"
+    ],
+    "visual.status-embaixo-da-caixa": [
+      "d00522c3233d4441"
+    ],
+    "visual.titulo-legivel-no-painel-estreito": [
+      "9916a25532ca7211",
+      "ea3c885ddb38aed9"
+    ],
+    "visual.titulo-sem-contagem-vai-ate-o-tempo": [
+      "4a35191d8801f5ee"
+    ],
+    "visual.tooltip": [
+      "63dff5c8d75ed320",
+      "a68ad5e197e3e55d"
+    ]
+  },
   "testes": {
     "task-tree/tests/arvore.test.ts::a recusa do start num pai fechado diz o que o painel mostra e os dois caminhos": {
       "regras": [

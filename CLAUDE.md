@@ -122,7 +122,9 @@ O que já funcionava continua funcionando: um teste existente só muda quando o 
 a regra que ele protege.
 
 - Teste existente coberto por regra só muda com decisão do usuário registrada no catálogo: o
-  cenário ganha `Reescrito: AAAA-MM-DD, <palavras dele>`, e o teste é selado como decisão
+  cenário ganha `Reescrito: AAAA-MM-DD, <palavras dele>`, uma linha por mudança do teste (decisão
+  do usuário, 2026-11-15: "Uma linha por mudança (Recomendado)"; o selo guarda a linha que usou, e as
+  que já existiam quando a regra entrou contam como usadas), e o teste é selado como decisão
   (`npm run regras:selar -- "<arquivo>::<nome>" --tipo decisao --motivo "…"`).
 - Mudar a forma de um teste sem mudar o que ele afirma é refatoração (`--tipo refatoracao`): as
   asserções não podem diminuir, o teste antigo precisa continuar passando e o teste novo precisa
