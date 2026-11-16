@@ -517,3 +517,14 @@ Origem: decisão do usuário, 2026-11-15 ("Fecha a tarefa sozinho (Recomendado)"
 Código: hooks/sessions.ts, text/rules.ts
 Reescrito: 2026-11-15, decisão do usuário de 2026-11-15 ("Também não fecha (Recomendado)"): a sessão posta só como lugar numa tarefa do plano anterior, com pergunta aberta num pedido ainda sem plano, não a fecha ao concluir tudo. Os testes existentes não mudam.
 Estado: coberto
+
+### sessoes.modelo-e-esforco-publicados
+A sessão publica o modelo e o esforço do loop principal.
+
+- Dado uma sessão
+- Quando o loop principal faz um passo com um modelo (e um esforço)
+- Então o arquivo publicado traz "Opus 5.5" ou "Opus 5.5 · high", e muda quando o modelo ou o esforço mudam; o passo de um subagente não muda o da sessão (o desenho no cartão da mãe segue em visual.cartao-modelo-e-esforco e no golden)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/turn.ts
+Estado: coberto

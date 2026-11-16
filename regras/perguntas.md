@@ -142,3 +142,23 @@ Se o mod falha por erro interno ao conferir a pergunta sem tarefa, a pergunta ab
 Origem: decisão do usuário, 2026-11-15 ("Abre, com erro no log (Recomendado)"), sobre o achado da auditoria de 2026-11-10 (a recusa falhava aberta, sem registro).
 Código: io/log.ts
 Estado: coberto
+
+### perguntas.pergunta-e-plano-saem-no-fim-do-turno
+A espera de pergunta ou de aprovação de plano não sobrevive ao turno.
+
+- Dado "Aguardando sua resposta" ou "Aguardando aprovação do plano" no painel
+- Quando o turno do loop principal termina com a chamada ainda sem resposta
+- Então a espera some (a escolha do wrap_up fica: perguntas.escolha-do-wrapup-ate-proxima-mensagem)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### perguntas.pergunta-de-subagente
+A pergunta de um subagente não é recusada e espera sob a tarefa dele.
+
+- Dado um subagente com uma tarefa em andamento, e o loop principal sem tarefa aberta do pedido
+- Quando o subagente chama AskUserQuestion
+- Então a chamada passa, "Aguardando sua resposta" aparece sob a tarefa do subagente, e some com a resposta
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto

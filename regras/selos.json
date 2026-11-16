@@ -81,6 +81,26 @@
       "data": "2026-11-15",
       "motivo": "achado baixo da auditoria de 2026-11-10: agente sem grupo não recebia os avisos de id"
     },
+    "task-tree/tests/arvore.test.ts::done num pai aberto fecha tudo o que está aberto abaixo, e a cancelada segue ✕": {
+      "regras": [
+        "arvore.done-no-pai-fecha-o-que-esta-aberto"
+      ],
+      "hash": "bd25248c3f681947",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
+    "task-tree/tests/arvore.test.ts::done numa tarefa já concluída não muda nada nem avisa": {
+      "regras": [
+        "arvore.done-em-concluida-nao-muda-nada"
+      ],
+      "hash": "67da722fa839ab1e",
+      "assercoes": 8,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
     "task-tree/tests/arvore.test.ts::id curto ambíguo, inexistente ou de outro agente é avisado; o id completo resolve": {
       "regras": [
         "arvore.ids-curtos-e-avisos"
@@ -202,6 +222,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/arvore.test.ts::start repetido mantém a tarefa em andamento e o tempo dela": {
+      "regras": [
+        "arvore.start-em-tarefa-em-andamento"
+      ],
+      "hash": "92974b8d21bb2ce3",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
     },
     "task-tree/tests/arvore.test.ts::um plano com ids em caminho segue aceito": {
       "regras": [
@@ -718,6 +748,36 @@
       "tipo": "novo",
       "data": "2026-11-14",
       "motivo": "decisão 2026-11-14: /clear com filhas, o cartão some na hora"
+    },
+    "task-tree/tests/durabilidade.test.ts::/task-tree com a abertura do painel em erro diz o erro no motivo": {
+      "regras": [
+        "durabilidade.comando-diz-o-que-o-app-respondeu"
+      ],
+      "hash": "8a28f16c39695510",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::/task-tree com o painel fora da tela diz o motivo do app": {
+      "regras": [
+        "durabilidade.comando-diz-o-que-o-app-respondeu"
+      ],
+      "hash": "23bc1eaca9a53996",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
+    "task-tree/tests/durabilidade.test.ts::/task-tree com o painel na tela diz os painéis do app e o tamanho do desenho": {
+      "regras": [
+        "durabilidade.comando-diz-o-que-o-app-respondeu"
+      ],
+      "hash": "d64333087a34f2f5",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
     },
     "task-tree/tests/durabilidade.test.ts::a filha que publica um grupo sem tarefas, uma tarefa sem filhos e um envio sem destino segue com o cartão, e o painel, as ferramentas e a publicação seguem": {
       "regras": [
@@ -3428,6 +3488,16 @@
       "data": "2026-10-28",
       "motivo": "linha de base"
     },
+    "task-tree/tests/pedidos.test.ts::o título do pedido é cortado em 60 com … e o do request em 80 sem …": {
+      "regras": [
+        "pedidos.titulo-do-pedido-e-cortado"
+      ],
+      "hash": "27d938d73546857d",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
     "task-tree/tests/pedidos.test.ts::pai abaixo do nível 1 concluído que ganha filha nova no replano volta a aberto": {
       "regras": [
         "pedidos.replano-preserva-estado"
@@ -3609,6 +3679,16 @@
       "data": "2026-11-15",
       "motivo": "decisão do usuário, 2026-11-15: \"Só a sua mensagem (Recomendado)\""
     },
+    "task-tree/tests/perguntas.test.ts::a pergunta de um subagente passa sem tarefa do loop principal e espera sob a tarefa dele": {
+      "regras": [
+        "perguntas.pergunta-de-subagente"
+      ],
+      "hash": "2da0bd90957689a2",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
     "task-tree/tests/perguntas.test.ts::a pergunta sem tarefa é recusada mesmo com a falha de outro passo": {
       "regras": [
         "perguntas.sem-tarefa-recusada",
@@ -3699,6 +3779,26 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-14: a pergunta precisa de tarefa do pedido atual ou em andamento"
+    },
+    "task-tree/tests/perguntas.test.ts::o fim do turno tira a espera da aprovação do plano que ficou sem resposta": {
+      "regras": [
+        "perguntas.pergunta-e-plano-saem-no-fim-do-turno"
+      ],
+      "hash": "58ba391bed1b128e",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
+    "task-tree/tests/perguntas.test.ts::o fim do turno tira a espera da pergunta que ficou sem resposta": {
+      "regras": [
+        "perguntas.pergunta-e-plano-saem-no-fim-do-turno"
+      ],
+      "hash": "56c907ed7d0e2749",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
     },
     "task-tree/tests/perguntas.test.ts::o fim do turno tira o aviso de permissão que sobrou": {
       "regras": [
@@ -4133,6 +4233,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "rodadas das sessões (commit B)"
+    },
+    "task-tree/tests/sessoes.test.ts::a sessão publica o modelo, e o esforço quando o passo o traz": {
+      "regras": [
+        "sessoes.modelo-e-esforco-publicados"
+      ],
+      "hash": "66390a6d4fb86f8e",
+      "assercoes": 3,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
     },
     "task-tree/tests/sessoes.test.ts::a sessão que abre, trabalha e para sem ser vista rodando gera o lembrete de fim de turno e, com a origem fechada, fica encerrada": {
       "regras": [
@@ -5675,6 +5785,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: a tarefa do subagente reflete o lançado"
     },
+    "task-tree/tests/subagentes.test.ts::o plan do subagente replaneja no lugar, e o request e o summary dele não mexem no pedido": {
+      "regras": [
+        "subagentes.plan-request-e-summary-do-subagente"
+      ],
+      "hash": "baa5e3bfd7405938",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
+    },
     "task-tree/tests/subagentes.test.ts::o replano de um subagente que reusa o id não deixa o subagente que ele lançou fechar a tarefa nova": {
       "regras": [
         "subagentes.id-reusado-nao-herda-cartao"
@@ -6608,6 +6728,16 @@
       "tipo": "novo",
       "data": "2026-10-28",
       "motivo": "linha de base"
+    },
+    "task-tree/tests/turnos.test.ts::prompts de observador, de continuação automática e do engine não abrem pedido": {
+      "regras": [
+        "turnos.avisos-do-engine-sem-turno"
+      ],
+      "hash": "4a9b15771e501e26",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-15",
+      "motivo": "cenários que faltavam de árvore, pedido, pergunta, comando e modelo publicado (auditoria, achados baixos)"
     },
     "task-tree/tests/turnos.test.ts::sem resumo, a resposta de um pedido sem tarefa não é gravada em pedido nenhum": {
       "regras": [

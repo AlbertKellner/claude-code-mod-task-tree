@@ -462,3 +462,14 @@ O subagente que termina sem erro deixando tarefas abertas segue 'concluído'.
 Origem: decisão do usuário, 2026-11-15 ("Como hoje (Recomendado)"), à pergunta da auditoria sobre o cartão "concluído" com linhas ✕ dentro; a faixa, decisão do usuário, 2026-11-15 ("Cancelada não conta"): a sobra do subagente concluído não conta para o cinza.
 Código: hooks/turn.ts
 Estado: coberto
+
+### subagentes.plan-request-e-summary-do-subagente
+O plan de um subagente replaneja no lugar; o request e o summary dele não mexem nos pedidos.
+
+- Dado um subagente com uma tarefa aberta no painel
+- Quando ele chama plan com o mesmo id e um request, e depois done com summary
+- Então a tarefa dele é substituída no lugar (sem ✕, sem cópia de histórico), o título do pedido da sessão não muda e nenhuma linha ↩ aparece com o resumo dele
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/tools.ts
+Estado: coberto

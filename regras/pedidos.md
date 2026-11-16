@@ -257,3 +257,14 @@ A linha que a pessoa recolheu segue com a tarefa dela, não com o id.
 Origem: auditoria 2026-11-10 (triagem de 2026-11-13: a dobra era guardada pelo id, e o id reusado herdava a dobra da tarefa antiga); aplica "se eu quiser, eu mesmo colapso" (nada recolhe sozinho) e pedidos.plano-anterior-vira-historico.
 Código: hooks/render.tsx, draw/layout.ts
 Estado: coberto
+
+### pedidos.titulo-do-pedido-e-cortado
+O título do pedido é cortado: 60 caracteres com "…" quando vem da mensagem, 80 sem "…" quando vem do request.
+
+- Dado uma mensagem com mais de 60 caracteres, ou um plan com request de mais de 80
+- Quando o pedido é aberto ou nomeado
+- Então o título guardado tem 59 caracteres da mensagem e "…", ou os 80 primeiros do request, sem "…" (os dois cortes diferentes são o que existe hoje; não há decisão registrada sobre eles)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: draw/svg.ts
+Estado: coberto

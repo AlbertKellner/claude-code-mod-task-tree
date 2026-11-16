@@ -1016,3 +1016,15 @@ test('depois de um aviso, o caminho aceso é o da tarefa iniciada de novo, não 
   esperarEstado(p, 'Pedido um', 'andamento')
   esperarEstado(p, 'Dois', 'aguardando')
 })
+
+// Regra: turnos.avisos-do-engine-sem-turno
+test('prompts de observador, de continuação automática e do engine não abrem pedido', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }] }])
+  for (const kind of ['observer', 'observer-activity', 'auto-continuation', 'unclassified']) await $.prompt.submit({ text: `relato ${kind}`, origin: { kind } })
+  await plan($, [{ id: 'B', title: 'Plano B', children: [{ id: 'b1', title: 'b1' }] }])
+  const p = await painel($)
+  expect(p.filter(l => l.nivel === 0 && l.estado !== undefined).map(l => l.titulo), emTexto(p)).toEqual(['Pedido um'])
+  expect(p.some(l => l.titulo === 'Plano B'), emTexto(p)).toBe(true)
+})

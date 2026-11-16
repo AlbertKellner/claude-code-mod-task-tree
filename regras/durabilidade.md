@@ -311,3 +311,14 @@ Uma publicação do painel por vez: a mais velha não grava por último.
 Origem: auditoria 2026-11-10 (duas publicações em curso gravavam fora de ordem).
 Código: io/publish.ts, hooks/turn.ts
 Estado: coberto
+
+### durabilidade.comando-diz-o-que-o-app-respondeu
+O /task-tree abre o painel e diz o que o app respondeu.
+
+- Dado o painel fora da tela
+- Quando a pessoa roda /task-tree
+- Então o painel é aberto com foco e a resposta diz "Painel de tarefas aberto", os painéis que o app lista (cada um "na frente", "aba atrás de outra" ou "não desenhado") e o tamanho do desenho; se o app não o põe na tela, diz "O app não pôs o painel na tela" com o motivo
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Código: hooks/command.ts
+Estado: coberto

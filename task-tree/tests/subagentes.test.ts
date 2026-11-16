@@ -1991,3 +1991,23 @@ test('o cartão do subagente diz o esforço ao lado do modelo', async ($: any, o
   const cartao = p.find(l => l.titulo === 'Explore: buscar usos de hover')
   expect(cartao?.texto ?? '', emTexto(p)).toContain('Opus 5.5 · high')
 })
+
+// Regra: subagentes.plan-request-e-summary-do-subagente
+test('o plan do subagente replaneja no lugar, e o request e o summary dele não mexem no pedido', async ($: any, on: any) => {
+  fixar(on)
+  lancaveis(on, ['sub-1'])
+  await pedido($, 'Pedido um')
+  await plan($, UM)
+  await start($, ['1'])
+  await lancar($, { tipo: 'general-purpose', descricao: 'revisar testes' })
+  await plan($, [{ id: 'X', title: 'Ler os testes' }], undefined, 'sub-1')
+  await start($, ['X'], 'sub-1')
+  await plan($, [{ id: 'X', title: 'Ler os testes de novo' }], 'Título do sub', 'sub-1')
+  await done($, ['X'], 'Resumo do subagente', 'sub-1')
+  const p = await painel($)
+  expect(p.filter(l => l.titulo.startsWith('Ler os testes')).map(l => l.titulo), emTexto(p)).toEqual(['Ler os testes de novo'])
+  expect(p.some(l => l.estado === 'interrompida'), emTexto(p)).toBe(false)
+  esperarEstado(p, 'Pedido um', 'andamento')
+  expect(p.some(l => l.texto.includes('Título do sub')), emTexto(p)).toBe(false)
+  expect(p.some(l => l.texto.includes('Resumo do subagente')), emTexto(p)).toBe(false)
+})

@@ -754,3 +754,16 @@ test('o replano de um nível 1 entre outros mantém o lugar dele na lista', asyn
   expect(indice(p, 'Plano A revisto'), emTexto(p)).toBeLessThan(indice(p, 'Plano B revisto'))
   expect(emTexto(p)).not.toContain('✕')
 })
+
+// Regra: pedidos.titulo-do-pedido-e-cortado
+test('o título do pedido é cortado em 60 com … e o do request em 80 sem …', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  const ultimo = () => String((((h.proprio()?.groups ?? []).find((g: any) => g.agent === '')?.turns ?? []) as any[]).at(-1)?.title)
+  await pedido($, 'm'.repeat(70))
+  await plan($, A)
+  expect(ultimo()).toBe(`${'m'.repeat(59)}…`)
+  await pedido($, 'Pedido dois')
+  await plan($, B, 'r'.repeat(90))
+  expect(ultimo()).toBe('r'.repeat(80))
+})

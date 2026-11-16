@@ -270,3 +270,13 @@ Origem: decisão do usuário, 2026-11-15 ("◷ até o start (Recomendado)"); igu
 Reescrito: 2026-11-15, texto: o start de novo numa tarefa que aguardava conta como start do turno (revisão do lote, 2026-11-15); nenhuma regra muda e os testes existentes não mudam.
 Código: hooks/panel.ts, draw/layout.ts, state/tasks.ts
 Estado: coberto
+
+### turnos.avisos-do-engine-sem-turno
+Relatos de observador, continuações automáticas e avisos do engine não abrem pedido.
+
+- Dado um prompt de origem observer, observer-activity, auto-continuation ou unclassified
+- Quando ele chega
+- Então não abre pedido, e o plano seguinte entra no pedido atual (como turnos.notificacao-de-tarefa-sem-turno)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto

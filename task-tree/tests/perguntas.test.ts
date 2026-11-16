@@ -3,6 +3,8 @@ import { test } from './kit/teste'
 import { fixar, responderDepois } from './kit/ambiente'
 import { aviso, done, ferramenta, fimDoTurno, mensagemDe, pedido, plan, start, type No } from './kit/cenario'
 import { emTexto, esperarEstado, linha, painel } from './kit/leitura'
+import { subagente } from './kit/ambiente'
+import { chamadaDoSubagente } from './kit/cenario'
 
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }]
 const PERGUNTA = {
@@ -374,4 +376,61 @@ test('com a conferência sem erro, a mesma pergunta sem tarefa segue recusada', 
   on('state.get', async (_$: any, e: any, next: any) => next(e))
   await pedido($, 'Pedido um')
   expect((await ferramenta($, 'AskUserQuestion', PERGUNTA)).erro).toBe(true)
+})
+
+// Regra: perguntas.pergunta-e-plano-saem-no-fim-do-turno
+test('o fim do turno tira a espera da pergunta que ficou sem resposta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.pergunta-e-plano-saem-no-fim-do-turno
+test('o fim do turno tira a espera da aprovação do plano que ficou sem resposta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  responderDepois(on, relogio, 'ExitPlanMode', 'aprovado')
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  const resp = ferramenta($, 'ExitPlanMode', { plan: 'o plano' })
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, 'Aguardando aprovação do plano', 'aguardando')
+  await fimDoTurno($)
+  p = await painel($)
+  expect(p.some(l => l.titulo === 'Aguardando aprovação do plano'), emTexto(p)).toBe(false)
+  await relogio.advance(1000)
+  await resp
+})
+
+// Regra: perguntas.pergunta-de-subagente
+test('a pergunta de um subagente passa sem tarefa do loop principal e espera sob a tarefa dele', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  subagente(on, 'sub-1')
+  responderDepois(on, relogio, 'AskUserQuestion', 'Opção A')
+  await pedido($, 'Pedido um')
+  await plan($, [{ id: 'S', title: 'Tarefa do sub' }], undefined, 'sub-1')
+  await start($, ['S'], 'sub-1')
+  const resp = chamadaDoSubagente($, 'sub-1', 'AskUserQuestion', PERGUNTA)
+  await relogio.settle()
+  let p = await painel($)
+  esperarEstado(p, RESPOSTA, 'aguardando')
+  expect(p.indexOf(linha(p, RESPOSTA)), emTexto(p)).toBe(p.indexOf(linha(p, 'Tarefa do sub')) + 1)
+  await relogio.advance(1000)
+  const r = await resp
+  expect(typeof r?.deny, JSON.stringify(r)).not.toBe('string')
+  expect(String(r?.result ?? ''), JSON.stringify(r)).toContain('Opção A')
+  p = await painel($)
+  expect(p.some(l => l.titulo === RESPOSTA), emTexto(p)).toBe(false)
 })

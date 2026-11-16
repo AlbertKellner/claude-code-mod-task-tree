@@ -477,3 +477,56 @@ test('com start e done numa filha, o pedido fica em andamento, o chip não conta
   expect(cabecalho(p).chips.andamento, noTexto(p)).toBe(0)
   esperarEstado(p, 'Plano P', 'aguardando')
 })
+
+// Regra: arvore.done-em-concluida-nao-muda-nada
+test('done numa tarefa já concluída não muda nada nem avisa', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, [{ id: 'P', title: 'Plano', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await relogio.advance(5000)
+  const primeiro = await done($, ['1'])
+  const antes = linha(await painel($), 'Um').texto
+  await relogio.advance(7000)
+  const r = await done($, ['1'])
+  expect(r.erro).toBe(false)
+  expect(r.texto).not.toContain('Avisos')
+  expect(r.texto).toBe(primeiro.texto)
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'concluida')
+  esperarEstado(p, 'Dois', 'pendente')
+  expect(linha(p, 'Um').texto, noTexto(p)).toBe(antes)
+})
+
+// Regra: arvore.done-no-pai-fecha-o-que-esta-aberto
+test('done num pai aberto fecha tudo o que está aberto abaixo, e a cancelada segue ✕', async ($: any, on: any) => {
+  fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, [{ id: 'P', title: 'Pai', children: [{ id: '1', title: 'Feita' }, { id: '2', title: 'Cancelada' }, { id: '3', title: 'Tres' }, { id: '4', title: 'Quatro' }] }])
+  await start($, ['1'])
+  await done($, ['1'])
+  await cancelar($, ['2'])
+  const r = await done($, ['P'])
+  expect(r.erro).toBe(false)
+  expect(r.texto).toContain('Concluídas: 3/3')
+  expect(r.texto).toContain('2 etapas fecharam juntas sem start')
+  const p = await painel($)
+  for (const t of ['Pai', 'Feita', 'Tres', 'Quatro']) esperarEstado(p, t, 'concluida')
+  esperarEstado(p, 'Cancelada', 'interrompida')
+})
+
+// Regra: arvore.start-em-tarefa-em-andamento
+test('start repetido mantém a tarefa em andamento e o tempo dela', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  await pedido($, 'Pedido de teste')
+  await plan($, [{ id: 'P', title: 'Plano', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois' }] }])
+  await start($, ['1'])
+  await relogio.advance(5000)
+  const r = await start($, ['1'])
+  expect(r.erro).toBe(false)
+  expect(r.texto).toContain('Em andamento')
+  expect(r.texto).not.toContain('Avisos')
+  const p = await painel($)
+  esperarEstado(p, 'Um', 'andamento')
+  expect(linha(p, 'Um').texto, noTexto(p)).toContain('0:05')
+})

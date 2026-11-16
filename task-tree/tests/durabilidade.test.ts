@@ -1639,3 +1639,50 @@ test('recarga com o painel do state fora do formato: o painel volta do store', a
   esperarEstado(p, 'Um', 'andamento')
   expect(tem(p, 'Quebrada'), emTexto(p)).toBe(false)
 })
+
+// Regra: durabilidade.comando-diz-o-que-o-app-respondeu
+test('/task-tree com o painel na tela diz os painéis do app e o tamanho do desenho', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  let foco: unknown
+  on('ui.open', (_$: any, e: any) => {
+    foco = e?.focus
+    return { value: { isPlaced: true } }
+  })
+  on('ui.panes', () => ({ value: [{ id: 'task-tree', isShown: true, isPlaced: true }, { id: 'outro', isShown: false, isPlaced: true }] }))
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  const t = await comando($)
+  expect(foco).toBe(true)
+  expect(t).toContain('Painel de tarefas aberto')
+  expect(t).toContain('task-tree (na frente)')
+  expect(t).toContain('outro (aba atrás de outra)')
+  expect(t).toMatch(/Desenho: \d+ KB de \d+ KB/)
+  expect(t).not.toContain('Store:')
+})
+
+// Regra: durabilidade.comando-diz-o-que-o-app-respondeu
+test('/task-tree com o painel fora da tela diz o motivo do app', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'largura' } }))
+  on('ui.panes', () => ({ value: [] }))
+  await pedido($, 'Pedido um')
+  const t = await comando($)
+  expect(t).toContain('O app não pôs o painel na tela: largura')
+  expect(t).toContain('Painéis: nenhum')
+  expect(t).not.toContain('Store:')
+})
+
+// Regra: durabilidade.comando-diz-o-que-o-app-respondeu
+test('/task-tree com a abertura do painel em erro diz o erro no motivo', async ($: any, on: any) => {
+  fixar(on)
+  armazem(on, {})
+  on('ui.open', () => ({ deny: 'painel recusado pelo teste' }))
+  on('ui.panes', () => ({ value: [] }))
+  await pedido($, 'Pedido um')
+  const t = await comando($)
+  expect(t).toContain('O app não pôs o painel na tela:')
+  expect(t).toContain('painel recusado pelo teste')
+  expect(t).not.toContain('Store:')
+})

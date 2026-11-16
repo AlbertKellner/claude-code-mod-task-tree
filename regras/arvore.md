@@ -188,3 +188,33 @@ O done numa tarefa interrompida não a conclui, e diz que o start a reabre.
 Origem: auditoria 2026-11-10 (o aviso dizia só "foi interrompida").
 Código: text/rules.ts
 Estado: coberto
+
+### arvore.done-em-concluida-nao-muda-nada
+O done numa tarefa já concluída não muda nada.
+
+- Dado uma tarefa ✓
+- Quando o modelo chama done nela de novo
+- Então ela segue ✓ com o mesmo tempo, a contagem não muda e a resposta não traz aviso
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### arvore.done-no-pai-fecha-o-que-esta-aberto
+O done num pai aberto fecha o pai e tudo o que está aberto abaixo dele.
+
+- Dado um pai aberto com filhas ✓, ○ e ✕
+- Quando o modelo chama done no pai
+- Então o pai e as filhas abertas ficam ✓, a ✕ segue ✕ e fora do x/y, e, se duas ou mais folhas fecharam sem start, a resposta traz o aviso de etapas fechadas juntas (arvore.done-sem-summary-e-varias-sem-start)
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto
+
+### arvore.start-em-tarefa-em-andamento
+O start numa tarefa já em andamento a mantém como está.
+
+- Dado uma tarefa ◉
+- Quando o modelo chama start nela de novo
+- Então ela segue ◉, o tempo dela não recomeça, e a resposta diz "Em andamento" sem aviso
+
+Origem: regra do painel, a confirmar (auditoria de 2026-11-10; achados baixos, 2026-11-15).
+Estado: coberto

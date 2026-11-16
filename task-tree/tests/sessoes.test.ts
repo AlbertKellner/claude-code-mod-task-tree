@@ -9,6 +9,7 @@ import { responderDepois } from './kit/ambiente'
 import { envio, ferramenta } from './kit/cenario'
 import { cabecalho, cartaSob, cartoes, comHistorico, esperarCartaSob } from './kit/leitura'
 import { SESSAO } from './kit/ambiente'
+import { passos } from './kit/ambiente'
 
 const K1 = 'local_11111111-1111-1111-1111-111111111111'
 const A: No[] = [{ id: 'A', title: 'Plano A', children: [{ id: '1', title: 'Um' }, { id: '2', title: 'Dois', children: [{ id: '2.1', title: 'Dois.um' }] }] }]
@@ -2722,4 +2723,23 @@ test('a leitura das sessões no meio do replano não tira do nível 1 o cartão 
   const i = p.indexOf(linha(p, PROPRIO))
   expect(i, emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Limpeza')))
   expect(i, emTexto(p)).toBeLessThan(p.indexOf(linha(p, 'Conferir refs')))
+})
+
+// Regra: sessoes.modelo-e-esforco-publicados
+test('a sessão publica o modelo, e o esforço quando o passo o traz', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  const h = host(on, [])
+  const passo = passos(on, relogio)
+  await pedido($, 'Pedido um')
+  await plan($, A)
+  await start($, ['1'])
+  await passo($)
+  await start($, ['1'])
+  expect(h.proprio()?.engine).toBe('Opus 5.5')
+  await passo($, { esforco: 'high' })
+  await start($, ['1'])
+  expect(h.proprio()?.engine).toBe('Opus 5.5 · high')
+  await passo($, { agente: 'sub-1', esforco: 'low' })
+  await start($, ['1'])
+  expect(h.proprio()?.engine).toBe('Opus 5.5 · high')
 })
