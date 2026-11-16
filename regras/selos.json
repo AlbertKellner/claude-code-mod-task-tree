@@ -1026,6 +1026,16 @@
       "data": "2026-11-15",
       "motivo": "o desenho do app abaixo dos tetos da tela do app (defeito de 2026-11-15)"
     },
+    "task-tree/tests/cabecalho.test.ts::no corte das 400 linhas, as linhas em andamento guardadas dos pedidos que saem ocupam no máximo metade do espaço, as mais recentes": {
+      "regras": [
+        "cabecalho.corte-mantem-o-que-esta-em-andamento"
+      ],
+      "hash": "eda049c735328697",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "prende o teto de metade do espaço das linhas em andamento guardadas no corte (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Manter à vista o em andamento (Recomendado)\")"
+    },
     "task-tree/tests/cabecalho.test.ts::num pedido grande demais, com a tarefa em andamento depois do corte, o painel mostra o trecho dela": {
       "regras": [
         "cabecalho.limite-de-linhas-do-desenho"
@@ -6425,6 +6435,16 @@
       "data": "2026-11-14",
       "motivo": "decisão do usuário, 2026-11-14: No cabeçalho e acima"
     },
+    "task-tree/tests/subagentes.test.ts::com \"+N pedidos anteriores\" aberta, o workflow do pedido que saiu do trabalho fica inteiro sob a tarefa dele, sem o pedido no título": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim"
+      ],
+      "hash": "aeb974c1ca3e864c",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão de grupo solto no fim vai inteiro também com o pedido fora do trabalho (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
+    },
     "task-tree/tests/subagentes.test.ts::com \"+N pedidos anteriores\" aberta, o workflow que ainda trabalha fica sob a tarefa dele, uma vez só e sem o pedido no título": {
       "regras": [
         "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim"
@@ -6704,6 +6724,17 @@
       "data": "2026-11-09",
       "motivo": "card de subagente: testes e kit novos (decisão 2026-11-09, Cartão + grupo)"
     },
+    "task-tree/tests/subagentes.test.ts::mais de três subagentes lançados juntos sob um pedido que saiu do trabalho seguem num cartão só enquanto um deles trabalha": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim",
+        "subagentes.varios-juntos-num-cartao-de-grupo"
+      ],
+      "hash": "3333a1d9c5aca52e",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão de grupo solto no fim vai inteiro também com o pedido fora do trabalho (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
+    },
     "task-tree/tests/subagentes.test.ts::muitas chamadas de ferramenta de subagentes no mesmo segundo gravam o painel uma vez; a linha da ferramenta chega em até 1 s": {
       "regras": [
         "subagentes.ferramenta-em-uso-com-freio"
@@ -6805,6 +6836,16 @@
       "tipo": "novo",
       "data": "2026-11-12",
       "motivo": "decisão do usuário, 2026-11-12: \"Fazer o cartão do subagente neto aparecer depois que ele termina, como acontece com os outros subagentes\""
+    },
+    "task-tree/tests/subagentes.test.ts::o avulso já terminado ao lado de outro vivo, sob um pedido que saiu do trabalho, sai com o pedido como antes": {
+      "regras": [
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "c3586bb27edf4e78",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão de grupo solto no fim vai inteiro também com o pedido fora do trabalho (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
     },
     "task-tree/tests/subagentes.test.ts::o cartão de grupo diz a falha de um agente, com os outros trabalhando e depois de todos terminarem; parado, diz 'interrompido'": {
       "regras": [
@@ -7160,6 +7201,17 @@
       "data": "2026-11-16",
       "motivo": "o subagente e o workflow que ainda trabalham sob um pedido do histórico ficam soltos no fim (decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
     },
+    "task-tree/tests/subagentes.test.ts::o workflow sob um pedido que saiu do trabalho, com um agente ainda trabalhando, aparece solto no fim inteiro, com os agentes já terminados, e os terminados só saem depois que o último termina": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim",
+        "subagentes.terminado-sem-tarefas-sai-com-o-pedido"
+      ],
+      "hash": "d5d253050fef7b6f",
+      "assercoes": 18,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão de grupo solto no fim vai inteiro também com o pedido fora do trabalho (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
+    },
     "task-tree/tests/subagentes.test.ts::os agentes de um workflow e o que um deles lança, que o app não lista, não são encerrados pela lista": {
       "regras": [
         "subagentes.vivo-de-verdade-segue-vivo"
@@ -7189,6 +7241,16 @@
       "tipo": "novo",
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: workflow junto"
+    },
+    "task-tree/tests/subagentes.test.ts::os agentes do workflow que terminam depois de o pedido sair do trabalho seguem no cartão solto, com o mesmo título": {
+      "regras": [
+        "subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim"
+      ],
+      "hash": "840203ef592ea769",
+      "assercoes": 6,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão de grupo solto no fim vai inteiro também com o pedido fora do trabalho (revisão de 2026-11-16; decisão do usuário de 2026-11-15, \"Solto no fim, como a filha (Recomendado)\")"
     },
     "task-tree/tests/subagentes.test.ts::plan de um pedido novo que reusa o id não herda o cartão do subagente antigo, e o fim do turno não fecha a tarefa nova": {
       "regras": [

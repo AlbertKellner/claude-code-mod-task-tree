@@ -2281,3 +2281,124 @@ test('o summary que um subagente passa no done não vira a linha ↩ do pedido q
   expect(turnos.length, JSON.stringify(hR501.proprio() ?? {})).toBeGreaterThan(0)
   expect(turnos.filter(u => typeof u.brief === 'string' && u.brief !== ''), JSON.stringify(turnos)).toEqual([])
 })
+
+// O cartão de grupo que ainda trabalha sob um pedido que saiu do trabalho (o pedido um, com dois pedidos só).
+async function foraDoTrabalhoR7($: any, lancamentos: () => Promise<void>) {
+  await pedido($, 'Pedido um')
+  await plan($, SO_INVESTIGAR_U3)
+  await start($, ['1'])
+  await lancamentos()
+  await done($, ['1'], 'Lançado')
+  await fimDoTurno($)
+  await pedido($, 'Pedido dois')
+  await plan($, PLANO_DOIS_U3)
+  await start($, ['b1'])
+}
+const WORKFLOW_SOLTO_R7 = 'Workflow · 3 agentes · do pedido "Pedido um"'
+async function workflowR7($: any) {
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_r7', segundoPlano: true })
+}
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o workflow sob um pedido que saiu do trabalho, com um agente ainda trabalhando, aparece solto no fim inteiro, com os agentes já terminados, e os terminados só saem depois que o último termina', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await foraDoTrabalhoR7($, async () => {
+    await workflowR7($)
+    await fimDoSubagente($, 'w1')
+    await fimDoSubagente($, 'w2')
+  })
+  let p = await painel($)
+  expect(p.some(l => l.titulo === '+1 pedidos anteriores'), emTexto(p)).toBe(true)
+  expect(p.some(l => l.titulo === 'Investigar'), emTexto(p)).toBe(false)
+  const cartoes = p.filter(l => l.titulo.startsWith('Workflow ·'))
+  expect(cartoes.map(l => l.titulo), emTexto(p)).toEqual([WORKFLOW_SOLTO_R7])
+  expect(cartoes[0]!.texto, emTexto(p)).toContain('1 trabalhando')
+  expect(p.indexOf(cartoes[0]!), emTexto(p)).toBeGreaterThan(p.indexOf(linha(p, 'Depois')))
+  expect(abaixo(p, WORKFLOW_SOLTO_R7).map(l => l.titulo), emTexto(p)).toEqual(['Explore: ler o diff', 'Explore: ler os testes', 'Explore: ler o kit'])
+  expect(pilula(p), emTexto(p)).toContain('▸ 1')
+  expect(publicados(h)).toContain('w1')
+  expect(publicados(h)).toContain('w2')
+  expect(publicados(h)).toContain('w3')
+  await fimDoSubagente($, 'w3')
+  p = await painel($)
+  expect(p.some(l => l.titulo.startsWith('Workflow ·')), emTexto(p)).toBe(false)
+  expect(p.some(l => l.titulo.startsWith('Explore:')), emTexto(p)).toBe(false)
+  expect(pilula(p), emTexto(p)).not.toContain('▸')
+  await fimDoTurno($)
+  await pedido($, 'Pedido três')
+  await plan($, TERCEIRO)
+  const depois = publicados(h)
+  expect(depois).not.toContain('w1')
+  expect(depois).not.toContain('w2')
+  expect(depois).not.toContain('w3')
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('os agentes do workflow que terminam depois de o pedido sair do trabalho seguem no cartão solto, com o mesmo título', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await foraDoTrabalhoR7($, () => workflowR7($))
+  let p = await painel($)
+  expect(linha(p, WORKFLOW_SOLTO_R7).texto, emTexto(p)).toContain('3 trabalhando')
+  for (const [agente, vivos] of [['w1', '2'], ['w2', '1']] as const) {
+    await fimDoSubagente($, agente)
+    p = await painel($)
+    const cartoes = p.filter(l => l.titulo.startsWith('Workflow ·'))
+    expect(cartoes.map(l => l.titulo), emTexto(p)).toEqual([WORKFLOW_SOLTO_R7])
+    expect(cartoes[0]!.texto, emTexto(p)).toContain(`${vivos} trabalhando`)
+    expect(abaixo(p, WORKFLOW_SOLTO_R7).length, emTexto(p)).toBe(3)
+  }
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim, subagentes.varios-juntos-num-cartao-de-grupo
+test('mais de três subagentes lançados juntos sob um pedido que saiu do trabalho seguem num cartão só enquanto um deles trabalha', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['s1', 's2', 's3', 's4'])
+  await foraDoTrabalhoR7($, async () => {
+    for (const d of ['ler o diff', 'ler os testes', 'ler o kit', 'ler o catálogo']) await lancar($, { descricao: d, segundoPlano: true })
+    for (const s of ['s1', 's2', 's3']) await fimDoSubagente($, s)
+  })
+  const p = await painel($)
+  const titulo = '4 subagentes · do pedido "Pedido um"'
+  expect(linha(p, titulo).texto, emTexto(p)).toContain('1 trabalhando')
+  expect(abaixo(p, titulo).length, emTexto(p)).toBe(4)
+  expect(p.filter(l => l.titulo.startsWith('Explore:') && l.nivel === linha(p, titulo).nivel), emTexto(p)).toEqual([])
+})
+
+// Regra: subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim
+test('com "+N pedidos anteriores" aberta, o workflow do pedido que saiu do trabalho fica inteiro sob a tarefa dele, sem o pedido no título', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await foraDoTrabalhoR7($, async () => {
+    await workflowR7($)
+    await fimDoSubagente($, 'w1')
+    await fimDoSubagente($, 'w2')
+  })
+  const h = await comHistorico($, 1)
+  expect(h.filter(l => l.titulo.startsWith('Workflow ·')).map(l => l.titulo), emTexto(h)).toEqual(['Workflow · 3 agentes'])
+  expect(abaixo(h, 'Investigar').map(l => l.titulo), emTexto(h)).toContain('Workflow · 3 agentes')
+  expect(linha(h, 'Workflow · 3 agentes').texto, emTexto(h)).toContain('1 trabalhando')
+  expect(abaixo(h, 'Workflow · 3 agentes').length, emTexto(h)).toBe(3)
+})
+
+// Regra: subagentes.terminado-sem-tarefas-sai-com-o-pedido
+test('o avulso já terminado ao lado de outro vivo, sob um pedido que saiu do trabalho, sai com o pedido como antes', async ($: any, on: any) => {
+  fixar(on)
+  const h = host(on, [])
+  lancaveis(on, ['a1', 'a2'])
+  await foraDoTrabalhoR7($, async () => {
+    await lancar($, { descricao: 'ler o diff' })
+    await fimDoSubagente($, 'a1')
+    await lancar($, { descricao: 'ler o kit', segundoPlano: true })
+  })
+  const p = await painel($)
+  linha(p, 'Explore: ler o kit · do pedido "Pedido um"')
+  expect(p.some(l => l.titulo.startsWith('Explore: ler o diff')), emTexto(p)).toBe(false)
+  expect(publicados(h)).toContain('a2')
+  expect(publicados(h)).not.toContain('a1')
+})

@@ -240,6 +240,7 @@ Fora deste cenário: dentro do cartão de uma sessão filha (o desenho é o mesm
 
 Origem: decisão do usuário, 2026-11-15 ("Solto no fim, como a filha (Recomendado)"), à pergunta sobre o subagente e o workflow trabalhando sob um pedido do histórico, que não eram desenhados em lugar nenhum (defeito relatado por ele: "vc não está mostrando os subagentes/workflows nas tarefas"); segue sessoes.cartao-vivo-nunca-some ("Cartão vivo solto no fim (Recomendado)", 2026-11-03).
 Código: draw/layout.ts
+Reescrito: 2026-11-16, texto: no pedido fora do trabalho atual o cartão de grupo também vai inteiro (ia só o agente vivo, num cartão avulso): os agentes já terminados dele ficam enquanto um colega do mesmo cartão trabalha (subagentes.terminado-sem-tarefas-sai-com-o-pedido); achado da revisão de 2026-11-16 sobre a decisão do usuário de 2026-11-15 ("Solto no fim, como a filha (Recomendado)"). Os testes deste cenário não mudam; entram testes novos.
 Estado: coberto
 
 ### subagentes.tarefa-em-andamento-com-subagente-rodando
@@ -393,11 +394,12 @@ O subagente terminado que não planejou tarefas é apagado quando o pedido dele 
 
 - Dado um pedido com subagentes já terminados, uns sem tarefas no painel e outros com tarefas próprias
 - Quando o pedido sai do trabalho atual (a mensagem seguinte começa trabalho novo, sem nada aberto à vista nele)
-- Então os subagentes sem tarefas saem do painel, do que é guardado e do que é publicado: ao abrir "+N pedidos anteriores" as tarefas antigas aparecem sem eles, e um start que reabra uma tarefa antiga não os traz de volta; os que têm tarefas próprias seguem guardados e publicados com o pedido; o que ainda roda, ou tem quem dependa dele, fica até terminar e sai com o trabalho novo seguinte; no trabalho atual nada muda
+- Então os subagentes sem tarefas saem do painel, do que é guardado e do que é publicado: ao abrir "+N pedidos anteriores" as tarefas antigas aparecem sem eles, e um start que reabra uma tarefa antiga não os traz de volta; os que têm tarefas próprias seguem guardados e publicados com o pedido; o que ainda roda, ou tem quem dependa dele (um subagente lançado por ele ainda vivo, um aviso dele, uma carta a ele na fila, ou um colega do mesmo cartão de grupo, workflow ou "N subagentes", ainda trabalhando), fica até terminar e sai com o trabalho novo seguinte; no trabalho atual nada muda
 
 Origem: decisão do usuário, 2026-11-14 ("Apagar os sem tarefas (Recomendado)"), à pergunta sobre os cartões de subagentes terminados que ficavam guardados para sempre (uma sessão com 524 deles); limita ao trabalho atual subagentes.terminado-segue-cartao e subagentes.cartao-fica-com-a-origem-fechada.
 Código: hooks/panel.ts, hooks/tools.ts
 Reescrito: 2026-11-16, decisão do usuário de 2026-11-15 ("Solto no fim, como a filha (Recomendado)"): o que ainda roda, enquanto não sai, é desenhado solto no fim (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim). Os testes deste cenário não mudam.
+Reescrito: 2026-11-16, texto: diz quem depende do subagente terminado; o agente terminado de um cartão de grupo fica enquanto um colega do mesmo cartão trabalha, para o cartão solto no fim ir inteiro (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim; decisão do usuário de 2026-11-15, "Solto no fim, como a filha (Recomendado)"). Os testes deste cenário não mudam.
 Estado: coberto
 
 ### subagentes.lancado-antes-do-plan-e-adotado

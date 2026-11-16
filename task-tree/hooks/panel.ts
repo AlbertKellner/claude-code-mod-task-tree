@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
 import { GROUPS_VERSION, current as keepCurrent, linkOf, loadStore, loaded, readGroups, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, lastStarted, subLive } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, lastStarted, subLive, heldByCard } from '../draw/layout'
 import type { Idle } from '../types'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
@@ -1110,6 +1110,7 @@ export async function joinWork($: any, ids: string[], fresh: boolean, old: (id: 
 // published file grew with every workflow.
 export function settledSubs(groups: Group[], work: string[], waits: Wait[], sends: Send[]): string[] {
   const byAgent = new Map(groups.map(g => [g.agent, g]))
+  const held = heldByCard(groups)
   // The level-1 task of the main group the group came from, up through who launched it.
   const origin = (g: Group): string | undefined => {
     const seen = new Set<string>()
@@ -1128,6 +1129,9 @@ export function settledSubs(groups: Group[], work: string[], waits: Wait[], send
       return from === undefined || !work.includes(from)
     })
     .filter(g => !groups.some(c => c.parent === g.agent && subLive(c.sub)))
+    // Nor one of a group card a mate of which still works: the card drawn loose at the end goes whole
+    // (heldByCard; the person, 2026-11-15: "Solto no fim, como a filha (Recomendado)").
+    .filter(g => !held.has(g.agent))
     .filter(g => !waits.some(w => w.agent === g.agent))
     .filter(g => !sends.some(s => s.agent === g.agent && !s.taken && !s.lost))
     .map(g => g.agent)

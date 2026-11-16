@@ -1435,9 +1435,13 @@ export function trimToWork(p: Panel, level: number): Panel {
   // happened to have the id (the person, 2026-11-12: "Fazer o cartão do subagente neto aparecer
   // depois que ele termina, como acontece com os outros subagentes"). One still open or at work
   // stays as any other; one whose launcher has no group is the main loop's (see launcher, in panel).
+  // An ended one of a group card some mate of which still works (heldByCard) stays too: the card drawn
+  // loose at the end goes whole, its ended agents in it, also when its request is out of the work (the
+  // person, 2026-11-15: "Solto no fim, como a filha (Recomendado)").
   const byAgent = new Map(groups.map(g => [g.agent, g] as const))
+  const held = heldByCard(groups)
   const stays = (g: Group, seen: string[] = []): boolean => {
-    if (g.agent === MAIN || hasOpen(g.tasks) || subLive(g.sub)) return true
+    if (g.agent === MAIN || hasOpen(g.tasks) || subLive(g.sub) || held.has(g.agent)) return true
     const from = byAgent.get(g.parent ?? MAIN)
     // A group launched on no task has nothing to leave with: it stays (it ends the list).
     if (from === undefined || from.agent === MAIN || seen.includes(g.agent)) return g.anchor === undefined || under(g.anchor)
@@ -1505,6 +1509,58 @@ const SUB_TONE: Record<Sub['state'], Tone> = { running: 'agent', background: 'ag
 export const SUB_GROUP = 3
 // Launched together: by the same loop, to the same place, each within SUB_BATCH ms of the one before.
 export const SUB_BATCH = 3000
+// The card each subagent of `list` is drawn in (body's drawKids): `key` names its bucket (a workflow's
+// `run`; outside a workflow, the launcher, the place and the batch), `mates` the subagents of that
+// bucket in `list`, and `card` whether they share a group card (more than SUB_GROUP, or a workflow's
+// with more than one). Outside a workflow, the batch is read from the launches' times, not from
+// `batch`: a panel or a session's published file from an earlier version kept one batch per launch
+// for launches that ran together (subagentes.lancados-juntos-se-veem). A batch is named by its first
+// launch's time, the `batch` hooks/agents writes, so a group's fold key stays.
+export function subCards(list: Group[]): Map<Group, { key: string; mates: Group[]; card: boolean }> {
+  const start = new Map<Group, number>()
+  const places = new Map<string, Group[]>()
+  for (const k of list) {
+    if (!k.sub || k.sub.run !== undefined) continue
+    const p = `${k.parent ?? MAIN}|${k.anchor ?? ''}`
+    places.set(p, [...(places.get(p) ?? []), k])
+  }
+  for (const same of places.values()) {
+    let first = -Infinity
+    let prev = -Infinity
+    for (const k of [...same].sort((a, b) => a.sub!.at - b.sub!.at)) {
+      if (k.sub!.at - prev > SUB_BATCH) first = k.sub!.at
+      prev = k.sub!.at
+      start.set(k, first)
+    }
+  }
+  const keyOf = (k: Group) => (k.sub ? (k.sub.run ?? `${k.parent ?? MAIN}|${k.anchor ?? ''}|${start.get(k) ?? k.sub.batch}`) : undefined)
+  const buckets = new Map<string, Group[]>()
+  for (const k of list) {
+    const b = keyOf(k)
+    if (b !== undefined) buckets.set(b, [...(buckets.get(b) ?? []), k])
+  }
+  const out = new Map<Group, { key: string; mates: Group[]; card: boolean }>()
+  for (const k of list) {
+    const key = keyOf(k)
+    if (key === undefined) continue
+    const mates = buckets.get(key) ?? []
+    out.set(k, { key, mates, card: mates.length > SUB_GROUP || (k.sub?.run !== undefined && mates.length > 1) })
+  }
+  return out
+}
+// The subagents held by their group card: of a card (subCards) some mate of which still works (alive,
+// with a subagent it launched alive, or with a task of its own open). The card drawn loose at the end
+// goes whole, its ended agents in it, while one of them works, with its title, count and fold key
+// unchanged; they leave with the new work after the last one ends (trimToWork's stays, hooks/panel's
+// settledSubs; the person, 2026-11-15: "Solto no fim, como a filha (Recomendado)").
+export function heldByCard(groups: Group[]): Set<string> {
+  const subs = groups.filter(g => g.agent !== MAIN && g.sub !== undefined)
+  const liveDeep = (k: Group, seen: string[] = []): boolean =>
+    subLive(k.sub) || (!seen.includes(k.agent) && subs.some(j => j.parent === k.agent && liveDeep(j, [...seen, k.agent])))
+  const held = new Set<string>()
+  for (const [k, { mates, card }] of subCards(subs)) if (card && mates.some(m => liveDeep(m) || hasOpen(m.tasks))) held.add(k.agent)
+  return held
+}
 // Where a session works, as its card and the header draw it: a repository with its branch (the
 // branch a detached head's short hash), or a folder with no repository (`folder`, `repo` its path).
 export type GitLabel = { repo: string; branch?: string; detached?: boolean; folder?: boolean }
@@ -2249,7 +2305,8 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // replanned away; and, under a task of a request out of sight, the card still at work (someone in
       // it working, or a task of its own open), whole and named after that request, as a session's card
       // at work (the person, 2026-11-15: "Solto no fim, como a filha (Recomendado)"). Done, it stays
-      // with its request.
+      // with its request. A group card goes with its ended agents too: trimToWork and settledSubs
+      // keep them while a mate works (heldByCard).
       const inSight = flat(drawn).map(t => t.id)
       const away = (k: Group) => k.anchor !== undefined && ids.includes(k.anchor) && !inSight.includes(k.anchor)
       const lost = kids.filter(k => k.anchor === undefined || !ids.includes(k.anchor) || away(k))
@@ -2267,39 +2324,17 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       const working = (k: Group) => liveDeep(k) || hasOpen(k.tasks)
       const named = (rows: Row[], title: string | undefined) =>
         title === undefined ? rows : rows.map((r, i) => (i === 0 ? { ...r, title: `${r.title} · do pedido "${title}"` } : r))
-      // Outside a workflow, the batch is read from the launches' times, not from `batch`: a panel or a
-      // session's published file from an earlier version kept one batch per launch for launches that ran
-      // together (subagentes.lancados-juntos-se-veem). A batch is named by its first launch's time, the
-      // `batch` hooks/agents writes, so a group's fold key stays.
-      const start = new Map<Group, number>()
-      const places = new Map<string, Group[]>()
-      for (const k of list) {
-        if (!k.sub || k.sub.run !== undefined) continue
-        const p = `${k.parent ?? MAIN}|${k.anchor ?? ''}`
-        places.set(p, [...(places.get(p) ?? []), k])
-      }
-      for (const same of places.values()) {
-        let first = -Infinity
-        let prev = -Infinity
-        for (const k of [...same].sort((a, b) => a.sub!.at - b.sub!.at)) {
-          if (k.sub!.at - prev > SUB_BATCH) first = k.sub!.at
-          prev = k.sub!.at
-          start.set(k, first)
-        }
-      }
-      const bucketOf = (k: Group) => (k.sub ? (k.sub.run ?? `${k.parent ?? MAIN}|${k.anchor ?? ''}|${start.get(k) ?? k.sub.batch}`) : undefined)
-      const buckets = new Map<string, Group[]>()
-      for (const k of list) {
-        const b = bucketOf(k)
-        if (b !== undefined) buckets.set(b, [...(buckets.get(b) ?? []), k])
-      }
+      // The buckets and the group cards: subCards, the same count trimToWork and hooks/panel's
+      // settledSubs keep a card's ended agents by.
+      const cards = subCards(list)
       const done = new Set<string>()
       const out: Row[] = []
       for (const k of list) {
-        const b = bucketOf(k)
-        const mates = b === undefined ? [] : (buckets.get(b) ?? [])
+        const c = cards.get(k)
+        const b = c?.key
+        const mates = c?.mates ?? []
         const title = loose?.(k)
-        if (b === undefined || !(mates.length > SUB_GROUP || (k.sub?.run !== undefined && mates.length > 1))) {
+        if (b === undefined || !c?.card) {
           if (title === undefined || working(k)) out.push(...named(draw(k, d), title))
           continue
         }

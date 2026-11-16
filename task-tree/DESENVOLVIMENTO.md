@@ -441,7 +441,8 @@ gravação: `saveStore` poda as sobras (`pruneStore`, os registros das sessões 
 novo, e a falha que resta fica em `storeFailure` para o diagnóstico do `/task-tree`. O painel fora do
 store (só as 30 sessões mais recentes ficam lá) volta do arquivo que a própria sessão publicou
 (`fromOwnFile`), que dura enquanto a sessão existe no app. O subagente terminado sem tarefas sai do
-estado quando o pedido dele sai do trabalho (`settledSubs`).
+estado quando o pedido dele sai do trabalho (`settledSubs`), salvo o de um cartão de grupo com um
+colega ainda trabalhando, que fica até o último terminar (`heldByCard`).
 
 A recarga e o `session.start`: medido em outubro de 2026, a recarga a quente não rodava
 `session.start`; o contrato do kit 2.1.321 diz que ele roda numa ativação, num respawn do worker ou
@@ -799,7 +800,9 @@ mantida), em `draw/layout.ts`:
   cartão vivo de um pedido fora de vista vai solto ao fim, com o pedido de origem no título (`loosen`;
   sessoes.cartao-vivo-nunca-some), e o do subagente ou do workflow que ainda trabalha também
   (subagentes.vivo-sob-pedido-do-historico-fica-solto-no-fim; usuário, 2026-11-15), sem segurar o
-  pedido (só a sessão trabalhando segura, `going`); o da tarefa que saiu do plano vai ao nível 1 que a continha
+  pedido (só a sessão trabalhando segura, `going`); o cartão de grupo vai inteiro, dentro ou fora do
+  trabalho, porque `stays` e `settledSubs` seguram os agentes terminados do cartão enquanto um colega
+  trabalha (`heldByCard`, sobre a mesma conta de cartão de `drawKids`, `subCards`); o da tarefa que saiu do plano vai ao nível 1 que a continha
   (`moveToLevelOne`, no plan; pedidos.replano-leva-o-cartao-ao-nivel-1); o do turno digitado na filha
   vai à tarefa que a mãe tinha em andamento quando ele digitou, senão à tarefa da própria filha no
   pedido vigente, senão ao fim do pedido vigente
@@ -1023,7 +1026,8 @@ a 5 viraram "✕ interrompida" ("4 interrompidas"), com o cabeçalho em "Passo 2
   está depois do corte; a cauda depois do último pedido fica inteira, com o espaço reservado). Do pedido que
   sai inteiro ficam à vista as linhas em andamento (`atWorkRow`: tarefa ◉, sessão ou subagente
   trabalhando, carta na fila, espera) com os pais, logo depois de "+N linhas anteriores" e fora da
-  contagem, em no máximo metade do espaço, as mais recentes primeiro; as ◷ e as pendentes saem com ele
+  contagem, em no máximo metade do espaço (metade do espaço pedido ao corte, `room >> 1`, não do que
+  acaba desenhado; elas contam no espaço dos pedidos seguintes), as mais recentes primeiro; as ◷ e as pendentes saem com ele
   (cabecalho.corte-mantem-o-que-esta-em-andamento; usuário, 2026-11-15: "Manter à vista o em andamento
   (Recomendado)"). Cada tentativa mira 95% do limite que passou,
   pela média por linha (bytes, texto, elementos ou caracteres do app; vale a menor); a altura não tem

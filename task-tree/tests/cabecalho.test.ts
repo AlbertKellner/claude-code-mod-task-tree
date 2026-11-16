@@ -768,6 +768,29 @@ test('no app, muitas linhas em andamento nos pedidos que não cabem não tiram o
   expect(d.textos.some(l => l.includes('A0.0.0')), conta).toBe(false)
 })
 
+// Regra: cabecalho.corte-mantem-o-que-esta-em-andamento
+test('no corte das 400 linhas, as linhas em andamento guardadas dos pedidos que saem ocupam no máximo metade do espaço, as mais recentes', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  const planoR7 = comIds('A', grande('A', 2, 6, 30))
+  const folhasR7 = planoR7.flatMap(a => (a.children ?? []).flatMap(b => (b.children ?? []).map(c => c.id)))
+  await ateOCorte($, relogio, planoR7, async () => {}, async () => {
+    await start($, folhasR7)
+  })
+  const p = await painel($)
+  const corpo = p.filter(l => !l.cabecalho)
+  const conta = `${corpo.length} linhas\n${emTexto(p).slice(0, 800)}`
+  expect(corpo[0]?.texto.trim(), conta).toMatch(/^\+\d+ linhas anteriores$/)
+  expect(corpo.length, conta).toBeLessThanOrEqual(400)
+  // Metade do espaço do corte: (400 - 1) >> 1 linhas, com o pedido e os pais; o teto é usado inteiro.
+  const doA = corpo.filter(l => l.titulo === 'Pedido A' || /^A\d/.test(l.titulo)).length
+  expect(doA, conta).toBeLessThanOrEqual(199)
+  expect(doA, conta).toBeGreaterThanOrEqual(190)
+  expect(corpo.some(l => l.titulo === 'A1.5.29'), conta).toBe(true)
+  expect(corpo.some(l => l.titulo === 'A0.0.0'), conta).toBe(false)
+  for (const t of ['Pedido B', 'E0.0.0', 'E0.3.3']) expect(corpo.some(l => l.titulo === t), `${t}\n${conta}`).toBe(true)
+})
+
 // Um plano com o título da tarefa de nível 1 enorme: ele vai no cabeçalho (no texto e no `alt` da barra),
 // que o corte não tira.
 async function planoGigante($: any, tamanho: number) {

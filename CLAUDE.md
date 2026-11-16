@@ -278,7 +278,8 @@ Depois do commit local, o usuário valida no app, quando a mudança toca o que o
   inteiro num cartão só; depois de uma pergunta respondida no meio de um plano longo, o cartão do workflow
   lançado em seguida aparece sob a tarefa do plano, à vista, e não em '+N pedidos anteriores'; com o pedido do workflow já em '+N pedidos anteriores', o cartão aparece solto no
   fim, com '· do pedido "…"' sem cortar a palavra de estado, enquanto algum agente trabalha, e sai dali
-  quando o último termina) e o turno
+  quando o último termina; com o pedido fora do trabalho, o cartão solto segue 'Workflow · N agentes'
+  com os agentes já terminados dentro, e o aberto/recolhido dele não muda quando um agente termina) e o turno
   que morre por erro real (✕ "falhou" no painel e no cartão);
 - a nota da versão no merge do PR (workflow "Release").
 
