@@ -13,6 +13,7 @@ Lançado um subagente, o cartão dele aparece, mesmo sem ele usar o painel.
 
 Origem: decisão do usuário, 2026-11-09 ("Quero uma nova funcionalidade, parecida com o card de sessão filha, mas par sub agentes. Quero que seja criado um card que mostre a execução de um sub agente na raiz, ou dentro de uma sessão filha."; "Cartão + grupo (Recomendado)").
 Reescrito: 2026-11-09, decisão do usuário ("Vai à pendente (Recomendado)"): a tarefa do cartão segue a regra da carta; com várias em andamento, a primeira do lote ainda sem carta nem cartão, na ordem dos starts; sem nada em andamento, a pendente do pedido atual; um lançamento conta como uso da tarefa para a carta seguinte.
+Reescrito: 2026-11-16, texto: sem nada em andamento, com o pedido mais novo todo fechado e um plano anterior retomado, o cartão vai ao plano retomado (envios.sem-andamento-vai-ao-plano-retomado; decisão do usuário de 2026-11-15, "Pendente do plano retomado (Recomendado)"). Os testes deste cenário não mudam.
 Estado: coberto
 
 ### subagentes.cartao-mostra-modelo-e-estado

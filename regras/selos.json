@@ -2672,6 +2672,16 @@
       "data": "2026-11-09",
       "motivo": "carta pelo nome da sessão"
     },
+    "task-tree/tests/envios.test.ts::sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, a carta vai à pendente do plano": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "4f5c5a344d49c636",
+      "assercoes": 2,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "a carta enviada sem nada em andamento vai ao plano retomado (defeito relatado pelo usuário em 2026-11-15)"
+    },
     "task-tree/tests/envios.test.ts::sem nada em andamento, o envio vai à pendente do plan mais recente do pedido, não à do primeiro": {
       "regras": [
         "envios.sem-andamento-vai-a-pendente-planejada-por-ultimo"
@@ -5859,6 +5869,16 @@
       "data": "2026-11-15",
       "motivo": "decisão 2026-11-15: workflow junto"
     },
+    "task-tree/tests/subagentes.test.ts::com o plano anterior todo fechado, o subagente segue sob a tarefa da pergunta": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "b77a17debaab66d1",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão lançado sem nada em andamento vai ao plano retomado (defeito relatado pelo usuário em 2026-11-15)"
+    },
     "task-tree/tests/subagentes.test.ts::com o subagente retomado rodando, a tarefa de origem aberta não fecha no fim do turno; a já fechada não reabre": {
       "regras": [
         "subagentes.retomado-volta-a-trabalhando",
@@ -6585,6 +6605,28 @@
       "data": "2026-11-11",
       "motivo": "auditoria 2026-11-10, achado alto 6"
     },
+    "task-tree/tests/subagentes.test.ts::sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, o subagente vai à pendente do plano, não à tarefa concluída da pergunta": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado",
+        "subagentes.cartao-desde-o-lancamento"
+      ],
+      "hash": "d44cb281ec0b5af9",
+      "assercoes": 5,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão lançado sem nada em andamento vai ao plano retomado (defeito relatado pelo usuário em 2026-11-15)"
+    },
+    "task-tree/tests/subagentes.test.ts::sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, o workflow fica num cartão só sob a pendente do plano": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado",
+        "subagentes.workflow-fica-junto-na-tarefa-do-primeiro"
+      ],
+      "hash": "a2e1d77b964e96d6",
+      "assercoes": 7,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão lançado sem nada em andamento vai ao plano retomado (defeito relatado pelo usuário em 2026-11-15)"
+    },
     "task-tree/tests/subagentes.test.ts::sem nada em andamento, o cartão vai à pendente do pedido atual": {
       "regras": [
         "subagentes.cartao-desde-o-lancamento"
@@ -6594,6 +6636,16 @@
       "tipo": "novo",
       "data": "2026-11-09",
       "motivo": "traço de seção e âncoras (decisões de 2026-11-09)"
+    },
+    "task-tree/tests/subagentes.test.ts::sem start no plano anterior depois da pergunta respondida, o subagente segue sob a tarefa da pergunta": {
+      "regras": [
+        "envios.sem-andamento-vai-ao-plano-retomado"
+      ],
+      "hash": "9b6a7349b4ee72eb",
+      "assercoes": 4,
+      "tipo": "novo",
+      "data": "2026-11-16",
+      "motivo": "o cartão lançado sem nada em andamento vai ao plano retomado (defeito relatado pelo usuário em 2026-11-15)"
     },
     "task-tree/tests/subagentes.test.ts::sem usar o painel, o cartão mostra a ferramenta em uso e quantas chamadas fez": {
       "regras": [

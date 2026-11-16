@@ -1884,3 +1884,27 @@ test('a sessão cujo turno termina enquanto o lembrete de outra é montado ainda
   expect(segundo, 'o aviso seguinte').toContain('terminou o turno')
   expect(segundo, 'o aviso seguinte').toContain('filha-dois')
 })
+
+const LONGO_ENVIO_U2: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }, { id: 'r2', title: 'Segundo passo' }, { id: 'r3', title: 'Terceiro passo' }] }]
+const MEIO_ENVIO_U2: No[] = [{ id: 'Q', title: 'Estimar o tempo' }]
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, a carta vai à pendente do plano', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [{ id: 'local_x' }])
+  responderEnvio(on)
+  await pedido($, 'Pedido um')
+  await plan($, LONGO_ENVIO_U2)
+  await start($, ['r1'])
+  await fimDoTurno($)
+  await pedido($, 'Quanto falta?')
+  await plan($, MEIO_ENVIO_U2)
+  await start($, ['Q'])
+  await done($, ['Q'], 'Falta pouco')
+  await start($, ['r1'])
+  await done($, ['r1'])
+  await envio($, 'local_x')
+  const p = await painel($)
+  esperarCartaSob(p, 'Segundo passo', 'fila')
+  expect(cartaSob(p, 'Estimar o tempo'), emTexto(p)).toBeUndefined()
+})

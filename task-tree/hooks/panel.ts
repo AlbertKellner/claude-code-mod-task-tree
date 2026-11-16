@@ -9,7 +9,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Child, GitInfo, Group, LegacyNode, Send, TaskNode, Turn, Wait } from '../types'
 import { GROUPS_VERSION, current as keepCurrent, linkOf, loadStore, loaded, readGroups, restoredAt, saveGroups, saveStore } from '../state/durability'
 import type { Link } from '../state/durability'
-import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, subLive } from '../draw/layout'
+import { MAIN, flat, withMain, interrupt, activeLeaves, current, openInSight, startedLast, lastStarted, subLive } from '../draw/layout'
 import type { Idle } from '../types'
 import { debug, debugOnce } from '../io/log'
 import { readGit } from '../io/git'
@@ -333,7 +333,9 @@ export async function openTurn($: any, text: string, own = false, from?: { id: s
 // and the card went to that newest step, which then closed on the delivery). With nothing in progress
 // (the person's decision: "envio feito sem tarefa em andamento ancora na última iniciada do pedido
 // atual, mesmo concluída; sem nenhuma iniciada, no fim do pedido"): the task started last in the
-// current request (the last turn with tasks), else that request's last level-1 task. It was the first
+// current request (the last turn with tasks; unless it is all closed and the task started last is in
+// an earlier request with something open: then that one, the person, 2026-11-15: "Pendente do plano
+// retomado (Recomendado)"), else that request's last level-1 task. It was the first
 // open task, the next pending step: its card went under "Passo 2" and "Passo 3" closed on delivery.
 // With several tasks in progress, a message goes to the latest batch of starts (the tasks started
 // within BATCH ms of the newest of them that has no message yet: one answer's starts), to the first
@@ -417,7 +419,8 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   // Nothing open and started is nothing in progress (current() would light the first open task, of
   // any request). Then, in this order (the person's decisions): with the request open now and no
   // level-1 task of it yet and nothing in progress, none (above); else the current request is the largest `turn` among the
-  // level-1 tasks; among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
+  // level-1 tasks (unless it is all closed and the task started last is in an earlier request with
+  // something open: then that one, the plan the model went back to; the person, 2026-11-15); among its pending tasks with no subtasks (○, ✉ until the delivery), the one whose
   // title matches the receiving session's name (or holds the free phrase whole), if only one does (byName); else the batch planned
   // last (the pending tasks with the `plannedAt` of the newest), its first in plan order with no use
   // yet (`used`: a letter, a session's round, a session opened, a subagent launched), all of them used,
@@ -455,7 +458,17 @@ export function sendPlace(list: TaskNode[], used: Used[] = [], asking: string[] 
   if (fresh && anchor === undefined) return keep(undefined)
   const askTurn = fresh && anchor !== undefined ? list.find(t => flat([t]).some(x => x.id === anchor))?.turn : undefined
   const turns = list.flatMap(t => (t.turn === undefined ? [] : [t.turn]))
-  const last = askTurn ?? (turns.length > 0 ? Math.max(...turns) : undefined)
+  const newestTurn = turns.length > 0 ? Math.max(...turns) : undefined
+  // The newest request all closed (a question answered in the middle of a plan) and the task started
+  // last, a start again included (lastStarted), in an earlier request with something still open: the
+  // model went back to that plan, which is the current request (the person, 2026-11-15: "Pendente do
+  // plano retomado (Recomendado)"; the workflow's card had gone under the question's closed task, kept
+  // in "+N pedidos anteriores").
+  const openIn = (turn: number) => list.some(t => t.turn === turn && t.status === 'open')
+  const back = anchor === undefined && askTurn === undefined && newestTurn !== undefined && !openIn(newestTurn) ? lastStarted(list)?.task : undefined
+  const backTurn = back === undefined ? undefined : list.find(t => flat([t]).some(x => x.id === back.id))?.turn
+  const resumed = backTurn !== undefined && backTurn !== newestTurn && openIn(backTurn) ? backTurn : undefined
+  const last = askTurn ?? resumed ?? newestTurn
   const mine = list.filter(t => last === undefined || t.turn === last)
   const pending = flat(mine).filter(t => t.status === 'open' && t.children.length === 0 && t.started === undefined && !asking.includes(t.id))
   // Another task of that earlier plan than the asking one: only a place (above).

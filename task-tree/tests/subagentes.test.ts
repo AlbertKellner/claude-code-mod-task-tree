@@ -2169,3 +2169,93 @@ test('o subagente com tarefa própria aberta sob um pedido que saiu do trabalho 
   expect(abaixo(p, titulo).map(l => l.titulo), emTexto(p)).toContain('Tarefa do sub')
   expect(cabecalho(p).total, emTexto(p)).toBe(2)
 })
+
+const PLANO_LONGO_U2: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }, { id: 'r2', title: 'Segundo passo' }, { id: 'r3', title: 'Terceiro passo' }] }]
+const SO_PASSO_U2: No[] = [{ id: 'R', title: 'Plano longo', children: [{ id: 'r1', title: 'Primeiro passo' }] }]
+const NO_MEIO_U2: No[] = [{ id: 'Q', title: 'Estimar o tempo' }]
+// Um plano aberto com "Primeiro passo" em andamento; o turno acaba; a pergunta do meio ("Quanto falta?")
+// ganha um plano próprio, com uma tarefa só, iniciada e concluída. Com o relógio, 1 s entre os passos.
+const perguntaNoMeioU2 = async ($: any, relogio?: any, plano: No[] = PLANO_LONGO_U2) => {
+  const anda = async () => {
+    if (relogio) await relogio.advance(1000)
+  }
+  await pedido($, 'Pedido um')
+  await anda()
+  await plan($, plano)
+  await anda()
+  await start($, ['r1'])
+  await anda()
+  await fimDoTurno($)
+  await anda()
+  await pedido($, 'Quanto falta?')
+  await anda()
+  await plan($, NO_MEIO_U2)
+  await anda()
+  await start($, ['Q'])
+  await anda()
+  await done($, ['Q'], 'Falta pouco')
+}
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado, subagentes.cartao-desde-o-lancamento
+test('sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, o subagente vai à pendente do plano, não à tarefa concluída da pergunta', async ($: any, on: any) => {
+  const { relogio } = fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaNoMeioU2($, relogio)
+  await relogio.advance(1000)
+  await start($, ['r1'])
+  await relogio.advance(1000)
+  await done($, ['r1'])
+  await fimDoTurno($)
+  await relogio.advance(1000)
+  await aviso($)
+  await relogio.advance(1000)
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  const cartao = abaixo(p, 'Segundo passo').find(l => l.titulo === 'Explore: conferir o diff')
+  expect(cartao, emTexto(p)).toBeDefined()
+  expect(cartao.texto).toContain('trabalhando')
+  expect(abaixo(p, 'Estimar o tempo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado, subagentes.workflow-fica-junto-na-tarefa-do-primeiro
+test('sem nada em andamento, com a pergunta do meio respondida e o plano anterior retomado, o workflow fica num cartão só sob a pendente do plano', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['w1', 'w2', 'w3'])
+  await perguntaNoMeioU2($)
+  await start($, ['r1'])
+  await done($, ['r1'])
+  for (const d of ['ler o diff', 'ler os testes', 'ler o kit']) await lancar($, { descricao: d, run: 'wf_u2' })
+  const p = await painel($)
+  expect(abaixo(p, 'Segundo passo').map(l => l.titulo), emTexto(p)).toContain('Workflow · 3 agentes')
+  expect(p.filter(l => l.titulo.startsWith('Workflow ·')).length, emTexto(p)).toBe(1)
+  expect(abaixo(p, 'Estimar o tempo'), emTexto(p)).toEqual([])
+  expect(abaixo(p, 'Terceiro passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('sem start no plano anterior depois da pergunta respondida, o subagente segue sob a tarefa da pergunta', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaNoMeioU2($)
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Segundo passo'), emTexto(p)).toEqual([])
+})
+
+// Regra: envios.sem-andamento-vai-ao-plano-retomado
+test('com o plano anterior todo fechado, o subagente segue sob a tarefa da pergunta', async ($: any, on: any) => {
+  fixar(on)
+  host(on, [])
+  lancaveis(on, ['sub-1'])
+  await perguntaNoMeioU2($, undefined, SO_PASSO_U2)
+  await start($, ['r1'])
+  await done($, ['r1'])
+  await lancar($, { descricao: 'conferir o diff' })
+  const p = await painel($)
+  expect(abaixo(p, 'Estimar o tempo').map(l => l.titulo), emTexto(p)).toContain('Explore: conferir o diff')
+  expect(abaixo(p, 'Primeiro passo'), emTexto(p)).toEqual([])
+})

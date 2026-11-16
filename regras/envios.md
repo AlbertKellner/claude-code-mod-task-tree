@@ -105,6 +105,20 @@ Reescrito: 2026-11-04, validado pelo usuário no app ("Funcionou").
 Reescrito: 2026-11-09, decisão do usuário ("em paralelo, a sessõ de pesquisa na WEB abriu na tarefa errada"; "Pelo nome"): com várias pendentes planejadas juntas, o envio vai à primeira delas ainda sem carta, na ordem do plano (antes, à última), depois de tentar o nome da sessão (envios.carta-pelo-nome-da-sessao).
 Reescrito: 2026-11-14, decisão do usuário ("Sim, o plan adota (Recomendado)"): vale para o pedido que já tem plano.
 Reescrito: 2026-11-14, texto completado com a ordem que o código já segue (auditoria 2026-11-10: o corpo dizia só "a pendente planejada por último"); nenhuma regra muda e os testes existentes não mudam.
+Reescrito: 2026-11-16, texto: o pedido atual é o mais novo com tarefas, salvo quando ele está todo fechado e o modelo voltou a um plano anterior ainda aberto (envios.sem-andamento-vai-ao-plano-retomado; defeito relatado pelo usuário em 2026-11-15 e decisão do usuário de 2026-11-15, "Pendente do plano retomado (Recomendado)"). Os testes deste cenário não mudam.
+Estado: coberto
+
+### envios.sem-andamento-vai-ao-plano-retomado
+Sem nada em andamento, com o pedido mais novo todo fechado e um plano anterior retomado, a carta e o cartão vão ao plano retomado.
+
+- Dado um plano de um pedido anterior ainda com tarefa aberta; depois dele, um pedido com plano próprio já todo fechado (uma pergunta respondida no meio do trabalho); o start mais recente da sessão numa tarefa do plano anterior (o modelo voltou a ele, no mesmo turno ou acordado por um aviso; um start de novo conta); e nada em andamento agora
+- Quando sai uma mensagem, abre uma sessão ou é lançado um subagente ou um workflow
+- Então a carta e o cartão vão ao plano anterior, pela mesma ordem de envios.sem-andamento-vai-a-pendente-planejada-por-ultimo (a pendente cujo título casa; senão a primeira pendente do plan mais recente dele ainda sem carta, sessão ou subagente; sem pendente, a iniciada por último), e não à tarefa concluída do pedido mais novo; os agentes do mesmo workflow ficam juntos nessa tarefa (subagentes.workflow-fica-junto-na-tarefa-do-primeiro); a tarefa escolhida fecha como sempre, não é só lugar; sem start no plano anterior depois do pedido mais novo, ou com o plano anterior todo fechado, vale o pedido mais novo, como em envios.sem-andamento-vai-a-pendente-planejada-por-ultimo; com o pedido mais novo ainda sem plano, envios.antes-do-plan-fica-solta-e-o-plan-adota
+
+Fora deste cenário: o cartão já posto, antes desta regra, sob a tarefa do pedido mais novo segue lá.
+
+Origem: defeito relatado pelo usuário, 2026-11-15 ("vc não está mostrando os subagentes/workflows nas tarefas"): o cartão do workflow ficou sob a tarefa concluída de uma pergunta respondida no meio do trabalho, guardada em "+N pedidos anteriores"; decisão do usuário, 2026-11-15 ("Pendente do plano retomado (Recomendado)"); aplica "envio feito sem tarefa em andamento ancora na última iniciada do pedido atual" (2026-10-23), "Vai à pendente (Recomendado)" (2026-11-09) e "Pelo start mais recente (Recomendado)" (2026-11-15) ao plano que o modelo retomou.
+Código: hooks/panel.ts, hooks/agents.ts
 Estado: coberto
 
 ### envios.com-andamento-fica-sob-a-tarefa-em-andamento

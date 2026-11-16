@@ -264,7 +264,10 @@ recusa de `asked` (a leitura que decide) e `next(e)` (o erro da própria ferrame
    um passo planejado depois do início dela e ainda sem `start` (2026-11-14, "Sob a em andamento
    (Recomendado)"), e, com várias em andamento, o lote recente de starts sem envio (pela ordem, o nome
    da sessão antes); sem nada em andamento, num pedido ainda sem plano, nenhuma (solta
-   no fim até o plan adotar); senão, no pedido atual (o maior `turn` entre os níveis 1), a pendente cujo
+   no fim até o plan adotar); senão, no pedido atual (o maior `turn` entre os níveis 1; com esse pedido todo fechado e a tarefa
+   de start mais recente, `lastStarted`, num pedido anterior que ainda tem algo aberto, esse anterior:
+   o plano que o modelo retomou depois de uma pergunta respondida no meio, 2026-11-15, "Pendente do
+   plano retomado (Recomendado)"), a pendente cujo
    título casa com o nome da sessão, se só uma casa (o nome da sessão casa por trecho, pelo começo do
    título ou por uma palavra de 4 letras; o título da sessão aberta e a descrição e o tipo do subagente
    são frases livres e só casam inteiros, em palavras inteiras: `namedFor`, 2026-11-14, "Só no nome
