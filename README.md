@@ -1,8 +1,13 @@
 # claude-code-mod-task-tree
 
-Mod do Claude Code que mostra, num painel lateral, a árvore de tarefas planejadas da sessão (até 3 níveis), marcando as tarefas em andamento e colapsando as concluídas.
+Mod do Claude Code que mostra, num painel lateral, a árvore de tarefas da sessão (até 3 níveis), com as sessões filhas e os subagentes que trabalham em cada tarefa. As linhas só recolhem quando você clica no ícone delas.
 
 O plugin `task-tree` expõe três ferramentas ao modelo: `plan` (publica o plano), `start` (marca tarefas em andamento) e `done` (marca tarefas concluídas).
+
+## Uso
+
+- `/task-tree` abre o painel e diz o que o app respondeu: se o painel está na frente, numa aba atrás de outra ou não foi desenhado, e o tamanho do desenho. Serve para quando o painel não aparece.
+- No terminal o painel mostra a árvore, com cada sessão filha numa linha; os cartões das sessões filhas e dos subagentes, o modelo e o esforço, e os cliques (recolher uma linha pelo ícone, abrir a sessão pelo anel de contexto) dependem do app desktop.
 
 ## Instalação
 

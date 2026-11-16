@@ -23,14 +23,16 @@ Como o trabalho é conduzido (papéis, perguntas, lotes, paralelismo): @PROCESSO
   verdade no harness oficial (`claude plugin test`, kit `claude-code/testing`).
 - `task-tree/tests/kit/` concentra o roteiro (`plan`, `start`, `done`, `pedido`, `fimDoTurno`, `esc`…),
   o ambiente fixo (relógio parado) e a leitura do painel em comportamento (título e estado de cada
-  linha, pela superfície terminal) e o `test` que todo arquivo de teste importa (`kit/teste.ts`), que
+  linha, pela superfície terminal, e o desenho do app desktop: linhas, textos e textos alternativos;
+  a árvore do golden) e o `test` que todo arquivo de teste importa (`kit/teste.ts`), que
   dá o teto por teste. Os testes falam de títulos e estados, nunca de funções internas.
 - Limites do harness: 60 s por teste, teto só para o teste travado (o kit do Claude Code dá 5 s; o
   `test` de `task-tree/tests/kit/teste.ts` passa `timeoutMs`, e a etapa `selos` recusa o arquivo de
   teste que importa `test` direto de `claude-code/testing`; decisão do usuário, 2026-11-15:
   "Autorizo"); um processo por arquivo; sem fs, rede ou processo dentro do
-  teste; não verifica a pintura (cores, largura, cliques); não simula a recarga a quente (cada teste
-  é um módulo novo com o estado vazio). Stubs `on(...)` vão antes da primeira chamada a `$`.
+  teste; não verifica a pintura (cores, largura, cliques); não reproduz a recarga a quente real (cada
+  teste é um módulo novo com o estado vazio; os pares "1/2, 2/2" a emulam passando o state de um
+  teste ao seguinte; a recarga real fica no checklist). Stubs `on(...)` vão antes da primeira chamada a `$`.
 - O que o harness não alcança vai ao checklist do app (abaixo) e fica marcado `checklist` no catálogo.
 
 ## Como executar
