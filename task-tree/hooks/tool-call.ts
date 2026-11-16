@@ -155,7 +155,7 @@ const sentMessage: Notes = async ($, c, notes) => {
   // in the task in progress and the request with no task yet, another task of that plan, only as a
   // place (`place`, Send.onlyPlace): its delivery closes nothing.
   const { anchor, place } = sendPlace((groups0 as Group[]).find(g => g.agent === MAIN)?.tasks ?? [], usedAnchors(kids0 as Child[], sends0 as Send[], (groups0 as Group[]).filter(g => (g.parent ?? MAIN) === MAIN)), askingAnchors(waits0 as Wait[]), names, openTurnOf(groups0 as Group[])?.id)
-  // The session is used for the task in progress: the summary view draws it there.
+  // The session is used for the task in progress: the panel draws it there.
   {
     // Each message opens a round of the session, drawn in a card of its own under the task it was
     // sent from once the session takes it up (see split). A session not among the children yet gets
@@ -269,6 +269,8 @@ const wrapUpOpen: Notes = async ($, c, notes) => {
 const NOT_COUNTED = ['mcp__ccd_turn__wrap_up', 'mcp__ccd_turn__update_plan']
 async function reminder($: any, c: Call, r: any) {
   if (NOT_COUNTED.includes(String(c.e.tool))) return r
+  // A defense: today the panel's own tools answer in their own hooks (hooks/register.tsx, no next)
+  // and this hook does not see them (checked in the harness, 2026-11-15).
   if (String(c.e.tool).startsWith('mcp__task-tree__')) {
     reminders.unplanned = 0
     return r

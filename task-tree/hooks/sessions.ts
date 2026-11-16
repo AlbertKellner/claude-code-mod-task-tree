@@ -33,7 +33,7 @@ const workState = { plugin: 'task-tree', key: 'work' } as const
 // The sessions this one opened, read in the four steps of io/host.ts: the host's list, their
 // published files, the children derived from both, and this session's own publication. The state
 // calls stay here (the kit wants the state keys literal in the hooks module).
-// When the list was last read (clock ms), by the 10 s poll or otherwise.
+// When the list was last read (clock ms), by the 3 s poll or otherwise.
 export let refreshedAt: number | undefined
 // One read at a time (the 3 s clock, the app's notice, a start_session, a message, refreshStale): a
 // read asked while one runs only marks `readAgain` and waits for the one in progress, which then
@@ -307,7 +307,7 @@ export async function watchSends($: any, rows: any[]) {
     }
   }
   // A session archived with the message still queued will not take it up: the letter is not delivered
-  // (gray, "não entregue") and its task stops waiting on it (the clock, the Esc, what holds the view;
+  // (gray, "não entregue") and its task stops waiting on it (the clock, the Esc, what holds the current work;
   // the person, 2026-11-12: "Cinza \"não entregue\" (Recomendado)"). Only by what the list says: a
   // session the list leaves out (a partial list, a list that failed) is not judged; one with the name of
   // an archived one and not archived itself still waits. Listed again unarchived, it waits again, and

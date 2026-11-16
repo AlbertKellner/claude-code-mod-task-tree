@@ -1,5 +1,5 @@
 // The panel's lines (Row[]) from its model: the pure half of the drawing. layout() turns the
-// state read once (groups, waits, the sessions this one opened, the sends still queued, the view
+// state read once (groups, waits, the sessions this one opened, the sends still queued
 // and the current work), the lines the person folded and the clock into the rows the desktop and
 // the terminal then draw; nothing here reads the state or the host. With it the model's helpers
 // (counts, times, sessions' cards split by message, the current work's cut) that the hooks module
@@ -191,11 +191,6 @@ export function idleIn(idle: Idle[], from: number, to: number): number {
 }
 // The idle spans of a panel: its main group's.
 export const idleOf = (groups: Group[] | undefined): Idle[] => (groups ?? []).find(g => g.agent === MAIN)?.idle ?? []
-export const elapsed = (t: TaskNode, now?: number, idle: Idle[] = []) => {
-  if (t.startedAt === undefined || t.status === 'interrupted') return undefined
-  const to = t.endedAt ?? (t.status === 'open' ? now : undefined)
-  return to === undefined || to < t.startedAt ? undefined : Math.max(0, to - t.startedAt - idleIn(idle, t.startedAt, to) - (t.pause ?? 0))
-}
 
 // Leaves done, leaves counted, leaves interrupted (kept out of the count). A message task counts for
 // nothing (only the work does; the leaves of the session it sent to still count, in its card).
@@ -265,7 +260,7 @@ export const panelOf = (c: Child): Panel => {
 // A card whose session is done with it (the person, 2026-11-04: "Origem fechada (Recomendado)"):
 // stopped, not waiting on the person, not archived or opening, only pending tasks left (nothing
 // started), no message of this session queued for it, and the task it hangs from closed here. Its
-// ○ stay drawn but leave the count, the chips and what holds the view; its ✓ still count. Worked out
+// ○ stay drawn but leave the count, the chips and what holds the current work; its ✓ still count. Worked out
 // at each drawing, nothing kept: it undoes itself when the session goes back to work.
 export function settle(c: Child, owner: TaskNode[], sends: { to?: string; taken?: boolean; cut?: boolean }[]): Child {
   const mine = flat(tasksOf(rawPanel(c).groups ?? []))
@@ -507,8 +502,8 @@ export function cleared(c: Child): Child[] {
 }
 // `now`: the drawing's clock (undefined where it cannot be read); `memo`: the drawing's cache of breaks.
 export function split(c0: Child, sisters: Child[], me: string | undefined, owner: TaskNode[], now: number | undefined, memo: BreaksMemo): Child[] {
-  // A card already cut to one round (the summary view's cut() splits the sessions before the pass
-  // that draws them) is kept as it is, with no breaks computed for it.
+  // A card already cut to one round (the cut to the current work, trimToWork, splits the sessions
+  // before the pass that draws them) is kept as it is, with no breaks computed for it.
   if (c0.part !== undefined || c0.history !== undefined) return [c0]
   const all = cleared(c0)
   const firsts = c0.places === undefined ? [] : typedCards(c0, owner).flatMap(x => (typeof x.u.at === 'number' ? [x.u.at] : []))
@@ -930,8 +925,8 @@ export function atWork(t: TaskNode, sessions: Child[], level: number): Work {
   // At work, a session is where its current round is: its last message's task (lastAnchor), not
   // where it was opened nor where an earlier round was. A card cut to one round counts only if it is
   // the session's leading one (the one that keeps lastAnchor); an earlier round's card never does.
-  // Else every task it ever worked under came back as in progress while it ran (the summary view
-  // pulled old requests in, and the header took the first one's title).
+  // Else every task it ever worked under came back as in progress while it ran (the panel's current
+  // work pulled old requests in, and the header took the first one's title).
   const here = sessions.filter(c => {
     const a = roundAt(c)
     return a !== undefined && ids.includes(a)
@@ -1288,7 +1283,7 @@ function aroundWork(block: Row[], at: number, room: number, kept: (j: number) =>
   }
 }
 
-// A session's panel cut to its current work, for the summary view: its main level-1 tasks of the
+// trimToWork (below): a session's panel cut to its current work, the one the panel draws: its main level-1 tasks of the
 // work (all those of the turns they are in), the subagents and sessions under them or still at
 // work, and the same cut on those sessions. With no work published (earlier versions), the last
 // turn that has tasks; with no turns either, the last open level-1 task, else the last one.
@@ -1535,8 +1530,8 @@ export type Row = {
   sid?: string
   // The tasks the line stands for in the header's count and time: a leaf's own; a folded line's
   // whole subtree (its sessions' tasks too); none for an open parent (its lines below stand for
-  // theirs) or a line that is not a task. The header sums the drawn lines' nodes, so each view's
-  // header says what that view shows (the person's words: "cada visao deve refletir os dados do
+  // theirs) or a line that is not a task. The header sums the drawn lines' nodes, so the
+  // header says what the panel shows (the person's words, from when there were two views: "cada visao deve refletir os dados do
   // seu tipo de vizualizacao").
   nodes?: TaskNode[]
   // A session's card: its model and effort ("Opus 5.5 · high"), drawn left of the ring, and its
@@ -1829,7 +1824,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       // No session icon on a request: a card never hangs from it directly (see Work.direct).
     }
     // A request another session's message opened is the ✉ received: blue while its work is open,
-    // green once done, gray interrupted; who sent it and the message in its tooltip. Its tasks keep
+    // green once done, gray interrupted; who sent it and the message in the icon's alt text (rowAlt). Its tasks keep
     // their own icons (the person, 2026-10-30: "as tarefas derivadas dessa mensagem (pedido) deveriam
     // ter os icones de tarefas, não de cartas"; "Azul tratando, verde concluído, cinza interrompido").
     if (u.msg) {
@@ -1893,7 +1888,7 @@ export function layout(model: Model, choices: Choices, now: number | undefined, 
       tone,
       // The card's first line is the session alone (its name); its tasks start on the line below.
       // The session's title (often worded like a task) goes only to the alt, not the line.
-      // A card of a turn the person opened by typing in that session says so; the text in its tooltip.
+      // A card of a turn the person opened by typing in that session says so; the text in the icon's alt text (hint, rowAlt).
       title: `${c.name || c.title}${c.ownTurn !== undefined ? ' · pedido do usuário na filha' : ''}${c.loose ? ` · do pedido "${c.loose}"` : ''}`,
       label: 'Sessão',
       hint: c.ownTurn !== undefined ? ((c.ownCount ?? 1) > 1 ? `Pedidos do usuário na filha: ${c.ownCount}` : `Pedido do usuário na filha: ${c.ownTurn}`) : c.name && c.name !== c.title ? c.title : undefined,

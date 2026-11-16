@@ -171,7 +171,7 @@ export async function planTool($: EngineInterface, e: any, next: any) {
         await update($, sendsState, cur => (cur ?? []).filter(s => s.anchor === undefined || there.has(s.anchor) || !s.taken))
         // The work follows the tasks this plan renamed to their old copies (joinWork): a closed level-1
         // task of the current work stays in it, and in new work the old copy is checked with the rest
-        // of the work before for what still holds the view.
+        // of the work before for what still holds the current work.
         // Adopted first: a subagent that ended with no task before the plan is not one to drop (joinWork).
         await adoptOrphans($, groups)
         await joinWork($, ids, fresh0, id => (renamed.includes(id) ? `${tag}:${id}` : id))

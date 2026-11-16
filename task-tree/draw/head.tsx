@@ -15,7 +15,7 @@ import { CARD_BORDER, CARD_FILL } from './desktop'
 // What render.tsx computes for the header. `alt`: the whole header's words (render.tsx builds them,
 // "estado geral" and "sessão inteira" included), on the bar. `whole`: "sessão inteira: a de b", or ''
 // (it is in `alt` already, and render.tsx puts it on the "+N pedidos anteriores" line: the header
-// shows the view's count, as before). `cols`: the pane's body
+// shows the drawn lines' count, as before). `cols`: the pane's body
 // columns (bodyColumns).
 export type Head = {
   title: string

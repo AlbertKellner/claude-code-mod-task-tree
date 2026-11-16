@@ -53,7 +53,7 @@ const clip = (t: string) => cutText(t, SHORT_TEXT)
 const fitted = new Map<string, { lines: number; max: number }>()
 
 // The most text a desktop drawing may have, in characters: the app draws the first 100,000 of a
-// drawing and drops the rest (see render). A little under it, as the bytes' limit aims.
+// drawing and drops the rest (see render). A little under it, as the other limits aim.
 const TEXT_LIMIT = 95000
 // The characters of text a drawing draws: its strings, and its elements' alt and label (an Svg's alt
 // counts; its source does not).
@@ -275,7 +275,7 @@ export async function render($: EngineInterface, e: any, next: any) {
   // Every send of this session, queued and taken up (see watchSends): their letters.
   const { value: sends = [] } = await $.state.get(sendsState)
   // The whole session's count, for the bar's alt text and the "+N pedidos anteriores" line; the header itself counts what the
-  // view draws (see shown, below). The sessions are cut into their rounds' cards first, so a
+  // panel draws (see shown, below). The sessions are cut into their rounds' cards first, so a
   // discarded round is left out here too (the clock is not needed for the cut).
   // What the person stopped and was not started again is out of it too, as in the drawing, and so is
   // delegated work alive below a task: sessionTotal, the same count as the status's.
@@ -347,9 +347,8 @@ export async function render($: EngineInterface, e: any, next: any) {
     newest.find(t => atWork(t, sessions, 0).live) ??
     newest[0]
   const head = short ? clip(headTask?.title ?? 'Tarefas') : (headTask?.title ?? 'Tarefas')
-  // The header counts, times and chips what the view draws: the tasks the drawn lines stand
-  // for (Row.nodes), so the summary view's header is the summary's and the full view's, with its
-  // group limit, the drawn groups'. The whole session's count goes in the bar's alt text and the
+  // The header counts, times and chips what the panel draws: the tasks the drawn lines stand
+  // for (Row.nodes), with the cut lines left out. The whole session's count goes in the bar's alt text and the
   // "+N pedidos anteriores" line.
   const shown = lines.flatMap(r => r.nodes ?? [])
   const [d, n, x] = count(shown)
@@ -444,8 +443,9 @@ export async function render($: EngineInterface, e: any, next: any) {
         ]
   return drawTerminal($, ui, rows, header, errorLine)
   }
-  // The drawing's size, said by /task-tree; past DRAW_LIMIT the app stopped showing the pane (a
-  // long session's history, 1.3 MB). A drawing past it is made again with fewer lines, the oldest
+  // The drawing's size, said by /task-tree, kept under DRAW_LIMIT (bytes, the engine's message). The
+  // pane the app stopped showing (a long session's history, 1.3 MB) was its own limits' drop (see
+  // NODE_LIMIT), not the bytes; the bytes' limit stays as a further cap. A drawing past any limit is made again with fewer lines, the oldest
   // blocks out first and counted in "+N linhas anteriores", as the 400-line cut does (limitRows),
   // until it fits (the person, 2026-11-12: "Cortar os mais antigos (Recomendado)"): 400 lines of a
   // real session pass 600 KB with nothing opened, and the warning's button had nothing to close.

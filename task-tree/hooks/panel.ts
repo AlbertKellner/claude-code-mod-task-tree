@@ -1,5 +1,5 @@
 // The panel's state and how the hooks change it: the state's keys, the groups and their turns, the
-// waits, the view, the current work, the ties to the sessions (links), the publication of the panel
+// waits, the marks, the current work, the ties to the sessions (links), the publication of the panel
 // and the restores after a restart or a reload (../state/durability says where each lives). Every
 // hook file uses these; nothing here registers a hook.
 
@@ -972,9 +972,10 @@ async function publishOnce($: any) {
 // with the latest action instead.
 // The last drawing's size (serialized), and the most a drawing may be: past it the render draws fewer
 // lines and, as the last resort, only a warning line (hooks/render.tsx). A 1.3 MB one was not shown by
-// the app (the person's words: "resumir os 57 pedidos anteriores resolveu"). 20 MB was tried on
-// 2026-11-04 and froze the pane: the app did not apply a
-// drawing of ~950 KB and kept the last one it took (the person: "eu quero ver as tarefas em andamento,
+// the app (the person's words: "resumir os 57 pedidos anteriores resolveu"), and 20 MB, tried on
+// 2026-11-04, froze the pane: the app did not apply a drawing of ~950 KB and kept the last one it
+// took. Both were the app pane's own limits (nodes, characters, height: NODE_LIMIT in
+// hooks/render.tsx), read later, not the bytes; this one stays as a further cap (the person: "eu quero ver as tarefas em andamento,
 // e quando aparecer essa mensagem, quero que tenha um botao ali, pra voltar a visualizar as mensagens
 // em andamento"). Back to 600 KB: the small warning, with its button, reaches the app.
 export const DRAW_LIMIT = 600 * 1024
@@ -1030,17 +1031,14 @@ export async function dropAsked($: any, agent: string) {
   if ((value as Wait[]).some(asked)) await dropWaits($, w => !asked(w))
 }
 
-// A press on a line's ▾/▸: the line stays as the person left it (closed or open) until they
-// press it again. Written from onPress, since a render may not write.
 // The current work (what the panel draws): the main group's level-1 tasks of the person's
 // current request, with those of earlier requests still going on. A plan or start of the main loop
 // in a new request (another message of the person) starts new work: the new level-1 tasks, plus the
-// ones of the work before that still have something open (goingOn);
+// ones of the work before that still have something open (joinWork, by openInSight);
 // the requests all done leave it (the person's words: "segundo a regra antiga, na visão resumida,
 // ficam somente as tarefas novas do turno"). Within the request of the current work its level-1
 // tasks join it. With no requests recorded (panels from before turns), new work starts only with
-// no open leaf anywhere, as before. Kept in the state and in the store under the session, like the
-// view.
+// no open leaf anywhere, as before. Kept in the state and in the store under the session.
 export async function nothingOpen($: any): Promise<boolean> {
   await ensureGroups($)
   await ensureWork($)
